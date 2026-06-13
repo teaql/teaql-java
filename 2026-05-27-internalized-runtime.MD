@@ -14,7 +14,7 @@ Any capability required only for framework execution stays inside the internal r
 
 This document applies to the Java implementation in `teaql-spring-boot-starter`.
 
-The current public programming model already centers on `io.teaql.data.UserContext`. The next step is to make that boundary explicit and keep runtime concerns behind it.
+The current public programming model already centers on `io.teaql.core.UserContext`. The next step is to make that boundary explicit and keep runtime concerns behind it.
 
 ## Public API Boundary
 

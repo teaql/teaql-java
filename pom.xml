@@ -20,22 +20,22 @@
     </properties>
 
     <modules>
-        <module>teaql-utils</module>
-        <module>teaql</module>
-        <module>teaql-sql</module>
+        <module>teaql-core</module>
+        <module>teaql-runtime</module>
         <module>teaql-sql-portable</module>
-        <module>teaql-sqlite</module>
+        <module>teaql-data-service-sql</module>
+        <module>teaql-provider-jdbc</module>
+        <module>teaql-provider-spring-jdbc</module>
         <module>teaql-mysql</module>
         <module>teaql-oracle</module>
-        <module>teaql-hana</module>
         <module>teaql-db2</module>
         <module>teaql-mssql</module>
-        <module>teaql-snowflake</module>
-        <module>teaql-graphql</module>
-        <module>teaql-memory</module>
+        <module>teaql-hana</module>
         <module>teaql-duck</module>
-        <module>teaql-autoconfigure</module>
-        <module>teaql-starter</module>
+        <module>teaql-snowflake</module>
+        <module>teaql-postgres</module>
+        <module>teaql-sqlite</module>
+        <module>teaql-dm8</module>
     </modules>
 
     <dependencyManagement>
@@ -54,7 +54,37 @@
             </dependency>
             <dependency>
                 <groupId>io.teaql</groupId>
-                <artifactId>teaql</artifactId>
+                <artifactId>teaql-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-data-service</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-id-generation</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-data-service-sql</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-provider-jdbc</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-provider-spring-jdbc</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-provider-memory</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -151,6 +181,27 @@
                         <id>attach-sources</id>
                         <goals>
                             <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>de.thetaphi</groupId>
+                <artifactId>forbiddenapis</artifactId>
+                <version>3.6</version>
+                <configuration>
+                    <signaturesFiles>
+                        <signaturesFile>${maven.multiModuleProjectDirectory}/forbidden-signatures.txt</signaturesFile>
+                    </signaturesFiles>
+                    <!-- Ignore test files and utility classes -->
+                    <excludes>
+                        <exclude>**/utils/**</exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
                         </goals>
                     </execution>
                 </executions>

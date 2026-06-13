@@ -1,8 +1,12 @@
 module io.teaql.sql.portable {
-    requires io.teaql;
-    requires io.teaql.sql;
+    requires io.teaql.core;
     requires io.teaql.utils;
-    requires org.slf4j;
+    requires io.teaql.runtime;
+    requires java.sql;
+    requires com.fasterxml.jackson.databind;
 
-    exports io.teaql.data.sql.portable;
+    exports io.teaql.core.sql;
+    exports io.teaql.core.sql.dialect;
+    exports io.teaql.core.sql.expression;
+    exports io.teaql.core.sql.portable;
 }

@@ -1,10 +1,8 @@
 module io.teaql.sqlite {
-    requires io.teaql;
-    requires io.teaql.sql;
-    requires io.teaql.utils;
+    requires transitive io.teaql.core;
+    requires transitive io.teaql.sql.portable;
+    requires transitive io.teaql.utils;
+    requires transitive io.teaql.dataservice.sql;
     requires java.sql;
-    requires static spring.jdbc;
-    requires static spring.tx;
-
-    exports io.teaql.data.sqlite;
+    exports io.teaql.core.sqlite;
 }

@@ -15,3 +15,6 @@ Use CodeGraph especially for:
 5. identifying related tests.
 
 If CodeGraph tools are unavailable, fall back to normal file search.
+
+## Documentation References
+* For integrating new databases and `ensureSchema` logic, you MUST read and follow: [DIALECT_INTEGRATION_GUIDE.md](./DIALECT_INTEGRATION_GUIDE.md)

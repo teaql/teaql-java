@@ -1,8 +1,8 @@
 module io.teaql.mysql {
-    requires io.teaql;
-    requires io.teaql.sql;
-    requires io.teaql.utils;
+    requires transitive io.teaql.core;
+    requires transitive io.teaql.dataservice.sql;
+    requires transitive io.teaql.utils;
     requires java.sql;
-
-    exports io.teaql.data.mysql;
+    
+    exports io.teaql.core.mysql;
 }

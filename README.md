@@ -10,18 +10,22 @@ Boot starter artifact remains `teaql-spring-boot-starter` for compatibility.
 
 ## Modules
 
+### Core Modules (Active)
 | Module | Purpose |
 | --- | --- |
-| `teaql` | Core entities, requests, criteria, metadata, audit logging, policies, and runtime contracts. |
-| `teaql-utils` | Shared utility classes used by the runtime. |
+| `teaql-core` | Core entities, requests, criteria, metadata, audit logging, policies, and contracts. Completely independent of Spring/SQL. |
+| `teaql-runtime` | Default runtime implementation including `TeaQLRuntime` engine, user contexts, registry lookup, and an optimized concurrent in-memory database execution service with LRU eviction. |
+
+### Reference Modules (In `reference/` directory, for progressive transformation)
+| Module | Purpose |
+| --- | --- |
+| `teaql-utils` | Shared utility classes used by the runtime (now with optimized reflection cache). |
 | `teaql-sql` | SQL repository implementation based on `spring-jdbc`. |
 | `teaql-autoconfigure` | Spring Boot auto-configuration for TeaQL runtime beans. |
-| `teaql-starter` | Module directory for the compatibility starter artifact `teaql-spring-boot-starter`. |
-| `teaql-sql-portable` | Portable SQL repository through the `TeaQLDatabase` abstraction. It is currently designed mainly for Android, but does not depend on the Android SDK. |
-| `teaql-sqlite` | SQLite repository support and single-connection wrapping for SQLite JDBC URLs. |
-| `teaql-mysql`, `teaql-mssql`, `teaql-oracle`, `teaql-db2`, `teaql-hana`, `teaql-duck`, `teaql-snowflake` | Database-specific SQL repository modules. |
-| `teaql-memory` | In-memory repository support. |
-| `teaql-graphql` | GraphQL integration. |
+| `teaql-starter` | Compatibility starter artifact `teaql-spring-boot-starter`. |
+| `teaql-sql-portable` | Portable SQL repository through the `TeaQLDatabase` abstraction (e.g. for Android). |
+| `teaql-sqlite` | SQLite repository support. |
+| `teaql-mysql`, `teaql-mssql`, `teaql-oracle`, etc. | Database-specific SQL repository modules. |
 
 ## Requirements
 
