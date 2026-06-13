@@ -13,4 +13,7 @@ module io.teaql.core {
     exports io.teaql.core.parser;
     exports io.teaql.core.value;
     exports io.teaql.core.log;
+    exports io.teaql.core.spi;
+    
+    uses io.teaql.core.spi.ContextAssembler;
 }
