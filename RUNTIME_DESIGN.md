@@ -46,6 +46,30 @@ public interface ContextAssembler extends Comparable<ContextAssembler> {
    - **内部默认实现**：仅仅是一个原封不动的 Passthrough，即原封不动地返回 `EntityDescriptor` 中配置的 `dataService` 名称，从而拿到默认的数据源。
    - **开发者自定义扩展**：在复杂的业务场景（如 SaaS 多租户）下，开发者只需要提供一个 Lambda 表达式。在这个表达式里，开发者可以轻易地从传入的 `UserContext` 获取 `tenant_id`，并动态拼接出诸如 `"postgres_tenant_alibaba"` 的真实目标实例名称，交由 `DataServiceRegistry` 去精准提取对应的连接池。
 
+   > **💡 开发者扩展指南与代码示例**
+   > 为了兼顾框架的轻量化与开发者的掌控感，我们仅提供扩展入口，把复杂的规则判断留给开发者自己实现。这样不仅逻辑清晰，开发者在实现高级隔离特性时也会充满成就感：
+   > 
+   > **示例 1：SaaS 多租户按需路由**
+   > ```java
+   > TeaQLRuntime.setRoutingStrategy((ctx, baseService) -> {
+   >     String tenant = ctx.getStr("TENANT_ID");
+   >     return tenant != null ? baseService + "_" + tenant : baseService;
+   > });
+   > ```
+   > 
+   > **示例 2：读写分离（一主多从随机路由）**
+   > ```java
+   > TeaQLRuntime.setRoutingStrategy((ctx, baseService, operation) -> {
+   >     if (operation == DataServiceOperation.READ) {
+   >         // 从配置的三个从库中随机挑一个
+   >         int slaveId = new Random().nextInt(3) + 1; 
+   >         return baseService + "_slave_" + slaveId;
+   >     }
+   >     // 写操作永远走主库
+   >     return baseService + "_master";
+   > });
+   > ```
+
 这种设计使得同一套业务代码，甚至在同一次 HTTP 请求内，可以完美串接云端 PostgreSQL 写业务数据、边缘端 SQLite 存日志、缓存 Redis 做会话的跨存储联邦架构。通过对 Lambda 路由的覆写，架构获得了无限纵深扩展的可能。
 
 ### 3.3 跨平台自适应路由能力
