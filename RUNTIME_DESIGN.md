@@ -41,12 +41,12 @@ public interface ContextAssembler extends Comparable<ContextAssembler> {
 1. **实体自带路由标记**：每个 `EntityDescriptor` 都包含一个 `dataService` 属性（默认值为 `"sql"`）。这表示一个系统中，`UserEntity` 可以指向 `"postgres_db"`，而 `LogEntity` 可以指向 `"sqlite_local"`。
 2. **注册表（Registry）汇聚执行器**：`TeaQLRuntime` 和 `UserContext` 内部不直接写死任何 `DataServiceExecutor`，而是持有一个 `DataServiceRegistry`（数据服务注册表）。
 3. **SPI 模块只负责注册**：例如 `PostgresContextAssembler` 的职责不是霸占全局执行权，而是在冷启动时实例化自己的 `PostgresDataServiceExecutor`，并以特定名称（如 `"postgres_db"`）注册到 `DataServiceRegistry` 中。
-4. **引擎层精准派发**：当执行 `ctx.saveGraph(userEntity)` 或在启动时调用 `ensureSchema` 时，运行时大脑（Runtime）会：
-   - 提取对象的元数据：`dataService = userEntity.descriptor().getDataService()`
-   - 根据标识去 `DataServiceRegistry` 提取对应的专属 `DataServiceExecutor`。
-   - 将该对象的 SQL 生成与持久化任务，精准分发给具体的数据库方言执行。
+4. **可插拔的 Lambda 路由策略（Routing Strategy）**：
+   因为读写分离、多租户数据库隔离的场景千变万化，框架不再硬编码路由逻辑，而是将其全权委托给一个**函数式接口（Lambda 表达式）**来处理，例如 `DataServiceRoutingStrategy`。
+   - **内部默认实现**：仅仅是一个原封不动的 Passthrough，即原封不动地返回 `EntityDescriptor` 中配置的 `dataService` 名称，从而拿到默认的数据源。
+   - **开发者自定义扩展**：在复杂的业务场景（如 SaaS 多租户）下，开发者只需要提供一个 Lambda 表达式。在这个表达式里，开发者可以轻易地从传入的 `UserContext` 获取 `tenant_id`，并动态拼接出诸如 `"postgres_tenant_alibaba"` 的真实目标实例名称，交由 `DataServiceRegistry` 去精准提取对应的连接池。
 
-这种设计使得同一套业务代码，甚至在同一次 HTTP 请求内，可以完美串接云端 PostgreSQL 写业务数据、边缘端 SQLite 存日志、缓存 Redis 做会话的跨存储联邦架构。
+这种设计使得同一套业务代码，甚至在同一次 HTTP 请求内，可以完美串接云端 PostgreSQL 写业务数据、边缘端 SQLite 存日志、缓存 Redis 做会话的跨存储联邦架构。通过对 Lambda 路由的覆写，架构获得了无限纵深扩展的可能。
 
 ### 3.3 跨平台自适应路由能力
 通过这种 SPI 层层叠加组装（Layered Assembly）机制，框架获得了无限的环境适应力：
