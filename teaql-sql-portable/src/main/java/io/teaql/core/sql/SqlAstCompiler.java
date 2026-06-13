@@ -71,7 +71,7 @@ public class SqlAstCompiler {
                     sql = StrUtil.format("{} {}", sql, orderBySql);
                 }
 
-                String limitSql = prepareLimit(repository, request);
+                String limitSql = prepareLimit(repository, request, parameters);
                 if (!ObjectUtil.isEmpty(limitSql)) {
                     sql = StrUtil.format("{} {}", sql, limitSql);
                 }
@@ -257,6 +257,10 @@ public class SqlAstCompiler {
 
     protected String prepareLimit(SqlCompilerDelegate repository, SearchRequest<?> request) {
         return repository.prepareLimit(request);
+    }
+    
+    protected String prepareLimit(SqlCompilerDelegate repository, SearchRequest<?> request, Map<String, Object> parameters) {
+        return repository.prepareLimit(request, parameters);
     }
 
     private String prepareOrderBy(SqlCompilerDelegate repository, UserContext userContext, SearchRequest<?> request, String idTable, Map<String, Object> parameters) {

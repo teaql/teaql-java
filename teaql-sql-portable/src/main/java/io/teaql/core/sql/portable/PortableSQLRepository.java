@@ -223,7 +223,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             return new SmartList<>();
         }
         PositionalSQL psql = toPositional(sql, params);
-        List<Map<String, Object>> rows = database.query(psql.sql, psql.args);
+        List<Map<String, Object>> rows = database.query(userContext, psql.sql, psql.args);
         List<T> results = rows.stream()
                 .map(row -> mapRowToEntity(userContext, request, row))
                 .collect(Collectors.toList());
@@ -297,7 +297,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             List<String> columns = tableColumns.get(k);
             io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
             String sql = compiler.buildInsertSQL(this, k, columns, sqlEntity.getTraceChain());
-            database.batchUpdate(sql, v);
+            database.batchUpdate(userContext, sql, v);
         });
     }
 
@@ -325,7 +325,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                     updatePrimaryTable(userContext, sqlEntity, k, columns, l);
                 } else {
                     String updateSql = dialect.buildSubsidiaryInsertSql(k, columns);
-                    database.executeUpdate(updateSql, l.toArray());
+                    database.executeUpdate(userContext, updateSql, l.toArray());
                 }
             });
 
@@ -339,7 +339,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
         String updateSql = compiler.buildUpdateVersionTableVersionSQL(this, this.versionTableName);
         Object[] parameters = {sqlEntity.getVersion() + 1, sqlEntity.getId(), sqlEntity.getVersion()};
-        int update = database.executeUpdate(updateSql, parameters);
+        int update = database.executeUpdate(userContext, updateSql, parameters);
         if (update != 1) throw new ConcurrentModifyException();
     }
 
@@ -347,7 +347,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         l.add(sqlEntity.getId());
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
         String updateSql = compiler.buildUpdatePrimarySQL(this, k, columns, sqlEntity.getTraceChain());
-        int update = database.executeUpdate(updateSql, l.toArray());
+        int update = database.executeUpdate(userContext, updateSql, l.toArray());
         if (update != 1) throw new TeaQLRuntimeException("primary table update failed");
     }
 
@@ -360,7 +360,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         l.add(sqlEntity.getVersion());
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
         String updateSql = compiler.buildUpdateVersionSQL(this, k, columns, sqlEntity.getTraceChain());
-        int update = database.executeUpdate(updateSql, l.toArray());
+        int update = database.executeUpdate(userContext, updateSql, l.toArray());
         if (update != 1) throw new ConcurrentModifyException();
     }
 
@@ -372,7 +372,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 .filter(e -> e.getVersion() > 0)
                 .map(e -> new Object[]{-(e.getVersion() + 1), e.getId(), e.getVersion()})
                 .collect(Collectors.toList());
-        int[] rets = database.batchUpdate(updateSql, args);
+        int[] rets = database.batchUpdate(userContext, updateSql, args);
         for (int ret : rets) {
             if (ret != 1) throw new ConcurrentModifyException();
         }
@@ -386,7 +386,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 .filter(e -> e.getVersion() < 0)
                 .map(e -> new Object[]{(-e.getVersion() + 1), e.getId(), e.getVersion()})
                 .collect(Collectors.toList());
-        int[] rets = database.batchUpdate(updateSql, args);
+        int[] rets = database.batchUpdate(userContext, updateSql, args);
         for (int ret : rets) {
             if (ret != 1) throw new ConcurrentModifyException();
         }
@@ -403,7 +403,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         String type = CollectionUtil.getLast(types);
         AtomicLong current = new AtomicLong();
 
-        database.executeInTransaction(() -> {
+        database.executeInTransaction(userContext, () -> {
             Number dbCurrent = null;
             try {
                 List<Map<String, Object>> rows = database.query(
@@ -478,7 +478,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 + "current_level bigint)\n";
         logInfo(sql + ";");
         if (ensureTableEnabled(ctx)) {
-            try { database.execute(sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+            try { database.execute(ctx, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
         }
     }
 
@@ -510,7 +510,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         sb.append(")\n");
         logInfo(sb + ";");
         if (ensureTableEnabled(ctx)) {
-            try { database.execute(sb.toString()); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+            try { database.execute(ctx, sb.toString()); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
         }
     }
 
@@ -519,7 +519,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 column.getTableName(), column.getColumnName(), column.getType());
         logInfo(sql + ";");
         if (ensureTableEnabled(ctx)) {
-            try { database.execute(sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+            try { database.execute(ctx, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
         }
     }
 
@@ -531,7 +531,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     private void ensureRoot(UserContext ctx) {
         List<Map<String, Object>> dbRow;
         try {
-            dbRow = database.query(
+            dbRow = database.query(ctx,
                     StrUtil.format("SELECT * FROM {} WHERE id = '1'", tableName(entityDescriptor.getType())),
                     new Object[0]);
         } catch (Exception e) {
@@ -544,7 +544,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             String sql = StrUtil.format("UPDATE {} SET version = {} where id = '1'", tableName(entityDescriptor.getType()), -version);
             logInfo(sql + ";");
             if (ensureTableEnabled(ctx)) {
-                try { database.execute(sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+                try { database.execute(ctx, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
             }
             return;
         }
@@ -561,7 +561,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 CollectionUtil.join(rootRow, ",", value -> getSqlValue(value)));
         logInfo(sql + ";");
         if (ensureTableEnabled(ctx)) {
-            try { database.execute(sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+            try { database.execute(ctx, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
         }
     }
 
@@ -581,7 +581,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                     .collect(Collectors.toList());
 
             try {
-                List<Map<String, Object>> existing = database.query(
+                List<Map<String, Object>> existing = database.query(ctx,
                         StrUtil.format("SELECT * FROM {} WHERE id = '{}'",
                                 tableName(entityDescriptor.getType()),
                                 getConstantPropertyValue(ctx, entityDescriptor.findIdProperty(), i, code)),
@@ -594,7 +594,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                             getConstantPropertyValue(ctx, entityDescriptor.findIdProperty(), i, code));
                     logInfo(sql + ";");
                     if (ensureTableEnabled(ctx)) {
-                        try { database.execute(sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+                        try { database.execute(ctx, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
                     }
                     continue;
                 }
@@ -607,7 +607,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                     CollectionUtil.join(oneConstant, ",", value -> getSqlValue(value)));
             logInfo(sql + ";");
             if (ensureTableEnabled(ctx)) {
-                try { database.execute(sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+                try { database.execute(ctx, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
             }
         }
     }
@@ -779,9 +779,23 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     public String prepareLimit(SearchRequest request) {
+        return prepareLimit(request, new java.util.HashMap<>());
+    }
+
+    @Override
+    public String prepareLimit(SearchRequest request, java.util.Map<String, Object> parameters) {
         Slice slice = request.getSlice();
         if (ObjectUtil.isEmpty(slice)) return null;
-        return StrUtil.format("LIMIT {} OFFSET {}", slice.getSize(), slice.getOffset());
+        
+        String limitKey = "limit0";
+        while (parameters.containsKey(limitKey)) limitKey += "_1";
+        parameters.put(limitKey, slice.getSize());
+        
+        String offsetKey = "offset0";
+        while (parameters.containsKey(offsetKey)) offsetKey += "_1";
+        parameters.put(offsetKey, slice.getOffset());
+        
+        return StrUtil.format("LIMIT :{} OFFSET :{}", limitKey, offsetKey);
     }
 
     public String getTypeSQL(UserContext userContext) {
@@ -814,7 +828,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             if (sql == null) return null;
 
             PositionalSQL psql = toPositional(sql, parameters);
-            List<Map<String, Object>> rows = database.query(psql.sql, psql.args);
+            List<Map<String, Object>> rows = database.query(userContext, psql.sql, psql.args);
 
             AggregationResult result = new AggregationResult();
             result.setName(request.getAggregations().getName());

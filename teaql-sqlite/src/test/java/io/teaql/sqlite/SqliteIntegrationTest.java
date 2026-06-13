@@ -155,11 +155,14 @@ public class SqliteIntegrationTest {
     }
 
     @AfterClass
-    public static void teardown() {
+    public static void teardown() throws Exception {
+        Thread.sleep(500); // Give LogManager time to flush to disk
     }
 
     @Test
     public void testSqliteCrud() {
+        ctx.pushTrace("SqliteIntegrationTest.testSqliteCrud");
+        
         // 1. Create and Save Tasks
         Task task1 = new Task();
         task1.setProperty("title", "Assemble Assembly Line");

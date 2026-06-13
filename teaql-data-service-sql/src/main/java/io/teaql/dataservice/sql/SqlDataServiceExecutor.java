@@ -95,9 +95,80 @@ public class SqlDataServiceExecutor implements QueryExecutor, MutationExecutor, 
                 public java.util.List<java.util.Map<String, Object>> getTableColumns(String tableName) {
                     throw new UnsupportedOperationException("Implement in specific dialect");
                 }
+
+                @Override
+                public java.util.List<java.util.Map<String, Object>> query(io.teaql.core.UserContext ctx, String sql, Object[] args) {
+                    long start = System.nanoTime();
+                    java.util.List<java.util.Map<String, Object>> res = executionAdapter.queryForList(sql, args);
+                    long elapsed = (System.nanoTime() - start) / 1000;
+                    ctx.logSql(formatSqlWithArgs(sql, args), elapsed, "Fetched " + res.size() + " rows");
+                    return res;
+                }
+
+                @Override
+                public int executeUpdate(io.teaql.core.UserContext ctx, String sql, Object[] args) {
+                    long start = System.nanoTime();
+                    int res = executionAdapter.update(sql, args);
+                    long elapsed = (System.nanoTime() - start) / 1000;
+                    ctx.logSql(formatSqlWithArgs(sql, args), elapsed, "Affected " + res + " rows");
+                    return res;
+                }
+
+                @Override
+                public int[] batchUpdate(io.teaql.core.UserContext ctx, String sql, java.util.List<Object[]> batchArgs) {
+                    long start = System.nanoTime();
+                    int[] res = executionAdapter.batchUpdate(sql, batchArgs);
+                    long elapsed = (System.nanoTime() - start) / 1000;
+                    int total = 0; if (res != null) { for(int i: res) total += i; }
+                    String loggedSql = sql;
+                    if (batchArgs != null && !batchArgs.isEmpty()) {
+                        loggedSql = formatSqlWithArgs(sql, batchArgs.get(0));
+                        if (batchArgs.size() > 1) {
+                            loggedSql += " /* + " + (batchArgs.size() - 1) + " more batches */";
+                        }
+                    }
+                    ctx.logSql(loggedSql, elapsed, "Batch affected " + total + " rows");
+                    return res;
+                }
+
+                @Override
+                public void execute(io.teaql.core.UserContext ctx, String sql) {
+                    long start = System.nanoTime();
+                    executionAdapter.execute(sql);
+                    long elapsed = (System.nanoTime() - start) / 1000;
+                    ctx.logSql(sql, elapsed, "Executed");
+                }
             };
             portableService = new io.teaql.core.sql.portable.PortableSQLDataService(name, dbAdapter, io.teaql.core.meta.EntityMetaFactory.get());
         }
         return portableService;
+    }
+
+    private static String formatSqlWithArgs(String sql, Object[] args) {
+        if (sql == null || args == null || args.length == 0) {
+            return sql;
+        }
+        StringBuilder sb = new StringBuilder();
+        int argIndex = 0;
+        boolean inString = false;
+        for (int i = 0; i < sql.length(); i++) {
+            char c = sql.charAt(i);
+            if (c == '\'') {
+                inString = !inString;
+                sb.append(c);
+            } else if (c == '?' && !inString && argIndex < args.length) {
+                Object arg = args[argIndex++];
+                if (arg == null) {
+                    sb.append("NULL");
+                } else if (arg instanceof String || arg instanceof java.util.Date || arg instanceof java.time.temporal.Temporal) {
+                    sb.append("'").append(arg.toString().replace("'", "''")).append("'");
+                } else {
+                    sb.append(arg.toString());
+                }
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 }

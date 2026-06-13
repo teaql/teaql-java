@@ -6,11 +6,16 @@ import io.teaql.core.meta.EntityDescriptor;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
+import io.teaql.core.log.TraceNode;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObjectGetter<String> {
 
     private final TeaQLRuntime runtime;
     private final Map<String, Object> storage = new ConcurrentHashMap<>();
+    private final List<TraceNode> traceChain = new ArrayList<>();
 
     public DefaultUserContext(TeaQLRuntime runtime) {
         this.runtime = runtime;
@@ -81,5 +86,23 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
     public Object getObj(String key, Object defaultValue) {
         Object val = storage.get(key);
         return val != null ? val : defaultValue;
+    }
+
+    @Override
+    public void pushTrace(String comment) {
+        traceChain.add(new TraceNode(comment));
+    }
+
+    @Override
+    public List<TraceNode> getTraceChain() {
+        return Collections.unmodifiableList(traceChain);
+    }
+
+    @Override
+    public void logSql(String sql, long elapsedUs, String message) {
+        io.teaql.runtime.log.LogManager.getInstance().writeSqlLog(
+                this.traceChain, 
+                new io.teaql.runtime.log.SqlLogEntry(sql, elapsedUs, message)
+        );
     }
 }

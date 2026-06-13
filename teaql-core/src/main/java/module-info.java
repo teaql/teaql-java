@@ -12,4 +12,5 @@ module io.teaql.core {
     exports io.teaql.core.meta;
     exports io.teaql.core.parser;
     exports io.teaql.core.value;
+    exports io.teaql.core.log;
 }
