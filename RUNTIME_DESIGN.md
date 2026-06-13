@@ -35,7 +35,20 @@ public interface ContextAssembler extends Comparable<ContextAssembler> {
 }
 ```
 
-### 3.2 跨平台路由能力
+### 3.2 联邦数据路由（Federated Data Routing）机制
+框架摒弃了全局强绑定单一数据源的模式，引入了基于实体元数据的**智能数据服务路由（Data Service Routing）**：
+
+1. **实体自带路由标记**：每个 `EntityDescriptor` 都包含一个 `dataService` 属性（默认值为 `"sql"`）。这表示一个系统中，`UserEntity` 可以指向 `"postgres_db"`，而 `LogEntity` 可以指向 `"sqlite_local"`。
+2. **注册表（Registry）汇聚执行器**：`TeaQLRuntime` 和 `UserContext` 内部不直接写死任何 `DataServiceExecutor`，而是持有一个 `DataServiceRegistry`（数据服务注册表）。
+3. **SPI 模块只负责注册**：例如 `PostgresContextAssembler` 的职责不是霸占全局执行权，而是在冷启动时实例化自己的 `PostgresDataServiceExecutor`，并以特定名称（如 `"postgres_db"`）注册到 `DataServiceRegistry` 中。
+4. **引擎层精准派发**：当执行 `ctx.saveGraph(userEntity)` 或在启动时调用 `ensureSchema` 时，运行时大脑（Runtime）会：
+   - 提取对象的元数据：`dataService = userEntity.descriptor().getDataService()`
+   - 根据标识去 `DataServiceRegistry` 提取对应的专属 `DataServiceExecutor`。
+   - 将该对象的 SQL 生成与持久化任务，精准分发给具体的数据库方言执行。
+
+这种设计使得同一套业务代码，甚至在同一次 HTTP 请求内，可以完美串接云端 PostgreSQL 写业务数据、边缘端 SQLite 存日志、缓存 Redis 做会话的跨存储联邦架构。
+
+### 3.3 跨平台自适应路由能力
 通过这种 SPI 层层叠加组装（Layered Assembly）机制，框架获得了无限的环境适应力：
 * **在 Android 环境下**：开发者只要引入了 `teaql-sqlite` 包，底层的 Assembler 会自动嗅探环境，将本地的 SQLite 执行引擎挂载到 `UserContext`。业务层代码可以直接无缝执行。
 * **在 Spring 环境下**：引入了 `teaql-spring` 后，Assembler 会去抽取 Spring 的 `JdbcTemplate` 或数据源，接管执行权。
