@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.teaql</groupId>
         <artifactId>teaql-java-parent</artifactId>
-        <version>1.506-RELEASE</version>
+        <version>1.507-RELEASE</version>
     </parent>
 
     <artifactId>teaql-mysql</artifactId>
