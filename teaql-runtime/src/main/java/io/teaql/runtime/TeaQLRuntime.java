@@ -49,10 +49,15 @@ public class TeaQLRuntime {
         if (request.purpose() == null || request.purpose().trim().isEmpty()) {
             throw new TeaQLRuntimeException("[PURPOSE REQUIRED] Missing .purpose() on query execution. You must not call executeForList directly without purpose.");
         }
-        boolean pushed = false;
+        boolean pushedPurpose = false;
+        boolean pushedComment = false;
+        if (request.purpose() != null && !request.purpose().trim().isEmpty()) {
+            ctx.pushTrace(request.purpose());
+            pushedPurpose = true;
+        }
         if (request.comment() != null && !request.comment().trim().isEmpty()) {
             ctx.pushTrace(request.comment());
-            pushed = true;
+            pushedComment = true;
         }
         try {
             SearchRequest<T> checkedRequest = request;
@@ -79,7 +84,10 @@ public class TeaQLRuntime {
             }
             throw new TeaQLRuntimeException("Unsupported QueryResult type from query executor: " + route);
         } finally {
-            if (pushed) {
+            if (pushedComment) {
+                ctx.popTrace();
+            }
+            if (pushedPurpose) {
                 ctx.popTrace();
             }
         }
@@ -89,21 +97,40 @@ public class TeaQLRuntime {
         if (request.purpose() == null || request.purpose().trim().isEmpty()) {
             throw new TeaQLRuntimeException("[PURPOSE REQUIRED] Missing .purpose() on query execution. You must not call aggregation directly without purpose.");
         }
-        EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
-        String route = descriptor.getDataService();
-        if (route == null || route.isEmpty()) {
-            route = "default";
+        boolean pushedPurpose = false;
+        boolean pushedComment = false;
+        if (request.purpose() != null && !request.purpose().trim().isEmpty()) {
+            ctx.pushTrace(request.purpose());
+            pushedPurpose = true;
         }
-        QueryExecutor queryExecutor = registry.resolveQueryExecutor(route);
-        if (queryExecutor == null) {
-            throw new TeaQLRuntimeException("No QueryExecutor registered for route: " + route);
+        if (request.comment() != null && !request.comment().trim().isEmpty()) {
+            ctx.pushTrace(request.comment());
+            pushedComment = true;
         }
-        QueryRequest queryRequest = new DefaultQueryRequest(request);
-        QueryResult queryResult = queryExecutor.query(ctx, queryRequest);
-        if (queryResult instanceof DefaultQueryResult) {
-            return ((DefaultQueryResult) queryResult).getAggregationResult();
+        try {
+            EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
+            String route = descriptor.getDataService();
+            if (route == null || route.isEmpty()) {
+                route = "default";
+            }
+            QueryExecutor queryExecutor = registry.resolveQueryExecutor(route);
+            if (queryExecutor == null) {
+                throw new TeaQLRuntimeException("No QueryExecutor registered for route: " + route);
+            }
+            QueryRequest queryRequest = new DefaultQueryRequest(request);
+            QueryResult queryResult = queryExecutor.query(ctx, queryRequest);
+            if (queryResult instanceof DefaultQueryResult) {
+                return ((DefaultQueryResult) queryResult).getAggregationResult();
+            }
+            return null;
+        } finally {
+            if (pushedComment) {
+                ctx.popTrace();
+            }
+            if (pushedPurpose) {
+                ctx.popTrace();
+            }
         }
-        return null;
     }
 
     public void saveGraph(UserContext ctx, Object items) {
