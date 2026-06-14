@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.teaql.core.utils.ArrayUtil;
 import io.teaql.core.utils.ObjectUtil;
@@ -83,6 +84,28 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
 
     public BaseRequest(Class<T> pReturnType) {
         returnType = pReturnType;
+    }
+
+    public BaseRequest<T> findWithJson(String jsonStr) {
+        if (jsonStr == null || jsonStr.trim().isEmpty()) {
+            return this;
+        }
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode rootNode = mapper.readTree(jsonStr);
+            if (rootNode.isObject()) {
+                rootNode.fields().forEachRemaining(entry -> {
+                    String propName = entry.getKey();
+                    JsonNode propValue = entry.getValue();
+                    if (!propValue.isNull()) {
+                        appendSearchCriteria(createBasicSearchCriteria(propName, Operator.CONTAIN, propValue.asText()));
+                    }
+                });
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return this;
     }
 
     public String getSearchForText() {

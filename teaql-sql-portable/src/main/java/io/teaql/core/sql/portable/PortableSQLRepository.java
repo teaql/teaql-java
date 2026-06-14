@@ -201,8 +201,38 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         while (m.find()) {
             String paramName = m.group(1);
             Object value = params.get(paramName);
-            args.add(value);
-            m.appendReplacement(sb, "?");
+            if (value instanceof java.util.Collection) {
+                java.util.Collection<?> col = (java.util.Collection<?>) value;
+                if (col.isEmpty()) {
+                    args.add(null);
+                    m.appendReplacement(sb, "?");
+                } else {
+                    StringBuilder qm = new StringBuilder();
+                    for (Object item : col) {
+                        args.add(item);
+                        if (qm.length() > 0) qm.append(", ");
+                        qm.append("?");
+                    }
+                    m.appendReplacement(sb, qm.toString());
+                }
+            } else if (value != null && value.getClass().isArray()) {
+                int len = java.lang.reflect.Array.getLength(value);
+                if (len == 0) {
+                    args.add(null);
+                    m.appendReplacement(sb, "?");
+                } else {
+                    StringBuilder qm = new StringBuilder();
+                    for (int i = 0; i < len; i++) {
+                        args.add(java.lang.reflect.Array.get(value, i));
+                        if (qm.length() > 0) qm.append(", ");
+                        qm.append("?");
+                    }
+                    m.appendReplacement(sb, qm.toString());
+                }
+            } else {
+                args.add(value);
+                m.appendReplacement(sb, "?");
+            }
         }
         m.appendTail(sb);
         return new PositionalSQL(sb.toString(), args.toArray());
