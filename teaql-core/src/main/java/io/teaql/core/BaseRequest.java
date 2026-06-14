@@ -93,15 +93,8 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         try {
             ObjectMapper mapper = new ObjectMapper();
             JsonNode rootNode = mapper.readTree(jsonStr);
-            if (rootNode.isObject()) {
-                rootNode.fields().forEachRemaining(entry -> {
-                    String propName = entry.getKey();
-                    JsonNode propValue = entry.getValue();
-                    if (!propValue.isNull()) {
-                        appendSearchCriteria(createBasicSearchCriteria(propName, Operator.CONTAIN, propValue.asText()));
-                    }
-                });
-            }
+            DynamicSearchHelper helper = new DynamicSearchHelper();
+            helper.mergeClauses(this, rootNode);
         } catch (Exception e) {
             e.printStackTrace();
         }
