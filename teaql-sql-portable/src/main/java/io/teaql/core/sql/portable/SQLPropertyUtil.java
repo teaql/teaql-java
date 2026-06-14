@@ -35,7 +35,22 @@ public class SQLPropertyUtil {
         }
         String tableName = getTableName(property);
         String columnName = getColumnName(property);
-        String columnType = property.getStr("sqlType", "VARCHAR(255)"); // fallback if not provided
+        String defaultType = "VARCHAR(255)";
+        if (property.getType() != null && property.getType().javaType() != null) {
+            Class<?> jType = property.getType().javaType();
+            if (io.teaql.core.Entity.class.isAssignableFrom(jType) || jType == Long.class || jType == long.class) {
+                defaultType = "BIGINT";
+            } else if (jType == Integer.class || jType == int.class) {
+                defaultType = "INTEGER";
+            } else if (jType == Double.class || jType == double.class || jType == Float.class || jType == float.class) {
+                defaultType = "DOUBLE";
+            } else if (jType == java.util.Date.class || jType == java.time.LocalDateTime.class) {
+                defaultType = "TIMESTAMP";
+            } else if (jType == Boolean.class || jType == boolean.class) {
+                defaultType = "TINYINT";
+            }
+        }
+        String columnType = property.getStr("sqlType", defaultType);
         
         if (tableName != null && columnName != null) {
             SQLColumn sqlColumn = new SQLColumn(tableName, columnName);

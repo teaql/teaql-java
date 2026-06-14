@@ -227,7 +227,62 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         List<T> results = rows.stream()
                 .map(row -> mapRowToEntity(userContext, request, row))
                 .collect(Collectors.toList());
-        return new SmartList<>(results);
+        SmartList<T> smartList = new SmartList<>(results);
+        
+        java.util.List<io.teaql.core.FacetRequest> facetRequests = request.getFacetRequests();
+        if (facetRequests != null && !facetRequests.isEmpty()) {
+            io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
+            for (io.teaql.core.FacetRequest facetRequest : facetRequests) {
+                io.teaql.core.internal.TempRequest tr = new io.teaql.core.internal.TempRequest(request);
+                tr.setAggregations(new io.teaql.core.Aggregations());
+                tr.groupBy(facetRequest.getRelationName());
+                tr.count("count");
+                
+                Map<String, Object> facetParams = new HashMap<>();
+                java.util.List<String> facetTables = compiler.collectAggregationTables(this.sqlMetadata, this, userContext, tr);
+                String facetSql = compiler.buildAggregationSQL(this.sqlMetadata, this, userContext, tr, facetParams, facetTables);
+                if (!io.teaql.core.utils.ObjectUtil.isEmpty(facetSql)) {
+                    PositionalSQL psqlFacet = toPositional(facetSql, facetParams);
+                    List<Map<String, Object>> facetRows = database.query(userContext, psqlFacet.sql, psqlFacet.args);
+                    
+                    SmartList<io.teaql.core.Entity> facetEntities = new SmartList<>();
+                    io.teaql.core.SearchRequest<?> relationReq = facetRequest.getRequest();
+                    if (relationReq != null) {
+                        String relationType = relationReq.getTypeName();
+                        PortableSQLRepository relationRepo = resolver.resolve(relationType);
+                        if (relationRepo != null) {
+                            List<Object> relIds = new ArrayList<>();
+                            Map<Long, Object> idToCount = new HashMap<>();
+                            for (Map<String, Object> facetRow : facetRows) {
+                                Object relId = facetRow.get(facetRequest.getRelationName());
+                                Object countVal = facetRow.get("count");
+                                if (relId != null) {
+                                    relIds.add(relId);
+                                    idToCount.put(io.teaql.core.utils.Convert.convert(Long.class, relId), countVal);
+                                }
+                            }
+                            io.teaql.core.internal.TempRequest fetchRelReq = new io.teaql.core.internal.TempRequest(relationReq);
+                            if (facetRequest.isMergeCriteria()) {
+                                fetchRelReq.appendSearchCriteria(request.getSearchCriteria());
+                            }
+                            SmartList<?> loadedRels = relationRepo.loadInternal(userContext, fetchRelReq);
+                            for (Object obj : loadedRels) {
+                                io.teaql.core.Entity rel = (io.teaql.core.Entity) obj;
+                                Object cnt = idToCount.get(rel.getId());
+                                int countInt = cnt != null ? io.teaql.core.utils.Convert.convert(Integer.class, cnt) : 0;
+                                if (rel instanceof io.teaql.core.BaseEntity) {
+                                    ((io.teaql.core.BaseEntity) rel).addDynamicProperty("count", countInt);
+                                }
+                                facetEntities.add(rel);
+                            }
+                        }
+                    }
+                    smartList.addFacet(facetRequest.getFacetName(), facetEntities);
+                }
+            }
+        }
+        
+        return smartList;
     }
 
     private T mapRowToEntity(UserContext userContext, SearchRequest<T> request, Map<String, Object> row) {
@@ -253,7 +308,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                         }
                         entity.setProperty(property.getName(), ref);
                     } catch (Exception e) {
-                        // ignore
+                        System.out.println("mapRowToEntity relation mapping error for property " + property.getName() + ": " + e.getMessage());
+                        e.printStackTrace();
                     }
                 }
             }

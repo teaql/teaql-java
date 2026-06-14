@@ -45,6 +45,9 @@ public class ParameterParser implements SQLExpressionParser<Parameter> {
             case END_WITH:
             case NOT_END_WITH:
                 return "%" + pValue;
+            case IN:
+            case NOT_IN:
+                return Parameter.flatValues(pValue);
             case IN_LARGE:
             case NOT_IN_LARGE:
                 List flatValues = Parameter.flatValues(pValue);
