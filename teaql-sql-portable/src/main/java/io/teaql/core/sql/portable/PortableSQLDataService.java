@@ -56,7 +56,122 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         String typeName = searchRequest.getTypeName();
         PortableSQLRepository<?> repository = getRepository(typeName);
         SmartList<?> result = repository.loadInternal(ctx, (SearchRequest) searchRequest);
+        
+        if (searchRequest.enhanceRelations() != null && !searchRequest.enhanceRelations().isEmpty()) {
+            enhanceRelations(ctx, (SmartList<Entity>) result, searchRequest);
+        }
+        
         return new DefaultQueryResult((SmartList<Entity>) result);
+    }
+    
+    private void enhanceRelations(
+            UserContext userContext, SmartList<Entity> dataSet, SearchRequest<?> request) {
+        if (dataSet == null || dataSet.isEmpty()) {
+            return;
+        }
+        Map<String, SearchRequest> enhanceProperties = request.enhanceRelations();
+        if (enhanceProperties == null || enhanceProperties.isEmpty()) return;
+
+        EntityDescriptor entityDescriptor = metadata.resolveEntityDescriptor(request.getTypeName());
+
+        enhanceProperties.forEach(
+                (p, r) -> {
+                    PropertyDescriptor property = findProperty(entityDescriptor, p);
+                    if (property == null) return;
+                    if (!(property instanceof Relation)) return;
+
+                    if (shouldHandle(entityDescriptor, (Relation) property)) {
+                        enhanceParent(userContext, dataSet, (Relation) property, r);
+                    } else {
+                        collectChildren(userContext, dataSet, (Relation) property, r);
+                    }
+                });
+    }
+
+    private boolean shouldHandle(EntityDescriptor entityDescriptor, Relation relation) {
+        if (relation == null) return false;
+        EntityDescriptor relationKeeper = relation.getRelationKeeper();
+        while (entityDescriptor != null) {
+            if (entityDescriptor == relationKeeper) {
+                return true;
+            }
+            entityDescriptor = entityDescriptor.getParent();
+        }
+        return false;
+    }
+
+    private PropertyDescriptor findProperty(EntityDescriptor entityDescriptor, String propertyName) {
+        while (entityDescriptor != null) {
+            PropertyDescriptor propertyDescriptor = entityDescriptor.findProperty(propertyName);
+            if (propertyDescriptor != null) {
+                return propertyDescriptor;
+            }
+            entityDescriptor = entityDescriptor.getParent();
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void enhanceParent(
+            UserContext userContext,
+            SmartList<Entity> results,
+            Relation relation,
+            SearchRequest parentRequest) {
+        List<Entity> parents =
+                results.stream()
+                        .map(e -> e.getProperty(relation.getName()))
+                        .filter(p -> p instanceof Entity)
+                        .map(e -> (Entity) e)
+                        .distinct()
+                        .toList();
+        if (io.teaql.core.utils.ObjectUtil.isEmpty(parents)) return;
+
+        io.teaql.core.internal.TempRequest parentTemp = new io.teaql.core.internal.TempRequest(parentRequest);
+        parentTemp.appendSearchCriteria(parentTemp.createBasicSearchCriteria(BaseEntity.ID_PROPERTY, io.teaql.core.criteria.Operator.IN, parents));
+
+        QueryResult res = query(userContext, new DefaultQueryRequest(parentTemp));
+        SmartList<Entity> parentItems = (SmartList<Entity>) ((DefaultQueryResult)res).getResult();
+
+        Map<Long, Entity> map = parentItems.mapById();
+        for (Entity result : results) {
+            Object oldValue = result.getProperty(relation.getName());
+            if (oldValue instanceof Entity) {
+                Entity value = map.get(((Entity) oldValue).getId());
+                if (value == null) continue;
+                result.addRelation(relation.getName(), value);
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void collectChildren(
+            UserContext userContext,
+            SmartList<Entity> dataSet,
+            Relation relation,
+            SearchRequest childRequest) {
+        io.teaql.core.internal.TempRequest childTempRequest = new io.teaql.core.internal.TempRequest(childRequest);
+        PropertyDescriptor reverseProperty = relation.getReverseProperty();
+        childTempRequest.selectProperty(reverseProperty.getName());
+        if (childTempRequest.getSlice() != null) {
+            childTempRequest.setPartitionProperty(reverseProperty.getName());
+        }
+        childTempRequest.appendSearchCriteria(
+                childTempRequest.createBasicSearchCriteria(
+                        reverseProperty.getName(), io.teaql.core.criteria.Operator.IN, dataSet));
+
+        QueryResult res = query(userContext, new DefaultQueryRequest(childTempRequest));
+        SmartList<Entity> children = (SmartList<Entity>) ((DefaultQueryResult)res).getResult();
+
+        Map<Long, Entity> longTMap = dataSet.mapById();
+        for (Entity childEntity : children) {
+            Object parent = childEntity.getProperty(reverseProperty.getName());
+            if (parent instanceof Entity) {
+                Entity parentEntity = longTMap.get(((Entity) parent).getId());
+                if (parentEntity != null) {
+                    parentEntity.addRelation(relation.getName(), childEntity);
+                }
+            }
+        }
     }
 
     @Override

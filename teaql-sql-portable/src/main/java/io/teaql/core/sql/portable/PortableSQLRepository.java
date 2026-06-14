@@ -308,7 +308,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                         }
                         entity.setProperty(property.getName(), ref);
                     } catch (Exception e) {
-                        // ignore
+                        System.out.println("mapRowToEntity relation mapping error for property " + property.getName() + ": " + e.getMessage());
+                        e.printStackTrace();
                     }
                 }
             }
