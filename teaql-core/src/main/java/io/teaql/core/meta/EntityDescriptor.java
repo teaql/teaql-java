@@ -270,7 +270,7 @@ public class EntityDescriptor {
         Relation reverse = new Relation();
         reverse.setOwner(refer);
         reverse.setName(reverseName);
-        reverse.setType(new SimplePropertyType(this.getTargetType()));
+        reverse.setType(new SimplePropertyType(io.teaql.core.SmartList.class));
         reverse.setRelationKeeper(this);
 
         relation.setReverseProperty(reverse);
