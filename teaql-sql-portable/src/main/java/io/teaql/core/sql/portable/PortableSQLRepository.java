@@ -261,7 +261,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                                     idToCount.put(io.teaql.core.utils.Convert.convert(Long.class, relId), countVal);
                                 }
                             }
-                            SmartList<?> loadedRels = relationRepo.loadInternal(userContext, relationReq);
+                            io.teaql.core.internal.TempRequest fetchRelReq = new io.teaql.core.internal.TempRequest(relationReq);
+                            if (facetRequest.isMergeCriteria()) {
+                                fetchRelReq.appendSearchCriteria(request.getSearchCriteria());
+                            }
+                            SmartList<?> loadedRels = relationRepo.loadInternal(userContext, fetchRelReq);
                             for (Object obj : loadedRels) {
                                 io.teaql.core.Entity rel = (io.teaql.core.Entity) obj;
                                 Object cnt = idToCount.get(rel.getId());
