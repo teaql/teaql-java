@@ -6,10 +6,10 @@
     <parent>
         <groupId>io.teaql</groupId>
         <artifactId>teaql-java-parent</artifactId>
-        <version>1.502-RELEASE</version>
+        <version>1.500-RELEASE</version>
     </parent>
-    <artifactId>teaql-snowflake</artifactId>
-    <name>teaql-snowflake</name>
+    <artifactId>teaql-hana</artifactId>
+    <name>teaql-hana</name>
     <dependencies>
         <dependency>
             <groupId>io.teaql</groupId>
