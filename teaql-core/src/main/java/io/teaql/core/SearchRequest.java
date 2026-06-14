@@ -72,40 +72,7 @@ public interface SearchRequest<T extends Entity> {
 
     List<FacetRequest> getFacetRequests();
 
-    default T executeForOne(UserContext userContext) {
-        if (userContext == null) {
-            throw new TeaQLRuntimeException("userContext is null");
-        }
-        return userContext.executeForOne(this);
-    }
 
-    default SmartList<T> executeForList(UserContext userContext) {
-        if (userContext == null) {
-            throw new TeaQLRuntimeException("userContext is null");
-        }
-        return userContext.executeForList(this);
-    }
-
-    default Stream<T> executeForStream(UserContext userContext) {
-        if (userContext == null) {
-            throw new TeaQLRuntimeException("userContext is null");
-        }
-        return userContext.executeForStream(this);
-    }
-
-    default Stream<T> executeForStream(UserContext userContext, int enhanceBatchSize) {
-        if (userContext == null) {
-            throw new TeaQLRuntimeException("userContext is null");
-        }
-        return userContext.executeForStream(this, enhanceBatchSize);
-    }
-
-    default AggregationResult aggregation(UserContext userContext) {
-        if (userContext == null) {
-            throw new TeaQLRuntimeException("userContext is null");
-        }
-        return userContext.aggregation(this);
-    }
 
     default boolean hasSimpleAgg() {
         Aggregations aggregations = getAggregations();

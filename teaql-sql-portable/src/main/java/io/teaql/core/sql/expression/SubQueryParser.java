@@ -72,7 +72,7 @@ public class SubQueryParser implements SQLExpressionParser<SubQuerySearchCriteri
         }
 
         // fall back
-        SmartList<Entity> referred = userContext.executeForList(dependsOn);
+        SmartList<Entity> referred = userContext.internalExecuteForList(dependsOn);
         Set dependsOnValues = new HashSet<>();
         for (Entity entity : referred) {
             Object propertyValue = entity.getProperty(dependsOnPropertyName);

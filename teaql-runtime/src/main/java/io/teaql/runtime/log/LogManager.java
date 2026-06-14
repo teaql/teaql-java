@@ -97,15 +97,18 @@ public class LogManager {
         }
     }
 
-    private void asyncWrite(String content) {
-        if (!queue.offer(() -> syncWrite(content))) {
+    private void asyncWrite(String content, io.teaql.core.log.CustomLogSink customSink) {
+        if (!queue.offer(() -> syncWrite(content, customSink))) {
             // Queue is full, drop or print to standard error to prevent blocking main business logic
             System.err.println("TeaQL LogManager queue full, dropped log.");
         }
     }
 
-    private void syncWrite(String content) {
+    private void syncWrite(String content, io.teaql.core.log.CustomLogSink customSink) {
         if (content == null || content.isEmpty()) return;
+        if (customSink != null) {
+            customSink.onLog(content);
+        }
         byte[] bytes = (content + "\n").getBytes(StandardCharsets.UTF_8);
 
         if (endpoint == null || endpoint.trim().isEmpty()) {
@@ -202,13 +205,15 @@ public class LogManager {
         }
     }
 
-    public void writeSqlLog(List<TraceNode> traceChain, SqlLogEntry entry) {
-        String content = LogFormatterFactory.getFormatter().formatSqlLog(traceChain, entry);
-        asyncWrite(content);
+    public void writeExecutionLog(io.teaql.core.UserContext ctx, io.teaql.core.ExecutionMetadata metadata) {
+        String content = LogFormatterFactory.getFormatter().formatExecutionLog(metadata);
+        io.teaql.core.log.CustomLogSink customSink = ctx != null ? ctx.getCustomSink() : null;
+        asyncWrite(content, customSink);
     }
 
-    public void writeAuditLog(List<TraceNode> traceChain, AuditEvent event) {
+    public void writeAuditLog(io.teaql.core.UserContext ctx, List<TraceNode> traceChain, AuditEvent event) {
         String content = LogFormatterFactory.getFormatter().formatAuditLog(traceChain, event);
-        asyncWrite(content);
+        io.teaql.core.log.CustomLogSink customSink = ctx != null ? ctx.getCustomSink() : null;
+        asyncWrite(content, customSink);
     }
 }

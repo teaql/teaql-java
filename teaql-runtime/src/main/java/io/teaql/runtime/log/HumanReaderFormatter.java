@@ -19,14 +19,14 @@ public class HumanReaderFormatter implements LogFormatter {
     }
 
     @Override
-    public String formatSqlLog(List<TraceNode> traceChain, SqlLogEntry entry) {
+    public String formatExecutionLog(io.teaql.core.ExecutionMetadata metadata) {
         String ts = LocalDateTime.now().format(TS_FORMATTER);
-        String traceStr = formatTraceChain(traceChain);
+        String traceStr = formatTraceChain(metadata.getTraceChain());
         String traceDisplay = traceStr.isEmpty() ? "" : " - [" + traceStr + "]";
         
-        String cleanSql = entry.getPrettySql().replace('\n', ' ');
-        return String.format("[%s]-[%5dµs]-[DEBUG]-SqlLogEntry%s - [%s]\n          %s",
-                ts, entry.getElapsedUs(), traceDisplay, entry.getResultSummary(), cleanSql);
+        String cleanQuery = metadata.getDebugQuery() == null ? "" : metadata.getDebugQuery().replace('\n', ' ');
+        return String.format("[%s]-[%5dµs]-[DEBUG]-ExecutionLog%s - [%s]\n          %s",
+                ts, metadata.getElapsedUs(), traceDisplay, metadata.getResultSummary(), cleanQuery);
     }
 
     @Override

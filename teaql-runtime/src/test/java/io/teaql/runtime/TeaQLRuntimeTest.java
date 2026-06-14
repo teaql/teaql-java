@@ -88,13 +88,17 @@ public class TeaQLRuntimeTest {
                 .build();
 
         SearchRequest<DummyEntity> request = new BaseRequest<DummyEntity>(DummyEntity.class) {
+            {
+                internalComment("test");
+                internalPurpose("test request");
+            }
             @Override
             public String getTypeName() {
                 return "Dummy";
             }
         };
 
-        SmartList<DummyEntity> result = runtime.executeForList(null, request);
+        SmartList<DummyEntity> result = runtime.executeForList(new DefaultUserContext(runtime), request);
         Assert.assertNotNull(result);
         Assert.assertEquals(1, result.size());
     }
@@ -108,7 +112,8 @@ public class TeaQLRuntimeTest {
                 .build();
 
         DummyEntity entity = new DummyEntity();
-        runtime.saveGraph(null, entity);
+        entity.setComment("test save");
+        runtime.saveGraph(new DefaultUserContext(runtime), entity);
         
         Assert.assertTrue(executor.called);
     }
@@ -122,8 +127,9 @@ public class TeaQLRuntimeTest {
                 .build();
 
         DummyEntity entity = new DummyEntity();
+        entity.setComment("test delete");
         entity.set$status(EntityStatus.PERSISTED);
-        runtime.delete(null, entity);
+        runtime.delete(new DefaultUserContext(runtime), entity);
         
         Assert.assertTrue(executor.called);
     }

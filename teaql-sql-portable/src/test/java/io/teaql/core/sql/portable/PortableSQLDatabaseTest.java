@@ -71,6 +71,11 @@ public class PortableSQLDatabaseTest {
             appendSearchCriteria(createBasicSearchCriteria("status", Operator.EQUAL, status));
             return this;
         }
+
+        public TaskRequest comment(String comment) {
+            super.internalComment(comment);
+            return this;
+        }
     }
 
     // ── SQLite TeaQLDatabase Implementation ────────────────
@@ -256,7 +261,7 @@ public class PortableSQLDatabaseTest {
         Task task1 = new Task();
         task1.setTitle("Assemble Engine");
         task1.setStatus("TODO");
-        task1.save(ctx);
+        task1.auditAs("save").save(ctx);
 
         assertNotNull("ID should be generated automatically", task1.getId());
         assertEquals(Long.valueOf(200), task1.getId());
@@ -265,32 +270,32 @@ public class PortableSQLDatabaseTest {
         Task task2 = new Task();
         task2.setTitle("Verify Engine Parts");
         task2.setStatus("TODO");
-        task2.save(ctx);
+        task2.auditAs("save").save(ctx);
         assertEquals(Long.valueOf(201), task2.getId());
 
         // 2. Query Tasks by criteria
         TaskRequest req = new TaskRequest().filterByTitle("Assemble Engine");
-        SmartList<Task> resultList = req.executeForList(ctx);
+        SmartList<Task> resultList = req.comment("test").purpose("test").executeForList(ctx);
         assertEquals(1, resultList.size());
         assertEquals("Assemble Engine", resultList.get(0).getTitle());
 
         // Test filter no results
         TaskRequest reqEmpty = new TaskRequest().filterByTitle("Unknown Task");
-        assertTrue(reqEmpty.executeForList(ctx).isEmpty());
+        assertTrue(reqEmpty.comment("test").purpose("test").executeForList(ctx).isEmpty());
 
         // 3. Update task
         task1.setStatus("DONE");
-        task1.save(ctx);
+        task1.auditAs("save").save(ctx);
 
         TaskRequest reqDone = new TaskRequest().filterByStatus("DONE");
-        SmartList<Task> resultDone = reqDone.executeForList(ctx);
+        SmartList<Task> resultDone = reqDone.comment("test").purpose("test").executeForList(ctx);
         assertEquals(1, resultDone.size());
         assertEquals("Assemble Engine", resultDone.get(0).getTitle());
 
         // 4. Delete task
-        task1.delete(ctx);
+        task1.auditAs("delete").delete(ctx);
 
-        SmartList<Task> resultAfterDelete = new TaskRequest().filterByStatus("DONE").executeForList(ctx);
+        SmartList<Task> resultAfterDelete = new TaskRequest().filterByStatus("DONE").comment("test").purpose("test").executeForList(ctx);
         assertTrue("Task should be removed from DB", resultAfterDelete.isEmpty());
     }
 }

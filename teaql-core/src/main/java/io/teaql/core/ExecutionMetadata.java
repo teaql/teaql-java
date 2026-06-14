@@ -2,6 +2,7 @@ package io.teaql.core;
 
 import java.time.Instant;
 import java.util.List;
+import io.teaql.core.log.TraceNode;
 
 public final class ExecutionMetadata {
     private String backend;
@@ -44,4 +45,13 @@ public final class ExecutionMetadata {
 
     public String getComment() { return comment; }
     public void setComment(String comment) { this.comment = comment; }
+
+    private long elapsedUs;
+    private String resultSummary;
+
+    public long getElapsedUs() { return elapsedUs; }
+    public void setElapsedUs(long elapsedUs) { this.elapsedUs = elapsedUs; }
+
+    public String getResultSummary() { return resultSummary; }
+    public void setResultSummary(String resultSummary) { this.resultSummary = resultSummary; }
 }

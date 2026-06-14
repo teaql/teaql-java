@@ -68,6 +68,11 @@ public class PostgresIntegrationTest {
             appendSearchCriteria(createBasicSearchCriteria("status", Operator.EQUAL, status));
             return this;
         }
+
+        public TaskRequest comment(String comment) {
+            internalComment(comment);
+            return this;
+        }
     }
 
     private static class SimpleDataSource implements DataSource {
@@ -164,7 +169,7 @@ public class PostgresIntegrationTest {
         Task task1 = new Task();
         task1.setProperty("title", "Assemble Assembly Line");
         task1.setProperty("status", "TODO");
-        task1.save(ctx);
+        task1.auditAs("save").save(ctx);
 
         assertNotNull(task1.getId());
         assertEquals("Status should transition to PERSISTED", EntityStatus.PERSISTED, task1.get$status());
@@ -172,31 +177,31 @@ public class PostgresIntegrationTest {
         Task task2 = new Task();
         task2.setProperty("title", "Write Integration Tests");
         task2.setProperty("status", "TODO");
-        task2.save(ctx);
+        task2.auditAs("save").save(ctx);
 
         // 2. Query Tasks by criteria
         TaskRequest req = new TaskRequest().filterByTitle("Assemble Assembly Line");
-        SmartList<Task> resultList = req.executeForList(ctx);
+        SmartList<Task> resultList = req.comment("test").purpose("test").executeForList(ctx);
         assertEquals(1, resultList.size());
         assertEquals("Assemble Assembly Line", resultList.get(0).getTitle());
 
         // Test filter no results
         TaskRequest reqEmpty = new TaskRequest().filterByTitle("Clean up workspace");
-        assertTrue(reqEmpty.executeForList(ctx).isEmpty());
+        assertTrue(reqEmpty.comment("test").purpose("test").executeForList(ctx).isEmpty());
 
         // 3. Update task
         task1.setProperty("status", "DONE");
-        task1.save(ctx);
+        task1.auditAs("save").save(ctx);
 
         TaskRequest reqDone = new TaskRequest().filterByStatus("DONE");
-        SmartList<Task> resultDone = reqDone.executeForList(ctx);
+        SmartList<Task> resultDone = reqDone.comment("test").purpose("test").executeForList(ctx);
         assertEquals(1, resultDone.size());
         assertEquals("Assemble Assembly Line", resultDone.get(0).getTitle());
 
         // 4. Delete task
-        task1.delete(ctx);
+        task1.auditAs("delete").delete(ctx);
 
-        SmartList<Task> resultAfterDelete = new TaskRequest().filterByStatus("DONE").executeForList(ctx);
+        SmartList<Task> resultAfterDelete = new TaskRequest().filterByStatus("DONE").comment("test").purpose("test").executeForList(ctx);
         assertTrue(resultAfterDelete.isEmpty());
     }
 }

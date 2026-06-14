@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.teaql</groupId>
         <artifactId>teaql-java-parent</artifactId>
-        <version>1.198-RELEASE</version>
+        <version>1.500-RELEASE</version>
     </parent>
     <artifactId>teaql-postgres</artifactId>
     <name>teaql-postgres</name>
@@ -26,6 +26,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>io.teaql</groupId>
+            <artifactId>teaql-runtime</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <version>42.7.3</version>
@@ -34,12 +40,6 @@
         <dependency>
             <groupId>io.teaql</groupId>
             <artifactId>teaql-provider-jdbc</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.teaql</groupId>
-            <artifactId>teaql-runtime</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>

@@ -101,7 +101,14 @@ public class SqlDataServiceExecutor implements QueryExecutor, MutationExecutor, 
                     long start = System.nanoTime();
                     java.util.List<java.util.Map<String, Object>> res = executionAdapter.queryForList(sql, args);
                     long elapsed = (System.nanoTime() - start) / 1000;
-                    ctx.logSql(formatSqlWithArgs(sql, args), elapsed, "Fetched " + res.size() + " rows");
+                    io.teaql.core.ExecutionMetadata meta = new io.teaql.core.ExecutionMetadata();
+                    meta.setBackend("SQL-" + name);
+                    meta.setOperation(io.teaql.core.DataServiceOperation.QUERY);
+                    meta.setElapsedUs(elapsed);
+                    meta.setResultCount(res.size());
+                    meta.setResultSummary("Fetched " + res.size() + " rows");
+                    meta.setDebugQuery(formatSqlWithArgs(sql, args));
+                    ctx.recordExecutionMetadata(meta);
                     return res;
                 }
 
@@ -110,7 +117,14 @@ public class SqlDataServiceExecutor implements QueryExecutor, MutationExecutor, 
                     long start = System.nanoTime();
                     int res = executionAdapter.update(sql, args);
                     long elapsed = (System.nanoTime() - start) / 1000;
-                    ctx.logSql(formatSqlWithArgs(sql, args), elapsed, "Affected " + res + " rows");
+                    io.teaql.core.ExecutionMetadata meta = new io.teaql.core.ExecutionMetadata();
+                    meta.setBackend("SQL-" + name);
+                    meta.setOperation(io.teaql.core.DataServiceOperation.MUTATION);
+                    meta.setElapsedUs(elapsed);
+                    meta.setAffectedRows((long) res);
+                    meta.setResultSummary("Affected " + res + " rows");
+                    meta.setDebugQuery(formatSqlWithArgs(sql, args));
+                    ctx.recordExecutionMetadata(meta);
                     return res;
                 }
 
@@ -127,7 +141,14 @@ public class SqlDataServiceExecutor implements QueryExecutor, MutationExecutor, 
                             loggedSql += " /* + " + (batchArgs.size() - 1) + " more batches */";
                         }
                     }
-                    ctx.logSql(loggedSql, elapsed, "Batch affected " + total + " rows");
+                    io.teaql.core.ExecutionMetadata meta = new io.teaql.core.ExecutionMetadata();
+                    meta.setBackend("SQL-" + name);
+                    meta.setOperation(io.teaql.core.DataServiceOperation.MUTATION);
+                    meta.setElapsedUs(elapsed);
+                    meta.setAffectedRows((long) total);
+                    meta.setResultSummary("Batch affected " + total + " rows");
+                    meta.setDebugQuery(loggedSql);
+                    ctx.recordExecutionMetadata(meta);
                     return res;
                 }
 
@@ -136,7 +157,13 @@ public class SqlDataServiceExecutor implements QueryExecutor, MutationExecutor, 
                     long start = System.nanoTime();
                     executionAdapter.execute(sql);
                     long elapsed = (System.nanoTime() - start) / 1000;
-                    ctx.logSql(sql, elapsed, "Executed");
+                    io.teaql.core.ExecutionMetadata meta = new io.teaql.core.ExecutionMetadata();
+                    meta.setBackend("SQL-" + name);
+                    meta.setOperation(io.teaql.core.DataServiceOperation.SCHEMA);
+                    meta.setElapsedUs(elapsed);
+                    meta.setResultSummary("Executed");
+                    meta.setDebugQuery(sql);
+                    ctx.recordExecutionMetadata(meta);
                 }
             };
             portableService = new io.teaql.core.sql.portable.PortableSQLDataService(name, dbAdapter, io.teaql.core.meta.EntityMetaFactory.get());

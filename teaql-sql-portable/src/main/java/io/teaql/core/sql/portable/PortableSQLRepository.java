@@ -235,12 +235,26 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         T entity = ReflectUtil.newInstance(returnType);
         for (PropertyDescriptor property : this.allProperties) {
             if (!shouldHandle(property)) continue;
-            if (property instanceof SQLProperty) {
+            if (!(property instanceof Relation)) {
                 Object value = row.get(property.getName());
                 if (value != null) {
                     Class targetType = property.getType().javaType();
                     entity.setProperty(property.getName(),
                             io.teaql.core.utils.Convert.convert(targetType, value));
+                }
+            } else if (property instanceof Relation) {
+                Object value = row.get(property.getName());
+                if (value != null) {
+                    try {
+                        Entity ref = (Entity) ReflectUtil.newInstance(property.getType().javaType());
+                        ((BaseEntity) ref).internalSet("id", io.teaql.core.utils.Convert.convert(Long.class, value));
+                        if (ref instanceof BaseEntity) {
+                            ((BaseEntity) ref).set$status(io.teaql.core.EntityStatus.REFER);
+                        }
+                        entity.setProperty(property.getName(), ref);
+                    } catch (Exception e) {
+                        // ignore
+                    }
                 }
             }
         }
@@ -655,10 +669,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     private List<SQLData> convertToSQLData(UserContext ctx, T entity, PropertyDescriptor property, Object value) {
-        if (property instanceof SQLProperty) {
-            return ((SQLProperty) property).toDBRaw(ctx, entity, value);
-        }
-        throw new TeaQLRuntimeException("PortableSQLRepository only supports SQLProperty");
+        return io.teaql.core.sql.portable.SQLPropertyUtil.toDBRaw(ctx, entity, value, property);
     }
 
     private boolean shouldHandle(PropertyDescriptor pProperty) {
@@ -703,8 +714,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     private List<SQLColumn> getSqlColumns(PropertyDescriptor property) {
-        if (property instanceof SQLProperty) return ((SQLProperty) property).columns();
-        throw new TeaQLRuntimeException("PortableSQLRepository only supports SQLProperty");
+        return io.teaql.core.sql.portable.SQLPropertyUtil.getColumns(property);
     }
 
     public SQLColumn getSqlColumn(PropertyDescriptor property) {
@@ -730,7 +740,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         if (property.isId()) return 1L;
         if (property.isVersion()) return 1L;
         String createFunction = property.getAdditionalInfo().get("createFunction");
-        if (!ObjectUtil.isEmpty(createFunction)) return ReflectUtil.invoke(ctx, createFunction);
+        if (!ObjectUtil.isEmpty(createFunction)) return ctx.evaluate(createFunction);
         return property.getAdditionalInfo().get("candidates");
     }
 
@@ -739,7 +749,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         PropertyType type = property.getType();
         if (BaseEntity.class.isAssignableFrom(type.javaType())) return "1";
         String createFunction = property.getAdditionalInfo().get("createFunction");
-        if (!ObjectUtil.isEmpty(createFunction)) return ReflectUtil.invoke(ctx, createFunction);
+        if (!ObjectUtil.isEmpty(createFunction)) return ctx.evaluate(createFunction);
         List<String> candidates = property.getCandidates();
         if (property.isIdentifier()) return identifier;
         if (ObjectUtil.isNotEmpty(candidates)) return CollectionUtil.get(candidates, index);

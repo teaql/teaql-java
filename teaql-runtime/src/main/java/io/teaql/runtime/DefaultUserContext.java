@@ -16,6 +16,7 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
     private final TeaQLRuntime runtime;
     private final Map<String, Object> storage = new ConcurrentHashMap<>();
     private final List<TraceNode> traceChain = new ArrayList<>();
+    private io.teaql.core.log.CustomLogSink customSink;
 
     public DefaultUserContext(TeaQLRuntime runtime) {
         this.runtime = runtime;
@@ -26,31 +27,56 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
     }
 
     @Override
-    public <T extends Entity> T executeForOne(SearchRequest<T> searchRequest) {
-        SmartList<T> list = executeForList(searchRequest);
+    public <T extends Entity> T internalExecuteForOne(SearchRequest searchRequest) {
+        SmartList<T> list = internalExecuteForList(searchRequest);
         return list.isEmpty() ? null : list.get(0);
     }
 
     @Override
-    public <T extends Entity> SmartList<T> executeForList(SearchRequest searchRequest) {
+    public <T extends Entity> SmartList<T> internalExecuteForList(SearchRequest searchRequest) {
         return runtime.executeForList(this, searchRequest);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T extends Entity> Stream<T> executeForStream(SearchRequest searchRequest) {
-        return (Stream<T>) (Stream<?>) executeForList(searchRequest).stream();
+    public <T extends Entity> Stream<T> internalExecuteForStream(SearchRequest searchRequest) {
+        return (Stream<T>) (Stream<?>) internalExecuteForList(searchRequest).stream();
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T extends Entity> Stream<T> executeForStream(SearchRequest searchRequest, int enhanceBatchSize) {
-        return (Stream<T>) (Stream<?>) executeForList(searchRequest).stream();
+    public <T extends Entity> Stream<T> internalExecuteForStream(SearchRequest searchRequest, int enhanceBatchSize) {
+        return (Stream<T>) (Stream<?>) internalExecuteForList(searchRequest).stream();
     }
 
     @Override
-    public <T extends Entity> AggregationResult aggregation(SearchRequest request) {
+    public <T extends Entity> AggregationResult internalAggregation(SearchRequest request) {
         return runtime.aggregation(this, request);
+    }
+
+    @Override
+    public <T extends Entity> T executeForOne(ExecutableRequest<T> request) {
+        return internalExecuteForOne(request.request());
+    }
+
+    @Override
+    public <T extends Entity> SmartList<T> executeForList(ExecutableRequest<T> request) {
+        return internalExecuteForList(request.request());
+    }
+
+    @Override
+    public <T extends Entity> Stream<T> executeForStream(ExecutableRequest<T> request) {
+        return internalExecuteForStream(request.request());
+    }
+
+    @Override
+    public <T extends Entity> Stream<T> executeForStream(ExecutableRequest<T> request, int enhanceBatchSize) {
+        return internalExecuteForStream(request.request(), enhanceBatchSize);
+    }
+
+    @Override
+    public <T extends Entity> AggregationResult aggregation(ExecutableRequest<T> request) {
+        return internalAggregation(request.request());
     }
 
     @Override
@@ -94,15 +120,41 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
     }
 
     @Override
-    public List<TraceNode> getTraceChain() {
-        return Collections.unmodifiableList(traceChain);
+    public void popTrace() {
+        if (!traceChain.isEmpty()) {
+            traceChain.remove(traceChain.size() - 1);
+        }
     }
 
     @Override
-    public void logSql(String sql, long elapsedUs, String message) {
-        io.teaql.runtime.log.LogManager.getInstance().writeSqlLog(
-                this.traceChain, 
-                new io.teaql.runtime.log.SqlLogEntry(sql, elapsedUs, message)
-        );
+    public List<TraceNode> getTraceChain() {
+        return Collections.unmodifiableList(new ArrayList<>(traceChain));
+    }
+
+    @Override
+    public void recordExecutionMetadata(io.teaql.core.ExecutionMetadata metadata) {
+        if (metadata.getTraceChain() == null || metadata.getTraceChain().isEmpty()) {
+            metadata.setTraceChain(getTraceChain());
+        }
+        io.teaql.runtime.log.LogManager.getInstance().writeExecutionLog(this, metadata);
+    }
+
+    @Override
+    public void registerCustomSink(io.teaql.core.log.CustomLogSink sink) {
+        this.customSink = sink;
+    }
+
+    @Override
+    public io.teaql.core.log.CustomLogSink getCustomSink() {
+        return this.customSink;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T> T evaluate(String expression, Object... args) {
+        if ("now".equalsIgnoreCase(expression)) {
+            return (T) java.time.LocalDateTime.now();
+        }
+        return null;
     }
 }

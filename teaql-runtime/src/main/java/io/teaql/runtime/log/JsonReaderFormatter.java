@@ -20,12 +20,13 @@ public class JsonReaderFormatter implements LogFormatter {
     }
 
     @Override
-    public String formatSqlLog(List<TraceNode> traceChain, SqlLogEntry entry) {
-        return String.format("{\"type\":\"SQL_LOG\",\"trace\":%s,\"elapsedUs\":%d,\"summary\":\"%s\",\"sql\":\"%s\"}",
-                formatTraceChain(traceChain),
-                entry.getElapsedUs(),
-                escapeJson(entry.getResultSummary()),
-                escapeJson(entry.getPrettySql()));
+    public String formatExecutionLog(io.teaql.core.ExecutionMetadata metadata) {
+        return String.format("{\"type\":\"EXEC_LOG\",\"trace\":%s,\"backend\":\"%s\",\"elapsedUs\":%d,\"summary\":\"%s\",\"query\":\"%s\"}",
+                formatTraceChain(metadata.getTraceChain()),
+                escapeJson(metadata.getBackend()),
+                metadata.getElapsedUs(),
+                escapeJson(metadata.getResultSummary()),
+                escapeJson(metadata.getDebugQuery()));
     }
 
     @Override

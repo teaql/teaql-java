@@ -6,7 +6,7 @@
 
     <groupId>io.teaql</groupId>
     <artifactId>teaql-java-parent</artifactId>
-    <version>1.198-RELEASE</version>
+    <version>1.500-RELEASE</version>
     <packaging>pom</packaging>
 
     <name>teaql-java-parent</name>
@@ -20,6 +20,7 @@
     </properties>
 
     <modules>
+        <module>teaql-utils</module>
         <module>teaql-core</module>
         <module>teaql-runtime</module>
         <module>teaql-sql-portable</module>
@@ -36,6 +37,7 @@
         <module>teaql-postgres</module>
         <module>teaql-sqlite</module>
         <module>teaql-dm8</module>
+        <module>teaql-android</module>
     </modules>
 
     <dependencyManagement>

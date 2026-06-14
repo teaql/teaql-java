@@ -28,19 +28,19 @@ public class ExecutableRequest<T extends Entity> {
     }
 
     public SmartList<T> executeForList(UserContext ctx) {
-        return request.executeForList(ctx);
+        return ctx.executeForList(this);
     }
 
     public T executeForOne(UserContext ctx) {
-        return request.executeForOne(ctx);
+        return ctx.executeForOne(this);
     }
 
     public Stream<T> executeForStream(UserContext ctx) {
-        return request.executeForStream(ctx);
+        return ctx.executeForStream(this);
     }
 
     public AggregationResult aggregation(UserContext ctx) {
-        return request.aggregation(ctx);
+        return ctx.aggregation(this);
     }
 
     public SearchRequest<T> request() {

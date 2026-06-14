@@ -87,7 +87,7 @@ public class GenericSQLRelation extends Relation implements SQLProperty {
         if (referId == null) {
             return null;
         }
-        o.setId(((Number) referId).longValue());
+        o.internalSet("id", ((Number) referId).longValue());
         o.set$status(EntityStatus.REFER);
         return o;
     }

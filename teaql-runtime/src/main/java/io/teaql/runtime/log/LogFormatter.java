@@ -4,6 +4,6 @@ import io.teaql.core.log.TraceNode;
 import java.util.List;
 
 public interface LogFormatter {
-    String formatSqlLog(List<TraceNode> traceChain, SqlLogEntry entry);
+    String formatExecutionLog(io.teaql.core.ExecutionMetadata metadata);
     String formatAuditLog(List<TraceNode> traceChain, AuditEvent event);
 }

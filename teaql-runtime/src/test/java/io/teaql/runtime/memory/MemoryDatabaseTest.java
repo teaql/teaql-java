@@ -58,6 +58,11 @@ public class MemoryDatabaseTest {
             return "Task";
         }
 
+        public TaskRequest comment(String comment) {
+            super.internalComment(comment);
+            return this;
+        }
+
         public TaskRequest filterByTitle(String title) {
             appendSearchCriteria(createBasicSearchCriteria("title", Operator.EQUAL, title));
             return this;
@@ -132,7 +137,8 @@ public class MemoryDatabaseTest {
         Task task1 = new Task();
         task1.setTitle("Assemble Assembly Line");
         task1.setStatus("TODO");
-        task1.save(ctx);
+        task1.setComment("Create task 1");
+        task1.auditAs("save test").save(ctx);
 
         assertNotNull("ID should be generated automatically", task1.getId());
         assertEquals(Long.valueOf(100), task1.getId());
@@ -141,32 +147,35 @@ public class MemoryDatabaseTest {
         Task task2 = new Task();
         task2.setTitle("Write Integration Tests");
         task2.setStatus("TODO");
-        task2.save(ctx);
+        task2.setComment("Create task 2");
+        task2.auditAs("save test").save(ctx);
         assertEquals(Long.valueOf(101), task2.getId());
 
         // 2. Query Tasks by criteria
         TaskRequest req = new TaskRequest().filterByTitle("Assemble Assembly Line");
-        SmartList<Task> resultList = req.executeForList(ctx);
+        SmartList<Task> resultList = req.comment("Test query").purpose("Verify filter").executeForList(ctx);
         assertEquals(1, resultList.size());
         assertEquals("Assemble Assembly Line", resultList.get(0).getTitle());
 
         // Test filter no results
         TaskRequest reqEmpty = new TaskRequest().filterByTitle("Clean up workspace");
-        assertTrue(reqEmpty.executeForList(ctx).isEmpty());
+        assertTrue(reqEmpty.comment("Test query").purpose("Verify filter empty").executeForList(ctx).isEmpty());
 
         // 3. Update task
         task1.setStatus("DONE");
-        task1.save(ctx);
+        task1.setComment("Update task 1");
+        task1.auditAs("save test").save(ctx);
 
         TaskRequest reqDone = new TaskRequest().filterByStatus("DONE");
-        SmartList<Task> resultDone = reqDone.executeForList(ctx);
+        SmartList<Task> resultDone = reqDone.comment("Test query").purpose("Verify update").executeForList(ctx);
         assertEquals(1, resultDone.size());
         assertEquals("Assemble Assembly Line", resultDone.get(0).getTitle());
 
         // 4. Delete task
-        task1.delete(ctx);
+        task1.setComment("Delete task 1");
+        task1.auditAs("delete test").delete(ctx);
 
-        SmartList<Task> resultAfterDelete = new TaskRequest().filterByStatus("DONE").executeForList(ctx);
+        SmartList<Task> resultAfterDelete = new TaskRequest().filterByStatus("DONE").comment("Test query").purpose("Verify delete").executeForList(ctx);
         assertTrue("Task should be removed from DB", resultAfterDelete.isEmpty());
     }
 }

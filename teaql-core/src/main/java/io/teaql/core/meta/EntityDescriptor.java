@@ -51,9 +51,9 @@ public class EntityDescriptor {
     private Map<String, String> additionalInfo = new HashMap<>();
 
     /**
-     * Route entity operations to a named provider, defaulting to "sql".
+     * Route entity operations to a named provider, defaulting to "default".
      */
-    private String dataService = "sql";
+    private String dataService = "default";
 
     public String getDataService() {
         return dataService;
@@ -240,6 +240,7 @@ public class EntityDescriptor {
     protected PropertyDescriptor createPropertyDescriptor() {
         return new PropertyDescriptor();
     }
+
 
     public Relation addObjectProperty(
             EntityMetaFactory factory,

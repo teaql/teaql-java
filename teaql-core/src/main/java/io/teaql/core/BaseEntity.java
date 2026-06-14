@@ -81,9 +81,11 @@ public class BaseEntity implements Entity {
         return id;
     }
 
-    @Override
-    public void setId(Long id) {
+    public BaseEntity updateId(Long id) {
+        if (ObjectUtil.equals(this.id, id)) return this;
+        handleUpdate(ID_PROPERTY, getId(), id);
         this.id = id;
+        return this;
     }
 
     @Override
@@ -91,9 +93,44 @@ public class BaseEntity implements Entity {
         return version;
     }
 
-    @Override
-    public void setVersion(Long version) {
+    public BaseEntity updateVersion(Long version) {
+        if (ObjectUtil.equals(this.version, version)) return this;
+        handleUpdate(VERSION_PROPERTY, getVersion(), version);
         this.version = version;
+        return this;
+    }
+
+    /**
+     * Framework-internal property assignment channel.
+     * Used by database hydrators and JSON deserializers to populate entity fields
+     * during object construction. Performs raw assignment WITHOUT change tracking.
+     * Business code MUST use updateXxx() methods instead.
+     */
+    @FrameworkInternal("Business code must use updateXxx() methods")
+    public void internalSet(String property, Object value) {
+        switch (property) {
+            case "id":      this.id = (Long) value; break;
+            case "version": this.version = (Long) value; break;
+            default:
+                throw new IllegalArgumentException(
+                    typeName() + " has no property: " + property);
+        }
+    }
+
+    /**
+     * Framework-internal generic property read channel.
+     * Used by serializers, diff engines, and audit trail builders for
+     * reflection-free, uniform property access on BaseEntity references.
+     */
+    @FrameworkInternal("Business code should use typed getXxx() methods")
+    public Object internalGet(String property) {
+        switch (property) {
+            case "id":      return this.id;
+            case "version": return this.version;
+            default:
+                throw new IllegalArgumentException(
+                    typeName() + " has no property: " + property);
+        }
     }
 
     public String getSubType() {
@@ -327,18 +364,7 @@ public class BaseEntity implements Entity {
         return this;
     }
 
-    @Override
-    public void delete(UserContext userContext) {
-        markToRemove();
-        userContext.saveGraph(this);
-    }
 
-    @Override
-    public BaseEntity recover(UserContext userContext) {
-        markToRecover();
-        userContext.saveGraph(this);
-        return this;
-    }
 
     @Override
     public boolean recoverItem() {

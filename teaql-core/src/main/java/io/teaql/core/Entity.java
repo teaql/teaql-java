@@ -11,11 +11,7 @@ import io.teaql.core.utils.StrUtil;
 public interface Entity {
     Long getId();
 
-    void setId(Long id);
-
     Long getVersion();
-
-    void setVersion(Long id);
 
     default String typeName() {
         return this.getClass().getSimpleName();
@@ -30,17 +26,6 @@ public interface Entity {
     default void setRuntimeType(String runtimeType) {
     }
 
-    default Entity save(UserContext userContext) {
-        userContext.saveGraph(this);
-        return this;
-    }
-
-    default void delete(UserContext userContext) {
-    }
-
-    default Entity recover(UserContext userContext) {
-        return this;
-    }
 
     boolean newItem();
 
@@ -59,7 +44,11 @@ public interface Entity {
     }
 
     default void setProperty(String propertyName, Object value) {
-        BeanUtil.setProperty(this, propertyName, value);
+        if (this instanceof BaseEntity) {
+            ((BaseEntity) this).internalSet(propertyName, value);
+        } else {
+            BeanUtil.setProperty(this, propertyName, value);
+        }
     }
 
     default Entity updateProperty(String propertyName, Object value) {
@@ -98,9 +87,9 @@ public interface Entity {
      * @param action a human-readable description of the mutation intent
      * @return this entity for fluent chaining: entity.auditAs("...").save(ctx)
      */
-    default Entity auditAs(String action) {
-        setComment(action);
-        return this;
+    @SuppressWarnings("unchecked")
+    default <T extends Entity> Audited<T> auditAs(String action) {
+        return new Audited<>((T) this, action);
     }
 
 

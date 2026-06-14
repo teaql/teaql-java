@@ -46,36 +46,53 @@ public class TeaQLRuntime {
 
     @SuppressWarnings("unchecked")
     public <T extends Entity> SmartList<T> executeForList(UserContext ctx, SearchRequest<T> request) {
-        SearchRequest<T> checkedRequest = request;
-        if (requestPolicy != null) {
-            // Can enforce select policy
+        if (request.purpose() == null || request.purpose().trim().isEmpty()) {
+            throw new TeaQLRuntimeException("[PURPOSE REQUIRED] Missing .purpose() on query execution. You must not call executeForList directly without purpose.");
         }
-
-        EntityDescriptor descriptor = metadata.resolveEntityDescriptor(checkedRequest.getTypeName());
-        String route = descriptor.getDataService();
-        if (route == null || route.isEmpty()) {
-            route = "sql";
+        boolean pushed = false;
+        if (request.comment() != null && !request.comment().trim().isEmpty()) {
+            ctx.pushTrace(request.comment());
+            pushed = true;
         }
+        try {
+            SearchRequest<T> checkedRequest = request;
+            if (requestPolicy != null) {
+                // Can enforce select policy
+            }
 
-        QueryExecutor queryExecutor = registry.resolveQueryExecutor(route);
-        if (queryExecutor == null) {
-            throw new TeaQLRuntimeException("No QueryExecutor registered for route: " + route);
+            EntityDescriptor descriptor = metadata.resolveEntityDescriptor(checkedRequest.getTypeName());
+            String route = descriptor.getDataService();
+            if (route == null || route.isEmpty()) {
+                route = "default";
+            }
+
+            QueryExecutor queryExecutor = registry.resolveQueryExecutor(route);
+            if (queryExecutor == null) {
+                throw new TeaQLRuntimeException("No QueryExecutor registered for route: " + route);
+            }
+
+            QueryRequest queryRequest = new DefaultQueryRequest(checkedRequest);
+            QueryResult queryResult = queryExecutor.query(ctx, queryRequest);
+
+            if (queryResult instanceof DefaultQueryResult) {
+                return (SmartList<T>) ((DefaultQueryResult) queryResult).getResult();
+            }
+            throw new TeaQLRuntimeException("Unsupported QueryResult type from query executor: " + route);
+        } finally {
+            if (pushed) {
+                ctx.popTrace();
+            }
         }
-
-        QueryRequest queryRequest = new DefaultQueryRequest(checkedRequest);
-        QueryResult queryResult = queryExecutor.query(ctx, queryRequest);
-
-        if (queryResult instanceof DefaultQueryResult) {
-            return (SmartList<T>) ((DefaultQueryResult) queryResult).getResult();
-        }
-        throw new TeaQLRuntimeException("Unsupported QueryResult type from query executor: " + route);
     }
 
     public <T extends Entity> AggregationResult aggregation(UserContext ctx, SearchRequest<T> request) {
+        if (request.purpose() == null || request.purpose().trim().isEmpty()) {
+            throw new TeaQLRuntimeException("[PURPOSE REQUIRED] Missing .purpose() on query execution. You must not call aggregation directly without purpose.");
+        }
         EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
         String route = descriptor.getDataService();
         if (route == null || route.isEmpty()) {
-            route = "sql";
+            route = "default";
         }
         QueryExecutor queryExecutor = registry.resolveQueryExecutor(route);
         if (queryExecutor == null) {
@@ -101,48 +118,72 @@ public class TeaQLRuntime {
 
 
     public void saveGraph(UserContext ctx, Entity entity) {
-        if (entity.getId() == null && idGenerationService != null) {
-            Long newId = idGenerationService.generateId(ctx, entity);
-            entity.setId(newId);
+        if (entity.getComment() == null || entity.getComment().trim().isEmpty()) {
+            throw new TeaQLRuntimeException("[AUDIT REQUIRED] Missing .auditAs() or .setComment() before saveGraph().");
         }
-
-        EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());
-        String route = descriptor.getDataService();
-        if (route == null || route.isEmpty()) {
-            route = "sql";
+        boolean pushed = false;
+        if (entity.getComment() != null && !entity.getComment().trim().isEmpty()) {
+            ctx.pushTrace(entity.getComment());
+            pushed = true;
         }
+        try {
+            if (entity.getId() == null && idGenerationService != null) {
+                Long newId = idGenerationService.generateId(ctx, entity);
+                ((BaseEntity) entity).internalSet("id", newId);
+            }
 
-        MutationExecutor mutationExecutor = registry.resolveMutationExecutor(route);
-        if (mutationExecutor == null) {
-            throw new TeaQLRuntimeException("No MutationExecutor registered for route: " + route);
+            EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());
+            String route = descriptor.getDataService();
+            if (route == null || route.isEmpty()) {
+                route = "default";
+            }
+
+            MutationExecutor mutationExecutor = registry.resolveMutationExecutor(route);
+            if (mutationExecutor == null) {
+                throw new TeaQLRuntimeException("No MutationExecutor registered for route: " + route);
+            }
+
+            DefaultMutationRequest.Action action = entity.deleteItem() ? DefaultMutationRequest.Action.DELETE : DefaultMutationRequest.Action.SAVE;
+            MutationRequest mutationRequest = new DefaultMutationRequest(entity, action);
+
+            mutationExecutor.mutate(ctx, mutationRequest);
+        } finally {
+            if (pushed) {
+                ctx.popTrace();
+            }
         }
-
-        DefaultMutationRequest.Action action = entity.deleteItem() ? DefaultMutationRequest.Action.DELETE : DefaultMutationRequest.Action.SAVE;
-        DefaultMutationRequest mutationRequest = new DefaultMutationRequest(entity, action);
-        mutationExecutor.mutate(ctx, mutationRequest);
     }
 
     public void delete(UserContext ctx, Entity entity) {
-        if (entity instanceof BaseEntity) {
-            BaseEntity base = (BaseEntity) entity;
-            if (!base.deleteItem()) {
-                base.markToRemove();
+        if (entity.getComment() == null || entity.getComment().trim().isEmpty()) {
+            throw new TeaQLRuntimeException("[AUDIT REQUIRED] Missing .auditAs() or .setComment() before delete().");
+        }
+        boolean pushed = false;
+        if (entity.getComment() != null && !entity.getComment().trim().isEmpty()) {
+            ctx.pushTrace(entity.getComment());
+            pushed = true;
+        }
+        try {
+            EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());
+            String route = descriptor.getDataService();
+            if (route == null || route.isEmpty()) {
+                route = "default";
+            }
+
+            MutationExecutor mutationExecutor = registry.resolveMutationExecutor(route);
+            if (mutationExecutor == null) {
+                throw new TeaQLRuntimeException("No MutationExecutor registered for route: " + route);
+            }
+
+            DefaultMutationRequest.Action action = DefaultMutationRequest.Action.DELETE;
+            MutationRequest mutationRequest = new DefaultMutationRequest(entity, action);
+
+            mutationExecutor.mutate(ctx, mutationRequest);
+        } finally {
+            if (pushed) {
+                ctx.popTrace();
             }
         }
-
-        EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());
-        String route = descriptor.getDataService();
-        if (route == null || route.isEmpty()) {
-            route = "sql";
-        }
-
-        MutationExecutor mutationExecutor = registry.resolveMutationExecutor(route);
-        if (mutationExecutor == null) {
-            throw new TeaQLRuntimeException("No MutationExecutor registered for route: " + route);
-        }
-
-        DefaultMutationRequest mutationRequest = new DefaultMutationRequest(entity, DefaultMutationRequest.Action.DELETE);
-        mutationExecutor.mutate(ctx, mutationRequest);
     }
 
     public static class Builder {

@@ -225,10 +225,12 @@ public class SqlAstCompiler {
             io.teaql.core.meta.PropertyDescriptor property = repository.findProperty(target);
             if (property == null || property.isId()) continue;
             
-            if (property instanceof SQLProperty) {
-                for (SQLColumn col : ((SQLProperty) property).columns()) {
+            try {
+                for (SQLColumn col : io.teaql.core.sql.portable.SQLPropertyUtil.getColumns(property)) {
                     tables.add(col.getTableName());
                 }
+            } catch (Exception e) {
+                // ignore if not SQLProperty and no AdditionalInfo
             }
         }
         tables.add(metadata.getThisPrimaryTableName());
@@ -241,10 +243,12 @@ public class SqlAstCompiler {
             PropertyDescriptor property = repository.findProperty(target);
             if (property == null || property.isId()) continue;
             
-            if (property instanceof SQLProperty) {
-                for (SQLColumn col : ((SQLProperty) property).columns()) {
+            try {
+                for (SQLColumn col : io.teaql.core.sql.portable.SQLPropertyUtil.getColumns(property)) {
                     tables.add(col.getTableName());
                 }
+            } catch (Exception e) {
+                // ignore if not SQLProperty and no AdditionalInfo
             }
         }
         tables.add(metadata.getThisPrimaryTableName());

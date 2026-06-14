@@ -13,13 +13,16 @@ public interface BaseEntityExpression<T, U extends BaseEntity> extends Expressio
     }
 
     default Expression<T, U> save(UserContext userContext) {
-        return apply(entity -> (U) entity.save(userContext));
+        return apply(entity -> {
+            entity.auditAs("save via expression").save(userContext);
+            return entity;
+        });
     }
 
     default Expression<T, U> updateId(Long id) {
         return apply(
                 entity -> {
-                    entity.setId(id);
+                    entity.internalSet("id", id);
                     return entity;
                 });
     }

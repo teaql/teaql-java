@@ -29,34 +29,45 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
         TeaQLDatabase dbAdapter = new TeaQLDatabase() {
             @Override
             public List<Map<String, Object>> query(String sql, Object[] args) {
-                throw new UnsupportedOperationException();
+                return getExecutionAdapter().queryForList(sql, args);
             }
 
             @Override
             public int executeUpdate(String sql, Object[] args) {
-                throw new UnsupportedOperationException();
+                return getExecutionAdapter().update(sql, args);
             }
 
             @Override
             public int[] batchUpdate(String sql, List<Object[]> batchArgs) {
-                throw new UnsupportedOperationException();
+                return getExecutionAdapter().batchUpdate(sql, batchArgs);
             }
 
             @Override
             public void execute(String sql) {
-                getExecutionAdapter().execute(sql);
+                getExecutionAdapter().execute(sql.replace("<max>", "255"));
+            }
+
+            @Override
+            public void execute(io.teaql.core.UserContext ctx, String sql) {
+                this.execute(sql);
             }
 
             @Override
             public void executeInTransaction(Runnable action) {
-                throw new UnsupportedOperationException();
+                action.run(); // For SQLite simplicity in this CLI
             }
 
             @Override
             public List<Map<String, Object>> getTableColumns(String tableName) {
-                // Return empty so that PortableSQLRepository thinks the table doesn't exist and creates it
-                // We could implement PRAGMA table_info here if needed
-                return Collections.emptyList();
+                try {
+                    List<Map<String, Object>> columns = getExecutionAdapter().queryForList("PRAGMA table_info(" + tableName + ")", new Object[0]);
+                    for (Map<String, Object> col : columns) {
+                        col.put("column_name", col.get("name"));
+                    }
+                    return columns;
+                } catch (Exception e) {
+                    return Collections.emptyList();
+                }
             }
         };
 

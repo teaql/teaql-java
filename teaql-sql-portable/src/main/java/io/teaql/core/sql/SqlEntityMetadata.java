@@ -68,15 +68,11 @@ public class SqlEntityMetadata {
     }
 
     private boolean shouldHandle(Relation relation) {
-        // SQLRepository specific logic for relations
-        return true; 
+        return relation.getRelationKeeper() == relation.getOwner();
     }
 
     private List<SQLColumn> getSqlColumns(PropertyDescriptor property) {
-        if (property instanceof SQLProperty) {
-            return ((SQLProperty) property).columns();
-        }
-        throw new TeaQLRuntimeException("SQLRepository only support SQLProperty");
+        return io.teaql.core.sql.portable.SQLPropertyUtil.getColumns(property);
     }
 
     public EntityDescriptor getEntityDescriptor() { return entityDescriptor; }

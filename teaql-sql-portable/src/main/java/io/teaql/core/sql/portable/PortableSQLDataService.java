@@ -73,24 +73,24 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         if (mutation.getAction() == DefaultMutationRequest.Action.SAVE) {
             if (entity.getId() == null) {
                 Long newId = repository.prepareId(ctx, entity);
-                entity.setId(newId);
+                ((BaseEntity) entity).internalSet("id", newId);
             }
             if (entity.newItem()) {
-                entity.setVersion(1L);
+                ((BaseEntity) entity).internalSet("version", 1L);
                 repository.createInternal(ctx, Collections.singletonList(entity));
             } else if (entity.updateItem()) {
                 repository.updateInternal(ctx, Collections.singletonList(entity));
-                entity.setVersion(entity.getVersion() + 1);
+                ((BaseEntity) entity).internalSet("version", entity.getVersion() + 1);
             } else if (entity.recoverItem()) {
                 repository.recoverInternal(ctx, Collections.singletonList(entity));
-                entity.setVersion(-entity.getVersion() + 1);
+                ((BaseEntity) entity).internalSet("version", -entity.getVersion() + 1);
             }
             if (entity instanceof BaseEntity) {
                 ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);
             }
         } else if (mutation.getAction() == DefaultMutationRequest.Action.DELETE) {
             repository.deleteInternal(ctx, Collections.singletonList(entity));
-            entity.setVersion(-(entity.getVersion() + 1));
+            ((BaseEntity) entity).internalSet("version", -(entity.getVersion() + 1));
             if (entity instanceof BaseEntity) {
                 ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);
             }
