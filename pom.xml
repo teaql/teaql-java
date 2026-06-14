@@ -215,7 +215,7 @@
         <repository>
             <id>TEAQL</id>
             <name>TEAQL Maven releases repository</name>
-            <url>https://nexus.teaql.io/repository/maven-releases/</url>
+            <url>https://maven.teaql.io/repository/maven-releases/</url>
         </repository>
         <snapshotRepository>
             <id>TEAQL</id>
