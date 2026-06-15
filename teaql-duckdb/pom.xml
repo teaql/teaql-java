@@ -8,8 +8,8 @@
         <artifactId>teaql-java-parent</artifactId>
         <version>1.513-RELEASE</version>
     </parent>
-    <artifactId>teaql-duck</artifactId>
-    <name>teaql-duck</name>
+    <artifactId>teaql-duckdb</artifactId>
+    <name>teaql-duckdb</name>
     <dependencies>
         <dependency>
             <groupId>io.teaql</groupId>

@@ -32,7 +32,7 @@
         <module>teaql-db2</module>
         <module>teaql-mssql</module>
         <module>teaql-hana</module>
-        <module>teaql-duck</module>
+        <module>teaql-duckdb</module>
         <module>teaql-snowflake</module>
         <module>teaql-postgres</module>
         <module>teaql-sqlite</module>
