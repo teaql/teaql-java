@@ -46,6 +46,24 @@ public class MemoryDatabaseTest {
         public String typeName() {
             return "Task";
         }
+
+        @Override
+        public void internalSet(String property, Object value) {
+            switch (property) {
+                case "title": this.title = (String) value; break;
+                case "status": this.status = (String) value; break;
+                default: super.internalSet(property, value);
+            }
+        }
+
+        @Override
+        public Object internalGet(String property) {
+            switch (property) {
+                case "title": return this.title;
+                case "status": return this.status;
+                default: return super.internalGet(property);
+            }
+        }
     }
 
     public static class TaskRequest extends BaseRequest<Task> {
@@ -57,6 +75,7 @@ public class MemoryDatabaseTest {
         public String getTypeName() {
             return "Task";
         }
+
 
         public TaskRequest comment(String comment) {
             super.internalComment(comment);

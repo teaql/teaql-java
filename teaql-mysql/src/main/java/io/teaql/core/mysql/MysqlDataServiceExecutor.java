@@ -44,7 +44,7 @@ public class MysqlDataServiceExecutor extends SqlDataServiceExecutor {
 
             @Override
             public void execute(String sql) {
-                getExecutionAdapter().execute(sql);
+                getExecutionAdapter().execute(sql.replace("<max>", "255"));
             }
 
             @Override
