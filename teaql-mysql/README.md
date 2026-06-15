@@ -1,6 +1,6 @@
-# teaql-mysql
+# TeaQL MySQL Module
 
-This module provides the MySQL execution adapter and data service executor for the TeaQL framework.
+This module provides the database integration dialect and executor for MySQL Database.
 
 ## Documentation
-- [Integration Test Report](INTEGRATION_TEST_REPORT.md)
+- [Integration Test Report](TEST_REPORT.md)
