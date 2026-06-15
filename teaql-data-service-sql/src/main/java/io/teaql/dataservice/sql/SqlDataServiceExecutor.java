@@ -16,6 +16,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, MutationExecutor, 
     private final String name;
     private final SqlExecutionAdapter executionAdapter;
     private final DataServiceCapabilities capabilities;
+    protected io.teaql.core.sql.dialect.SqlDialect dialect = new io.teaql.core.sql.dialect.PostgreSqlDialect();
 
     public SqlDataServiceExecutor(String name, SqlExecutionAdapter executionAdapter) {
         this.name = name;
@@ -167,6 +168,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, MutationExecutor, 
                 }
             };
             portableService = new io.teaql.core.sql.portable.PortableSQLDataService(name, dbAdapter, io.teaql.core.meta.EntityMetaFactory.get());
+            portableService.setDialect(this.dialect);
         }
         return portableService;
     }

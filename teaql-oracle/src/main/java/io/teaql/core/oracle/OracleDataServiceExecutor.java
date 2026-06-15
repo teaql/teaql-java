@@ -16,6 +16,7 @@ public class OracleDataServiceExecutor extends SqlDataServiceExecutor {
 
     public OracleDataServiceExecutor(String name, SqlExecutionAdapter executionAdapter) {
         super(name, executionAdapter);
+        this.dialect = new io.teaql.core.sql.dialect.OracleDialect();
     }
 
     @Override
@@ -40,7 +41,13 @@ public class OracleDataServiceExecutor extends SqlDataServiceExecutor {
 
             @Override
             public void execute(String sql) {
-                getExecutionAdapter().execute(sql);
+                // Translate types for Oracle
+                String translated = sql.replace("<max>", "255")
+                        .replaceAll("(?i)\\bBIGINT\\b", "NUMBER(19)")
+                        .replaceAll("(?i)\\bDATETIME\\b", "TIMESTAMP")
+                        .replaceAll("(?i)\\bBOOLEAN\\b", "NUMBER(1)")
+                        .replaceAll("(?i)\\bDOUBLE\\b", "BINARY_DOUBLE");
+                getExecutionAdapter().execute(translated);
             }
 
             @Override
@@ -57,6 +64,7 @@ public class OracleDataServiceExecutor extends SqlDataServiceExecutor {
 
         for (EntityDescriptor descriptor : descriptors) {
             PortableSQLRepository repository = new PortableSQLRepository(descriptor, dbAdapter, null);
+            repository.setDialect(this.dialect);
             repository.ensureSchema(ctx);
         }
     }

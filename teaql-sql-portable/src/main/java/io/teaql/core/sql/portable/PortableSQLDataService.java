@@ -14,6 +14,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
     private final EntityMetaFactory metadata;
     private final Map<String, PortableSQLRepository<?>> repositories = new ConcurrentHashMap<>();
     private final PortableSQLRepository.PortableSQLRepositoryResolver resolver = this::getRepository;
+    private io.teaql.core.sql.dialect.SqlDialect dialect;
 
     public PortableSQLDataService(String name, TeaQLDatabase database, EntityMetaFactory metadata) {
         this.name = name;
@@ -30,6 +31,10 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         return name;
     }
 
+    public void setDialect(io.teaql.core.sql.dialect.SqlDialect dialect) {
+        this.dialect = dialect;
+    }
+
     @Override
     public DataServiceCapabilities capabilities() {
         return capabilities;
@@ -42,7 +47,11 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             if (descriptor == null) {
                 throw new TeaQLRuntimeException("Entity descriptor not found for type: " + t);
             }
-            return new PortableSQLRepository<>(descriptor, database, resolver);
+            PortableSQLRepository<?> repo = new PortableSQLRepository<>(descriptor, database, resolver);
+            if (this.dialect != null) {
+                repo.setDialect(this.dialect);
+            }
+            return (PortableSQLRepository<T>) repo;
         });
     }
 

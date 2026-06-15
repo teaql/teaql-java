@@ -891,6 +891,9 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         while (parameters.containsKey(offsetKey)) offsetKey += "_1";
         parameters.put(offsetKey, slice.getOffset());
         
+        if (dialect instanceof io.teaql.core.sql.dialect.OracleDialect) {
+            return StrUtil.format("OFFSET :{} ROWS FETCH NEXT :{} ROWS ONLY", offsetKey, limitKey);
+        }
         return StrUtil.format("LIMIT :{} OFFSET :{}", limitKey, offsetKey);
     }
 

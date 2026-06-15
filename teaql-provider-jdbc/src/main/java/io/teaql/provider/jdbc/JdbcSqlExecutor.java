@@ -52,7 +52,11 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 while (rs.next()) {
                     java.util.Map<String, Object> row = new java.util.HashMap<>();
                     for (int i = 1; i <= columnCount; i++) {
-                        row.put(rs.getMetaData().getColumnLabel(i), rs.getObject(i));
+                        String label = rs.getMetaData().getColumnLabel(i);
+                        if (label != null) {
+                            label = label.toLowerCase();
+                        }
+                        row.put(label, rs.getObject(i));
                     }
                     result.add(row);
                 }
