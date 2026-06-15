@@ -1,6 +1,6 @@
-# teaql-dm8
+# TeaQL DM8 Module
 
-This module provides the Dameng Database (DM8) execution adapter and data service executor for the TeaQL framework.
+This module provides the database integration dialect and executor for Dameng 8 (DM8) Database.
 
 ## Documentation
-- [Integration Test Report](INTEGRATION_TEST_REPORT.md)
+- [Integration Test Report](TEST_REPORT.md)
