@@ -497,7 +497,7 @@ public class UtilsTest {
         assertEquals(new BigDecimal("99.9"), NumberUtil.toBigDecimal("99.9"));
 
         // Exceptional / boundary branches
-        assertEquals(new BigDecimal("5.0"), NumberUtil.add(null, b)); // Null treats as 0 in Hutool add
+        assertEquals(new BigDecimal("5.0"), NumberUtil.add(null, b)); // Null treats as 0 in addition
         assertThrows(IllegalArgumentException.class, () -> NumberUtil.isGreater(null, b));
         assertThrows(IllegalArgumentException.class, () -> NumberUtil.isLess(null, b));
 
@@ -505,7 +505,7 @@ public class UtilsTest {
         assertThrows(Exception.class, () -> NumberUtil.toBigDecimal("invalid-number"));
         assertThrows(Exception.class, () -> NumberUtil.parseNumber(null));
         
-        // Null string toBigDecimal returns either null or BigDecimal.ZERO safely depending on Hutool versions
+        // Null string toBigDecimal returns either null or BigDecimal.ZERO safely
         BigDecimal res = NumberUtil.toBigDecimal((String) null);
         assertTrue(res == null || BigDecimal.ZERO.compareTo(res) == 0);
     }
