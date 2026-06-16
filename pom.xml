@@ -23,6 +23,7 @@
         <module>teaql-utils</module>
         <module>teaql-core</module>
         <module>teaql-runtime</module>
+        <module>teaql-context-runtime-tools</module>
         <module>teaql-sql-portable</module>
         <module>teaql-data-service-sql</module>
         <module>teaql-provider-jdbc</module>
@@ -57,6 +58,11 @@
             <dependency>
                 <groupId>io.teaql</groupId>
                 <artifactId>teaql-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-context-runtime-tools</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
