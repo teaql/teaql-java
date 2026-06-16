@@ -40,7 +40,7 @@ Spring Boot applications should depend on the starter artifact:
 <dependency>
     <groupId>io.teaql</groupId>
     <artifactId>teaql-spring-boot-starter</artifactId>
-    <version>1.198-RELEASE</version>
+    <version>1.516-RELEASE</version>
 </dependency>
 ```
 
