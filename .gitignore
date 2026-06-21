@@ -30,3 +30,5 @@ target/
 .gradle/
 build/
 **/build/
+
+*.py
