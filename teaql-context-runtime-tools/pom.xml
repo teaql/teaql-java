@@ -17,8 +17,9 @@
             <artifactId>teaql-core</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.teaql</groupId>
-            <artifactId>teaql-utils</artifactId>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>
