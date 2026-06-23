@@ -28,6 +28,7 @@ import java.io.FileInputStream;
 public class LogManager {
 
     private static final LogManager INSTANCE = new LogManager();
+    private static final String EXTREME_TEST_FLAG = "__i_agree_to_disable_runtime_trace_only_for_extreme_performance_testing";
 
     private final String endpoint;
     private final long maxSize;
@@ -40,15 +41,40 @@ public class LogManager {
     private final AtomicLong currentSize = new AtomicLong(0);
     private final Object fileLock = new Object();
     private long nextMidnightMillis;
+    private volatile boolean headerWritten = false;
+
+    private String determineEndpoint() {
+        String mode = TeaQLEnv.get("TEAQL_TRACE_MODE");
+        if ("off".equals(mode)) {
+            String ack = TeaQLEnv.get("TEAQL_TRACE_OFF_ACK");
+            if (EXTREME_TEST_FLAG.equals(ack)) {
+                return "off";
+            }
+        }
+        String val = TeaQLEnv.get("TEAQL_LOG_ENDPOINT");
+        if (val != null && !val.trim().isEmpty()) {
+            return val;
+        }
+        String command = System.getProperty("sun.java.command");
+        String exeName = "teaql";
+        if (command != null && !command.trim().isEmpty()) {
+            exeName = command.split(" ")[0];
+            int lastDot = exeName.lastIndexOf('.');
+            if (lastDot >= 0 && lastDot < exeName.length() - 1) {
+                exeName = exeName.substring(lastDot + 1);
+            }
+        }
+        return exeName + ".log";
+    }
 
     private LogManager() {
-        this.endpoint = TeaQLEnv.get("TEAQL_LOG_ENDPOINT");
+        this.endpoint = determineEndpoint();
         this.maxSize = TeaQLEnv.getSizeInBytes("TEAQL_LOG_MAX_SIZE", 50 * 1024 * 1024L); // default 50MB
         this.maxFiles = TeaQLEnv.getInt("TEAQL_LOG_MAX_FILES", 7);
         
         this.queue = new ArrayBlockingQueue<>(10000);
 
-        if (this.endpoint != null && !this.endpoint.trim().isEmpty()) {
+        if (!"off".equals(this.endpoint) && !"stdout".equals(this.endpoint)) {
             initFileChannel();
         }
 
@@ -97,6 +123,38 @@ public class LogManager {
         }
     }
 
+    private void writeHeaderIfNeeded() {
+        if (headerWritten || "off".equals(endpoint)) return;
+        synchronized (fileLock) {
+            if (headerWritten) return;
+            try {
+                java.net.URL url = getClass().getResource("/log_header.txt");
+                String header = "";
+                if (url != null) {
+                    try (java.io.InputStream is = url.openStream();
+                         java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A")) {
+                        header = s.hasNext() ? s.next() : "";
+                    }
+                } else {
+                    header = "================================================================================\n" +
+                             "🚀 TEAQL Holographic Trace Log\n" +
+                             "================================================================================";
+                }
+                byte[] bytes = (header + "\n").getBytes(StandardCharsets.UTF_8);
+                if ("stdout".equals(endpoint)) {
+                    System.out.print(new String(bytes, StandardCharsets.UTF_8));
+                } else if (currentChannel != null) {
+                    currentChannel.write(ByteBuffer.wrap(bytes));
+                    currentSize.addAndGet(bytes.length);
+                }
+            } catch (Exception e) {
+                System.err.println("TeaQL LogManager Failed to write header: " + e.getMessage());
+            } finally {
+                headerWritten = true;
+            }
+        }
+    }
+
     private void asyncWrite(String content, io.teaql.core.log.CustomLogSink customSink) {
         if (!queue.offer(() -> syncWrite(content, customSink))) {
             // Queue is full, drop or print to standard error to prevent blocking main business logic
@@ -109,9 +167,13 @@ public class LogManager {
         if (customSink != null) {
             customSink.onLog(content);
         }
+        
+        if ("off".equals(endpoint)) return;
+        writeHeaderIfNeeded();
+
         byte[] bytes = (content + "\n").getBytes(StandardCharsets.UTF_8);
 
-        if (endpoint == null || endpoint.trim().isEmpty()) {
+        if ("stdout".equals(endpoint)) {
             System.out.print(new String(bytes, StandardCharsets.UTF_8));
             return;
         }
