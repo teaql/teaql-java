@@ -1,8 +1,8 @@
 package io.teaql.tools.impl;
 
 import io.teaql.core.UserContext;
-import io.teaql.core.spi.AgentToolProvider;
-import io.teaql.core.tools.AgentHttpTool;
+import io.teaql.tools.AgentHttpTool;
+import io.teaql.tools.spi.AgentToolProvider;
 
 public class AgentToolProviderImpl implements AgentToolProvider {
     

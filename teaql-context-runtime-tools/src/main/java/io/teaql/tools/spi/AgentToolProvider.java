@@ -1,16 +1,16 @@
-package io.teaql.core.spi;
+package io.teaql.tools.spi;
 
 import io.teaql.core.UserContext;
-import io.teaql.core.tools.AgentHttpTool;
+import io.teaql.tools.AgentHttpTool;
 
 /**
  * Service Provider Interface (SPI) for resolving Agent capability tools dynamically.
- * This ensures core remains decoupled from tool implementation via JPMS.
  */
 public interface AgentToolProvider {
-    
+
     /**
      * Get the HTTP Tool capability bound to the given context.
+     *
      * @param ctx The user context to bind the audit trail.
      * @return The HTTP tool facade.
      */

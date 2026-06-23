@@ -1,7 +1,8 @@
 package io.teaql.runtime.log;
 
 import io.teaql.runtime.config.TeaQLEnv;
-import io.teaql.core.log.TraceNode;
+import io.teaql.runtime.RuntimeLogSink;
+import io.teaql.core.TraceNode;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -25,7 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.GZIPOutputStream;
 import java.io.FileInputStream;
 
-public class LogManager {
+public class LogManager implements RuntimeLogSink {
 
     private static final LogManager INSTANCE = new LogManager();
     private static final String EXTREME_TEST_FLAG = "__i_agree_to_disable_runtime_trace_only_for_extreme_performance_testing";
@@ -159,14 +160,14 @@ public class LogManager {
         }
     }
 
-    private void asyncWrite(String content, io.teaql.core.log.CustomLogSink customSink) {
+    private void asyncWrite(String content, CustomLogSink customSink) {
         if (!queue.offer(() -> syncWrite(content, customSink))) {
             // Queue is full, drop or print to standard error to prevent blocking main business logic
             System.err.println("TeaQL LogManager queue full, dropped log.");
         }
     }
 
-    private void syncWrite(String content, io.teaql.core.log.CustomLogSink customSink) {
+    private void syncWrite(String content, CustomLogSink customSink) {
         if (content == null || content.isEmpty()) return;
         if (customSink != null) {
             customSink.onLog(content);
@@ -271,12 +272,13 @@ public class LogManager {
         }
     }
 
+    @Override
     public void writeExecutionLog(io.teaql.core.UserContext ctx, io.teaql.core.ExecutionMetadata metadata) {
         if (!LogConfig.getInstance().shouldLogSql(metadata.getDebugQuery())) {
             return;
         }
         String content = LogFormatterFactory.getFormatter().formatExecutionLog(metadata);
-        io.teaql.core.log.CustomLogSink customSink = ctx != null ? ctx.getCustomSink() : null;
+        CustomLogSink customSink = ctx != null ? ctx.capability(CustomLogSink.class) : null;
         asyncWrite(content, customSink);
     }
 
@@ -285,7 +287,7 @@ public class LogManager {
             return;
         }
         String content = LogFormatterFactory.getFormatter().formatAuditLog(traceChain, event);
-        io.teaql.core.log.CustomLogSink customSink = ctx != null ? ctx.getCustomSink() : null;
+        CustomLogSink customSink = ctx != null ? ctx.capability(CustomLogSink.class) : null;
         asyncWrite(content, customSink);
     }
 }

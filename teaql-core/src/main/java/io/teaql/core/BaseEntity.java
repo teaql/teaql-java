@@ -1,7 +1,5 @@
 package io.teaql.core;
 
-import java.beans.PropertyChangeEvent;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -9,10 +7,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
-
-import com.fasterxml.jackson.annotation.JsonAnyGetter;
-import com.fasterxml.jackson.annotation.JsonAnySetter;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.teaql.core.utils.ObjectUtil;
 import io.teaql.core.utils.ReflectUtil;
@@ -25,23 +19,18 @@ public class BaseEntity implements Entity {
 
     private EntityStatus $status = EntityStatus.NEW;
 
-    @JsonIgnore
     private String subType;
 
     private String displayName;
 
-    @JsonIgnore
-    private Map<String, PropertyChangeEvent> updatedProperties = new ConcurrentHashMap<>();
+    private Map<String, PropertyChange> updatedProperties = new ConcurrentHashMap<>();
 
-    @JsonIgnore
     private Map<String, Object> additionalInfo = new ConcurrentHashMap<>();
 
-    @JsonIgnore
     private Map<String, Entity> relationCache = new HashMap<>();
 
     private List<Object> actionList;
 
-    @JsonIgnore
     private String _comment;
 
     @Override
@@ -54,7 +43,6 @@ public class BaseEntity implements Entity {
         this._comment = comment;
     }
 
-    @JsonIgnore
     private String _traceChain;
 
     @Override
@@ -67,7 +55,6 @@ public class BaseEntity implements Entity {
         this._traceChain = traceChain;
     }
 
-    @JsonIgnore
     public EntityStatus get$status() {
         return $status;
     }
@@ -269,7 +256,6 @@ public class BaseEntity implements Entity {
         return (T) o;
     }
 
-    @JsonAnyGetter
     public Map<String, Object> getAdditionalInfo() {
         return additionalInfo;
     }
@@ -278,7 +264,6 @@ public class BaseEntity implements Entity {
         additionalInfo = pAdditionalInfo;
     }
 
-    @JsonAnySetter
     public void putAdditional(String propertyName, Object value) {
         additionalInfo.put(propertyName, value);
     }
@@ -314,18 +299,17 @@ public class BaseEntity implements Entity {
      */
     public void handleUpdate(String propertyName, Object oldValue, Object newValue) {
         gotoNextStatus(EntityAction.UPDATE);
-        PropertyChangeEvent propertyChangeEvent = updatedProperties.get(propertyName);
+        PropertyChange propertyChange = updatedProperties.get(propertyName);
         // find the older value
-        if (propertyChangeEvent != null) {
-            oldValue = propertyChangeEvent.getOldValue();
+        if (propertyChange != null) {
+            oldValue = propertyChange.getOldValue();
         }
         // value changed back, then no changes
         if (ObjectUtil.equals(oldValue, newValue)) {
             updatedProperties.remove(propertyName);
             return;
         }
-        updatedProperties.put(
-                propertyName, new PropertyChangeEvent(this, propertyName, oldValue, newValue));
+        updatedProperties.put(propertyName, new PropertyChange(propertyName, oldValue, newValue));
     }
 
     public void gotoNextStatus(EntityAction action) {
@@ -339,19 +323,19 @@ public class BaseEntity implements Entity {
     }
 
     public Object getOldValue(String propertyName) {
-        PropertyChangeEvent propertyChangeEvent = updatedProperties.get(propertyName);
-        if (propertyChangeEvent == null) {
+        PropertyChange propertyChange = updatedProperties.get(propertyName);
+        if (propertyChange == null) {
             return null;
         }
-        return propertyChangeEvent.getOldValue();
+        return propertyChange.getOldValue();
     }
 
     public Object getNewValue(String propertyName) {
-        PropertyChangeEvent propertyChangeEvent = updatedProperties.get(propertyName);
-        if (propertyChangeEvent == null) {
+        PropertyChange propertyChange = updatedProperties.get(propertyName);
+        if (propertyChange == null) {
             return null;
         }
-        return propertyChangeEvent.getNewValue();
+        return propertyChange.getNewValue();
     }
 
     public BaseEntity markToRemove() {

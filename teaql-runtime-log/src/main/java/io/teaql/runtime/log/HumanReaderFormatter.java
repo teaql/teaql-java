@@ -1,6 +1,6 @@
 package io.teaql.runtime.log;
 
-import io.teaql.core.log.TraceNode;
+import io.teaql.core.TraceNode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;

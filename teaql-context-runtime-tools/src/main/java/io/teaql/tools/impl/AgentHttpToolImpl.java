@@ -1,9 +1,9 @@
 package io.teaql.tools.impl;
 
 import io.teaql.core.UserContext;
-import io.teaql.core.tools.AgentHttpTool;
-import io.teaql.core.tools.ExecutableHttpTool;
-import io.teaql.core.tools.HttpIntentPhase;
+import io.teaql.tools.AgentHttpTool;
+import io.teaql.tools.ExecutableHttpTool;
+import io.teaql.tools.HttpIntentPhase;
 
 // Assuming HttpUtil exists in teaql-utils or we'll mock the print out for now
 // import io.teaql.core.utils.io.HttpUtil;

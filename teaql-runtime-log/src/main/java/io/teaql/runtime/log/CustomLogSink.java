@@ -1,4 +1,4 @@
-package io.teaql.core.log;
+package io.teaql.runtime.log;
 
 public interface CustomLogSink {
     void onLog(String formattedLogContent);

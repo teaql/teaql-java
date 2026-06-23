@@ -3,10 +3,6 @@ package io.teaql.core;
 import java.util.stream.Stream;
 import io.teaql.core.utils.OptNullBasicTypeFromObjectGetter;
 import java.util.List;
-import io.teaql.core.log.TraceNode;
-import java.util.ServiceLoader;
-import io.teaql.core.spi.AgentToolProvider;
-import io.teaql.core.tools.AgentHttpTool;
 
 public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
 
@@ -16,9 +12,6 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
 
     void popTrace();
     void recordExecutionMetadata(ExecutionMetadata metadata);
-
-    void registerCustomSink(io.teaql.core.log.CustomLogSink sink);
-    io.teaql.core.log.CustomLogSink getCustomSink();
 
     // Business-facing API
     <T extends Entity> T executeForOne(ExecutableRequest<T> request);
@@ -38,15 +31,12 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
     <T extends Entity> Stream<T> internalExecuteForStream(SearchRequest searchRequest, int enhanceBatchSize);
     <T extends Entity> AggregationResult internalAggregation(SearchRequest request);
 
-    /**
-     * Agent Capability Sandbox: HTTP Tool.
-     * Dynamically loaded via JPMS ServiceLoader to avoid cyclic dependencies.
-     */
-    default AgentHttpTool http() {
-        return ServiceLoader.load(AgentToolProvider.class)
-                .findFirst()
-                .map(provider -> provider.getHttpTool(this))
-                .orElseThrow(() -> new IllegalStateException("AgentToolProvider implementation not found on classpath/modulepath. Please add teaql-context-runtime-tools module."));
+    default Object extension(String name) {
+        return null;
+    }
+
+    default <T> T capability(Class<T> capabilityType) {
+        return null;
     }
 
     void saveGraph(Object items);

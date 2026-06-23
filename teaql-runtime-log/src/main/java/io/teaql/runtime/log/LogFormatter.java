@@ -1,6 +1,6 @@
 package io.teaql.runtime.log;
 
-import io.teaql.core.log.TraceNode;
+import io.teaql.core.TraceNode;
 import java.util.List;
 
 public interface LogFormatter {

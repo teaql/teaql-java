@@ -2,7 +2,6 @@ package io.teaql.core;
 
 import java.time.Instant;
 import java.util.List;
-import io.teaql.core.log.TraceNode;
 
 public final class ExecutionMetadata {
     private String backend;

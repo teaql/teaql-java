@@ -1,4 +1,4 @@
-package io.teaql.core;
+package io.teaql.query.json;
 
 import java.util.Date;
 import java.util.Iterator;
@@ -9,6 +9,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 
+import io.teaql.core.BaseRequest;
+import io.teaql.core.SearchCriteria;
 import io.teaql.core.utils.PageUtil;
 
 import io.teaql.core.criteria.Operator;

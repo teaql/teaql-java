@@ -10,12 +10,12 @@ TEAQL `teaql-runtime` 原有的日志架构（详见 `LOG_DESIGN.md`）基于系
 
 ## 2. 核心架构升级：UserContext Scoped Log Sink
 
-为了在**不破坏框架纯洁性与绝对零依赖**的前提下，提供极致的应用层扩展性，我们引入 `CustomLogSink` 机制，并将其生命周期严格绑定至 `UserContext`。
+为了在**不破坏 core 边界**的前提下，提供应用层扩展性，我们引入 `CustomLogSink` 机制，并将其生命周期严格绑定至 `UserContext`。`teaql-core` 不直接定义日志 sink 类型，只提供通用的上下文扩展能力；日志 sink 属于 `teaql-runtime`。
 
 ### 2.1 引入 `CustomLogSink` 接口
-在 `teaql-core` 核心抽象中定义极简的回调接口：
+在 `teaql-runtime` 中定义极简的回调接口：
 ```java
-package io.teaql.core.log;
+package io.teaql.runtime.log;
 
 /**
  * 允许在应用层捕获 TeaQL Runtime 生成的格式化日志。
@@ -27,12 +27,17 @@ public interface CustomLogSink {
 ```
 
 ### 2.2 扩展 `UserContext`
-在 `io.teaql.core.UserContext` 增加对应方法的契约：
+在 `io.teaql.core.UserContext` 保留通用扩展点：
 ```java
-void registerCustomSink(io.teaql.core.log.CustomLogSink sink);
-io.teaql.core.log.CustomLogSink getCustomSink();
+default Object extension(String name) {
+    return null;
+}
+
+default <T> T capability(Class<T> capabilityType) {
+    return null;
+}
 ```
-这意味着 `UserContext` 不再仅仅是业务执行的令牌，它也是日志溯源的上下文边界。
+`DefaultUserContext` 使用内部 storage 承载这些扩展能力。应用侧通过 runtime 提供的 `LogSinks.register(ctx, sink)` 注册日志 sink，而不是让 core 暴露日志专用 API。
 
 ## 3. Runtime 执行时序与异步安全保障
 
@@ -40,7 +45,7 @@ io.teaql.core.log.CustomLogSink getCustomSink();
 
 1. **业务层发起**：业务调用 `task.save(ctx)`。
 2. **Runtime 提取上下文**：`DefaultUserContext` 在执行完毕后触发 `recordExecutionMetadata(this, metadata)`。注意，此处将 `this` 传递给底层 `LogManager`。
-3. **LogManager 打包**：`LogManager` 使用对应的 `LogFormatter` 生成 `formattedLogContent` 字符串，并从传递来的 `UserContext` 中提取 `CustomLogSink`。
+3. **LogManager 打包**：`LogManager` 使用对应的 `LogFormatter` 生成 `formattedLogContent` 字符串，并通过 `ctx.capability(CustomLogSink.class)` 提取 `CustomLogSink`。
 4. **入队阶段**：`LogManager` 将 `content` 和 `customSink` 一并包装为一个匿名 `Runnable` 放入高并发的无锁/有界阻塞队列 `ArrayBlockingQueue`。**此阶段耗时极低，主业务线程立即放行。**
 5. **守护线程消费与回调**：`TeaQL-LogWriter-Thread` 后台线程从队列中拉取任务，执行 `syncWrite` 时，首先检查 `customSink`。如果存在，调用 `customSink.onLog(content)`，最后继续将内容刷入到全局的日志文件或标准输出中。
 
@@ -53,7 +58,7 @@ io.teaql.core.log.CustomLogSink getCustomSink();
 RobotTaskBoardServiceUserContext ctx = new RobotTaskBoardServiceUserContextImpl();
 
 // 注入专属于当前 Context 的定制化 Sink
-ctx.registerCustomSink(logContent -> {
+LogSinks.register(ctx, logContent -> {
     // 切换到主线程更新前端 UI，不会阻塞 TeaQL 异步后台线程
     runOnUiThread(() -> {
          DatabaseMock.getInstance().addLog(logContent);

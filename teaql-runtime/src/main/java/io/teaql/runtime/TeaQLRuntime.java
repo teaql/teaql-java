@@ -10,7 +10,7 @@ public class TeaQLRuntime {
     private final DataServiceRegistry registry;
     private final RequestPolicy requestPolicy;
     private final InternalIdGenerationService idGenerationService;
-    private final ExecutionLogSink logSink;
+    private final RuntimeLogSink logSink;
 
     private TeaQLRuntime(Builder builder) {
         this.metadata = builder.metadata;
@@ -40,8 +40,14 @@ public class TeaQLRuntime {
         return idGenerationService;
     }
 
-    public ExecutionLogSink getLogSink() {
+    public RuntimeLogSink getLogSink() {
         return logSink;
+    }
+
+    public void recordExecutionMetadata(UserContext ctx, ExecutionMetadata metadata) {
+        if (logSink != null) {
+            logSink.writeExecutionLog(ctx, metadata);
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -218,7 +224,7 @@ public class TeaQLRuntime {
         private DataServiceRegistry registry = new DefaultDataServiceRegistry();
         private RequestPolicy requestPolicy;
         private InternalIdGenerationService idGenerationService;
-        private ExecutionLogSink logSink;
+        private RuntimeLogSink logSink;
 
         public Builder metadata(EntityMetaFactory metadata) {
             this.metadata = metadata;
@@ -249,7 +255,7 @@ public class TeaQLRuntime {
             return this;
         }
 
-        public Builder logSink(ExecutionLogSink logSink) {
+        public Builder logSink(RuntimeLogSink logSink) {
             this.logSink = logSink;
             return this;
         }
