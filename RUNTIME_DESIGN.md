@@ -15,7 +15,7 @@ TeaQL 致力于提供一个“极度轻量、高度可移植、零反射开销�
 
 ### 2.2 铁打的组件引擎，流水的 `UserContext`
 我们从传统的单例模式进化为了 **“享元（Flyweight） + 请求管线（Request Pipeline）”** 模式：
-1. **全局冷启动（Cold Boot）**：系统启动时，框架通过 SPI 扫描，仅且只有一次地初始化好那些重量级组件（如 `LogManager` 守护线程、数据库连接池、复杂的方言 `Dialect` 实例），并将它们缓存。
+1. **全局冷启动（Cold Boot）**：系统启动时，框架通过 SPI 扫描，仅且只有一次地初始化好那些重量级组件（如数据库连接池、复杂的方言 `Dialect` 实例，或可选 `teaql-runtime-log` 后端），并将它们缓存。
 2. **每次请求瞬间创建（Per-Request Context）**：当一次查询或一个 HTTP 请求发生时，框架 `new` 出一个全新的极轻量的 `UserContext`。随后，瞬间把冷启动备好的那些“重量级组件”的 **内存引用（References）** 挂载给这个新建的 Context。
 
 **性能表现**：在老旧的 i7 移动处理器上，单线程创建一个配置齐备的 `UserContext` 耗时仅需 **500 纳秒（0.5 微秒）**，实现了单核每秒近 200 万次的惊人并发创建率，彻底超越 Spring Boot 的代理对象生成性能。
@@ -93,7 +93,7 @@ public interface ContextAssembler extends Comparable<ContextAssembler> {
 
 ### 4.2 压测结果
 * **引擎冷启动耗时 (Cold Boot)**: **约 52 毫秒**
-  *(涵盖了从类路径下扫描所有 META-INF 的 SPI 实现，并初始化带有后台并发写入线程的工业级 LogManager 的全过程。)*
+  *(早期基准包含 SPI 扫描和日志后端初始化；当前 `teaql-runtime` 已将日志后端拆为可选 `teaql-runtime-log`，最小 runtime 不再强制启动日志线程。)*
 * **创建 100万 个上下文总耗时**: **541 毫秒**
 * **单次 UserContext 极速装配耗时**: **541 纳秒（约 0.5 微秒）**
   *(该耗时几乎完全等同于 `new ConcurrentHashMap()` 与 `new ArrayList()` 的 Java 底层堆内存分配耗时，模块装配/引用的挂载耗时几乎为 0。)*

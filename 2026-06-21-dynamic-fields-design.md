@@ -70,11 +70,12 @@ platform.dynamicFields().getNumber("priority_score");
 
 ## 3. 序列化与反序列化
 
-当前 `BaseEntity.additionalInfo` 的行为需要特别处理：
+当前 `BaseEntity.additionalInfo` 的 JSON 行为由可选 `teaql-jackson` 模块提供，需要特别处理：
 
-- 字段本身是 `@JsonIgnore`；
-- `getAdditionalInfo()` 使用 `@JsonAnyGetter`，会把 `additionalInfo` 内容打平到顶层 JSON；
-- `putAdditional()` 使用 `@JsonAnySetter`，反序列化时未知字段会进入 `additionalInfo`；
+- `BaseEntity` 本身不依赖 Jackson；
+- 注册 `io.teaql.jackson.TeaQLModule` 后，`BaseEntityMixin` 会忽略内部字段；
+- 注册 `TeaQLModule` 后，`getAdditionalInfo()` 通过 mixin 的 `@JsonAnyGetter` 语义把 `additionalInfo` 内容打平到顶层 JSON；
+- 注册 `TeaQLModule` 后，`putAdditional()` 通过 mixin 的 `@JsonAnySetter` 语义接收未知字段；
 - `addDynamicProperty("abc", value)` 会序列化成顶层 `_abc`；
 - `addDynamicProperty(".abc", value)` 会序列化成顶层 `abc`。
 
@@ -104,7 +105,7 @@ platform.dynamicFields().getNumber("priority_score");
 entity.addDynamicProperty(".#customer_asset_no", "A-10086");
 ```
 
-利用现有 `@JsonAnyGetter` 输出顶层 `#customer_asset_no`，但不能输出：
+利用 `teaql-jackson` 中 `BaseEntityMixin` 的 any-getter 语义输出顶层 `#customer_asset_no`，但不能输出：
 
 ```json
 {
@@ -244,7 +245,7 @@ DYNAMIC_FIELD_NOT_VISIBLE
 
 原因：
 
-- `@JsonAnySetter` 当前会接收所有未知字段；
+- 注册 `TeaQLModule` 后，any-setter 会接收所有未知字段；
 - 如果 unknown field 自动写入 dynamic fields，会绕过字段定义、权限、类型、审计和 intent；
 - 拼写错误的标准字段也可能被误写成动态字段。
 
@@ -261,7 +262,7 @@ ctx.dynamicFields()
 这个形状的主要影响：
 
 - `#` 必须成为 TeaQL JSON 的保留前缀，标准字段、普通 additional property、临时动态列都不能使用这个前缀；
-- `@JsonAnySetter` 会把 `#customer_asset_no` 收进 `additionalInfo`，但 repository save 不能自动写库；
+- 注册 `TeaQLModule` 后，any-setter 会把 `#customer_asset_no` 收进 `additionalInfo`，但 repository save 不能自动写库；
 - JSONPath、前端表单和导入导出工具访问字段时通常要使用 bracket 形式，例如 `$['#customer_asset_no']`；
 - OpenAPI/Schema 不能只靠普通 Java Bean 属性表达，需要补充 dynamic-field 扩展 schema；
 - `__fieldMeta` 必须作为保留元数据 key 特判，不参与动态字段值写入；

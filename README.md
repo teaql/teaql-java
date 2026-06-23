@@ -75,10 +75,10 @@ Q.tasks()
     .executeForList(userContext);
 ```
 
-The default `PurposeRequestPolicy` enforces this style by requiring a purpose
-before execution. Applications can replace `RequestPolicy`, `LogManager`,
-`DataStore`, `LockService`, `Translator`, and `EntityMetaFactory` beans in their
-framework integration layer.
+The default runtime keeps a small execution surface. Applications can replace
+`RequestPolicy`, `RuntimeLogSink`, `DataStore`, `LockService`, `Translator`, and
+`EntityMetaFactory` beans in their framework integration layer. File/stdout log
+writing is provided by the optional `teaql-runtime-log` module.
 
 ## Framework Integration
 
