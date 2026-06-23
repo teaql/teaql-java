@@ -6,19 +6,28 @@
     <parent>
         <groupId>io.teaql</groupId>
         <artifactId>teaql-java-parent</artifactId>
-        <version>1.518-RELEASE</version>
-        <relativePath>../pom.xml</relativePath>
+        <version>1.517-RELEASE</version>
     </parent>
 
-    <artifactId>teaql-provider-jdbc</artifactId>
-    <name>teaql-provider-jdbc</name>
-    <description>Direct JDBC Execution Adapter provider for TeaQL</description>
+    <artifactId>teaql-sql-portable</artifactId>
+    <name>teaql-sql-portable</name>
+    <description>Portable SQL implementation for TeaQL, works on Android and JVM without spring-jdbc</description>
 
     <dependencies>
         <dependency>
             <groupId>io.teaql</groupId>
-            <artifactId>teaql-data-service-sql</artifactId>
+            <artifactId>teaql-core</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.teaql</groupId>
+            <artifactId>teaql-utils</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.teaql</groupId>
+            <artifactId>teaql-runtime</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- Testing dependencies -->
         <dependency>
             <groupId>junit</groupId>
@@ -26,8 +35,9 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.45.1.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

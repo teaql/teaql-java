@@ -6,18 +6,29 @@
     <parent>
         <groupId>io.teaql</groupId>
         <artifactId>teaql-java-parent</artifactId>
-        <version>1.518-RELEASE</version>
+        <version>1.517-RELEASE</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
-    <artifactId>teaql-oracle</artifactId>
-    <name>teaql-oracle</name>
+
+    <artifactId>teaql-provider-jdbc</artifactId>
+    <name>teaql-provider-jdbc</name>
+    <description>Direct JDBC Execution Adapter provider for TeaQL</description>
+
     <dependencies>
         <dependency>
             <groupId>io.teaql</groupId>
             <artifactId>teaql-data-service-sql</artifactId>
         </dependency>
+        <!-- Testing dependencies -->
         <dependency>
-            <groupId>io.teaql</groupId>
-            <artifactId>teaql-utils</artifactId>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

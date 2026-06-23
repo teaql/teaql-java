@@ -6,18 +6,22 @@
     <parent>
         <groupId>io.teaql</groupId>
         <artifactId>teaql-java-parent</artifactId>
-        <version>1.518-RELEASE</version>
+        <version>1.517-RELEASE</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>teaql-provider-jdbc</artifactId>
-    <name>teaql-provider-jdbc</name>
-    <description>Direct JDBC Execution Adapter provider for TeaQL</description>
+    <artifactId>teaql-provider-spring-jdbc</artifactId>
+    <name>teaql-provider-spring-jdbc</name>
+    <description>Spring JDBC Execution Adapter provider for TeaQL</description>
 
     <dependencies>
         <dependency>
             <groupId>io.teaql</groupId>
             <artifactId>teaql-data-service-sql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
         </dependency>
         <!-- Testing dependencies -->
         <dependency>

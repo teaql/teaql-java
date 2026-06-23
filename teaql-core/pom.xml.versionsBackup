@@ -3,31 +3,36 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>io.teaql</groupId>
         <artifactId>teaql-java-parent</artifactId>
-        <version>1.518-RELEASE</version>
+        <version>1.517-RELEASE</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>teaql-provider-jdbc</artifactId>
-    <name>teaql-provider-jdbc</name>
-    <description>Direct JDBC Execution Adapter provider for TeaQL</description>
+    <artifactId>teaql-core</artifactId>
+    <name>teaql-core</name>
+    <description>Core library for TeaQL</description>
 
     <dependencies>
         <dependency>
             <groupId>io.teaql</groupId>
-            <artifactId>teaql-data-service-sql</artifactId>
+            <artifactId>teaql-utils</artifactId>
         </dependency>
-        <!-- Testing dependencies -->
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
+            <version>4.13.2</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

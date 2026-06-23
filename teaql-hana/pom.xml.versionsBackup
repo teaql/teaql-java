@@ -6,10 +6,10 @@
     <parent>
         <groupId>io.teaql</groupId>
         <artifactId>teaql-java-parent</artifactId>
-        <version>1.518-RELEASE</version>
+        <version>1.517-RELEASE</version>
     </parent>
-    <artifactId>teaql-oracle</artifactId>
-    <name>teaql-oracle</name>
+    <artifactId>teaql-hana</artifactId>
+    <name>teaql-hana</name>
     <dependencies>
         <dependency>
             <groupId>io.teaql</groupId>
