@@ -55,6 +55,10 @@ public class LogManager {
         if (val != null && !val.trim().isEmpty()) {
             return val;
         }
+        String domain = TeaQLEnv.get("TEAQL_DOMAIN");
+        if (domain != null && !domain.trim().isEmpty()) {
+            return domain.trim() + ".log";
+        }
         String command = System.getProperty("sun.java.command");
         String exeName = "teaql";
         if (command != null && !command.trim().isEmpty()) {
