@@ -272,12 +272,18 @@ public class LogManager {
     }
 
     public void writeExecutionLog(io.teaql.core.UserContext ctx, io.teaql.core.ExecutionMetadata metadata) {
+        if (!LogConfig.getInstance().shouldLogSql(metadata.getDebugQuery())) {
+            return;
+        }
         String content = LogFormatterFactory.getFormatter().formatExecutionLog(metadata);
         io.teaql.core.log.CustomLogSink customSink = ctx != null ? ctx.getCustomSink() : null;
         asyncWrite(content, customSink);
     }
 
     public void writeAuditLog(io.teaql.core.UserContext ctx, List<TraceNode> traceChain, AuditEvent event) {
+        if (!LogConfig.getInstance().shouldLogAudit(event.getEntityType())) {
+            return;
+        }
         String content = LogFormatterFactory.getFormatter().formatAuditLog(traceChain, event);
         io.teaql.core.log.CustomLogSink customSink = ctx != null ? ctx.getCustomSink() : null;
         asyncWrite(content, customSink);
