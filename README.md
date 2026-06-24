@@ -20,28 +20,52 @@ TeaQL Java is the Java runtime for TeaQL domain applications. It provides the
 core entity/request/repository model, SQL repository support, database-specific
 dialects, and integration modules for Spring Boot and Android.
 
+The main runtime path is designed to run without reflection-heavy entity
+construction or bean mutation. See
+[Native Image Reflection Guide](NATIVE_IMAGE_REFLECTION_GUIDE.md) for the
+no-reflection baseline and coding rules.
+
+For TeaQL entities, JSON serialization/deserialization and SQL result-set row
+mapping are on that no-reflection path:
+
+- `teaql-jackson` registers explicit TeaQL entity serializers and
+  deserializers through `TeaQLModule`.
+- `teaql-sql-portable` creates entities from database rows through
+  `EntityDescriptor.createEntity()`, backed by registered suppliers such as
+  `Task::new`.
+- Generated or hand-written metadata must register `entitySupplier` beside
+  `targetType`.
+
+Keep dynamic/additional values JSON-friendly, such as scalars, maps, lists, and
+other already-serializable values. If an application stores arbitrary Java
+objects in dynamic/additional fields, Jackson may still use its default bean
+introspection for those application objects.
+
 The project was renamed from `teaql-spring-boot-starter` to `teaql-java` as the
 runtime moved from a Spring-only package to a modular Java runtime. The Spring
 Boot starter artifact remains `teaql-spring-boot-starter` for compatibility.
 
 ## Modules
 
-### Core Modules (Active)
+### Core Modules
 | Module | Purpose |
 | --- | --- |
 | `teaql-core` | Core entities, requests, criteria, metadata, audit logging, policies, and contracts. Completely independent of Spring/SQL. |
 | `teaql-runtime` | Default runtime implementation including `TeaQLRuntime` engine, user contexts, registry lookup, and an optimized concurrent in-memory database execution service with LRU eviction. |
 
-### Reference Modules (In `reference/` directory, for progressive transformation)
+### Optional Modules
 | Module | Purpose |
 | --- | --- |
-| `teaql-utils` | Shared utility classes used by the runtime (now with optimized reflection cache). |
-| `teaql-sql` | SQL repository implementation based on `spring-jdbc`. |
-| `teaql-autoconfigure` | Spring Boot auto-configuration for TeaQL runtime beans. |
-| `teaql-starter` | Compatibility starter artifact `teaql-spring-boot-starter`. |
-| `teaql-sql-portable` | Portable SQL repository through the `TeaQLDatabase` abstraction (e.g. for Android). |
-| `teaql-sqlite` | SQLite repository support. |
-| `teaql-mysql`, `teaql-mssql`, `teaql-oracle`, etc. | Database-specific SQL repository modules. |
+| `teaql-jackson` | Explicit TeaQL entity JSON serialization and deserialization support. |
+| `teaql-query-json` | JSON query parsing support. |
+| `teaql-runtime-log` | Optional runtime log sinks. |
+| `teaql-context-runtime-tools` | Runtime tool registration and policy integration. |
+| `teaql-tool-http` | Optional HTTP tool support. |
+| `teaql-sql-portable` | Portable SQL repository through the `TeaQLDatabase` abstraction. |
+| `teaql-data-service-sql` | SQL data service integration. |
+| `teaql-provider-jdbc`, `teaql-provider-spring-jdbc` | JDBC provider integrations. |
+| `teaql-sqlite`, `teaql-mysql`, `teaql-postgres`, etc. | Database-specific SQL repository modules. |
+| `teaql-android` | Android-facing integration helpers. |
 
 ## Requirements
 

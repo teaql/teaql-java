@@ -41,6 +41,8 @@ public class EntityDescriptor {
      */
     private Class<? extends Entity> targetType;
 
+    private Supplier<? extends Entity> entitySupplier;
+
     /**
      * parent entity descriptor
      */
@@ -131,6 +133,26 @@ public class EntityDescriptor {
 
     public void setTargetType(Class<? extends Entity> pTargetType) {
         targetType = pTargetType;
+    }
+
+    public Supplier<? extends Entity> getEntitySupplier() {
+        return entitySupplier;
+    }
+
+    public void setEntitySupplier(Supplier<? extends Entity> entitySupplier) {
+        this.entitySupplier = entitySupplier;
+    }
+
+    public EntityDescriptor withEntitySupplier(Supplier<? extends Entity> entitySupplier) {
+        setEntitySupplier(entitySupplier);
+        return this;
+    }
+
+    public Entity createEntity() {
+        if (entitySupplier == null) {
+            throw new IllegalStateException("No entity supplier registered for " + getType());
+        }
+        return entitySupplier.get();
     }
 
     public EntityDescriptor getParent() {

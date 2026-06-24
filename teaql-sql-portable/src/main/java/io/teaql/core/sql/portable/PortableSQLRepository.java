@@ -1,6 +1,7 @@
 package io.teaql.core.sql.portable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -38,6 +39,7 @@ import io.teaql.core.UserContext;
 
 
 import io.teaql.core.meta.EntityDescriptor;
+import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.PropertyDescriptor;
 import io.teaql.core.meta.PropertyType;
 import io.teaql.core.meta.Relation;
@@ -60,7 +62,6 @@ import io.teaql.core.utils.MapUtil;
 import io.teaql.core.utils.NamingCase;
 import io.teaql.core.utils.NumberUtil;
 import io.teaql.core.utils.ObjectUtil;
-import io.teaql.utils.reflect.ReflectUtil;
 import io.teaql.core.utils.StrUtil;
 
 /**
@@ -201,34 +202,9 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         while (m.find()) {
             String paramName = m.group(1);
             Object value = params.get(paramName);
-            if (value instanceof java.util.Collection) {
-                java.util.Collection<?> col = (java.util.Collection<?>) value;
-                if (col.isEmpty()) {
-                    args.add(null);
-                    m.appendReplacement(sb, "?");
-                } else {
-                    StringBuilder qm = new StringBuilder();
-                    for (Object item : col) {
-                        args.add(item);
-                        if (qm.length() > 0) qm.append(", ");
-                        qm.append("?");
-                    }
-                    m.appendReplacement(sb, qm.toString());
-                }
-            } else if (value != null && value.getClass().isArray()) {
-                int len = java.lang.reflect.Array.getLength(value);
-                if (len == 0) {
-                    args.add(null);
-                    m.appendReplacement(sb, "?");
-                } else {
-                    StringBuilder qm = new StringBuilder();
-                    for (int i = 0; i < len; i++) {
-                        args.add(java.lang.reflect.Array.get(value, i));
-                        if (qm.length() > 0) qm.append(", ");
-                        qm.append("?");
-                    }
-                    m.appendReplacement(sb, qm.toString());
-                }
+            Collection<?> expandedValues = expandedParameterValues(value);
+            if (expandedValues != null) {
+                appendExpandedParameter(expandedValues, args, m, sb);
             } else {
                 args.add(value);
                 m.appendReplacement(sb, "?");
@@ -236,6 +212,73 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         }
         m.appendTail(sb);
         return new PositionalSQL(sb.toString(), args.toArray());
+    }
+
+    private Collection<?> expandedParameterValues(Object value) {
+        if (value instanceof Collection<?> collection) {
+            return collection;
+        }
+        if (value instanceof Object[] array) {
+            return Arrays.asList(array);
+        }
+        if (value instanceof int[] array) {
+            List<Integer> values = new ArrayList<>(array.length);
+            for (int item : array) values.add(item);
+            return values;
+        }
+        if (value instanceof long[] array) {
+            List<Long> values = new ArrayList<>(array.length);
+            for (long item : array) values.add(item);
+            return values;
+        }
+        if (value instanceof short[] array) {
+            List<Short> values = new ArrayList<>(array.length);
+            for (short item : array) values.add(item);
+            return values;
+        }
+        if (value instanceof byte[] array) {
+            List<Byte> values = new ArrayList<>(array.length);
+            for (byte item : array) values.add(item);
+            return values;
+        }
+        if (value instanceof double[] array) {
+            List<Double> values = new ArrayList<>(array.length);
+            for (double item : array) values.add(item);
+            return values;
+        }
+        if (value instanceof float[] array) {
+            List<Float> values = new ArrayList<>(array.length);
+            for (float item : array) values.add(item);
+            return values;
+        }
+        if (value instanceof boolean[] array) {
+            List<Boolean> values = new ArrayList<>(array.length);
+            for (boolean item : array) values.add(item);
+            return values;
+        }
+        if (value instanceof char[] array) {
+            List<Character> values = new ArrayList<>(array.length);
+            for (char item : array) values.add(item);
+            return values;
+        }
+        return null;
+    }
+
+    private void appendExpandedParameter(
+            Collection<?> values, List<Object> args, Matcher matcher, StringBuffer sql) {
+        if (values.isEmpty()) {
+            args.add(null);
+            matcher.appendReplacement(sql, "?");
+            return;
+        }
+
+        StringBuilder placeholders = new StringBuilder();
+        for (Object item : values) {
+            args.add(item);
+            if (placeholders.length() > 0) placeholders.append(", ");
+            placeholders.append("?");
+        }
+        matcher.appendReplacement(sql, placeholders.toString());
     }
 
     // ==========================================
@@ -317,7 +360,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     private T mapRowToEntity(UserContext userContext, SearchRequest<T> request, Map<String, Object> row) {
         Class<? extends T> returnType = request.returnType();
-        T entity = ReflectUtil.newInstance(returnType);
+        T entity = createEntity(returnType);
         for (PropertyDescriptor property : this.allProperties) {
             if (!shouldHandle(property)) continue;
             if (!(property instanceof Relation)) {
@@ -331,7 +374,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 Object value = row.get(property.getName());
                 if (value != null) {
                     try {
-                        Entity ref = (Entity) ReflectUtil.newInstance(property.getType().javaType());
+                        Entity ref = createEntity((Class<? extends Entity>) property.getType().javaType());
                         ((BaseEntity) ref).internalSet("id", io.teaql.core.utils.Convert.convert(Long.class, value));
                         if (ref instanceof BaseEntity) {
                             ((BaseEntity) ref).set$status(io.teaql.core.EntityStatus.REFER);
@@ -364,6 +407,30 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         }
 
         return entity;
+    }
+
+    @SuppressWarnings("unchecked")
+    private <E extends Entity> E createEntity(Class<? extends E> entityType) {
+        EntityDescriptor descriptor = resolveDescriptor(entityType);
+        return (E) descriptor.createEntity();
+    }
+
+    private EntityDescriptor resolveDescriptor(Class<? extends Entity> entityType) {
+        if (entityType == null) {
+            throw new IllegalArgumentException("Entity type cannot be null");
+        }
+        if (entityDescriptor.getTargetType() == entityType) {
+            return entityDescriptor;
+        }
+        EntityMetaFactory metadata = EntityMetaFactory.get();
+        if (metadata != null) {
+            for (EntityDescriptor descriptor : metadata.allEntityDescriptors()) {
+                if (descriptor.getTargetType() == entityType) {
+                    return descriptor;
+                }
+            }
+        }
+        throw new IllegalStateException("No entity descriptor registered for " + entityType.getName());
     }
 
         public void createInternal(UserContext userContext, Collection<T> createItems) {

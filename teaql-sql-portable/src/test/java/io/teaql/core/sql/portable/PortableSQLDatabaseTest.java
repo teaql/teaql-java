@@ -220,6 +220,7 @@ public class PortableSQLDatabaseTest {
         EntityDescriptor taskDescriptor = new EntityDescriptor();
         taskDescriptor.setType("Task");
         taskDescriptor.setTargetType(Task.class);
+        taskDescriptor.setEntitySupplier(Task::new);
         taskDescriptor.setDataService("sql");
 
         List<PropertyDescriptor> props = new ArrayList<>();

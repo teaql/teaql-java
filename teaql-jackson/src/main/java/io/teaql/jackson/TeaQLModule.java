@@ -10,7 +10,8 @@ public class TeaQLModule extends SimpleModule {
 
     public TeaQLModule() {
         super("TeaQL");
-        setMixInAnnotation(BaseEntity.class, BaseEntityMixin.class);
+        addSerializer(BaseEntity.class, new BaseEntityJsonSerializer());
+        addDeserializer(BaseEntity.class, new BaseEntityJsonDeserializer());
         addSerializer(SmartList.class, new SmartListAsListSerializer(SmartList.class));
     }
 }

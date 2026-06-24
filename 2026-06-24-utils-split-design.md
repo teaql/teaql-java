@@ -62,8 +62,8 @@ Done in this phase:
   `teaql-utils-reflection`
 
 After phase 1, `teaql-utils` contains only pure helper code plus the remaining
-commons helpers. `teaql-core` still depends on reflection explicitly through
-`teaql-utils-reflection`; removing that requires API-level decisions.
+commons helpers. Reflection-backed helpers are isolated in
+`teaql-utils-reflection`.
 
 ## Phase 2: JSON
 
@@ -75,6 +75,10 @@ Move Jackson-backed helpers into `teaql-utils-json`:
 
 Status: `JSONUtil` now lives in `teaql-utils-json`, and `Convert` no longer
 depends on Jackson for common scalar conversions.
+
+BaseEntity JSON serialization/deserialization is owned by `teaql-jackson`.
+`TeaQLModule` registers explicit BaseEntity serializer/deserializer so entity
+JSON does not rely on Jackson's default bean mutation path.
 
 ## Phase 3: Spring
 
@@ -101,17 +105,25 @@ Move reflection-heavy helpers into `teaql-utils-reflection`:
 
 Status: `ReflectUtil` and `BeanUtil` now live in
 `io.teaql.utils.reflect`. `ClassUtil` currently stays in `teaql-utils` because
-its active code is pure JDK class inspection/loading. `teaql-core` and SQL
-modules now depend on `teaql-utils-reflection` explicitly where they still need
-reflective mutation or instantiation.
+its active code is pure JDK class inspection/loading.
 
-This phase requires core API work. Current core usage includes:
+`teaql-core`, `teaql-runtime`, `teaql-sql-portable`, and `teaql-jackson` no
+longer depend on `teaql-utils-reflection`.
 
-- `Entity.getProperty()` / `Entity.setProperty()`
-- `Entity.updateProperty()`
-- `BaseRequest` temporary request instantiation
-- `EntityDescriptor` property/relation descriptor instantiation
+Entity creation now goes through `EntityDescriptor.createEntity()`, backed by a
+registered `Supplier<? extends Entity>`. Generated metadata should emit
+`descriptor.setEntitySupplier(EntityClass::new)` beside `targetType`.
 
-The final target is for generated entities and metadata to expose typed or
-interface-driven mutation/instantiation paths so `teaql-core` does not need
-general reflection utilities.
+SQL result-set mapping no longer uses reflective constructors for the main row
+entity or relation reference entities. BaseEntity JSON serialization and
+deserialization is explicit in `teaql-jackson`, so entity JSON does not rely on
+Jackson's default bean mutation path.
+
+Remaining reflection is deliberately isolated in optional utility modules:
+
+- `teaql-utils-reflection`: general `ReflectUtil` and `BeanUtil`
+- `teaql-utils`: low-level array/class/type helpers
+- `teaql-utils-json`: JSON helper object creation and type metadata
+
+See `NATIVE_IMAGE_REFLECTION_GUIDE.md` for the no-reflection runtime baseline
+and coding rules.
