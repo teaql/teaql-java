@@ -67,6 +67,41 @@ Boot starter artifact remains `teaql-spring-boot-starter` for compatibility.
 | `teaql-sqlite`, `teaql-mysql`, `teaql-postgres`, etc. | Database-specific SQL repository modules. |
 | `teaql-android` | Android-facing integration helpers. |
 
+### Module Selection Matrix
+
+`✅` means the module is directly useful for that application type. Database
+modules are selected by the target database; most applications only need one
+dialect module.
+
+| Module | Android APP | Compose APP | Console APP | Spring Boot APP | Quarkus APP | Micronaut APP |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `teaql-core` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `teaql-runtime` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `teaql-jackson` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `teaql-query-json` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `teaql-runtime-log` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `teaql-sql-portable` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `teaql-data-service-sql` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `teaql-provider-jdbc` | ✅ | ✅ | ✅ |  | ✅ | ✅ |
+| `teaql-provider-spring-jdbc` |  |  |  | ✅ |  |  |
+| `teaql-utils` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `teaql-utils-json` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `teaql-utils-reflection` |  |  |  | ✅ |  |  |
+| `teaql-utils-spring` |  |  |  | ✅ |  |  |
+| `teaql-context-runtime-tools` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `teaql-tool-http` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `teaql-android` | ✅ |  |  |  |  |  |
+| `teaql-sqlite` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `teaql-mysql` |  | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `teaql-postgres` |  | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `teaql-oracle` |  | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `teaql-db2` |  | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `teaql-mssql` |  | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `teaql-hana` |  | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `teaql-duckdb` |  | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `teaql-snowflake` |  | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `teaql-dm8` |  | ✅ | ✅ | ✅ | ✅ | ✅ |
+
 ## Requirements
 
 - Java 17+
