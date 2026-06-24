@@ -9,12 +9,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import io.teaql.core.utils.ArrayUtil;
 import io.teaql.core.utils.ObjectUtil;
-import io.teaql.core.utils.ReflectUtil;
 import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.criteria.AND;
 import io.teaql.core.criteria.Between;
@@ -84,21 +80,6 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
 
     public BaseRequest(Class<T> pReturnType) {
         returnType = pReturnType;
-    }
-
-    public BaseRequest<T> findWithJson(String jsonStr) {
-        if (jsonStr == null || jsonStr.trim().isEmpty()) {
-            return this;
-        }
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode rootNode = mapper.readTree(jsonStr);
-            DynamicSearchHelper helper = new DynamicSearchHelper();
-            helper.mergeClauses(this, rootNode);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return this;
     }
 
     public String getSearchForText() {
@@ -699,7 +680,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         }
     }
 
-    protected void addOrderBy(String property, boolean asc) {
+    public void addOrderBy(String property, boolean asc) {
         if (asc) {
             addOrderByAscending(property);
         }
@@ -708,7 +689,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         }
     }
 
-    protected boolean isDateTimeField(String fieldName) {
+    public boolean isDateTimeField(String fieldName) {
         PropertyDescriptor propertyDescriptor = getProperty(fieldName).get();
         return "true".equals(propertyDescriptor.getAdditionalInfo().get("isDate"));
     }
@@ -718,7 +699,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         return this;
     }
 
-    protected Optional<BaseRequest> subRequestOfFieldName(String fieldName) {
+    public Optional<BaseRequest> subRequestOfFieldName(String fieldName) {
         Optional<PropertyDescriptor> propertyDescriptorOp = getProperty(fieldName);
         if (propertyDescriptorOp.isEmpty()) {
             throw new IllegalArgumentException(
@@ -728,7 +709,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         PropertyDescriptor propertyDescriptor = propertyDescriptorOp.get();
         Class returnType = propertyDescriptor.getType().javaType();
         TempRequest tempRequest =
-                new TempRequest(returnType, ((Entity) ReflectUtil.newInstance(returnType)).typeName());
+                new TempRequest(returnType, returnType.getSimpleName());
         tempRequest.selectProperty(BaseEntity.ID_PROPERTY);
         tempRequest.selectProperty(BaseEntity.VERSION_PROPERTY);
         tempRequest.appendSearchCriteria(

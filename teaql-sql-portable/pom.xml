@@ -27,6 +27,11 @@
             <artifactId>teaql-runtime</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.13.5</version>
+        </dependency>
 
         <!-- Testing dependencies -->
         <dependency>

@@ -39,7 +39,5 @@ public class TestSPIBoot {
         System.out.println("  -> Average time per context: " + String.format("%.2f", avgNs) + " ns");
         
         System.out.println("\n====== [TeaQL Demo] Server Shutting Down ======");
-        // The JVM will exit, but notice that the LogManager daemon thread from the cold boot is still alive 
-        // in the background. It will terminate because it's a daemon.
     }
 }

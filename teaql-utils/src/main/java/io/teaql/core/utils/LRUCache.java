@@ -1,39 +1,50 @@
 package io.teaql.core.utils;
 
-import com.google.common.cache.CacheBuilder;
-import java.util.concurrent.TimeUnit;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class LRUCache<K, V> implements Cache<K, V> {
-    private final com.google.common.cache.Cache<K, V> delegate;
+    private final int capacity;
+    private final long timeout;
+    private final Map<K, Entry<V>> entries;
 
     public LRUCache(int capacity, long timeout) {
-        CacheBuilder<Object, Object> builder = CacheBuilder.newBuilder();
-        if (capacity > 0) {
-            builder.maximumSize(capacity);
-        } else if (capacity < 0) {
+        if (capacity < 0) {
             throw new IllegalArgumentException("Capacity must be positive");
         }
-        if (timeout > 0) {
-            builder.expireAfterWrite(timeout, TimeUnit.MILLISECONDS);
-        }
-        this.delegate = builder.build();
+        this.capacity = capacity;
+        this.timeout = timeout;
+        this.entries = new LinkedHashMap<>(16, 0.75f, true);
     }
 
     @Override
-    public void put(K key, V value) {
+    public synchronized void put(K key, V value) {
+        put(key, value, timeout);
+    }
+
+    @Override
+    public synchronized void put(K key, V value, long timeout) {
         if (key != null && value != null) {
-            delegate.put(key, value);
+            entries.put(key, new Entry<>(value, expireAt(timeout)));
+            evictIfNeeded();
         }
     }
 
     @Override
-    public void put(K key, V value, long timeout) {
-        put(key, value);
-    }
-
-    @Override
-    public V get(K key) {
-        return key != null ? delegate.getIfPresent(key) : null;
+    public synchronized V get(K key) {
+        if (key == null) {
+            return null;
+        }
+        Entry<V> entry = entries.get(key);
+        if (entry == null) {
+            return null;
+        }
+        if (entry.isExpired()) {
+            entries.remove(key);
+            return null;
+        }
+        return entry.value;
     }
 
     @Override
@@ -42,32 +53,71 @@ public class LRUCache<K, V> implements Cache<K, V> {
     }
 
     @Override
-    public V get(K key, java.util.function.Supplier<? extends V> supplier) {
+    public synchronized V get(K key, java.util.function.Supplier<? extends V> supplier) {
         if (key == null) {
             return null;
         }
         if (supplier == null) {
             throw new RuntimeException("Supplier is null");
         }
-        V val = delegate.getIfPresent(key);
+        V val = get(key);
         if (val == null) {
             val = supplier.get();
             if (val != null) {
-                delegate.put(key, val);
+                put(key, val);
             }
         }
         return val;
     }
 
     @Override
-    public void remove(K key) {
+    public synchronized void remove(K key) {
         if (key != null) {
-            delegate.invalidate(key);
+            entries.remove(key);
         }
     }
 
     @Override
-    public boolean containsKey(K key) {
-        return key != null && delegate.getIfPresent(key) != null;
+    public synchronized boolean containsKey(K key) {
+        return get(key) != null;
+    }
+
+    private long expireAt(long timeout) {
+        return timeout > 0 ? System.currentTimeMillis() + timeout : 0;
+    }
+
+    private void evictIfNeeded() {
+        removeExpired();
+        if (capacity <= 0) {
+            return;
+        }
+        Iterator<K> iterator = entries.keySet().iterator();
+        while (entries.size() > capacity && iterator.hasNext()) {
+            iterator.next();
+            iterator.remove();
+        }
+    }
+
+    private void removeExpired() {
+        Iterator<Map.Entry<K, Entry<V>>> iterator = entries.entrySet().iterator();
+        while (iterator.hasNext()) {
+            if (iterator.next().getValue().isExpired()) {
+                iterator.remove();
+            }
+        }
+    }
+
+    private static final class Entry<V> {
+        private final V value;
+        private final long expireAt;
+
+        private Entry(V value, long expireAt) {
+            this.value = value;
+            this.expireAt = expireAt;
+        }
+
+        private boolean isExpired() {
+            return expireAt > 0 && System.currentTimeMillis() >= expireAt;
+        }
     }
 }

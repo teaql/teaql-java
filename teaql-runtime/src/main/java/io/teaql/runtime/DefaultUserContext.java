@@ -6,7 +6,6 @@ import io.teaql.core.meta.EntityDescriptor;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
-import io.teaql.core.log.TraceNode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -16,7 +15,6 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
     private final TeaQLRuntime runtime;
     private final Map<String, Object> storage = new ConcurrentHashMap<>();
     private final List<TraceNode> traceChain = new ArrayList<>();
-    private io.teaql.core.log.CustomLogSink customSink;
 
     public DefaultUserContext(TeaQLRuntime runtime) {
         this.runtime = runtime;
@@ -115,6 +113,27 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
     }
 
     @Override
+    public Object extension(String name) {
+        return getObj(name);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T capability(Class<T> capabilityType) {
+        if (capabilityType == null) {
+            return null;
+        }
+        Object value = getObj(capabilityType.getName());
+        if (value == null) {
+            return null;
+        }
+        if (!capabilityType.isInstance(value)) {
+            return null;
+        }
+        return (T) value;
+    }
+
+    @Override
     public void pushTrace(String comment) {
         traceChain.add(new TraceNode(comment));
     }
@@ -136,17 +155,9 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
         if (metadata.getTraceChain() == null || metadata.getTraceChain().isEmpty()) {
             metadata.setTraceChain(getTraceChain());
         }
-        io.teaql.runtime.log.LogManager.getInstance().writeExecutionLog(this, metadata);
-    }
-
-    @Override
-    public void registerCustomSink(io.teaql.core.log.CustomLogSink sink) {
-        this.customSink = sink;
-    }
-
-    @Override
-    public io.teaql.core.log.CustomLogSink getCustomSink() {
-        return this.customSink;
+        if (runtime != null) {
+            runtime.recordExecutionMetadata(this, metadata);
+        }
     }
 
     @SuppressWarnings("unchecked")

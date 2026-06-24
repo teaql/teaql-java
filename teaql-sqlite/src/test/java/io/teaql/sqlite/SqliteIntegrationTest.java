@@ -179,7 +179,7 @@ public class SqliteIntegrationTest {
 
     @AfterClass
     public static void teardown() throws Exception {
-        Thread.sleep(500); // Give LogManager time to flush to disk
+        Thread.sleep(500); // Allow asynchronous provider work to settle.
     }
 
     @Test

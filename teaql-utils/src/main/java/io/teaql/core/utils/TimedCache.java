@@ -1,34 +1,44 @@
 package io.teaql.core.utils;
 
-import com.google.common.cache.CacheBuilder;
-import java.util.concurrent.TimeUnit;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class TimedCache<K, V> implements Cache<K, V> {
-    private final com.google.common.cache.Cache<K, V> delegate;
+    private final long timeout;
+    private final Map<K, Entry<V>> entries = new LinkedHashMap<>();
 
     public TimedCache(long timeout) {
-        CacheBuilder<Object, Object> builder = CacheBuilder.newBuilder();
-        if (timeout > 0) {
-            builder.expireAfterWrite(timeout, TimeUnit.MILLISECONDS);
-        }
-        this.delegate = builder.build();
+        this.timeout = timeout;
     }
 
     @Override
-    public void put(K key, V value) {
+    public synchronized void put(K key, V value) {
+        put(key, value, timeout);
+    }
+
+    @Override
+    public synchronized void put(K key, V value, long timeout) {
         if (key != null && value != null) {
-            delegate.put(key, value);
+            removeExpired();
+            entries.put(key, new Entry<>(value, expireAt(timeout)));
         }
     }
 
     @Override
-    public void put(K key, V value, long timeout) {
-        put(key, value);
-    }
-
-    @Override
-    public V get(K key) {
-        return key != null ? delegate.getIfPresent(key) : null;
+    public synchronized V get(K key) {
+        if (key == null) {
+            return null;
+        }
+        Entry<V> entry = entries.get(key);
+        if (entry == null) {
+            return null;
+        }
+        if (entry.isExpired()) {
+            entries.remove(key);
+            return null;
+        }
+        return entry.value;
     }
 
     @Override
@@ -37,32 +47,59 @@ public class TimedCache<K, V> implements Cache<K, V> {
     }
 
     @Override
-    public V get(K key, java.util.function.Supplier<? extends V> supplier) {
+    public synchronized V get(K key, java.util.function.Supplier<? extends V> supplier) {
         if (key == null) {
             return null;
         }
         if (supplier == null) {
             throw new RuntimeException("Supplier is null");
         }
-        V val = delegate.getIfPresent(key);
+        V val = get(key);
         if (val == null) {
             val = supplier.get();
             if (val != null) {
-                delegate.put(key, val);
+                put(key, val);
             }
         }
         return val;
     }
 
     @Override
-    public void remove(K key) {
+    public synchronized void remove(K key) {
         if (key != null) {
-            delegate.invalidate(key);
+            entries.remove(key);
         }
     }
 
     @Override
-    public boolean containsKey(K key) {
-        return key != null && delegate.getIfPresent(key) != null;
+    public synchronized boolean containsKey(K key) {
+        return get(key) != null;
+    }
+
+    private long expireAt(long timeout) {
+        return timeout > 0 ? System.currentTimeMillis() + timeout : 0;
+    }
+
+    private void removeExpired() {
+        Iterator<Map.Entry<K, Entry<V>>> iterator = entries.entrySet().iterator();
+        while (iterator.hasNext()) {
+            if (iterator.next().getValue().isExpired()) {
+                iterator.remove();
+            }
+        }
+    }
+
+    private static final class Entry<V> {
+        private final V value;
+        private final long expireAt;
+
+        private Entry(V value, long expireAt) {
+            this.value = value;
+            this.expireAt = expireAt;
+        }
+
+        private boolean isExpired() {
+            return expireAt > 0 && System.currentTimeMillis() >= expireAt;
+        }
     }
 }

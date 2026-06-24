@@ -1,6 +1,5 @@
 package io.teaql.core.sql;
 
-import io.teaql.core.utils.BeanUtil;
 import io.teaql.core.utils.NamingCase;
 import io.teaql.core.meta.EntityDescriptor;
 
@@ -22,8 +21,18 @@ public class SQLEntityDescriptor extends EntityDescriptor {
 
     public void prepareSQLMeta(
             SQLProperty sqlProperty, String tableName, String columnName, String columnType) {
-        BeanUtil.setProperty(sqlProperty, "tableName", tableName);
-        BeanUtil.setProperty(sqlProperty, "columnName", columnName);
-        BeanUtil.setProperty(sqlProperty, "columnType", columnType);
+        if (sqlProperty instanceof GenericSQLProperty property) {
+            property.setTableName(tableName);
+            property.setColumnName(columnName);
+            property.setColumnType(columnType);
+            return;
+        }
+        if (sqlProperty instanceof GenericSQLRelation relation) {
+            relation.setTableName(tableName);
+            relation.setColumnName(columnName);
+            relation.setColumnType(columnType);
+            return;
+        }
+        throw new IllegalArgumentException("Unsupported SQLProperty type: " + sqlProperty.getClass().getName());
     }
 }

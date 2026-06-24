@@ -1,16 +1,6 @@
 package io.teaql.core.utils;
 
-import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
-import org.springframework.core.type.filter.AssignableTypeFilter;
-
-import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 
 public class ClassUtil {
 
@@ -117,29 +107,6 @@ public class ClassUtil {
             }
         }
         return list;
-    }
-
-    public static java.util.Set<java.lang.Class<?>> scanPackageBySuper(java.lang.String p0, java.lang.Class<?> p1) {
-        java.util.Set<java.lang.Class<?>> classes = new java.util.HashSet<>();
-        try {
-            ClassPathScanningCandidateComponentProvider provider =
-                new ClassPathScanningCandidateComponentProvider(false) {
-                    @Override
-                    protected boolean isCandidateComponent(org.springframework.beans.factory.annotation.AnnotatedBeanDefinition beanDefinition) {
-                        return true;
-                    }
-                };
-            provider.addIncludeFilter(new AssignableTypeFilter(p1));
-            for (BeanDefinition beanDef : provider.findCandidateComponents(p0)) {
-                Class<?> clazz = loadClass(beanDef.getBeanClassName());
-                if (clazz != null) {
-                    classes.add(clazz);
-                }
-            }
-        } catch (Exception e) {
-            throw new RuntimeException("Scan package failed", e);
-        }
-        return classes;
     }
 
 }

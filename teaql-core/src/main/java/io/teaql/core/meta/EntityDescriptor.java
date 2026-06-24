@@ -7,12 +7,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Supplier;
 
 import io.teaql.core.utils.CollectionUtil;
 import io.teaql.core.utils.MapUtil;
 import io.teaql.core.utils.BooleanUtil;
 import io.teaql.core.utils.ObjectUtil;
-import io.teaql.core.utils.ReflectUtil;
 import io.teaql.core.utils.StrUtil;
 
 import static io.teaql.core.meta.MetaConstants.VIEW_OBJECT;
@@ -40,6 +40,8 @@ public class EntityDescriptor {
      * java type
      */
     private Class<? extends Entity> targetType;
+
+    private Supplier<? extends Entity> entitySupplier;
 
     /**
      * parent entity descriptor
@@ -133,6 +135,26 @@ public class EntityDescriptor {
         targetType = pTargetType;
     }
 
+    public Supplier<? extends Entity> getEntitySupplier() {
+        return entitySupplier;
+    }
+
+    public void setEntitySupplier(Supplier<? extends Entity> entitySupplier) {
+        this.entitySupplier = entitySupplier;
+    }
+
+    public EntityDescriptor withEntitySupplier(Supplier<? extends Entity> entitySupplier) {
+        setEntitySupplier(entitySupplier);
+        return this;
+    }
+
+    public Entity createEntity() {
+        if (entitySupplier == null) {
+            throw new IllegalStateException("No entity supplier registered for " + getType());
+        }
+        return entitySupplier.get();
+    }
+
     public EntityDescriptor getParent() {
         return parent;
     }
@@ -224,7 +246,17 @@ public class EntityDescriptor {
 
     public PropertyDescriptor addSimpleProperty(
             String propertyName, Class type, Class<? extends PropertyDescriptor> descriptorType) {
-        PropertyDescriptor property = ReflectUtil.newInstance(descriptorType);
+        if (descriptorType != PropertyDescriptor.class) {
+            throw new UnsupportedOperationException(
+                    "Use addSimpleProperty(String, Class, Supplier<PropertyDescriptor>) for custom descriptors");
+        }
+        PropertyDescriptor property = createPropertyDescriptor();
+        return setProperty(propertyName, type, property);
+    }
+
+    public PropertyDescriptor addSimpleProperty(
+            String propertyName, Class type, Supplier<? extends PropertyDescriptor> descriptorSupplier) {
+        PropertyDescriptor property = descriptorSupplier.get();
         return setProperty(propertyName, type, property);
     }
 
@@ -249,7 +281,22 @@ public class EntityDescriptor {
             String reverseName,
             Class<? extends Entity> parentClass,
             Class<? extends Relation> propertyDescriptor) {
-        Relation relation = ReflectUtil.newInstance(propertyDescriptor);
+        if (propertyDescriptor != Relation.class) {
+            throw new UnsupportedOperationException(
+                    "Use addObjectProperty(..., Supplier<Relation>) for custom relations");
+        }
+        Relation relation = createRelation();
+        return setRelation(factory, propertyName, parentType, reverseName, parentClass, relation);
+    }
+
+    public Relation addObjectProperty(
+            EntityMetaFactory factory,
+            String propertyName,
+            String parentType,
+            String reverseName,
+            Class<? extends Entity> parentClass,
+            Supplier<? extends Relation> relationSupplier) {
+        Relation relation = relationSupplier.get();
         return setRelation(factory, propertyName, parentType, reverseName, parentClass, relation);
     }
 

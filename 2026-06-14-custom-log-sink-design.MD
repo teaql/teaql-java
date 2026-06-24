@@ -2,7 +2,7 @@
 
 ## 1. 背景与核心问题 (Background & Problem Statement)
 
-TEAQL `teaql-runtime` 原有的日志架构（详见 `LOG_DESIGN.md`）基于系统级环境变量 (`TEAQL_LOG_ENDPOINT`) 实现了强大的、不可绕过的异步持久化日志系统。它将 SQL 执行与审计日志集中写入 `System.out` 或是指定的物理文件中。
+TEAQL 的可选 `teaql-runtime-log` 日志架构（详见 `LOG_DESIGN.md`）基于系统级环境变量 (`TEAQL_LOG_ENDPOINT`) 实现异步持久化日志。它将 SQL 执行与审计日志集中写入 `System.out` 或是指定的物理文件中。
 
 然而，在多租户环境、并发 Web 请求或是某些特殊的客户端场景（如 Android App 内置演示程序）中，这种“全局单例”的日志拦截方式存在局限性：
 1. **上下文混淆**：在后端服务并发处理多个不同用户的请求时，如果使用一个全局的 `LogManager` Sink，所有的日志会交织在一起，难以剥离出某个特定用户/请求的日志。
@@ -10,12 +10,12 @@ TEAQL `teaql-runtime` 原有的日志架构（详见 `LOG_DESIGN.md`）基于系
 
 ## 2. 核心架构升级：UserContext Scoped Log Sink
 
-为了在**不破坏框架纯洁性与绝对零依赖**的前提下，提供极致的应用层扩展性，我们引入 `CustomLogSink` 机制，并将其生命周期严格绑定至 `UserContext`。
+为了在**不破坏 core/runtime 边界**的前提下，提供应用层扩展性，我们引入 `CustomLogSink` 机制，并将其生命周期严格绑定至 `UserContext`。`teaql-core` 不直接定义日志 sink 类型，只提供通用的上下文扩展能力；日志实现属于可选 `teaql-runtime-log` 模块，`teaql-runtime` 只暴露 `RuntimeLogSink` 后端扩展点。
 
 ### 2.1 引入 `CustomLogSink` 接口
-在 `teaql-core` 核心抽象中定义极简的回调接口：
+在 `teaql-runtime-log` 中定义极简的回调接口：
 ```java
-package io.teaql.core.log;
+package io.teaql.runtime.log;
 
 /**
  * 允许在应用层捕获 TeaQL Runtime 生成的格式化日志。
@@ -27,20 +27,25 @@ public interface CustomLogSink {
 ```
 
 ### 2.2 扩展 `UserContext`
-在 `io.teaql.core.UserContext` 增加对应方法的契约：
+在 `io.teaql.core.UserContext` 保留通用扩展点：
 ```java
-void registerCustomSink(io.teaql.core.log.CustomLogSink sink);
-io.teaql.core.log.CustomLogSink getCustomSink();
+default Object extension(String name) {
+    return null;
+}
+
+default <T> T capability(Class<T> capabilityType) {
+    return null;
+}
 ```
-这意味着 `UserContext` 不再仅仅是业务执行的令牌，它也是日志溯源的上下文边界。
+`DefaultUserContext` 使用内部 storage 承载这些扩展能力。应用侧通过 `teaql-runtime-log` 提供的 `LogSinks.register(ctx, sink)` 注册日志 sink，而不是让 core 暴露日志专用 API。
 
 ## 3. Runtime 执行时序与异步安全保障
 
 为了维持 TEAQL 日志系统的核心理念：**“不让外部操作拖累核心 SQL 效率”**，`CustomLogSink` 采用了异步出队回调的设计。
 
 1. **业务层发起**：业务调用 `task.save(ctx)`。
-2. **Runtime 提取上下文**：`DefaultUserContext` 在执行完毕后触发 `recordExecutionMetadata(this, metadata)`。注意，此处将 `this` 传递给底层 `LogManager`。
-3. **LogManager 打包**：`LogManager` 使用对应的 `LogFormatter` 生成 `formattedLogContent` 字符串，并从传递来的 `UserContext` 中提取 `CustomLogSink`。
+2. **Runtime 提取上下文**：`DefaultUserContext` 在执行完毕后触发 `runtime.recordExecutionMetadata(this, metadata)`。如果应用注入了 `RuntimeLogSink`，runtime 会把事件交给该后端。
+3. **LogManager 打包**：`teaql-runtime-log` 的 `LogManager` 实现 `RuntimeLogSink`，使用对应的 `LogFormatter` 生成 `formattedLogContent` 字符串，并通过 `ctx.capability(CustomLogSink.class)` 提取 `CustomLogSink`。
 4. **入队阶段**：`LogManager` 将 `content` 和 `customSink` 一并包装为一个匿名 `Runnable` 放入高并发的无锁/有界阻塞队列 `ArrayBlockingQueue`。**此阶段耗时极低，主业务线程立即放行。**
 5. **守护线程消费与回调**：`TeaQL-LogWriter-Thread` 后台线程从队列中拉取任务，执行 `syncWrite` 时，首先检查 `customSink`。如果存在，调用 `customSink.onLog(content)`，最后继续将内容刷入到全局的日志文件或标准输出中。
 
@@ -53,7 +58,7 @@ io.teaql.core.log.CustomLogSink getCustomSink();
 RobotTaskBoardServiceUserContext ctx = new RobotTaskBoardServiceUserContextImpl();
 
 // 注入专属于当前 Context 的定制化 Sink
-ctx.registerCustomSink(logContent -> {
+LogSinks.register(ctx, logContent -> {
     // 切换到主线程更新前端 UI，不会阻塞 TeaQL 异步后台线程
     runOnUiThread(() -> {
          DatabaseMock.getInstance().addLog(logContent);

@@ -115,7 +115,7 @@ DataServiceCapabilities
 ExecutionMetadata
 RequestPolicy
 InternalIdGenerationService
-ExecutionLogSink
+RuntimeLogSink
 TransactionCallback
 ```
 
@@ -321,7 +321,7 @@ SchemaExecutor
 DataServiceCapabilities
 ExecutionMetadata
 TransactionCallback
-ExecutionLogSink
+RuntimeLogSink
 ```
 
 The contract belongs in core; concrete implementations belong in `teaql-runtime`, provider modules, adapter modules, or integration modules.
@@ -364,10 +364,10 @@ GLobalResolver
 DataStore
 GraphQLService
 BaseService
-DynamicSearchHelper
+DynamicSearchHelper / JsonRequests (`teaql-query-json`)
 PurposeRequestPolicy implementation
 SimpleLockService
-LogManager implementation
+LogManager implementation (`teaql-runtime-log`)
 SqlLogEntry
 WebResponse
 ViewRender
@@ -683,7 +683,7 @@ TeaQLRuntime runtime = TeaQLRuntime.builder()
     .dataService("sql", sqlDataService)
     .dataService("memory", memoryDataService)
     .requestPolicy(new PurposeRequestPolicy())
-    .logManager(new LogManager())
+    .logSink(LogManager.getInstance())
     .build();
 
 UserContext ctx = new DefaultUserContext(runtime);

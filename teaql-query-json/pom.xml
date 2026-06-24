@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.teaql</groupId>
+        <artifactId>teaql-java-parent</artifactId>
+        <version>1.519-RELEASE</version>
+    </parent>
+
+    <artifactId>teaql-query-json</artifactId>
+    <name>teaql-query-json</name>
+    <description>JSON query parser for TeaQL requests</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.teaql</groupId>
+            <artifactId>teaql-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+    </dependencies>
+</project>

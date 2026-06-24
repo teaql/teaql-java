@@ -3,7 +3,7 @@
 ## 1. 核心设计目标 (Goals)
 为了满足企业级系统的可观测性和合规性审计需求，并保持 TeaQL 极致的轻量化，本系统设计遵循以下原则：
 *   **绝对零依赖 (Zero-Dependency)**：不引入 `slf4j`、`logback` 或 `log4j2` 等外部日志库，从根本上杜绝潜在的依赖冲突（Jar Hell）。
-*   **不可绕过 (Unbypassable)**：日志生成逻辑深深植入 `teaql-runtime` 的枢纽层，所有数据修改和查询操作**强制**触发，应用层无法通过覆盖配置绕过审计。
+*   **可插拔后端 (Pluggable Backend)**：`teaql-runtime` 只暴露 `RuntimeLogSink` 扩展点；文件/stdout 日志实现位于可选 `teaql-runtime-log` 模块。
 *   **白名单配置 (Whitelist Config)**：严格通过带有 `TEAQL_` 前缀的环境变量控制系统行为，保障运行时的安全性与隔离性。
 *   **极致性能 (High Performance)**：采用有界阻塞队列（Bounded Blocking Queue）加独立后台写入线程（LogWriter Thread）实现异步落盘，绝不让磁盘 I/O 拖累核心 SQL 的执行效率。
 
@@ -12,7 +12,7 @@
 ## 2. 核心架构与组件划分
 
 ### 2.1 环境变量配置中心 (`TeaQLEnv`)
-在 `teaql-runtime` 启动时，静态解析并缓存系统的环境变量与属性，过滤出以 `TEAQL_` 开头的配置项，形成只读白名单。
+在 `teaql-runtime-log` 启动时，静态解析并缓存系统的环境变量与属性，过滤出以 `TEAQL_` 开头的配置项，形成只读白名单。
 **支持的核心变量**：
 *   `TEAQL_LOG_ENDPOINT`: 日志文件输出的绝对或相对路径（如不配置，自动降级为标准输出 `System.out`）。
 *   `TEAQL_LOG_FORMAT`: 日志格式，支持 `human`（对齐美化）或 `json`（方便 ELK 采集）。
@@ -49,8 +49,8 @@
 3.  **清理阶段**：异步扫描当前目录下的备份文件，如果超过 `TEAQL_LOG_MAX_FILES`，按照文件的最后修改时间（LastModifiedTime）删除最旧的备份。
 
 ### 3.3 运行时拦截 (Runtime Interception)
-*   **SQL 执行拦截**：`TeaQLRuntime` 调用 `SqlDataServiceExecutor` 的过程是被装饰过的。在 `jdbcTemplate.execute()` 的前后，自动调用 `System.nanoTime()` 并将 `SqlLogEntry` 提交给 `LogManager`。
-*   **Audit 生成拦截**：在 `TeaQLRuntime.saveGraph()` 的尾部（事务即将 commit 的确定状态时刻），内部遍历比对图（Graph）节点的差异，将新旧对象快照转换为 `AuditEvent` 并提交给 `LogManager`。由于拦截在框架底层核心生命周期内，任何直接使用 Entity 的开发者都无法关闭该审计上报。
+*   **SQL 执行拦截**：SQL provider 在执行前后记录耗时并调用 `UserContext.recordExecutionMetadata(...)`。默认 runtime 会将 metadata 交给注入的 `RuntimeLogSink`；`teaql-runtime-log` 的 `LogManager` 是当前文件/stdout 后端实现。
+*   **Audit 生成拦截**：审计事件由运行时或 provider 在确定状态点生成，并交给注入的 `RuntimeLogSink` 后端。未引入或未注入 `teaql-runtime-log` 时，`teaql-runtime` 保持最小运行闭环，不启动日志后台线程。
 
 ---
 *设计定稿时间: 2026年06月13日*

@@ -5,12 +5,13 @@ import java.util.List;
 
 import io.teaql.core.utils.ListUtil;
 import io.teaql.core.utils.Convert;
-import io.teaql.core.utils.ReflectUtil;
 
 import io.teaql.core.BaseEntity;
 import io.teaql.core.Entity;
 import io.teaql.core.EntityStatus;
 import io.teaql.core.UserContext;
+import io.teaql.core.meta.EntityDescriptor;
+import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.PropertyDescriptor;
 
 public class GenericSQLProperty extends PropertyDescriptor implements SQLProperty {
@@ -93,7 +94,7 @@ public class GenericSQLProperty extends PropertyDescriptor implements SQLPropert
     }
 
     private Entity createRefer(ResultSet rs) {
-        BaseEntity o = (BaseEntity) ReflectUtil.newInstance(getType().javaType());
+        BaseEntity o = (BaseEntity) createEntity((Class<? extends Entity>) getType().javaType());
         Object referId = getValue(rs);
 
         if (referId == null) {
@@ -102,6 +103,18 @@ public class GenericSQLProperty extends PropertyDescriptor implements SQLPropert
         o.internalSet("id", ((Number) referId).longValue());
         o.set$status(EntityStatus.REFER);
         return o;
+    }
+
+    private Entity createEntity(Class<? extends Entity> entityType) {
+        EntityMetaFactory metadata = EntityMetaFactory.get();
+        if (metadata != null) {
+            for (EntityDescriptor descriptor : metadata.allEntityDescriptors()) {
+                if (descriptor.getTargetType() == entityType) {
+                    return descriptor.createEntity();
+                }
+            }
+        }
+        throw new IllegalStateException("No entity descriptor registered for " + entityType.getName());
     }
 
     public String getTableName() {
