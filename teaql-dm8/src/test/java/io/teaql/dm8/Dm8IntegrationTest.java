@@ -35,15 +35,17 @@ public class Dm8IntegrationTest {
         public String status;
 
         public String getTitle() { return title; }
-        public void setTitle(String title) {
+        public Task updateTitle(String title) {
             handleUpdate("title", this.title, title);
             this.title = title;
+            return this;
         }
 
         public String getStatus() { return status; }
-        public void setStatus(String status) {
+        public Task updateStatus(String status) {
             handleUpdate("status", this.status, status);
             this.status = status;
+            return this;
         }
 
         @Override
@@ -183,16 +185,16 @@ public class Dm8IntegrationTest {
     public void testDm8Crud() {
         // 1. Create and Save Tasks
         Task task1 = new Task();
-        task1.setTitle("Assemble Assembly Line");
-        task1.setStatus("TODO");
+        task1.updateTitle("Assemble Assembly Line");
+        task1.updateStatus("TODO");
         task1.auditAs("save").save(ctx);
 
         assertNotNull(task1.getId());
         assertEquals("Status should transition to PERSISTED", EntityStatus.PERSISTED, task1.get$status());
 
         Task task2 = new Task();
-        task2.setTitle("Write Integration Tests");
-        task2.setStatus("TODO");
+        task2.updateTitle("Write Integration Tests");
+        task2.updateStatus("TODO");
         task2.auditAs("save").save(ctx);
 
         // 2. Query Tasks by criteria
@@ -206,7 +208,7 @@ public class Dm8IntegrationTest {
         assertTrue(reqEmpty.comment("test").purpose("test").executeForList(ctx).isEmpty());
 
         // 3. Update task
-        task1.setStatus("DONE");
+        task1.updateStatus("DONE");
         task1.auditAs("save").save(ctx);
 
         TaskRequest reqDone = new TaskRequest().filterByStatus("DONE");

@@ -28,18 +28,20 @@ public class MemoryDatabaseTest {
             return title;
         }
 
-        public void setTitle(String title) {
+        public Task updateTitle(String title) {
             handleUpdate("title", this.title, title);
             this.title = title;
+            return this;
         }
 
         public String getStatus() {
             return status;
         }
 
-        public void setStatus(String status) {
+        public Task updateStatus(String status) {
             handleUpdate("status", this.status, status);
             this.status = status;
+            return this;
         }
 
         @Override
@@ -154,8 +156,8 @@ public class MemoryDatabaseTest {
     public void testFullMemoryWorkflow() {
         // 1. Create and Save Tasks
         Task task1 = new Task();
-        task1.setTitle("Assemble Assembly Line");
-        task1.setStatus("TODO");
+        task1.updateTitle("Assemble Assembly Line");
+        task1.updateStatus("TODO");
         task1.setComment("Create task 1");
         task1.auditAs("save test").save(ctx);
 
@@ -164,8 +166,8 @@ public class MemoryDatabaseTest {
         assertEquals("Status should transition to PERSISTED", EntityStatus.PERSISTED, task1.get$status());
 
         Task task2 = new Task();
-        task2.setTitle("Write Integration Tests");
-        task2.setStatus("TODO");
+        task2.updateTitle("Write Integration Tests");
+        task2.updateStatus("TODO");
         task2.setComment("Create task 2");
         task2.auditAs("save test").save(ctx);
         assertEquals(Long.valueOf(101), task2.getId());
@@ -181,7 +183,7 @@ public class MemoryDatabaseTest {
         assertTrue(reqEmpty.comment("Test query").purpose("Verify filter empty").executeForList(ctx).isEmpty());
 
         // 3. Update task
-        task1.setStatus("DONE");
+        task1.updateStatus("DONE");
         task1.setComment("Update task 1");
         task1.auditAs("save test").save(ctx);
 
