@@ -86,6 +86,19 @@ public class LogManager implements RuntimeLogSink {
         this.workerThread = new Thread(this::processQueue, "TeaQL-LogWriter-Thread");
         this.workerThread.setDaemon(true);
         this.workerThread.start();
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            // Drain remaining log entries before JVM exits
+            Runnable task;
+            while ((task = queue.poll()) != null) {
+                try { task.run(); } catch (Exception ignored) {}
+            }
+            synchronized (fileLock) {
+                if (currentChannel != null) {
+                    try { currentChannel.force(true); currentChannel.close(); } catch (Exception ignored) {}
+                }
+            }
+        }, "TeaQL-LogFlush-Shutdown"));
     }
 
     public static LogManager getInstance() {

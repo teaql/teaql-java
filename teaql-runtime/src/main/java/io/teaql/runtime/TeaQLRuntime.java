@@ -55,15 +55,15 @@ public class TeaQLRuntime {
         if (request.purpose() == null || request.purpose().trim().isEmpty()) {
             throw new TeaQLRuntimeException("[PURPOSE REQUIRED] Missing .purpose() on query execution. You must not call executeForList directly without purpose.");
         }
-        boolean pushedPurpose = false;
         boolean pushedComment = false;
-        if (request.purpose() != null && !request.purpose().trim().isEmpty()) {
-            ctx.pushTrace(request.purpose());
-            pushedPurpose = true;
-        }
+        boolean pushedPurpose = false;
         if (request.comment() != null && !request.comment().trim().isEmpty()) {
             ctx.pushTrace(request.comment());
             pushedComment = true;
+        }
+        if (request.purpose() != null && !request.purpose().trim().isEmpty()) {
+            ctx.pushTrace(request.purpose());
+            pushedPurpose = true;
         }
         try {
             SearchRequest<T> checkedRequest = request;
@@ -90,10 +90,10 @@ public class TeaQLRuntime {
             }
             throw new TeaQLRuntimeException("Unsupported QueryResult type from query executor: " + route);
         } finally {
-            if (pushedComment) {
+            if (pushedPurpose) {
                 ctx.popTrace();
             }
-            if (pushedPurpose) {
+            if (pushedComment) {
                 ctx.popTrace();
             }
         }
@@ -103,15 +103,15 @@ public class TeaQLRuntime {
         if (request.purpose() == null || request.purpose().trim().isEmpty()) {
             throw new TeaQLRuntimeException("[PURPOSE REQUIRED] Missing .purpose() on query execution. You must not call aggregation directly without purpose.");
         }
-        boolean pushedPurpose = false;
         boolean pushedComment = false;
-        if (request.purpose() != null && !request.purpose().trim().isEmpty()) {
-            ctx.pushTrace(request.purpose());
-            pushedPurpose = true;
-        }
+        boolean pushedPurpose = false;
         if (request.comment() != null && !request.comment().trim().isEmpty()) {
             ctx.pushTrace(request.comment());
             pushedComment = true;
+        }
+        if (request.purpose() != null && !request.purpose().trim().isEmpty()) {
+            ctx.pushTrace(request.purpose());
+            pushedPurpose = true;
         }
         try {
             EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
@@ -130,10 +130,10 @@ public class TeaQLRuntime {
             }
             return null;
         } finally {
-            if (pushedComment) {
+            if (pushedPurpose) {
                 ctx.popTrace();
             }
-            if (pushedPurpose) {
+            if (pushedComment) {
                 ctx.popTrace();
             }
         }
