@@ -6,15 +6,14 @@
 
     <groupId>io.teaql</groupId>
     <artifactId>teaql-java-parent</artifactId>
-    <version>1.519-RELEASE</version>
+    <version>1.520-RELEASE</version>
     <packaging>pom</packaging>
 
     <name>teaql-java-parent</name>
     <description>Parent POM for TeaQL modules</description>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-boot.version>3.2.0</spring-boot.version>
     </properties>
@@ -222,8 +221,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.11.0</version>
                 <configuration>
-                    <source>${maven.compiler.source}</source>
-                    <target>${maven.compiler.target}</target>
+                    <release>${maven.compiler.release}</release>
                     <encoding>${project.build.sourceEncoding}</encoding>
                 </configuration>
             </plugin>

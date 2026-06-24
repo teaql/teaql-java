@@ -135,6 +135,7 @@ public class MysqlIntegrationTest {
         SQLEntityDescriptor taskDescriptor = new SQLEntityDescriptor();
         taskDescriptor.setType("Task");
         taskDescriptor.setTargetType(Task.class);
+        taskDescriptor.setEntitySupplier(Task::new);
         taskDescriptor.setDataService("mysql");
 
         io.teaql.core.sql.GenericSQLProperty idProp = (io.teaql.core.sql.GenericSQLProperty) taskDescriptor.addSimpleProperty("id", Long.class);
@@ -185,16 +186,16 @@ public class MysqlIntegrationTest {
     public void testMysqlCrud() {
         // 1. Create and Save Tasks
         Task task1 = new Task();
-        task1.setProperty("title", "Assemble Assembly Line");
-        task1.setProperty("status", "TODO");
+        task1.setTitle("Assemble Assembly Line");
+        task1.setStatus("TODO");
         task1.auditAs("save").save(ctx);
 
         assertNotNull(task1.getId());
         assertEquals("Status should transition to PERSISTED", EntityStatus.PERSISTED, task1.get$status());
 
         Task task2 = new Task();
-        task2.setProperty("title", "Write Integration Tests");
-        task2.setProperty("status", "TODO");
+        task2.setTitle("Write Integration Tests");
+        task2.setStatus("TODO");
         task2.auditAs("save").save(ctx);
 
         // 2. Query Tasks by criteria
@@ -208,7 +209,7 @@ public class MysqlIntegrationTest {
         assertTrue(reqEmpty.comment("test").purpose("test").executeForList(ctx).isEmpty());
 
         // 3. Update task
-        task1.setProperty("status", "DONE");
+        task1.setStatus("DONE");
         task1.auditAs("save").save(ctx);
 
         TaskRequest reqDone = new TaskRequest().filterByStatus("DONE");
