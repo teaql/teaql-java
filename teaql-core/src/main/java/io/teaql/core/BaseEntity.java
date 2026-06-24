@@ -9,7 +9,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import io.teaql.core.utils.ObjectUtil;
-import io.teaql.core.utils.ReflectUtil;
 
 public class BaseEntity implements Entity {
     public static final String ID_PROPERTY = "id";
@@ -287,6 +286,10 @@ public class BaseEntity implements Entity {
         if (o != null) {
             return (P) o;
         }
+        Object dynamicProperty = this.additionalInfo.get(dynamicPropertyNameOf(propertyName));
+        if (dynamicProperty != null) {
+            return (P) dynamicProperty;
+        }
         return Entity.super.getProperty(propertyName);
     }
 
@@ -318,7 +321,7 @@ public class BaseEntity implements Entity {
 
     public void cacheRelation(String relationName, Entity relation) {
         this.relationCache.put(relationName, relation);
-        Object initValue = Entity.super.getProperty(relationName);
+        Object initValue = getProperty(relationName);
         handleUpdate(relationName, initValue, relation);
     }
 

@@ -102,7 +102,7 @@ public abstract class AbstractRepository<T extends Entity> implements Repository
                 userContext.info("AbstractRepository.save: BEFORE createInternal " + newItem.typeName() + " id=" + newItem.getId() + " hash=" + System.identityHashCode(newItem));
                 if (newItem.typeName().equals("Task")) {
                     try {
-                        Object status = io.teaql.core.utils.ReflectUtil.invoke(newItem, "getStatus");
+                        Object status = io.teaql.utils.reflect.ReflectUtil.invoke(newItem, "getStatus");
                         userContext.info("AbstractRepository.save: Task.getStatus()=" + status);
                     } catch (Exception e) {}
                 }

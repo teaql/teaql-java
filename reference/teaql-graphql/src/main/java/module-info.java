@@ -1,6 +1,7 @@
 module io.teaql.graphql {
     requires io.teaql.core;
     requires io.teaql.utils;
+    requires io.teaql.utils.reflection;
     requires spring.context;
     requires spring.boot.autoconfigure;
     requires com.fasterxml.jackson.core;

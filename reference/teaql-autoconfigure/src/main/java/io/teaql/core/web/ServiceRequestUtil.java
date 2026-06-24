@@ -10,7 +10,7 @@ import io.teaql.core.utils.CollectionUtil;
 import io.teaql.core.utils.BooleanUtil;
 import io.teaql.core.utils.ClassUtil;
 import io.teaql.core.utils.ObjectUtil;
-import io.teaql.core.utils.ReflectUtil;
+import io.teaql.utils.reflect.ReflectUtil;
 import io.teaql.core.utils.StrUtil;
 
 import static io.teaql.core.web.UITemplateRender.serviceRequestPopupKey;

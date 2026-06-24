@@ -1,6 +1,6 @@
 package io.teaql.core.sql;
 
-import io.teaql.core.utils.BeanUtil;
+import io.teaql.utils.reflect.BeanUtil;
 import io.teaql.core.utils.NamingCase;
 import io.teaql.core.meta.EntityDescriptor;
 

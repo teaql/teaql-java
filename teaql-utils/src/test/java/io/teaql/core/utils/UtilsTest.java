@@ -15,22 +15,33 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class UtilsTest {
 
-    // Helper class for testing BeanUtil / JSONUtil
     public static class Person {
         private String name;
         private int age;
 
-        public Person() {}
+        public Person() {
+        }
 
         public Person(String name, int age) {
             this.name = name;
             this.age = age;
         }
 
-        public String getName() { return name; }
-        public void setName(String name) { this.name = name; }
-        public int getAge() { return age; }
-        public void setAge(int age) { this.age = age; }
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public int getAge() {
+            return age;
+        }
+
+        public void setAge(int age) {
+            this.age = age;
+        }
     }
 
     // =========================================================================
@@ -94,33 +105,6 @@ public class UtilsTest {
 
         // Exceptional / boundary branches
         assertNull(Base64Encoder.encodeUrlSafe((byte[]) null));
-    }
-
-    @Test
-    public void testBeanUtil() {
-        // Happy path
-        Person person = new Person("Alice", 25);
-        Map<String, Object> map = BeanUtil.beanToMap(person);
-        assertEquals("Alice", map.get("name"));
-        assertEquals(25, map.get("age"));
-
-        Person bean = BeanUtil.toBean(map, Person.class);
-        assertEquals("Alice", bean.getName());
-        assertEquals(25, bean.getAge());
-
-        BeanUtil.setProperty(bean, "name", "Bob");
-        assertEquals("Bob", BeanUtil.getProperty(bean, "name"));
-
-        // Exceptional / boundary branches
-        assertNull(BeanUtil.beanToMap(null));
-        assertNull(BeanUtil.toBean(null, Person.class));
-        assertNull(BeanUtil.getProperty(null, "name"));
-        assertNull(BeanUtil.getProperty(bean, null));
-        assertNull(BeanUtil.getProperty(bean, "nonExistentField"));
-
-        // Set property on null bean or non existent field should handle safely or throw expected exceptions
-        assertThrows(Exception.class, () -> BeanUtil.setProperty(null, "name", "value"));
-        assertThrows(Exception.class, () -> BeanUtil.setProperty(bean, "nonExistentField", "value"));
     }
 
     @Test
@@ -327,15 +311,6 @@ public class UtilsTest {
     }
 
     @Test
-    public void testHttpUtil() {
-        // Happy / Exceptional: network failures on invalid local ports
-        assertThrows(Exception.class, () -> HttpUtil.post("http://127.0.0.1:65530/test", "body"));
-        assertThrows(Exception.class, () -> HttpUtil.post("http://127.0.0.1:65530/test", "body", 500));
-        assertThrows(Exception.class, () -> HttpUtil.post("http://127.0.0.1:65530/test", new HashMap<>()));
-        assertThrows(Exception.class, () -> HttpUtil.post("http://127.0.0.1:65530/test", new HashMap<>(), 500));
-    }
-
-    @Test
     public void testIdUtil() {
         // Happy path
         String uuid = IdUtil.fastSimpleUUID();
@@ -369,32 +344,6 @@ public class UtilsTest {
             }
         };
         assertThrows(RuntimeException.class, () -> IoUtil.readBytes(throwingStream));
-    }
-
-    @Test
-    public void testJSONUtil() {
-        // Happy path
-        Person person = new Person("John", 30);
-        String json = JSONUtil.toJsonStr(person);
-        assertTrue(json.contains("\"name\":\"John\""));
-
-        Person parsed = JSONUtil.toBean(json, Person.class);
-        assertEquals("John", parsed.getName());
-
-        Map<String, Object> map = JSONUtil.toBean(json, new TypeReference<Map<String, Object>>() {}, true);
-        assertEquals("John", map.get("name"));
-
-        assertNotNull(JSONUtil.parseObj(json));
-
-        // Exceptional / boundary branches
-        assertTrue(JSONUtil.toJsonStr(null) == null || "null".equals(JSONUtil.toJsonStr(null)));
-        assertNotNull(JSONUtil.toBean((String) null, Person.class)); // Returns empty default instance
-        assertThrows(Exception.class, () -> JSONUtil.toBean((String) null, new TypeReference<Map<String, Object>>() {}, true));
-        assertNotNull(JSONUtil.parseObj(null));
-
-        assertThrows(Exception.class, () -> JSONUtil.toBean("invalid-json", Person.class));
-        assertThrows(Exception.class, () -> JSONUtil.toBean("invalid-json", new TypeReference<Map<String, Object>>() {}, true));
-        assertThrows(Exception.class, () -> JSONUtil.parseObj("invalid-json"));
     }
 
     @Test
@@ -585,29 +534,6 @@ public class UtilsTest {
     }
 
     @Test
-    public void testReflectUtil() {
-        // Happy path
-        Person person = ReflectUtil.newInstance(Person.class);
-        assertNotNull(person);
-
-        ReflectUtil.invoke(person, "setName", "Bob");
-        assertEquals("Bob", person.getName());
-
-        java.lang.reflect.Field field = ReflectUtil.getField(Person.class, "name");
-        assertNotNull(field);
-
-        // Exceptional / boundary branches
-        assertThrows(RuntimeException.class, () -> ReflectUtil.newInstance(java.io.InputStream.class)); // abstract class
-        assertThrows(RuntimeException.class, () -> ReflectUtil.newInstance(null));
-
-        assertNull(ReflectUtil.getField(Person.class, "nonExistentField"));
-        assertThrows(IllegalArgumentException.class, () -> ReflectUtil.getField(null, "name"));
-
-        assertThrows(RuntimeException.class, () -> ReflectUtil.invoke(person, "nonExistentMethod"));
-        assertThrows(RuntimeException.class, () -> ReflectUtil.invoke(null, "setName"));
-    }
-
-    @Test
     public void testResourceUtil() {
         // Happy / Exceptional: reading resource from invalid path should throw
         assertThrows(RuntimeException.class, () -> ResourceUtil.readUtf8Str("non-existent-resource.txt"));
@@ -629,29 +555,6 @@ public class UtilsTest {
         assertNull(table.get(null, null));
         assertNull(table.remove("missing", "missing"));
         assertNull(table.remove(null, null));
-    }
-
-    @Test
-    public void testSpringUtil() {
-        // Happy path (before application context is initialized, should return null/empty safely)
-        assertNull(SpringUtil.getBean("someBean"));
-        assertNull(SpringUtil.getBean(String.class));
-        assertTrue(SpringUtil.getBeansOfType(String.class).isEmpty());
-
-        // Exceptional / boundary branches
-        SpringUtil util = new SpringUtil();
-        util.setApplicationContext(null);
-        assertNull(SpringUtil.getBean("someBean"));
-    }
-
-    @Test
-    public void testStaticLog() {
-        // Happy path
-        assertDoesNotThrow(() -> StaticLog.info("Info message"));
-
-        // Exceptional / boundary branches
-        assertDoesNotThrow(() -> StaticLog.info(null));
-        assertDoesNotThrow(() -> StaticLog.info("Info with null arg", (Object) null));
     }
 
     @Test

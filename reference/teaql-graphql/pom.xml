@@ -21,6 +21,10 @@
             <artifactId>teaql-core</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.teaql</groupId>
+            <artifactId>teaql-utils-reflection</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.graphql-java</groupId>
             <artifactId>graphql-java</artifactId>
         </dependency>

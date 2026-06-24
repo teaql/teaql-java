@@ -21,10 +21,6 @@ public final class ContextTools {
         return new Builder(ctx);
     }
 
-    public static AgentHttpTool http(UserContext ctx) {
-        return of(ctx).get(AgentHttpTool.class);
-    }
-
     public static final class Builder {
         private final UserContext ctx;
         private ToolPolicy policy = ToolPolicy.allowStandardTools();

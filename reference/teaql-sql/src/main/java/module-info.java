@@ -1,6 +1,7 @@
 module io.teaql.sql {
     requires io.teaql.core;
     requires io.teaql.utils;
+    requires io.teaql.utils.reflection;
     requires spring.jdbc;
     requires spring.tx;
     requires java.sql;

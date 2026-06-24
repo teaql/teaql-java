@@ -13,20 +13,23 @@ import static org.junit.Assert.assertTrue;
 public class ContextToolsTest {
 
     @Test
-    public void findsHttpToolThroughRegistry() {
-        Tools tools = ContextTools.of(null);
+    public void findsRegisteredMemoryToolThroughRegistry() {
+        Tools tools = ContextTools.builder(null)
+                .provider(new MemoryToolProvider())
+                .build();
 
-        assertTrue(tools.has(AgentHttpTool.class));
-        assertNotNull(tools.get(AgentHttpTool.class));
+        assertTrue(tools.has(MemoryTool.class));
+        assertNotNull(tools.get(MemoryTool.class));
     }
 
     @Test(expected = SecurityException.class)
     public void policyCanDenyAvailableTool() {
         Tools tools = ContextTools.builder(null)
-                .policy(ToolPolicy.builder().deny(AgentHttpTool.class).build())
+                .provider(new MemoryToolProvider())
+                .policy(ToolPolicy.builder().deny(MemoryTool.class).build())
                 .build();
 
-        tools.get(AgentHttpTool.class);
+        tools.get(MemoryTool.class);
     }
 
     @Test(expected = SecurityException.class)
@@ -54,6 +57,26 @@ public class ContextToolsTest {
     }
 
     interface DangerousTool {
+    }
+
+    interface MemoryTool {
+    }
+
+    static final class MemoryToolProvider implements ToolProvider {
+        private static final ToolDescriptor DESCRIPTOR = ToolDescriptor
+                .builder("memory-test", MemoryTool.class)
+                .build();
+
+        @Override
+        public ToolDescriptor descriptor() {
+            return DESCRIPTOR;
+        }
+
+        @Override
+        public <T> T create(Class<T> toolType, UserContext ctx) {
+            return toolType.cast(new MemoryTool() {
+            });
+        }
     }
 
     static final class DangerousToolProvider implements ToolProvider {

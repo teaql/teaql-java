@@ -21,12 +21,16 @@
 
     <modules>
         <module>teaql-utils</module>
+        <module>teaql-utils-reflection</module>
+        <module>teaql-utils-json</module>
+        <module>teaql-utils-spring</module>
         <module>teaql-core</module>
         <module>teaql-jackson</module>
         <module>teaql-query-json</module>
         <module>teaql-runtime</module>
         <module>teaql-runtime-log</module>
         <module>teaql-context-runtime-tools</module>
+        <module>teaql-tool-http</module>
         <module>teaql-sql-portable</module>
         <module>teaql-data-service-sql</module>
         <module>teaql-provider-jdbc</module>
@@ -60,6 +64,21 @@
             </dependency>
             <dependency>
                 <groupId>io.teaql</groupId>
+                <artifactId>teaql-utils-reflection</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-utils-json</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-utils-spring</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
                 <artifactId>teaql-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -81,6 +100,11 @@
             <dependency>
                 <groupId>io.teaql</groupId>
                 <artifactId>teaql-context-runtime-tools</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-tool-http</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

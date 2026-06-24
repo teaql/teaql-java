@@ -4,7 +4,7 @@ import java.sql.ResultSet;
 import java.util.List;
 
 import io.teaql.core.utils.ListUtil;
-import io.teaql.core.utils.ReflectUtil;
+import io.teaql.utils.reflect.ReflectUtil;
 
 import io.teaql.core.BaseEntity;
 import io.teaql.core.Entity;

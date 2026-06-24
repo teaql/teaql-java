@@ -10,7 +10,7 @@ public interface ToolPolicy {
     boolean isAllowed(ToolDescriptor descriptor, UserContext ctx);
 
     static ToolPolicy allowStandardTools() {
-        return (descriptor, ctx) -> descriptor.getRisk() != ToolRisk.PRIVILEGED;
+        return (descriptor, ctx) -> descriptor.getRisk() == ToolRisk.MEMORY_ONLY;
     }
 
     static ToolPolicy denyAll() {

@@ -2,7 +2,7 @@ package io.teaql.core.graphql;
 
 import java.lang.reflect.Method;
 
-import io.teaql.core.utils.ReflectUtil;
+import io.teaql.utils.reflect.ReflectUtil;
 
 import io.teaql.core.BaseRequest;
 import io.teaql.core.UserContext;

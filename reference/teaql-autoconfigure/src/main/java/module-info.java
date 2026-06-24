@@ -1,6 +1,9 @@
 module io.teaql.autoconfigure {
     requires io.teaql.core;
     requires io.teaql.utils;
+    requires io.teaql.utils.reflection;
+    requires io.teaql.utils.json;
+    requires io.teaql.utils.spring;
     requires spring.boot.autoconfigure;
     requires spring.boot;
     requires spring.context;

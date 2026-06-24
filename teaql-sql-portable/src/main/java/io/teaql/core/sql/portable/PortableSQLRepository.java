@@ -60,7 +60,7 @@ import io.teaql.core.utils.MapUtil;
 import io.teaql.core.utils.NamingCase;
 import io.teaql.core.utils.NumberUtil;
 import io.teaql.core.utils.ObjectUtil;
-import io.teaql.core.utils.ReflectUtil;
+import io.teaql.utils.reflect.ReflectUtil;
 import io.teaql.core.utils.StrUtil;
 
 /**

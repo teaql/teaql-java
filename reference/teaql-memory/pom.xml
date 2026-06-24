@@ -20,5 +20,9 @@
             <groupId>io.teaql</groupId>
             <artifactId>teaql-core</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.teaql</groupId>
+            <artifactId>teaql-utils-reflection</artifactId>
+        </dependency>
     </dependencies>
 </project>

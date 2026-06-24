@@ -59,8 +59,8 @@ Tools tools = ContextTools.builder(ctx)
 AgentHttpTool http = tools.get(AgentHttpTool.class);
 ```
 
-Compatibility shortcuts may exist for common tools, but the extensible mechanism
-is type-based lookup through `Tools`.
+The extensible mechanism is type-based lookup through `Tools`. `ContextTools`
+should not expose one shortcut method per provider tool.
 
 ## SPI
 

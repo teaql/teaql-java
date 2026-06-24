@@ -16,7 +16,6 @@ import io.teaql.core.utils.ThreadUtil;
 import io.teaql.core.utils.ArrayUtil;
 import io.teaql.core.utils.ObjUtil;
 import io.teaql.core.utils.StrUtil;
-import io.teaql.core.utils.StaticLog;
 
 import io.teaql.core.Entity;
 
@@ -66,7 +65,8 @@ public class TaskRunner {
         try {
             canRun = tryLock(taskName);
             if (!canRun) {
-                StaticLog.info("Task {} is already running.", taskName);
+                System.getLogger(TaskRunner.class.getName())
+                        .log(System.Logger.Level.INFO, "Task {0} is already running.", taskName);
                 return;
             }
             runnable.run();

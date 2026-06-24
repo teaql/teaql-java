@@ -29,7 +29,7 @@ public class BaseLanguageTranslator implements NaturalLanguageTranslator {
             } else {
                 jsonStr = io.teaql.core.utils.ResourceUtil.readUtf8Str("teaql-i18n.json");
             }
-            i18nDict = io.teaql.core.utils.JSONUtil.parseObj(jsonStr);
+            i18nDict = io.teaql.utils.json.JSONUtil.parseObj(jsonStr);
         } catch (Exception e) {
             i18nDict = new io.teaql.core.utils.JSONObject();
         }

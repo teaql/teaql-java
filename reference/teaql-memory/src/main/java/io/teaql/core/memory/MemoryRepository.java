@@ -5,7 +5,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-import io.teaql.core.utils.ReflectUtil;
+import io.teaql.utils.reflect.ReflectUtil;
 
 import io.teaql.core.AggrExpression;
 import io.teaql.core.AggregationResult;

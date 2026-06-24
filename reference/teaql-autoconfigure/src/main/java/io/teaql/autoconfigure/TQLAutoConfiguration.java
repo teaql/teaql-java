@@ -45,13 +45,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.teaql.core.utils.CacheUtil;
 import io.teaql.core.utils.TimedCache;
-import io.teaql.core.utils.BeanUtil;
+import io.teaql.utils.reflect.BeanUtil;
 import io.teaql.core.utils.Base64;
 import io.teaql.core.utils.CollStreamUtil;
 import io.teaql.core.utils.ObjectUtil;
-import io.teaql.core.utils.ReflectUtil;
-import io.teaql.core.utils.SpringUtil;
-import io.teaql.core.utils.JSONUtil;
+import io.teaql.utils.reflect.ReflectUtil;
+import io.teaql.utils.json.JSONUtil;
+import io.teaql.utils.spring.SpringUtil;
 
 import io.teaql.core.DataConfigProperties;
 import io.teaql.core.DataStore;

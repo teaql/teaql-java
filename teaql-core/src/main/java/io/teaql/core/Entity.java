@@ -1,11 +1,6 @@
 package io.teaql.core;
 
-import java.lang.reflect.Method;
 import java.util.List;
-
-import io.teaql.core.utils.BeanUtil;
-import io.teaql.core.utils.ReflectUtil;
-import io.teaql.core.utils.StrUtil;
 
 // the super interface in TEAQL repository
 public interface Entity {
@@ -40,21 +35,24 @@ public interface Entity {
     boolean needPersist();
 
     default <T> T getProperty(String propertyName) {
-        return BeanUtil.getProperty(this, propertyName);
+        if (this instanceof BaseEntity) {
+            return (T) ((BaseEntity) this).internalGet(propertyName);
+        }
+        throw new UnsupportedOperationException(
+                "Generic property access is only available on BaseEntity implementations");
     }
 
     default void setProperty(String propertyName, Object value) {
         if (this instanceof BaseEntity) {
             ((BaseEntity) this).internalSet(propertyName, value);
         } else {
-            BeanUtil.setProperty(this, propertyName, value);
+            throw new UnsupportedOperationException(
+                    "Generic property assignment is only available on BaseEntity implementations");
         }
     }
 
     default Entity updateProperty(String propertyName, Object value) {
-        Method method =
-                ReflectUtil.getMethodByName(getClass(), "update" + StrUtil.upperFirst(propertyName));
-        ReflectUtil.invoke(this, method, value);
+        setProperty(propertyName, value);
         return this;
     }
 

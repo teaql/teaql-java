@@ -169,7 +169,7 @@ public class GraphMutationEngine {
                     List<Entity> toSave = new ArrayList<>();
                     for (GraphMutationBatch.Item item : batch.getItems()) {
                         // Reconstruct a lightweight entity just to save
-                        Entity e = (Entity) io.teaql.core.utils.ReflectUtil.newInstance(
+                        Entity e = (Entity) io.teaql.utils.reflect.ReflectUtil.newInstance(
                             userContext.resolveEntityDescriptor(entityType).getTargetType());
                         for (Map.Entry<String, Object> entry : item.getValues().entrySet()) {
                             e.setProperty(entry.getKey(), entry.getValue());
@@ -217,7 +217,7 @@ public class GraphMutationEngine {
                     break;
                 case DELETE:
                     for (GraphMutationBatch.Item item : batch.getItems()) {
-                        Entity e = (Entity) io.teaql.core.utils.ReflectUtil.newInstance(
+                        Entity e = (Entity) io.teaql.utils.reflect.ReflectUtil.newInstance(
                             userContext.resolveEntityDescriptor(entityType).getTargetType());
                         Object id = item.getValues().get("id");
                         if (id instanceof Number) {

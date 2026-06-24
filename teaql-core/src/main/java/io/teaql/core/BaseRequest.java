@@ -11,7 +11,6 @@ import java.util.stream.Collectors;
 
 import io.teaql.core.utils.ArrayUtil;
 import io.teaql.core.utils.ObjectUtil;
-import io.teaql.core.utils.ReflectUtil;
 import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.criteria.AND;
 import io.teaql.core.criteria.Between;
@@ -710,7 +709,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         PropertyDescriptor propertyDescriptor = propertyDescriptorOp.get();
         Class returnType = propertyDescriptor.getType().javaType();
         TempRequest tempRequest =
-                new TempRequest(returnType, ((Entity) ReflectUtil.newInstance(returnType)).typeName());
+                new TempRequest(returnType, returnType.getSimpleName());
         tempRequest.selectProperty(BaseEntity.ID_PROPERTY);
         tempRequest.selectProperty(BaseEntity.VERSION_PROPERTY);
         tempRequest.appendSearchCriteria(

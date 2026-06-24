@@ -39,8 +39,9 @@ import io.teaql.core.utils.NamingCase;
 import io.teaql.core.utils.ClassUtil;
 import io.teaql.core.utils.NumberUtil;
 import io.teaql.core.utils.ObjectUtil;
-import io.teaql.core.utils.ReflectUtil;
+import io.teaql.utils.reflect.ReflectUtil;
 import io.teaql.core.utils.StrUtil;
+import io.teaql.utils.spring.SpringClassUtil;
 
 import static io.teaql.core.log.Markers.SQL_SELECT;
 import static io.teaql.core.log.Markers.SQL_UPDATE;
@@ -135,7 +136,7 @@ public class SQLRepository<T extends Entity> extends AbstractRepository<T>
 
     protected void initExpressionParsers(EntityDescriptor entityDescriptor, DataSource dataSource) {
         Set<Class<?>> parsers =
-                ClassUtil.scanPackageBySuper(
+                SpringClassUtil.scanPackageBySuper(
                         ExpressionHelper.class.getPackageName(), SQLExpressionParser.class);
         for (Class<?> parser : parsers) {
             if (!ClassUtil.isInterface(parser) && !ClassUtil.isAbstract(parser)) {

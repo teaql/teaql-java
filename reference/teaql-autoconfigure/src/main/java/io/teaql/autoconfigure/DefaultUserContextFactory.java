@@ -3,7 +3,7 @@ package io.teaql.autoconfigure;
 import io.teaql.core.DataConfigProperties;
 import io.teaql.core.UserContext;
 
-import io.teaql.core.utils.ReflectUtil;
+import io.teaql.utils.reflect.ReflectUtil;
 
 public class DefaultUserContextFactory implements UserContextFactory {
     private final DataConfigProperties config;
