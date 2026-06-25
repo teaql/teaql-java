@@ -24,6 +24,7 @@
         <module>teaql-utils-json</module>
         <module>teaql-utils-spring</module>
         <module>teaql-dynamic-fields-api</module>
+        <module>teaql-dynamic-fields-jdbc</module>
         <module>teaql-core</module>
         <module>teaql-jackson</module>
         <module>teaql-query-json</module>
@@ -60,6 +61,11 @@
             <dependency>
                 <groupId>io.teaql</groupId>
                 <artifactId>teaql-dynamic-fields-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-dynamic-fields-jdbc</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
