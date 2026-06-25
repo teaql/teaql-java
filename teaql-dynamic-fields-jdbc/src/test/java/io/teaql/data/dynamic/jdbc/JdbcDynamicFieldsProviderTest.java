@@ -28,6 +28,8 @@ public class JdbcDynamicFieldsProviderTest {
         provider.ensureSchema();
     }
 
+    private final java.util.concurrent.atomic.AtomicLong idGen = new java.util.concurrent.atomic.AtomicLong(100000);
+
     private DynamicFieldContext globalCtx() {
         return new DynamicFieldContext() {
             @Override public String scopeType() { return "GLOBAL"; }
@@ -36,6 +38,7 @@ public class JdbcDynamicFieldsProviderTest {
             @Override public String purpose() { return "unit test"; }
             @Override public String comment() { return "testing"; }
             @Override public boolean strictIntent() { return false; }
+            @Override public long nextId(String typeName) { return idGen.incrementAndGet(); }
         };
     }
 

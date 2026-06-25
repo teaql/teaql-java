@@ -42,6 +42,8 @@ public class InMemoryDynamicFieldsProviderTest {
         return provider;
     }
 
+    private final java.util.concurrent.atomic.AtomicLong idGen = new java.util.concurrent.atomic.AtomicLong(100000);
+
     private DynamicFieldContext globalCtx() {
         return new DynamicFieldContext() {
             @Override public String scopeType() { return "GLOBAL"; }
@@ -50,6 +52,7 @@ public class InMemoryDynamicFieldsProviderTest {
             @Override public String purpose() { return "unit test"; }
             @Override public String comment() { return "testing dynamic fields"; }
             @Override public boolean strictIntent() { return false; }
+            @Override public long nextId(String typeName) { return idGen.incrementAndGet(); }
         };
     }
 

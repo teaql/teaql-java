@@ -71,6 +71,11 @@ public class DefaultDynamicFieldsFacade implements DynamicFieldsFacade {
             @Override public String purpose() { return purpose; }
             @Override public String comment() { return comment; }
             @Override public boolean strictIntent() { return false; }
+            @Override public long nextId(String typeName) {
+                throw new UnsupportedOperationException(
+                        "ID generation is not available through the facade context. "
+                        + "Use the runtime's InternalIdGenerationService instead.");
+            }
         };
     }
 

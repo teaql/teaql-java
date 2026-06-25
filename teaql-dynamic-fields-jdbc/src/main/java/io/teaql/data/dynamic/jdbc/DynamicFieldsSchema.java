@@ -18,14 +18,8 @@ public final class DynamicFieldsSchema {
 
     public static final String TABLE_FIELD_DEF = "teaql_dynamic_field_def";
     public static final String TABLE_FIELD_VALUE = "teaql_dynamic_field_value";
-    public static final String TABLE_ID_SPACE = "teaql_id_space";
 
     // ─── DDL ───────────────────────────────────────────────────────────
-
-    public static final String DDL_ID_SPACE =
-            "CREATE TABLE IF NOT EXISTS teaql_id_space ("
-            + "type_name VARCHAR(100) PRIMARY KEY, "
-            + "current_level BIGINT)";
 
     public static final String DDL_FIELD_DEF =
             "CREATE TABLE IF NOT EXISTS teaql_dynamic_field_def ("
@@ -79,17 +73,10 @@ public final class DynamicFieldsSchema {
             + "updated_at BIGINT, "
             + "PRIMARY KEY (scope_type, scope_id, owner_type, owner_id, field_id))";
 
-    public static final String INIT_ID_SPACE =
-            "INSERT INTO teaql_id_space (type_name, current_level) VALUES ('DynamicFieldDef', 100000)";
-
-    // ─── Schema Creation ───────────────────────────────────────────────
-
     public static void ensureSchema(SqlExecutionAdapter executor) {
-        tryExecute(executor, DDL_ID_SPACE);
         tryExecute(executor, DDL_FIELD_DEF);
         tryExecute(executor, IDX_FIELD_DEF_UK);
         tryExecute(executor, DDL_FIELD_VALUE);
-        tryExecute(executor, INIT_ID_SPACE);
         LOG.info("Dynamic fields schema ensured.");
     }
 

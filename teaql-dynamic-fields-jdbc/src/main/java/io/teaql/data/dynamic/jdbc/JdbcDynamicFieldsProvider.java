@@ -22,7 +22,6 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
     private static final Logger LOG = Logger.getLogger(JdbcDynamicFieldsProvider.class.getName());
 
     private final SqlExecutionAdapter executor;
-    private final DynamicFieldsIdGenerator idGenerator;
 
     // ─── SQL Constants ─────────────────────────────────────────────────
 
@@ -78,7 +77,6 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
      */
     public JdbcDynamicFieldsProvider(SqlExecutionAdapter executor) {
         this.executor = Objects.requireNonNull(executor, "executor");
-        this.idGenerator = new DynamicFieldsIdGenerator(executor);
     }
 
     /**
@@ -105,7 +103,7 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
     public DynamicFieldDef registerFieldDef(DynamicFieldContext ctx, DynamicFieldDef def) {
         Objects.requireNonNull(def, "def");
         if (def.getId() == 0) {
-            def.setId(idGenerator.nextId());
+            def.setId(ctx.nextId("DynamicFieldDef"));
         }
         if (def.getStatus() == null) {
             def.setStatus(DynamicFieldStatus.ACTIVE);
