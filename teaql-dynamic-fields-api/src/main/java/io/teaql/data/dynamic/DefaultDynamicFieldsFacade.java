@@ -24,6 +24,7 @@ public class DefaultDynamicFieldsFacade implements DynamicFieldsFacade {
     private Object userContext;
     private String purpose;
     private String comment;
+    private java.util.function.ToLongFunction<String> idGenerator;
 
     public DefaultDynamicFieldsFacade(DynamicFieldsProvider provider) {
         this(provider, DynamicFieldScope.global());
@@ -34,12 +35,22 @@ public class DefaultDynamicFieldsFacade implements DynamicFieldsFacade {
         this.defaultScope = Objects.requireNonNull(defaultScope, "defaultScope");
     }
 
+    public DefaultDynamicFieldsFacade withIdGenerator(java.util.function.ToLongFunction<String> idGenerator) {
+        DefaultDynamicFieldsFacade copy = new DefaultDynamicFieldsFacade(provider, defaultScope);
+        copy.userContext = this.userContext;
+        copy.purpose = this.purpose;
+        copy.comment = this.comment;
+        copy.idGenerator = idGenerator;
+        return copy;
+    }
+
     @Override
     public DynamicFieldsFacade withContext(Object userContext) {
         DefaultDynamicFieldsFacade copy = new DefaultDynamicFieldsFacade(provider, defaultScope);
         copy.userContext = userContext;
         copy.purpose = this.purpose;
         copy.comment = this.comment;
+        copy.idGenerator = this.idGenerator;
         return copy;
     }
 
@@ -72,9 +83,11 @@ public class DefaultDynamicFieldsFacade implements DynamicFieldsFacade {
             @Override public String comment() { return comment; }
             @Override public boolean strictIntent() { return false; }
             @Override public long nextId(String typeName) {
+                if (idGenerator != null) {
+                    return idGenerator.applyAsLong(typeName);
+                }
                 throw new UnsupportedOperationException(
-                        "ID generation is not available through the facade context. "
-                        + "Use the runtime's InternalIdGenerationService instead.");
+                        "ID generation is not available. Configure idGenerator in DefaultDynamicFieldsFacade.");
             }
         };
     }
