@@ -17,9 +17,14 @@ Dynamic Fields 允许业务系统在不修改标准领域模型的情况下，�
 
 ```
 teaql-dynamic-fields-api            ← 本模块（零外部依赖）
-├── API 接口与值对象 (19 个类)
+├── API 接口与值对象 (20 个类)
 ├── InMemoryDynamicFieldsProvider   ← 内存实现（仅用于演示/测试）
 └── DefaultDynamicFieldsFacade      ← 通用 facade（可复用于任何 provider）
+
+teaql-dynamic-fields-jdbc            ← JDBC 持久化实现（已完成）
+├── JdbcDynamicFieldsProvider       ← 复用现有 DataSource，自动建表
+├── DynamicFieldsSchema             ← DDL 常量 + ensureSchema()
+└── 两张内部表: teaql_dynamic_field_def / teaql_dynamic_field_value
 
 teaql-core                           ← 桥接层
 ├── UserContext.dynamicFields()     ← 通过 capability() 委托
@@ -214,60 +219,41 @@ DEPLOYMENT      → 部署环境级
 
 ```
 teaql-dynamic-fields-api          ← API + 内存实现（已完成）
-teaql-dynamic-fields-teaql        ← TeaQL DB 实现（计划中）
+teaql-dynamic-fields-jdbc         ← JDBC 持久化实现（已完成）
 teaql-dynamic-fields-redis        ← Redis 实现（按需）
 teaql-dynamic-fields-elasticsearch← ES 实现（按需）
 ```
 
-#### 示例：实现 TeaQL DB Provider
+#### JDBC 持久化（已完成）
+
+`teaql-dynamic-fields-jdbc` 模块复用现有 DataSource，自动建表，跨方言兼容：
 
 ```java
-public class TeaqlDynamicFieldsProvider implements DynamicFieldsProvider {
+// 复用同一个 DataSource
+JdbcDynamicFieldsProvider provider = new JdbcDynamicFieldsProvider(existingDataSource);
+provider.ensureSchema();  // 自动建表
 
-    private final UserContext ctx;
-
-    @Override
-    public DynamicFieldDef loadFieldDef(DynamicFieldContext ctx, DynamicFieldRef ref) {
-        // SELECT * FROM dynamic_field_def
-        // WHERE scope_type = ? AND scope_id = ? AND owner_type = ? AND code = ?
-        return Q.dynamicFieldDefs()
-                .filterByScopeType(ref.scope().scopeType())
-                .filterByScopeId(ref.scope().scopeId())
-                .filterByOwnerType(ref.ownerType())
-                .filterByCode(ref.code())
-                .internalExecuteForOne(ctx);
-    }
-
-    @Override
-    public void saveValue(DynamicFieldContext ctx, DynamicSetCommand command) {
-        // UPSERT INTO dynamic_string_value / dynamic_number_value / ...
-        // WHERE scope + owner_type + owner_id + field_id
-    }
-
-    @Override
-    public DynamicFieldCapabilities capabilities() {
-        return DynamicFieldCapabilities.builder()
-                .sourceOfTruth(true)        // ← 生产级
-                .supportsTransaction(true)
-                .supportsBatchLoad(true)
-                .supportsTypedValue(true)
-                .supportsBasicPermission(true)
-                .supportsBasicAudit(true)
-                .build();
-    }
-
-    // ... 其他方法
-}
+// 注册字段定义（ID 由 runtime 的 InternalIdGenerationService 分配）
+DynamicFieldDef def = new DynamicFieldDef();
+def.setScope(DynamicFieldScope.global());
+def.setOwnerType("Platform");
+def.setCode("customer_asset_no");
+def.setDataType(DynamicDataType.STRING);
+def.setStatus(DynamicFieldStatus.ACTIVE);
+provider.registerFieldDef(ctx, def);
 ```
 
-#### 注册替换
+详见 [teaql-dynamic-fields-jdbc/README.md](../teaql-dynamic-fields-jdbc/README.md)。
+
+#### 注册到 UserContext
 
 ```java
-// 开发/测试环境
+// 开发/测试环境 —— 内存实现（数据不持久化）
 DynamicFieldsProvider provider = new InMemoryDynamicFieldsProvider();
 
-// 生产环境
-DynamicFieldsProvider provider = new TeaqlDynamicFieldsProvider(dataSource);
+// 生产环境 —— JDBC 实现（复用现有数据库）
+DynamicFieldsProvider provider = new JdbcDynamicFieldsProvider(dataSource);
+provider.ensureSchema();
 
 // 两种环境使用同一个 facade
 DynamicFieldsFacade facade = new DefaultDynamicFieldsFacade(provider, scope);
