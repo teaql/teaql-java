@@ -15,7 +15,6 @@ import io.teaql.core.SmartList;
 import io.teaql.core.SubQuerySearchCriteria;
 import io.teaql.core.internal.TempRequest;
 import io.teaql.core.UserContext;
-import io.teaql.core.criteria.IN;
 import io.teaql.core.criteria.InLarge;
 import io.teaql.core.criteria.Operator;
 import io.teaql.core.sql.portable.PortableSQLRepository;
@@ -67,8 +66,13 @@ public class SubQueryParser implements SQLExpressionParser<SubQuerySearchCriteri
             if (ObjectUtil.isEmpty(subQuery)) {
                 return SearchCriteria.FALSE;
             }
-            IN in = new IN(new PropertyReference(propertyName), new RawSql(subQuery));
-            return ExpressionHelper.toSql(userContext, in, idTable, parameters, sqlColumnResolver);
+            // Inline the pre-compiled subquery SQL directly into the IN clause.
+            // RawSql has been removed; we format the IN predicate here.
+            String leftColumn = ExpressionHelper.toSql(
+                    userContext,
+                    new PropertyReference(propertyName),
+                    idTable, parameters, sqlColumnResolver);
+            return leftColumn + " IN (" + subQuery + ")";
         }
 
         // fall back

@@ -140,7 +140,6 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         registerExpressionParser(new io.teaql.core.sql.expression.OrderBysParser());
         registerExpressionParser(new io.teaql.core.sql.expression.ParameterParser());
         registerExpressionParser(new io.teaql.core.sql.expression.PropertyParser());
-        registerExpressionParser(new io.teaql.core.sql.expression.RawSqlParser());
         registerExpressionParser(new io.teaql.core.sql.expression.SubQueryParser());
         registerExpressionParser(new io.teaql.core.sql.expression.TwoOperatorExpressionParser());
         registerExpressionParser(new io.teaql.core.sql.expression.TypeCriteriaParser());
@@ -167,11 +166,6 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     // ==========================================
 
     public String buildDataSQL(UserContext userContext, SearchRequest request, Map<String, Object> parameters) {
-        String rawSql = (String) request.getExtension("rawSql");
-        if (ObjectUtil.isNotEmpty(rawSql)) {
-            return rawSql;
-        }
-
         String partitionProperty = request.getPartitionProperty();
         if (ObjectUtil.isNotEmpty(partitionProperty) && request.getSlice() != null) {
             ensureOrderByForPartition(request);

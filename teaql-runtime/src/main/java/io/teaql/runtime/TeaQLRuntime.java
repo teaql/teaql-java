@@ -55,6 +55,9 @@ public class TeaQLRuntime {
         if (request.purpose() == null || request.purpose().trim().isEmpty()) {
             throw new TeaQLRuntimeException("[PURPOSE REQUIRED] Missing .purpose() on query execution. You must not call executeForList directly without purpose.");
         }
+        if (requestPolicy != null) {
+            requestPolicy.enforceSelect(ctx, request);
+        }
         boolean pushedComment = false;
         boolean pushedPurpose = false;
         if (request.comment() != null && !request.comment().trim().isEmpty()) {
@@ -66,12 +69,7 @@ public class TeaQLRuntime {
             pushedPurpose = true;
         }
         try {
-            SearchRequest<T> checkedRequest = request;
-            if (requestPolicy != null) {
-                // Can enforce select policy
-            }
-
-            EntityDescriptor descriptor = metadata.resolveEntityDescriptor(checkedRequest.getTypeName());
+            EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
             String route = descriptor.getDataService();
             if (route == null || route.isEmpty()) {
                 route = "default";
@@ -82,13 +80,16 @@ public class TeaQLRuntime {
                 throw new TeaQLRuntimeException("No QueryExecutor registered for route: " + route);
             }
 
-            QueryRequest queryRequest = new DefaultQueryRequest(checkedRequest);
+            QueryRequest queryRequest = new DefaultQueryRequest(request);
             QueryResult queryResult = queryExecutor.query(ctx, queryRequest);
 
             if (queryResult instanceof DefaultQueryResult) {
                 return (SmartList<T>) ((DefaultQueryResult) queryResult).getResult();
             }
-            throw new TeaQLRuntimeException("Unsupported QueryResult type from query executor: " + route);
+            throw new TeaQLRuntimeException(
+                "Unsupported QueryResult type '" + queryResult.getClass().getName()
+                + "' returned by QueryExecutor for route: " + route
+                + ". Executor must return DefaultQueryResult or a subclass.");
         } finally {
             if (pushedPurpose) {
                 ctx.popTrace();
@@ -102,6 +103,9 @@ public class TeaQLRuntime {
     public <T extends Entity> AggregationResult aggregation(UserContext ctx, SearchRequest<T> request) {
         if (request.purpose() == null || request.purpose().trim().isEmpty()) {
             throw new TeaQLRuntimeException("[PURPOSE REQUIRED] Missing .purpose() on query execution. You must not call aggregation directly without purpose.");
+        }
+        if (requestPolicy != null) {
+            requestPolicy.enforceSelect(ctx, request);
         }
         boolean pushedComment = false;
         boolean pushedPurpose = false;
@@ -128,7 +132,10 @@ public class TeaQLRuntime {
             if (queryResult instanceof DefaultQueryResult) {
                 return ((DefaultQueryResult) queryResult).getAggregationResult();
             }
-            return null;
+            throw new TeaQLRuntimeException(
+                "Unsupported QueryResult type '" + queryResult.getClass().getName()
+                + "' returned by QueryExecutor for route: " + route
+                + ". Executor must return DefaultQueryResult or a subclass.");
         } finally {
             if (pushedPurpose) {
                 ctx.popTrace();
@@ -149,6 +156,8 @@ public class TeaQLRuntime {
         }
     }
 
+    /** Context key used to track the first data-service route written to in a saveGraph chain. */
+    private static final String SAVE_GRAPH_ACTIVE_ROUTE_KEY = "__teaql_save_graph_route__";
 
     public void saveGraph(UserContext ctx, Entity entity) {
         if (entity.getComment() == null || entity.getComment().trim().isEmpty()) {
@@ -169,6 +178,21 @@ public class TeaQLRuntime {
             String route = descriptor.getDataService();
             if (route == null || route.isEmpty()) {
                 route = "default";
+            }
+
+            // Cross-provider mutation guard: two different routes in the same
+            // saveGraph call have NO atomicity guarantee. Fail fast rather than
+            // silently losing consistency.
+            Object activeRoute = ctx.extension(SAVE_GRAPH_ACTIVE_ROUTE_KEY);
+            if (activeRoute == null) {
+                ctx.put(SAVE_GRAPH_ACTIVE_ROUTE_KEY, route);
+            } else if (!activeRoute.equals(route)) {
+                throw new TeaQLRuntimeException(
+                    "[CROSS-PROVIDER MUTATION] saveGraph attempted to write entity '"
+                    + entity.typeName() + "' to route '" + route
+                    + "' while the current saveGraph chain is already writing to route '"
+                    + activeRoute + "'. Cross-provider mutations have no atomicity guarantee. "
+                    + "Use separate UserContext instances and an explicit outbox or saga pattern.");
             }
 
             MutationExecutor mutationExecutor = registry.resolveMutationExecutor(route);

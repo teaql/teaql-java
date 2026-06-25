@@ -6,6 +6,9 @@ import io.teaql.core.meta.EntityDescriptor;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -38,13 +41,60 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
     @Override
     @SuppressWarnings("unchecked")
     public <T extends Entity> Stream<T> internalExecuteForStream(SearchRequest searchRequest) {
-        return (Stream<T>) (Stream<?>) internalExecuteForList(searchRequest).stream();
+        return internalExecuteForStream(searchRequest, 200);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T extends Entity> Stream<T> internalExecuteForStream(SearchRequest searchRequest, int enhanceBatchSize) {
-        return (Stream<T>) (Stream<?>) internalExecuteForList(searchRequest).stream();
+    public <T extends Entity> Stream<T> internalExecuteForStream(SearchRequest searchRequest, int batchSize) {
+        // Check whether the backing executor declares streaming capability.
+        // If it does, delegate to a lazy batch-pull iterator.
+        // If not, fall back to a fully-materialized list (safe but not lazy).
+        EntityDescriptor descriptor = runtime.getMetadata().resolveEntityDescriptor(searchRequest.getTypeName());
+        String route = descriptor != null ? descriptor.getDataService() : null;
+        if (route == null || route.isEmpty()) {
+            route = "default";
+        }
+        DataServiceExecutor executor = runtime.getRegistry().resolve(route);
+        if (executor != null
+                && executor.capabilities() != null
+                && executor.capabilities().isStreamingQuery()) {
+            // Executor declares streaming support — use lazy batch-pull.
+            final String resolvedRoute = route;
+            final int effectiveBatch = batchSize > 0 ? batchSize : 200;
+            Spliterator<T> spliterator = new Spliterators.AbstractSpliterator<T>(Long.MAX_VALUE,
+                    Spliterator.ORDERED | Spliterator.NONNULL) {
+                private int offset = 0;
+                private List<T> currentBatch = Collections.emptyList();
+                private int batchIndex = 0;
+                private boolean exhausted = false;
+
+                @Override
+                public boolean tryAdvance(java.util.function.Consumer<? super T> action) {
+                    if (exhausted) return false;
+                    if (batchIndex >= currentBatch.size()) {
+                        // Fetch next batch by advancing the slice.
+                        SearchRequest<T> paged = (SearchRequest<T>) searchRequest;
+                        if (paged.getSlice() != null) {
+                            paged.getSlice().setOffset(offset);
+                            paged.getSlice().setSize(effectiveBatch);
+                        }
+                        currentBatch = (List<T>) runtime.executeForList(DefaultUserContext.this, paged);
+                        offset += currentBatch.size();
+                        batchIndex = 0;
+                        if (currentBatch.isEmpty()) {
+                            exhausted = true;
+                            return false;
+                        }
+                    }
+                    action.accept(currentBatch.get(batchIndex++));
+                    return true;
+                }
+            };
+            return StreamSupport.stream(spliterator, false);
+        }
+        // Fallback: executor does not advertise streaming — materialize the full list.
+        return (Stream<T>) internalExecuteForList(searchRequest).stream();
     }
 
     @Override
@@ -162,10 +212,29 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T> T evaluate(String expression, Object... args) {
+    public final <T> T evaluate(String expression, Object... args) {
+        // Built-in: "now" returns the current local date-time.
         if ("now".equalsIgnoreCase(expression)) {
             return (T) java.time.LocalDateTime.now();
         }
+        // Delegate to subclass or extension for application-defined expressions.
+        return evaluateExpression(expression, args);
+    }
+
+    /**
+     * Extension point for application-defined expression evaluation.
+     * Override in a subclass of {@link DefaultUserContext} to handle
+     * custom expressions without modifying framework code.
+     *
+     * <p>Return {@code null} when the expression is not recognised.
+     *
+     * @param expression the expression name
+     * @param args       optional arguments
+     * @param <T>        the expected return type
+     * @return the evaluated value, or {@code null} if unrecognised
+     */
+    @SuppressWarnings("unchecked")
+    protected <T> T evaluateExpression(String expression, Object... args) {
         return null;
     }
 }
