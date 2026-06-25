@@ -1,5 +1,6 @@
 module io.teaql.core {
     requires io.teaql.utils;
+    requires transitive io.teaql.data.dynamic;
 
     // === Public API needed by generated code ===
     exports io.teaql.core;

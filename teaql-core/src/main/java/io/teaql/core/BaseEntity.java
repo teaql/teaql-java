@@ -9,6 +9,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import io.teaql.core.utils.ObjectUtil;
+import io.teaql.data.dynamic.DynamicFieldValue;
+import io.teaql.data.dynamic.DynamicFieldValues;
 
 public class BaseEntity implements Entity {
     public static final String ID_PROPERTY = "id";
@@ -25,6 +27,8 @@ public class BaseEntity implements Entity {
     private Map<String, PropertyChange> updatedProperties = new ConcurrentHashMap<>();
 
     private Map<String, Object> additionalInfo = new ConcurrentHashMap<>();
+
+    private DynamicFieldValues dynamicFieldValues;
 
     private Map<String, Entity> relationCache = new HashMap<>();
 
@@ -265,6 +269,56 @@ public class BaseEntity implements Entity {
 
     public void putAdditional(String propertyName, Object value) {
         additionalInfo.put(propertyName, value);
+    }
+
+    /**
+     * Returns the dynamic field values wrapper.
+     * If a wrapper has been set via {@link #setDynamicFieldValues}, returns it directly.
+     * Otherwise builds one from '#' prefixed entries in additionalInfo.
+     */
+    @Override
+    public DynamicFieldValues dynamicFields() {
+        if (dynamicFieldValues != null) {
+            return dynamicFieldValues;
+        }
+        // Build from additionalInfo entries with '#' prefix
+        List<DynamicFieldValue> fields = new ArrayList<>();
+        for (Map.Entry<String, Object> entry : additionalInfo.entrySet()) {
+            String key = entry.getKey();
+            if (key.startsWith("#")) {
+                String fieldCode = key.substring(1);
+                Object value = entry.getValue();
+                if (value instanceof String s) {
+                    fields.add(DynamicFieldValue.ofString(fieldCode, s));
+                } else if (value instanceof Number n) {
+                    fields.add(DynamicFieldValue.ofNumber(fieldCode, n));
+                } else if (value instanceof Boolean b) {
+                    fields.add(DynamicFieldValue.ofBool(fieldCode, b));
+                } else if (value == null) {
+                    fields.add(DynamicFieldValue.ofNull(fieldCode, null));
+                } else {
+                    fields.add(DynamicFieldValue.ofString(fieldCode, value.toString()));
+                }
+            }
+        }
+        return DynamicFieldValues.of(fields);
+    }
+
+    /**
+     * Sets the dynamic field values wrapper directly.
+     * Called by the dynamic fields enhancer after post-load.
+     * Also populates additionalInfo with '#' prefixed keys for serialization.
+     */
+    public void setDynamicFieldValues(DynamicFieldValues values) {
+        this.dynamicFieldValues = values;
+        if (values != null) {
+            for (Map.Entry<String, DynamicFieldValue> entry : values.toMap().entrySet()) {
+                String key = "#" + entry.getKey();
+                Object val = entry.getValue().value();
+                // Use putAdditional (not addDynamicProperty) to preserve nulls
+                additionalInfo.put(key, val);
+            }
+        }
     }
 
     @Override

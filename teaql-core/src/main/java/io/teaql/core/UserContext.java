@@ -3,6 +3,7 @@ package io.teaql.core;
 import java.util.stream.Stream;
 import io.teaql.core.utils.OptNullBasicTypeFromObjectGetter;
 import java.util.List;
+import io.teaql.data.dynamic.DynamicFieldsFacade;
 
 public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
 
@@ -37,6 +38,22 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
 
     default <T> T capability(Class<T> capabilityType) {
         return null;
+    }
+
+    /**
+     * Returns the Dynamic Fields facade for reading/writing dynamic field values.
+     * The facade is resolved via {@link #capability(Class)} and must be registered
+     * by the runtime before use.
+     *
+     * @throws TeaQLRuntimeException if DynamicFieldsFacade is not registered
+     */
+    default DynamicFieldsFacade dynamicFields() {
+        DynamicFieldsFacade facade = capability(DynamicFieldsFacade.class);
+        if (facade == null) {
+            throw new TeaQLRuntimeException("DynamicFieldsFacade not registered. "
+                + "Ensure a dynamic fields provider is configured in the runtime.");
+        }
+        return facade.withContext(this);
     }
 
     void saveGraph(Object items);

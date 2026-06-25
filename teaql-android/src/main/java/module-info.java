@@ -7,6 +7,7 @@
 // this module-info.java exists solely to bring teaql-android into the
 // multi-module JPMS graph for standard Maven/Java-17+ tooling.
 module io.teaql.android {
+    requires io.teaql.core;
     requires io.teaql.sql.portable;
     requires io.teaql.dataservice.sql;
 

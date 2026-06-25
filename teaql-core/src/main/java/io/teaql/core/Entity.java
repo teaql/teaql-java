@@ -1,6 +1,7 @@
 package io.teaql.core;
 
 import java.util.List;
+import io.teaql.data.dynamic.DynamicFieldValues;
 
 // the super interface in TEAQL repository
 public interface Entity {
@@ -65,6 +66,16 @@ public interface Entity {
     void appendDynamicProperty(String propertyName, Object value);
 
     <T> T getDynamicProperty(String propertyName);
+
+    /**
+     * Returns the dynamic field values wrapper for this entity.
+     * Dynamic fields use the '#' prefix namespace in additionalInfo.
+     *
+     * @return DynamicFieldValues wrapper, or empty if no dynamic fields are loaded
+     */
+    default DynamicFieldValues dynamicFields() {
+        return DynamicFieldValues.empty();
+    }
 
     void markAsDeleted();
 

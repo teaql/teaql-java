@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import io.teaql.core.utils.ArrayUtil;
 import io.teaql.core.utils.ObjectUtil;
 import io.teaql.core.meta.EntityMetaFactory;
+import io.teaql.data.dynamic.DynamicFieldSelection;
 import io.teaql.core.criteria.AND;
 import io.teaql.core.criteria.Between;
 import io.teaql.core.criteria.EQ;
@@ -77,6 +78,8 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
     protected String searchForText;
 
     protected List<FacetRequest> facetRequests = new ArrayList<>();
+
+    protected DynamicFieldSelection dynamicFieldSelection;
 
     public BaseRequest(Class<T> pReturnType) {
         returnType = pReturnType;
@@ -396,6 +399,20 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
 
     public void addSingleAggregateDynamicProperty(String name, SearchRequest subRequest) {
         this.addAggregateDynamicProperty(name, subRequest, true);
+    }
+
+    /**
+     * Specifies which dynamic fields should be loaded for entities returned by this query.
+     * Dynamic fields are loaded in a post-load phase after the main query completes.
+     */
+    public BaseRequest<T> selectDynamicFieldsWith(DynamicFieldSelection selection) {
+        this.dynamicFieldSelection = selection;
+        return this;
+    }
+
+    @Override
+    public DynamicFieldSelection getDynamicFieldSelection() {
+        return dynamicFieldSelection;
     }
 
     public SearchCriteria createBasicSearchCriteria(

@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.teaql</groupId>
         <artifactId>teaql-java-parent</artifactId>
-        <version>1.521-RELEASE</version>
+        <version>1.522-RELEASE</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -16,6 +16,10 @@
     <description>Core library for TeaQL</description>
 
     <dependencies>
+        <dependency>
+            <groupId>io.teaql</groupId>
+            <artifactId>teaql-dynamic-fields-api</artifactId>
+        </dependency>
         <dependency>
             <groupId>io.teaql</groupId>
             <artifactId>teaql-utils</artifactId>
