@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import io.teaql.core.utils.StrUtil;
+import io.teaql.data.dynamic.DynamicFieldSelection;
 
 public interface SearchRequest<T extends Entity> {
     default String getTypeName() {
@@ -25,6 +26,15 @@ public interface SearchRequest<T extends Entity> {
     }
 
     default String getSearchForText() {
+        return null;
+    }
+
+    /**
+     * Returns the dynamic field selection for this request, or null if none.
+     * When non-null, the runtime will post-load the specified dynamic fields
+     * after the main query completes.
+     */
+    default DynamicFieldSelection getDynamicFieldSelection() {
         return null;
     }
 

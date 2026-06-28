@@ -73,11 +73,11 @@ platform.dynamicFields().getNumber("priority_score");
 当前 `BaseEntity.additionalInfo` 的 JSON 行为由可选 `teaql-jackson` 模块提供，需要特别处理：
 
 - `BaseEntity` 本身不依赖 Jackson；
-- 注册 `io.teaql.jackson.TeaQLModule` 后，`BaseEntityMixin` 会忽略内部字段；
-- 注册 `TeaQLModule` 后，`getAdditionalInfo()` 通过 mixin 的 `@JsonAnyGetter` 语义把 `additionalInfo` 内容打平到顶层 JSON；
-- 注册 `TeaQLModule` 后，`putAdditional()` 通过 mixin 的 `@JsonAnySetter` 语义接收未知字段；
+- 注册 `io.teaql.jackson.TeaQLModule` 后，`BaseEntityJsonSerializer` 只序列化 `id`、`version` 和 `additionalInfo` 中的所有条目（打平到顶层 JSON），忽略 `$status`、`comment`、`traceChain` 等内部字段；
+- 注册 `TeaQLModule` 后，`BaseEntityJsonDeserializer` 把除 `id`/`version` 外的所有 JSON 字段通过 `putAdditional()` 放入 `additionalInfo`（注意：反序列化始终创建 `BaseEntity` 实例，而非具体子类）；
 - `addDynamicProperty("abc", value)` 会序列化成顶层 `_abc`；
-- `addDynamicProperty(".abc", value)` 会序列化成顶层 `abc`。
+- `addDynamicProperty(".abc", value)` 会序列化成顶层 `abc`；
+- **注意：`addDynamicProperty()` 在 value 为 null 时静默丢弃**，不会存入 `additionalInfo`。因此不能用 `addDynamicProperty()` 表达"字段已加载但值为空"，`DynamicFieldValues` wrapper 必须自行处理 null 语义（参见 §3.2）。
 
 因此 Dynamic Fields 不能把每个动态字段直接用原始 code 放进 `additionalInfo` 顶层。否则会出现三个问题：
 
@@ -105,7 +105,7 @@ platform.dynamicFields().getNumber("priority_score");
 entity.addDynamicProperty(".#customer_asset_no", "A-10086");
 ```
 
-利用 `teaql-jackson` 中 `BaseEntityMixin` 的 any-getter 语义输出顶层 `#customer_asset_no`，但不能输出：
+利用 `addDynamicProperty()` 的 `.` 前缀规则把 key 存为 `#customer_asset_no`，`BaseEntityJsonSerializer` 遍历 `additionalInfo` 时会输出顶层 `#customer_asset_no`。但不能输出：
 
 ```json
 {
@@ -185,6 +185,8 @@ entity.addDynamicProperty(".#customer_asset_no", "A-10086");
 }
 ```
 
+**实现注意：** `BaseEntity.addDynamicProperty()` 在 value 为 null 时静默返回，不会存入 `additionalInfo`。因此 `DynamicFieldValues` wrapper 不能依赖 `addDynamicProperty()` 来表达 null 值。推荐 `DynamicFieldValues` 使用 `BaseEntity.putAdditional()` 直接存入 `#<field_code>: null`，或者 wrapper 自身维护已加载字段集合，序列化时由 wrapper 负责输出 null。
+
 字段不存在，表示未 select 或当前用户不可见。业务代码读取未加载字段时应抛出：
 
 ```text
@@ -245,7 +247,7 @@ DYNAMIC_FIELD_NOT_VISIBLE
 
 原因：
 
-- 注册 `TeaQLModule` 后，any-setter 会接收所有未知字段；
+- 注册 `TeaQLModule` 后，`BaseEntityJsonDeserializer` 会把所有未知字段通过 `putAdditional()` 放入 `additionalInfo`；
 - 如果 unknown field 自动写入 dynamic fields，会绕过字段定义、权限、类型、审计和 intent；
 - 拼写错误的标准字段也可能被误写成动态字段。
 
@@ -262,7 +264,7 @@ ctx.dynamicFields()
 这个形状的主要影响：
 
 - `#` 必须成为 TeaQL JSON 的保留前缀，标准字段、普通 additional property、临时动态列都不能使用这个前缀；
-- 注册 `TeaQLModule` 后，any-setter 会把 `#customer_asset_no` 收进 `additionalInfo`，但 repository save 不能自动写库；
+- 注册 `TeaQLModule` 后，`BaseEntityJsonDeserializer` 会把 `#customer_asset_no` 通过 `putAdditional()` 收进 `additionalInfo`，但 repository save 不能自动写库；
 - JSONPath、前端表单和导入导出工具访问字段时通常要使用 bracket 形式，例如 `$['#customer_asset_no']`；
 - OpenAPI/Schema 不能只靠普通 Java Bean 属性表达，需要补充 dynamic-field 扩展 schema；
 - `__fieldMeta` 必须作为保留元数据 key 特判，不参与动态字段值写入；
@@ -367,13 +369,27 @@ public interface DynamicFieldContext {
 第一版建议只在 `teaql` 中增加最小桥接点：
 
 ```text
-UserContext.dynamicFields()
 BaseEntity.dynamicFields()
 SearchRequest.getDynamicFieldSelection()
 BaseRequest.selectDynamicFieldsWith(...)
 ```
 
-其中 `UserContext.dynamicFields()` 是 runtime facade，不是 provider：
+`UserContext.dynamicFields()` 通过现有的 `capability()` 机制桥接，不需要在 `UserContext` 接口上新增抽象方法：
+
+```java
+// UserContext 上添加 default 方法，委托给 capability
+default DynamicFieldsFacade dynamicFields() {
+    DynamicFieldsFacade facade = capability(DynamicFieldsFacade.class);
+    if (facade == null) {
+        throw new TeaQLRuntimeException("DynamicFieldsFacade not registered");
+    }
+    return facade.withContext(this);
+}
+```
+
+这样 `teaql-core` 只需要知道 `DynamicFieldsFacade` 接口（定义在 `teaql-dynamic-fields-api` 中），不会引入 provider 或 runtime 依赖。
+
+业务代码使用方式：
 
 ```java
 ctx.dynamicFields()
@@ -393,6 +409,26 @@ facade 负责：
 - 执行权限、隐私、mask；
 - 调用 provider；
 - 统一包装错误。
+
+`SearchRequest.getDynamicFieldSelection()` 应作为接口方法声明在 `SearchRequest` 上，`BaseRequest` 提供具体实现（使用专用字段存储，不使用 `extensions` map）：
+
+```java
+// SearchRequest 接口
+DynamicFieldSelection getDynamicFieldSelection();
+
+// BaseRequest 实现
+private DynamicFieldSelection dynamicFieldSelection;
+
+public SearchRequest<T> selectDynamicFieldsWith(DynamicFieldSelection selection) {
+    this.dynamicFieldSelection = selection;
+    return (SearchRequest<T>) this;
+}
+
+@Override
+public DynamicFieldSelection getDynamicFieldSelection() {
+    return dynamicFieldSelection;
+}
+```
 
 ### 4.3 Generated Query
 

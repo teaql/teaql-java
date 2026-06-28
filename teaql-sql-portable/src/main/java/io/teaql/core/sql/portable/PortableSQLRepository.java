@@ -557,42 +557,19 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     // ID generation
     // ==========================================
 
-        public Long prepareId(UserContext userContext, T entity) {
+    /**
+     * Prepares (allocates) an ID for the given entity if it doesn't have one.
+     * Delegates to {@link IdSpaceIdGenerator} using this repository's {@link TeaQLDatabase}.
+     *
+     * @deprecated Use {@link IdSpaceIdGenerator} via {@code TeaQLRuntime.Builder.idGenerationService()} instead.
+     *             This method is retained for backward compatibility with direct {@code PortableSQLDataService.mutate()} calls.
+     */
+    public Long prepareId(UserContext userContext, T entity) {
         if (entity.getId() != null) return entity.getId();
 
-
         String type = CollectionUtil.getLast(types);
-        AtomicLong current = new AtomicLong();
-
-        database.executeInTransaction(userContext, () -> {
-            Number dbCurrent = null;
-            try {
-                List<Map<String, Object>> rows = database.query(
-                        StrUtil.format("SELECT current_level from {} WHERE type_name = '{}'", getTqlIdSpaceTable(), type),
-                        new Object[0]);
-                if (!rows.isEmpty()) {
-                    Object val = rows.get(0).get("current_level");
-                    if (val instanceof Number) dbCurrent = (Number) val;
-                    else if (val != null) dbCurrent = Long.parseLong(String.valueOf(val));
-                }
-            } catch (Exception ignored) {
-            }
-
-            if (dbCurrent == null) {
-                current.set(1L);
-                database.executeUpdate(
-                        StrUtil.format("INSERT INTO {} VALUES ('{}', {})", getTqlIdSpaceTable(), type, current),
-                        new Object[0]);
-            } else {
-                dbCurrent = NumberUtil.add(dbCurrent, 1);
-                database.executeUpdate(
-                        StrUtil.format("UPDATE {} SET current_level = {} WHERE type_name = '{}'",
-                                getTqlIdSpaceTable(), dbCurrent, type),
-                        new Object[0]);
-                current.set(dbCurrent.longValue());
-            }
-        });
-        return current.get();
+        IdSpaceIdGenerator idGen = new IdSpaceIdGenerator(database, getTqlIdSpaceTable());
+        return idGen.nextId(type);
     }
 
     // ==========================================

@@ -6,7 +6,7 @@
 
     <groupId>io.teaql</groupId>
     <artifactId>teaql-java-parent</artifactId>
-    <version>1.521-RELEASE</version>
+    <version>1.522-RELEASE</version>
     <packaging>pom</packaging>
 
     <name>teaql-java-parent</name>
@@ -23,6 +23,8 @@
         <module>teaql-utils-reflection</module>
         <module>teaql-utils-json</module>
         <module>teaql-utils-spring</module>
+        <module>teaql-dynamic-fields-api</module>
+        <module>teaql-dynamic-fields-jdbc</module>
         <module>teaql-core</module>
         <module>teaql-jackson</module>
         <module>teaql-query-json</module>
@@ -45,6 +47,7 @@
         <module>teaql-sqlite</module>
         <module>teaql-dm8</module>
         <module>teaql-android</module>
+        <module>teaql-business-id-jdbc</module>
     </modules>
 
     <dependencyManagement>
@@ -55,6 +58,16 @@
                 <version>${spring-boot.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-dynamic-fields-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-dynamic-fields-jdbc</artifactId>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.teaql</groupId>
