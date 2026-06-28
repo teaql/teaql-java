@@ -56,6 +56,18 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
         return facade.withContext(this);
     }
 
+    /**
+     * Generates a business string ID (like an order number) based on the entity and property descriptors.
+     * Delegates to the registered BusinessIdGenerator capability.
+     */
+    default String generateBusinessId(Entity entity, io.teaql.core.meta.EntityDescriptor entityDesc, io.teaql.core.meta.PropertyDescriptor propertyDesc) {
+        BusinessIdGenerator generator = capability(BusinessIdGenerator.class);
+        if (generator == null) {
+            throw new TeaQLRuntimeException("BusinessIdGenerator capability is not registered in this runtime.");
+        }
+        return generator.generateBusinessId(this, entity, entityDesc, propertyDesc);
+    }
+
     void saveGraph(Object items);
 
     void saveGraph(Entity entity);

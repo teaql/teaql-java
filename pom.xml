@@ -47,6 +47,7 @@
         <module>teaql-sqlite</module>
         <module>teaql-dm8</module>
         <module>teaql-android</module>
+        <module>teaql-business-id-jdbc</module>
     </modules>
 
     <dependencyManagement>
