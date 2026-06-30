@@ -54,7 +54,7 @@ Do not depend on reflective bean setters for entity mutation.
 Preferred options:
 
 - Generated code calls typed setters directly.
-- Framework code uses TeaQL entity APIs such as `internalSet` for framework-owned
+- Framework code uses TeaQL entity APIs such as `__internalSet` for framework-owned
   fields.
 - Dynamic fields are stored through TeaQL's dynamic field/additional-info path,
   not through arbitrary Java bean mutation.

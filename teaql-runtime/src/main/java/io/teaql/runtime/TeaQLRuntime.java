@@ -171,7 +171,7 @@ public class TeaQLRuntime {
         try {
             if (entity.getId() == null && idGenerationService != null) {
                 Long newId = idGenerationService.generateId(ctx, entity);
-                ((BaseEntity) entity).internalSet("id", newId);
+                ((BaseEntity) entity).__internalSet("id", newId);
             }
 
             EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());

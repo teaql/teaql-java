@@ -1,4 +1,4 @@
-# Entity Property Encapsulation: internalSet Design (RFC)
+# Entity Property Encapsulation: __internalSet Design (RFC)
 
 Date: 2026-06-14
 
@@ -30,19 +30,19 @@ from external data sources. These infrastructure paths must continue to work.
 
 ## 2. Design Goal
 
-| Caller | `setXxx()` | `updateXxx()` | `internalSet()` / `internalGet()` |
+| Caller | `setXxx()` | `updateXxx()` | `__internalSet()` / `__internalGet()` |
 |--------|-----------|---------------|-----------------------------------|
 | APP business code | ❌ Must not exist | ✅ The only way to mutate | ❌ Should not use |
-| Database Hydrator | N/A | N/A | ✅ `internalSet` for assembly |
-| JSON Deserializer | N/A | N/A | ✅ `internalSet` for deserialization |
-| JSON Serializer / Diff / Audit | N/A | N/A | ✅ `internalGet` for generic read |
+| Database Hydrator | N/A | N/A | ✅ `__internalSet` for assembly |
+| JSON Deserializer | N/A | N/A | ✅ `__internalSet` for deserialization |
+| JSON Serializer / Diff / Audit | N/A | N/A | ✅ `__internalGet` for generic read |
 | Entity's own `updateXxx` | N/A | N/A | ❌ Direct field assignment |
 
-## 3. Core Design: Generated `internalSet` / `internalGet` with Switch Dispatch
+## 3. Core Design: Generated `__internalSet` / `__internalGet` with Switch Dispatch
 
 ### 3.1 BaseEntity (Framework Core)
 
-`BaseEntity` declares `internalSet` as a public method. Generated subclasses override it
+`BaseEntity` declares `__internalSet` as a public method. Generated subclasses override it
 with a property-specific switch statement.
 
 ```java
@@ -79,7 +79,7 @@ public class BaseEntity implements Entity {
      * Business code MUST use updateXxx() methods instead.
      */
     @FrameworkInternal("Business code must use updateXxx() methods")
-    public void internalSet(String property, Object value) {
+    public void __internalSet(String property, Object value) {
         switch (property) {
             case "id":      this.id = (Long) value; break;
             case "version": this.version = (Long) value; break;
@@ -96,7 +96,7 @@ public class BaseEntity implements Entity {
      * reflection-free, uniform property access on BaseEntity references.
      */
     @FrameworkInternal("Business code should use typed getXxx() methods")
-    public Object internalGet(String property) {
+    public Object __internalGet(String property) {
         switch (property) {
             case "id":      return this.id;
             case "version": return this.version;
@@ -110,7 +110,7 @@ public class BaseEntity implements Entity {
 
 ### 3.2 Generated Entity (e.g. Task)
 
-Each generated entity overrides both `internalSet` and `internalGet` with its own switch branches.
+Each generated entity overrides both `__internalSet` and `__internalGet` with its own switch branches.
 All `setXxx()` methods are removed. `updateXxx()` methods assign fields directly.
 
 ```java
@@ -151,7 +151,7 @@ public class Task extends BaseEntity {
     // ===== Framework Internal: Generated switch dispatch =====
     @Override
     @FrameworkInternal
-    public void internalSet(String property, Object value) {
+    public void __internalSet(String property, Object value) {
         switch (property) {
             case "name":        this.name = (String) value; break;
             case "status":      this.status = (TaskStatus) value; break;
@@ -159,13 +159,13 @@ public class Task extends BaseEntity {
             case "createTime":  this.createTime = (LocalDateTime) value; break;
             case "updateTime":  this.updateTime = (LocalDateTime) value; break;
             case "taskLogList": this.taskLogList = (SmartList<TaskLog>) value; break;
-            default:            super.internalSet(property, value);
+            default:            super.__internalSet(property, value);
         }
     }
 
     @Override
     @FrameworkInternal
-    public Object internalGet(String property) {
+    public Object __internalGet(String property) {
         switch (property) {
             case "name":        return this.name;
             case "status":      return this.status;
@@ -173,7 +173,7 @@ public class Task extends BaseEntity {
             case "createTime":  return this.createTime;
             case "updateTime":  return this.updateTime;
             case "taskLogList": return this.taskLogList;
-            default:            return super.internalGet(property);
+            default:            return super.__internalGet(property);
         }
     }
 
@@ -196,29 +196,29 @@ generation time. Generating explicit switch branches is:
 - **Android-friendly**: Avoids reflection performance penalties on ART/Dalvik and sidesteps
   Android's strict reflection access restrictions.
 
-**Why `updateXxx` uses direct field assignment instead of calling `internalSet`?**
+**Why `updateXxx` uses direct field assignment instead of calling `__internalSet`?**
 
 `updateXxx()` is in the same class as the field. It can assign `this.name = name` directly.
-Routing through `internalSet` would add an unnecessary String switch lookup and bypass the
+Routing through `__internalSet` would add an unnecessary String switch lookup and bypass the
 change tracking that `updateXxx` has already performed. The two paths serve fundamentally
 different purposes:
 
 | Path | Change Tracking | Dirty Mark | Equality Check | Purpose |
 |------|:-:|:-:|:-:|---------|
 | `updateXxx()` | ✅ | ✅ | ✅ | Business mutation |
-| `internalSet()` | ❌ | ❌ | ❌ | Object assembly from DB/JSON |
+| `__internalSet()` | ❌ | ❌ | ❌ | Object assembly from DB/JSON |
 
-**Why `internalSet` is `public` instead of `protected` or package-private?**
+**Why `__internalSet` is `public` instead of `protected` or package-private?**
 
 Framework infrastructure code (database hydrators, JSON modules) lives in packages like
 `io.teaql.runtime` or `io.teaql.core.sql.portable`, which are in different packages from
 generated entities (e.g. `com.doublechaintech.xxx.task`). Java's `protected` and
 package-private access modifiers cannot cross this package boundary for non-subclass callers.
 
-Making `internalSet` public is acceptable because **its API surface is intentionally hostile
+Making `__internalSet` public is acceptable because **its API surface is intentionally hostile
 to casual use**:
 - **No type safety**: Parameters are `(String, Object)` — no IDE autocomplete for property names, no compile-time type checking.
-- **No discoverability**: Developers looking for "how to set status" will find `updateStatus(TaskStatus)` in autocomplete, not `internalSet("status", obj)`.
+- **No discoverability**: Developers looking for "how to set status" will find `updateStatus(TaskStatus)` in autocomplete, not `__internalSet("status", obj)`.
 - **Naming signal**: The `internal` prefix and `@FrameworkInternal` annotation clearly communicate "do not use".
 
 Compare the two alternatives a developer would see:
@@ -227,7 +227,7 @@ Compare the two alternatives a developer would see:
 task.updateStatus(newStatus);
 
 // Ugly, untyped, undiscoverable — screams "don't touch"
-task.internalSet("status", newStatus);
+task.__internalSet("status", newStatus);
 ```
 
 ## 4. Impact on Existing Framework Code
@@ -238,13 +238,13 @@ The existing `Entity` interface has a `setProperty(String, Object)` default meth
 delegates to `BeanUtil.setProperty()`, which uses reflection to find and invoke `setXxx()`
 methods, falling back to direct field access.
 
-With this design, `Entity.setProperty()` should be refactored to delegate to `internalSet()`:
+With this design, `Entity.setProperty()` should be refactored to delegate to `__internalSet()`:
 
 ```java
 // Entity interface
 default void setProperty(String propertyName, Object value) {
     if (this instanceof BaseEntity) {
-        ((BaseEntity) this).internalSet(propertyName, value);
+        ((BaseEntity) this).__internalSet(propertyName, value);
     }
 }
 ```
@@ -255,13 +255,13 @@ property assignment. `BeanUtil.setProperty()` remains available for non-entity b
 ### 4.2 BaseEntity.addRelation()
 
 `BaseEntity.addRelation()` currently calls `setProperty()`, which in turn calls `BeanUtil`.
-After refactoring `setProperty()` to delegate to `internalSet()`, `addRelation()` will
+After refactoring `setProperty()` to delegate to `__internalSet()`, `addRelation()` will
 automatically benefit from the generated switch path with zero reflection.
 
 ### 4.3 Database Hydrator (PortableSQLRepository / SqlDataServiceExecutor)
 
 The hydrator code that assembles entities from `ResultSet` rows should switch from
-`entity.setXxx(value)` to `entity.internalSet(propertyName, value)`. This is a straightforward
+`entity.setXxx(value)` to `entity.__internalSet(propertyName, value)`. This is a straightforward
 change since the hydrator already works with property names from `EntityDescriptor` metadata.
 
 ### 4.4 JSON Serialization / Deserialization
@@ -269,7 +269,7 @@ change since the hydrator already works with property names from `EntityDescript
 **Serialization (Entity → JSON)**: No change needed. Jackson uses public getters, which remain.
 
 **Deserialization (JSON → Entity)**: Requires a TeaQL-specific Jackson module or custom
-deserializer that routes property assignment through `internalSet()` instead of relying
+deserializer that routes property assignment through `__internalSet()` instead of relying
 on setter detection:
 
 ```java
@@ -281,7 +281,7 @@ public Object deserialize(JsonParser p, DeserializationContext ctxt) {
         String fieldName = p.getCurrentName();
         p.nextToken();
         Object value = parseValue(p, fieldName);
-        entity.internalSet(fieldName, value);
+        entity.__internalSet(fieldName, value);
     }
     return entity;
 }
@@ -296,13 +296,13 @@ This approach is simpler but less controlled.
 
 ## 5. Three-Layer Defense Against Misuse
 
-Although `internalSet` is technically callable from APP code, three layers of defense
+Although `__internalSet` is technically callable from APP code, three layers of defense
 ensure it is never used in practice:
 
 ### 5.1 Layer 1: API Design (Passive Defense)
 
 The absence of `setXxx()` methods removes the obvious, typed, discoverable mutation path.
-`internalSet(String, Object)` is not type-safe, not auto-completable, and clearly
+`__internalSet(String, Object)` is not type-safe, not auto-completable, and clearly
 communicates "this is not for you". Developers will naturally gravitate toward `updateXxx()`.
 
 ### 5.2 Layer 2: `@FrameworkInternal` Annotation (IDE Warning)
@@ -342,13 +342,13 @@ Using ArchUnit (or equivalent) in the project's test suite:
 void businessCodeMustNotCallInternalSet() {
     noClasses()
         .that().resideInAPackage("com.teaql.taskboard..")  // APP layer
-        .should().callMethod(BaseEntity.class, "internalSet",
+        .should().callMethod(BaseEntity.class, "__internalSet",
                              String.class, Object.class)
         .check(importedClasses);
 }
 ```
 
-This test runs in CI and fails the build if any APP-layer class calls `internalSet`.
+This test runs in CI and fails the build if any APP-layer class calls `__internalSet`.
 It is a **hard gate** — no exceptions, no overrides.
 
 ## 6. Generator Change Summary
@@ -357,30 +357,30 @@ It is a **hard gate** — no exceptions, no overrides.
 |--------------------|--------|-------|
 | `public void setXxx(T value)` | Generated with `@Deprecated` | **Removed entirely** |
 | `public T updateXxx(T value)` | Calls `setXxx(value)` internally | **Direct field assignment** (`this.field = value`) |
-| `public void internalSet(String, Object)` | Does not exist | **New**: generated switch/if-else per entity |
-| `public Object internalGet(String)` | Does not exist | **New**: generated switch/if-else per entity |
+| `public void __internalSet(String, Object)` | Does not exist | **New**: generated switch/if-else per entity |
+| `public Object __internalGet(String)` | Does not exist | **New**: generated switch/if-else per entity |
 | `Entity.setId()` / `Entity.setVersion()` | `void setId(Long)` / `void setVersion(Long)` | **Replaced by** `updateId(Long)` / `updateVersion(Long)` on `BaseEntity` |
 | `@FrameworkInternal` annotation | Does not exist | **New**: defined in `io.teaql.core` |
 
 ## 7. Migration Path
 
-1. **Phase 1**: Add `internalSet()` to `BaseEntity` and the `@FrameworkInternal` annotation
+1. **Phase 1**: Add `__internalSet()` to `BaseEntity` and the `@FrameworkInternal` annotation
    in `teaql-core`. This is backward-compatible — existing setters still work.
 
-2. **Phase 2**: Update the code generator to produce `internalSet()` overrides in each entity.
+2. **Phase 2**: Update the code generator to produce `__internalSet()` overrides in each entity.
    Generate `updateXxx()` with direct field assignment. Stop generating `setXxx()` methods.
 
 3. **Phase 3**: Update framework infrastructure (`PortableSQLRepository`, `BeanUtil` path,
-   JSON modules) to use `internalSet()` instead of setter invocation.
+   JSON modules) to use `__internalSet()` instead of setter invocation.
 
 4. **Phase 4**: Add ArchUnit tests in example projects. Remove any remaining `setXxx()` calls
    from APP code. All APP mutation goes through `updateXxx()`, all infrastructure goes through
-   `internalSet()`.
+   `__internalSet()`.
 
 ## 8. Resolved Decisions
 
-1. **`internalGet(String): Object` — YES, generate it.**
-   Each entity generates a symmetric `internalGet` alongside `internalSet`. This provides a
+1. **`__internalGet(String): Object` — YES, generate it.**
+   Each entity generates a symmetric `__internalGet` alongside `__internalSet`. This provides a
    reflection-free, uniform generic read path for framework infrastructure (serializers, diff
    engines, audit trail builders). Public getters remain the preferred API for typed access
    in business code.
@@ -390,12 +390,12 @@ It is a **hard gate** — no exceptions, no overrides.
    Instead, `BaseEntity` provides `updateId(Long)` and `updateVersion(Long)` which follow the
    same pattern as all other `updateXxx()` methods: equality check, change tracking via
    `handleUpdate()`, and direct field assignment. Framework infrastructure that needs to assign
-   id/version without change tracking (e.g. during hydration) uses `internalSet("id", value)`.
+   id/version without change tracking (e.g. during hydration) uses `__internalSet("id", value)`.
 
    This change:
    - Removes `setId` / `setVersion` from the `Entity` interface contract.
    - Provides `updateId` / `updateVersion` on `BaseEntity` for business use (e.g. seed data).
-   - Routes framework hydration through `internalSet`, consistent with all other properties.
+   - Routes framework hydration through `__internalSet`, consistent with all other properties.
 
 ## 9. Remaining Open Question
 
@@ -409,7 +409,7 @@ It is a **hard gate** — no exceptions, no overrides.
            .auditAs("Seed data")
            .save(ctx);
    ```
-   This is cleaner than `internalSet("id", 1L)` and fully participates in change tracking.
+   This is cleaner than `__internalSet("id", 1L)` and fully participates in change tracking.
    However, in bulk migration or import scenarios where change tracking is undesirable,
-   `internalSet` remains available as the raw assignment path. The choice between the two
+   `__internalSet` remains available as the raw assignment path. The choice between the two
    depends on whether the caller wants audit trail semantics.

@@ -97,7 +97,7 @@ public class BaseEntity implements Entity {
      * Business code MUST use updateXxx() methods instead.
      */
     @FrameworkInternal("Business code must use updateXxx() methods")
-    public void internalSet(String property, Object value) {
+    public void __internalSet(String property, Object value) {
         switch (property) {
             case "id":      this.id = (Long) value; break;
             case "version": this.version = (Long) value; break;
@@ -113,7 +113,7 @@ public class BaseEntity implements Entity {
      * reflection-free, uniform property access on BaseEntity references.
      */
     @FrameworkInternal("Business code should use typed getXxx() methods")
-    public Object internalGet(String property) {
+    public Object __internalGet(String property) {
         switch (property) {
             case "id":      return this.id;
             case "version": return this.version;
