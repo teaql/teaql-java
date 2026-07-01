@@ -20,6 +20,10 @@ TeaQL Java is the Java runtime for TeaQL domain applications. It provides the
 core entity/request/repository model, SQL repository support, database-specific
 dialects, and integration modules for Spring Boot and Android.
 
+TeaQL Java is positioned as a portable domain runtime across Android,
+desktop/console, and server-side Java frameworks, with pluggable SQL/database
+modules.
+
 The main runtime path is designed to run without reflection-heavy entity
 construction or bean mutation. See
 [Native Image Reflection Guide](NATIVE_IMAGE_REFLECTION_GUIDE.md) for the
