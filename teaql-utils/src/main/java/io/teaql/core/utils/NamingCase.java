@@ -28,7 +28,7 @@ public class NamingCase {
                 upper = true;
                 continue;
             }
-            sb.append(upper ? Character.toUpperCase(c) : Character.toLowerCase(c));
+            sb.append(applyCase(c, upper));
             if (upper) {
                 upper = false;
             }
@@ -74,4 +74,8 @@ public class NamingCase {
         return sb.toString();
     }
 
+
+    static char applyCase(char c, boolean upper) {
+        return upper ? Character.toUpperCase(c) : Character.toLowerCase(c);
+    }
 }

@@ -114,7 +114,7 @@ public class SqlAstCompiler {
     protected String handlePartitionSql(SqlEntityMetadata metadata, SqlCompilerDelegate repository, UserContext userContext, SearchRequest<?> request, String selectSql, String tableSQl, String whereSql, String orderBySql, String partitionProperty, String idTable) {
         PropertyDescriptor partitionPropertyDescriptor = repository.findProperty(partitionProperty);
         SQLColumn sqlColumn = repository.getSqlColumn(partitionPropertyDescriptor);
-        String partitionTable = partitionPropertyDescriptor.isId() ? idTable : sqlColumn.getTableName();
+        String partitionTable = resolvePartitionTable(partitionPropertyDescriptor, idTable, sqlColumn);
 
         if (whereSql != null && !SearchCriteria.TRUE.equalsIgnoreCase(whereSql)) {
             whereSql = "WHERE " + whereSql;
@@ -123,11 +123,11 @@ public class SqlAstCompiler {
         return StrUtil.format(
                 repository.getPartitionSQL(),
                 selectSql,
-                userContext.getBool(MULTI_TABLE, false) ? repository.escapeIdentifier(tableAlias(partitionTable)) + "." : "",
+                multiTablePrefix(userContext, repository, partitionTable),
                 repository.escapeIdentifier(sqlColumn.getColumnName()),
                 orderBySql,
                 tableSQl,
-                whereSql != null ? whereSql : "",
+                whereClauseOrEmpty(whereSql),
                 request.getSlice().getOffset() + 1,
                 request.getSlice().getOffset() + request.getSlice().getSize() + 1);
     }
@@ -160,7 +160,7 @@ public class SqlAstCompiler {
             sb.append(
                     StrUtil.format(
                             " {} JOIN {} AS {} ON {}.{} = {}.{}",
-                            metadata.getPrimaryTableNames().contains(sortedTable) ? "INNER" : "LEFT",
+                            resolveJoinType(metadata, sortedTable),
                             repository.escapeIdentifier(sortedTable),
                             repository.escapeIdentifier(tableAlias(sortedTable)),
                             repository.escapeIdentifier(tableAlias(sortedTable)),
@@ -287,15 +287,8 @@ public class SqlAstCompiler {
             boolean hasVersionFilter = (criteria != null && criteria.properties(userContext).contains("version"));
             if (!hasVersionFilter) {
                 String versionCol = repository.getSqlColumn(repository.findProperty("version")).getColumnName();
-                String versionCond = userContext.getBool(MULTI_TABLE, false)
-                        ? StrUtil.format("{}.{} > 0",
-                                repository.escapeIdentifier(tableAlias(metadata.getVersionTableName())),
-                                repository.escapeIdentifier(versionCol))
-                        : StrUtil.format("{} > 0",
-                                repository.escapeIdentifier(versionCol));
-                sqlCond = (sqlCond == null || SearchCriteria.TRUE.equalsIgnoreCase(sqlCond))
-                        ? versionCond
-                        : StrUtil.format("({}) AND {}", sqlCond, versionCond);
+                String versionCond = buildVersionCondition(userContext, repository, metadata, versionCol);
+                sqlCond = appendCondition(sqlCond, versionCond);
             }
         }
         return sqlCond;
@@ -369,5 +362,36 @@ public class SqlAstCompiler {
                 repository.escapeIdentifier("id"),
                 repository.escapeIdentifier("version")
         );
+    }
+
+    protected String resolvePartitionTable(PropertyDescriptor partitionPropertyDescriptor, String idTable, SQLColumn sqlColumn) {
+        return partitionPropertyDescriptor.isId() ? idTable : sqlColumn.getTableName();
+    }
+
+    protected String multiTablePrefix(UserContext userContext, SqlCompilerDelegate repository, String partitionTable) {
+        return userContext.getBool(MULTI_TABLE, false) ? repository.escapeIdentifier(tableAlias(partitionTable)) + "." : "";
+    }
+
+    protected String whereClauseOrEmpty(String whereSql) {
+        return whereSql != null ? whereSql : "";
+    }
+
+    protected String resolveJoinType(SqlEntityMetadata metadata, String sortedTable) {
+        return metadata.getPrimaryTableNames().contains(sortedTable) ? "INNER" : "LEFT";
+    }
+
+    protected String buildVersionCondition(UserContext userContext, SqlCompilerDelegate repository, SqlEntityMetadata metadata, String versionCol) {
+        return userContext.getBool(MULTI_TABLE, false)
+                ? StrUtil.format("{}.{} > 0",
+                        repository.escapeIdentifier(tableAlias(metadata.getVersionTableName())),
+                        repository.escapeIdentifier(versionCol))
+                : StrUtil.format("{} > 0",
+                        repository.escapeIdentifier(versionCol));
+    }
+
+    protected String appendCondition(String sqlCond, String additionalCond) {
+        return (sqlCond == null || SearchCriteria.TRUE.equalsIgnoreCase(sqlCond))
+                ? additionalCond
+                : StrUtil.format("({}) AND {}", sqlCond, additionalCond);
     }
 }

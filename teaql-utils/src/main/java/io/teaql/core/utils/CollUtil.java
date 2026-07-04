@@ -32,12 +32,12 @@ public class CollUtil {
     public static <T> T getFirst(java.lang.Iterable<T> p0) {
         if (p0 == null) return null;
         java.util.Iterator<T> iterator = p0.iterator();
-        return iterator.hasNext() ? iterator.next() : null;
+        return firstOrNull(iterator);
     }
 
     public static <T> T getFirst(java.util.Iterator<T> p0) {
         if (p0 == null) return null;
-        return p0.hasNext() ? p0.next() : null;
+        return firstOrNull(p0);
     }
 
     @SuppressWarnings("unchecked")
@@ -61,4 +61,8 @@ public class CollUtil {
         return result;
     }
 
+
+    static <T> T firstOrNull(java.util.Iterator<T> iterator) {
+        return iterator.hasNext() ? iterator.next() : null;
+    }
 }

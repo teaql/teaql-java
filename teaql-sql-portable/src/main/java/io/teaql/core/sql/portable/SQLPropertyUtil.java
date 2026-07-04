@@ -71,9 +71,13 @@ public class SQLPropertyUtil {
             SQLData d = new SQLData();
             d.setColumnName(columnName);
             d.setTableName(tableName);
-            d.setValue(value instanceof Entity e ? e.getId() : value);
+            d.setValue(unwrapEntityId(value));
             return ListUtil.of(d);
         }
         throw new TeaQLRuntimeException("Cannot derive SQL metadata for property: " + property.getName() + " (class: " + property.getClass().getName() + ")");
+    }
+
+    public static Object unwrapEntityId(Object value) {
+        return value instanceof Entity e ? e.getId() : value;
     }
 }

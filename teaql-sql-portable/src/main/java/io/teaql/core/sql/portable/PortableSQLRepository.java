@@ -336,7 +336,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                             for (Object obj : loadedRels) {
                                 io.teaql.core.Entity rel = (io.teaql.core.Entity) obj;
                                 Object cnt = idToCount.get(rel.getId());
-                                int countInt = cnt != null ? io.teaql.core.utils.Convert.convert(Integer.class, cnt) : 0;
+                                int countInt = toIntOrZero(cnt);
                                 if (rel instanceof io.teaql.core.BaseEntity) {
                                     ((io.teaql.core.BaseEntity) rel).addDynamicProperty("count", countInt);
                                 }
@@ -389,9 +389,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         // Status
         Long version = entity.getVersion();
         if (entity instanceof BaseEntity be) {
-            io.teaql.core.EntityStatus status = (version != null && version < 0)
-                    ? io.teaql.core.EntityStatus.PERSISTED_DELETED
-                    : io.teaql.core.EntityStatus.PERSISTED;
+            io.teaql.core.EntityStatus status = resolvePersistedStatus(version);
             be.set$status(status);
         }
         // Dynamic properties
@@ -859,7 +857,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     protected String getSqlValue(Object value) {
         if (value == null) return "NULL";
         if (value instanceof Number) return String.valueOf(value);
-        if (value instanceof Boolean) return ((Boolean) value) ? "1" : "0";
+        if (value instanceof Boolean) return boolToSqlString(value);
         return StrUtil.wrapIfMissing(String.valueOf(value), "'", "'");
     }
 
@@ -1015,5 +1013,19 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     private void logInfo(String message) {
         System.out.println("[SQL-PORTABLE] " + message);
+    }
+
+    protected int toIntOrZero(Object cnt) {
+        return cnt != null ? io.teaql.core.utils.Convert.convert(Integer.class, cnt) : 0;
+    }
+
+    protected io.teaql.core.EntityStatus resolvePersistedStatus(Long version) {
+        return (version != null && version < 0)
+                ? io.teaql.core.EntityStatus.PERSISTED_DELETED
+                : io.teaql.core.EntityStatus.PERSISTED;
+    }
+
+    protected String boolToSqlString(Object value) {
+        return ((Boolean) value) ? "1" : "0";
     }
 }

@@ -34,7 +34,11 @@ public class JsonReaderFormatter implements LogFormatter {
         return String.format("{\"type\":\"AUDIT_LOG\",\"trace\":%s,\"entity\":\"%s\",\"id\":\"%s\",\"kind\":\"%s\"}",
                 formatTraceChain(traceChain),
                 escapeJson(event.getEntityType()),
-                event.getEntityId() != null ? escapeJson(event.getEntityId().toString()) : "null",
+                formatEntityId(event),
                 escapeJson(event.getMutationKind()));
+    }
+
+    protected String formatEntityId(AuditEvent event) {
+        return event.getEntityId() != null ? escapeJson(event.getEntityId().toString()) : "null";
     }
 }

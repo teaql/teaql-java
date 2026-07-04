@@ -22,13 +22,13 @@ import io.teaql.core.meta.Relation;
 public class JsonMeProperty extends GenericSQLProperty {
     private static final ObjectMapper defaultObjectMapper = new ObjectMapper();
 
-    private ObjectMapper getObjectMapper(UserContext ctx) {
+    protected ObjectMapper resolveMapper(UserContext ctx) {
         ObjectMapper mapper = (ObjectMapper) ctx.getObj("objectMapper");
         return mapper != null ? mapper : defaultObjectMapper;
     }
 
     public List<SQLData> toDBRaw(UserContext ctx, Entity entity, Object v) {
-        ObjectMapper objectMapper = getObjectMapper(ctx);
+        ObjectMapper objectMapper = resolveMapper(ctx);
         // clean up current field
         entity.setProperty(getName(), null);
         try {
@@ -52,7 +52,7 @@ public class JsonMeProperty extends GenericSQLProperty {
         if (!findName(rs, getName())) {
             return;
         }
-        ObjectMapper objectMapper = getObjectMapper(ctx);
+        ObjectMapper objectMapper = resolveMapper(ctx);
         try {
             Object value = getValue(rs);
             String jsonValue = Convert.convert(String.class, value);

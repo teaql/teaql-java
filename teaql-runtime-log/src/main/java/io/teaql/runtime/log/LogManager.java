@@ -153,7 +153,7 @@ public class LogManager implements RuntimeLogSink {
                 if (url != null) {
                     try (java.io.InputStream is = url.openStream();
                          java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A")) {
-                        header = s.hasNext() ? s.next() : "";
+                        header = readHeaderOrDefault(s);
                     }
                 }
                 byte[] bytes = (header + "\n").getBytes(StandardCharsets.UTF_8);
@@ -289,7 +289,7 @@ public class LogManager implements RuntimeLogSink {
             return;
         }
         String content = LogFormatterFactory.getFormatter().formatExecutionLog(metadata);
-        CustomLogSink customSink = ctx != null ? ctx.capability(CustomLogSink.class) : null;
+        CustomLogSink customSink = resolveCustomSink(ctx);
         asyncWrite(content, customSink);
     }
 
@@ -298,7 +298,15 @@ public class LogManager implements RuntimeLogSink {
             return;
         }
         String content = LogFormatterFactory.getFormatter().formatAuditLog(traceChain, event);
-        CustomLogSink customSink = ctx != null ? ctx.capability(CustomLogSink.class) : null;
+        CustomLogSink customSink = resolveCustomSink(ctx);
         asyncWrite(content, customSink);
+    }
+
+    protected String readHeaderOrDefault(java.util.Scanner s) {
+        return s.hasNext() ? s.next() : "";
+    }
+
+    protected CustomLogSink resolveCustomSink(io.teaql.core.UserContext ctx) {
+        return ctx != null ? ctx.capability(CustomLogSink.class) : null;
     }
 }

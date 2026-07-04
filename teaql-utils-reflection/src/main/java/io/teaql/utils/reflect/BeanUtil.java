@@ -35,7 +35,7 @@ public class BeanUtil {
     private static Object getSimpleProperty(Object obj, String part) {
         if (obj == null) return null;
         int openBracket = part.indexOf('[');
-        String propName = openBracket >= 0 ? part.substring(0, openBracket) : part;
+        String propName = extractPropertyName(part, openBracket);
         Object val = obj;
         if (!propName.isEmpty()) {
             if (obj instanceof Map<?, ?> m) {
@@ -65,11 +65,11 @@ public class BeanUtil {
                 int index = Integer.parseInt(indexStr);
                 Object orig = val;
                 if (orig instanceof List<?> list) {
-                    val = (index >= 0 && index < list.size()) ? list.get(index) : null;
+                    val = safeListGet(list, index);
                 }
                 if (!(orig instanceof List) && orig != null && orig.getClass().isArray()) {
                     int len = Array.getLength(orig);
-                    val = (index >= 0 && index < len) ? Array.get(orig, index) : null;
+                    val = safeArrayGet(orig, index, len);
                 }
                 if (!(orig instanceof List) && (orig == null || !orig.getClass().isArray())) {
                     val = null;
@@ -199,7 +199,7 @@ public class BeanUtil {
     @SuppressWarnings("unchecked")
     private static void setSimpleProperty(Object obj, String part, Object value) throws Exception {
         int openBracket = part.indexOf('[');
-        String propName = openBracket >= 0 ? part.substring(0, openBracket) : part;
+        String propName = extractPropertyName(part, openBracket);
         if (openBracket >= 0) {
             Object listObj = getSimpleProperty(obj, propName);
             int closeBracket = part.indexOf(']');
@@ -248,5 +248,20 @@ public class BeanUtil {
             return Character.toLowerCase(name.charAt(2)) + name.substring(3);
         }
         return null;
+    }
+
+    private static String extractPropertyName(String part, int bracketIndex) {
+        if (bracketIndex < 0) { return part; }
+        return part.substring(0, bracketIndex);
+    }
+
+    private static Object safeListGet(List<?> list, int index) {
+        if (index < 0 || index >= list.size()) { return null; }
+        return list.get(index);
+    }
+
+    private static Object safeArrayGet(Object array, int index, int length) {
+        if (index < 0 || index >= length) { return null; }
+        return Array.get(array, index);
     }
 }

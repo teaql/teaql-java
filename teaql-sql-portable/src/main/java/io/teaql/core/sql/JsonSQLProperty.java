@@ -21,14 +21,14 @@ public class JsonSQLProperty extends GenericSQLProperty implements SQLProperty {
 
     private static final ObjectMapper defaultObjectMapper = new ObjectMapper();
 
-    private ObjectMapper getObjectMapper(UserContext ctx) {
+    protected ObjectMapper resolveMapper(UserContext ctx) {
         ObjectMapper mapper = (ObjectMapper) ctx.getObj("objectMapper");
         return mapper != null ? mapper : defaultObjectMapper;
     }
 
     @Override
     public List<SQLData> toDBRaw(UserContext ctx, Entity entity, Object v) {
-        ObjectMapper objectMapper = getObjectMapper(ctx);
+        ObjectMapper objectMapper = resolveMapper(ctx);
         try {
             String value = objectMapper.writeValueAsString(v);
             Boolean zip = MapUtil.getBool(getAdditionalInfo(), "zip");
@@ -48,7 +48,7 @@ public class JsonSQLProperty extends GenericSQLProperty implements SQLProperty {
         if (!findName(rs, getName())) {
             return;
         }
-        ObjectMapper objectMapper = getObjectMapper(ctx);
+        ObjectMapper objectMapper = resolveMapper(ctx);
         try {
             Class targetType = getType().javaType();
             Object value = getValue(rs);
