@@ -133,11 +133,7 @@ public class ReflectUtil {
             }
         }
 
-        if (found != null) {
-            fieldCache.put(cacheKey, found);
-        } else {
-            fieldCache.put(cacheKey, NULL_FIELD);
-        }
+        fieldCache.put(cacheKey, found != null ? found : NULL_FIELD);
         return found;
     }
 
@@ -165,11 +161,7 @@ public class ReflectUtil {
             }
         }
 
-        if (found != null) {
-            methodCache.put(cacheKey, found);
-        } else {
-            methodCache.put(cacheKey, NULL_METHOD);
-        }
+        methodCache.put(cacheKey, found != null ? found : NULL_METHOD);
         return found;
     }
 

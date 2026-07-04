@@ -60,23 +60,23 @@ public class SqlAstCompiler {
             String partitionProperty = request.getPartitionProperty();
             if (ObjectUtil.isNotEmpty(partitionProperty) && request.getSlice() != null) {
                 return handlePartitionSql(metadata, repository, userContext, request, selectSql, tableSQl, whereSql, orderBySql, partitionProperty, idTable);
-            } else {
-                String sql = StrUtil.format("SELECT {} FROM {}", selectSql, tableSQl);
-
-                if (whereSql != null && !SearchCriteria.TRUE.equalsIgnoreCase(whereSql)) {
-                    sql = StrUtil.format("{} WHERE {}", sql, whereSql);
-                }
-
-                if (!ObjectUtil.isEmpty(orderBySql)) {
-                    sql = StrUtil.format("{} {}", sql, orderBySql);
-                }
-
-                String limitSql = prepareLimit(repository, request, parameters);
-                if (!ObjectUtil.isEmpty(limitSql)) {
-                    sql = StrUtil.format("{} {}", sql, limitSql);
-                }
-                return sql;
             }
+
+            String sql = StrUtil.format("SELECT {} FROM {}", selectSql, tableSQl);
+
+            if (whereSql != null && !SearchCriteria.TRUE.equalsIgnoreCase(whereSql)) {
+                sql = StrUtil.format("{} WHERE {}", sql, whereSql);
+            }
+
+            if (!ObjectUtil.isEmpty(orderBySql)) {
+                sql = StrUtil.format("{} {}", sql, orderBySql);
+            }
+
+            String limitSql = prepareLimit(repository, request, parameters);
+            if (!ObjectUtil.isEmpty(limitSql)) {
+                sql = StrUtil.format("{} {}", sql, limitSql);
+            }
+            return sql;
         } finally {
             userContext.put(MULTI_TABLE, preConfig);
         }
@@ -287,20 +287,15 @@ public class SqlAstCompiler {
             boolean hasVersionFilter = (criteria != null && criteria.properties(userContext).contains("version"));
             if (!hasVersionFilter) {
                 String versionCol = repository.getSqlColumn(repository.findProperty("version")).getColumnName();
-                String versionCond;
-                if (userContext.getBool(MULTI_TABLE, false)) {
-                    versionCond = StrUtil.format("{}.{} > 0", 
-                            repository.escapeIdentifier(tableAlias(metadata.getVersionTableName())),
-                            repository.escapeIdentifier(versionCol));
-                } else {
-                    versionCond = StrUtil.format("{} > 0", 
-                            repository.escapeIdentifier(versionCol));
-                }
-                if (sqlCond == null || SearchCriteria.TRUE.equalsIgnoreCase(sqlCond)) {
-                    sqlCond = versionCond;
-                } else {
-                    sqlCond = StrUtil.format("({}) AND {}", sqlCond, versionCond);
-                }
+                String versionCond = userContext.getBool(MULTI_TABLE, false)
+                        ? StrUtil.format("{}.{} > 0",
+                                repository.escapeIdentifier(tableAlias(metadata.getVersionTableName())),
+                                repository.escapeIdentifier(versionCol))
+                        : StrUtil.format("{} > 0",
+                                repository.escapeIdentifier(versionCol));
+                sqlCond = (sqlCond == null || SearchCriteria.TRUE.equalsIgnoreCase(sqlCond))
+                        ? versionCond
+                        : StrUtil.format("({}) AND {}", sqlCond, versionCond);
             }
         }
         return sqlCond;

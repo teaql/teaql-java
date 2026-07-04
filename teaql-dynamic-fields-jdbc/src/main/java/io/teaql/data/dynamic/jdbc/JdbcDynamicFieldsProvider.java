@@ -243,13 +243,7 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
                 case STRING -> stringVal = command.value().toString();
                 case NUMBER -> numberVal = ((Number) command.value()).longValue();
                 case BOOL -> boolVal = ((Boolean) command.value()) ? 1 : 0;
-                case DATE_TIME -> {
-                    if (command.value() instanceof Number n) {
-                        datetimeVal = n.longValue();
-                    } else {
-                        datetimeVal = System.currentTimeMillis();
-                    }
-                }
+                case DATE_TIME -> datetimeVal = (command.value() instanceof Number n) ? n.longValue() : System.currentTimeMillis();
                 case ENUM -> enumVal = command.value().toString();
             }
         }

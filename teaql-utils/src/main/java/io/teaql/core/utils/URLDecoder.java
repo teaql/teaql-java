@@ -19,22 +19,24 @@ public class URLDecoder {
             int c = p0[i];
             if (c == '+') {
                 out.write(p1 ? ' ' : '+');
-            } else if (c == '%') {
-                if (i + 2 < p0.length) {
-                    int d1 = Character.digit((char) p0[i + 1], 16);
-                    int d2 = Character.digit((char) p0[i + 2], 16);
-                    if (d1 >= 0 && d2 >= 0) {
-                        out.write((d1 << 4) + d2);
-                        i += 2;
-                    } else {
-                        out.write(c);
-                    }
-                } else {
-                    out.write(c);
-                }
-            } else {
-                out.write(c);
+                continue;
             }
+            if (c == '%') {
+                if (i + 2 >= p0.length) {
+                    out.write(c);
+                    continue;
+                }
+                int d1 = Character.digit((char) p0[i + 1], 16);
+                int d2 = Character.digit((char) p0[i + 2], 16);
+                if (d1 < 0 || d2 < 0) {
+                    out.write(c);
+                    continue;
+                }
+                out.write((d1 << 4) + d2);
+                i += 2;
+                continue;
+            }
+            out.write(c);
         }
         return out.toByteArray();
     }
@@ -48,12 +50,8 @@ public class URLDecoder {
             return null;
         }
         try {
-            if (p2) {
-                String replaced = p0.replace("+", "%2B");
-                return java.net.URLDecoder.decode(replaced, p1);
-            } else {
-                return java.net.URLDecoder.decode(p0, p1);
-            }
+            String input = p2 ? p0.replace("+", "%2B") : p0;
+            return java.net.URLDecoder.decode(input, p1);
         } catch (Exception e) {
             return p0;
         }

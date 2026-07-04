@@ -19,6 +19,9 @@ public class IdUtil {
         if (timestamp < lastTimestamp) {
             timestamp = lastTimestamp; // simple clock drift handling or wait
         }
+        if (lastTimestamp != timestamp) {
+            sequence = 0L;
+        }
         if (lastTimestamp == timestamp) {
             sequence = (sequence + 1) & 4095L;
             if (sequence == 0) {
@@ -26,8 +29,6 @@ public class IdUtil {
                     timestamp = System.currentTimeMillis();
                 }
             }
-        } else {
-            sequence = 0L;
         }
         lastTimestamp = timestamp;
         return ((timestamp - START_EPOCH) << 22)

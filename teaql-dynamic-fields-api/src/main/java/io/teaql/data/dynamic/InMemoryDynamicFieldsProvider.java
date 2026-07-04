@@ -125,19 +125,20 @@ public class InMemoryDynamicFieldsProvider implements DynamicFieldsProvider {
                     Object val = fieldValues.get(vKey);
                     values.add(toFieldValue(def.getCode(), def.getDataType(), val));
                 }
-            } else {
-                // Load selected fields
-                for (DynamicFieldSelection.DynamicFieldSelectionEntry entry : selection.getEntries()) {
-                    DynamicFieldRef ref = DynamicFieldRef.of(
-                            DynamicFieldScope.of(ctx.scopeType(), ctx.scopeId()),
-                            ownerRef.ownerType(),
-                            entry.code());
-                    DynamicFieldDef def = loadFieldDef(ctx, ref);
-                    if (def == null) continue;
-                    String vKey = valueKey(ctx, ownerRef, def.getId());
-                    Object val = fieldValues.get(vKey);
-                    values.add(toFieldValue(entry.code(), entry.dataType(), val));
-                }
+                result.put(ownerRef, DynamicFieldValues.of(values));
+                continue;
+            }
+            // Load selected fields
+            for (DynamicFieldSelection.DynamicFieldSelectionEntry entry : selection.getEntries()) {
+                DynamicFieldRef ref = DynamicFieldRef.of(
+                        DynamicFieldScope.of(ctx.scopeType(), ctx.scopeId()),
+                        ownerRef.ownerType(),
+                        entry.code());
+                DynamicFieldDef def = loadFieldDef(ctx, ref);
+                if (def == null) continue;
+                String vKey = valueKey(ctx, ownerRef, def.getId());
+                Object val = fieldValues.get(vKey);
+                values.add(toFieldValue(entry.code(), entry.dataType(), val));
             }
             result.put(ownerRef, DynamicFieldValues.of(values));
         }
@@ -163,9 +164,8 @@ public class InMemoryDynamicFieldsProvider implements DynamicFieldsProvider {
         }
 
         String vKey = valueKey(ctx, command.ownerRef(), def.getId());
-        if (command.value() == null) {
-            fieldValues.remove(vKey);
-        } else {
+        fieldValues.remove(vKey);
+        if (command.value() != null) {
             fieldValues.put(vKey, command.value());
         }
     }

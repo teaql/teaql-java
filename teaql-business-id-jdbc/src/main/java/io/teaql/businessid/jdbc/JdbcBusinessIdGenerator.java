@@ -99,23 +99,22 @@ public class JdbcBusinessIdGenerator implements BusinessIdGenerator {
                             "UPDATE " + sequenceTable + " SET current_value = current_value + 1 WHERE sequence_key = ?",
                             new Object[]{sequenceKey}
                     );
-                    if (updated > 0) {
-                        List<Map<String, Object>> rows = database.query(
-                                "SELECT current_value FROM " + sequenceTable + " WHERE sequence_key = ?",
-                                new Object[]{sequenceKey}
-                        );
-                        result.set(((Number) rows.get(0).get("current_value")).longValue());
-                    } else {
+                    if (updated == 0) {
                         throw new TeaQLRuntimeException("Failed to initialize or update sequence: " + sequenceKey, e);
                     }
+                    List<Map<String, Object>> rows = database.query(
+                            "SELECT current_value FROM " + sequenceTable + " WHERE sequence_key = ?",
+                            new Object[]{sequenceKey}
+                    );
+                    result.set(((Number) rows.get(0).get("current_value")).longValue());
                 }
-            } else {
-                database.executeUpdate(
-                        "UPDATE " + sequenceTable + " SET current_value = current_value + 1 WHERE sequence_key = ?",
-                        new Object[]{sequenceKey}
-                );
-                result.set(dbCurrent.longValue() + 1);
+                return;
             }
+            database.executeUpdate(
+                    "UPDATE " + sequenceTable + " SET current_value = current_value + 1 WHERE sequence_key = ?",
+                    new Object[]{sequenceKey}
+            );
+            result.set(dbCurrent.longValue() + 1);
         });
 
         if (result.get() == -1) {

@@ -49,14 +49,14 @@ public class CollUtil {
         } catch (Exception e) {
             result = new java.util.ArrayList<>();
         }
-        if (p1 != null) {
-            for (T item : p0) {
-                if (p1.accept(item)) {
-                    result.add(item);
-                }
-            }
-        } else {
+        if (p1 == null) {
             result.addAll(p0);
+            return result;
+        }
+        for (T item : p0) {
+            if (p1.accept(item)) {
+                result.add(item);
+            }
         }
         return result;
     }

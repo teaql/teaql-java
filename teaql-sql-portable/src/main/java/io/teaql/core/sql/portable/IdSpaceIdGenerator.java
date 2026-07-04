@@ -77,13 +77,13 @@ public class IdSpaceIdGenerator implements InternalIdGenerationService {
                 database.executeUpdate(
                         "INSERT INTO " + idSpaceTable + " (type_name, current_level) VALUES (?, ?)",
                         new Object[]{typeName, 1L});
-            } else {
-                long next = dbCurrent.longValue() + 1;
-                database.executeUpdate(
-                        "UPDATE " + idSpaceTable + " SET current_level = ? WHERE type_name = ?",
-                        new Object[]{next, typeName});
-                result.set(next);
+                return;
             }
+            long next = dbCurrent.longValue() + 1;
+            database.executeUpdate(
+                    "UPDATE " + idSpaceTable + " SET current_level = ? WHERE type_name = ?",
+                    new Object[]{next, typeName});
+            result.set(next);
         });
 
         return result.get();

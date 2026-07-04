@@ -104,17 +104,25 @@ public class AndroidSQLiteExecutionAdapter implements SqlExecutionAdapter {
             Object arg = params[i];
             if (arg == null) {
                 statement.bindNull(index);
-            } else if (arg instanceof String) {
-                statement.bindString(index, (String) arg);
-            } else if (arg instanceof Double || arg instanceof Float) {
-                statement.bindDouble(index, ((Number) arg).doubleValue());
-            } else if (arg instanceof Number) {
-                statement.bindLong(index, ((Number) arg).longValue());
-            } else if (arg instanceof byte[]) {
-                statement.bindBlob(index, (byte[]) arg);
-            } else {
-                statement.bindString(index, String.valueOf(arg));
+                continue;
             }
+            if (arg instanceof String) {
+                statement.bindString(index, (String) arg);
+                continue;
+            }
+            if (arg instanceof Double || arg instanceof Float) {
+                statement.bindDouble(index, ((Number) arg).doubleValue());
+                continue;
+            }
+            if (arg instanceof Number) {
+                statement.bindLong(index, ((Number) arg).longValue());
+                continue;
+            }
+            if (arg instanceof byte[]) {
+                statement.bindBlob(index, (byte[]) arg);
+                continue;
+            }
+            statement.bindString(index, String.valueOf(arg));
         }
     }
 

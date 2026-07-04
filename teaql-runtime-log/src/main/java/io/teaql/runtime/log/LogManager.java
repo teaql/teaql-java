@@ -147,16 +147,14 @@ public class LogManager implements RuntimeLogSink {
             if (headerWritten) return;
             try {
                 java.net.URL url = getClass().getResource("/log_header.txt");
-                String header = "";
+                String header = "================================================================================\n" +
+                             "🚀 TEAQL Holographic Trace Log\n" +
+                             "================================================================================";
                 if (url != null) {
                     try (java.io.InputStream is = url.openStream();
                          java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A")) {
                         header = s.hasNext() ? s.next() : "";
                     }
-                } else {
-                    header = "================================================================================\n" +
-                             "🚀 TEAQL Holographic Trace Log\n" +
-                             "================================================================================";
                 }
                 byte[] bytes = (header + "\n").getBytes(StandardCharsets.UTF_8);
                 if ("stdout".equals(endpoint)) {

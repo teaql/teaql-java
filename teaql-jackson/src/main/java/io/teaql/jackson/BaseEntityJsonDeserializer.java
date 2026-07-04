@@ -24,11 +24,13 @@ public class BaseEntityJsonDeserializer extends JsonDeserializer<BaseEntity> {
             JsonNode value = field.getValue();
             if (BaseEntity.ID_PROPERTY.equals(name)) {
                 entity.__internalSet(BaseEntity.ID_PROPERTY, value.isNull() ? null : value.longValue());
-            } else if (BaseEntity.VERSION_PROPERTY.equals(name)) {
-                entity.__internalSet(BaseEntity.VERSION_PROPERTY, value.isNull() ? null : value.longValue());
-            } else {
-                entity.putAdditional(name, parser.getCodec().treeToValue(value, Object.class));
+                continue;
             }
+            if (BaseEntity.VERSION_PROPERTY.equals(name)) {
+                entity.__internalSet(BaseEntity.VERSION_PROPERTY, value.isNull() ? null : value.longValue());
+                continue;
+            }
+            entity.putAdditional(name, parser.getCodec().treeToValue(value, Object.class));
         }
         return entity;
     }

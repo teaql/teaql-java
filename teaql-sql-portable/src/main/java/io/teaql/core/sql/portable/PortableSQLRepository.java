@@ -199,10 +199,10 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             Collection<?> expandedValues = expandedParameterValues(value);
             if (expandedValues != null) {
                 appendExpandedParameter(expandedValues, args, m, sb);
-            } else {
-                args.add(value);
-                m.appendReplacement(sb, "?");
+                continue;
             }
+            args.add(value);
+            m.appendReplacement(sb, "?");
         }
         m.appendTail(sb);
         return new PositionalSQL(sb.toString(), args.toArray());
@@ -388,10 +388,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         }
         // Status
         Long version = entity.getVersion();
-        if (version != null && version < 0) {
-            if (entity instanceof BaseEntity) ((BaseEntity) entity).set$status(io.teaql.core.EntityStatus.PERSISTED_DELETED);
-        } else {
-            if (entity instanceof BaseEntity) ((BaseEntity) entity).set$status(io.teaql.core.EntityStatus.PERSISTED);
+        if (entity instanceof BaseEntity be) {
+            io.teaql.core.EntityStatus status = (version != null && version < 0)
+                    ? io.teaql.core.EntityStatus.PERSISTED_DELETED
+                    : io.teaql.core.EntityStatus.PERSISTED;
+            be.set$status(status);
         }
         // Dynamic properties
         List<SimpleNamedExpression> simpleDynamicProperties = request.getSimpleDynamicProperties();
@@ -482,12 +483,14 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
                 if (versionTable) {
                     updateVersionTable(userContext, sqlEntity, versionTableUpdated, k, columns, l);
-                } else if (primaryTable) {
-                    updatePrimaryTable(userContext, sqlEntity, k, columns, l);
-                } else {
-                    String updateSql = dialect.buildSubsidiaryInsertSql(k, columns);
-                    database.executeUpdate(userContext, updateSql, l.toArray());
+                    return;
                 }
+                if (primaryTable) {
+                    updatePrimaryTable(userContext, sqlEntity, k, columns, l);
+                    return;
+                }
+                String updateSql = dialect.buildSubsidiaryInsertSql(k, columns);
+                database.executeUpdate(userContext, updateSql, l.toArray());
             });
 
             if (!versionTableUpdated.get()) {
