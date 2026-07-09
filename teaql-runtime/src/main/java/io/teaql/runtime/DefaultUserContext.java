@@ -144,9 +144,8 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
 
     @Override
     public void put(String key, Object value) {
-        if (value == null) {
-            storage.remove(key);
-        } else {
+        storage.remove(key);
+        if (value != null) {
             storage.put(key, value);
         }
     }

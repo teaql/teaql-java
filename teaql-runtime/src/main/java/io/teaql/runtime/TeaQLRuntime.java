@@ -261,11 +261,10 @@ public class TeaQLRuntime {
         }
 
         public Builder dataService(String name, DataServiceExecutor executor) {
-            if (this.registry instanceof DefaultDataServiceRegistry) {
-                ((DefaultDataServiceRegistry) this.registry).register(name, executor);
-            } else {
+            if (!(this.registry instanceof DefaultDataServiceRegistry dsr)) {
                 throw new IllegalStateException("Cannot register data service on custom registry");
             }
+            dsr.register(name, executor);
             return this;
         }
 

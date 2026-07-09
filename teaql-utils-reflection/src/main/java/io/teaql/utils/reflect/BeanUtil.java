@@ -35,22 +35,22 @@ public class BeanUtil {
     private static Object getSimpleProperty(Object obj, String part) {
         if (obj == null) return null;
         int openBracket = part.indexOf('[');
-        String propName = openBracket >= 0 ? part.substring(0, openBracket) : part;
+        String propName = extractPropertyName(part, openBracket);
         Object val = obj;
         if (!propName.isEmpty()) {
-            if (obj instanceof Map) {
-                val = ((Map<?, ?>) obj).get(propName);
-            } else {
+            if (obj instanceof Map<?, ?> m) {
+                val = m.get(propName);
+            }
+            if (!(obj instanceof Map)) {
                 try {
                     val = ReflectUtil.invoke(obj, "get" + Character.toUpperCase(propName.charAt(0)) + propName.substring(1));
                 } catch (Exception e) {
                     try {
                         Field f = ReflectUtil.getField(obj.getClass(), propName);
+                        val = null;
                         if (f != null) {
                             f.setAccessible(true);
                             val = f.get(obj);
-                        } else {
-                            val = null;
                         }
                     } catch (Exception ex) {
                         val = null;
@@ -63,13 +63,15 @@ public class BeanUtil {
             if (closeBracket > openBracket) {
                 String indexStr = part.substring(openBracket + 1, closeBracket);
                 int index = Integer.parseInt(indexStr);
-                if (val instanceof List) {
-                    List<?> list = (List<?>) val;
-                    val = (index >= 0 && index < list.size()) ? list.get(index) : null;
-                } else if (val != null && val.getClass().isArray()) {
-                    int len = Array.getLength(val);
-                    val = (index >= 0 && index < len) ? Array.get(val, index) : null;
-                } else {
+                Object orig = val;
+                if (orig instanceof List<?> list) {
+                    val = safeListGet(list, index);
+                }
+                if (!(orig instanceof List) && orig != null && orig.getClass().isArray()) {
+                    int len = Array.getLength(orig);
+                    val = safeArrayGet(orig, index, len);
+                }
+                if (!(orig instanceof List) && (orig == null || !orig.getClass().isArray())) {
                     val = null;
                 }
             }
@@ -189,47 +191,50 @@ public class BeanUtil {
                 throw new RuntimeException("Parent property is null in path: " + path);
             }
             setSimpleProperty(parent, propName, value);
-        } else {
-            setSimpleProperty(obj, path, value);
+            return;
         }
+        setSimpleProperty(obj, path, value);
     }
 
     @SuppressWarnings("unchecked")
     private static void setSimpleProperty(Object obj, String part, Object value) throws Exception {
         int openBracket = part.indexOf('[');
-        String propName = openBracket >= 0 ? part.substring(0, openBracket) : part;
+        String propName = extractPropertyName(part, openBracket);
         if (openBracket >= 0) {
             Object listObj = getSimpleProperty(obj, propName);
             int closeBracket = part.indexOf(']');
             int index = Integer.parseInt(part.substring(openBracket + 1, closeBracket));
             if (listObj instanceof List) {
+                @SuppressWarnings("unchecked")
                 List<Object> list = (List<Object>) listObj;
                 while (list.size() <= index) {
                     list.add(null);
                 }
                 list.set(index, value);
-            } else if (listObj != null && listObj.getClass().isArray()) {
+                return;
+            }
+            if (listObj != null && listObj.getClass().isArray()) {
                 Array.set(listObj, index, value);
-            } else {
-                throw new RuntimeException("Property " + propName + " is not a list or array");
+                return;
             }
-        } else {
-            if (obj instanceof Map) {
-                ((Map<Object, Object>) obj).put(propName, value);
-            } else {
-                String setterName = "set" + Character.toUpperCase(propName.charAt(0)) + propName.substring(1);
-                try {
-                    ReflectUtil.invoke(obj, setterName, value);
-                } catch (Exception e) {
-                    Field f = ReflectUtil.getField(obj.getClass(), propName);
-                    if (f != null) {
-                        f.setAccessible(true);
-                        f.set(obj, value);
-                    } else {
-                        throw new NoSuchFieldException("No field " + propName + " on " + obj.getClass());
-                    }
-                }
+            throw new RuntimeException("Property " + propName + " is not a list or array");
+        }
+        if (obj instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<Object, Object> m = (Map<Object, Object>) obj;
+            m.put(propName, value);
+            return;
+        }
+        String setterName = "set" + Character.toUpperCase(propName.charAt(0)) + propName.substring(1);
+        try {
+            ReflectUtil.invoke(obj, setterName, value);
+        } catch (Exception e) {
+            Field f = ReflectUtil.getField(obj.getClass(), propName);
+            if (f == null) {
+                throw new NoSuchFieldException("No field " + propName + " on " + obj.getClass());
             }
+            f.setAccessible(true);
+            f.set(obj, value);
         }
     }
 
@@ -243,5 +248,20 @@ public class BeanUtil {
             return Character.toLowerCase(name.charAt(2)) + name.substring(3);
         }
         return null;
+    }
+
+    private static String extractPropertyName(String part, int bracketIndex) {
+        if (bracketIndex < 0) { return part; }
+        return part.substring(0, bracketIndex);
+    }
+
+    private static Object safeListGet(List<?> list, int index) {
+        if (index < 0 || index >= list.size()) { return null; }
+        return list.get(index);
+    }
+
+    private static Object safeArrayGet(Object array, int index, int length) {
+        if (index < 0 || index >= length) { return null; }
+        return Array.get(array, index);
     }
 }

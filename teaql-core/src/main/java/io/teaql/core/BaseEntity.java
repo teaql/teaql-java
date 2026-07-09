@@ -290,15 +290,21 @@ public class BaseEntity implements Entity {
                 Object value = entry.getValue();
                 if (value instanceof String s) {
                     fields.add(DynamicFieldValue.ofString(fieldCode, s));
-                } else if (value instanceof Number n) {
-                    fields.add(DynamicFieldValue.ofNumber(fieldCode, n));
-                } else if (value instanceof Boolean b) {
-                    fields.add(DynamicFieldValue.ofBool(fieldCode, b));
-                } else if (value == null) {
-                    fields.add(DynamicFieldValue.ofNull(fieldCode, null));
-                } else {
-                    fields.add(DynamicFieldValue.ofString(fieldCode, value.toString()));
+                    continue;
                 }
+                if (value instanceof Number n) {
+                    fields.add(DynamicFieldValue.ofNumber(fieldCode, n));
+                    continue;
+                }
+                if (value instanceof Boolean b) {
+                    fields.add(DynamicFieldValue.ofBool(fieldCode, b));
+                    continue;
+                }
+                if (value == null) {
+                    fields.add(DynamicFieldValue.ofNull(fieldCode, null));
+                    continue;
+                }
+                fields.add(DynamicFieldValue.ofString(fieldCode, value.toString()));
             }
         }
         return DynamicFieldValues.of(fields);

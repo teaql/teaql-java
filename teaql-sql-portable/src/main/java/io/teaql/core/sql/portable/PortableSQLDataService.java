@@ -91,9 +91,9 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
 
                     if (shouldHandle(entityDescriptor, (Relation) property)) {
                         enhanceParent(userContext, dataSet, (Relation) property, r);
-                    } else {
-                        collectChildren(userContext, dataSet, (Relation) property, r);
+                        return;
                     }
+                    collectChildren(userContext, dataSet, (Relation) property, r);
                 });
     }
 

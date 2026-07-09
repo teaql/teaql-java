@@ -185,18 +185,22 @@ public class SqlDataServiceExecutor implements QueryExecutor, MutationExecutor, 
             if (c == '\'') {
                 inString = !inString;
                 sb.append(c);
-            } else if (c == '?' && !inString && argIndex < args.length) {
+                continue;
+            }
+            if (c == '?' && !inString && argIndex < args.length) {
                 Object arg = args[argIndex++];
                 if (arg == null) {
                     sb.append("NULL");
-                } else if (arg instanceof String || arg instanceof java.util.Date || arg instanceof java.time.temporal.Temporal) {
-                    sb.append("'").append(arg.toString().replace("'", "''")).append("'");
-                } else {
-                    sb.append(arg.toString());
+                    continue;
                 }
-            } else {
-                sb.append(c);
+                if (arg instanceof String || arg instanceof java.util.Date || arg instanceof java.time.temporal.Temporal) {
+                    sb.append("'").append(arg.toString().replace("'", "''")).append("'");
+                    continue;
+                }
+                sb.append(arg.toString());
+                continue;
             }
+            sb.append(c);
         }
         return sb.toString();
     }

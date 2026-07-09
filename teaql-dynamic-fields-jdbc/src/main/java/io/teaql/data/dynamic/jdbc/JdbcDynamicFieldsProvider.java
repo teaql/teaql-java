@@ -109,15 +109,15 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
             def.setStatus(DynamicFieldStatus.ACTIVE);
         }
         long now = System.currentTimeMillis();
-        String userId = ctx != null ? ctx.userId() : null;
+        String userId = resolveUserId(ctx);
         executor.update(SQL_INSERT_FIELD_DEF, new Object[]{
                 def.getId(),
                 def.getScope().scopeType(), def.getScope().scopeId(),
                 def.getOwnerType(), def.getCode(), def.getName(), def.getDescription(),
-                def.getDataType().name(), def.getLogicalType() != null ? def.getLogicalType().name() : null,
-                def.isRequired() ? 1 : 0, def.isVisible() ? 1 : 0, def.isEditable() ? 1 : 0,
-                def.isFilterable() ? 1 : 0, def.isSortable() ? 1 : 0, def.isSearchable() ? 1 : 0,
-                def.isExportable() ? 1 : 0, def.isImportable() ? 1 : 0, def.isAuditable() ? 1 : 0,
+                def.getDataType().name(), resolveLogicalTypeName(def),
+                boolToInt(def.isRequired()), boolToInt(def.isVisible()), boolToInt(def.isEditable()),
+                boolToInt(def.isFilterable()), boolToInt(def.isSortable()), boolToInt(def.isSearchable()),
+                boolToInt(def.isExportable()), boolToInt(def.isImportable()), boolToInt(def.isAuditable()),
                 def.getPrivacyLevel(), def.getMaskRule(), def.getDefaultValue(),
                 def.getStatus().name(), def.getDisplayOrder(),
                 userId, now, userId, now
@@ -242,14 +242,8 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
             switch (command.dataType()) {
                 case STRING -> stringVal = command.value().toString();
                 case NUMBER -> numberVal = ((Number) command.value()).longValue();
-                case BOOL -> boolVal = ((Boolean) command.value()) ? 1 : 0;
-                case DATE_TIME -> {
-                    if (command.value() instanceof Number n) {
-                        datetimeVal = n.longValue();
-                    } else {
-                        datetimeVal = System.currentTimeMillis();
-                    }
-                }
+                case BOOL -> boolVal = boolToInt((Boolean) command.value());
+                case DATE_TIME -> datetimeVal = toTimestamp(command.value());
                 case ENUM -> enumVal = command.value().toString();
             }
         }
@@ -330,31 +324,11 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
     private DynamicFieldValue extractFieldValue(String code, DynamicDataType dataType,
                                                  Map<String, Object> row) {
         return switch (dataType) {
-            case STRING -> {
-                Object v = row.get("string_value");
-                yield v != null ? DynamicFieldValue.ofString(code, v.toString())
-                                : DynamicFieldValue.ofNull(code, DynamicDataType.STRING);
-            }
-            case NUMBER -> {
-                Object v = row.get("number_value");
-                yield v != null ? DynamicFieldValue.ofNumber(code, ((Number) v).longValue())
-                                : DynamicFieldValue.ofNull(code, DynamicDataType.NUMBER);
-            }
-            case BOOL -> {
-                Object v = row.get("bool_value");
-                yield v != null ? DynamicFieldValue.ofBool(code, ((Number) v).intValue() != 0)
-                                : DynamicFieldValue.ofNull(code, DynamicDataType.BOOL);
-            }
-            case DATE_TIME -> {
-                Object v = row.get("datetime_value");
-                yield v != null ? DynamicFieldValue.ofDateTime(code, ((Number) v).longValue())
-                                : DynamicFieldValue.ofNull(code, DynamicDataType.DATE_TIME);
-            }
-            case ENUM -> {
-                Object v = row.get("enum_value");
-                yield v != null ? DynamicFieldValue.ofEnum(code, v.toString())
-                                : DynamicFieldValue.ofNull(code, DynamicDataType.ENUM);
-            }
+            case STRING -> toStringFieldValue(code, row.get("string_value"));
+            case NUMBER -> toNumberFieldValue(code, row.get("number_value"));
+            case BOOL -> toBoolFieldValue(code, row.get("bool_value"));
+            case DATE_TIME -> toDateTimeFieldValue(code, row.get("datetime_value"));
+            case ENUM -> toEnumFieldValue(code, row.get("enum_value"));
         };
     }
 
@@ -402,5 +376,52 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
     private static boolean intToBool(Object value) {
         if (value == null) return false;
         return ((Number) value).intValue() != 0;
+    }
+
+    // ─── Extracted Decision-Point Methods ──────────────────────────────
+
+    protected int boolToInt(boolean value) {
+        if (value) { return 1; }
+        return 0;
+    }
+
+    protected String resolveUserId(DynamicFieldContext ctx) {
+        if (ctx == null) { return null; }
+        return ctx.userId();
+    }
+
+    protected String resolveLogicalTypeName(DynamicFieldDef def) {
+        if (def.getLogicalType() == null) { return null; }
+        return def.getLogicalType().name();
+    }
+
+    protected long toTimestamp(Object value) {
+        if (value instanceof Number n) { return n.longValue(); }
+        return System.currentTimeMillis();
+    }
+
+    protected DynamicFieldValue toStringFieldValue(String code, Object v) {
+        if (v == null) { return DynamicFieldValue.ofNull(code, DynamicDataType.STRING); }
+        return DynamicFieldValue.ofString(code, v.toString());
+    }
+
+    protected DynamicFieldValue toNumberFieldValue(String code, Object v) {
+        if (v == null) { return DynamicFieldValue.ofNull(code, DynamicDataType.NUMBER); }
+        return DynamicFieldValue.ofNumber(code, ((Number) v).longValue());
+    }
+
+    protected DynamicFieldValue toBoolFieldValue(String code, Object v) {
+        if (v == null) { return DynamicFieldValue.ofNull(code, DynamicDataType.BOOL); }
+        return DynamicFieldValue.ofBool(code, ((Number) v).intValue() != 0);
+    }
+
+    protected DynamicFieldValue toDateTimeFieldValue(String code, Object v) {
+        if (v == null) { return DynamicFieldValue.ofNull(code, DynamicDataType.DATE_TIME); }
+        return DynamicFieldValue.ofDateTime(code, ((Number) v).longValue());
+    }
+
+    protected DynamicFieldValue toEnumFieldValue(String code, Object v) {
+        if (v == null) { return DynamicFieldValue.ofNull(code, DynamicDataType.ENUM); }
+        return DynamicFieldValue.ofEnum(code, v.toString());
     }
 }

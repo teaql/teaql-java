@@ -42,13 +42,14 @@ public class TeaQLEnv {
         try {
             if (val.endsWith("K") || val.endsWith("KB")) {
                 return Long.parseLong(val.replaceAll("[A-Z]", "")) * 1024;
-            } else if (val.endsWith("M") || val.endsWith("MB")) {
-                return Long.parseLong(val.replaceAll("[A-Z]", "")) * 1024 * 1024;
-            } else if (val.endsWith("G") || val.endsWith("GB")) {
-                return Long.parseLong(val.replaceAll("[A-Z]", "")) * 1024 * 1024 * 1024;
-            } else {
-                return Long.parseLong(val);
             }
+            if (val.endsWith("M") || val.endsWith("MB")) {
+                return Long.parseLong(val.replaceAll("[A-Z]", "")) * 1024 * 1024;
+            }
+            if (val.endsWith("G") || val.endsWith("GB")) {
+                return Long.parseLong(val.replaceAll("[A-Z]", "")) * 1024 * 1024 * 1024;
+            }
+            return Long.parseLong(val);
         } catch (Exception e) {
             return defaultBytes;
         }

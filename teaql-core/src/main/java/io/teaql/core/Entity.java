@@ -44,12 +44,11 @@ public interface Entity {
     }
 
     default void setProperty(String propertyName, Object value) {
-        if (this instanceof BaseEntity) {
-            ((BaseEntity) this).__internalSet(propertyName, value);
-        } else {
+        if (!(this instanceof BaseEntity be)) {
             throw new UnsupportedOperationException(
                     "Generic property assignment is only available on BaseEntity implementations");
         }
+        be.__internalSet(propertyName, value);
     }
 
     default Entity updateProperty(String propertyName, Object value) {

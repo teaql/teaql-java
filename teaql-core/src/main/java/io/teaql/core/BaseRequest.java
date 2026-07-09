@@ -690,9 +690,8 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
     }
 
     public void putExtension(String key, Object value) {
-        if (value == null) {
-            this.extensions.remove(key);
-        } else {
+        this.extensions.remove(key);
+        if (value != null) {
             this.extensions.put(key, value);
         }
     }

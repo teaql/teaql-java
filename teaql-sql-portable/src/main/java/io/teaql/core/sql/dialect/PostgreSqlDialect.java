@@ -46,9 +46,8 @@ public class PostgreSqlDialect extends AbstractSqlDialect {
         if (updateSetStr.isEmpty()) {
             return StrUtil.format("INSERT INTO {} ({}) VALUES ({}) ON CONFLICT ({}) DO NOTHING",
                     escapeIdentifier(tableName), columnsStr, valuesStr, escapeIdentifier("id"));
-        } else {
-            return StrUtil.format("INSERT INTO {} ({}) VALUES ({}) ON CONFLICT ({}) DO UPDATE SET {}",
-                    escapeIdentifier(tableName), columnsStr, valuesStr, escapeIdentifier("id"), updateSetStr);
         }
+        return StrUtil.format("INSERT INTO {} ({}) VALUES ({}) ON CONFLICT ({}) DO UPDATE SET {}",
+                escapeIdentifier(tableName), columnsStr, valuesStr, escapeIdentifier("id"), updateSetStr);
     }
 }

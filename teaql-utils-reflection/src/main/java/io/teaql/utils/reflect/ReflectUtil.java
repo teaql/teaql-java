@@ -119,7 +119,7 @@ public class ReflectUtil {
         String cacheKey = p0.getName() + ":" + p1;
         java.lang.reflect.Field cached = fieldCache.get(cacheKey);
         if (cached != null) {
-            return cached == NULL_FIELD ? null : cached;
+            return fromSentinel(cached, NULL_FIELD);
         }
 
         Class<?> current = p0;
@@ -133,11 +133,7 @@ public class ReflectUtil {
             }
         }
 
-        if (found != null) {
-            fieldCache.put(cacheKey, found);
-        } else {
-            fieldCache.put(cacheKey, NULL_FIELD);
-        }
+        fieldCache.put(cacheKey, orSentinel(found, NULL_FIELD));
         return found;
     }
 
@@ -146,30 +142,26 @@ public class ReflectUtil {
         String cacheKey = p0.getName() + ":" + p1 + ":" + p2;
         java.lang.reflect.Method cached = methodCache.get(cacheKey);
         if (cached != null) {
-            return cached == NULL_METHOD ? null : cached;
+            return fromSentinel(cached, NULL_METHOD);
         }
 
         java.lang.reflect.Method found = null;
         for (Method m : p0.getMethods()) {
-            if (p1 ? m.getName().equalsIgnoreCase(p2) : m.getName().equals(p2)) {
+            if (nameMatches(m, p2, p1)) {
                 found = m;
                 break;
             }
         }
         if (found == null) {
             for (Method m : p0.getDeclaredMethods()) {
-                if (p1 ? m.getName().equalsIgnoreCase(p2) : m.getName().equals(p2)) {
+                if (nameMatches(m, p2, p1)) {
                     found = m;
                     break;
                 }
             }
         }
 
-        if (found != null) {
-            methodCache.put(cacheKey, found);
-        } else {
-            methodCache.put(cacheKey, NULL_METHOD);
-        }
+        methodCache.put(cacheKey, orSentinel(found, NULL_METHOD));
         return found;
     }
 
@@ -189,5 +181,20 @@ public class ReflectUtil {
         } catch (NoSuchMethodException e) {
             return null;
         }
+    }
+
+    private static <T> T fromSentinel(T cached, T sentinel) {
+        if (cached == sentinel) { return null; }
+        return cached;
+    }
+
+    private static <T> T orSentinel(T found, T sentinel) {
+        if (found != null) { return found; }
+        return sentinel;
+    }
+
+    private static boolean nameMatches(Method m, String name, boolean ignoreCase) {
+        if (ignoreCase) { return m.getName().equalsIgnoreCase(name); }
+        return m.getName().equals(name);
     }
 }

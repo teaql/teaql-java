@@ -7,11 +7,13 @@ public class LogFormatterFactory {
 
     static {
         String format = TeaQLEnv.get("TEAQL_LOG_FORMAT", "human");
-        if ("json".equalsIgnoreCase(format) || "debug".equalsIgnoreCase(format)) {
-            instance = new JsonReaderFormatter();
-        } else {
-            instance = new HumanReaderFormatter();
-        }
+        instance = createFormatter(format);
+    }
+
+    static LogFormatter createFormatter(String format) {
+        return ("json".equalsIgnoreCase(format) || "debug".equalsIgnoreCase(format))
+                ? new JsonReaderFormatter()
+                : new HumanReaderFormatter();
     }
 
     public static LogFormatter getFormatter() {

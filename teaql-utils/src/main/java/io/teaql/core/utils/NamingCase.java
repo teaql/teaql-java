@@ -26,13 +26,11 @@ public class NamingCase {
             char c = str.charAt(i);
             if (c == p1) {
                 upper = true;
-            } else {
-                if (upper) {
-                    sb.append(Character.toUpperCase(c));
-                    upper = false;
-                } else {
-                    sb.append(Character.toLowerCase(c));
-                }
+                continue;
+            }
+            sb.append(applyCase(c, upper));
+            if (upper) {
+                upper = false;
             }
         }
         if (sb.length() > 0) {
@@ -69,11 +67,15 @@ public class NamingCase {
                     sb.append('_');
                 }
                 sb.append(Character.toLowerCase(c));
-            } else {
-                sb.append(c);
+                continue;
             }
+            sb.append(c);
         }
         return sb.toString();
     }
 
+
+    static char applyCase(char c, boolean upper) {
+        return upper ? Character.toUpperCase(c) : Character.toLowerCase(c);
+    }
 }
