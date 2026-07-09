@@ -82,7 +82,13 @@ public class TeaQLRuntime {
             QueryRequest queryRequest = new DefaultQueryRequest(request);
             QueryResult queryResult = queryExecutor.query(ctx, queryRequest);
             if (queryResult instanceof DefaultQueryResult) {
-                return (SmartList<T>) ((DefaultQueryResult) queryResult).getResult();
+                SmartList<T> results = (SmartList<T>) ((DefaultQueryResult) queryResult).getResult();
+                // Set entityRoot for all loaded entities
+                EntityRoot entityRoot = getOrCreateEntityRoot(ctx);
+                for (T entity : results) {
+                    setupEntityRoot(entity, entityRoot);
+                }
+                return results;
             }
             throw new TeaQLRuntimeException("Unsupported QueryResult type: " + queryResult.getClass().getName());
         } finally {
