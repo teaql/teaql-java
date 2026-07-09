@@ -37,7 +37,7 @@ public interface Entity {
 
     default <T> T getProperty(String propertyName) {
         if (this instanceof BaseEntity) {
-            return (T) ((BaseEntity) this).__internalGet(propertyName);
+            return (T) ((BaseEntity) this).internalGet(propertyName);
         }
         throw new UnsupportedOperationException(
                 "Generic property access is only available on BaseEntity implementations");
@@ -48,7 +48,7 @@ public interface Entity {
             throw new UnsupportedOperationException(
                     "Generic property assignment is only available on BaseEntity implementations");
         }
-        be.__internalSet(propertyName, value);
+        be.internalSet(propertyName, value);
     }
 
     default Entity updateProperty(String propertyName, Object value) {

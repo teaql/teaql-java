@@ -91,7 +91,7 @@ public class MemoryDataService implements DataServiceExecutor, QueryExecutor, Mu
                     throw new TeaQLRuntimeException("Entity ID must be allocated before save");
                 }
                 storage.data.put(entity.getId(), entity);
-                ((BaseEntity) entity).__internalSet("version", entity.getVersion() == null ? 1L : entity.getVersion() + 1);
+                ((BaseEntity) entity).internalSet("version", entity.getVersion() == null ? 1L : entity.getVersion() + 1);
                 if (entity instanceof BaseEntity) {
                     ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);
                 }
