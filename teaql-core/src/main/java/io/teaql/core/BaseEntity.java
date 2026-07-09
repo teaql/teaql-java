@@ -474,4 +474,12 @@ public class BaseEntity implements Entity {
             }
         }
     }
+
+    /**
+     * Put additional property directly without prefix.
+     * Used by deserializers to populate entity fields.
+     */
+    public void putAdditional(String propertyName, Object value) {
+        additionalInfo.put(propertyName, value);
+    }
 }
