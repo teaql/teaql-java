@@ -369,7 +369,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 if (value != null) {
                     try {
                         Entity ref = createEntity((Class<? extends Entity>) property.getType().javaType());
-                        ((BaseEntity) ref).internalSet("id", io.teaql.core.utils.Convert.convert(Long.class, value));
+                        ((BaseEntity) ref).__internalSet("id", io.teaql.core.utils.Convert.convert(Long.class, value));
                         if (ref instanceof BaseEntity) {
                             ((BaseEntity) ref).set$status(io.teaql.core.EntityStatus.REFER);
                         }

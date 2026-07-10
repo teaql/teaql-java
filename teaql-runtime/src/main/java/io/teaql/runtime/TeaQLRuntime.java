@@ -161,7 +161,7 @@ public class TeaQLRuntime {
 
             if (entity.getId() == null && idGenerationService != null) {
                 Long newId = idGenerationService.generateId(ctx, entity);
-                ((BaseEntity) entity).internalSet("id", newId);
+                ((BaseEntity) entity).__internalSet("id", newId);
                 entityRoot.markAsNew(new EntityKey(entity.typeName(), newId));
             }
 
@@ -251,7 +251,7 @@ public class TeaQLRuntime {
                 throw new TeaQLRuntimeException("No entity descriptor for: " + key.entity());
             }
             BaseEntity deleteEntity = (BaseEntity) descriptor.createEntity();
-            deleteEntity.internalSet("id", key.id());
+            deleteEntity.__internalSet("id", key.id());
             deleteEntity.markToRemove();
             if (root.getComment() != null) deleteEntity.setComment(root.getComment());
 
@@ -288,7 +288,7 @@ public class TeaQLRuntime {
                 Map<String, Object> changes = changeSet.changes().get(key);
                 if (changes == null) continue;
                 BaseEntity entity = (BaseEntity) descriptor.createEntity();
-                entity.internalSet("id", key.id());
+                entity.__internalSet("id", key.id());
                 for (Map.Entry<String, Object> change : changes.entrySet()) {
                     entity.setProperty(change.getKey(), change.getValue());
                 }
@@ -312,7 +312,7 @@ public class TeaQLRuntime {
                 Map<String, Object> changes = changeSet.changes().get(key);
                 if (changes == null) continue;
                 BaseEntity entity = (BaseEntity) descriptor.createEntity();
-                entity.internalSet("id", key.id());
+                entity.__internalSet("id", key.id());
                 for (Map.Entry<String, Object> change : changes.entrySet()) {
                     entity.setProperty(change.getKey(), change.getValue());
                 }

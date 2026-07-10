@@ -100,7 +100,7 @@ public class GenericSQLProperty extends PropertyDescriptor implements SQLPropert
         if (referId == null) {
             return null;
         }
-        o.internalSet("id", ((Number) referId).longValue());
+        o.__internalSet("id", ((Number) referId).longValue());
         o.set$status(EntityStatus.REFER);
         return o;
     }

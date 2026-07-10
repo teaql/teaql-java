@@ -56,7 +56,7 @@ public class Dm8IntegrationTest {
             switch (property) {
                 case "title": this.title = (String) value; break;
                 case "status": this.status = (String) value; break;
-                default: super.internalSet(property, value);
+                default: super.__internalSet(property, value);
             }
         }
 
@@ -65,7 +65,7 @@ public class Dm8IntegrationTest {
             switch (property) {
                 case "title": return this.title;
                 case "status": return this.status;
-                default: return super.internalGet(property);
+                default: return super.__internalGet(property);
             }
         }
     }

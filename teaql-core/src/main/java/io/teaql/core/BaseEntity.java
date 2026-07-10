@@ -99,7 +99,7 @@ public class BaseEntity implements Entity {
     }
 
     @FrameworkInternal("Business code must use updateXxx() methods")
-    public void internalSet(String property, Object value) {
+    public void __internalSet(String property, Object value) {
         switch (property) {
             case "id":      this.id = (Long) value; break;
             case "version": this.version = (Long) value; break;
@@ -109,7 +109,7 @@ public class BaseEntity implements Entity {
     }
 
     @FrameworkInternal("Business code should use typed getXxx() methods")
-    public Object internalGet(String property) {
+    public Object __internalGet(String property) {
         // First try to get from entityRoot if available
         if (entityRoot != null && id != null) {
             EntityKey key = new EntityKey(typeName(), id);
@@ -339,7 +339,7 @@ public class BaseEntity implements Entity {
 
     @Override
     public void setProperty(String propertyName, Object value) {
-        this.internalSet(propertyName, value);
+        this.__internalSet(propertyName, value);
     }
 
     @Override
