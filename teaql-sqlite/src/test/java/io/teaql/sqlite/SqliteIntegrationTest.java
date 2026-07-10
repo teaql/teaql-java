@@ -55,7 +55,7 @@ public class SqliteIntegrationTest {
         public String typeName() { return "Task"; }
 
         @Override
-        public void __internalSet(String property, Object value) {
+        public void internalSet(String property, Object value) {
             switch (property) {
                 case "title": this.title = (String) value; break;
                 case "status": this.status = (String) value; break;
@@ -64,7 +64,7 @@ public class SqliteIntegrationTest {
         }
 
         @Override
-        public Object __internalGet(String property) {
+        public Object internalGet(String property) {
             switch (property) {
                 case "title": return this.title;
                 case "status": return this.status;
