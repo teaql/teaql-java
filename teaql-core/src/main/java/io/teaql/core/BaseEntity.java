@@ -39,7 +39,7 @@ public class BaseEntity implements Entity {
     /**
      * Shared change tracking root for the entire entity graph.
      */
-    private EntityRoot entityRoot;
+    private EntityRoot entityRoot = new EntityRoot();
 
     @Override
     public String getComment() {

@@ -83,11 +83,6 @@ public class TeaQLRuntime {
             QueryResult queryResult = queryExecutor.query(ctx, queryRequest);
             if (queryResult instanceof DefaultQueryResult) {
                 SmartList<T> results = (SmartList<T>) ((DefaultQueryResult) queryResult).getResult();
-                // Set entityRoot for all loaded entities
-                EntityRoot entityRoot = getOrCreateEntityRoot(ctx);
-                for (T entity : results) {
-                    setupEntityRoot(entity, entityRoot);
-                }
                 return results;
             }
             throw new TeaQLRuntimeException("Unsupported QueryResult type: " + queryResult.getClass().getName());
@@ -147,7 +142,6 @@ public class TeaQLRuntime {
     }
 
     private static final String SAVE_GRAPH_ACTIVE_ROUTE_KEY = "__teaql_save_graph_route__";
-    private static final String ENTITY_ROOT_KEY = "__teaql_entity_root__";
 
     public void saveGraph(UserContext ctx, Entity entity) {
         if (entity.getComment() == null || entity.getComment().trim().isEmpty()) {
@@ -159,8 +153,11 @@ public class TeaQLRuntime {
             pushed = true;
         }
         try {
-            EntityRoot entityRoot = getOrCreateEntityRoot(ctx);
-            setupEntityRoot(entity, entityRoot);
+            // Get entity's own EntityRoot
+            EntityRoot entityRoot = ((BaseEntity) entity).getEntityRoot();
+            
+            // Merge related entities' EntityRoots into this one
+            mergeRelatedEntityRoots(entity, entityRoot);
 
             if (entity.getId() == null && idGenerationService != null) {
                 Long newId = idGenerationService.generateId(ctx, entity);
@@ -197,20 +194,14 @@ public class TeaQLRuntime {
         }
     }
 
-    private EntityRoot getOrCreateEntityRoot(UserContext ctx) {
-        EntityRoot root = (EntityRoot) ctx.extension(ENTITY_ROOT_KEY);
-        if (root == null) {
-            root = new EntityRoot();
-            ctx.put(ENTITY_ROOT_KEY, root);
-        }
-        return root;
-    }
-
-    private void setupEntityRoot(Entity entity, EntityRoot root) {
+    /**
+     * Merge related entities' EntityRoots into the main entity's EntityRoot.
+     * This ensures that when saving an Order, its OrderItems' changes are also saved.
+     */
+    private void mergeRelatedEntityRoots(Entity entity, EntityRoot targetRoot) {
         if (!(entity instanceof BaseEntity baseEntity)) {
             return;
         }
-        baseEntity.setEntityRoot(root);
 
         EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());
         if (descriptor == null) return;
@@ -219,16 +210,32 @@ public class TeaQLRuntime {
             if (!(prop instanceof io.teaql.core.meta.Relation)) continue;
             Object value = entity.getProperty(prop.getName());
             if (value instanceof Entity relEntity) {
-                setupEntityRoot(relEntity, root);
+                // Merge related entity's root into target
+                EntityRoot relRoot = ((BaseEntity) relEntity).getEntityRoot();
+                if (relRoot != null && relRoot != targetRoot) {
+                    targetRoot.mergeFrom(relRoot);
+                    // Update related entity to use the merged root
+                    ((BaseEntity) relEntity).setEntityRoot(targetRoot);
+                }
+                // Recursively merge
+                mergeRelatedEntityRoots(relEntity, targetRoot);
             } else if (value instanceof Collection<?> collection) {
                 for (Object item : collection) {
                     if (item instanceof Entity relEntity) {
-                        setupEntityRoot(relEntity, root);
+                        EntityRoot relRoot = ((BaseEntity) relEntity).getEntityRoot();
+                        if (relRoot != null && relRoot != targetRoot) {
+                            targetRoot.mergeFrom(relRoot);
+                            ((BaseEntity) relEntity).setEntityRoot(targetRoot);
+                        }
+                        mergeRelatedEntityRoots(relEntity, targetRoot);
                     }
                 }
             }
         }
     }
+
+
+
 
     private void executeLedgerPlan(UserContext ctx, EntityRoot root, MutationExecutor mutationExecutor) {
         EntityChangeSet changeSet = root.currentChangeSet();
@@ -339,9 +346,8 @@ public class TeaQLRuntime {
                 throw new TeaQLRuntimeException("No MutationExecutor registered for route: " + route);
             }
 
-            EntityRoot entityRoot = getOrCreateEntityRoot(ctx);
             if (entity instanceof BaseEntity baseEntity && entity.getId() != null) {
-                baseEntity.setEntityRoot(entityRoot);
+                EntityRoot entityRoot = baseEntity.getEntityRoot();
                 entityRoot.markAsDelete(new EntityKey(entity.typeName(), entity.getId()));
             }
 
