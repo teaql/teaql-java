@@ -169,12 +169,14 @@ Android: application code supplies an Android-backed `TeaQLDatabase`
 implementation, and the repository executes positional SQL through that
 abstraction.
 
-## Development
+## Build & Development
 
-Compile all modules:
+To build the project from source, you need Java 17+ and Maven 3.8+:
 
 ```bash
-mvn clean compile
+git clone https://github.com/teaql/teaql-java.git
+cd teaql-java
+mvn clean install
 ```
 
 Run tests where present:
@@ -182,6 +184,12 @@ Run tests where present:
 ```bash
 mvn test
 ```
+
+## Reporting Bugs
+
+If you find a bug, please create an issue on [GitHub Issues](https://github.com/teaql/teaql-java/issues).
+Please include as much detail as possible, such as TeaQL version, Java version, framework details, and steps to reproduce.
+For security vulnerabilities, please see our [Security Policy](SECURITY.md).
 
 Scan for Chinese comments or strings:
 

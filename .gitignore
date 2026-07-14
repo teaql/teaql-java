@@ -32,3 +32,15 @@ build/
 **/build/
 
 *.py
+
+# Sensitive
+.env
+*.pem
+*.key
+*.p12
+*.jks
+credentials.json
+settings.xml
+
+# Temp files
+pom.xml.versionsBackup

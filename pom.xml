@@ -11,6 +11,30 @@
 
     <name>teaql-java-parent</name>
     <description>Parent POM for TeaQL modules</description>
+    <url>https://github.com/teaql/teaql-java</url>
+    
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>TeaQL Contributors</name>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/teaql/teaql-java.git</connection>
+        <url>https://github.com/teaql/teaql-java</url>
+    </scm>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/teaql/teaql-java/issues</url>
+    </issueManagement>
 
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
@@ -271,6 +295,16 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <version>4.8.6.6</version>
+            </plugin>
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>10.0.4</version>
             </plugin>
         </plugins>
     </build>
