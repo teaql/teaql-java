@@ -167,7 +167,6 @@ public class TeaQLRuntime {
 
             if (entity instanceof BaseEntity be && be.getId() != null) {
                 EntityKey key = new EntityKey(be.typeName(), be.getId());
-                System.out.println("DEBUG: be.getId()=" + be.getId() + ", updated=" + be.getUpdatedProperties() + ", rawUpdated=" + be.dirtyFields());
                 for (String prop : be.getUpdatedProperties()) {
                     entityRoot.set(key, prop, be.__internalGet(prop));
                 }
@@ -196,7 +195,6 @@ public class TeaQLRuntime {
                 throw new TeaQLRuntimeException("No MutationExecutor registered for route: " + route);
             }
 
-            System.out.println("DEBUG: changeSet.changes() = " + entityRoot.currentChangeSet().changes());
             Map<io.teaql.core.EntityKey, io.teaql.core.BaseEntity> realEntities = new java.util.HashMap<>();
             collectRealEntities(entity, realEntities);
             executeLedgerPlan(ctx, entityRoot, mutationExecutor, realEntities);

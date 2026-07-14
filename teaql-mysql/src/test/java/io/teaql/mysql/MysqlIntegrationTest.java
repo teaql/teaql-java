@@ -128,7 +128,7 @@ public class MysqlIntegrationTest {
     @BeforeClass
     public static void setup() throws Exception {
         // Use local mysql instance running on port 3306
-        String url = "jdbc:mysql://127.0.0.1:3306/teaql_test?createDatabaseIfNotExist=true&serverTimezone=UTC&useSSL=false";
+        String url = "jdbc:mysql://127.0.0.1:3306/teaql_test?createDatabaseIfNotExist=true&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true";
         String user = "root";
         String password = "0254891276";
 

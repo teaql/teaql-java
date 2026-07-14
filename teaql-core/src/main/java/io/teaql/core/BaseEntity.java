@@ -183,7 +183,10 @@ public class BaseEntity implements Entity {
     public List<String> getUpdatedProperties() {
         if (entityRoot != null && id != null) {
             EntityKey key = new EntityKey(typeName(), id);
-            return new ArrayList<>(entityRoot.changedFieldNames(key));
+            Set<String> rootChanges = entityRoot.changedFieldNames(key);
+            if (rootChanges != null && !rootChanges.isEmpty()) {
+                return new ArrayList<>(rootChanges);
+            }
         }
         return new ArrayList<>(updatedProperties.keySet());
     }
@@ -308,12 +311,14 @@ public class BaseEntity implements Entity {
     }
 
     public Set<String> dirtyFields() {
-        if (entityRoot == null || id == null) {
-            return null;
+        if (entityRoot != null && id != null) {
+            EntityKey key = new EntityKey(typeName(), id);
+            Set<String> fields = entityRoot.changedFieldNames(key);
+            if (fields != null && !fields.isEmpty()) {
+                return fields;
+            }
         }
-        EntityKey key = new EntityKey(typeName(), id);
-        Set<String> fields = entityRoot.changedFieldNames(key);
-        return fields.isEmpty() ? null : fields;
+        return updatedProperties.isEmpty() ? null : updatedProperties.keySet();
     }
 
     public boolean isMarkedAsDelete() {
