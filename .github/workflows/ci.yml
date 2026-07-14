@@ -19,7 +19,7 @@ jobs:
           distribution: 'temurin'
           cache: maven
       - name: Build with Maven
-        run: mvn -B verify
+        run: mvn -B install
       - name: SpotBugs Check
         run: mvn spotbugs:check
       - name: OWASP Dependency Check
