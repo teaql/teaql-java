@@ -129,6 +129,12 @@ public class Dm8IntegrationTest {
         String user = "SYSDBA";
         String password = "123abc!@#";
 
+        try (Connection conn = DriverManager.getConnection(url, user, password)) {
+            org.junit.Assume.assumeTrue("DM8 is reachable", true);
+        } catch (SQLException e) {
+            org.junit.Assume.assumeTrue("Skipping DM8 tests because DM8 is not reachable on " + url, false);
+        }
+
         SimpleEntityMetaFactory metaFactory = new SimpleEntityMetaFactory();
 
         SQLEntityDescriptor taskDescriptor = new SQLEntityDescriptor();
