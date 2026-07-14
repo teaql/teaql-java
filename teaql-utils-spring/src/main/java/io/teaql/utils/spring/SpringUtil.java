@@ -12,6 +12,10 @@ public class SpringUtil implements ApplicationContextAware {
 
     @Override
     public void setApplicationContext(ApplicationContext context) {
+        setContext(context);
+    }
+
+    private static void setContext(ApplicationContext context) {
         applicationContext = context;
     }
 
