@@ -313,6 +313,31 @@
         </plugins>
     </build>
 
+    <repositories>
+        <repository>
+            <id>TEAQL</id>
+            <name>TEAQL Maven releases repository</name>
+            <url>https://maven.teaql.io/repository/maven-releases/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>TEAQL-snapshots</id>
+            <name>TEAQL Maven snapshots repository</name>
+            <url>https://maven.teaql.io/repository/maven-snapshots/</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
     <distributionManagement>
         <repository>
             <id>TEAQL</id>
