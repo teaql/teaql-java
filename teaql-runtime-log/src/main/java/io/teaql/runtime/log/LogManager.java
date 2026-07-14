@@ -152,7 +152,7 @@ public class LogManager implements RuntimeLogSink {
                              "================================================================================";
                 if (url != null) {
                     try (java.io.InputStream is = url.openStream();
-                         java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A")) {
+                         java.util.Scanner s = new java.util.Scanner(is, StandardCharsets.UTF_8.name()).useDelimiter("\\A")) {
                         header = readHeaderOrDefault(s);
                     }
                 }
