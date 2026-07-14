@@ -132,6 +132,12 @@ public class PostgresIntegrationTest {
         String user = "postgres";
         String password = "postgres";
 
+        try (Connection conn = DriverManager.getConnection(url, user, password)) {
+            org.junit.Assume.assumeTrue("Postgres is reachable", true);
+        } catch (SQLException e) {
+            org.junit.Assume.assumeTrue("Skipping Postgres tests because Postgres is not reachable on " + url, false);
+        }
+
         SimpleEntityMetaFactory metaFactory = new SimpleEntityMetaFactory();
 
         SQLEntityDescriptor taskDescriptor = new SQLEntityDescriptor();
