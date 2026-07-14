@@ -878,12 +878,12 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         List<String> candidates = property.getCandidates();
         if (property.isIdentifier()) return identifier;
         if (ObjectUtil.isNotEmpty(candidates)) return CollectionUtil.get(candidates, index);
-        if (property.isId()) return Math.abs(identifier.toUpperCase().hashCode());
+        if (property.isId()) return Math.abs((long) identifier.toUpperCase().hashCode());
         return null;
     }
 
     private long genIdForCandidateCode(String code) {
-        return Math.abs(code.toUpperCase().hashCode());
+        return Math.abs((long) code.toUpperCase().hashCode());
     }
 
     // ==========================================
