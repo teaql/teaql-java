@@ -28,6 +28,8 @@ public class EntityRoot {
 
     public void clearCurrentChangeSet() {
         changeSets.clearCurrent();
+        newKeys.clear();
+        deletedKeys.clear();
     }
 
     public void set(EntityKey key, String field, Object value) {

@@ -165,6 +165,15 @@ public class TeaQLRuntime {
                 entityRoot.markAsNew(new EntityKey(entity.typeName(), newId));
             }
 
+            if (entity instanceof BaseEntity be && be.getId() != null) {
+                EntityKey key = new EntityKey(be.typeName(), be.getId());
+                System.out.println("DEBUG: be.getId()=" + be.getId() + ", updated=" + be.getUpdatedProperties() + ", rawUpdated=" + be.dirtyFields());
+                for (String prop : be.getUpdatedProperties()) {
+                    entityRoot.set(key, prop, be.__internalGet(prop));
+                }
+
+            }
+
             EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());
             String route = descriptor.getDataService();
             if (route == null || route.isEmpty()) {
@@ -187,7 +196,10 @@ public class TeaQLRuntime {
                 throw new TeaQLRuntimeException("No MutationExecutor registered for route: " + route);
             }
 
-            executeLedgerPlan(ctx, entityRoot, mutationExecutor);
+            System.out.println("DEBUG: changeSet.changes() = " + entityRoot.currentChangeSet().changes());
+            Map<io.teaql.core.EntityKey, io.teaql.core.BaseEntity> realEntities = new java.util.HashMap<>();
+            collectRealEntities(entity, realEntities);
+            executeLedgerPlan(ctx, entityRoot, mutationExecutor, realEntities);
             entityRoot.clearCurrentChangeSet();
         } finally {
             if (pushed) ctx.popTrace();
@@ -237,7 +249,29 @@ public class TeaQLRuntime {
 
 
 
-    private void executeLedgerPlan(UserContext ctx, EntityRoot root, MutationExecutor mutationExecutor) {
+    private void collectRealEntities(Entity entity, Map<EntityKey, BaseEntity> realEntities) {
+        if (!(entity instanceof BaseEntity baseEntity)) return;
+        if (baseEntity.getId() != null) {
+            realEntities.put(new EntityKey(baseEntity.typeName(), baseEntity.getId()), baseEntity);
+        }
+        EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());
+        if (descriptor == null) return;
+        for (PropertyDescriptor prop : descriptor.getProperties()) {
+            if (!(prop instanceof io.teaql.core.meta.Relation)) continue;
+            Object value = entity.getProperty(prop.getName());
+            if (value instanceof Entity relEntity) {
+                collectRealEntities(relEntity, realEntities);
+            } else if (value instanceof Collection<?> collection) {
+                for (Object item : collection) {
+                    if (item instanceof Entity relEntity) {
+                        collectRealEntities(relEntity, realEntities);
+                    }
+                }
+            }
+        }
+    }
+
+    private void executeLedgerPlan(UserContext ctx, EntityRoot root, MutationExecutor mutationExecutor, Map<EntityKey, BaseEntity> realEntities) {
         EntityChangeSet changeSet = root.currentChangeSet();
         Set<EntityKey> deletedKeys = root.deletedKeys();
         Set<EntityKey> newKeys = root.newKeys();
@@ -250,8 +284,12 @@ public class TeaQLRuntime {
             if (descriptor == null) {
                 throw new TeaQLRuntimeException("No entity descriptor for: " + key.entity());
             }
-            BaseEntity deleteEntity = (BaseEntity) descriptor.createEntity();
-            deleteEntity.__internalSet("id", key.id());
+            BaseEntity deleteEntity = realEntities.get(key);
+            if (deleteEntity == null) {
+                deleteEntity = (BaseEntity) descriptor.createEntity();
+                deleteEntity.__internalSet("id", key.id());
+                deleteEntity.set$status(io.teaql.core.EntityStatus.PERSISTED);
+            }
             deleteEntity.markToRemove();
             if (root.getComment() != null) deleteEntity.setComment(root.getComment());
 
@@ -287,16 +325,24 @@ public class TeaQLRuntime {
             for (EntityKey key : keys) {
                 Map<String, Object> changes = changeSet.changes().get(key);
                 if (changes == null) continue;
-                BaseEntity entity = (BaseEntity) descriptor.createEntity();
-                entity.__internalSet("id", key.id());
+                BaseEntity entity = realEntities.get(key);
+                if (entity == null) {
+                    entity = (BaseEntity) descriptor.createEntity();
+                    entity.__internalSet("id", key.id());
+                }
+                Long version = root.getOriginalVersion(key);
+                if (version != null) {
+                    entity.__internalSet("version", version);
+                }
                 for (Map.Entry<String, Object> change : changes.entrySet()) {
-                    entity.setProperty(change.getKey(), change.getValue());
+                    entity.updateProperty(change.getKey(), change.getValue());
                 }
                 if (root.getComment() != null) entity.setComment(root.getComment());
 
                 DefaultMutationRequest mutationRequest = new DefaultMutationRequest(
                     entity, DefaultMutationRequest.Action.SAVE);
                 mutationExecutor.mutate(ctx, mutationRequest);
+                entity.clearUpdatedProperties();
             }
         }
 
@@ -311,17 +357,25 @@ public class TeaQLRuntime {
             for (EntityKey key : keys) {
                 Map<String, Object> changes = changeSet.changes().get(key);
                 if (changes == null) continue;
-                BaseEntity entity = (BaseEntity) descriptor.createEntity();
-                entity.__internalSet("id", key.id());
-                for (Map.Entry<String, Object> change : changes.entrySet()) {
-                    entity.setProperty(change.getKey(), change.getValue());
+                BaseEntity entity = realEntities.get(key);
+                if (entity == null) {
+                    entity = (BaseEntity) descriptor.createEntity();
+                    entity.__internalSet("id", key.id());
                 }
-                entity.gotoNextStatus(EntityAction.UPDATE);
+                Long version = root.getOriginalVersion(key);
+                if (version != null) {
+                    entity.__internalSet("version", version);
+                }
+                for (Map.Entry<String, Object> change : changes.entrySet()) {
+                    entity.updateProperty(change.getKey(), change.getValue());
+                }
+                entity.set$status(io.teaql.core.EntityStatus.UPDATED);
                 if (root.getComment() != null) entity.setComment(root.getComment());
 
                 DefaultMutationRequest mutationRequest = new DefaultMutationRequest(
                     entity, DefaultMutationRequest.Action.SAVE);
                 mutationExecutor.mutate(ctx, mutationRequest);
+                entity.clearUpdatedProperties();
             }
         }
     }
