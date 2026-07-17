@@ -435,7 +435,7 @@ public class BaseEntity implements Entity {
 
     @Override
     public int hashCode() {
-        return Objects.hash(getId(), getVersion(), typeName());
+        return Objects.hash(getId(), typeName());
     }
 
     public Map<String, Object> getAdditionalInfo() {
