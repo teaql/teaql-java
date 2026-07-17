@@ -31,8 +31,10 @@ public class ChangeSetStack {
 
     public Object get(EntityKey key, String field) {
         for (int i = stack.size() - 1; i >= 0; i--) {
-            Object value = stack.get(i).get(key, field);
-            if (value != null) return value;
+            EntityChangeSet changeSet = stack.get(i);
+            if (changeSet.contains(key, field)) {
+                return changeSet.get(key, field);
+            }
         }
         return null;
     }
