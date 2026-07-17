@@ -131,6 +131,7 @@ public class TeaQLRuntimeTest {
         private DummyEntity rel2;
         private DummyEntity rel3;
         private DummyEntity rel4;
+        private java.util.List<DummyEntity> relList;
 
         @Override
         public String typeName() {
@@ -144,6 +145,7 @@ public class TeaQLRuntimeTest {
                 case "rel2": this.rel2 = (DummyEntity) value; break;
                 case "rel3": this.rel3 = (DummyEntity) value; break;
                 case "rel4": this.rel4 = (DummyEntity) value; break;
+                case "relList": this.relList = (java.util.List<DummyEntity>) value; break;
                 default: super.__internalSet(property, value);
             }
         }
@@ -155,6 +157,7 @@ public class TeaQLRuntimeTest {
                 case "rel2": return this.rel2;
                 case "rel3": return this.rel3;
                 case "rel4": return this.rel4;
+                case "relList": return this.relList;
                 default: return super.__internalGet(property);
             }
         }
@@ -167,6 +170,16 @@ public class TeaQLRuntimeTest {
             desc.setType(type);
             desc.setDataService("dummy");
             if ("Container".equals(type)) {
+                io.teaql.core.meta.Relation p1 = new io.teaql.core.meta.Relation(); p1.setName("rel1");  
+                io.teaql.core.meta.Relation p2 = new io.teaql.core.meta.Relation(); p2.setName("rel2");  
+                io.teaql.core.meta.Relation p3 = new io.teaql.core.meta.Relation(); p3.setName("rel3");  
+                io.teaql.core.meta.Relation p4 = new io.teaql.core.meta.Relation();
+                p4.setName("rel4");  
+
+                io.teaql.core.meta.Relation pList = new io.teaql.core.meta.Relation();
+                pList.setName("relList");  
+
+                desc.setProperties(java.util.Arrays.asList(p1, p2, p3, p4, pList));
                 desc.setEntitySupplier(() -> new ContainerEntity());
             } else {
                 desc.setEntitySupplier(() -> new DummyEntity());
@@ -261,6 +274,51 @@ public class TeaQLRuntimeTest {
         Assert.assertTrue(requests.stream().allMatch(r -> "root comment".equals(r.getEntity().getComment())));
         // The current change set is not cleared by executeLedgerPlan, it's cleared by saveGraph, so we can't test that here unless we do it.
         // I will omit that check or just check saveGraph does it.
+    }
+
+    @Test
+    public void testSaveGraphMergesRelatedEntityRoots() {
+        RecordingMutationExecutor executor = new RecordingMutationExecutor();
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new AdvancedMetaFactory())
+                .dataService("dummy", executor)
+                .build();
+
+        ContainerEntity rootEntity = new ContainerEntity();
+        rootEntity.updateId(1L);
+        rootEntity.set$status(EntityStatus.PERSISTED);
+
+        DummyEntity toOneChild = new DummyEntity();
+        toOneChild.updateId(2L);
+        toOneChild.set$status(EntityStatus.PERSISTED);
+        
+        DummyEntity listChild1 = new DummyEntity();
+        listChild1.updateId(3L);
+        listChild1.set$status(EntityStatus.PERSISTED);
+
+        DummyEntity listChild2 = new DummyEntity();
+        listChild2.updateId(4L);
+        listChild2.set$status(EntityStatus.PERSISTED);
+        
+        rootEntity.updateProperty("rel1", toOneChild);
+        rootEntity.updateProperty("relList", java.util.Arrays.asList(listChild1, listChild2));
+        
+        toOneChild.updateProperty("name", "toOne");
+        listChild1.updateProperty("name", "list1");
+        listChild2.updateProperty("name", "list2");
+        
+        rootEntity.setComment("test");
+        runtime.saveGraph(new DefaultUserContext(runtime), rootEntity);
+        
+        // Verify all entities share the same root now
+        Assert.assertSame(rootEntity.getEntityRoot(), toOneChild.getEntityRoot());
+        Assert.assertSame(rootEntity.getEntityRoot(), listChild1.getEntityRoot());
+        Assert.assertSame(rootEntity.getEntityRoot(), listChild2.getEntityRoot());
+        
+        List<DefaultMutationRequest> requests = executor.requests;
+        Assert.assertTrue(requests.stream().anyMatch(r -> r.getEntity().getId().equals(2L)));
+        Assert.assertTrue(requests.stream().anyMatch(r -> r.getEntity().getId().equals(3L)));
+        Assert.assertTrue(requests.stream().anyMatch(r -> r.getEntity().getId().equals(4L)));
     }
 
     @Test
