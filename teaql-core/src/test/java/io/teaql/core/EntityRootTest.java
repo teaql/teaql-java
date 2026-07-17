@@ -72,4 +72,73 @@ public class EntityRootTest {
         assertEquals("CREATED", root.get(OTHER_ORDER, "status"));
         assertEquals(200L, root.get(OTHER_ORDER, "total"));
     }
+
+    @Test
+    public void mergeFromNullIsNoOp() {
+        EntityRoot target = new EntityRoot();
+        target.set(ORDER, "status", "CREATED");
+
+        target.mergeFrom(null);
+
+        assertEquals("CREATED", target.get(ORDER, "status"));
+        assertEquals(1, target.currentChangeSet().changes().size());
+    }
+
+    @Test
+    public void mergeFromCopiesChangesAndPreservesExistingTargetChanges() {
+        EntityRoot target = new EntityRoot();
+        target.set(ORDER, "status", "CREATED");
+        EntityRoot source = new EntityRoot();
+        source.set(OTHER_ORDER, "status", "PAID");
+        source.set(OTHER_ORDER, "total", 200L);
+
+        target.mergeFrom(source);
+
+        assertEquals("CREATED", target.get(ORDER, "status"));
+        assertEquals("PAID", target.get(OTHER_ORDER, "status"));
+        assertEquals(200L, target.get(OTHER_ORDER, "total"));
+    }
+
+    @Test
+    public void mergeFromCopiesNewAndDeletedKeys() {
+        EntityRoot target = new EntityRoot();
+        EntityRoot source = new EntityRoot();
+        source.markAsNew(ORDER);
+        source.markAsDelete(OTHER_ORDER);
+
+        target.mergeFrom(source);
+
+        assertTrue(target.isNew(ORDER));
+        assertTrue(target.isMarkedAsDelete(OTHER_ORDER));
+    }
+
+    @Test
+    public void mergeFromCopiesTraceChainsAndOriginalVersions() {
+        EntityRoot target = new EntityRoot();
+        EntityRoot source = new EntityRoot();
+        source.setTraceChain(ORDER, "checkout > submit");
+        source.setOriginalVersion(ORDER, 7L);
+
+        target.mergeFrom(source);
+
+        assertEquals("checkout > submit", target.getTraceChain(ORDER));
+        assertEquals(Long.valueOf(7L), target.getOriginalVersion(ORDER));
+    }
+
+    @Test
+    public void mergeLeavesSourceAndTargetIndependent() {
+        EntityRoot target = new EntityRoot();
+        EntityRoot source = new EntityRoot();
+        source.set(ORDER, "status", "CREATED");
+        source.markAsNew(ORDER);
+
+        target.mergeFrom(source);
+        target.set(ORDER, "status", "PAID");
+        target.markAsNew(OTHER_ORDER);
+
+        assertEquals("CREATED", source.get(ORDER, "status"));
+        assertTrue(source.isNew(ORDER));
+        assertFalse(source.isNew(OTHER_ORDER));
+        assertEquals(1, source.newKeys().size());
+    }
 }
