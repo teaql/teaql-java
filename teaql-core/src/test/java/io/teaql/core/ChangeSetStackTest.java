@@ -49,6 +49,21 @@ public class ChangeSetStackTest {
     }
 
     @Test
+    public void explicitNullInTopScopeShadowsLowerValue() {
+        ChangeSetStack stack = new ChangeSetStack();
+        stack.set(ORDER, "status", "CREATED");
+        stack.push();
+        stack.set(ORDER, "status", null);
+
+        assertNull(stack.get(ORDER, "status"));
+
+        stack.pop();
+
+        assertEquals("CREATED", stack.get(ORDER, "status"));
+        assertNull(stack.get(ORDER, "missing"));
+    }
+
+    @Test
     public void clearCurrentClearsOnlyTopScope() {
         ChangeSetStack stack = new ChangeSetStack();
         stack.set(ORDER, "status", "CREATED");

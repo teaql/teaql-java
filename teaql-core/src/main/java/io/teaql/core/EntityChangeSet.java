@@ -22,6 +22,11 @@ public class EntityChangeSet {
         return record != null ? record.get(field) : null;
     }
 
+    boolean contains(EntityKey key, String field) {
+        Map<String, Object> record = changes.get(key);
+        return record != null && record.containsKey(field);
+    }
+
     public Map<EntityKey, Map<String, Object>> changes() {
         return Collections.unmodifiableMap(changes);
     }
