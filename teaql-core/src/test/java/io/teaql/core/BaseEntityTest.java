@@ -123,4 +123,49 @@ public class BaseEntityTest {
         entity.updateName(null);
         assertNull(entity.dirtyFields());
     }
+
+    static class AnotherTestEntity extends BaseEntity {
+        @Override
+        public String typeName() {
+            return "AnotherTestEntity";
+        }
+    }
+
+    @Test
+    public void testEqualsAndHashCodeContract() {
+        TestEntity e1 = new TestEntity();
+        e1.updateId(1L);
+        e1.updateVersion(1L);
+
+        TestEntity e2 = new TestEntity();
+        e2.updateId(1L);
+        e2.updateVersion(2L); // Different version
+
+        // 1. Same instance is equal to itself
+        assertEquals(e1, e1);
+        assertEquals(e1.hashCode(), e1.hashCode());
+
+        // 2. Same concrete entity type and ID are equal
+        assertEquals(e1, e2);
+
+        // 3. Equal entities have identical hash codes even when versions differ
+        assertEquals(e1.hashCode(), e2.hashCode());
+
+        // 4. HashSet lookup succeeds for an equal entity instance
+        java.util.HashSet<TestEntity> set = new java.util.HashSet<>();
+        set.add(e1);
+        assertTrue(set.contains(e2));
+
+        // 5. Different IDs are not equal
+        TestEntity e3 = new TestEntity();
+        e3.updateId(2L);
+        e3.updateVersion(1L);
+        assertNotEquals(e1, e3);
+
+        // 6. Different concrete entity classes are not equal
+        AnotherTestEntity a1 = new AnotherTestEntity();
+        a1.updateId(1L);
+        a1.updateVersion(1L);
+        assertNotEquals(e1, a1);
+    }
 }
