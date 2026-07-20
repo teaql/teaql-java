@@ -26,4 +26,11 @@ public interface SqlDialect {
      * For Postgres this could be INSERT ... ON CONFLICT DO UPDATE.
      */
     String buildSubsidiaryInsertSql(String tableName, List<String> columns);
+
+    /**
+     * Map a generic column type (like VARCHAR(<max>)) to a dialect-specific type (like TEXT or VARCHAR(MAX)).
+     */
+    default String mapColumnType(String type) {
+        return type;
+    }
 }

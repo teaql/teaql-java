@@ -50,4 +50,12 @@ public class PostgreSqlDialect extends AbstractSqlDialect {
         return StrUtil.format("INSERT INTO {} ({}) VALUES ({}) ON CONFLICT ({}) DO UPDATE SET {}",
                 escapeIdentifier(tableName), columnsStr, valuesStr, escapeIdentifier("id"), updateSetStr);
     }
+
+    @Override
+    public String mapColumnType(String type) {
+        if (type != null && type.contains("<max>")) {
+            return type.replace("VARCHAR(<max>)", "TEXT").replace("<max>", "255");
+        }
+        return type;
+    }
 }

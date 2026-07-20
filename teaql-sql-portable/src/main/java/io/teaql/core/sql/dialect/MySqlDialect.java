@@ -39,4 +39,12 @@ public class MySqlDialect extends AbstractSqlDialect {
                 escapeIdentifier(tableName),
                 tableColumns.stream().map(c -> escapeIdentifier(c) + " = ?").collect(Collectors.joining(" , ")));
     }
+
+    @Override
+    public String mapColumnType(String type) {
+        if (type != null && type.contains("<max>")) {
+            return type.replace("VARCHAR(<max>)", "LONGTEXT").replace("<max>", "65535");
+        }
+        return type;
+    }
 }
