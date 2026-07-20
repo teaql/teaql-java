@@ -32,8 +32,8 @@ public class OracleDialect extends AbstractSqlDialect {
 
     @Override
     public String mapColumnType(String type) {
-        if (type != null && type.contains("<max>")) {
-            return type.replace("VARCHAR(<max>)", "CLOB").replace("<max>", "4000");
+        if ("LARGE_TEXT".equalsIgnoreCase(type)) {
+            return "CLOB";
         }
         return type;
     }
