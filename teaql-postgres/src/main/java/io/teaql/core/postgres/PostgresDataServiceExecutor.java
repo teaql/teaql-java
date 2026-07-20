@@ -39,9 +39,6 @@ public class PostgresDataServiceExecutor extends SqlDataServiceExecutor {
 
             @Override
             public void execute(String sql) {
-                if (sql != null) {
-                    sql = sql.replace("<max>", "255");
-                }
                 getExecutionAdapter().execute(sql);
             }
 
