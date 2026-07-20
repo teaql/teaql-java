@@ -150,14 +150,7 @@ public class EntityDescriptor {
 
     public Entity createEntity() {
         if (entitySupplier == null) {
-            if (targetType != null) {
-                try {
-                    return targetType.getDeclaredConstructor().newInstance();
-                } catch (Exception e) {
-                    throw new IllegalStateException("No entity supplier registered for " + getType() + " and failed to instantiate " + targetType.getName() + " via reflection", e);
-                }
-            }
-            throw new IllegalStateException("No entity supplier registered for " + getType() + " and targetType is null");
+            throw new IllegalStateException("No entity supplier registered for " + getType());
         }
         return entitySupplier.get();
     }
