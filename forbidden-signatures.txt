@@ -1,0 +1,16 @@
+@defaultMessage We forbid using reflection because it completely breaks GraalVM Native Image compilation. Use EntityAccessor instead.
+java.lang.reflect.Method
+java.lang.reflect.Field
+java.lang.reflect.Constructor
+java.lang.reflect.Proxy
+java.lang.reflect.InvocationHandler
+java.lang.Class#newInstance()
+java.lang.Class#forName(**)
+java.lang.Class#getMethod(**)
+java.lang.Class#getDeclaredMethod(**)
+java.lang.Class#getField(**)
+java.lang.Class#getDeclaredField(**)
+java.lang.Class#getMethods()
+java.lang.Class#getDeclaredMethods()
+java.lang.Class#getFields()
+java.lang.Class#getDeclaredFields()

@@ -1,0 +1,115 @@
+package io.teaql.dataservice.sql;
+
+import io.teaql.core.UserContext;
+import io.teaql.core.MutationRequest;
+import io.teaql.core.QueryRequest;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.Assert;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Stream;
+
+import static org.junit.Assert.*;
+
+public class SqlDataServiceExecutorTest {
+
+    private SqlDataServiceExecutor executor;
+    private MockSqlExecutionAdapter mockAdapter;
+
+    @Before
+    public void setUp() {
+        mockAdapter = new MockSqlExecutionAdapter();
+        executor = new SqlDataServiceExecutor("sql", mockAdapter);
+    }
+
+    @Test
+    public void testBasicCapabilities() {
+        assertEquals("sql", executor.name());
+        assertTrue(executor.capabilities().isQuery());
+        assertTrue(executor.capabilities().isMutation());
+        assertTrue(executor.capabilities().isTransaction());
+        
+        // ensure getExecutionAdapter returns exactly what we passed
+        assertEquals(mockAdapter, executor.getExecutionAdapter());
+    }
+
+    @Test
+    public void testQueryPlaceholder() {
+        SqlDataServiceExecutor executor = new SqlDataServiceExecutor("sql", new MockSqlExecutionAdapter());
+        Assert.assertThrows(io.teaql.core.TeaQLRuntimeException.class, () -> {
+            executor.query(null, new QueryRequest() {});
+        });
+    }
+
+    @Test
+    public void testMutatePlaceholder() {
+        SqlDataServiceExecutor executor = new SqlDataServiceExecutor("sql", new MockSqlExecutionAdapter());
+        Assert.assertThrows(io.teaql.core.TeaQLRuntimeException.class, () -> {
+            executor.mutate(null, new MutationRequest() {});
+        });
+    }
+
+    private static class MockSqlExecutionAdapter implements SqlExecutionAdapter {
+        public String lastSql;
+        public Map<String, Object> lastParams;
+
+        @Override
+        public <T> List<T> query(String sql, Map<String, Object> params, SqlRowMapper<T> rowMapper) {
+            this.lastSql = sql;
+            this.lastParams = params;
+            return Collections.emptyList();
+        }
+
+        @Override
+        public <T> Stream<T> queryForStream(String sql, Map<String, Object> params, SqlRowMapper<T> rowMapper) {
+            return Stream.empty();
+        }
+
+        @Override
+        public List<Map<String, Object>> queryForList(String sql, Map<String, Object> params) {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public List<Map<String, Object>> queryForList(String sql, Object[] params) {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public Map<String, Object> queryForMap(String sql, Map<String, Object> params) {
+            return Collections.emptyMap();
+        }
+
+        @Override
+        public <T> T queryForObject(String sql, Map<String, Object> params, Class<T> requiredType) {
+            return null;
+        }
+
+        @Override
+        public void execute(String sql) {
+            this.lastSql = sql;
+        }
+
+        @Override
+        public int update(String sql, Map<String, Object> params) {
+            this.lastSql = sql;
+            this.lastParams = params;
+            return 1;
+        }
+
+        @Override
+        public int update(String sql, Object[] params) {
+            this.lastSql = sql;
+            return 1;
+        }
+
+        @Override
+        public int[] batchUpdate(String sql, List<Object[]> paramsList) {
+            this.lastSql = sql;
+            return new int[]{1};
+        }
+    }
+}

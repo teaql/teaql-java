@@ -1,0 +1,80 @@
+package io.teaql.core;
+
+import java.util.stream.Stream;
+import io.teaql.core.utils.OptNullBasicTypeFromObjectGetter;
+import java.util.List;
+import io.teaql.data.dynamic.DynamicFieldsFacade;
+
+public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
+
+    void pushTrace(String comment);
+
+    List<TraceNode> getTraceChain();
+
+    void popTrace();
+    void recordExecutionMetadata(ExecutionMetadata metadata);
+
+    // Business-facing API
+    <T extends Entity> T executeForOne(ExecutableRequest<T> request);
+
+    <T extends Entity> SmartList<T> executeForList(ExecutableRequest<T> request);
+
+    <T extends Entity> Stream<T> executeForStream(ExecutableRequest<T> request);
+
+    <T extends Entity> Stream<T> executeForStream(ExecutableRequest<T> request, int enhanceBatchSize);
+
+    <T extends Entity> AggregationResult aggregation(ExecutableRequest<T> request);
+
+    // Internal framework API (do not use in business logic)
+    <T extends Entity> SmartList<T> internalExecuteForList(SearchRequest searchRequest);
+    <T extends Entity> T internalExecuteForOne(SearchRequest searchRequest);
+    <T extends Entity> Stream<T> internalExecuteForStream(SearchRequest searchRequest);
+    <T extends Entity> Stream<T> internalExecuteForStream(SearchRequest searchRequest, int enhanceBatchSize);
+    <T extends Entity> AggregationResult internalAggregation(SearchRequest request);
+
+    default Object extension(String name) {
+        return null;
+    }
+
+    default <T> T capability(Class<T> capabilityType) {
+        return null;
+    }
+
+    /**
+     * Returns the Dynamic Fields facade for reading/writing dynamic field values.
+     * The facade is resolved via {@link #capability(Class)} and must be registered
+     * by the runtime before use.
+     *
+     * @throws TeaQLRuntimeException if DynamicFieldsFacade is not registered
+     */
+    default DynamicFieldsFacade dynamicFields() {
+        DynamicFieldsFacade facade = capability(DynamicFieldsFacade.class);
+        if (facade == null) {
+            throw new TeaQLRuntimeException("DynamicFieldsFacade not registered. "
+                + "Ensure a dynamic fields provider is configured in the runtime.");
+        }
+        return facade.withContext(this);
+    }
+
+    /**
+     * Generates a business string ID (like an order number) based on the entity and property descriptors.
+     * Delegates to the registered BusinessIdGenerator capability.
+     */
+    default String generateBusinessId(Entity entity, io.teaql.core.meta.EntityDescriptor entityDesc, io.teaql.core.meta.PropertyDescriptor propertyDesc) {
+        BusinessIdGenerator generator = capability(BusinessIdGenerator.class);
+        if (generator == null) {
+            throw new TeaQLRuntimeException("BusinessIdGenerator capability is not registered in this runtime.");
+        }
+        return generator.generateBusinessId(this, entity, entityDesc, propertyDesc);
+    }
+
+    void saveGraph(Object items);
+
+    void saveGraph(Entity entity);
+
+    void delete(Entity pEntity);
+
+    void put(String key, Object value);
+
+    <T> T evaluate(String expression, Object... args);
+}
