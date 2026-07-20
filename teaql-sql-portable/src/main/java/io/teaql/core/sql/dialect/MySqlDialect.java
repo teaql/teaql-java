@@ -42,8 +42,8 @@ public class MySqlDialect extends AbstractSqlDialect {
 
     @Override
     public String mapColumnType(String type) {
-        if (type != null && type.contains("<max>")) {
-            return type.replace("VARCHAR(<max>)", "LONGTEXT").replace("<max>", "65535");
+        if ("LARGE_TEXT".equalsIgnoreCase(type)) {
+            return "LONGTEXT";
         }
         return type;
     }

@@ -53,8 +53,8 @@ public class PostgreSqlDialect extends AbstractSqlDialect {
 
     @Override
     public String mapColumnType(String type) {
-        if (type != null && type.contains("<max>")) {
-            return type.replace("VARCHAR(<max>)", "TEXT").replace("<max>", "255");
+        if ("LARGE_TEXT".equalsIgnoreCase(type)) {
+            return "TEXT";
         }
         return type;
     }

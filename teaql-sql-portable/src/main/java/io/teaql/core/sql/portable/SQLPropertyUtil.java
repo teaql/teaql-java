@@ -51,6 +51,10 @@ public class SQLPropertyUtil {
             }
         }
         String columnType = property.getStr("sqlType", defaultType);
+        if (columnType != null && columnType.contains("<max>")) {
+            String maxStr = property.getStr("max", "255");
+            columnType = columnType.replace("<max>", maxStr);
+        }
         
         if (tableName != null && columnName != null) {
             SQLColumn sqlColumn = new SQLColumn(tableName, columnName);
