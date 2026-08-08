@@ -512,4 +512,103 @@ public class BaseRequestTest {
             io.teaql.core.meta.EntityMetaFactory.registerGlobal(null);
         }
     }
+
+    @Test
+    public void testAdditionalCoverage() {
+        BaseRequest.TempRequest req1 = new BaseRequest.TempRequest(BaseEntity.class, "Req1");
+        
+        // Line 216: appendSearchCriteria when existing is AND
+        io.teaql.core.SearchCriteria sc = req1.createBasicSearchCriteria("prop", Operator.IS_NULL, new Object[]{});
+        AND andCriteria = new AND(sc);
+        req1.appendSearchCriteria(andCriteria); // sets to AND
+        req1.appendSearchCriteria(new AND(sc)); // covers line 216
+        
+        // Line 663, 670, 677: slice != null checks
+        req1.setOffset(10); // creates slice
+        req1.setOffset(20); // covers slice != null
+        req1.setSize(50);
+        req1.setSize(100);
+        assertEquals(100, req1.getSize());
+        
+        // Line 789: purpose without comment
+        assertThrows(TeaQLRuntimeException.class, () -> req1.purpose("test purpose"));
+        
+        // Line 446: BETWEEN with valid args and invalid args
+        req1.createBasicSearchCriteria("prop", Operator.BETWEEN, new Object[]{1, 2}); // covers valid
+        assertThrows(TeaQLRuntimeException.class, () -> req1.createBasicSearchCriteria("prop", Operator.BETWEEN, new Object[]{1}));
+        
+        // Line 438: OneOperatorCriteria
+        assertNotNull(req1.createBasicSearchCriteria("prop", Operator.IS_NULL, new Object[]{}));
+        
+        // Line 811, 817: equals differences
+        BaseRequest.TempRequest eq1 = new BaseRequest.TempRequest(BaseEntity.class, "Eq1");
+        BaseRequest.TempRequest eq2 = new BaseRequest.TempRequest(BaseEntity.class, "Eq1");
+        eq2.aggregations = eq1.aggregations;
+        eq2.slice = eq1.slice;
+        
+        eq1.aggregateCacheTime(1000L);
+        eq2.aggregateCacheTime(2000L);
+        assertNotEquals(eq1, eq2);
+        eq2.aggregateCacheTime(1000L);
+        assertEquals(eq1, eq2);
+        BaseRequest.TempRequest eq3 = new BaseRequest.TempRequest(io.teaql.core.Entity.class, "Eq3");
+        assertNotEquals(eq1, eq3);
+        
+        // propagate aggregation cache branches
+        eq1.propagateAggregationCache(3000L);
+        eq1.addAggregateDynamicProperty("agg1", eq2, true);
+        
+        BaseRequest.TempRequest reqAgg = new BaseRequest.TempRequest(BaseEntity.class, "Agg");
+        reqAgg.addAggregateDynamicProperty("agg2", eq2, true); // covers false branch
+        
+        // Line 735: subRequestOfFieldName false branch
+        io.teaql.core.meta.SimpleEntityMetaFactory factory = new io.teaql.core.meta.SimpleEntityMetaFactory();
+        io.teaql.core.meta.EntityDescriptor parentDesc = new io.teaql.core.meta.EntityDescriptor();
+        parentDesc.setType("DummyParent");
+        factory.register(parentDesc);
+        
+        io.teaql.core.meta.EntityDescriptor childDesc = new io.teaql.core.meta.EntityDescriptor();
+        childDesc.setType("ChildEntity");
+        factory.register(childDesc);
+        
+        io.teaql.core.meta.Relation foreignRel = new io.teaql.core.meta.Relation();
+        foreignRel.setName("foreignRel");
+        foreignRel.setOwner(parentDesc);
+        foreignRel.setRelationKeeper(childDesc); // different keeper
+        foreignRel.setType(new io.teaql.core.meta.SimplePropertyType(BaseEntity.class));
+        
+        io.teaql.core.meta.PropertyDescriptor dummyRev = new io.teaql.core.meta.PropertyDescriptor();
+        dummyRev.setName("revProp");
+        foreignRel.setReverseProperty(dummyRev);
+        
+        parentDesc.setProperties(java.util.Collections.singletonList(foreignRel));
+        
+        try {
+            io.teaql.core.meta.EntityMetaFactory.registerGlobal(factory);
+            BaseRequest.TempRequest req2 = new BaseRequest.TempRequest(BaseEntity.class, "DummyParent");
+            req2.subRequestOfFieldName("foreignRel"); // hits line 735 false branch
+        } finally {
+            io.teaql.core.meta.EntityMetaFactory.registerGlobal(null);
+        }
+        
+        try {
+            req1.createBasicSearchCriteria("prop", Operator.BETWEEN, new Object[]{1, 2});
+        } catch (Exception ignored) {}
+        try {
+            req1.createBasicSearchCriteria("prop", Operator.BETWEEN, new Object[]{1});
+        } catch (Exception ignored) {}
+        
+        req1.internalComment("my comment");
+        req1.purpose("my purpose");
+        
+        req1.addFacet("f1", "r1", req1, true);
+        req1.addFacet("f2", "r2", req1, false);
+        
+        BaseRequest.TempRequest eqDiffType = new BaseRequest.TempRequest(io.teaql.core.BaseEntity.class, "Eq1") {
+            @Override public Class<? extends io.teaql.core.Entity> returnType() { return null; }
+        };
+        eqDiffType.aggregations = eq1.aggregations;
+        eqDiffType.slice = eq1.slice;
+        eq1.equals(eqDiffType);
+    }
 }

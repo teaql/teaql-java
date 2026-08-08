@@ -750,4 +750,77 @@ public class BaseEntityTest {
         info.put("#nullVal", null);
         e2.collectDynamicFieldValues();
     }
+
+    @Test
+    public void testEntityRootDelegates() {
+        BaseEntity entity = new BaseEntity() {
+            @Override public String typeName() { return "DummyEntity"; }
+            @Override public boolean newItem() { return true; }
+            @Override public void gotoNextStatus(io.teaql.core.EntityAction action) {}
+        };
+        entity.__internalSet("id", 1L);
+        entity.__internalSet("version", 1L);
+        
+        // Test entityRoot == null branches
+        entity.setEntityRoot(null);
+        try { entity.__internalGet("name"); } catch(Exception ignored) {}
+        entity.getUpdatedProperties();
+        entity.dirtyFields();
+        try { entity.markAsDeleted(); } catch(Exception ignored) {}
+        entity.isMarkedAsDelete();
+        entity.isNew();
+        
+        EntityRoot root = new EntityRoot();
+        entity.setEntityRoot(root);
+        
+        entity.setComment("test comment");
+        assertEquals("test comment", root.getComment());
+        
+        // __internalGet delegation
+        EntityKey key = new EntityKey("DummyEntity", 1L);
+        root.set(key, "name", "rootName");
+        assertEquals("rootName", entity.__internalGet("name"));
+        
+        // updated properties
+        assertTrue(entity.getUpdatedProperties().contains("name"));
+        assertTrue(entity.dirtyFields().contains("name"));
+        
+        // markAsDeleted
+        entity.markAsDeleted();
+        assertTrue(entity.isMarkedAsDelete());
+        assertTrue(root.isMarkedAsDelete(key));
+        
+        // isNew
+        assertTrue(entity.isNew());
+        assertTrue(root.isNew(key));
+        
+        // original version
+        assertEquals(Long.valueOf(1L), entity.getOriginalVersion());
+        
+        BaseEntity entityNoId = new BaseEntity() {
+            @Override public String typeName() { return "NoIdEntity"; }
+        };
+        entityNoId.setEntityRoot(root);
+        try {
+            entityNoId.__internalGet("name");
+        } catch (Exception ignored) {}
+        entityNoId.getUpdatedProperties();
+        entityNoId.dirtyFields();
+        try {
+            entityNoId.markAsDeleted();
+        } catch (Exception ignored) {}
+        entityNoId.isMarkedAsDelete();
+        entityNoId.isNew();
+        
+        // getDisplayName with title fallback
+        BaseEntity titleEntity = new BaseEntity() {
+            @Override public String typeName() { return "TitleEntity"; }
+            @Override public Object getProperty(String name) {
+                if ("name".equals(name)) return null;
+                if ("title".equals(name)) return "Dummy Title";
+                return super.getProperty(name);
+            }
+        };
+        assertEquals("Dummy Title", titleEntity.getDisplayName());
+    }
 }

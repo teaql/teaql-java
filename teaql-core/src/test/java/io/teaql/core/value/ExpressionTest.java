@@ -126,5 +126,14 @@ public class ExpressionTest {
             flag.set(true);
         });
         assertTrue(flag.get());
+
+        // Cover remaining false/null branches
+        exprVal.whenIsNull(() -> flag.set(true));
+        exprVal.whenIsEmpty(() -> flag.set(true));
+        
+        exprVal.whenIsNotNull((Runnable) null);
+        exprVal.whenIsNotNull((java.util.function.Consumer<String>) null);
+        exprVal.whenNotEmpty((Runnable) null);
+        exprVal.whenNotEmpty((java.util.function.Consumer<String>) null);
     }
 }
