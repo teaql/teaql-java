@@ -44,3 +44,4 @@ settings.xml
 
 # Temp files
 pom.xml.versionsBackup
+.code-graph/
