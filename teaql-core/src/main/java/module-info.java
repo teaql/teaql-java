@@ -12,4 +12,8 @@ module io.teaql.core {
     exports io.teaql.core.spi;
     
     uses io.teaql.core.spi.ContextAssembler;
+    uses io.teaql.core.spi.RemoteCacheProvider;
+    uses io.teaql.core.spi.LocalCacheProvider;
+    uses io.teaql.core.spi.RemoteLockProvider;
+    uses io.teaql.core.spi.LocalLockProvider;
 }

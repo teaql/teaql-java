@@ -77,4 +77,25 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
     void put(String key, Object value);
 
     <T> T evaluate(String expression, Object... args);
+
+    // ==========================================
+    // Context Attribute (上下文级属性)
+    // ==========================================
+    default void putAttribute(String key, Object value) {}
+    default <T> T getAttribute(String key, Class<T> clazz) { return null; }
+    default Object getAttribute(String key) { return null; }
+
+    // ==========================================
+    // Remote Cache (分布式级，跨节点共享)
+    // ==========================================
+    default void putToRemoteCache(String key, Object value) {}
+    default void putToRemoteCache(String key, Object value, int timeToLiveInSeconds) {}
+    default <T> T getFromRemoteCache(String key, Class<T> clazz) { return null; }
+    default void removeFromRemoteCache(String key) {}
+
+    // ==========================================
+    // Remote Lock (分布式锁)
+    // ==========================================
+    default boolean tryRemoteLock(String key, long timeoutMillis, long expireMillis) { return true; }
+    default void unlockRemote(String key) {}
 }
