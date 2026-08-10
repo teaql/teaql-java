@@ -29,4 +29,12 @@ public class OracleDialect extends AbstractSqlDialect {
     public String buildSubsidiaryInsertSql(String tableName, java.util.List<String> tableColumns) {
         throw new UnsupportedOperationException("Subsidiary insert not implemented for Oracle yet");
     }
+
+    @Override
+    public String mapColumnType(String type) {
+        if ("LARGE_TEXT".equalsIgnoreCase(type)) {
+            return "CLOB";
+        }
+        return type;
+    }
 }

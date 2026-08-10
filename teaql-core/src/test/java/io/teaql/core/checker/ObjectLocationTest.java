@@ -30,5 +30,13 @@ public class ObjectLocationTest {
         assertFalse(nested.isSecondLevel());
         assertFalse(nested.isThirdLevel());
         assertEquals("users[2].address.city", nested.toString());
+
+        // Test level 2
+        ObjectLocation level2 = ObjectLocation.hashRoot("users").element(2);
+        assertTrue(level2.isSecondLevel());
+
+        // Test level 3
+        ObjectLocation level3 = ObjectLocation.hashRoot("users").element(2).member("address");
+        assertTrue(level3.isThirdLevel());
     }
 }

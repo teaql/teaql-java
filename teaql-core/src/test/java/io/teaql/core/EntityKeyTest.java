@@ -69,4 +69,15 @@ public class EntityKeyTest {
         assertEquals("Order:42", new EntityKey("Order", 42L).toString());
         assertEquals("Order:null", new EntityKey("Order", null).toString());
     }
+
+    @Test
+    public void testCoverage() {
+        EntityKey key = new EntityKey("Order", 1L);
+        // Cover this == o
+        assertEquals(key, key);
+        
+        // Cover other.id == null
+        EntityKey keyNull = new EntityKey("Order", null);
+        assertEquals(1, key.compareTo(keyNull));
+    }
 }

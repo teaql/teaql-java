@@ -6,7 +6,7 @@
 
     <groupId>io.teaql</groupId>
     <artifactId>teaql-java-parent</artifactId>
-    <version>1.525-RELEASE</version>
+    <version>1.526-RELEASE</version>
     <packaging>pom</packaging>
 
     <name>teaql-java-parent</name>
@@ -44,6 +44,7 @@
 
     <modules>
         <module>teaql-utils</module>
+        <module>teaql-redis</module>
         <module>teaql-utils-reflection</module>
         <module>teaql-utils-json</module>
         <module>teaql-utils-spring</module>

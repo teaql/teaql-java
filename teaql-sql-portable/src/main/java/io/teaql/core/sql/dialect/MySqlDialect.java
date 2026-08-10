@@ -39,4 +39,12 @@ public class MySqlDialect extends AbstractSqlDialect {
                 escapeIdentifier(tableName),
                 tableColumns.stream().map(c -> escapeIdentifier(c) + " = ?").collect(Collectors.joining(" , ")));
     }
+
+    @Override
+    public String mapColumnType(String type) {
+        if ("LARGE_TEXT".equalsIgnoreCase(type)) {
+            return "LONGTEXT";
+        }
+        return type;
+    }
 }
