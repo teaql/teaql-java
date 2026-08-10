@@ -73,6 +73,7 @@
         <module>teaql-dm8</module>
         <module>teaql-android</module>
         <module>teaql-business-id-jdbc</module>
+        <module>teaql-tfp-endpoint</module>
     </modules>
 
     <dependencyManagement>
