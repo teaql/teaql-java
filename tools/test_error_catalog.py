@@ -139,6 +139,30 @@ class Sample {
 
             self.assertEqual([], discover(root))
 
+    def test_discovery_ignores_text_blocks_and_character_literals(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "sample/src/main/java/io/teaql/Sample.java"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "class Sample {\n"
+                '  String example = """\n'
+                '      prefix "quoted" throw new TextBlockException("TEXT_BLOCK");\n'
+                '      """;\n'
+                "  char quote = '\"';\n"
+                "  void run() {\n"
+                '    throw new RealException("REAL");\n'
+                "  }\n"
+                "}\n",
+                encoding="utf-8",
+            )
+
+            results = discover(root)
+
+            self.assertEqual(1, len(results))
+            self.assertEqual("RealException", results[0].exception)
+            self.assertEqual(7, results[0].line)
+
 
 if __name__ == "__main__":
     unittest.main()
