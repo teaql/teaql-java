@@ -32,6 +32,7 @@ build/
 **/build/
 
 *.py
+!tools/__init__.py
 !tools/error_catalog.py
 !tools/test_error_catalog.py
 
