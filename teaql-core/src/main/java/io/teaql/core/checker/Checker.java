@@ -23,10 +23,10 @@ public interface Checker<T extends BaseEntity> {
     void checkAndFix(UserContext ctx, T entity, ObjectLocation location);
 
     default void markAsChecked(UserContext ctx, T entity) {
-        java.util.List list = (java.util.List) ctx.getObj(TEAQL_DATA_CHECKED_ITEMS);
+        java.util.List list = (java.util.List) ctx.getAttribute(TEAQL_DATA_CHECKED_ITEMS);
         if (list == null) {
             list = new java.util.ArrayList();
-            ctx.put(TEAQL_DATA_CHECKED_ITEMS, list);
+            ctx.putAttribute(TEAQL_DATA_CHECKED_ITEMS, list);
         }
         list.add(entity);
     }
@@ -36,7 +36,7 @@ public interface Checker<T extends BaseEntity> {
             return false;
         }
 
-        java.util.List list = (java.util.List) ctx.getObj(TEAQL_DATA_CHECKED_ITEMS);
+        java.util.List list = (java.util.List) ctx.getAttribute(TEAQL_DATA_CHECKED_ITEMS);
         if (list != null && list.contains(entity)) {
             return false;
         }
@@ -108,10 +108,10 @@ public interface Checker<T extends BaseEntity> {
     }
 
     default void appendResult(UserContext ctx, CheckResult result) {
-        java.util.List list = (java.util.List) ctx.getObj(TEAQL_DATA_CHECK_RESULT);
+        java.util.List list = (java.util.List) ctx.getAttribute(TEAQL_DATA_CHECK_RESULT);
         if (list == null) {
             list = new java.util.ArrayList();
-            ctx.put(TEAQL_DATA_CHECK_RESULT, list);
+            ctx.putAttribute(TEAQL_DATA_CHECK_RESULT, list);
         }
         list.add(result);
     }

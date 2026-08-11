@@ -30,7 +30,6 @@ public class UserContextTest {
         @Override public void saveGraph(Object items) {}
         @Override public void saveGraph(Entity entity) {}
         @Override public void delete(Entity pEntity) {}
-        @Override public void put(String key, Object value) {}
         @Override public <T> T evaluate(String expression, Object... args) { return null; }
         @Override public Object getObj(String key, Object defaultValue) { return null; }
     }

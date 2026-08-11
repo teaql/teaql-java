@@ -59,9 +59,9 @@ public class SubQueryParser implements SQLExpressionParser<SubQuerySearchCriteri
             tempRequest.selectProperty(dependsOnPropertyName);
             tempRequest.appendSearchCriteria(dependsOn.getSearchCriteria());
 
-            userContext.put(IGNORE_SUBTYPES, true);
+            userContext.putAttribute(IGNORE_SUBTYPES, true);
             String subQuery = subRepository.buildDataSQL(userContext, tempRequest, parameters);
-            userContext.put(IGNORE_SUBTYPES, null);
+            userContext.putAttribute(IGNORE_SUBTYPES, null);
 
             if (ObjectUtil.isEmpty(subQuery)) {
                 return SearchCriteria.FALSE;

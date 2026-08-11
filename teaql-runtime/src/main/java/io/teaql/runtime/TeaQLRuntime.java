@@ -181,7 +181,7 @@ public class TeaQLRuntime {
 
             Object activeRoute = ctx.extension(SAVE_GRAPH_ACTIVE_ROUTE_KEY);
             if (activeRoute == null) {
-                ctx.put(SAVE_GRAPH_ACTIVE_ROUTE_KEY, route);
+                ctx.putAttribute(SAVE_GRAPH_ACTIVE_ROUTE_KEY, route);
             } else if (!activeRoute.equals(route)) {
                 throw new TeaQLRuntimeException(
                     "[CROSS-PROVIDER MUTATION] saveGraph attempted to write entity '"

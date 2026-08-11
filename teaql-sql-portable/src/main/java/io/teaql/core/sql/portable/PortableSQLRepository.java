@@ -959,7 +959,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         List<String> tables = compiler.collectAggregationTables(sqlMetadata, this, userContext, request);
         Map<String, Object> parameters = new HashMap<>();
         Object preConfig = userContext.getObj(MULTI_TABLE);
-        userContext.put(MULTI_TABLE, tables.size() > 1);
+        userContext.putAttribute(MULTI_TABLE, tables.size() > 1);
 
         try {
             String sql = compiler.buildAggregationSQL(sqlMetadata, this, userContext, request, parameters, tables);
@@ -983,7 +983,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             result.setData(items);
             return result;
         } finally {
-            userContext.put(MULTI_TABLE, preConfig);
+            userContext.putAttribute(MULTI_TABLE, preConfig);
         }
     }
 

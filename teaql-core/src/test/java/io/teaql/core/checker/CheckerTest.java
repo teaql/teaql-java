@@ -30,11 +30,11 @@ public class CheckerTest {
                     private Map<String, Object> ctx = new HashMap<>();
                     @Override
                     public Object invoke(Object proxy, java.lang.reflect.Method method, Object[] args) throws Throwable {
-                        if ("put".equals(method.getName()) && args != null && args.length == 2) {
+                        if ("putAttribute".equals(method.getName()) && args != null && args.length == 2) {
                             ctx.put((String) args[0], args[1]);
                             return null;
                         }
-                        if ("getObj".equals(method.getName()) && args != null && args.length == 1) {
+                        if ("getAttribute".equals(method.getName()) && args != null && args.length == 1) {
                             return ctx.get((String) args[0]);
                         }
                         if (method.getReturnType().isPrimitive()) {
@@ -103,10 +103,10 @@ public class CheckerTest {
         ObjectLocation loc = ObjectLocation.hashRoot("test");
         
         checker.requiredCheck(ctx, loc, "val");
-        assertNull(ctx.getObj(Checker.TEAQL_DATA_CHECK_RESULT));
+        assertNull(ctx.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT));
         
         checker.requiredCheck(ctx, loc, null);
-        List<?> results = (List<?>) ctx.getObj(Checker.TEAQL_DATA_CHECK_RESULT);
+        List<?> results = (List<?>) ctx.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT);
         assertNotNull(results);
         assertEquals(1, results.size());
     }
@@ -119,9 +119,9 @@ public class CheckerTest {
         
         // Min check
         checker.minNumberCheck(ctx, loc, 5, 10);
-        assertNull(ctx.getObj(Checker.TEAQL_DATA_CHECK_RESULT));
+        assertNull(ctx.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT));
         checker.minNumberCheck(ctx, loc, 5, 3);
-        List<?> results = (List<?>) ctx.getObj(Checker.TEAQL_DATA_CHECK_RESULT);
+        List<?> results = (List<?>) ctx.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT);
         assertNotNull(results);
         assertEquals(1, results.size());
         
@@ -140,9 +140,9 @@ public class CheckerTest {
         
         // Min check
         checker.minStringCheck(ctx, loc, 3, "hello");
-        assertNull(ctx.getObj(Checker.TEAQL_DATA_CHECK_RESULT));
+        assertNull(ctx.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT));
         checker.minStringCheck(ctx, loc, 5, "hi");
-        List<?> results = (List<?>) ctx.getObj(Checker.TEAQL_DATA_CHECK_RESULT);
+        List<?> results = (List<?>) ctx.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT);
         assertNotNull(results);
         assertEquals(1, results.size());
         
@@ -165,9 +165,9 @@ public class CheckerTest {
         
         // Min check
         checker.minDateTimeCheck(ctx, loc, past, now);
-        assertNull(ctx.getObj(Checker.TEAQL_DATA_CHECK_RESULT));
+        assertNull(ctx.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT));
         checker.minDateTimeCheck(ctx, loc, future, now);
-        List<?> results = (List<?>) ctx.getObj(Checker.TEAQL_DATA_CHECK_RESULT);
+        List<?> results = (List<?>) ctx.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT);
         assertNotNull(results);
         assertEquals(1, results.size());
         

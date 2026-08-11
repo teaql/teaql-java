@@ -35,7 +35,6 @@ public class AuditedTest {
         @Override public <T extends Entity> java.util.stream.Stream<T> internalExecuteForStream(SearchRequest searchRequest, int enhanceBatchSize) { return null; }
         @Override public <T extends Entity> AggregationResult internalAggregation(SearchRequest request) { return null; }
         @Override public void delete(Entity pEntity) {}
-        @Override public void put(String key, Object value) {}
         @Override public <T> T evaluate(String expression, Object... args) { return null; }
         @Override public Object getObj(String key, Object defaultValue) { return null; }
     }

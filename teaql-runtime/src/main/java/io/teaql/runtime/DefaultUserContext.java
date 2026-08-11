@@ -143,22 +143,27 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
     }
 
     @Override
-    public void put(String key, Object value) {
-        storage.remove(key);
-        if (value != null) {
+    public void putAttribute(String key, Object value) {
+        if (value == null) {
+            storage.remove(key);
+        } else {
             storage.put(key, value);
         }
     }
 
     @Override
-    public Object getObj(String key) {
+    public Object getAttribute(String key) {
         return storage.get(key);
     }
 
     @Override
-    public Object getObj(String key, Object defaultValue) {
+    @SuppressWarnings("unchecked")
+    public <T> T getAttribute(String key, Class<T> clazz) {
         Object val = storage.get(key);
-        return val != null ? val : defaultValue;
+        if (clazz != null && clazz.isInstance(val)) {
+            return (T) val;
+        }
+        return null;
     }
 
     @Override

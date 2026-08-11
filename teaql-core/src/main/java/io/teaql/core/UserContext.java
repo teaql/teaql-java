@@ -74,7 +74,11 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
 
     void delete(Entity pEntity);
 
-    void put(String key, Object value);
+    @Override
+    default Object getObj(String key, Object defaultValue) {
+        Object val = getAttribute(key);
+        return val != null ? val : defaultValue;
+    }
 
     <T> T evaluate(String expression, Object... args);
 
@@ -88,14 +92,81 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
     // ==========================================
     // Remote Cache (分布式级，跨节点共享)
     // ==========================================
-    default void putToRemoteCache(String key, Object value) {}
-    default void putToRemoteCache(String key, Object value, int timeToLiveInSeconds) {}
-    default <T> T getFromRemoteCache(String key, Class<T> clazz) { return null; }
-    default void removeFromRemoteCache(String key) {}
+    default void putToRemoteCache(String key, Object value) {
+        putToRemoteCache(key, value, 0);
+    }
+    default void putToRemoteCache(String key, Object value, int timeToLiveInSeconds) {
+        io.teaql.core.spi.RemoteCacheProvider provider = capability(io.teaql.core.spi.RemoteCacheProvider.class);
+        if (provider != null) {
+            try {
+                io.teaql.core.utils.RemoteCache<String, Object> cache = provider.getCache("default");
+                if (cache != null) {
+                    if (timeToLiveInSeconds > 0) {
+                        cache.put(key, value, timeToLiveInSeconds * 1000L);
+                    } else {
+                        cache.put(key, value);
+                    }
+                }
+            } catch (Exception e) {}
+        }
+    }
+    default <T> T getFromRemoteCache(String key, Class<T> clazz) {
+        io.teaql.core.spi.RemoteCacheProvider provider = capability(io.teaql.core.spi.RemoteCacheProvider.class);
+        if (provider != null) {
+            try {
+                io.teaql.core.utils.RemoteCache<String, Object> cache = provider.getCache("default");
+                if (cache != null) {
+                    Object val = cache.get(key);
+                    if (clazz.isInstance(val)) return clazz.cast(val);
+                }
+            } catch (Exception e) {}
+        }
+        return null;
+    }
+    default void removeFromRemoteCache(String key) {
+        io.teaql.core.spi.RemoteCacheProvider provider = capability(io.teaql.core.spi.RemoteCacheProvider.class);
+        if (provider != null) {
+            try {
+                io.teaql.core.utils.RemoteCache<String, Object> cache = provider.getCache("default");
+                if (cache != null) cache.remove(key);
+            } catch (Exception e) {}
+        }
+    }
 
     // ==========================================
     // Remote Lock (分布式锁)
     // ==========================================
-    default boolean tryRemoteLock(String key, long timeoutMillis, long expireMillis) { return true; }
-    default void unlockRemote(String key) {}
+    default boolean tryRemoteLock(String key, long timeoutMillis, long expireMillis) {
+        io.teaql.core.spi.RemoteLockProvider provider = capability(io.teaql.core.spi.RemoteLockProvider.class);
+        if (provider != null) {
+            try {
+                io.teaql.core.utils.RemoteLock lock = provider.getLock("default");
+                if (lock != null) return lock.tryLock(key, timeoutMillis, expireMillis);
+            } catch (Exception e) {}
+        }
+        return true;
+    }
+    default void unlockRemote(String key) {
+        io.teaql.core.spi.RemoteLockProvider provider = capability(io.teaql.core.spi.RemoteLockProvider.class);
+        if (provider != null) {
+            try {
+                io.teaql.core.utils.RemoteLock lock = provider.getLock("default");
+                if (lock != null) lock.unlock(key);
+            } catch (Exception e) {}
+        }
+    }
+
+    // ==========================================
+    // Local Cache (本地缓存)
+    // ==========================================
+    default void putToLocalCache(String key, Object value) {}
+    default void putToLocalCache(String key, Object value, int timeToLiveInSeconds) {}
+    default <T> T getFromLocalCache(String key, Class<T> clazz) { return null; }
+    default void removeFromLocalCache(String key) {}
+
+    // ==========================================
+    // Local Lock (本地锁)
+    // ==========================================
+    default boolean tryLocalLock(String key, long timeoutMillis, long expireMillis) { return true; }
+    default void unlockLocal(String key) {}
 }

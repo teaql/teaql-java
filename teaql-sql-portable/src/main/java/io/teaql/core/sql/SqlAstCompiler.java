@@ -40,7 +40,7 @@ public class SqlAstCompiler {
         try {
             List<String> tables = collectDataTables(metadata, repository, userContext, request);
             if (tables.size() > 1) {
-                userContext.put(MULTI_TABLE, true);
+                userContext.putAttribute(MULTI_TABLE, true);
             }
 
             String idTable = tables.get(0);
@@ -78,7 +78,7 @@ public class SqlAstCompiler {
             }
             return sql;
         } finally {
-            userContext.put(MULTI_TABLE, preConfig);
+            userContext.putAttribute(MULTI_TABLE, preConfig);
         }
     }
 

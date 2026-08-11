@@ -11,6 +11,6 @@ public final class LogSinks {
         if (ctx == null) {
             return;
         }
-        ctx.put(CustomLogSink.class.getName(), sink);
+        ctx.putAttribute(CustomLogSink.class.getName(), sink);
     }
 }

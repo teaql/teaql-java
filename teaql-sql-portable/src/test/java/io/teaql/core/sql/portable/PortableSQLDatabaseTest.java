@@ -271,7 +271,7 @@ public class PortableSQLDatabaseTest {
                 .build();
 
         ctx = new DefaultUserContext(runtime);
-        ctx.put("ensureTable", true); // enable schema generation
+        ctx.putAttribute("ensureTable", true); // enable schema generation
 
         // Generate schema
         sqlDataService.ensureSchema(ctx, "Task");
