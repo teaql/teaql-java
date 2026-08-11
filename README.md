@@ -46,7 +46,7 @@ version in one property so all TeaQL artifacts stay aligned:
 
 ```xml
 <properties>
-    <teaql.version>1.525-RELEASE</teaql.version>
+    <teaql.version>1.526-RELEASE</teaql.version>
 </properties>
 
 <dependencies>
