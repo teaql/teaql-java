@@ -94,6 +94,33 @@ errors:
                 errors,
             )
 
+    def test_catalog_validation_rejects_malformed_yaml(self):
+        with tempfile.TemporaryDirectory() as directory:
+            catalog = Path(directory) / "catalog.yml"
+            catalog.write_text(
+                '''
+numbering:
+  first: 1001
+  last: 9999
+  reuse_retired_ids: false
+spaces:
+  QRY:
+    title: Query
+totally: [not valid yaml
+errors:
+  - id: TQL-QRY-1001
+    name: VALID_NAME
+''',
+                encoding="utf-8",
+            )
+
+            errors = validate_catalog(catalog)
+
+            self.assertIn(
+                "invalid YAML syntax at line 9: totally: [not valid yaml",
+                errors,
+            )
+
     def test_discovery_ignores_comments_and_string_literals(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

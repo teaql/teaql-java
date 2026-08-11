@@ -27,6 +27,15 @@ NAME_LINE_RE = re.compile(r"^\s+name:\s*([^#\s]+)")
 FIRST_RE = re.compile(r"^\s+first:\s*([0-9]+)\s*$")
 LAST_RE = re.compile(r"^\s+last:\s*([0-9]+)\s*$")
 REUSE_RETIRED_RE = re.compile(r"^\s+reuse_retired_ids:\s*(true|false)\s*$")
+TOP_LEVEL_RE = re.compile(r"^(schema|id_format):\s*(\S.*)$")
+NUMBERING_LINE_RE = re.compile(
+    r"^  (first|last|reuse_retired_ids):\s*(\S.*)$"
+)
+SPACE_TITLE_RE = re.compile(r"^    title:\s*(\S.*)$")
+ERROR_ID_SYNTAX_RE = re.compile(r"^  - id:\s*(\S.*)$")
+ERROR_FIELD_RE = re.compile(r"^    ([a-z][a-z0-9_]*):(?:\s*(\S.*))?$")
+ERROR_LIST_ITEM_RE = re.compile(r"^      -\s+(\S.*)$")
+ERROR_LIST_FIELDS = {"parameters", "legacy_names"}
 
 
 @dataclass(frozen=True)
@@ -211,6 +220,96 @@ def _yaml_string(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
+def _valid_catalog_scalar(value: str) -> bool:
+    """Validate the deliberately small scalar subset used by the catalog."""
+    value = value.strip()
+    if not value:
+        return False
+    if value.startswith('"'):
+        try:
+            return isinstance(json.loads(value), str)
+        except (json.JSONDecodeError, TypeError):
+            return False
+    if value.startswith("'"):
+        return len(value) >= 2 and value.endswith("'")
+    if value == "[]":
+        return True
+    if value[0] in "[{&*!|>@`" or ": " in value:
+        return False
+    return True
+
+
+def _catalog_syntax_errors(lines: list[str]) -> list[str]:
+    """Check the indentation-based YAML subset accepted for catalog.yml."""
+    errors: list[str] = []
+    section: str | None = None
+    current_space = False
+    current_error = False
+    current_list: str | None = None
+
+    for number, line in enumerate(lines, 1):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if "\t" in line[: len(line) - len(line.lstrip())]:
+            errors.append(f"invalid YAML syntax at line {number}: tabs are not allowed")
+            continue
+
+        indent = len(line) - len(line.lstrip(" "))
+        if indent == 0:
+            current_space = False
+            current_error = False
+            current_list = None
+            scalar_match = TOP_LEVEL_RE.fullmatch(line)
+            if scalar_match:
+                if not _valid_catalog_scalar(scalar_match.group(2)):
+                    errors.append(f"invalid YAML scalar at line {number}")
+                section = None
+                continue
+            if line in {"numbering:", "spaces:", "errors:", "errors: []"}:
+                section = line.split(":", 1)[0]
+                continue
+            errors.append(f"invalid YAML syntax at line {number}: {line.strip()}")
+            section = None
+            continue
+
+        if section == "numbering" and indent == 2:
+            match = NUMBERING_LINE_RE.fullmatch(line)
+            if match and _valid_catalog_scalar(match.group(2)):
+                continue
+        elif section == "spaces":
+            if indent == 2 and SPACE_LINE_RE.fullmatch(line):
+                current_space = True
+                continue
+            if indent == 4 and current_space:
+                match = SPACE_TITLE_RE.fullmatch(line)
+                if match and _valid_catalog_scalar(match.group(1)):
+                    continue
+        elif section == "errors":
+            if indent == 2:
+                match = ERROR_ID_SYNTAX_RE.fullmatch(line)
+                if match and _valid_catalog_scalar(match.group(1)):
+                    current_error = True
+                    current_list = None
+                    continue
+            elif indent == 4 and current_error:
+                match = ERROR_FIELD_RE.fullmatch(line)
+                if match:
+                    field, value = match.groups()
+                    if field in ERROR_LIST_FIELDS and value is None:
+                        current_list = field
+                        continue
+                    if value is not None and _valid_catalog_scalar(value):
+                        current_list = None
+                        continue
+            elif indent == 6 and current_error and current_list:
+                match = ERROR_LIST_ITEM_RE.fullmatch(line)
+                if match and _valid_catalog_scalar(match.group(1)):
+                    continue
+
+        errors.append(f"invalid YAML syntax at line {number}: {line.strip()}")
+    return errors
+
+
 def write_candidates(root: Path, occurrences: list[Occurrence], output) -> None:
     grouped: dict[str, list[Occurrence]] = defaultdict(list)
     for item in occurrences:
@@ -268,7 +367,7 @@ def validate_catalog(path: Path) -> list[str]:
     reuse_retired = next(
         (m.group(1) for line in lines if (m := REUSE_RETIRED_RE.match(line))), None
     )
-    errors: list[str] = []
+    errors = _catalog_syntax_errors(lines)
 
     if first is None or last is None or first > last:
         errors.append("numbering.first and numbering.last must define a valid range")
