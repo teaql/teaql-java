@@ -32,6 +32,8 @@ build/
 **/build/
 
 *.py
+!tools/error_catalog.py
+!tools/test_error_catalog.py
 
 # Sensitive
 .env

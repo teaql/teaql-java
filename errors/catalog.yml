@@ -1,0 +1,37 @@
+schema: teaql-error-catalog/v1
+id_format: TQL-<SPACE>-<NUMBER>
+
+numbering:
+  first: 1001
+  last: 9999
+  reuse_retired_ids: false
+
+# Spaces describe stable product domains, not Maven modules. Add a space only
+# when its ownership and meaning are expected to survive module reorganizations.
+spaces:
+  COR:
+    title: Core model and contracts
+  QRY:
+    title: Query construction and execution
+  MUT:
+    title: Mutation, audit, and concurrency
+  MET:
+    title: Entity and property metadata
+  SQL:
+    title: SQL generation, persistence, and dialects
+  DYN:
+    title: Dynamic fields
+  BID:
+    title: Business ID generation
+  SER:
+    title: Serialization and external representations
+  CTX:
+    title: Runtime context, capabilities, and policy
+  TOL:
+    title: Runtime tools and external calls
+  UTL:
+    title: Public utility contracts
+
+# An ID enters this list only after human review. Scanner output is an inbox,
+# never an authoritative allocation source.
+errors: []
