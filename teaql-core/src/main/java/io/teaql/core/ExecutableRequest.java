@@ -4,7 +4,7 @@ import java.util.stream.Stream;
 
 /**
  * A query that has declared comment and purpose, ready to execute.
- * Can only be created via BaseRequest.build(), enforcing comment + purpose.
+ * Can only be created via BaseRequest.purpose(), after a comment has been set.
  *
  * Design goal: prevent queries without declared intent from executing.
  *
@@ -13,11 +13,10 @@ import java.util.stream.Stream;
  *   Q.tasks()
  *       .filterByName("xxx")
  *       .comment("Load tasks")
- *       .purpose("Display kanban board")
- *       .build()              // returns ExecutableRequest
- *       .executeForList(ctx); // only ExecutableRequest can execute
+ *       .purpose("Display kanban board") // returns ExecutableRequest
+ *       .executeForList(ctx);             // only ExecutableRequest can execute
  *
- *   // Compile error: no build(), cannot get ExecutableRequest
+ *   // Compile error: purpose() has not produced an ExecutableRequest
  *   Q.tasks().executeForList(ctx);
  */
 public class ExecutableRequest<T extends Entity> {
