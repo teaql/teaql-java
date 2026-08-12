@@ -80,6 +80,18 @@ public class TeaQLRuntimeTest {
         }
     }
 
+    public static class RecordingRuntimeLogSink implements RuntimeLogSink {
+        public final List<RawAuditEvent> auditEvents = new ArrayList<>();
+
+        @Override
+        public void writeExecutionLog(UserContext ctx, ExecutionMetadata metadata) {}
+
+        @Override
+        public void writeAuditEvent(UserContext ctx, RawAuditEvent event) {
+            auditEvents.add(event);
+        }
+    }
+
     public static class DummyMetaFactory implements EntityMetaFactory {
         @Override
         public EntityDescriptor resolveEntityDescriptor(String type) {
@@ -404,5 +416,49 @@ public class TeaQLRuntimeTest {
 
         Assert.assertFalse(executor.requests.isEmpty());
         Assert.assertEquals(DefaultMutationRequest.Action.DELETE, executor.requests.get(0).getAction());
+    }
+
+    @Test
+    public void testMutationEmitsStandardAndMaskedApplicationAuditEvents() {
+        RecordingMutationExecutor executor = new RecordingMutationExecutor();
+        RecordingRuntimeLogSink standardSink = new RecordingRuntimeLogSink();
+        DummyMetaFactory metadata = new DummyMetaFactory() {
+            @Override
+            public EntityDescriptor resolveEntityDescriptor(String type) {
+                return super.resolveEntityDescriptor(type)
+                        .auditMaskFields(java.util.List.of("name"))
+                        .auditValueMaxLength(32);
+            }
+        };
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(metadata)
+                .dataService("dummy", executor)
+                .idGenerationService((context, entity) -> 700L)
+                .logSink(standardSink)
+                .build();
+        DefaultUserContext context = new DefaultUserContext(runtime);
+        List<SafeAuditEvent> appEvents = new ArrayList<>();
+        context.putAttribute(AppAuditEventSink.class.getName(),
+                (AppAuditEventSink) (ctx, event) -> appEvents.add(event));
+
+        DummyEntity entity = new DummyEntity();
+        entity.updateProperty("name", "private-value");
+        entity.auditAs("create audited entity").save(context);
+
+        Assert.assertEquals(1, standardSink.auditEvents.size());
+        RawAuditEvent raw = standardSink.auditEvents.get(0);
+        Assert.assertEquals(MutationAuditKind.CREATED, raw.kind());
+        Assert.assertEquals(Long.valueOf(700L), raw.entityId());
+        Assert.assertEquals("private-value", raw.changes().stream()
+                .filter(change -> "name".equals(change.field()))
+                .findFirst().orElseThrow().newValue());
+        Assert.assertEquals("create audited entity", raw.traceChain().get(0).getComment());
+
+        Assert.assertEquals(1, appEvents.size());
+        SafeAuditField safeName = appEvents.get(0).fields().stream()
+                .filter(field -> "name".equals(field.name()))
+                .findFirst().orElseThrow();
+        Assert.assertTrue(safeName.masked());
+        Assert.assertNotEquals("private-value", safeName.value());
     }
 }

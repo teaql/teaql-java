@@ -2,6 +2,7 @@ package io.teaql.runtime.log;
 
 import io.teaql.runtime.config.TeaQLEnv;
 import io.teaql.runtime.RuntimeLogSink;
+import io.teaql.runtime.RawAuditEvent;
 import io.teaql.core.TraceNode;
 
 import java.io.File;
@@ -291,6 +292,16 @@ public class LogManager implements RuntimeLogSink {
         String content = LogFormatterFactory.getFormatter().formatExecutionLog(metadata);
         CustomLogSink customSink = resolveCustomSink(ctx);
         asyncWrite(content, customSink);
+    }
+
+    @Override
+    public void writeAuditEvent(io.teaql.core.UserContext ctx, RawAuditEvent event) {
+        java.util.List<FieldChange> changes = event.changes().stream()
+                .map(change -> new FieldChange(
+                        change.field(), change.oldValue(), change.newValue()))
+                .collect(java.util.stream.Collectors.toList());
+        writeAuditLog(ctx, event.traceChain(), new AuditEvent(
+                event.entityType(), event.entityId(), event.kind().name(), changes));
     }
 
     public void writeAuditLog(io.teaql.core.UserContext ctx, List<TraceNode> traceChain, AuditEvent event) {

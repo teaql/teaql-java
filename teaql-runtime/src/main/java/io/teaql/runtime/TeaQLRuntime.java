@@ -349,6 +349,7 @@ public class TeaQLRuntime {
             DefaultMutationRequest mutationRequest = new DefaultMutationRequest(
                 deleteEntity, DefaultMutationRequest.Action.DELETE);
             mutationExecutor.mutate(ctx, mutationRequest);
+            emitAuditEvent(ctx, deleteEntity, MutationAuditKind.DELETED, Collections.emptyMap());
         }
 
         // 2. Group changes
@@ -395,6 +396,7 @@ public class TeaQLRuntime {
                 DefaultMutationRequest mutationRequest = new DefaultMutationRequest(
                     entity, DefaultMutationRequest.Action.SAVE);
                 mutationExecutor.mutate(ctx, mutationRequest);
+                emitAuditEvent(ctx, entity, MutationAuditKind.CREATED, changes);
                 entity.clearUpdatedProperties();
             }
         }
@@ -427,7 +429,11 @@ public class TeaQLRuntime {
 
                 DefaultMutationRequest mutationRequest = new DefaultMutationRequest(
                     entity, DefaultMutationRequest.Action.SAVE);
+                MutationAuditKind auditKind = entity.recoverItem()
+                        ? MutationAuditKind.RECOVERED
+                        : MutationAuditKind.UPDATED;
                 mutationExecutor.mutate(ctx, mutationRequest);
+                emitAuditEvent(ctx, entity, auditKind, changes);
                 entity.clearUpdatedProperties();
             }
         }
@@ -461,9 +467,80 @@ public class TeaQLRuntime {
             DefaultMutationRequest.Action action = DefaultMutationRequest.Action.DELETE;
             MutationRequest mutationRequest = new DefaultMutationRequest(entity, action);
             mutationExecutor.mutate(ctx, mutationRequest);
+            emitAuditEvent(ctx, entity, MutationAuditKind.DELETED, Collections.emptyMap());
         } finally {
             if (pushed) ctx.popTrace();
         }
+    }
+
+    private void emitAuditEvent(
+            UserContext ctx,
+            Entity entity,
+            MutationAuditKind kind,
+            Map<String, Object> changedValues) {
+        List<AuditFieldChange> changes = new ArrayList<>();
+        if (changedValues != null) {
+            for (Map.Entry<String, Object> entry : changedValues.entrySet()) {
+                if (entry.getKey() == null || entry.getKey().startsWith("_")) continue;
+                changes.add(new AuditFieldChange(entry.getKey(), null, entry.getValue()));
+            }
+        }
+        changes.sort(Comparator.comparing(AuditFieldChange::field));
+        RawAuditEvent rawEvent = new RawAuditEvent(
+                kind, entity.typeName(), entity.getId(), changes, ctx.getTraceChain());
+
+        // The standard sink is server-owned by TeaQLRuntime and cannot be replaced by
+        // dynamic input or an application capability registered on UserContext.
+        if (logSink != null) {
+            logSink.writeAuditEvent(ctx, rawEvent);
+        }
+
+        AppAuditEventSink appSink = ctx.capability(AppAuditEventSink.class);
+        if (appSink != null) {
+            appSink.onAuditEvent(ctx, buildSafeAuditEvent(rawEvent));
+        }
+    }
+
+    private SafeAuditEvent buildSafeAuditEvent(RawAuditEvent event) {
+        EntityDescriptor descriptor = metadata.resolveEntityDescriptor(event.entityType());
+        Set<String> maskFields = descriptor == null
+                ? Collections.emptySet()
+                : new HashSet<>(descriptor.getAuditMaskFields());
+        Integer maxLength = descriptor == null ? null : descriptor.getAuditValueMaxLength();
+        List<SafeAuditField> fields = new ArrayList<>();
+        for (AuditFieldChange change : event.changes()) {
+            Object value = change.newValue() != null ? change.newValue() : change.oldValue();
+            String raw = value == null ? null : String.valueOf(value);
+            boolean masked = raw != null && maskFields.contains(change.field());
+            String safe = masked ? maskAuditValue(raw) : raw;
+            int rawLength = raw == null ? 0 : raw.length();
+            boolean truncated = safe != null && maxLength != null && safe.length() > maxLength;
+            if (truncated) safe = limitAuditValue(safe, maxLength);
+            fields.add(new SafeAuditField(
+                    change.field(), safe, masked, truncated,
+                    raw == null ? null : rawLength,
+                    safe == null ? null : safe.length()));
+        }
+        return new SafeAuditEvent(
+                event.kind(), event.entityType(), event.entityId(), fields, event.traceChain());
+    }
+
+    static String maskAuditValue(String value) {
+        if (value == null || value.isEmpty()) return value;
+        if (value.chars().allMatch(Character::isDigit)) return "*".repeat(value.length());
+        if (value.length() < 8) return "*".repeat(value.length());
+        return value.substring(0, 2)
+                + "*".repeat(value.length() - 4)
+                + value.substring(value.length() - 2);
+    }
+
+    static String limitAuditValue(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) return value;
+        if (maxLength <= 3) return "*".repeat(maxLength);
+        int remaining = maxLength - 3;
+        int head = remaining / 2;
+        int tail = remaining - head;
+        return value.substring(0, head) + "..." + value.substring(value.length() - tail);
     }
 
     public static class Builder {

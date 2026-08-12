@@ -57,6 +57,39 @@ public class EntityDescriptor {
      */
     private String dataService = "default";
 
+    private List<String> auditMaskFields = new ArrayList<>();
+
+    private Integer auditValueMaxLength;
+
+    public List<String> getAuditMaskFields() {
+        return List.copyOf(auditMaskFields);
+    }
+
+    public void setAuditMaskFields(List<String> auditMaskFields) {
+        this.auditMaskFields = auditMaskFields == null ? new ArrayList<>() : new ArrayList<>(auditMaskFields);
+    }
+
+    public EntityDescriptor auditMaskFields(List<String> auditMaskFields) {
+        setAuditMaskFields(auditMaskFields);
+        return this;
+    }
+
+    public Integer getAuditValueMaxLength() {
+        return auditValueMaxLength;
+    }
+
+    public void setAuditValueMaxLength(Integer auditValueMaxLength) {
+        if (auditValueMaxLength != null && auditValueMaxLength < 0) {
+            throw new IllegalArgumentException("Audit value max length must not be negative");
+        }
+        this.auditValueMaxLength = auditValueMaxLength;
+    }
+
+    public EntityDescriptor auditValueMaxLength(Integer auditValueMaxLength) {
+        setAuditValueMaxLength(auditValueMaxLength);
+        return this;
+    }
+
     public String getDataService() {
         return dataService;
     }
