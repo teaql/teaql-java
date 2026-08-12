@@ -44,7 +44,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
              PreparedStatement ps = connection.prepareStatement(sql)) {
             if (params != null) {
                 for (int i = 0; i < params.length; i++) {
-                    ps.setObject(i + 1, params[i]);
+                    bind(ps, i + 1, params[i]);
                 }
             }
             try (ResultSet rs = ps.executeQuery()) {
@@ -63,7 +63,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             }
             return result;
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("JDBC query failed for parameterized SQL: " + sql, e);
         }
     }
 
@@ -97,7 +97,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         try (Connection connection = dataSource.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql)) {
             for (int i = 0; i < params.length; i++) {
-                ps.setObject(i + 1, params[i]);
+                bind(ps, i + 1, params[i]);
             }
             return ps.executeUpdate();
         } catch (SQLException e) {
@@ -111,7 +111,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
              PreparedStatement ps = connection.prepareStatement(sql)) {
             for (Object[] params : paramsList) {
                 for (int i = 0; i < params.length; i++) {
-                    ps.setObject(i + 1, params[i]);
+                    bind(ps, i + 1, params[i]);
                 }
                 ps.addBatch();
             }
@@ -119,5 +119,57 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    static void bind(PreparedStatement statement, int index, Object value) throws SQLException {
+        if (value == null) {
+            // Let the driver infer the target column type. DB2 rejects the
+            // generic JDBC type code Types.NULL (0), while setObject(null)
+            // preserves SQL NULL and uses prepared-statement metadata.
+            statement.setObject(index, null);
+        } else if (value instanceof Long number) {
+            statement.setLong(index, number);
+        } else if (value instanceof Integer number) {
+            statement.setInt(index, number);
+        } else if (value instanceof Short number) {
+            statement.setShort(index, number);
+        } else if (value instanceof Byte number) {
+            statement.setByte(index, number);
+        } else if (value instanceof java.math.BigDecimal number) {
+            statement.setBigDecimal(index, number);
+        } else if (value instanceof Double number) {
+            statement.setDouble(index, number);
+        } else if (value instanceof Float number) {
+            statement.setFloat(index, number);
+        } else if (value instanceof Boolean booleanValue) {
+            statement.setBoolean(index, booleanValue);
+        } else if (value instanceof String text) {
+            statement.setString(index, text);
+        } else if (value instanceof java.time.LocalDate date) {
+            if (isSqlite(statement)) {
+                statement.setString(index, date.toString());
+            } else {
+                statement.setDate(index, java.sql.Date.valueOf(date));
+            }
+        } else if (value instanceof java.time.LocalDateTime dateTime) {
+            if (isSqlite(statement)) {
+                statement.setString(index, java.sql.Timestamp.valueOf(dateTime).toString());
+            } else {
+                statement.setTimestamp(index, java.sql.Timestamp.valueOf(dateTime));
+            }
+        } else if (value instanceof java.time.LocalTime time) {
+            if (isSqlite(statement)) {
+                statement.setString(index, time.toString());
+            } else {
+                statement.setTime(index, java.sql.Time.valueOf(time));
+            }
+        } else {
+            statement.setObject(index, value);
+        }
+    }
+
+    private static boolean isSqlite(PreparedStatement statement) throws SQLException {
+        String productName = statement.getConnection().getMetaData().getDatabaseProductName();
+        return productName != null && productName.toLowerCase(java.util.Locale.ROOT).contains("sqlite");
     }
 }

@@ -16,6 +16,7 @@ public class DB2DataServiceExecutor extends SqlDataServiceExecutor {
 
     public DB2DataServiceExecutor(String name, SqlExecutionAdapter executionAdapter) {
         super(name, executionAdapter);
+        this.dialect = new DB2Dialect();
     }
 
     @Override
@@ -57,6 +58,7 @@ public class DB2DataServiceExecutor extends SqlDataServiceExecutor {
 
         for (EntityDescriptor descriptor : descriptors) {
             PortableSQLRepository repository = new PortableSQLRepository(descriptor, dbAdapter, null);
+            repository.setDialect(this.dialect);
             repository.ensureSchema(ctx);
         }
     }

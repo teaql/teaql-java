@@ -16,6 +16,7 @@ public class HanaDataServiceExecutor extends SqlDataServiceExecutor {
 
     public HanaDataServiceExecutor(String name, SqlExecutionAdapter executionAdapter) {
         super(name, executionAdapter);
+        this.dialect = new HanaDialect();
     }
 
     @Override
@@ -57,6 +58,7 @@ public class HanaDataServiceExecutor extends SqlDataServiceExecutor {
 
         for (EntityDescriptor descriptor : descriptors) {
             PortableSQLRepository repository = new PortableSQLRepository(descriptor, dbAdapter, null);
+            repository.setDialect(this.dialect);
             repository.ensureSchema(ctx);
         }
     }

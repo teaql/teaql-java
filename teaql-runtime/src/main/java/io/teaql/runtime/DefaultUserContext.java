@@ -35,7 +35,7 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
 
     @Override
     public <T extends Entity> SmartList<T> internalExecuteForList(SearchRequest searchRequest) {
-        return runtime.executeForList(this, searchRequest);
+        return runtime.internalExecuteForList(this, searchRequest);
     }
 
     @Override
@@ -104,12 +104,13 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
 
     @Override
     public <T extends Entity> T executeForOne(ExecutableRequest<T> request) {
-        return internalExecuteForOne(request.request());
+        SmartList<T> list = runtime.executeForList(this, request.request());
+        return list.isEmpty() ? null : list.get(0);
     }
 
     @Override
     public <T extends Entity> SmartList<T> executeForList(ExecutableRequest<T> request) {
-        return internalExecuteForList(request.request());
+        return runtime.executeForList(this, request.request());
     }
 
     @Override

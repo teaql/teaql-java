@@ -358,26 +358,33 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         for (PropertyDescriptor property : this.allProperties) {
             if (!shouldHandle(property)) continue;
             if (!(property instanceof Relation)) {
-                Object value = row.get(property.getName());
-                if (value != null) {
-                    Class targetType = property.getType().javaType();
-                    entity.setProperty(property.getName(),
-                            io.teaql.core.utils.Convert.convert(targetType, value));
-                }
+                String columnKey = findColumnKey(row, property.getName());
+                if (columnKey == null) continue;
+                Object value = row.get(columnKey);
+                Class targetType = property.getType().javaType();
+                entity.setProperty(
+                        property.getName(),
+                        value == null
+                                ? null
+                                : convertColumnValue(targetType, value));
             } else if (property instanceof Relation) {
-                Object value = row.get(property.getName());
-                if (value != null) {
-                    try {
-                        Entity ref = createEntity((Class<? extends Entity>) property.getType().javaType());
-                        ((BaseEntity) ref).__internalSet("id", io.teaql.core.utils.Convert.convert(Long.class, value));
-                        if (ref instanceof BaseEntity) {
-                            ((BaseEntity) ref).set$status(io.teaql.core.EntityStatus.REFER);
-                        }
-                        entity.setProperty(property.getName(), ref);
-                    } catch (Exception e) {
-                        System.out.println("mapRowToEntity relation mapping error for property " + property.getName() + ": " + e.getMessage());
-                        e.printStackTrace();
+                String columnKey = findColumnKey(row, property.getName());
+                if (columnKey == null) continue;
+                Object value = row.get(columnKey);
+                if (value == null) {
+                    entity.setProperty(property.getName(), null);
+                    continue;
+                }
+                try {
+                    Entity ref = createEntity((Class<? extends Entity>) property.getType().javaType());
+                    ((BaseEntity) ref).__internalSet("id", io.teaql.core.utils.Convert.convert(Long.class, value));
+                    if (ref instanceof BaseEntity) {
+                        ((BaseEntity) ref).set$status(io.teaql.core.EntityStatus.REFER);
                     }
+                    entity.setProperty(property.getName(), ref);
+                } catch (Exception e) {
+                    System.out.println("mapRowToEntity relation mapping error for property " + property.getName() + ": " + e.getMessage());
+                    e.printStackTrace();
                 }
             }
         }
@@ -400,6 +407,51 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         }
 
         return entity;
+    }
+
+    private String findColumnKey(Map<String, Object> row, String propertyName) {
+        if (row.containsKey(propertyName)) return propertyName;
+        for (String key : row.keySet()) {
+            if (key != null && key.equalsIgnoreCase(propertyName)) return key;
+        }
+        return null;
+    }
+
+    static Object convertTemporalColumnValue(Class<?> targetType, Object value) {
+        if (targetType == java.time.LocalDateTime.class
+                && value instanceof java.sql.Timestamp timestamp) {
+            return timestamp.toLocalDateTime();
+        }
+        if (targetType == java.time.LocalDateTime.class) {
+            // SQLite returns text and some JDBC drivers return vendor temporal
+            // wrappers. Both expose the standard timestamp representation.
+            String text = String.valueOf(value);
+            return java.time.LocalDateTime.parse(text.replace(' ', 'T'));
+        }
+        if (targetType == java.time.LocalDate.class) {
+            if (value instanceof java.sql.Date date) return date.toLocalDate();
+            if (value instanceof java.sql.Timestamp timestamp) {
+                return timestamp.toLocalDateTime().toLocalDate();
+            }
+            String text = String.valueOf(value);
+            if (text.length() >= 10) {
+                return java.time.LocalDate.parse(text.substring(0, 10));
+            }
+        }
+        if (targetType == java.time.LocalTime.class) {
+            if (value instanceof java.sql.Time time) return time.toLocalTime();
+            if (value instanceof java.sql.Timestamp timestamp) {
+                return timestamp.toLocalDateTime().toLocalTime();
+            }
+            String text = String.valueOf(value);
+            int separator = Math.max(text.indexOf('T'), text.indexOf(' '));
+            return java.time.LocalTime.parse(separator >= 0 ? text.substring(separator + 1) : text);
+        }
+        return io.teaql.core.utils.Convert.convert(targetType, value);
+    }
+
+    private Object convertColumnValue(Class<?> targetType, Object value) {
+        return convertTemporalColumnValue(targetType, value);
     }
 
     @SuppressWarnings("unchecked")
@@ -930,10 +982,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         while (parameters.containsKey(offsetKey)) offsetKey += "_1";
         parameters.put(offsetKey, slice.getOffset());
         
-        if (dialect instanceof io.teaql.core.sql.dialect.OracleDialect) {
-            return StrUtil.format("OFFSET :{} ROWS FETCH NEXT :{} ROWS ONLY", offsetKey, limitKey);
-        }
-        return StrUtil.format("LIMIT :{} OFFSET :{}", limitKey, offsetKey);
+        return dialect.prepareParameterizedLimit(
+                ":" + limitKey, ":" + offsetKey, !request.getOrderBy().isEmpty());
     }
 
     public String getTypeSQL(UserContext userContext) {
@@ -973,10 +1023,12 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             List<AggregationItem> items = rows.stream().map(row -> {
                 AggregationItem item = new AggregationItem();
                 for (SimpleNamedExpression function : request.getAggregations().getAggregates()) {
-                    item.addValue(function, row.get(function.name()));
+                    String columnKey = findColumnKey(row, function.name());
+                    item.addValue(function, columnKey == null ? null : row.get(columnKey));
                 }
                 for (SimpleNamedExpression dimension : request.getAggregations().getDimensions()) {
-                    item.addDimension(dimension, row.get(dimension.name()));
+                    String columnKey = findColumnKey(row, dimension.name());
+                    item.addDimension(dimension, columnKey == null ? null : row.get(columnKey));
                 }
                 return item;
             }).collect(Collectors.toList());

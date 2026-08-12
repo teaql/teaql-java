@@ -8,6 +8,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class TeaQLRuntimeTest {
 
@@ -126,12 +127,52 @@ public class TeaQLRuntimeTest {
         Assert.assertEquals(1, result.size());
     }
 
+    @Test
+    public void testNestedQueryInheritsAuthorizedRootTrace() {
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new DummyMetaFactory())
+                .dataService("dummy", new DummyQueryExecutor())
+                .build();
+        DefaultUserContext context = new DefaultUserContext(runtime);
+        SearchRequest<DummyEntity> nested = bareDummyRequest();
+
+        context.pushTrace("authorized root query");
+        try {
+            Assert.assertEquals(1, context.internalExecuteForList(nested).size());
+        } finally {
+            context.popTrace();
+        }
+    }
+
+    @Test
+    public void testNestedQueryWithoutAuthorizedRootTraceIsRejected() {
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new DummyMetaFactory())
+                .dataService("dummy", new DummyQueryExecutor())
+                .build();
+        try {
+            new DefaultUserContext(runtime).internalExecuteForList(bareDummyRequest());
+            Assert.fail("internal query without a trusted root trace must be rejected");
+        } catch (TeaQLRuntimeException expected) {
+            Assert.assertTrue(expected.getMessage().contains("INTERNAL QUERY CONTEXT REQUIRED"));
+        }
+    }
+
+    private static SearchRequest<DummyEntity> bareDummyRequest() {
+        return new BaseRequest<DummyEntity>(DummyEntity.class) {
+            @Override
+            public String getTypeName() {
+                return "Dummy";
+            }
+        };
+    }
+
     public static class ContainerEntity extends BaseEntity {
         private DummyEntity rel1;
         private DummyEntity rel2;
         private DummyEntity rel3;
         private DummyEntity rel4;
-        private java.util.List<DummyEntity> relList;
+        private Object relList;
 
         @Override
         public String typeName() {
@@ -145,7 +186,7 @@ public class TeaQLRuntimeTest {
                 case "rel2": this.rel2 = (DummyEntity) value; break;
                 case "rel3": this.rel3 = (DummyEntity) value; break;
                 case "rel4": this.rel4 = (DummyEntity) value; break;
-                case "relList": this.relList = (java.util.List<DummyEntity>) value; break;
+                case "relList": this.relList = value; break;
                 default: super.__internalSet(property, value);
             }
         }
@@ -319,6 +360,33 @@ public class TeaQLRuntimeTest {
         Assert.assertTrue(requests.stream().anyMatch(r -> r.getEntity().getId().equals(2L)));
         Assert.assertTrue(requests.stream().anyMatch(r -> r.getEntity().getId().equals(3L)));
         Assert.assertTrue(requests.stream().anyMatch(r -> r.getEntity().getId().equals(4L)));
+    }
+
+    @Test
+    public void testSaveGraphAllocatesIdsAndRecordsChangesForNewChildren() {
+        RecordingMutationExecutor executor = new RecordingMutationExecutor();
+        AtomicLong ids = new AtomicLong(100);
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new AdvancedMetaFactory())
+                .dataService("dummy", executor)
+                .idGenerationService((context, entity) -> ids.getAndIncrement())
+                .build();
+
+        ContainerEntity parent = new ContainerEntity();
+        DummyEntity child = new DummyEntity();
+        child.updateProperty("name", "new child");
+        SmartList<DummyEntity> children = new SmartList<>();
+        children.add(child);
+        parent.updateProperty("relList", children);
+        parent.auditAs("create graph").save(new DefaultUserContext(runtime));
+
+        Assert.assertEquals(Long.valueOf(100), parent.getId());
+        Assert.assertEquals(Long.valueOf(101), child.getId());
+        Assert.assertSame(parent.getEntityRoot(), child.getEntityRoot());
+        Assert.assertTrue(executor.requests.stream()
+                .anyMatch(request -> request.getEntity() == parent));
+        Assert.assertTrue(executor.requests.stream()
+                .anyMatch(request -> request.getEntity() == child));
     }
 
     @Test

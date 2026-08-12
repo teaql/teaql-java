@@ -15,7 +15,7 @@ import io.teaql.core.SmartList;
 import io.teaql.core.SubQuerySearchCriteria;
 import io.teaql.core.internal.TempRequest;
 import io.teaql.core.UserContext;
-import io.teaql.core.criteria.InLarge;
+import io.teaql.core.criteria.IN;
 import io.teaql.core.criteria.Operator;
 import io.teaql.core.sql.portable.PortableSQLRepository;
 import io.teaql.core.sql.SQLColumnResolver;
@@ -84,8 +84,13 @@ public class SubQueryParser implements SQLExpressionParser<SubQuerySearchCriteri
                 dependsOnValues.add(propertyValue);
             }
         }
-        Parameter parameter = new Parameter(propertyName, dependsOnValues, Operator.IN_LARGE);
-        InLarge in = new InLarge(new PropertyReference(propertyName), parameter);
+        // The fallback has already materialized the nested result. Bind those
+        // identifiers as an ordinary parameterized IN list. IN_LARGE compiles
+        // to PostgreSQL's scalar-array syntax and requires one JDBC array; the
+        // generic positional adapter expands collections into multiple scalar
+        // placeholders, producing invalid "= ANY (?, ...)" SQL.
+        Parameter parameter = new Parameter(propertyName, dependsOnValues, Operator.IN);
+        IN in = new IN(new PropertyReference(propertyName), parameter);
         return ExpressionHelper.toSql(userContext, in, idTable, parameters, sqlColumnResolver);
     }
 }

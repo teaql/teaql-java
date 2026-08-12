@@ -15,6 +15,24 @@ public interface SqlDialect {
     String prepareLimit(SearchRequest<?> request);
 
     /**
+     * Generate a pagination clause using caller-provided parameter placeholders.
+     * The placeholders already include the parameter marker (for example
+     * {@code :limit0}); dialects must not inline pagination values here.
+     */
+    default String prepareParameterizedLimit(String limitPlaceholder, String offsetPlaceholder) {
+        return "LIMIT " + limitPlaceholder + " OFFSET " + offsetPlaceholder;
+    }
+
+    /**
+     * Generate parameterized pagination with awareness of whether the query
+     * already has an ORDER BY clause. Most dialects do not need this detail.
+     */
+    default String prepareParameterizedLimit(
+            String limitPlaceholder, String offsetPlaceholder, boolean hasOrderBy) {
+        return prepareParameterizedLimit(limitPlaceholder, offsetPlaceholder);
+    }
+
+    /**
      * Get the SQL template for window function based partition querying.
      * e.g., "SELECT * FROM (SELECT {}, (row_number() over(partition by {}{} {})) as _rank from {} {}) as t where t._rank >= {} and t._rank < {}"
      */

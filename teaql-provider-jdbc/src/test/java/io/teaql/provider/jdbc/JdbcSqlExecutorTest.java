@@ -14,6 +14,7 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import static org.junit.Assert.assertEquals;
@@ -58,6 +59,60 @@ public class JdbcSqlExecutorTest {
             assertTrue(rs.next());
             assertEquals("Alice", rs.getString("name"));
             assertEquals(25, rs.getInt("age"));
+        }
+    }
+
+    @Test
+    public void testQueryForListNormalizesAliasesForPortableMapping() {
+        List<Map<String, Object>> rows = sqlExecutor.queryForList(
+                "SELECT 1 AS \"customerOrder\", 2 AS plain_name",
+                new Object[0]);
+
+        assertEquals(1, rows.size());
+        assertEquals(1, ((Number) rows.get(0).get("customerorder")).intValue());
+        assertEquals(2, ((Number) rows.get(0).get("plain_name")).intValue());
+    }
+
+    @Test
+    public void testTypedJdbcParametersRemainPortable() {
+        sqlExecutor.update(
+                "INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
+                new Object[] {1L, "Typed", 25});
+        List<Map<String, Object>> rows = sqlExecutor.queryForList(
+                "SELECT id FROM test_user WHERE id > ? AND age <= ?",
+                new Object[] {0L, new java.math.BigDecimal("25")});
+        assertEquals(1, rows.size());
+        assertEquals(1, ((Number) rows.get(0).get("id")).intValue());
+    }
+
+    @Test
+    public void testNullParameterUsesSqlNull() {
+        sqlExecutor.update(
+                "INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
+                new Object[] {4L, null, 40});
+        List<Map<String, Object>> rows = sqlExecutor.queryForList(
+                "SELECT name FROM test_user WHERE id = ?", new Object[] {4L});
+        assertEquals(1, rows.size());
+        assertTrue(rows.get(0).containsKey("name"));
+        assertEquals(null, rows.get(0).get("name"));
+    }
+
+    @Test
+    public void testSqliteLocalDateParametersUseIsoTextOrdering() throws Exception {
+        DataSource sqlite = new SimpleDataSource("jdbc:sqlite::memory:", "", "");
+        try (Connection connection = sqlite.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.execute("CREATE TABLE dated (id INTEGER, value TEXT)");
+            statement.execute("INSERT INTO dated VALUES (1, '2026-01-05'), (2, '2026-01-06'), (3, '2026-01-12'), (4, '2026-01-13')");
+            try (java.sql.PreparedStatement query = connection.prepareStatement(
+                    "SELECT count(*) FROM dated WHERE value >= ? AND value <= ?")) {
+                JdbcSqlExecutor.bind(query, 1, java.time.LocalDate.of(2026, 1, 6));
+                JdbcSqlExecutor.bind(query, 2, java.time.LocalDate.of(2026, 1, 12));
+                try (ResultSet result = query.executeQuery()) {
+                    assertTrue(result.next());
+                    assertEquals(2, result.getInt(1));
+                }
+            }
         }
     }
 

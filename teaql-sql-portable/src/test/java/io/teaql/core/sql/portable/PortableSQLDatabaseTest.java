@@ -27,6 +27,7 @@ public class PortableSQLDatabaseTest {
     public static class Task extends BaseEntity {
         private String title;
         private String status;
+        private final Set<String> loadedProperties = new HashSet<>();
 
         public String getTitle() {
             return title;
@@ -42,6 +43,10 @@ public class PortableSQLDatabaseTest {
             return status;
         }
 
+        public boolean isLoaded(String property) {
+            return loadedProperties.contains(property);
+        }
+
         public Task updateStatus(String status) {
             handleUpdate("status", this.status, status);
             this.status = status;
@@ -55,6 +60,7 @@ public class PortableSQLDatabaseTest {
 
         @Override
         public void __internalSet(String property, Object value) {
+            loadedProperties.add(property);
             switch (property) {
                 case "title": this.title = (String) value; break;
                 case "status": this.status = (String) value; break;
@@ -70,6 +76,96 @@ public class PortableSQLDatabaseTest {
                 default: return super.__internalGet(property);
             }
         }
+    }
+
+    @Test
+    public void testSelectedSqlNullIsMappedAsLoadedNull() {
+        sqliteDb.executeUpdate(
+                "INSERT INTO task_data (id, version, title, status) VALUES (?, ?, ?, ?)",
+                new Object[] {900L, 1L, null, "NULL-MAPPING"});
+
+        SmartList<Task> tasks =
+                new TaskRequest()
+                        .filterByStatus("NULL-MAPPING")
+                        .comment("verify selected SQL null mapping")
+                        .purpose("distinguish loaded null from an unselected field")
+                        .executeForList(ctx);
+
+        assertEquals(1, tasks.size());
+        Task loaded = tasks.get(0);
+        assertNull(loaded.getTitle());
+        assertTrue("selected SQL NULL must still invoke the entity mapper", loaded.isLoaded("title"));
+    }
+
+    @Test
+    public void testSingleDynamicAggregateIsAttachedToEachReturnedParent() {
+        for (int i = 0; i < 2; i++) {
+            Task task = new Task();
+            task.updateTitle("Counted task " + i);
+            task.updateStatus("DYNAMIC-COUNT");
+            task.auditAs("create dynamic-count fixture").save(ctx);
+        }
+
+        TaskRequest countRequest = new TaskRequest();
+        countRequest.count();
+        countRequest.setPartitionProperty("id");
+
+        TaskRequest parentRequest = new TaskRequest().filterByStatus("DYNAMIC-COUNT");
+        parentRequest.addSingleAggregateDynamicProperty("selfCount", countRequest);
+        SmartList<Task> tasks =
+                parentRequest
+                        .comment("load tasks with grouped count")
+                        .purpose("verify aggregate values are attached to parent entities")
+                        .executeForList(ctx);
+
+        assertEquals(2, tasks.size());
+        for (Task task : tasks) {
+            Number count = task.getDynamicProperty("selfCount");
+            assertNotNull("generated count must be attached to its parent", count);
+            assertEquals(1, count.intValue());
+        }
+    }
+
+    @Test
+    public void testAggregateAliasesAreMappedCaseInsensitively() {
+        for (int i = 0; i < 2; i++) {
+            Task task = new Task();
+            task.updateTitle("Alias task " + i);
+            task.updateStatus("CAMEL-ALIAS");
+            task.auditAs("create alias mapping fixture").save(ctx);
+        }
+
+        TaskRequest request = new TaskRequest().filterByStatus("CAMEL-ALIAS");
+        request.count("recordCount");
+        AggregationResult result = request.comment("aggregate camel-case alias")
+                .purpose("verify JDBC-normalized column labels map to requested aliases")
+                .aggregation(ctx);
+
+        assertEquals(2, result.toNumber(0).intValue());
+        assertEquals("recordCount", result.valueList().get(0).keySet().iterator().next());
+    }
+
+    @Test
+    public void testMaterializedSubQueryUsesPortableInList() {
+        for (int i = 0; i < 2; i++) {
+            Task task = new Task();
+            task.updateTitle("Nested task " + i);
+            task.updateStatus("NESTED-IN");
+            task.auditAs("create nested-query fixture").save(ctx);
+        }
+
+        TaskRequest nested = new TaskRequest() {
+            @Override
+            public boolean tryUseSubQuery() {
+                return false;
+            }
+        }.filterByStatus("NESTED-IN");
+        SmartList<Task> result = new TaskRequest().withIdMatching(nested)
+                .comment("materialize relation-style nested query")
+                .purpose("verify portable scalar IN placeholders")
+                .executeForList(ctx);
+
+        assertEquals(2, result.size());
     }
 
     public static class TaskRequest extends BaseRequest<Task> {
@@ -90,6 +186,11 @@ public class PortableSQLDatabaseTest {
 
         public TaskRequest filterByStatus(String status) {
             appendSearchCriteria(createBasicSearchCriteria("status", Operator.EQUAL, status));
+            return this;
+        }
+
+        public TaskRequest withIdMatching(TaskRequest nested) {
+            appendSearchCriteria(new SubQuerySearchCriteria("id", nested, "id"));
             return this;
         }
 
@@ -122,7 +223,7 @@ public class PortableSQLDatabaseTest {
                     while (rs.next()) {
                         Map<String, Object> row = new LinkedHashMap<>();
                         for (int i = 1; i <= cols; i++) {
-                            row.put(meta.getColumnLabel(i), rs.getObject(i));
+                            row.put(meta.getColumnLabel(i).toLowerCase(Locale.ROOT), rs.getObject(i));
                         }
                         results.add(row);
                     }

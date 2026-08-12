@@ -16,6 +16,7 @@ public class MssqlDataServiceExecutor extends SqlDataServiceExecutor {
 
     public MssqlDataServiceExecutor(String name, SqlExecutionAdapter executionAdapter) {
         super(name, executionAdapter);
+        this.dialect = new MssqlDialect();
     }
 
     @Override

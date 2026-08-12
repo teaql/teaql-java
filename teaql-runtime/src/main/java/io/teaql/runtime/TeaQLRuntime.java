@@ -70,26 +70,49 @@ public class TeaQLRuntime {
             pushedPurpose = true;
         }
         try {
-            EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
-            String route = descriptor.getDataService();
-            if (route == null || route.isEmpty()) {
-                route = "default";
-            }
-            QueryExecutor queryExecutor = registry.resolveQueryExecutor(route);
-            if (queryExecutor == null) {
-                throw new TeaQLRuntimeException("No QueryExecutor registered for route: " + route);
-            }
-            QueryRequest queryRequest = new DefaultQueryRequest(request);
-            QueryResult queryResult = queryExecutor.query(ctx, queryRequest);
-            if (queryResult instanceof DefaultQueryResult) {
-                SmartList<T> results = (SmartList<T>) ((DefaultQueryResult) queryResult).getResult();
-                return results;
-            }
-            throw new TeaQLRuntimeException("Unsupported QueryResult type: " + queryResult.getClass().getName());
+            return executeForListResolved(ctx, request);
         } finally {
             if (pushedPurpose) ctx.popTrace();
             if (pushedComment) ctx.popTrace();
         }
+    }
+
+    /**
+     * Executes a framework-owned nested query under the trace established by its
+     * already-authorized root request. Nested relation requests are generated as
+     * query expressions and deliberately do not carry a second business purpose.
+     */
+    public <T extends Entity> SmartList<T> internalExecuteForList(
+            UserContext ctx, SearchRequest<T> request) {
+        if (ctx.getTraceChain() == null || ctx.getTraceChain().isEmpty()) {
+            throw new TeaQLRuntimeException(
+                    "[INTERNAL QUERY CONTEXT REQUIRED] Nested query has no authorized root trace.");
+        }
+        if (requestPolicy != null) {
+            requestPolicy.enforceSelect(ctx, request);
+        }
+        return executeForListResolved(ctx, request);
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T extends Entity> SmartList<T> executeForListResolved(
+            UserContext ctx, SearchRequest<T> request) {
+        EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
+        String route = descriptor.getDataService();
+        if (route == null || route.isEmpty()) {
+            route = "default";
+        }
+        QueryExecutor queryExecutor = registry.resolveQueryExecutor(route);
+        if (queryExecutor == null) {
+            throw new TeaQLRuntimeException("No QueryExecutor registered for route: " + route);
+        }
+        QueryRequest queryRequest = new DefaultQueryRequest(request);
+        QueryResult queryResult = queryExecutor.query(ctx, queryRequest);
+        if (queryResult instanceof DefaultQueryResult) {
+            return (SmartList<T>) ((DefaultQueryResult) queryResult).getResult();
+        }
+        throw new TeaQLRuntimeException(
+                "Unsupported QueryResult type: " + queryResult.getClass().getName());
     }
 
     public <T extends Entity> AggregationResult aggregation(UserContext ctx, SearchRequest<T> request) {
@@ -155,23 +178,22 @@ public class TeaQLRuntime {
         try {
             // Get entity's own EntityRoot
             EntityRoot entityRoot = ((BaseEntity) entity).getEntityRoot();
-            
+
+            // Allocate identifiers before roots are merged. New children commonly
+            // receive their field updates while their id is still null, so those
+            // updates cannot yet have been recorded in an EntityRoot ledger.
+            assignMissingGraphIds(
+                    ctx, entity, Collections.newSetFromMap(new IdentityHashMap<>()));
+
             // Merge related entities' EntityRoots into this one
-            mergeRelatedEntityRoots(entity, entityRoot);
-
-            if (entity.getId() == null && idGenerationService != null) {
-                Long newId = idGenerationService.generateId(ctx, entity);
-                ((BaseEntity) entity).__internalSet("id", newId);
-                entityRoot.markAsNew(new EntityKey(entity.typeName(), newId));
-            }
-
-            if (entity instanceof BaseEntity be && be.getId() != null) {
-                EntityKey key = new EntityKey(be.typeName(), be.getId());
-                for (String prop : be.getUpdatedProperties()) {
-                    entityRoot.set(key, prop, be.__internalGet(prop));
-                }
-
-            }
+            mergeRelatedEntityRoots(
+                    entity,
+                    entityRoot,
+                    Collections.newSetFromMap(new IdentityHashMap<>()));
+            recordGraphChanges(
+                    entity,
+                    entityRoot,
+                    Collections.newSetFromMap(new IdentityHashMap<>()));
 
             EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());
             String route = descriptor.getDataService();
@@ -196,7 +218,10 @@ public class TeaQLRuntime {
             }
 
             Map<io.teaql.core.EntityKey, io.teaql.core.BaseEntity> realEntities = new java.util.HashMap<>();
-            collectRealEntities(entity, realEntities);
+            collectRealEntities(
+                    entity,
+                    realEntities,
+                    Collections.newSetFromMap(new IdentityHashMap<>()));
             executeLedgerPlan(ctx, entityRoot, mutationExecutor, realEntities);
             entityRoot.clearCurrentChangeSet();
         } finally {
@@ -208,10 +233,56 @@ public class TeaQLRuntime {
      * Merge related entities' EntityRoots into the main entity's EntityRoot.
      * This ensures that when saving an Order, its OrderItems' changes are also saved.
      */
-    private void mergeRelatedEntityRoots(Entity entity, EntityRoot targetRoot) {
-        if (!(entity instanceof BaseEntity baseEntity)) {
+    private void assignMissingGraphIds(
+            UserContext ctx, Entity entity, Set<Entity> visited) {
+        if (!(entity instanceof BaseEntity baseEntity) || !visited.add(entity)) {
             return;
         }
+
+        if (entity.getId() == null && idGenerationService != null) {
+            Long newId = idGenerationService.generateId(ctx, entity);
+            baseEntity.__internalSet("id", newId);
+            baseEntity.getEntityRoot().markAsNew(new EntityKey(entity.typeName(), newId));
+        }
+
+        visitRelatedEntities(
+                entity, related -> assignMissingGraphIds(ctx, related, visited));
+    }
+
+    private void mergeRelatedEntityRoots(
+            Entity entity, EntityRoot targetRoot, Set<Entity> visited) {
+        if (!(entity instanceof BaseEntity) || !visited.add(entity)) {
+            return;
+        }
+
+        visitRelatedEntities(entity, related -> {
+            BaseEntity relatedBase = (BaseEntity) related;
+            EntityRoot relatedRoot = relatedBase.getEntityRoot();
+            if (relatedRoot != null && relatedRoot != targetRoot) {
+                targetRoot.mergeFrom(relatedRoot);
+                relatedBase.setEntityRoot(targetRoot);
+            }
+            mergeRelatedEntityRoots(related, targetRoot, visited);
+        });
+    }
+
+    private void recordGraphChanges(
+            Entity entity, EntityRoot targetRoot, Set<Entity> visited) {
+        if (!(entity instanceof BaseEntity baseEntity) || !visited.add(entity)) {
+            return;
+        }
+        if (baseEntity.getId() != null) {
+            EntityKey key = new EntityKey(baseEntity.typeName(), baseEntity.getId());
+            for (String property : baseEntity.getUpdatedProperties()) {
+                targetRoot.set(key, property, baseEntity.__internalGet(property));
+            }
+        }
+        visitRelatedEntities(
+                entity, related -> recordGraphChanges(related, targetRoot, visited));
+    }
+
+    private void visitRelatedEntities(
+            Entity entity, java.util.function.Consumer<Entity> visitor) {
 
         EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());
         if (descriptor == null) return;
@@ -220,24 +291,17 @@ public class TeaQLRuntime {
             if (!(prop instanceof io.teaql.core.meta.Relation)) continue;
             Object value = entity.getProperty(prop.getName());
             if (value instanceof Entity relEntity) {
-                // Merge related entity's root into target
-                EntityRoot relRoot = ((BaseEntity) relEntity).getEntityRoot();
-                if (relRoot != null && relRoot != targetRoot) {
-                    targetRoot.mergeFrom(relRoot);
-                    // Update related entity to use the merged root
-                    ((BaseEntity) relEntity).setEntityRoot(targetRoot);
-                }
-                // Recursively merge
-                mergeRelatedEntityRoots(relEntity, targetRoot);
+                visitor.accept(relEntity);
             } else if (value instanceof Collection<?> collection) {
                 for (Object item : collection) {
                     if (item instanceof Entity relEntity) {
-                        EntityRoot relRoot = ((BaseEntity) relEntity).getEntityRoot();
-                        if (relRoot != null && relRoot != targetRoot) {
-                            targetRoot.mergeFrom(relRoot);
-                            ((BaseEntity) relEntity).setEntityRoot(targetRoot);
-                        }
-                        mergeRelatedEntityRoots(relEntity, targetRoot);
+                        visitor.accept(relEntity);
+                    }
+                }
+            } else if (value instanceof Iterable<?> iterable) {
+                for (Object item : iterable) {
+                    if (item instanceof Entity relEntity) {
+                        visitor.accept(relEntity);
                     }
                 }
             }
@@ -247,26 +311,17 @@ public class TeaQLRuntime {
 
 
 
-    private void collectRealEntities(Entity entity, Map<EntityKey, BaseEntity> realEntities) {
-        if (!(entity instanceof BaseEntity baseEntity)) return;
+    private void collectRealEntities(
+            Entity entity,
+            Map<EntityKey, BaseEntity> realEntities,
+            Set<Entity> visited) {
+        if (!(entity instanceof BaseEntity baseEntity) || !visited.add(entity)) return;
         if (baseEntity.getId() != null) {
             realEntities.put(new EntityKey(baseEntity.typeName(), baseEntity.getId()), baseEntity);
         }
-        EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());
-        if (descriptor == null) return;
-        for (PropertyDescriptor prop : descriptor.getProperties()) {
-            if (!(prop instanceof io.teaql.core.meta.Relation)) continue;
-            Object value = entity.getProperty(prop.getName());
-            if (value instanceof Entity relEntity) {
-                collectRealEntities(relEntity, realEntities);
-            } else if (value instanceof Collection<?> collection) {
-                for (Object item : collection) {
-                    if (item instanceof Entity relEntity) {
-                        collectRealEntities(relEntity, realEntities);
-                    }
-                }
-            }
-        }
+        visitRelatedEntities(
+                entity,
+                related -> collectRealEntities(related, realEntities, visited));
     }
 
     private void executeLedgerPlan(UserContext ctx, EntityRoot root, MutationExecutor mutationExecutor, Map<EntityKey, BaseEntity> realEntities) {

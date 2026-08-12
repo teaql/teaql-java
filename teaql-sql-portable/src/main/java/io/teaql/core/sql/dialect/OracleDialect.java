@@ -13,6 +13,11 @@ public class OracleDialect extends AbstractSqlDialect {
     }
 
     @Override
+    public String prepareParameterizedLimit(String limitPlaceholder, String offsetPlaceholder) {
+        return "OFFSET " + offsetPlaceholder + " ROWS FETCH NEXT " + limitPlaceholder + " ROWS ONLY";
+    }
+
+    @Override
     public String escapeIdentifier(String identifier) {
         if (!needsEscape(identifier)) {
             return identifier;
