@@ -21,7 +21,7 @@
     <dependency>
       <groupId>io.teaql</groupId>
       <artifactId>teaql-provider-jdbc</artifactId>
-      <version>1.527-RELEASE</version>
+      <version>1.528-RELEASE</version>
     </dependency>
     <dependency>
       <groupId>org.xerial</groupId>
