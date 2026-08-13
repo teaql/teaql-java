@@ -56,6 +56,7 @@ public class TeaQLRuntime {
         if (request.purpose() == null || request.purpose().trim().isEmpty()) {
             throw new TeaQLRuntimeException("[PURPOSE REQUIRED] Missing .purpose() on query execution.");
         }
+        enforceMaterializedLimit(request, request.hardLimit());
         if (requestPolicy != null) {
             requestPolicy.enforceSelect(ctx, request);
         }
@@ -88,10 +89,25 @@ public class TeaQLRuntime {
             throw new TeaQLRuntimeException(
                     "[INTERNAL QUERY CONTEXT REQUIRED] Nested query has no authorized root trace.");
         }
+        enforceMaterializedLimit(request, SearchRequest.DEFAULT_HARD_LIMIT);
         if (requestPolicy != null) {
             requestPolicy.enforceSelect(ctx, request);
         }
         return executeForListResolved(ctx, request);
+    }
+
+    private static void enforceMaterializedLimit(SearchRequest<?> request, int hardLimit) {
+        Slice slice = request.getSlice();
+        if (slice == null) {
+            throw new TeaQLRuntimeException("[QUERY HARD LIMIT] An unlimited materialized query is not allowed");
+        }
+        int requested = slice.getSize();
+        if (requested <= 0) {
+            slice.setSize(hardLimit);
+        } else if (requested > hardLimit) {
+            throw new TeaQLRuntimeException("[QUERY HARD LIMIT] Requested limit " + requested
+                    + " exceeds hard limit " + hardLimit);
+        }
     }
 
     @SuppressWarnings("unchecked")

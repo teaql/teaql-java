@@ -352,6 +352,15 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         return smartList;
     }
 
+    public Stream<T> streamInternal(UserContext userContext, SearchRequest<T> request) {
+        Map<String, Object> params = new HashMap<>();
+        String sql = buildDataSQL(userContext, request, params);
+        if (ObjectUtil.isEmpty(sql)) return Stream.empty();
+        PositionalSQL psql = toPositional(sql, params);
+        return database.queryForStream(userContext, psql.sql, psql.args)
+                .map(row -> mapRowToEntity(userContext, request, row));
+    }
+
     private T mapRowToEntity(UserContext userContext, SearchRequest<T> request, Map<String, Object> row) {
         Class<? extends T> returnType = request.returnType();
         T entity = createEntity(returnType);

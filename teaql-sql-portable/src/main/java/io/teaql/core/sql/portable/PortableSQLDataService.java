@@ -6,7 +6,7 @@ import io.teaql.runtime.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class PortableSQLDataService implements DataServiceExecutor, QueryExecutor, MutationExecutor, TransactionExecutor {
+public class PortableSQLDataService implements DataServiceExecutor, QueryExecutor, StreamingQueryExecutor, MutationExecutor, TransactionExecutor {
 
     private final String name;
     private final DataServiceCapabilities capabilities;
@@ -24,6 +24,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         this.capabilities.setQuery(true);
         this.capabilities.setMutation(true);
         this.capabilities.setTransaction(true);
+        this.capabilities.setStreamingQuery(true);
     }
 
     @Override
@@ -77,6 +78,14 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         attachDynamicAggregations(ctx, (SmartList<Entity>) result, searchRequest);
         
         return new DefaultQueryResult((SmartList<Entity>) result);
+    }
+
+    @Override
+    public <T extends Entity> java.util.stream.Stream<T> queryForStream(UserContext ctx, SearchRequest<T> request) {
+        if (request.hasSimpleAgg() || !request.enhanceRelations().isEmpty() || !request.enhanceChildren().isEmpty()) {
+            throw new TeaQLRuntimeException("Streaming aggregation/relation enhancement is not supported; stream root rows only");
+        }
+        return this.<T>getRepository(request.getTypeName()).streamInternal(ctx, request);
     }
 
     private void attachDynamicAggregations(

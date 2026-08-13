@@ -11,6 +11,7 @@ import io.teaql.core.utils.StrUtil;
 import io.teaql.data.dynamic.DynamicFieldSelection;
 
 public interface SearchRequest<T extends Entity> {
+    int DEFAULT_HARD_LIMIT = 10_000;
     default String getTypeName() {
         String simpleName = this.getClass().getSimpleName();
         return StrUtil.removeSuffix(simpleName, "Request");
@@ -71,6 +72,9 @@ public interface SearchRequest<T extends Entity> {
     OrderBys getOrderBy();
 
     Slice getSlice();
+
+    /** Local runtime policy; deliberately not a bean getter or federation field. */
+    default int hardLimit() { return DEFAULT_HARD_LIMIT; }
 
     Map<String, SearchRequest> enhanceRelations();
 

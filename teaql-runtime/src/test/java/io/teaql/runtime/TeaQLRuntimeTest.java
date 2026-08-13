@@ -140,6 +140,25 @@ public class TeaQLRuntimeTest {
     }
 
     @Test
+    public void materializedListHardLimitRejectsAndCanBeOverriddenLocally() {
+        TeaQLRuntime runtime = TeaQLRuntime.builder().metadata(new DummyMetaFactory())
+                .dataService("dummy", new DummyQueryExecutor()).build();
+        BaseRequest<DummyEntity> request = new BaseRequest<DummyEntity>(DummyEntity.class) {
+            { internalComment("test"); internalPurpose("test hard limit"); }
+            @Override public String getTypeName() { return "Dummy"; }
+        };
+        request.top(10_001);
+        try {
+            runtime.executeForList(new DefaultUserContext(runtime), request);
+            Assert.fail("limit above hard limit must fail");
+        } catch (TeaQLRuntimeException expected) {
+            Assert.assertTrue(expected.getMessage().contains("QUERY HARD LIMIT"));
+        }
+        request.hardLimit(20_000);
+        Assert.assertEquals(1, runtime.executeForList(new DefaultUserContext(runtime), request).size());
+    }
+
+    @Test
     public void testNestedQueryInheritsAuthorizedRootTrace() {
         TeaQLRuntime runtime = TeaQLRuntime.builder()
                 .metadata(new DummyMetaFactory())
