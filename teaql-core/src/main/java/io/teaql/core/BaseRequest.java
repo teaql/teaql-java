@@ -45,6 +45,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
 
     // paging
     protected Slice slice = new Slice();
+    protected int hardLimit = DEFAULT_HARD_LIMIT;
 
     // enhance relations
     protected Map<String, SearchRequest> enhanceRelations = new HashMap<>();
@@ -198,6 +199,19 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
 
     public void setSlice(Slice slice) {
         this.slice = slice;
+    }
+
+    @Override
+    public int hardLimit() { return hardLimit; }
+
+    /**
+     * Overrides the materialized-list safety limit for this outer query.
+     * Most applications should keep the 10,000-row default.
+     */
+    public BaseRequest<T> hardLimit(int hardLimit) {
+        if (hardLimit <= 0) throw new IllegalArgumentException("hardLimit must be positive");
+        this.hardLimit = hardLimit;
+        return this;
     }
 
     @Override
