@@ -56,45 +56,10 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
             route = "default";
         }
         DataServiceExecutor executor = runtime.getRegistry().resolve(route);
-        if (executor != null
-                && executor.capabilities() != null
-                && executor.capabilities().isStreamingQuery()) {
-            // Executor declares streaming support — use lazy batch-pull.
-            final String resolvedRoute = route;
-            final int effectiveBatch = batchSize > 0 ? batchSize : 200;
-            Spliterator<T> spliterator = new Spliterators.AbstractSpliterator<T>(Long.MAX_VALUE,
-                    Spliterator.ORDERED | Spliterator.NONNULL) {
-                private int offset = 0;
-                private List<T> currentBatch = Collections.emptyList();
-                private int batchIndex = 0;
-                private boolean exhausted = false;
-
-                @Override
-                public boolean tryAdvance(java.util.function.Consumer<? super T> action) {
-                    if (exhausted) return false;
-                    if (batchIndex >= currentBatch.size()) {
-                        // Fetch next batch by advancing the slice.
-                        SearchRequest<T> paged = (SearchRequest<T>) searchRequest;
-                        if (paged.getSlice() != null) {
-                            paged.getSlice().setOffset(offset);
-                            paged.getSlice().setSize(effectiveBatch);
-                        }
-                        currentBatch = (List<T>) runtime.executeForList(DefaultUserContext.this, paged);
-                        offset += currentBatch.size();
-                        batchIndex = 0;
-                        if (currentBatch.isEmpty()) {
-                            exhausted = true;
-                            return false;
-                        }
-                    }
-                    action.accept(currentBatch.get(batchIndex++));
-                    return true;
-                }
-            };
-            return StreamSupport.stream(spliterator, false);
+        if (executor instanceof StreamingQueryExecutor) {
+            return ((StreamingQueryExecutor) executor).queryForStream(this, searchRequest);
         }
-        // Fallback: executor does not advertise streaming — materialize the full list.
-        return (Stream<T>) internalExecuteForList(searchRequest).stream();
+        throw new TeaQLRuntimeException("Streaming query is not supported for route: " + route);
     }
 
     @Override

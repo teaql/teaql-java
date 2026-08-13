@@ -27,6 +27,15 @@ public class SpringJdbcSqlExecutor implements SqlExecutionAdapter {
     }
 
     @Override
+    public Stream<Map<String, Object>> queryForStream(String sql, Object[] params) {
+        return jdbcTemplate.getJdbcOperations().queryForStream(sql, (rs, rowNum) -> {
+            Map<String,Object> row = new java.util.HashMap<>();
+            for (int i=1;i<=rs.getMetaData().getColumnCount();i++) row.put(rs.getMetaData().getColumnLabel(i).toLowerCase(), rs.getObject(i));
+            return row;
+        }, params);
+    }
+
+    @Override
     public List<Map<String, Object>> queryForList(String sql, Map<String, Object> params) {
         return jdbcTemplate.queryForList(sql, params);
     }

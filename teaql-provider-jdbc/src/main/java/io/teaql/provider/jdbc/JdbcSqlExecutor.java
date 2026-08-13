@@ -33,6 +33,67 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
     }
 
     @Override
+    public Stream<Map<String, Object>> queryForStream(String sql, Object[] params) {
+        try {
+            Connection connection = dataSource.getConnection();
+            PreparedStatement ps = connection.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+            ps.setFetchSize(200);
+            if (params != null) {
+                for (int i = 0; i < params.length; i++) {
+                    bind(ps, i + 1, params[i]);
+                }
+            }
+            ResultSet rs = ps.executeQuery();
+            java.util.Iterator<Map<String, Object>> iterator = new java.util.Iterator<>() {
+                private boolean ready;
+                private boolean hasNext;
+
+                @Override
+                public boolean hasNext() {
+                    if (!ready) {
+                        try {
+                            hasNext = rs.next();
+                            ready = true;
+                        } catch (SQLException e) {
+                            closeResources(rs, ps, connection);
+                            throw new RuntimeException(e);
+                        }
+                    }
+                    if (!hasNext) closeResources(rs, ps, connection);
+                    return hasNext;
+                }
+
+                @Override
+                public Map<String, Object> next() {
+                    if (!hasNext()) throw new java.util.NoSuchElementException();
+                    ready = false;
+                    try {
+                        Map<String, Object> row = new java.util.HashMap<>();
+                        int count = rs.getMetaData().getColumnCount();
+                        for (int i = 1; i <= count; i++) {
+                            row.put(rs.getMetaData().getColumnLabel(i).toLowerCase(), rs.getObject(i));
+                        }
+                        return row;
+                    } catch (SQLException e) {
+                        closeResources(rs, ps, connection);
+                        throw new RuntimeException(e);
+                    }
+                }
+            };
+            return java.util.stream.StreamSupport.stream(java.util.Spliterators.spliteratorUnknownSize(iterator, java.util.Spliterator.ORDERED), false)
+                    .onClose(() -> closeResources(rs, ps, connection));
+        } catch (SQLException e) {
+            throw new RuntimeException("JDBC streaming query failed", e);
+        }
+    }
+
+    private static void closeResources(ResultSet resultSet, PreparedStatement statement, Connection connection) {
+        try { resultSet.close(); } catch (Exception ignored) { }
+        try { statement.close(); } catch (Exception ignored) { }
+        try { connection.close(); } catch (Exception ignored) { }
+    }
+
+    @Override
     public List<Map<String, Object>> queryForList(String sql, Map<String, Object> params) {
         throw new UnsupportedOperationException("Not fully implemented yet");
     }

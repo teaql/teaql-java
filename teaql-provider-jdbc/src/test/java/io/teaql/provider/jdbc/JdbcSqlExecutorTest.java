@@ -139,6 +139,26 @@ public class JdbcSqlExecutorTest {
         }
     }
 
+    @Test
+    public void testQueryForStreamReadsLazilyAndSupportsEarlyClose() {
+        for (int id = 1; id <= 5; id++) {
+            sqlExecutor.update(
+                    "INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
+                    new Object[] {id, "user-" + id, 20 + id});
+        }
+
+        try (java.util.stream.Stream<Map<String, Object>> rows =
+                     sqlExecutor.queryForStream("SELECT id FROM test_user ORDER BY id", new Object[0])) {
+            assertEquals(2, rows.limit(2).count());
+        }
+
+        // Closing a partially consumed stream must release the cursor and its connection.
+        Number total = (Number) sqlExecutor
+                .queryForList("SELECT count(*) AS total FROM test_user", new Object[0])
+                .get(0).get("total");
+        assertEquals(5, total.intValue());
+    }
+
     private static class SimpleDataSource implements DataSource {
         private final String url;
         private final String user;

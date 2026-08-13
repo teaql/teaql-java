@@ -22,3 +22,15 @@ Change the `withOrderNumberContaining` filter, ordering, or projection in the ap
 ### Materialized-list hard limit
 
 `executeForList` protects the service by applying a default hard limit of 10,000 rows. A requested page size above that ceiling fails explicitly. Trusted application code can call `hardLimit(...)` to override the outer-query ceiling. **Caution:** most applications should not override it; do so only for a reviewed, exceptional requirement. This setting does not describe streaming execution.
+
+### Streaming large root queries
+
+`executeForStream(ctx)` returns a lazy `Stream<Entity>` backed by the database cursor. Always close it:
+
+```java
+try (Stream<CustomerOrder> orders = request.comment("export orders").purpose("reviewed export").executeForStream(ctx)) {
+    orders.forEach(this::writeOrder);
+}
+```
+
+Streaming keeps the materialized-list hard limit out of the hot path; fetch size is trusted application configuration. **Caution:** do not increase it routinely. Streaming relation or aggregate enhancement is rejected—stream a root query or use `executeForList`. This local runtime capability is deliberately unavailable through ordinary TeaQL federation; it requires a dedicated streaming protocol.

@@ -12,7 +12,7 @@ import io.teaql.core.SchemaExecutor;
 import io.teaql.core.TransactionCallback;
 import io.teaql.core.TransactionExecutor;
 
-public class SqlDataServiceExecutor implements QueryExecutor, MutationExecutor, TransactionExecutor, SchemaExecutor {
+public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.StreamingQueryExecutor, MutationExecutor, TransactionExecutor, SchemaExecutor {
     private final String name;
     private final SqlExecutionAdapter executionAdapter;
     private final DataServiceCapabilities capabilities;
@@ -49,6 +49,11 @@ public class SqlDataServiceExecutor implements QueryExecutor, MutationExecutor, 
     }
 
     @Override
+    public <T extends io.teaql.core.Entity> java.util.stream.Stream<T> queryForStream(UserContext ctx, io.teaql.core.SearchRequest<T> request) {
+        return getPortableService().queryForStream(ctx, request);
+    }
+
+    @Override
     public MutationResult mutate(UserContext ctx, MutationRequest request) {
         return getPortableService().mutate(ctx, request);
     }
@@ -75,6 +80,10 @@ public class SqlDataServiceExecutor implements QueryExecutor, MutationExecutor, 
                 @Override
                 public java.util.List<java.util.Map<String, Object>> query(String sql, Object[] args) {
                     return executionAdapter.queryForList(sql, args);
+                }
+                @Override
+                public java.util.stream.Stream<java.util.Map<String, Object>> queryForStream(io.teaql.core.UserContext ctx, String sql, Object[] args) {
+                    return executionAdapter.queryForStream(sql, args);
                 }
                 @Override
                 public int executeUpdate(String sql, Object[] args) {

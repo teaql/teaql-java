@@ -9,6 +9,9 @@ public interface SqlExecutionAdapter {
     <T> List<T> query(String sql, Map<String, Object> params, SqlRowMapper<T> rowMapper);
     
     <T> Stream<T> queryForStream(String sql, Map<String, Object> params, SqlRowMapper<T> rowMapper);
+    default Stream<Map<String, Object>> queryForStream(String sql, Object[] params) {
+        throw new UnsupportedOperationException("streaming query is not supported");
+    }
     
     List<Map<String, Object>> queryForList(String sql, Map<String, Object> params);
     

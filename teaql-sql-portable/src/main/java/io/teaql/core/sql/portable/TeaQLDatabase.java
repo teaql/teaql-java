@@ -2,6 +2,7 @@ package io.teaql.core.sql.portable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 /**
  * TeaQL database abstraction layer.
@@ -16,6 +17,9 @@ public interface TeaQLDatabase {
     List<Map<String, Object>> query(String sql, Object[] args);
     default List<Map<String, Object>> query(io.teaql.core.UserContext ctx, String sql, Object[] args) {
         return query(sql, args);
+    }
+    default Stream<Map<String, Object>> queryForStream(io.teaql.core.UserContext ctx, String sql, Object[] args) {
+        throw new UnsupportedOperationException("streaming query is not supported");
     }
 
     /**
