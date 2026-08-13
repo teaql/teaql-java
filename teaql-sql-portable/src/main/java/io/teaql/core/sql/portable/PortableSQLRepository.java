@@ -16,6 +16,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.Instant;
+import java.util.HexFormat;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -36,6 +42,16 @@ import io.teaql.core.SimpleNamedExpression;
 import io.teaql.core.Slice;
 import io.teaql.core.SmartList;
 import io.teaql.core.UserContext;
+import io.teaql.core.ContinuousPageCursor;
+import io.teaql.core.ContinuousPageCursorStore;
+import io.teaql.core.ContinuousPageFetchOptions;
+import io.teaql.core.FunctionApply;
+import io.teaql.core.Parameter;
+import io.teaql.core.PropertyReference;
+import io.teaql.core.criteria.GT;
+import io.teaql.core.criteria.LT;
+import io.teaql.core.criteria.Operator;
+import io.teaql.core.internal.TempRequest;
 
 
 import io.teaql.core.meta.EntityDescriptor;
@@ -74,6 +90,10 @@ import io.teaql.core.utils.StrUtil;
 public class PortableSQLRepository<T extends Entity> implements SqlCompilerDelegate {
 
     private static final Pattern NAMED_PARAM = Pattern.compile(":(\\w+)");
+    public static final String CONTINUOUS_PAGE_PLAN = "teaql.continuousPage.plan";
+    public static final String CONTINUOUS_PAGE_CURSOR_ID = "teaql.continuousPage.cursorId";
+    private final ContinuousPageCursorStore defaultCursorStore =
+            new InMemoryContinuousPageCursorStore();
 
     private io.teaql.core.sql.SqlEntityMetadata sqlMetadata;
     private io.teaql.core.sql.dialect.SqlDialect dialect = new io.teaql.core.sql.dialect.PostgreSqlDialect();
@@ -283,17 +303,191 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         return this.entityDescriptor;
     }
 
+    private ContinuousPageExecution<T> prepareContinuousPage(
+            UserContext ctx,
+            SearchRequest<T> request,
+            String originalSql,
+            Map<String, Object> originalParameters) {
+        ContinuousPageFetchOptions options = request.continuousPageFetchOptions();
+        Slice slice = request.getSlice();
+        if (options == null) return fallback(ctx, request, null, "DISABLED");
+        if (slice == null || slice.getOffset() <= 0 || slice.getSize() <= 0) {
+            return fallback(ctx, request, queryKey(ctx, request, options, originalSql, originalParameters),
+                    slice == null || slice.getOffset() <= 0 ? "FIRST_PAGE" : "INVALID_SLICE");
+        }
+        if (request.getPartitionProperty() != null || request.hasSimpleAgg()) {
+            return fallback(ctx, request, null, "UNSUPPORTED_QUERY_SHAPE");
+        }
+        OrderBys orderBys = request.getOrderBy();
+        if (orderBys == null || orderBys.getOrderBys().size() != 1) {
+            return fallback(ctx, request, null, "ORDER_NOT_SINGLE");
+        }
+        OrderBy order = orderBys.getOrderBys().get(0);
+        if (!(order.getExpression() instanceof FunctionApply function)
+                || function.getOperator() != io.teaql.core.AggrFunction.SELF
+                || !(function.first() instanceof PropertyReference property)
+                || !"id".equals(property.getPropertyName())) {
+            return fallback(ctx, request, null, "ORDER_NOT_SEEKABLE_ID");
+        }
+        String direction = order.getDirection() == null ? "ASC" : order.getDirection().toUpperCase();
+        if (!"ASC".equals(direction) && !"DESC".equals(direction)) {
+            return fallback(ctx, request, null, "ORDER_DIRECTION_UNSUPPORTED");
+        }
+
+        String queryKey = queryKey(ctx, request, options, originalSql, originalParameters);
+        ContinuousPageCursorStore store = cursorStore(ctx);
+        Optional<ContinuousPageCursor> found;
+        try {
+            found = store.get(queryKey, slice.getOffset());
+        } catch (RuntimeException unavailable) {
+            return fallback(ctx, request, queryKey, "STORE_UNAVAILABLE");
+        }
+        if (found.isEmpty()) return fallback(ctx, request, queryKey, "CACHE_MISS");
+        ContinuousPageCursor cursor = found.get();
+        if (cursor.formatVersion() != ContinuousPageCursor.CURRENT_FORMAT_VERSION
+                || !request.getTypeName().equals(cursor.entity())
+                || !"id".equals(cursor.orderField())
+                || !direction.equals(cursor.direction())
+                || cursor.pageSize() != slice.getSize()
+                || cursor.nextOffset() != slice.getOffset()
+                || cursor.boundary() == null) {
+            return fallback(ctx, request, queryKey, "CURSOR_INVALID");
+        }
+
+        TempRequest optimized = new TempRequest(request);
+        optimized.offset(0, slice.getSize());
+        Parameter boundary = new Parameter(
+                "continuousPageBoundary", cursor.boundary(),
+                "DESC".equals(direction) ? Operator.LESS_THAN : Operator.GREATER_THAN);
+        optimized.appendSearchCriteria("DESC".equals(direction)
+                ? new LT(new PropertyReference("id"), boundary)
+                : new GT(new PropertyReference("id"), boundary));
+        ctx.putAttribute(CONTINUOUS_PAGE_PLAN, "CURSOR_SEEK");
+        ctx.putAttribute(CONTINUOUS_PAGE_CURSOR_ID, cursor.cursorId());
+        return new ContinuousPageExecution<>((SearchRequest<T>) optimized, queryKey, direction, true);
+    }
+
+    private ContinuousPageExecution<T> fallback(
+            UserContext ctx, SearchRequest<T> request, String queryKey, String reason) {
+        ctx.putAttribute(CONTINUOUS_PAGE_PLAN, "OFFSET_FALLBACK:" + reason);
+        ctx.putAttribute(CONTINUOUS_PAGE_CURSOR_ID, null);
+        return new ContinuousPageExecution<>(request, queryKey, null, false);
+    }
+
+    private void registerContinuousPage(
+            UserContext ctx,
+            SearchRequest<T> originalRequest,
+            ContinuousPageExecution execution,
+            List<T> results) {
+        ContinuousPageFetchOptions options = originalRequest.continuousPageFetchOptions();
+        Slice slice = originalRequest.getSlice();
+        if (options == null || slice == null || results.size() != slice.getSize() || results.isEmpty()) return;
+
+        String queryKey = execution.queryKey();
+        if (queryKey == null) return;
+        String direction = execution.direction();
+        if (direction == null) {
+            OrderBys orderBys = originalRequest.getOrderBy();
+            if (orderBys == null || orderBys.getOrderBys().size() != 1) return;
+            OrderBy order = orderBys.getOrderBys().get(0);
+            if (!(order.getExpression() instanceof FunctionApply function)
+                    || function.getOperator() != io.teaql.core.AggrFunction.SELF
+                    || !(function.first() instanceof PropertyReference property)
+                    || !"id".equals(property.getPropertyName())) return;
+            direction = order.getDirection().toUpperCase();
+            if (!"ASC".equals(direction) && !"DESC".equals(direction)) return;
+        }
+        T last = results.get(results.size() - 1);
+        if (last.getId() == null) return;
+        Instant now = Instant.now();
+        ContinuousPageCursor cursor = new ContinuousPageCursor(
+                ContinuousPageCursor.CURRENT_FORMAT_VERSION,
+                "cpg_" + UUID.randomUUID(),
+                options.namespace(),
+                queryKey,
+                originalRequest.getTypeName(),
+                "id",
+                direction,
+                last.getId(),
+                slice.getOffset(),
+                (long) slice.getOffset() + results.size(),
+                slice.getSize(),
+                now,
+                now,
+                now.plusSeconds(options.ttlSeconds()),
+                observableOwner(ctx),
+                Map.of("plan", execution.optimized() ? "CURSOR_SEEK" : "OFFSET_FALLBACK"));
+        try {
+            cursorStore(ctx).put(queryKey, cursor);
+        } catch (RuntimeException ignored) {
+            ctx.putAttribute(CONTINUOUS_PAGE_PLAN, "OFFSET_FALLBACK:STORE_UNAVAILABLE");
+        }
+    }
+
+    private ContinuousPageCursorStore cursorStore(UserContext ctx) {
+        ContinuousPageCursorStore custom = ctx.capability(ContinuousPageCursorStore.class);
+        return custom == null ? defaultCursorStore : custom;
+    }
+
+    private String queryKey(
+            UserContext ctx,
+            SearchRequest<T> request,
+            ContinuousPageFetchOptions options,
+            String sql,
+            Map<String, Object> parameters) {
+        StringBuilder canonical = new StringBuilder(options.namespace())
+                .append('|').append(request.getTypeName()).append('|').append(sql);
+        new TreeMap<>(parameters).forEach((key, value) -> {
+            if (!key.startsWith("limit") && !key.startsWith("offset")) {
+                canonical.append('|').append(key).append('=').append(String.valueOf(value));
+            }
+        });
+        observableOwner(ctx).forEach((key, value) ->
+                canonical.append('|').append(key).append('=').append(value));
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(canonical.toString().getBytes(StandardCharsets.UTF_8));
+            return "teaql:continuous-page:v1:" + HexFormat.of().formatHex(digest);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new TeaQLRuntimeException("SHA-256 unavailable", e);
+        }
+    }
+
+    private Map<String, String> observableOwner(UserContext ctx) {
+        Map<String, String> owner = new TreeMap<>();
+        for (String key : List.of("tenantId", "merchantId", "userId", "sessionId", "applicationId",
+                "permissionScopeHash", "policyVersion")) {
+            Object value = ctx.getAttribute(key);
+            if (value != null && !String.valueOf(value).isBlank()) owner.put(key, String.valueOf(value));
+        }
+        return owner;
+    }
+
+    private record ContinuousPageExecution<E extends Entity>(
+            SearchRequest<E> request,
+            String queryKey,
+            String direction,
+            boolean optimized) {}
+
     public SmartList<T> loadInternal(UserContext userContext, SearchRequest<T> request) {
         Map<String, Object> params = new HashMap<>();
         String sql = buildDataSQL(userContext, request, params);
         if (ObjectUtil.isEmpty(sql)) {
             return new SmartList<>();
         }
+        ContinuousPageExecution pageExecution = prepareContinuousPage(
+                userContext, request, sql, params);
+        SearchRequest<T> executedRequest = pageExecution.request();
+        if (pageExecution.request() != request) {
+            params = new HashMap<>();
+            sql = buildDataSQL(userContext, executedRequest, params);
+        }
         PositionalSQL psql = toPositional(sql, params);
         List<Map<String, Object>> rows = database.query(userContext, psql.sql, psql.args);
         List<T> results = rows.stream()
-                .map(row -> mapRowToEntity(userContext, request, row))
+                .map(row -> mapRowToEntity(userContext, executedRequest, row))
                 .collect(Collectors.toList());
+        registerContinuousPage(userContext, request, pageExecution, results);
         SmartList<T> smartList = new SmartList<>(results);
         
         java.util.List<io.teaql.core.FacetRequest> facetRequests = request.getFacetRequests();

@@ -12,6 +12,24 @@ import java.lang.reflect.Proxy;
 import static org.junit.Assert.*;
 
 public class BaseRequestTest {
+    @Test
+    public void continuousPageFetchIsExplicitAndValidated() {
+        BaseRequest.TempRequest request =
+                new BaseRequest.TempRequest(BaseEntity.class, "BaseEntity");
+        assertNull(request.continuousPageFetchOptions());
+
+        request.optimizeForContinuousPageFetch();
+        assertEquals("default", request.continuousPageFetchOptions().namespace());
+        assertEquals(600, request.continuousPageFetchOptions().ttlSeconds());
+
+        request.optimizeForContinuousPageFetch("recent-orders", 30);
+        assertEquals("recent-orders", request.continuousPageFetchOptions().namespace());
+        assertEquals(30, request.continuousPageFetchOptions().ttlSeconds());
+        assertThrows(IllegalArgumentException.class,
+                () -> request.optimizeForContinuousPageFetch(" ", 30));
+        assertThrows(IllegalArgumentException.class,
+                () -> request.optimizeForContinuousPageFetch("orders", 0));
+    }
 
     private BaseRequest.TempRequest request;
 

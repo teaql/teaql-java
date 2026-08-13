@@ -48,6 +48,8 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
     protected Slice slice = new Slice();
     protected int hardLimit = DEFAULT_HARD_LIMIT;
 
+    protected ContinuousPageFetchOptions continuousPageFetchOptions;
+
     // enhance relations
     protected Map<String, SearchRequest> enhanceRelations = new HashMap<>();
 
@@ -227,6 +229,25 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
     public BaseRequest<T> hardLimit(int hardLimit) {
         if (hardLimit <= 0) throw new IllegalArgumentException("hardLimit must be positive");
         this.hardLimit = hardLimit;
+        return this;
+    }
+
+    @Override
+    public ContinuousPageFetchOptions continuousPageFetchOptions() {
+        return continuousPageFetchOptions;
+    }
+
+    /**
+     * Accepts best-effort Cursor state for continuous browsing. Data changes can
+     * produce small overlaps or gaps; do not use this for business processing.
+     */
+    public BaseRequest<T> optimizeForContinuousPageFetch() {
+        this.continuousPageFetchOptions = ContinuousPageFetchOptions.defaults();
+        return this;
+    }
+
+    public BaseRequest<T> optimizeForContinuousPageFetch(String namespace, int ttlSeconds) {
+        this.continuousPageFetchOptions = new ContinuousPageFetchOptions(namespace, ttlSeconds);
         return this;
     }
 

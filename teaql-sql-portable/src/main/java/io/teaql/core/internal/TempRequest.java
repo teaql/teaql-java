@@ -34,6 +34,7 @@ public class TempRequest extends BaseRequest {
         enhanceChildren = pRequest.enhanceChildren();
         cacheAggregation = pRequest.tryCacheAggregation();
         aggregateCacheTime = pRequest.getAggregateCacheTime();
+        continuousPageFetchOptions = pRequest.continuousPageFetchOptions();
         if (pRequest.getExtensions() != null) {
             this.extensions.putAll(pRequest.getExtensions());
         }

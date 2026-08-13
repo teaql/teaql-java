@@ -204,6 +204,7 @@ public class PortableSQLDatabaseTest {
 
     public static class SQLiteTeaQLDatabase implements TeaQLDatabase {
         private final Connection connection;
+        private final List<String> queryTrace = new ArrayList<>();
 
         public SQLiteTeaQLDatabase() throws Exception {
             this.connection = DriverManager.getConnection("jdbc:sqlite::memory:");
@@ -212,6 +213,7 @@ public class PortableSQLDatabaseTest {
         @Override
         public List<Map<String, Object>> query(String sql, Object[] args) {
             System.out.println("[SQL-QUERY] " + sql + " | args: " + Arrays.toString(args));
+            queryTrace.add(sql + " | args: " + Arrays.toString(args));
             List<Map<String, Object>> results = new ArrayList<>();
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
                 for (int i = 0; i < args.length; i++) {
@@ -232,6 +234,14 @@ public class PortableSQLDatabaseTest {
                 throw new RuntimeException(e);
             }
             return results;
+        }
+
+        public void clearQueryTrace() {
+            queryTrace.clear();
+        }
+
+        public List<String> queryTrace() {
+            return List.copyOf(queryTrace);
         }
 
         @Override
@@ -376,6 +386,44 @@ public class PortableSQLDatabaseTest {
 
         // Generate schema
         sqlDataService.ensureSchema(ctx, "Task");
+    }
+
+    @Test
+    public void testContinuousPageFetchUsesSeekForTheNextIdDescendingPage() {
+        for (int i = 0; i < 25; i++) {
+            Task task = new Task();
+            task.updateTitle("Browse task " + i);
+            task.updateStatus("CONTINUOUS-PAGE");
+            task.auditAs("seed continuous page fixture").save(ctx);
+        }
+
+        TaskRequest first = new TaskRequest().filterByStatus("CONTINUOUS-PAGE");
+        first.addOrderByDescending("id");
+        first.offset(0, 10);
+        first.optimizeForContinuousPageFetch("continuous-page-test", 60);
+        SmartList<Task> firstPage = first.comment("load first browse page")
+                .purpose("verify continuous pagination")
+                .executeForList(ctx);
+        assertEquals(10, firstPage.size());
+        assertEquals("OFFSET_FALLBACK:FIRST_PAGE",
+                ctx.getAttribute(PortableSQLRepository.CONTINUOUS_PAGE_PLAN));
+
+        sqliteDb.clearQueryTrace();
+        TaskRequest second = new TaskRequest().filterByStatus("CONTINUOUS-PAGE");
+        second.addOrderByDescending("id");
+        second.offset(10, 10);
+        second.optimizeForContinuousPageFetch("continuous-page-test", 60);
+        SmartList<Task> secondPage = second.comment("load next browse page")
+                .purpose("verify continuous pagination")
+                .executeForList(ctx);
+
+        assertEquals(10, secondPage.size());
+        assertEquals("CURSOR_SEEK", ctx.getAttribute(PortableSQLRepository.CONTINUOUS_PAGE_PLAN));
+        assertNotNull(ctx.getAttribute(PortableSQLRepository.CONTINUOUS_PAGE_CURSOR_ID));
+        assertTrue(firstPage.get(9).getId() > secondPage.get(0).getId());
+        String executed = sqliteDb.queryTrace().get(0);
+        assertTrue(executed, executed.contains("<"));
+        assertTrue(executed, executed.matches("(?s).*OFFSET \\?.*args: .*0.*"));
     }
 
     @Test

@@ -82,6 +82,9 @@ public interface SearchRequest<T extends Entity> {
     /** Local runtime policy; deliberately not a bean getter or federation field. */
     default int hardLimit() { return DEFAULT_HARD_LIMIT; }
 
+    /** Local runtime hint; deliberately excluded from federation input. */
+    default ContinuousPageFetchOptions continuousPageFetchOptions() { return null; }
+
     Map<String, SearchRequest> enhanceRelations();
 
     Map<String, SearchRequest> enhanceChildren();
