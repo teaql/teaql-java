@@ -88,9 +88,9 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
     }
 
     private static void closeResources(ResultSet resultSet, PreparedStatement statement, Connection connection) {
-        try { resultSet.close(); } catch (Exception ignored) { }
-        try { statement.close(); } catch (Exception ignored) { }
-        try { connection.close(); } catch (Exception ignored) { }
+        try { resultSet.close(); } catch (SQLException ignored) { }
+        try { statement.close(); } catch (SQLException ignored) { }
+        try { connection.close(); } catch (SQLException ignored) { }
     }
 
     @Override
