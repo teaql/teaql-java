@@ -427,6 +427,86 @@ public class PortableSQLDatabaseTest {
     }
 
     @Test
+    public void testContinuousPageFetchUsesSeekForTheNextIdAscendingPage() {
+        seedContinuousPageTasks("CONTINUOUS-PAGE-ASC", 25);
+
+        SmartList<Task> firstPage = continuousPage("CONTINUOUS-PAGE-ASC", false, 0);
+        sqliteDb.clearQueryTrace();
+        SmartList<Task> secondPage = continuousPage("CONTINUOUS-PAGE-ASC", false, 10);
+
+        assertEquals(10, secondPage.size());
+        assertEquals("CURSOR_SEEK", ctx.getAttribute(PortableSQLRepository.CONTINUOUS_PAGE_PLAN));
+        assertTrue(firstPage.get(9).getId() < secondPage.get(0).getId());
+        assertTrue(sqliteDb.queryTrace().get(0), sqliteDb.queryTrace().get(0).contains(">"));
+    }
+
+    @Test
+    public void testContinuousPageFetchFallsBackWhenCheckpointIsMissing() {
+        seedContinuousPageTasks("CONTINUOUS-PAGE-MISS", 25);
+
+        SmartList<Task> page = continuousPage("CONTINUOUS-PAGE-MISS", true, 10);
+
+        assertEquals(10, page.size());
+        assertEquals("OFFSET_FALLBACK:CACHE_MISS",
+                ctx.getAttribute(PortableSQLRepository.CONTINUOUS_PAGE_PLAN));
+    }
+
+    @Test
+    public void testContinuousPageFetchFallsBackWhenCursorStoreIsUnavailable() {
+        seedContinuousPageTasks("CONTINUOUS-PAGE-STORE-FAIL", 25);
+        ContinuousPageCursorStore unavailable = new ContinuousPageCursorStore() {
+            @Override
+            public Optional<ContinuousPageCursor> get(String queryKey, long targetOffset) {
+                throw new IllegalStateException("simulated cursor store outage");
+            }
+
+            @Override
+            public void put(String queryKey, ContinuousPageCursor cursor) {
+                throw new IllegalStateException("simulated cursor store outage");
+            }
+
+            @Override
+            public void invalidate(String queryKey) {
+                throw new IllegalStateException("simulated cursor store outage");
+            }
+        };
+        ctx.putAttribute(ContinuousPageCursorStore.class.getName(), unavailable);
+        try {
+            SmartList<Task> firstPage = continuousPage("CONTINUOUS-PAGE-STORE-FAIL", true, 0);
+            assertEquals(10, firstPage.size());
+            assertEquals("OFFSET_FALLBACK:STORE_UNAVAILABLE",
+                    ctx.getAttribute(PortableSQLRepository.CONTINUOUS_PAGE_PLAN));
+
+            SmartList<Task> secondPage = continuousPage("CONTINUOUS-PAGE-STORE-FAIL", true, 10);
+            assertEquals(10, secondPage.size());
+            assertEquals("OFFSET_FALLBACK:STORE_UNAVAILABLE",
+                    ctx.getAttribute(PortableSQLRepository.CONTINUOUS_PAGE_PLAN));
+        } finally {
+            ctx.putAttribute(ContinuousPageCursorStore.class.getName(), null);
+        }
+    }
+
+    private void seedContinuousPageTasks(String status, int count) {
+        for (int i = 0; i < count; i++) {
+            Task task = new Task();
+            task.updateTitle("Browse task " + i);
+            task.updateStatus(status);
+            task.auditAs("seed continuous page fixture").save(ctx);
+        }
+    }
+
+    private SmartList<Task> continuousPage(String status, boolean descending, int offset) {
+        TaskRequest request = new TaskRequest().filterByStatus(status);
+        if (descending) request.addOrderByDescending("id");
+        else request.addOrderBy("id", true);
+        request.offset(offset, 10);
+        request.optimizeForContinuousPageFetch("continuous-page-test-" + status, 60);
+        return request.comment("load browse page")
+                .purpose("verify continuous pagination")
+                .executeForList(ctx);
+    }
+
+    @Test
     public void testPortableSQLDatabaseWorkflow() {
         // 1. Create and Save Tasks
         Task task1 = new Task();
