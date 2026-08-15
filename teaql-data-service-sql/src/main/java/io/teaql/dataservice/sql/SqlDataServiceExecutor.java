@@ -117,6 +117,8 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     meta.setElapsedUs(elapsed);
                     meta.setResultCount(res.size());
                     meta.setResultSummary("Fetched " + res.size() + " rows");
+                    meta.setParameterizedQuery(sql);
+                    meta.setParameters(parameters(args));
                     meta.setDebugQuery(formatSqlWithArgs(sql, args));
                     ctx.recordExecutionMetadata(meta);
                     return res;
@@ -133,6 +135,8 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     meta.setElapsedUs(elapsed);
                     meta.setAffectedRows((long) res);
                     meta.setResultSummary("Affected " + res + " rows");
+                    meta.setParameterizedQuery(sql);
+                    meta.setParameters(parameters(args));
                     meta.setDebugQuery(formatSqlWithArgs(sql, args));
                     ctx.recordExecutionMetadata(meta);
                     return res;
@@ -157,6 +161,8 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     meta.setElapsedUs(elapsed);
                     meta.setAffectedRows((long) total);
                     meta.setResultSummary("Batch affected " + total + " rows");
+                    meta.setParameterizedQuery(sql);
+                    meta.setParameters(batchParameters(batchArgs));
                     meta.setDebugQuery(loggedSql);
                     ctx.recordExecutionMetadata(meta);
                     return res;
@@ -172,6 +178,8 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     meta.setOperation(io.teaql.core.DataServiceOperation.SCHEMA);
                     meta.setElapsedUs(elapsed);
                     meta.setResultSummary("Executed");
+                    meta.setParameterizedQuery(sql);
+                    meta.setParameters(java.util.List.of());
                     meta.setDebugQuery(sql);
                     ctx.recordExecutionMetadata(meta);
                 }
@@ -212,5 +220,25 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
             sb.append(c);
         }
         return sb.toString();
+    }
+
+    private static java.util.List<Object> parameters(Object[] args) {
+        if (args == null || args.length == 0) {
+            return java.util.List.of();
+        }
+        return new java.util.ArrayList<>(java.util.Arrays.asList(args));
+    }
+
+    private static java.util.List<Object> batchParameters(java.util.List<Object[]> batchArgs) {
+        if (batchArgs == null || batchArgs.isEmpty()) {
+            return java.util.List.of();
+        }
+        java.util.List<Object> result = new java.util.ArrayList<>();
+        for (Object[] args : batchArgs) {
+            if (args != null) {
+                java.util.Collections.addAll(result, args);
+            }
+        }
+        return result;
     }
 }

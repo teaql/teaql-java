@@ -1,6 +1,8 @@
 package io.teaql.core;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public final class ExecutionMetadata {
@@ -11,6 +13,8 @@ public final class ExecutionMetadata {
     private Long affectedRows;
     private Integer resultCount;
     private String backendRequestId;
+    private String parameterizedQuery;
+    private List<Object> parameters = List.of();
     private String debugQuery;
     private List<TraceNode> traceChain;
     private String comment;
@@ -35,6 +39,19 @@ public final class ExecutionMetadata {
 
     public String getBackendRequestId() { return backendRequestId; }
     public void setBackendRequestId(String backendRequestId) { this.backendRequestId = backendRequestId; }
+
+    /** Provider-native request text with placeholders, never interpolated bind values. */
+    public String getParameterizedQuery() { return parameterizedQuery; }
+    public void setParameterizedQuery(String parameterizedQuery) { this.parameterizedQuery = parameterizedQuery; }
+
+    /** Structured bind values for trusted runtime sinks. Application-safe projections should expose only the count. */
+    public List<Object> getParameters() { return parameters; }
+    public void setParameters(List<Object> parameters) {
+        this.parameters = parameters == null
+                ? List.of()
+                : Collections.unmodifiableList(new ArrayList<>(parameters));
+    }
+    public int getParameterCount() { return parameters.size(); }
 
     public String getDebugQuery() { return debugQuery; }
     public void setDebugQuery(String debugQuery) { this.debugQuery = debugQuery; }
