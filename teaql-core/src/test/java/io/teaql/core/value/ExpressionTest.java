@@ -31,7 +31,7 @@ public class ExpressionTest {
         assertEquals("default", exprNull.orElse("default"));
         
         Expression<Object, String> exprEmpty = new SimpleExpression("");
-        assertEquals("default", exprEmpty.orElse("default"));
+		assertEquals("", exprEmpty.orElse("default"));
         
         Expression<Object, String> exprVal = new SimpleExpression("val");
         assertEquals("val", exprVal.orElse("default"));

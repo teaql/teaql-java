@@ -24,9 +24,11 @@ public interface Expression<E, T> {
         return eval();
     }
 
+    default String $path() { return ""; }
+
     default T orElse(T defaultValue) {
         T value = resolve();
-        if(io.teaql.core.utils.ObjectUtil.isEmpty(value)){
+        if(value == null){
             return defaultValue;
         }
         return value;
@@ -43,7 +45,7 @@ public interface Expression<E, T> {
             throws Throwable{
 
         T value = resolve();
-        if(io.teaql.core.utils.ObjectUtil.isEmpty(value)){
+        if(value == null){
             throw exceptionSupplier.get();
         }
         return value;

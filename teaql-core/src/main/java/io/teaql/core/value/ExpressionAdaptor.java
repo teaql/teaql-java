@@ -33,4 +33,7 @@ public class ExpressionAdaptor<T, E, U> implements Expression<T, U> {
     public T $getRoot() {
         return (T) expression.$getRoot();
     }
+
+    @Override
+    public String $path() { return expression.$path(); }
 }

@@ -26,6 +26,8 @@ public class BaseEntity implements Entity {
 
     private Map<String, PropertyChange> updatedProperties = new ConcurrentHashMap<>();
 
+    private final Set<String> loadedProperties = ConcurrentHashMap.newKeySet();
+
     private Map<String, Object> additionalInfo = new ConcurrentHashMap<>();
 
     private DynamicFieldValues dynamicFieldValues;
@@ -80,6 +82,7 @@ public class BaseEntity implements Entity {
     }
 
     public BaseEntity updateId(Long id) {
+		markPropertyLoaded(ID_PROPERTY);
         if (ObjectUtil.equals(this.id, id)) return this;
         handleUpdate(ID_PROPERTY, getId(), id);
         this.id = id;
@@ -92,6 +95,7 @@ public class BaseEntity implements Entity {
     }
 
     public BaseEntity updateVersion(Long version) {
+		markPropertyLoaded(VERSION_PROPERTY);
         if (ObjectUtil.equals(this.version, version)) return this;
         handleUpdate(VERSION_PROPERTY, getVersion(), version);
         this.version = version;
@@ -100,6 +104,7 @@ public class BaseEntity implements Entity {
 
     @FrameworkInternal("Business code must use updateXxx() methods")
     public void __internalSet(String property, Object value) {
+		markPropertyLoaded(property);
         switch (property) {
             case "id":      this.id = (Long) value; break;
             case "version": this.version = (Long) value; break;
@@ -344,8 +349,18 @@ public class BaseEntity implements Entity {
 
     @Override
     public void setProperty(String propertyName, Object value) {
+		markPropertyLoaded(propertyName);
         this.__internalSet(propertyName, value);
     }
+
+    @FrameworkInternal("Expression and hydration infrastructure only")
+    public void markPropertyLoaded(String propertyName) {
+		if (propertyName != null) loadedProperties.add(propertyName);
+	}
+
+    public boolean isPropertyLoaded(String propertyName) {
+		return loadedProperties.contains(propertyName);
+	}
 
     @Override
     public Entity updateProperty(String propertyName, Object value) {
@@ -370,6 +385,7 @@ public class BaseEntity implements Entity {
     }
 
     public void handleUpdate(String propertyName, Object oldValue, Object newValue) {
+		markPropertyLoaded(propertyName);
         gotoNextStatus(EntityAction.UPDATE);
         PropertyChange propertyChange = updatedProperties.get(propertyName);
         if (propertyChange != null) {
@@ -395,6 +411,7 @@ public class BaseEntity implements Entity {
     }
 
     public void cacheRelation(String relationName, Entity relation) {
+		markPropertyLoaded(relationName);
         this.relationCache.put(relationName, relation);
         Object initValue = getProperty(relationName);
         handleUpdate(relationName, initValue, relation);

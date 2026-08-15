@@ -65,4 +65,11 @@ public class SmartListExpressionTest {
         
         assertEquals(Integer.valueOf(1), expr.size().eval(null));
     }
+
+    @Test
+    public void firstOfLoadedEmptyListIsNull() {
+        SmartList<DummyEntity> list = new SmartList<>();
+        Expression<Object, SmartList<DummyEntity>> inner = new DummyExpression<>(list);
+        assertNull(new SmartListExpression<>(inner).first().eval(null));
+    }
 }

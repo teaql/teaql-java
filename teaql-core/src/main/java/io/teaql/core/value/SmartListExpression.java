@@ -20,7 +20,7 @@ public class SmartListExpression<T, E, U extends BaseEntity>
     }
 
     public Expression<T, U> first() {
-        return apply(list -> list.get(0));
+		return apply(list -> list.isEmpty() ? null : list.getData().get(0));
     }
 
     public Expression<T, U> get(int index) {
