@@ -7,6 +7,7 @@ import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.lang.reflect.Proxy;
 
 import static org.junit.Assert.*;
 
@@ -240,6 +241,37 @@ public class BaseRequestTest {
     @Test(expected = TeaQLRuntimeException.class)
     public void testPurposeWithoutComment() {
         new BaseRequest.TempRequest(BaseEntity.class, "BaseEntity").purpose("Display");
+    }
+
+    @Test(expected = TeaQLRuntimeException.class)
+    public void testPurposeRejectsWhitespaceComment() {
+        new BaseRequest.TempRequest(BaseEntity.class, "BaseEntity")
+                .internalComment("   ")
+                .purpose("Display");
+    }
+
+    @Test(expected = TeaQLRuntimeException.class)
+    public void testPurposeRejectsWhitespacePurpose() {
+        new BaseRequest.TempRequest(BaseEntity.class, "BaseEntity")
+                .internalComment("Load entity")
+                .purpose("   ");
+    }
+
+    @Test
+    public void testExecutableRequestCreatesEntityThroughTrustedContext() {
+        UserContext context = (UserContext) Proxy.newProxyInstance(
+                UserContext.class.getClassLoader(),
+                new Class<?>[] { UserContext.class },
+                (proxy, method, args) -> {
+                    if (method.getName().equals("initializeEntity")) return args[1];
+                    throw new UnsupportedOperationException(method.getName());
+                });
+        BaseEntity entity = (BaseEntity) new BaseRequest.TempRequest(BaseEntity.class, "BaseEntity")
+                .internalComment("Initialize entity")
+                .purpose("Create entity")
+                .newEntity(context);
+        assertNotNull(entity);
+        assertEquals(EntityStatus.NEW, entity.get$status());
     }
 
     @Test

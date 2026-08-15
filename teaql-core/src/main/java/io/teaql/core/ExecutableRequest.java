@@ -26,6 +26,20 @@ public class ExecutableRequest<T extends Entity> {
         this.request = request;
     }
 
+    /** Creates a generated entity only after Comment and Purpose are declared. */
+    public T newEntity(UserContext ctx) {
+        if (ctx == null) {
+            throw new IllegalArgumentException("UserContext is required for entity creation");
+        }
+        try {
+            T entity = request.returnType().getDeclaredConstructor().newInstance();
+            return ctx.initializeEntity(request.getTypeName(), entity);
+        } catch (ReflectiveOperationException exception) {
+            throw new TeaQLRuntimeException(
+                    "Unable to initialize " + request.returnType().getName(), exception);
+        }
+    }
+
     public SmartList<T> executeForList(UserContext ctx) {
         return ctx.executeForList(this);
     }

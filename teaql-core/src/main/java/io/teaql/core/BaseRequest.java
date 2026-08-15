@@ -800,11 +800,15 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
      *   Q.tasks().filterByName("xxx").comment("Load tasks").purpose("Display board").executeForList(ctx);
      */
     public ExecutableRequest<T> purpose(String purpose) {
-        if (comment == null || comment.isEmpty()) {
+        if (comment == null || comment.trim().isEmpty()) {
             throw new TeaQLRuntimeException(
                 "[PURPOSE FAILED] Missing .comment() on " + getTypeName() + " query.\n" +
                 "Call .comment() before .purpose().\n" +
                 "Pattern: Q.xxx().comment(\"...\").purpose(\"...\").executeForList(ctx)");
+        }
+        if (purpose == null || purpose.trim().isEmpty()) {
+            throw new TeaQLRuntimeException(
+                "[PURPOSE FAILED] purpose() must be non-empty on " + getTypeName() + " query.");
         }
         this.purpose = purpose;
         return new ExecutableRequest<>((SearchRequest<T>) this);

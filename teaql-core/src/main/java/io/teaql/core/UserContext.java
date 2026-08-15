@@ -7,6 +7,21 @@ import io.teaql.data.dynamic.DynamicFieldsFacade;
 
 public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
 
+    /**
+     * Applies trusted, context-owned defaults to a newly generated entity.
+     * Business input must not supply tenant, actor, policy, provider, or audit
+     * infrastructure values directly.
+     */
+    default <T extends Entity> T initializeEntity(String entityName, T entity) {
+        if (entityName == null || entityName.trim().isEmpty()) {
+            throw new IllegalArgumentException("entityName must not be empty");
+        }
+        if (entity == null) {
+            throw new IllegalArgumentException("entity must not be null");
+        }
+        return entity;
+    }
+
     void pushTrace(String comment);
 
     List<TraceNode> getTraceChain();
