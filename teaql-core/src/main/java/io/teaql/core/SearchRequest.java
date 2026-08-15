@@ -41,6 +41,12 @@ public interface SearchRequest<T extends Entity> {
 
     Class<? extends T> returnType();
 
+    /** Native-image-safe entity factory supplied by generated request code. */
+    default T internalNewEntity() {
+        throw new TeaQLRuntimeException(
+                "Request does not provide a native-image-safe entity factory for " + getTypeName());
+    }
+
 
     String comment();
 

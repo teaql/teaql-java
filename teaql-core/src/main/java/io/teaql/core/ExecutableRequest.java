@@ -31,13 +31,7 @@ public class ExecutableRequest<T extends Entity> {
         if (ctx == null) {
             throw new IllegalArgumentException("UserContext is required for entity creation");
         }
-        try {
-            T entity = request.returnType().getDeclaredConstructor().newInstance();
-            return ctx.initializeEntity(request.getTypeName(), entity);
-        } catch (ReflectiveOperationException exception) {
-            throw new TeaQLRuntimeException(
-                    "Unable to initialize " + request.returnType().getName(), exception);
-        }
+        return ctx.initializeEntity(request.getTypeName(), request.internalNewEntity());
     }
 
     public SmartList<T> executeForList(UserContext ctx) {

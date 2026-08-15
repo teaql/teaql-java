@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import io.teaql.core.utils.ArrayUtil;
@@ -58,6 +59,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
 
     // basic return type
     protected Class<? extends T> returnType;
+    private final Supplier<? extends T> entityFactory;
 
     // aggregations
     protected Aggregations aggregations = new Aggregations();
@@ -83,7 +85,12 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
     protected DynamicFieldSelection dynamicFieldSelection;
 
     public BaseRequest(Class<T> pReturnType) {
+        this(pReturnType, null);
+    }
+
+    public BaseRequest(Class<T> pReturnType, Supplier<? extends T> entityFactory) {
         returnType = pReturnType;
+        this.entityFactory = entityFactory;
     }
 
     public String getSearchForText() {
@@ -101,6 +108,15 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
     @Override
     public Class<? extends T> returnType() {
         return returnType;
+    }
+
+    @Override
+    public T internalNewEntity() {
+        if (entityFactory == null) {
+            throw new TeaQLRuntimeException(
+                    "Generated request does not provide an entity factory for " + getTypeName());
+        }
+        return entityFactory.get();
     }
 
     protected String prefix(String prefix, String value) {
@@ -912,6 +928,14 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         @SuppressWarnings("unchecked")
         public TempRequest(Class<? extends Entity> returnType, String typeName) {
             super((Class<Entity>) returnType);
+            this.type = typeName;
+        }
+        @SuppressWarnings("unchecked")
+        public TempRequest(
+                Class<? extends Entity> returnType,
+                String typeName,
+                Supplier<? extends Entity> entityFactory) {
+            super((Class<Entity>) returnType, entityFactory);
             this.type = typeName;
         }
         @Override

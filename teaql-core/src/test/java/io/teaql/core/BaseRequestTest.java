@@ -266,7 +266,8 @@ public class BaseRequestTest {
                     if (method.getName().equals("initializeEntity")) return args[1];
                     throw new UnsupportedOperationException(method.getName());
                 });
-        BaseEntity entity = (BaseEntity) new BaseRequest.TempRequest(BaseEntity.class, "BaseEntity")
+        BaseEntity entity = (BaseEntity) new BaseRequest.TempRequest(
+                        BaseEntity.class, "BaseEntity", BaseEntity::new)
                 .internalComment("Initialize entity")
                 .purpose("Create entity")
                 .newEntity(context);
