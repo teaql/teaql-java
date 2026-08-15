@@ -3,12 +3,14 @@ package io.teaql.runtime;
 import io.teaql.core.*;
 import io.teaql.core.meta.EntityDescriptor;
 import io.teaql.core.meta.EntityMetaFactory;
+import io.teaql.core.criteria.Operator;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.Map;
 
 public class TeaQLRuntimeTest {
 
@@ -80,6 +82,30 @@ public class TeaQLRuntimeTest {
         }
     }
 
+    public static class PageQueryExecutor implements QueryExecutor {
+        public final List<SearchRequest<?>> requests = new ArrayList<>();
+        @Override public QueryResult query(UserContext ctx, QueryRequest query) {
+            SearchRequest<?> request = ((DefaultQueryRequest) query).getSearchRequest();
+            requests.add(request);
+            if (request.hasSimpleAgg()) {
+                AggregationItem item = new AggregationItem();
+                item.setValues(Map.of(
+                        new SimpleNamedExpression(TeaQLConstants.ROOT_LIST_PARAMETER_NAME), 5));
+                AggregationResult total = new AggregationResult();
+                total.setData(List.of(item));
+                return new DefaultQueryResult(new SmartList<>(), total);
+            }
+            SmartList<DummyEntity> rows = new SmartList<>();
+            for (int id = request.getSlice().getOffset() + 1;
+                    id <= request.getSlice().getOffset() + request.getSlice().getSize(); id++) {
+                DummyEntity entity = new DummyEntity(); entity.updateId((long) id); rows.add(entity);
+            }
+            return new DefaultQueryResult(rows);
+        }
+        @Override public String name() { return "page"; }
+        @Override public DataServiceCapabilities capabilities() { return null; }
+    }
+
     public static class RecordingRuntimeLogSink implements RuntimeLogSink {
         public final List<RawAuditEvent> auditEvents = new ArrayList<>();
 
@@ -140,7 +166,35 @@ public class TeaQLRuntimeTest {
     }
 
     @Test
-    public void materializedListHardLimitRejectsAndCanBeOverriddenLocally() {
+    public void pagedExecutionReturnsRowsAndExactPolicyFilteredTotal() {
+        PageQueryExecutor executor = new PageQueryExecutor();
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new DummyMetaFactory()).dataService("dummy", executor)
+                .requestPolicy(new RequestPolicy() {
+                    @Override public void enforceSelect(UserContext ctx, SearchRequest<?> query) {
+                        BaseRequest<?> request = (BaseRequest<?>) query;
+                        request.appendSearchCriteria(request.createBasicSearchCriteria(
+                                "status", Operator.EQUAL, "ACTIVE"));
+                    }
+                })
+                .build();
+        BaseRequest<DummyEntity> request = new BaseRequest<>(DummyEntity.class) {
+            { internalComment("list active"); internalPurpose("test exact page total"); }
+            @Override public String getTypeName() { return "Dummy"; }
+        };
+        SmartList<DummyEntity> page = runtime.executeForPage(
+                new DefaultUserContext(runtime), request, 2, 2);
+        Assert.assertEquals(List.of(3L, 4L), page.toList(Entity::getId));
+        Assert.assertEquals(5, page.getTotalCount());
+        Assert.assertEquals(2, executor.requests.size());
+        Assert.assertFalse(executor.requests.get(0).hasSimpleAgg());
+        Assert.assertTrue(executor.requests.get(1).hasSimpleAgg());
+        Assert.assertSame(executor.requests.get(0).getSearchCriteria(),
+                executor.requests.get(1).getSearchCriteria());
+    }
+
+    @Test
+    public void materializedListHardLimitRejectsClientOverride() {
         TeaQLRuntime runtime = TeaQLRuntime.builder().metadata(new DummyMetaFactory())
                 .dataService("dummy", new DummyQueryExecutor()).build();
         BaseRequest<DummyEntity> request = new BaseRequest<DummyEntity>(DummyEntity.class) {
@@ -154,8 +208,13 @@ public class TeaQLRuntimeTest {
         } catch (TeaQLRuntimeException expected) {
             Assert.assertTrue(expected.getMessage().contains("QUERY HARD LIMIT"));
         }
-        request.hardLimit(20_000);
-        Assert.assertEquals(1, runtime.executeForList(new DefaultUserContext(runtime), request).size());
+        try {
+            request.top(20_000);
+            runtime.executeForList(new DefaultUserContext(runtime), request);
+            Assert.fail("client-controlled hard-limit override must not be available");
+        } catch (TeaQLRuntimeException expected) {
+            Assert.assertTrue(expected.getMessage().contains("exceeds hard limit 10000"));
+        }
     }
 
     @Test

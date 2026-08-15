@@ -78,6 +78,28 @@ public class TeaQLRuntime {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    public <T extends Entity> SmartList<T> executeForPage(
+            UserContext ctx, SearchRequest<T> request, int offset, int limit) {
+        if (!(request instanceof BaseRequest<?> baseRequest)) {
+            throw new TeaQLRuntimeException("Paged execution requires a generated BaseRequest");
+        }
+        baseRequest.offset(offset, limit);
+        SmartList<T> rows = executeForList(ctx, request);
+        SearchRequest<?> countRequest = baseRequest.internalCountRequest();
+        EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
+        String route = descriptor.getDataService();
+        if (route == null || route.isEmpty()) route = "default";
+        QueryExecutor executor = registry.resolveQueryExecutor(route);
+        QueryResult countResult = executor.query(ctx, new DefaultQueryRequest(countRequest));
+        if (!(countResult instanceof DefaultQueryResult result)
+                || result.getAggregationResult() == null) {
+            throw new TeaQLRuntimeException("Exact page count is not supported for route: " + route);
+        }
+        rows.addAggregationResult(ctx, result.getAggregationResult());
+        return rows;
+    }
+
     /**
      * Executes a framework-owned nested query under the trace established by its
      * already-authorized root request. Nested relation requests are generated as

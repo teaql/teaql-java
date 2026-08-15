@@ -38,6 +38,22 @@ public class ExecutableRequest<T extends Entity> {
         return ctx.executeForList(this);
     }
 
+    /**
+     * Executes a stable offset page and attaches the exact filtered total to
+     * the returned SmartList. Generated request filters and trusted runtime
+     * policy are shared by the rows and count aggregation.
+     */
+    public SmartList<T> executeForPage(UserContext ctx, int offset, int limit) {
+        if (offset < 0) {
+            throw new IllegalArgumentException("offset must not be negative");
+        }
+        if (limit < 1 || limit > SearchRequest.DEFAULT_HARD_LIMIT) {
+            throw new IllegalArgumentException(
+                    "limit must be between 1 and " + SearchRequest.DEFAULT_HARD_LIMIT);
+        }
+        return ctx.executeForPage(this, offset, limit);
+    }
+
     public T executeForOne(UserContext ctx) {
         return ctx.executeForOne(this);
     }

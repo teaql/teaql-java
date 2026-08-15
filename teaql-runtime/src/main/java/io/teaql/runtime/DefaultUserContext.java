@@ -79,6 +79,12 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
     }
 
     @Override
+    public <T extends Entity> SmartList<T> executeForPage(
+            ExecutableRequest<T> request, int offset, int limit) {
+        return runtime.executeForPage(this, request.request(), offset, limit);
+    }
+
+    @Override
     public <T extends Entity> Stream<T> executeForStream(ExecutableRequest<T> request) {
         return internalExecuteForStream(request.request());
     }

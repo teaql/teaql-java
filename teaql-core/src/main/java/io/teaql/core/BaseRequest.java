@@ -222,16 +222,6 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
     @Override
     public int hardLimit() { return hardLimit; }
 
-    /**
-     * Overrides the materialized-list safety limit for this outer query.
-     * Most applications should keep the 10,000-row default.
-     */
-    public BaseRequest<T> hardLimit(int hardLimit) {
-        if (hardLimit <= 0) throw new IllegalArgumentException("hardLimit must be positive");
-        this.hardLimit = hardLimit;
-        return this;
-    }
-
     @Override
     public ContinuousPageFetchOptions continuousPageFetchOptions() {
         return continuousPageFetchOptions;
@@ -600,6 +590,18 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
     public BaseRequest<T> count(String retName) {
         countProperty(retName, BaseEntity.ID_PROPERTY);
         return this;
+    }
+
+    /** Framework-owned count snapshot created after trusted policy enforcement. */
+    public SearchRequest<?> internalCountRequest() {
+        TempRequest countRequest = new TempRequest(returnType, getTypeName(), entityFactory);
+        countRequest.comment = comment;
+        countRequest.purpose = purpose;
+        countRequest.searchCriteria = searchCriteria;
+        countRequest.partitionProperty = partitionProperty;
+        countRequest.extensions.putAll(extensions);
+        countRequest.count();
+        return countRequest;
     }
 
     public void countProperty(String propertyName) {

@@ -34,6 +34,11 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
 
     <T extends Entity> SmartList<T> executeForList(ExecutableRequest<T> request);
 
+    default <T extends Entity> SmartList<T> executeForPage(
+            ExecutableRequest<T> request, int offset, int limit) {
+        throw new TeaQLRuntimeException("Exact paged execution is not supported by this context");
+    }
+
     <T extends Entity> Stream<T> executeForStream(ExecutableRequest<T> request);
 
     <T extends Entity> Stream<T> executeForStream(ExecutableRequest<T> request, int enhanceBatchSize);
