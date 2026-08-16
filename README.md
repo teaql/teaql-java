@@ -12,6 +12,15 @@ both humans and coding agents. Instead of exposing unrestricted infrastructure
 operations, the runtime keeps execution behind explicit context, intent, policy,
 and capability boundaries.
 
+## Recommended Agent Harness
+
+When building database-backed applications with the TeaQL Java runtime, we
+recommend using it together with the [TeaQL Agent Kit](https://github.com/teaql/teaql-agent-kit).
+The Agent Kit is TeaQL's continuously evolving **Harness Engineering** method.
+It gives coding agents a model-mediated, executable workflow for domain
+modeling, deterministic evaluation and repair, code generation, implementation,
+and evidence-based verification as the generator and runtimes evolve.
+
 ## Why TeaQL?
 
 TeaQL applies five safeguards to application operations:
