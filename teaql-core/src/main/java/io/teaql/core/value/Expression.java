@@ -26,7 +26,7 @@ public interface Expression<E, T> {
 
     default String $path() { return ""; }
 
-    default T orElse(T defaultValue) {
+    default T orIfNull(T defaultValue) {
         T value = resolve();
         if(value == null){
             return defaultValue;

@@ -26,15 +26,15 @@ public class ExpressionTest {
     }
 
     @Test
-    public void testOrElse() {
+    public void testOrIfNull() {
         Expression<Object, String> exprNull = new SimpleExpression(null);
-        assertEquals("default", exprNull.orElse("default"));
+        assertEquals("default", exprNull.orIfNull("default"));
         
         Expression<Object, String> exprEmpty = new SimpleExpression("");
-		assertEquals("", exprEmpty.orElse("default"));
+		assertEquals("", exprEmpty.orIfNull("default"));
         
         Expression<Object, String> exprVal = new SimpleExpression("val");
-        assertEquals("val", exprVal.orElse("default"));
+        assertEquals("val", exprVal.orIfNull("default"));
     }
 
     @Test

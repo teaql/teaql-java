@@ -19,20 +19,20 @@ public class LoadedPropertyExpressionTest {
         Expression<Subject, Subject> root = new ValueExpression<>(value);
         Expression<Subject, String> expression = new LoadedPropertyExpression<>(root, "name", Subject::getName);
         assertEquals("TeaQL", expression.eval());
-        assertEquals("TeaQL", expression.orElse("fallback"));
+        assertEquals("TeaQL", expression.orIfNull("fallback"));
 
         Subject loadedNull = new Subject(); loadedNull.updateId(2L); loadedNull.loadName(null);
         Expression<Subject, String> nullExpression = new LoadedPropertyExpression<>(
                 new ValueExpression<>(loadedNull), "name", Subject::getName);
         assertNull(nullExpression.eval());
-        assertEquals("fallback", nullExpression.orElse("fallback"));
+        assertEquals("fallback", nullExpression.orIfNull("fallback"));
 
         Subject partial = new Subject(); partial.updateId(3L);
         Expression<Subject, String> missing = new LoadedPropertyExpression<>(
                 new ValueExpression<>(partial), "name", Subject::getName);
         TeaQLNotLoadedException error = assertThrows(TeaQLNotLoadedException.class, missing::eval);
         assertEquals("name", error.getAccessPath());
-        assertThrows(TeaQLNotLoadedException.class, () -> missing.orElse("hidden"));
+        assertThrows(TeaQLNotLoadedException.class, () -> missing.orIfNull("hidden"));
     }
 
     @Test
@@ -40,6 +40,6 @@ public class LoadedPropertyExpressionTest {
         Subject subject = new Subject(); subject.loadName("");
         Expression<Subject, String> expression = new LoadedPropertyExpression<>(
                 new ValueExpression<>(subject), "name", Subject::getName);
-        assertEquals("", expression.orElse("fallback"));
+        assertEquals("", expression.orIfNull("fallback"));
     }
 }
