@@ -179,14 +179,51 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
     // ==========================================
     // Local Cache (本地缓存)
     // ==========================================
-    default void putToLocalCache(String key, Object value) {}
-    default void putToLocalCache(String key, Object value, int timeToLiveInSeconds) {}
-    default <T> T getFromLocalCache(String key, Class<T> clazz) { return null; }
-    default void removeFromLocalCache(String key) {}
+    default void putToLocalCache(String key, Object value) {
+        putToLocalCache(key, value, 0);
+    }
+    default void putToLocalCache(String key, Object value, int timeToLiveInSeconds) {
+        io.teaql.core.spi.LocalCacheProvider provider = capability(io.teaql.core.spi.LocalCacheProvider.class);
+        if (provider == null) provider = io.teaql.core.spi.DefaultLocalCacheProvider.INSTANCE;
+        try {
+            io.teaql.core.utils.Cache<String, Object> cache = provider.getCache("default");
+            if (timeToLiveInSeconds > 0) cache.put(key, value, timeToLiveInSeconds * 1000L);
+            else cache.put(key, value);
+        } catch (Exception e) {
+            throw new io.teaql.core.spi.CacheException("Local cache put failed", e);
+        }
+    }
+    default <T> T getFromLocalCache(String key, Class<T> clazz) {
+        io.teaql.core.spi.LocalCacheProvider provider = capability(io.teaql.core.spi.LocalCacheProvider.class);
+        if (provider == null) provider = io.teaql.core.spi.DefaultLocalCacheProvider.INSTANCE;
+        try {
+            Object value = provider.<String, Object>getCache("default").get(key);
+            return clazz.isInstance(value) ? clazz.cast(value) : null;
+        } catch (Exception e) {
+            throw new io.teaql.core.spi.CacheException("Local cache get failed", e);
+        }
+    }
+    default void removeFromLocalCache(String key) {
+        io.teaql.core.spi.LocalCacheProvider provider = capability(io.teaql.core.spi.LocalCacheProvider.class);
+        if (provider == null) provider = io.teaql.core.spi.DefaultLocalCacheProvider.INSTANCE;
+        try {
+            provider.<String, Object>getCache("default").remove(key);
+        } catch (Exception e) {
+            throw new io.teaql.core.spi.CacheException("Local cache remove failed", e);
+        }
+    }
 
     // ==========================================
     // Local Lock (本地锁)
     // ==========================================
-    default boolean tryLocalLock(String key, long timeoutMillis, long expireMillis) { return true; }
-    default void unlockLocal(String key) {}
+    default boolean tryLocalLock(String key, long timeoutMillis, long expireMillis) {
+        io.teaql.core.spi.LocalLockProvider provider = capability(io.teaql.core.spi.LocalLockProvider.class);
+        if (provider == null) provider = io.teaql.core.spi.DefaultLocalLockProvider.INSTANCE;
+        return provider.tryLock("default", key, this, timeoutMillis, expireMillis);
+    }
+    default void unlockLocal(String key) {
+        io.teaql.core.spi.LocalLockProvider provider = capability(io.teaql.core.spi.LocalLockProvider.class);
+        if (provider == null) provider = io.teaql.core.spi.DefaultLocalLockProvider.INSTANCE;
+        provider.unlock("default", key, this);
+    }
 }

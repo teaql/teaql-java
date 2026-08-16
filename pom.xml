@@ -45,6 +45,7 @@
     <modules>
         <module>teaql-utils</module>
         <module>teaql-redis</module>
+        <module>teaql-cloud</module>
         <module>teaql-utils-reflection</module>
         <module>teaql-utils-json</module>
         <module>teaql-utils-spring</module>

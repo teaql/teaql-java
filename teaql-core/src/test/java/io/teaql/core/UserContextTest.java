@@ -41,6 +41,39 @@ public class UserContextTest {
         assertNull(ctx.capability(String.class));
     }
 
+    @Test
+    public void localCacheIsSharedAndHonorsTtl() throws Exception {
+        DummyUserContext first = new DummyUserContext() {};
+        DummyUserContext second = new DummyUserContext() {};
+        String key = "local-cache-" + System.nanoTime();
+
+        first.putToLocalCache(key, "value");
+        assertEquals("value", second.getFromLocalCache(key, String.class));
+        second.removeFromLocalCache(key);
+        assertNull(first.getFromLocalCache(key, String.class));
+
+        first.putToLocalCache(key, "temporary", 1);
+        Thread.sleep(1100);
+        assertNull(second.getFromLocalCache(key, String.class));
+    }
+
+    @Test
+    public void localLockEnforcesOwnershipTimeoutAndLeaseExpiry() throws Exception {
+        DummyUserContext first = new DummyUserContext() {};
+        DummyUserContext second = new DummyUserContext() {};
+        String key = "local-lock-" + System.nanoTime();
+
+        assertTrue(first.tryLocalLock(key, 0, 50));
+        assertFalse(second.tryLocalLock(key, 0, 50));
+        second.unlockLocal(key);
+        assertFalse(second.tryLocalLock(key, 0, 50));
+        Thread.sleep(60);
+        assertTrue(second.tryLocalLock(key, 0, 50));
+        second.unlockLocal(key);
+        assertTrue(first.tryLocalLock(key, 0, 50));
+        first.unlockLocal(key);
+    }
+
     @Test(expected = TeaQLRuntimeException.class)
     public void testDynamicFieldsWithoutCapability() {
         DummyUserContext ctx = new DummyUserContext() {};
