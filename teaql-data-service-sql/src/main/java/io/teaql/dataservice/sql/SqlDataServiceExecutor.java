@@ -60,7 +60,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
 
     @Override
     public <T> T executeInTransaction(UserContext ctx, TransactionCallback<T> action) {
-        return action.doInTransaction();
+        return getPortableService().executeInTransaction(ctx, action);
     }
 
     @Override
@@ -99,7 +99,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                 }
                 @Override
                 public void executeInTransaction(Runnable action) {
-                    action.run();
+                    executionAdapter.executeInTransaction(action);
                 }
                 @Override
                 public java.util.List<java.util.Map<String, Object>> getTableColumns(String tableName) {

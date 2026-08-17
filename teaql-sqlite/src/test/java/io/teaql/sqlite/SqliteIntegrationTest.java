@@ -193,9 +193,11 @@ public class SqliteIntegrationTest {
         Task task1 = new Task();
         task1.updateTitle("Assemble Assembly Line");
         task1.updateStatus("TODO");
-        task1.auditAs("save").save(ctx);
+        Task created = task1.auditAs("save").save(ctx);
 
+        assertSame(task1, created);
         assertNotNull(task1.getId());
+        assertEquals(Long.valueOf(1L), task1.getVersion());
         assertEquals("Status should transition to PERSISTED", EntityStatus.PERSISTED, task1.get$status());
 
         Task task2 = new Task();
@@ -215,7 +217,9 @@ public class SqliteIntegrationTest {
 
         // 3. Update task
         task1.updateStatus("DONE");
-        task1.auditAs("save").save(ctx);
+        Task updated = task1.auditAs("save").save(ctx);
+        assertSame(task1, updated);
+        assertEquals(Long.valueOf(2L), updated.getVersion());
 
         TaskRequest reqDone = new TaskRequest().filterByStatus("DONE");
         SmartList<Task> resultDone = reqDone.comment("test").purpose("test").executeForList(ctx);
@@ -223,7 +227,10 @@ public class SqliteIntegrationTest {
         assertEquals("Assemble Assembly Line", resultDone.get(0).getTitle());
 
         // 4. Delete task
-        task1.auditAs("delete").delete(ctx);
+        Task deleted = task1.auditAs("delete").delete(ctx);
+        assertSame(task1, deleted);
+        assertEquals(Long.valueOf(-3L), deleted.getVersion());
+        assertEquals(EntityStatus.PERSISTED_DELETED, deleted.get$status());
 
         SmartList<Task> resultAfterDelete = new TaskRequest().filterByStatus("DONE").comment("test").purpose("test").executeForList(ctx);
         assertTrue(resultAfterDelete.isEmpty());

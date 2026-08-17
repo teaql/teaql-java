@@ -19,19 +19,23 @@ public class Audited<T extends Entity> {
         return inner;
     }
 
-    public T save(UserContext ctx) {
+    @SuppressWarnings("unchecked")
+    public <R extends T> R save(UserContext ctx) {
         ctx.saveGraph(this.inner);
-        return this.inner;
+        return (R) this.inner;
     }
 
-    public void delete(UserContext ctx) {
+    @SuppressWarnings("unchecked")
+    public <R extends T> R delete(UserContext ctx) {
         this.inner.markAsDeleted();
         ctx.saveGraph(this.inner);
+        return (R) this.inner;
     }
 
-    public T recover(UserContext ctx) {
+    @SuppressWarnings("unchecked")
+    public <R extends T> R recover(UserContext ctx) {
         this.inner.markAsRecover();
         ctx.saveGraph(this.inner);
-        return this.inner;
+        return (R) this.inner;
     }
 }

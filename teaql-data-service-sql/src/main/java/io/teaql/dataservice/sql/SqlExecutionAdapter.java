@@ -28,4 +28,8 @@ public interface SqlExecutionAdapter {
     int update(String sql, Object[] params);
     
     int[] batchUpdate(String sql, List<Object[]> paramsList);
+
+    default void executeInTransaction(Runnable action) {
+        action.run();
+    }
 }

@@ -306,7 +306,13 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             }
         }
 
-        return new MutationResult() {};
+        Entity persisted = null;
+        if (entity.getId() != null
+                && (mutation.getAction() == DefaultMutationRequest.Action.SAVE
+                    || mutation.getAction() == DefaultMutationRequest.Action.DELETE)) {
+            persisted = repository.loadPersistedById(ctx, entity.getId());
+        }
+        return new io.teaql.core.DefaultMutationResult(persisted);
     }
 
     @Override

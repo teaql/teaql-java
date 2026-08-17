@@ -105,7 +105,7 @@ public class MemoryDataService implements DataServiceExecutor, QueryExecutor, Mu
             storage.lock.writeLock().unlock();
         }
 
-        return new MutationResult() {};
+        return new DefaultMutationResult(entity);
     }
 
     public void clear() {

@@ -16,6 +16,7 @@ import java.util.stream.Stream;
 public class JdbcSqlExecutor implements SqlExecutionAdapter {
 
     private final DataSource dataSource;
+    private final ThreadLocal<Connection> transactionConnection = new ThreadLocal<>();
 
     public JdbcSqlExecutor(DataSource dataSource) {
         this.dataSource = dataSource;
@@ -101,8 +102,12 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
     @Override
     public List<Map<String, Object>> queryForList(String sql, Object[] params) {
         List<Map<String, Object>> result = new ArrayList<>();
-        try (Connection connection = dataSource.getConnection();
-             PreparedStatement ps = connection.prepareStatement(sql)) {
+        Connection connection = null;
+        boolean owned = false;
+        try {
+            connection = transactionConnection.get();
+            if (connection == null) { connection = dataSource.getConnection(); owned = true; }
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
             if (params != null) {
                 for (int i = 0; i < params.length; i++) {
                     bind(ps, i + 1, params[i]);
@@ -122,9 +127,12 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                     result.add(row);
                 }
             }
-            return result;
+                return result;
+            }
         } catch (SQLException e) {
             throw new RuntimeException("JDBC query failed for parameterized SQL: " + sql, e);
+        } finally {
+            if (owned && connection != null) try { connection.close(); } catch (SQLException ignored) { }
         }
     }
 
@@ -140,11 +148,18 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
 
     @Override
     public void execute(String sql) {
-        try (Connection connection = dataSource.getConnection();
-             PreparedStatement ps = connection.prepareStatement(sql)) {
+        Connection connection = null;
+        boolean owned = false;
+        try {
+            connection = transactionConnection.get();
+            if (connection == null) { connection = dataSource.getConnection(); owned = true; }
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.execute();
+            }
         } catch (SQLException e) {
             throw new RuntimeException(e);
+        } finally {
+            if (owned && connection != null) try { connection.close(); } catch (SQLException ignored) { }
         }
     }
 
@@ -155,30 +170,69 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
 
     @Override
     public int update(String sql, Object[] params) {
-        try (Connection connection = dataSource.getConnection();
-             PreparedStatement ps = connection.prepareStatement(sql)) {
+        Connection connection = null;
+        boolean owned = false;
+        try {
+            connection = transactionConnection.get();
+            if (connection == null) { connection = dataSource.getConnection(); owned = true; }
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
             for (int i = 0; i < params.length; i++) {
                 bind(ps, i + 1, params[i]);
             }
-            return ps.executeUpdate();
+                return ps.executeUpdate();
+            }
         } catch (SQLException e) {
             throw new RuntimeException(e);
+        } finally {
+            if (owned && connection != null) try { connection.close(); } catch (SQLException ignored) { }
         }
     }
 
     @Override
     public int[] batchUpdate(String sql, List<Object[]> paramsList) {
-        try (Connection connection = dataSource.getConnection();
-             PreparedStatement ps = connection.prepareStatement(sql)) {
+        Connection connection = null;
+        boolean owned = false;
+        try {
+            connection = transactionConnection.get();
+            if (connection == null) { connection = dataSource.getConnection(); owned = true; }
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
             for (Object[] params : paramsList) {
                 for (int i = 0; i < params.length; i++) {
                     bind(ps, i + 1, params[i]);
                 }
                 ps.addBatch();
             }
-            return ps.executeBatch();
+                return ps.executeBatch();
+            }
         } catch (SQLException e) {
             throw new RuntimeException(e);
+        } finally {
+            if (owned && connection != null) try { connection.close(); } catch (SQLException ignored) { }
+        }
+    }
+
+    @Override
+    public void executeInTransaction(Runnable action) {
+        if (transactionConnection.get() != null) {
+            action.run();
+            return;
+        }
+        try (Connection connection = dataSource.getConnection()) {
+            boolean autoCommit = connection.getAutoCommit();
+            connection.setAutoCommit(false);
+            transactionConnection.set(connection);
+            try {
+                action.run();
+                connection.commit();
+            } catch (RuntimeException | Error failure) {
+                connection.rollback();
+                throw failure;
+            } finally {
+                transactionConnection.remove();
+                connection.setAutoCommit(autoCommit);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("JDBC transaction failed", e);
         }
     }
 

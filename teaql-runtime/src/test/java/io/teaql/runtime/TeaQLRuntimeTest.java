@@ -66,7 +66,9 @@ public class TeaQLRuntimeTest {
         @Override
         public MutationResult mutate(UserContext ctx, MutationRequest request) {
             if (request instanceof DefaultMutationRequest) {
-                requests.add((DefaultMutationRequest) request);
+                DefaultMutationRequest mutationRequest = (DefaultMutationRequest) request;
+                requests.add(mutationRequest);
+                return new DefaultMutationResult(mutationRequest.getEntity());
             }
             return null;
         }

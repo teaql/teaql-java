@@ -546,6 +546,43 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         return smartList;
     }
 
+    @SuppressWarnings("unchecked")
+    public T loadPersistedById(UserContext userContext, Long id) {
+        String sql = "SELECT * FROM " + escapeIdentifier(tableName(entityDescriptor.getType()))
+                + " WHERE " + escapeIdentifier("id") + " = ?";
+        List<Map<String, Object>> rows = database.query(userContext, sql, new Object[] {id});
+        if (rows.size() != 1) {
+            throw new TeaQLRuntimeException(
+                    "Persisted " + entityDescriptor.getType() + "(" + id + ") could not be read back");
+        }
+        T entity = (T) entityDescriptor.createEntity();
+        Map<String, Object> row = rows.get(0);
+        for (PropertyDescriptor property : this.allProperties) {
+            if (!shouldHandle(property)) continue;
+            String columnKey = findColumnKey(row, property.getName());
+            if (columnKey == null) continue;
+            Object value = row.get(columnKey);
+            if (!(property instanceof Relation)) {
+                Class targetType = property.getType().javaType();
+                entity.setProperty(property.getName(), value == null
+                        ? null : convertColumnValue(targetType, value));
+            } else if (value == null) {
+                entity.setProperty(property.getName(), null);
+            } else {
+                Entity ref = createEntity((Class<? extends Entity>) property.getType().javaType());
+                ((BaseEntity) ref).__internalSet(
+                        "id", io.teaql.core.utils.Convert.convert(Long.class, value));
+                ((BaseEntity) ref).set$status(io.teaql.core.EntityStatus.REFER);
+                entity.setProperty(property.getName(), ref);
+            }
+        }
+        if (entity instanceof BaseEntity baseEntity) {
+            baseEntity.set$status(resolvePersistedStatus(entity.getVersion()));
+            baseEntity.clearUpdatedProperties();
+        }
+        return entity;
+    }
+
     public Stream<T> streamInternal(UserContext userContext, SearchRequest<T> request) {
         Map<String, Object> params = new HashMap<>();
         String sql = buildDataSQL(userContext, request, params);

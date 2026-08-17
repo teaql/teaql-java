@@ -260,7 +260,14 @@ public class TeaQLRuntime {
                     entity,
                     realEntities,
                     Collections.newSetFromMap(new IdentityHashMap<>()));
-            executeLedgerPlan(ctx, entityRoot, mutationExecutor, realEntities);
+            if (mutationExecutor instanceof TransactionExecutor transactionExecutor) {
+                transactionExecutor.executeInTransaction(ctx, () -> {
+                    executeLedgerPlan(ctx, entityRoot, mutationExecutor, realEntities);
+                    return null;
+                });
+            } else {
+                executeLedgerPlan(ctx, entityRoot, mutationExecutor, realEntities);
+            }
             entityRoot.clearCurrentChangeSet();
         } finally {
             if (pushed) ctx.popTrace();
@@ -386,7 +393,8 @@ public class TeaQLRuntime {
 
             DefaultMutationRequest mutationRequest = new DefaultMutationRequest(
                 deleteEntity, DefaultMutationRequest.Action.DELETE);
-            mutationExecutor.mutate(ctx, mutationRequest);
+            MutationResult result = mutationExecutor.mutate(ctx, mutationRequest);
+            applyPersistedEntity(descriptor, deleteEntity, result);
             emitAuditEvent(ctx, deleteEntity, MutationAuditKind.DELETED, Collections.emptyMap());
         }
 
@@ -433,7 +441,8 @@ public class TeaQLRuntime {
 
                 DefaultMutationRequest mutationRequest = new DefaultMutationRequest(
                     entity, DefaultMutationRequest.Action.SAVE);
-                mutationExecutor.mutate(ctx, mutationRequest);
+                MutationResult result = mutationExecutor.mutate(ctx, mutationRequest);
+                applyPersistedEntity(descriptor, entity, result);
                 emitAuditEvent(ctx, entity, MutationAuditKind.CREATED, changes);
                 entity.clearUpdatedProperties();
             }
@@ -470,11 +479,28 @@ public class TeaQLRuntime {
                 MutationAuditKind auditKind = entity.recoverItem()
                         ? MutationAuditKind.RECOVERED
                         : MutationAuditKind.UPDATED;
-                mutationExecutor.mutate(ctx, mutationRequest);
+                MutationResult result = mutationExecutor.mutate(ctx, mutationRequest);
+                applyPersistedEntity(descriptor, entity, result);
                 emitAuditEvent(ctx, entity, auditKind, changes);
                 entity.clearUpdatedProperties();
             }
         }
+    }
+
+    private void applyPersistedEntity(
+            EntityDescriptor descriptor, BaseEntity target, MutationResult result) {
+        if (result == null || result.persistedEntity() == null) {
+            throw new TeaQLRuntimeException(
+                    "Mutation did not return the authoritative persisted entity for "
+                            + descriptor.getType());
+        }
+        BaseEntity persisted = (BaseEntity) result.persistedEntity();
+        for (PropertyDescriptor property : descriptor.getProperties()) {
+            if (!persisted.isPropertyLoaded(property.getName())) continue;
+            target.__internalSet(property.getName(), persisted.getProperty(property.getName()));
+        }
+        target.set$status(((BaseEntity) persisted).get$status());
+        target.clearUpdatedProperties();
     }
 
     public void delete(UserContext ctx, Entity entity) {
