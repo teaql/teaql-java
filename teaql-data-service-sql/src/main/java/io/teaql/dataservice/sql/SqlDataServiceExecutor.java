@@ -119,7 +119,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     meta.setResultSummary("Fetched " + res.size() + " rows");
                     meta.setParameterizedQuery(sql);
                     meta.setParameters(parameters(args));
-                    meta.setDebugQuery(formatSqlWithArgs(sql, args));
+                    meta.setDebugQuery(debugSql(sql, args));
                     ctx.recordExecutionMetadata(meta);
                     return res;
                 }
@@ -137,7 +137,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     meta.setResultSummary("Affected " + res + " rows");
                     meta.setParameterizedQuery(sql);
                     meta.setParameters(parameters(args));
-                    meta.setDebugQuery(formatSqlWithArgs(sql, args));
+                    meta.setDebugQuery(debugSql(sql, args));
                     ctx.recordExecutionMetadata(meta);
                     return res;
                 }
@@ -150,7 +150,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     int total = 0; if (res != null) { for(int i: res) total += i; }
                     String loggedSql = sql;
                     if (batchArgs != null && !batchArgs.isEmpty()) {
-                        loggedSql = formatSqlWithArgs(sql, batchArgs.get(0));
+                        loggedSql = debugSql(sql, batchArgs.get(0));
                         if (batchArgs.size() > 1) {
                             loggedSql += " /* + " + (batchArgs.size() - 1) + " more batches */";
                         }
@@ -190,7 +190,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
         return portableService;
     }
 
-    private static String formatSqlWithArgs(String sql, Object[] args) {
+    static String debugSql(String sql, Object[] args) {
         if (sql == null || args == null || args.length == 0) {
             return sql;
         }
@@ -212,6 +212,10 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                 }
                 if (arg instanceof String || arg instanceof java.util.Date || arg instanceof java.time.temporal.Temporal) {
                     sb.append("'").append(arg.toString().replace("'", "''")).append("'");
+                    continue;
+                }
+                if (arg instanceof Boolean) {
+                    sb.append(Boolean.TRUE.equals(arg) ? "TRUE" : "FALSE");
                     continue;
                 }
                 sb.append(arg.toString());

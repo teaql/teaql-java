@@ -52,6 +52,16 @@ public class SqlDataServiceExecutorTest {
         });
     }
 
+    @Test
+    public void debugSqlRendersCopyPasteStatement() {
+        String sql = "SELECT * FROM school WHERE name = ? AND active = ? AND phone IS ? AND note = '?'";
+        Object[] parameters = {"O'Brien School", true, null};
+
+        assertEquals(
+                "SELECT * FROM school WHERE name = 'O''Brien School' AND active = TRUE AND phone IS NULL AND note = '?'",
+                SqlDataServiceExecutor.debugSql(sql, parameters));
+    }
+
     private static class MockSqlExecutionAdapter implements SqlExecutionAdapter {
         public String lastSql;
         public Map<String, Object> lastParams;
