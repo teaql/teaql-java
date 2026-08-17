@@ -45,6 +45,12 @@ public class TeaQLRuntime {
         return logSink;
     }
 
+    /** Installs a passive generated manifest. Database schemas remain unchanged. */
+    public TeaQLRuntime install(RuntimeModule module) {
+        module.install(metadata);
+        return this;
+    }
+
     public void recordExecutionMetadata(UserContext ctx, ExecutionMetadata metadata) {
         if (logSink != null) {
             logSink.writeExecutionLog(ctx, metadata);
