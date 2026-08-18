@@ -105,5 +105,8 @@ public class OpenTelemetryOtlpSmokeTest {
             completion.put("teaql.cache.result", "hit");
         }
         scope.success(completion);
+        RuntimeTelemetry.Scope failedScope = RuntimeTelemetry.startSafely(telemetry,
+                new RuntimeTelemetry.Operation(family, name + ".failure", probeAttributes));
+        failedScope.failure(new IllegalStateException("ConformanceProbeError"));
     }
 }
