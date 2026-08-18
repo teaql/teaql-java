@@ -7,12 +7,12 @@ import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporter;
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
 import io.opentelemetry.sdk.logs.SdkLoggerProvider;
-import io.opentelemetry.sdk.logs.export.SimpleLogRecordProcessor;
+import io.opentelemetry.sdk.logs.export.BatchLogRecordProcessor;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
-import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
+import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
 import io.teaql.runtime.RuntimeTelemetry;
 import java.time.Duration;
 import java.util.Map;
@@ -36,8 +36,9 @@ public class OpenTelemetryOtlpSmokeTest {
                 .build()));
         SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
                 .setResource(resource)
-                .addSpanProcessor(SimpleSpanProcessor.create(OtlpHttpSpanExporter.builder()
-                        .setEndpoint(endpoint + "/v1/traces").build()))
+                .addSpanProcessor(BatchSpanProcessor.builder(OtlpHttpSpanExporter.builder()
+                                .setEndpoint(endpoint + "/v1/traces").build())
+                        .setMaxQueueSize(64).setMaxExportBatchSize(16).build())
                 .build();
         SdkMeterProvider meterProvider = SdkMeterProvider.builder()
                 .setResource(resource)
@@ -47,9 +48,10 @@ public class OpenTelemetryOtlpSmokeTest {
                 .build();
         SdkLoggerProvider loggerProvider = SdkLoggerProvider.builder()
                 .setResource(resource)
-                .addLogRecordProcessor(SimpleLogRecordProcessor.create(
-                        OtlpHttpLogRecordExporter.builder()
-                                .setEndpoint(endpoint + "/v1/logs").build()))
+                .addLogRecordProcessor(BatchLogRecordProcessor.builder(
+                                OtlpHttpLogRecordExporter.builder()
+                                        .setEndpoint(endpoint + "/v1/logs").build())
+                        .setMaxQueueSize(64).setMaxExportBatchSize(16).build())
                 .build();
         OpenTelemetryRuntimeTelemetry telemetry = new OpenTelemetryRuntimeTelemetry(
                 tracerProvider.get("io.teaql.runtime"),
