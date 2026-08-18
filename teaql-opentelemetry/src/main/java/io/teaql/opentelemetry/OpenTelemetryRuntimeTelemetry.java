@@ -5,6 +5,8 @@ import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.api.logs.Logger;
+import io.opentelemetry.api.logs.Severity;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
@@ -16,16 +18,27 @@ public final class OpenTelemetryRuntimeTelemetry implements RuntimeTelemetry {
     private final Tracer tracer;
     private final DoubleHistogram duration;
     private final LongCounter operations;
+    private final Logger logger;
     private final Runnable flush;
     private final Runnable shutdown;
 
     public OpenTelemetryRuntimeTelemetry(Tracer tracer, Meter meter) {
-        this(tracer, meter, () -> {}, () -> {});
+        this(tracer, meter, null, () -> {}, () -> {});
+    }
+
+    public OpenTelemetryRuntimeTelemetry(Tracer tracer, Meter meter, Logger logger) {
+        this(tracer, meter, logger, () -> {}, () -> {});
     }
 
     public OpenTelemetryRuntimeTelemetry(
             Tracer tracer, Meter meter, Runnable flush, Runnable shutdown) {
+        this(tracer, meter, null, flush, shutdown);
+    }
+
+    public OpenTelemetryRuntimeTelemetry(
+            Tracer tracer, Meter meter, Logger logger, Runnable flush, Runnable shutdown) {
         this.tracer = tracer;
+        this.logger = logger;
         this.duration = meter.histogramBuilder("teaql.runtime.operation.duration")
                 .setDescription("TeaQL runtime operation duration")
                 .setUnit("ms")
@@ -74,12 +87,24 @@ public final class OpenTelemetryRuntimeTelemetry implements RuntimeTelemetry {
 
             private void finish(String outcome) {
                 ended = true;
+                double durationMs = Math.max(0d, (System.nanoTime() - startedAt) / 1_000_000d);
                 Attributes dimensions = Attributes.builder()
                         .put("teaql.operation.family", operation.family())
                         .put("teaql.operation.outcome", outcome)
                         .build();
-                duration.record(Math.max(0d, (System.nanoTime() - startedAt) / 1_000_000d), dimensions);
+                duration.record(durationMs, dimensions);
                 operations.add(1, dimensions);
+                if (logger != null) {
+                    logger.logRecordBuilder()
+                            .setSeverity(Severity.INFO)
+                            .setSeverityText("INFO")
+                            .setBody("TeaQL runtime operation completed")
+                            .setAttribute("teaql.operation.family", operation.family())
+                            .setAttribute("teaql.operation.name", operation.name())
+                            .setAttribute("teaql.operation.outcome", outcome)
+                            .setAttribute("teaql.operation.duration_ms", durationMs)
+                            .emit();
+                }
                 activation.close();
                 span.end();
             }
