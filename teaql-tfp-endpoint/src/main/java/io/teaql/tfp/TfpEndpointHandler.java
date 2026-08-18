@@ -12,6 +12,7 @@ import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.runtime.DefaultMutationRequest;
 import io.teaql.runtime.DefaultQueryRequest;
 import io.teaql.runtime.DefaultQueryResult;
+import io.teaql.runtime.RuntimeTelemetry;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -22,14 +23,25 @@ public class TfpEndpointHandler {
     private final QueryExecutor queryExecutor;
     private final MutationExecutor mutationExecutor;
     private final ObjectMapper objectMapper;
+    private final RuntimeTelemetry telemetry;
 
     public TfpEndpointHandler(QueryExecutor queryExecutor, MutationExecutor mutationExecutor, ObjectMapper objectMapper) {
+        this(queryExecutor, mutationExecutor, objectMapper, RuntimeTelemetry.NOOP);
+    }
+
+    public TfpEndpointHandler(QueryExecutor queryExecutor, MutationExecutor mutationExecutor,
+            ObjectMapper objectMapper, RuntimeTelemetry telemetry) {
         this.queryExecutor = queryExecutor;
         this.mutationExecutor = mutationExecutor;
         this.objectMapper = objectMapper;
+        this.telemetry = telemetry == null ? RuntimeTelemetry.NOOP : telemetry;
     }
 
     public Map<String, Object> handleQuery(UserContext context, byte[] payload) throws Exception {
+        RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(telemetry,
+                new RuntimeTelemetry.Operation("tfp", "server.query",
+                        Map.of("teaql.tfp.role", "server")));
+        try {
         JsonNode root = objectMapper.readTree(payload);
         String entityName = root.path("entity").asText();
 
@@ -61,10 +73,22 @@ public class TfpEndpointHandler {
         }
         response.put("resultCode", 0);
         response.put("status", "YES");
+        Object data = response.get("data");
+        scope.success(Map.of("teaql.result.cardinality",
+                data instanceof io.teaql.core.SmartList<?> list ? list.size()
+                        : data instanceof java.util.Collection<?> collection ? collection.size() : 0));
         return response;
+        } catch (Exception | Error error) {
+            scope.failure(error);
+            throw error;
+        }
     }
 
     public Map<String, Object> handleMutation(UserContext context, byte[] payload) throws Exception {
+        RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(telemetry,
+                new RuntimeTelemetry.Operation("tfp", "server.mutation",
+                        Map.of("teaql.tfp.role", "server")));
+        try {
         JsonNode root = objectMapper.readTree(payload);
         String entityName = root.path("entity").asText();
         String actionStr = root.path("action").asText();
@@ -89,6 +113,11 @@ public class TfpEndpointHandler {
         response.put("status", "YES");
         response.put("data", Collections.singletonList(entity));
 
+        scope.success();
         return response;
+        } catch (Exception | Error error) {
+            scope.failure(error);
+            throw error;
+        }
     }
 }
