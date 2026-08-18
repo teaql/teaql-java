@@ -12,6 +12,7 @@ public class TeaQLRuntime {
     private final RequestPolicy requestPolicy;
     private final InternalIdGenerationService idGenerationService;
     private final RuntimeLogSink logSink;
+    private final RuntimeTelemetry telemetry;
 
     private TeaQLRuntime(Builder builder) {
         this.metadata = builder.metadata;
@@ -19,6 +20,7 @@ public class TeaQLRuntime {
         this.requestPolicy = builder.requestPolicy;
         this.idGenerationService = builder.idGenerationService;
         this.logSink = builder.logSink;
+        this.telemetry = builder.telemetry != null ? builder.telemetry : RuntimeTelemetry.NOOP;
     }
 
     public static Builder builder() {
@@ -45,6 +47,10 @@ public class TeaQLRuntime {
         return logSink;
     }
 
+    public RuntimeTelemetry getTelemetry() {
+        return telemetry;
+    }
+
     /** Installs a passive generated manifest. Database schemas remain unchanged. */
     public TeaQLRuntime install(RuntimeModule module) {
         module.install(metadata);
@@ -59,6 +65,10 @@ public class TeaQLRuntime {
 
     @SuppressWarnings("unchecked")
     public <T extends Entity> SmartList<T> executeForList(UserContext context, SearchRequest<T> request) {
+        RuntimeTelemetry.Scope telemetryScope = RuntimeTelemetry.startSafely(telemetry,
+                new RuntimeTelemetry.Operation("query", request.getTypeName() + ".list",
+                        Map.of("teaql.entity.type", request.getTypeName())));
+        try {
         if (request.purpose() == null || request.purpose().trim().isEmpty()) {
             throw new TeaQLRuntimeException("[PURPOSE REQUIRED] Missing .purpose() on query execution.");
         }
@@ -77,10 +87,16 @@ public class TeaQLRuntime {
             pushedPurpose = true;
         }
         try {
-            return executeForListResolved(context, request);
+            SmartList<T> result = executeForListResolved(context, request);
+            telemetryScope.success(Map.of("teaql.result.cardinality", result.size()));
+            return result;
         } finally {
             if (pushedPurpose) context.popTrace();
             if (pushedComment) context.popTrace();
+        }
+        } catch (RuntimeException | Error error) {
+            telemetryScope.failure(error);
+            throw error;
         }
     }
 
@@ -151,7 +167,18 @@ public class TeaQLRuntime {
             throw new TeaQLRuntimeException("No QueryExecutor registered for route: " + route);
         }
         QueryRequest queryRequest = new DefaultQueryRequest(request);
-        QueryResult queryResult = queryExecutor.query(context, queryRequest);
+        RuntimeTelemetry.Scope providerScope = RuntimeTelemetry.startSafely(telemetry,
+                new RuntimeTelemetry.Operation("provider", route + ".query", Map.of(
+                        "teaql.provider.kind", route,
+                        "teaql.provider.operation", "query")));
+        QueryResult queryResult;
+        try {
+            queryResult = queryExecutor.query(context, queryRequest);
+            providerScope.success();
+        } catch (RuntimeException | Error error) {
+            providerScope.failure(error);
+            throw error;
+        }
         if (queryResult instanceof DefaultQueryResult) {
             return (SmartList<T>) ((DefaultQueryResult) queryResult).getResult();
         }
@@ -211,6 +238,11 @@ public class TeaQLRuntime {
     private static final String SAVE_GRAPH_ACTIVE_ROUTE_KEY = "__teaql_save_graph_route__";
 
     public void saveGraph(UserContext context, Entity entity) {
+        RuntimeTelemetry.Scope telemetryScope = RuntimeTelemetry.startSafely(telemetry,
+                new RuntimeTelemetry.Operation("mutation", entity.typeName() + ".save", Map.of(
+                        "teaql.entity.type", entity.typeName(),
+                        "teaql.mutation.kind", "save")));
+        try {
         if (entity.getComment() == null || entity.getComment().trim().isEmpty()) {
             throw new TeaQLRuntimeException("[AUDIT REQUIRED] Missing .auditAs() or .setComment() before saveGraph().");
         }
@@ -275,8 +307,13 @@ public class TeaQLRuntime {
                 executeLedgerPlan(context, entityRoot, mutationExecutor, realEntities);
             }
             entityRoot.clearCurrentChangeSet();
+            telemetryScope.success();
         } finally {
             if (pushed) context.popTrace();
+        }
+        } catch (RuntimeException | Error error) {
+            telemetryScope.failure(error);
+            throw error;
         }
     }
 
@@ -399,7 +436,8 @@ public class TeaQLRuntime {
 
             DefaultMutationRequest mutationRequest = new DefaultMutationRequest(
                 deleteEntity, DefaultMutationRequest.Action.DELETE);
-            MutationResult result = mutationExecutor.mutate(context, mutationRequest);
+            MutationResult result = mutateWithTelemetry(context, mutationExecutor, mutationRequest,
+                    key.entity(), "delete");
             applyPersistedEntity(descriptor, deleteEntity, result);
             emitAuditEvent(context, deleteEntity, MutationAuditKind.DELETED, Collections.emptyMap());
         }
@@ -447,7 +485,8 @@ public class TeaQLRuntime {
 
                 DefaultMutationRequest mutationRequest = new DefaultMutationRequest(
                     entity, DefaultMutationRequest.Action.SAVE);
-                MutationResult result = mutationExecutor.mutate(context, mutationRequest);
+                MutationResult result = mutateWithTelemetry(context, mutationExecutor, mutationRequest,
+                        entityName, "save");
                 applyPersistedEntity(descriptor, entity, result);
                 emitAuditEvent(context, entity, MutationAuditKind.CREATED, changes);
                 entity.clearUpdatedProperties();
@@ -485,7 +524,8 @@ public class TeaQLRuntime {
                 MutationAuditKind auditKind = entity.recoverItem()
                         ? MutationAuditKind.RECOVERED
                         : MutationAuditKind.UPDATED;
-                MutationResult result = mutationExecutor.mutate(context, mutationRequest);
+                MutationResult result = mutateWithTelemetry(context, mutationExecutor, mutationRequest,
+                        entityName, auditKind.name().toLowerCase(Locale.ROOT));
                 applyPersistedEntity(descriptor, entity, result);
                 emitAuditEvent(context, entity, auditKind, changes);
                 entity.clearUpdatedProperties();
@@ -509,7 +549,34 @@ public class TeaQLRuntime {
         target.clearUpdatedProperties();
     }
 
+    private MutationResult mutateWithTelemetry(
+            UserContext context,
+            MutationExecutor executor,
+            MutationRequest request,
+            String entityType,
+            String operation) {
+        String provider = executor.getClass().getSimpleName();
+        RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(telemetry,
+                new RuntimeTelemetry.Operation("provider", provider + ".mutation", Map.of(
+                        "teaql.provider.kind", provider,
+                        "teaql.provider.operation", operation,
+                        "teaql.entity.type", entityType)));
+        try {
+            MutationResult result = executor.mutate(context, request);
+            scope.success();
+            return result;
+        } catch (RuntimeException | Error error) {
+            scope.failure(error);
+            throw error;
+        }
+    }
+
     public void delete(UserContext context, Entity entity) {
+        RuntimeTelemetry.Scope telemetryScope = RuntimeTelemetry.startSafely(telemetry,
+                new RuntimeTelemetry.Operation("mutation", entity.typeName() + ".delete", Map.of(
+                        "teaql.entity.type", entity.typeName(),
+                        "teaql.mutation.kind", "delete")));
+        try {
         if (entity.getComment() == null || entity.getComment().trim().isEmpty()) {
             throw new TeaQLRuntimeException("[AUDIT REQUIRED] Missing .auditAs() or .setComment() before delete().");
         }
@@ -536,10 +603,16 @@ public class TeaQLRuntime {
 
             DefaultMutationRequest.Action action = DefaultMutationRequest.Action.DELETE;
             MutationRequest mutationRequest = new DefaultMutationRequest(entity, action);
-            mutationExecutor.mutate(context, mutationRequest);
+            mutateWithTelemetry(context, mutationExecutor, mutationRequest,
+                    entity.typeName(), "delete");
             emitAuditEvent(context, entity, MutationAuditKind.DELETED, Collections.emptyMap());
+            telemetryScope.success();
         } finally {
             if (pushed) context.popTrace();
+        }
+        } catch (RuntimeException | Error error) {
+            telemetryScope.failure(error);
+            throw error;
         }
     }
 
@@ -559,6 +632,13 @@ public class TeaQLRuntime {
         RawAuditEvent rawEvent = new RawAuditEvent(
                 kind, entity.typeName(), entity.getId(), changes, context.getTraceChain());
 
+        RuntimeTelemetry.Scope telemetryScope = RuntimeTelemetry.startSafely(telemetry,
+                new RuntimeTelemetry.Operation("audit", entity.typeName() + ".audit", Map.of(
+                        "teaql.entity.type", entity.typeName(),
+                        "teaql.mutation.kind", kind.name().toLowerCase(Locale.ROOT),
+                        "teaql.audit.changed_field_count", changes.size())));
+        try {
+
         // The standard sink is server-owned by TeaQLRuntime and cannot be replaced by
         // dynamic input or an application capability registered on UserContext.
         if (logSink != null) {
@@ -568,6 +648,11 @@ public class TeaQLRuntime {
         AppAuditEventSink appSink = context.capability(AppAuditEventSink.class);
         if (appSink != null) {
             appSink.onAuditEvent(context, buildSafeAuditEvent(rawEvent));
+        }
+        telemetryScope.success();
+        } catch (RuntimeException | Error error) {
+            telemetryScope.failure(error);
+            throw error;
         }
     }
 
@@ -619,6 +704,7 @@ public class TeaQLRuntime {
         private RequestPolicy requestPolicy;
         private InternalIdGenerationService idGenerationService;
         private RuntimeLogSink logSink;
+        private RuntimeTelemetry telemetry = RuntimeTelemetry.NOOP;
 
         public Builder metadata(EntityMetaFactory metadata) {
             this.metadata = metadata;
@@ -650,6 +736,11 @@ public class TeaQLRuntime {
 
         public Builder logSink(RuntimeLogSink logSink) {
             this.logSink = logSink;
+            return this;
+        }
+
+        public Builder telemetry(RuntimeTelemetry telemetry) {
+            this.telemetry = telemetry;
             return this;
         }
 

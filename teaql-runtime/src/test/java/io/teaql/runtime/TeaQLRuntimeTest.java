@@ -146,9 +146,22 @@ public class TeaQLRuntimeTest {
 
     @Test
     public void testExecuteForList() {
+        List<String> telemetryEvents = new ArrayList<>();
+        RuntimeTelemetry telemetry = operation -> {
+            telemetryEvents.add("start:" + operation.family());
+            return new RuntimeTelemetry.Scope() {
+                @Override public void success(Map<String, Object> attributes) {
+                    telemetryEvents.add("success:" + operation.family());
+                }
+                @Override public void failure(Throwable error) {
+                    telemetryEvents.add("failure:" + operation.family());
+                }
+            };
+        };
         TeaQLRuntime runtime = TeaQLRuntime.builder()
                 .metadata(new DummyMetaFactory())
                 .dataService("dummy", new DummyQueryExecutor())
+                .telemetry(telemetry)
                 .build();
 
         SearchRequest<DummyEntity> request = new BaseRequest<DummyEntity>(DummyEntity.class) {
@@ -165,6 +178,9 @@ public class TeaQLRuntimeTest {
         SmartList<DummyEntity> result = runtime.executeForList(new DefaultUserContext(runtime), request);
         Assert.assertNotNull(result);
         Assert.assertEquals(1, result.size());
+        Assert.assertEquals(List.of(
+                "start:query", "start:provider", "success:provider", "success:query"),
+                telemetryEvents);
     }
 
     @Test
