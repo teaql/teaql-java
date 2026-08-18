@@ -44,6 +44,7 @@ public final class OpenTelemetryRuntimeTelemetry implements RuntimeTelemetry {
         Span span = tracer.spanBuilder("teaql." + operation.family())
                 .setAllAttributes(attributes(operation.attributes()))
                 .startSpan();
+        io.opentelemetry.context.Scope activation = span.makeCurrent();
         return new Scope() {
             private boolean ended;
 
@@ -79,6 +80,7 @@ public final class OpenTelemetryRuntimeTelemetry implements RuntimeTelemetry {
                         .build();
                 duration.record(Math.max(0d, (System.nanoTime() - startedAt) / 1_000_000d), dimensions);
                 operations.add(1, dimensions);
+                activation.close();
                 span.end();
             }
         };

@@ -31,15 +31,24 @@ public class OpenTelemetryRuntimeTelemetryTest {
                 new RuntimeTelemetry.Operation("query", "School.list", Map.of(
                         "teaql.entity.type", "School",
                         "teaql.entity.id", 42L)));
+        RuntimeTelemetry.Scope providerScope = RuntimeTelemetry.startSafely(telemetry,
+                new RuntimeTelemetry.Operation("provider", "sqlite.query", Map.of(
+                        "teaql.provider.kind", "sqlite",
+                        "teaql.provider.operation", "query")));
+        providerScope.success();
         scope.success(Map.of("teaql.result.cardinality", 1));
 
-        assertEquals(1, spans.getFinishedSpanItems().size());
-        var span = spans.getFinishedSpanItems().get(0);
+        assertEquals(2, spans.getFinishedSpanItems().size());
+        var span = spans.getFinishedSpanItems().stream()
+                .filter(item -> "teaql.query".equals(item.getName())).findFirst().orElseThrow();
+        var providerSpan = spans.getFinishedSpanItems().stream()
+                .filter(item -> "teaql.provider".equals(item.getName())).findFirst().orElseThrow();
         assertEquals("teaql.query", span.getName());
         assertEquals("School", span.getAttributes().get(AttributeKey.stringKey("teaql.entity.type")));
         assertNull(span.getAttributes().get(AttributeKey.longKey("teaql.entity.id")));
         assertEquals(Long.valueOf(1),
                 span.getAttributes().get(AttributeKey.longKey("teaql.result.cardinality")));
+        assertEquals(span.getSpanId(), providerSpan.getParentSpanId());
         assertTrue(metrics.collectAllMetrics().stream().anyMatch(metric ->
                 "teaql.runtime.operation.duration".equals(metric.getName())));
         assertTrue(metrics.collectAllMetrics().stream().anyMatch(metric ->
