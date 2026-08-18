@@ -15,9 +15,30 @@ import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.teaql.runtime.RuntimeTelemetry;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 
 public class OpenTelemetryRuntimeTelemetryTest {
+    @Test
+    public void delegatesExplicitApplicationOwnedLifecycle() {
+        AtomicInteger flushes = new AtomicInteger();
+        AtomicInteger shutdowns = new AtomicInteger();
+        SdkTracerProvider tracerProvider = SdkTracerProvider.builder().build();
+        SdkMeterProvider meterProvider = SdkMeterProvider.builder().build();
+        OpenTelemetryRuntimeTelemetry telemetry = new OpenTelemetryRuntimeTelemetry(
+                tracerProvider.get("io.teaql.runtime.lifecycle"),
+                meterProvider.get("io.teaql.runtime.lifecycle"),
+                flushes::incrementAndGet, shutdowns::incrementAndGet);
+
+        telemetry.flush();
+        telemetry.shutdown();
+
+        assertEquals(1, flushes.get());
+        assertEquals(1, shutdowns.get());
+        tracerProvider.close();
+        meterProvider.close();
+    }
+
     @Test
     public void exportsSafeSpanAndMetricsThroughOfficialSdk() {
         InMemorySpanExporter spans = InMemorySpanExporter.create();
