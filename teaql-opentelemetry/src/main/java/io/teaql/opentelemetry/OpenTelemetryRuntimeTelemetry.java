@@ -10,6 +10,11 @@ import io.opentelemetry.api.logs.Severity;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.propagation.ContextPropagators;
+import io.opentelemetry.context.propagation.TextMapGetter;
+import io.opentelemetry.context.propagation.TextMapSetter;
 import io.teaql.runtime.RuntimeTelemetry;
 import java.util.Map;
 
@@ -21,6 +26,23 @@ public final class OpenTelemetryRuntimeTelemetry implements RuntimeTelemetry {
     private final Logger logger;
     private final Runnable flush;
     private final Runnable shutdown;
+    private final ContextPropagators propagators;
+
+    private static final TextMapSetter<Map<String, String>> SETTER = Map::put;
+    private static final TextMapGetter<Map<String, String>> GETTER =
+            new TextMapGetter<>() {
+                @Override public Iterable<String> keys(Map<String, String> carrier) {
+                    return carrier.keySet();
+                }
+
+                @Override public String get(Map<String, String> carrier, String key) {
+                    if (carrier == null) return null;
+                    for (Map.Entry<String, String> entry : carrier.entrySet()) {
+                        if (entry.getKey().equalsIgnoreCase(key)) return entry.getValue();
+                    }
+                    return null;
+                }
+            };
 
     public OpenTelemetryRuntimeTelemetry(Tracer tracer, Meter meter) {
         this(tracer, meter, null, () -> {}, () -> {});
@@ -37,6 +59,12 @@ public final class OpenTelemetryRuntimeTelemetry implements RuntimeTelemetry {
 
     public OpenTelemetryRuntimeTelemetry(
             Tracer tracer, Meter meter, Logger logger, Runnable flush, Runnable shutdown) {
+        this(tracer, meter, logger, flush, shutdown, GlobalOpenTelemetry.getPropagators());
+    }
+
+    public OpenTelemetryRuntimeTelemetry(
+            Tracer tracer, Meter meter, Logger logger, Runnable flush, Runnable shutdown,
+            ContextPropagators propagators) {
         this.tracer = tracer;
         this.logger = logger;
         this.duration = meter.histogramBuilder("teaql.runtime.operation.duration")
@@ -49,6 +77,21 @@ public final class OpenTelemetryRuntimeTelemetry implements RuntimeTelemetry {
                 .build();
         this.flush = flush == null ? () -> {} : flush;
         this.shutdown = shutdown == null ? () -> {} : shutdown;
+        this.propagators = propagators == null
+                ? ContextPropagators.noop() : propagators;
+    }
+
+    @Override
+    public void inject(Map<String, String> carrier) {
+        propagators.getTextMapPropagator().inject(Context.current(), carrier, SETTER);
+    }
+
+    @Override
+    public PropagationScope extractAndActivate(Map<String, String> carrier) {
+        Context extracted = propagators.getTextMapPropagator()
+                .extract(Context.current(), carrier, GETTER);
+        io.opentelemetry.context.Scope scope = extracted.makeCurrent();
+        return scope::close;
     }
 
     @Override

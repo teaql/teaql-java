@@ -85,6 +85,20 @@ public class TfpEndpointTelemetryTest {
         assertEquals(1, telemetry.completions.size());
     }
 
+    @Test
+    public void activatesCarrierBeforeStartingServerSpanAndRestoresAfterward() throws Exception {
+        telemetry.expectedCarrier = Map.of("TraceParent", "00-trace-span-01");
+        TfpEndpointHandler handler = new TfpEndpointHandler(
+                queryExecutor(request -> new DefaultQueryResult(new SmartList<>())),
+                mutationExecutor(), new ObjectMapper(), telemetry);
+
+        handler.handleQuery(null, "{\"entity\":\"Probe\"}".getBytes(),
+                telemetry.expectedCarrier);
+
+        assertEquals(List.of("activate", "start:server.query", "close"),
+                telemetry.propagationEvents);
+    }
+
     public static final class Probe extends BaseEntity {
         @Override
         public String typeName() { return "Probe"; }
@@ -125,9 +139,19 @@ public class TfpEndpointTelemetryTest {
         private final List<Operation> operations = new ArrayList<>();
         private final List<Map<String, Object>> completions = new ArrayList<>();
         private final List<Throwable> failures = new ArrayList<>();
+        private final List<String> propagationEvents = new ArrayList<>();
+        private Map<String, String> expectedCarrier;
+
+        @Override
+        public PropagationScope extractAndActivate(Map<String, String> carrier) {
+            assertSame(expectedCarrier, carrier);
+            propagationEvents.add("activate");
+            return () -> propagationEvents.add("close");
+        }
 
         @Override
         public Scope start(Operation operation) {
+            if (expectedCarrier != null) propagationEvents.add("start:" + operation.name());
             operations.add(operation);
             return new Scope() {
                 @Override

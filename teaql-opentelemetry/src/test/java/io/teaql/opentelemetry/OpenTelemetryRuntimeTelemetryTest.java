@@ -11,6 +11,8 @@ import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
+import io.opentelemetry.context.propagation.ContextPropagators;
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.teaql.runtime.RuntimeTelemetry;
 import java.util.Map;
 import org.junit.Test;
@@ -76,5 +78,34 @@ public class OpenTelemetryRuntimeTelemetryTest {
         tracerProvider.close();
         meterProvider.close();
         loggerProvider.close();
+    }
+
+
+    @Test
+    public void extractsCaseInsensitiveW3cCarrierAsServerParent() {
+        InMemorySpanExporter spans = InMemorySpanExporter.create();
+        SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
+                .addSpanProcessor(SimpleSpanProcessor.create(spans)).build();
+        SdkMeterProvider meterProvider = SdkMeterProvider.builder().build();
+        OpenTelemetryRuntimeTelemetry telemetry = new OpenTelemetryRuntimeTelemetry(
+                tracerProvider.get("io.teaql.runtime"),
+                meterProvider.get("io.teaql.runtime"), null, () -> {}, () -> {},
+                ContextPropagators.create(W3CTraceContextPropagator.getInstance()));
+        String traceId = "0af7651916cd43dd8448eb211c80319c";
+        String parentSpanId = "b7ad6b7169203331";
+
+        try (RuntimeTelemetry.PropagationScope ignored = RuntimeTelemetry.activateSafely(
+                telemetry, Map.of("TraceParent", "00-" + traceId + "-" + parentSpanId + "-01"))) {
+            RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(telemetry,
+                    new RuntimeTelemetry.Operation("tfp", "server.query",
+                            Map.of("teaql.tfp.role", "server")));
+            scope.success();
+        }
+
+        var span = spans.getFinishedSpanItems().get(0);
+        assertEquals(traceId, span.getTraceId());
+        assertEquals(parentSpanId, span.getParentSpanId());
+        tracerProvider.close();
+        meterProvider.close();
     }
 }

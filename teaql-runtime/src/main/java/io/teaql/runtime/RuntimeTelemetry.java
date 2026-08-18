@@ -20,6 +20,12 @@ public interface RuntimeTelemetry {
 
     Scope start(Operation operation);
 
+    default void inject(Map<String, String> carrier) {}
+
+    default PropagationScope extractAndActivate(Map<String, String> carrier) {
+        return NoopPropagationScope.INSTANCE;
+    }
+
     default void flush() {}
 
     default void shutdown() {}
@@ -64,6 +70,56 @@ public interface RuntimeTelemetry {
             return new FailOpenScope(delegate);
         } catch (Throwable ignored) {
             return NoopScope.INSTANCE;
+        }
+    }
+
+    static void injectSafely(RuntimeTelemetry telemetry, Map<String, String> carrier) {
+        if (telemetry == null || carrier == null) return;
+        try {
+            telemetry.inject(carrier);
+        } catch (Throwable ignored) {
+            // Runtime telemetry must not affect transport behavior.
+        }
+    }
+
+    static PropagationScope activateSafely(
+            RuntimeTelemetry telemetry, Map<String, String> carrier) {
+        if (telemetry == null || carrier == null) return NoopPropagationScope.INSTANCE;
+        try {
+            PropagationScope scope = telemetry.extractAndActivate(carrier);
+            return scope == null ? NoopPropagationScope.INSTANCE : new FailOpenPropagationScope(scope);
+        } catch (Throwable ignored) {
+            return NoopPropagationScope.INSTANCE;
+        }
+    }
+
+    interface PropagationScope extends AutoCloseable {
+        @Override
+        void close();
+    }
+
+    enum NoopPropagationScope implements PropagationScope {
+        INSTANCE;
+        @Override public void close() {}
+    }
+
+    final class FailOpenPropagationScope implements PropagationScope {
+        private final PropagationScope delegate;
+        private boolean closed;
+
+        private FailOpenPropagationScope(PropagationScope delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public synchronized void close() {
+            if (closed) return;
+            closed = true;
+            try {
+                delegate.close();
+            } catch (Throwable ignored) {
+                // Runtime telemetry must not affect transport behavior.
+            }
         }
     }
 

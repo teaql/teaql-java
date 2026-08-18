@@ -38,6 +38,18 @@ public class TfpEndpointHandler {
     }
 
     public Map<String, Object> handleQuery(UserContext context, byte[] payload) throws Exception {
+        return handleQuery(context, payload, Collections.emptyMap());
+    }
+
+    public Map<String, Object> handleQuery(
+            UserContext context, byte[] payload, Map<String, String> carrier) throws Exception {
+        try (RuntimeTelemetry.PropagationScope ignored =
+                RuntimeTelemetry.activateSafely(telemetry, carrier)) {
+            return handleQueryActive(context, payload);
+        }
+    }
+
+    private Map<String, Object> handleQueryActive(UserContext context, byte[] payload) throws Exception {
         RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(telemetry,
                 new RuntimeTelemetry.Operation("tfp", "server.query",
                         Map.of("teaql.tfp.role", "server")));
@@ -85,6 +97,18 @@ public class TfpEndpointHandler {
     }
 
     public Map<String, Object> handleMutation(UserContext context, byte[] payload) throws Exception {
+        return handleMutation(context, payload, Collections.emptyMap());
+    }
+
+    public Map<String, Object> handleMutation(
+            UserContext context, byte[] payload, Map<String, String> carrier) throws Exception {
+        try (RuntimeTelemetry.PropagationScope ignored =
+                RuntimeTelemetry.activateSafely(telemetry, carrier)) {
+            return handleMutationActive(context, payload);
+        }
+    }
+
+    private Map<String, Object> handleMutationActive(UserContext context, byte[] payload) throws Exception {
         RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(telemetry,
                 new RuntimeTelemetry.Operation("tfp", "server.mutation",
                         Map.of("teaql.tfp.role", "server")));
