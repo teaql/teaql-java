@@ -16,6 +16,8 @@ public class Dm8DataServiceExecutor extends SqlDataServiceExecutor {
 
     public Dm8DataServiceExecutor(String name, SqlExecutionAdapter executionAdapter) {
         super(name, executionAdapter);
+        this.dialect = new io.teaql.core.sql.dialect.OracleDialect();
+        this.debugDatabaseKind = "dm8";
     }
 
     @Override

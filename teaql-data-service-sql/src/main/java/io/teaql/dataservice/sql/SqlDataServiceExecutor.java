@@ -17,6 +17,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
     private final SqlExecutionAdapter executionAdapter;
     private final DataServiceCapabilities capabilities;
     protected io.teaql.core.sql.dialect.SqlDialect dialect = new io.teaql.core.sql.dialect.PostgreSqlDialect();
+    protected String debugDatabaseKind = "postgresql";
 
     public SqlDataServiceExecutor(String name, SqlExecutionAdapter executionAdapter) {
         this.name = name;
@@ -119,7 +120,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     meta.setResultSummary("Fetched " + res.size() + " rows");
                     meta.setParameterizedQuery(sql);
                     meta.setParameters(parameters(args));
-                    meta.setDebugQuery(debugSql(sql, args));
+                    meta.setDebugQuery(debugSql(sql, args, debugDatabaseKind));
                     ctx.recordExecutionMetadata(meta);
                     return res;
                 }
@@ -137,7 +138,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     meta.setResultSummary("Affected " + res + " rows");
                     meta.setParameterizedQuery(sql);
                     meta.setParameters(parameters(args));
-                    meta.setDebugQuery(debugSql(sql, args));
+                    meta.setDebugQuery(debugSql(sql, args, debugDatabaseKind));
                     ctx.recordExecutionMetadata(meta);
                     return res;
                 }
@@ -150,7 +151,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     int total = 0; if (res != null) { for(int i: res) total += i; }
                     String loggedSql = sql;
                     if (batchArgs != null && !batchArgs.isEmpty()) {
-                        loggedSql = debugSql(sql, batchArgs.get(0));
+                        loggedSql = debugSql(sql, batchArgs.get(0), debugDatabaseKind);
                         if (batchArgs.size() > 1) {
                             loggedSql += " /* + " + (batchArgs.size() - 1) + " more batches */";
                         }
@@ -191,6 +192,15 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
     }
 
     public static String debugSql(String sql, Object[] args) {
+        return debugSql(sql, args, "sqlite");
+    }
+
+    public static String debugSql(
+            String sql, Object[] args, io.teaql.core.sql.dialect.SqlDialect dialect) {
+        return debugSql(sql, args, dialect.getClass().getSimpleName().toLowerCase(java.util.Locale.ROOT));
+    }
+
+    public static String debugSql(String sql, Object[] args, String databaseKind) {
         if (sql == null || args == null || args.length == 0) {
             return sql;
         }
@@ -245,11 +255,18 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     continue;
                 }
                 if (arg instanceof java.time.LocalDate date) {
-                    sb.append("'").append(date).append("'");
+                    String literal = "'" + date + "'";
+                    if (databaseKind.contains("mysql") || databaseKind.contains("mssql")) sb.append("CAST(").append(literal).append(" AS DATE)");
+                    else if (databaseKind.contains("sqlite")) sb.append(literal);
+                    else sb.append("DATE ").append(literal);
                     continue;
                 }
                 if (arg instanceof java.time.LocalDateTime dateTime) {
-                    sb.append("'").append(java.sql.Timestamp.valueOf(dateTime)).append("'");
+                    String literal = "'" + java.sql.Timestamp.valueOf(dateTime) + "'";
+                    if (databaseKind.contains("mysql")) sb.append("CAST(").append(literal).append(" AS DATETIME(3))");
+                    else if (databaseKind.contains("mssql")) sb.append("CAST(").append(literal).append(" AS DATETIME2(3))");
+                    else if (databaseKind.contains("sqlite")) sb.append(literal);
+                    else sb.append("TIMESTAMP ").append(literal);
                     continue;
                 }
                 if (arg instanceof String || arg instanceof java.util.Date || arg instanceof java.time.temporal.Temporal) {

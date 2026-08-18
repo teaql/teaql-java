@@ -16,6 +16,7 @@ public class HanaDataServiceExecutor extends SqlDataServiceExecutor {
 
     public HanaDataServiceExecutor(String name, SqlExecutionAdapter executionAdapter) {
         super(name, executionAdapter);
+        this.debugDatabaseKind = "hana";
         this.dialect = new HanaDialect();
     }
 

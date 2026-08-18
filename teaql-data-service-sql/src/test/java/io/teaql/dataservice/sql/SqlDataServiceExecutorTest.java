@@ -75,6 +75,23 @@ public class SqlDataServiceExecutorTest {
                 SqlDataServiceExecutor.debugSql(sql, parameters));
     }
 
+    @Test
+    public void debugSqlUsesTypedPostgresAndMysqlTemporalLiterals() {
+        Object[] parameters = {
+                java.time.LocalDate.of(2024, 2, 29),
+                java.time.LocalDateTime.of(2026, 8, 19, 3, 30, 0, 123_000_000)
+        };
+        assertEquals(
+                "SELECT DATE '2024-02-29', TIMESTAMP '2026-08-19 03:30:00.123' /* ignored ? */",
+                SqlDataServiceExecutor.debugSql("SELECT ?, ? /* ignored ? */", parameters, "postgresql"));
+        assertEquals(
+                "SELECT CAST('2024-02-29' AS DATE), CAST('2026-08-19 03:30:00.123' AS DATETIME(3)) /* ignored ? */",
+                SqlDataServiceExecutor.debugSql("SELECT ?, ? /* ignored ? */", parameters, "mysql"));
+        assertEquals(
+                "SELECT CAST('2024-02-29' AS DATE), CAST('2026-08-19 03:30:00.123' AS DATETIME2(3)) /* ignored ? */",
+                SqlDataServiceExecutor.debugSql("SELECT ?, ? /* ignored ? */", parameters, "mssql"));
+    }
+
     private static class MockSqlExecutionAdapter implements SqlExecutionAdapter {
         public String lastSql;
         public Map<String, Object> lastParams;

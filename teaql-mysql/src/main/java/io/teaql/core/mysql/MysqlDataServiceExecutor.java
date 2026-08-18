@@ -19,6 +19,8 @@ public class MysqlDataServiceExecutor extends SqlDataServiceExecutor {
 
     public MysqlDataServiceExecutor(String name, SqlExecutionAdapter executionAdapter, DataSource dataSource) {
         super(name, executionAdapter);
+        this.dialect = new io.teaql.core.sql.dialect.MySqlDialect();
+        this.debugDatabaseKind = "mysql";
         this.dataSource = dataSource;
     }
 

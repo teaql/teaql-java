@@ -16,6 +16,7 @@ public class DB2DataServiceExecutor extends SqlDataServiceExecutor {
 
     public DB2DataServiceExecutor(String name, SqlExecutionAdapter executionAdapter) {
         super(name, executionAdapter);
+        this.debugDatabaseKind = "db2";
         this.dialect = new DB2Dialect();
     }
 

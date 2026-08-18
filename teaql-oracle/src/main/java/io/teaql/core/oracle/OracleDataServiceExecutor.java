@@ -16,6 +16,7 @@ public class OracleDataServiceExecutor extends SqlDataServiceExecutor {
 
     public OracleDataServiceExecutor(String name, SqlExecutionAdapter executionAdapter) {
         super(name, executionAdapter);
+        this.debugDatabaseKind = "oracle";
         this.dialect = new io.teaql.core.sql.dialect.OracleDialect();
     }
 

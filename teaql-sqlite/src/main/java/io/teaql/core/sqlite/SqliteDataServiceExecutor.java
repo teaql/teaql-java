@@ -19,6 +19,7 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
 
     public SqliteDataServiceExecutor(String name, SqlExecutionAdapter executionAdapter, DataSource dataSource) {
         super(name, executionAdapter);
+        this.debugDatabaseKind = "sqlite";
         this.dataSource = dataSource;
     }
 
