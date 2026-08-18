@@ -56,11 +56,20 @@ public class OpenTelemetryOtlpSmokeTest {
                 meterProvider.get("io.teaql.runtime"),
                 loggerProvider.get("io.teaql.runtime"));
 
-        RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(telemetry,
-                new RuntimeTelemetry.Operation("query", "ConformanceProbe.list", Map.of(
-                        "teaql.entity.type", "ConformanceProbe",
-                        "teaql.entity.id", "must-not-export")));
-        scope.success(Map.of("teaql.result.cardinality", 1));
+        complete(telemetry, "query", "ConformanceProbe.list", Map.of(
+                "teaql.entity.type", "ConformanceProbe"));
+        complete(telemetry, "mutation", "ConformanceProbe.update", Map.of(
+                "teaql.entity.type", "ConformanceProbe", "teaql.mutation.kind", "update"));
+        complete(telemetry, "relation_load", "ConformanceProbe.children", Map.of(
+                "teaql.entity.type", "ConformanceProbe", "teaql.relation.name", "children"));
+        complete(telemetry, "provider", "sqlite.query", Map.of(
+                "teaql.provider.kind", "sqlite", "teaql.provider.operation", "query"));
+        complete(telemetry, "cache", "local.get", Map.of("teaql.cache.operation", "get"));
+        complete(telemetry, "tfp", "server.query", Map.of("teaql.tfp.role", "server"));
+        complete(telemetry, "audit", "ConformanceProbe.audit", Map.of(
+                "teaql.entity.type", "ConformanceProbe",
+                "teaql.mutation.kind", "update",
+                "teaql.audit.changed_field_count", 1));
 
         assertTrue(tracerProvider.forceFlush().join(10, TimeUnit.SECONDS).isSuccess());
         assertTrue(meterProvider.forceFlush().join(10, TimeUnit.SECONDS).isSuccess());
@@ -68,5 +77,19 @@ public class OpenTelemetryOtlpSmokeTest {
         tracerProvider.close();
         meterProvider.close();
         loggerProvider.close();
+    }
+
+    private static void complete(OpenTelemetryRuntimeTelemetry telemetry, String family,
+            String name, Map<String, Object> attributes) {
+        Map<String, Object> probeAttributes = new java.util.HashMap<>(attributes);
+        probeAttributes.put("teaql.entity.id", "must-not-export");
+        RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(telemetry,
+                new RuntimeTelemetry.Operation(family, name, probeAttributes));
+        Map<String, Object> completion = new java.util.HashMap<>();
+        completion.put("teaql.result.cardinality", 1);
+        if ("cache".equals(family)) {
+            completion.put("teaql.cache.result", "hit");
+        }
+        scope.success(completion);
     }
 }
