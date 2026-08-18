@@ -129,6 +129,10 @@ public class TeaQLRuntime {
      */
     public <T extends Entity> SmartList<T> internalExecuteForList(
             UserContext context, SearchRequest<T> request) {
+        RuntimeTelemetry.Scope relationScope = RuntimeTelemetry.startSafely(telemetry,
+                new RuntimeTelemetry.Operation("relation_load", request.getTypeName() + ".relation",
+                        Map.of("teaql.entity.type", request.getTypeName())));
+        try {
         if (context.getTraceChain() == null || context.getTraceChain().isEmpty()) {
             throw new TeaQLRuntimeException(
                     "[INTERNAL QUERY CONTEXT REQUIRED] Nested query has no authorized root trace.");
@@ -137,7 +141,13 @@ public class TeaQLRuntime {
         if (requestPolicy != null) {
             requestPolicy.enforceSelect(context, request);
         }
-        return executeForListResolved(context, request);
+        SmartList<T> result = executeForListResolved(context, request);
+        relationScope.success(Map.of("teaql.result.cardinality", result.size()));
+        return result;
+        } catch (RuntimeException | Error error) {
+            relationScope.failure(error);
+            throw error;
+        }
     }
 
     private static void enforceMaterializedLimit(SearchRequest<?> request, int hardLimit) {

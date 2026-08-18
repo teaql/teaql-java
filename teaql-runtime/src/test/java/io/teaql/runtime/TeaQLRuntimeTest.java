@@ -237,9 +237,14 @@ public class TeaQLRuntimeTest {
 
     @Test
     public void testNestedQueryInheritsAuthorizedRootTrace() {
+        List<String> families = new ArrayList<>();
         TeaQLRuntime runtime = TeaQLRuntime.builder()
                 .metadata(new DummyMetaFactory())
                 .dataService("dummy", new DummyQueryExecutor())
+                .telemetry(operation -> {
+                    families.add(operation.family());
+                    return RuntimeTelemetry.NoopScope.INSTANCE;
+                })
                 .build();
         DefaultUserContext context = new DefaultUserContext(runtime);
         SearchRequest<DummyEntity> nested = bareDummyRequest();
@@ -247,6 +252,7 @@ public class TeaQLRuntimeTest {
         context.pushTrace("authorized root query");
         try {
             Assert.assertEquals(1, context.internalExecuteForList(nested).size());
+            Assert.assertEquals(List.of("relation_load", "provider"), families);
         } finally {
             context.popTrace();
         }
