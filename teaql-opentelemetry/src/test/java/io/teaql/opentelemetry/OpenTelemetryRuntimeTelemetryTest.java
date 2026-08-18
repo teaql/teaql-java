@@ -66,7 +66,7 @@ public class OpenTelemetryRuntimeTelemetryTest {
                 .filter(item -> "query".equals(item.getAttributes().get(
                         AttributeKey.stringKey("teaql.operation.family"))))
                 .findFirst().orElseThrow();
-        assertEquals("TeaQL runtime operation completed", log.getBody().asString());
+        assertEquals("TeaQL runtime operation completed", log.getBodyValue().asString());
         assertEquals("School.list", log.getAttributes().get(
                 AttributeKey.stringKey("teaql.operation.name")));
         assertNull(log.getAttributes().get(AttributeKey.longKey("teaql.entity.id")));
