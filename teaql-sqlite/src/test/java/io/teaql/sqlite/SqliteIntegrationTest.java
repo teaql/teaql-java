@@ -8,6 +8,7 @@ import io.teaql.core.meta.PropertyDescriptor;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
 import io.teaql.core.sqlite.SqliteDataServiceExecutor;
 import io.teaql.provider.jdbc.JdbcSqlExecutor;
+import io.teaql.dataservice.sql.SqlDataServiceExecutor;
 import io.teaql.runtime.DefaultUserContext;
 import io.teaql.runtime.TeaQLRuntime;
 
@@ -19,10 +20,14 @@ import javax.sql.DataSource;
 import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.ArrayList;
 import java.util.List;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
@@ -234,5 +239,40 @@ public class SqliteIntegrationTest {
 
         SmartList<Task> resultAfterDelete = new TaskRequest().filterByStatus("DONE").comment("test").purpose("test").executeForList(ctx);
         assertTrue(resultAfterDelete.isEmpty());
+    }
+
+    @Test
+    public void temporalDebugSqlMatchesPreparedSqliteStorage() throws Exception {
+        String sql = "INSERT INTO temporal_fixture VALUES (?, ?, ?) /* ignored ? */";
+        Object[] args = {
+            1L,
+            LocalDate.of(2024, 2, 29),
+            LocalDateTime.of(2026, 8, 19, 2, 3, 4, 123_000_000)
+        };
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite::memory:")) {
+            connection.createStatement().execute(
+                    "CREATE TABLE temporal_fixture(id INTEGER, d TEXT, local_time TEXT)");
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setLong(1, (Long) args[0]);
+                statement.setString(2, args[1].toString());
+                statement.setString(3, args[2].toString().replace('T', ' '));
+                statement.executeUpdate();
+            }
+            String literal = SqlDataServiceExecutor.debugSql(sql, args)
+                    .replaceFirst("VALUES \\(1,", "VALUES (2,");
+            connection.createStatement().executeUpdate(literal);
+            try (ResultSet rows = connection.createStatement().executeQuery(
+                    "SELECT d, local_time, typeof(d), typeof(local_time) "
+                            + "FROM temporal_fixture ORDER BY id")) {
+                for (int i = 0; i < 2; i++) {
+                    assertTrue(rows.next());
+                    assertEquals("2024-02-29", rows.getString(1));
+                    assertEquals("2026-08-19 02:03:04.123", rows.getString(2));
+                    assertEquals("text", rows.getString(3));
+                    assertEquals("text", rows.getString(4));
+                }
+                assertFalse(rows.next());
+            }
+        }
     }
 }

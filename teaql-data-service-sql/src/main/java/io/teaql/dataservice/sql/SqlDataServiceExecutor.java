@@ -190,24 +190,66 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
         return portableService;
     }
 
-    static String debugSql(String sql, Object[] args) {
+    public static String debugSql(String sql, Object[] args) {
         if (sql == null || args == null || args.length == 0) {
             return sql;
         }
         StringBuilder sb = new StringBuilder();
         int argIndex = 0;
-        boolean inString = false;
+        SqlScanState state = SqlScanState.SQL;
         for (int i = 0; i < sql.length(); i++) {
             char c = sql.charAt(i);
-            if (c == '\'') {
-                inString = !inString;
+            char next = i + 1 < sql.length() ? sql.charAt(i + 1) : '\0';
+            if (state == SqlScanState.SQL && c == '\'') {
                 sb.append(c);
+                state = SqlScanState.SINGLE_QUOTE;
                 continue;
             }
-            if (c == '?' && !inString && argIndex < args.length) {
+            if (state == SqlScanState.SQL && c == '"') {
+                sb.append(c);
+                state = SqlScanState.DOUBLE_QUOTE;
+                continue;
+            }
+            if (state == SqlScanState.SQL && c == '-' && next == '-') {
+                sb.append("--"); i++; state = SqlScanState.LINE_COMMENT; continue;
+            }
+            if (state == SqlScanState.SQL && c == '/' && next == '*') {
+                sb.append("/*"); i++; state = SqlScanState.BLOCK_COMMENT; continue;
+            }
+            if (state == SqlScanState.SINGLE_QUOTE) {
+                sb.append(c);
+                if (c == '\'' && next == '\'') { sb.append(next); i++; }
+                else if (c == '\'') { state = SqlScanState.SQL; }
+                continue;
+            }
+            if (state == SqlScanState.DOUBLE_QUOTE) {
+                sb.append(c);
+                if (c == '"' && next == '"') { sb.append(next); i++; }
+                else if (c == '"') { state = SqlScanState.SQL; }
+                continue;
+            }
+            if (state == SqlScanState.LINE_COMMENT) {
+                sb.append(c);
+                if (c == '\r' || c == '\n') { state = SqlScanState.SQL; }
+                continue;
+            }
+            if (state == SqlScanState.BLOCK_COMMENT) {
+                sb.append(c);
+                if (c == '*' && next == '/') { sb.append(next); i++; state = SqlScanState.SQL; }
+                continue;
+            }
+            if (c == '?' && argIndex < args.length) {
                 Object arg = args[argIndex++];
                 if (arg == null) {
                     sb.append("NULL");
+                    continue;
+                }
+                if (arg instanceof java.time.LocalDate date) {
+                    sb.append("'").append(date).append("'");
+                    continue;
+                }
+                if (arg instanceof java.time.LocalDateTime dateTime) {
+                    sb.append("'").append(java.sql.Timestamp.valueOf(dateTime)).append("'");
                     continue;
                 }
                 if (arg instanceof String || arg instanceof java.util.Date || arg instanceof java.time.temporal.Temporal) {
@@ -225,6 +267,8 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
         }
         return sb.toString();
     }
+
+    private enum SqlScanState { SQL, SINGLE_QUOTE, DOUBLE_QUOTE, LINE_COMMENT, BLOCK_COMMENT }
 
     private static java.util.List<Object> parameters(Object[] args) {
         if (args == null || args.length == 0) {

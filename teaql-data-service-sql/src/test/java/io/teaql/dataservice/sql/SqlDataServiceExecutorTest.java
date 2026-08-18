@@ -62,6 +62,19 @@ public class SqlDataServiceExecutorTest {
                 SqlDataServiceExecutor.debugSql(sql, parameters));
     }
 
+    @Test
+    public void debugSqlPreservesCommentsAndTemporalStorageLiterals() {
+        String sql = "-- line ? $1\nSELECT '?', \"identifier?\", ?, ? /* block ? */";
+        Object[] parameters = {
+                java.time.LocalDate.of(2024, 2, 29),
+                java.time.LocalDateTime.of(2026, 8, 19, 9, 30, 0, 123_000_000)
+        };
+
+        assertEquals(
+                "-- line ? $1\nSELECT '?', \"identifier?\", '2024-02-29', '2026-08-19 09:30:00.123' /* block ? */",
+                SqlDataServiceExecutor.debugSql(sql, parameters));
+    }
+
     private static class MockSqlExecutionAdapter implements SqlExecutionAdapter {
         public String lastSql;
         public Map<String, Object> lastParams;
