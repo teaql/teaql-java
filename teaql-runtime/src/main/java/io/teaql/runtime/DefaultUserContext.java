@@ -12,6 +12,7 @@ import java.util.Spliterators;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Supplier;
 
 public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObjectGetter<String> {
 
@@ -157,6 +158,67 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
             return null;
         }
         return (T) value;
+    }
+
+    @Override
+    public void putToLocalCache(String key, Object value, int timeToLiveInSeconds) {
+        observeCache("local.put", "put", () -> {
+            UserContext.super.putToLocalCache(key, value, timeToLiveInSeconds);
+            return null;
+        }, ignored -> "stored");
+    }
+
+    @Override
+    public <T> T getFromLocalCache(String key, Class<T> clazz) {
+        return observeCache("local.get", "get",
+                () -> UserContext.super.getFromLocalCache(key, clazz),
+                value -> value == null ? "miss" : "hit");
+    }
+
+    @Override
+    public void removeFromLocalCache(String key) {
+        observeCache("local.remove", "remove", () -> {
+            UserContext.super.removeFromLocalCache(key);
+            return null;
+        }, ignored -> "removed");
+    }
+
+    @Override
+    public void putToRemoteCache(String key, Object value, int timeToLiveInSeconds) {
+        observeCache("remote.put", "put", () -> {
+            UserContext.super.putToRemoteCache(key, value, timeToLiveInSeconds);
+            return null;
+        }, ignored -> "stored");
+    }
+
+    @Override
+    public <T> T getFromRemoteCache(String key, Class<T> clazz) {
+        return observeCache("remote.get", "get",
+                () -> UserContext.super.getFromRemoteCache(key, clazz),
+                value -> value == null ? "miss" : "hit");
+    }
+
+    @Override
+    public void removeFromRemoteCache(String key) {
+        observeCache("remote.remove", "remove", () -> {
+            UserContext.super.removeFromRemoteCache(key);
+            return null;
+        }, ignored -> "removed");
+    }
+
+    private <T> T observeCache(String name, String operation, Supplier<T> work,
+            java.util.function.Function<T, String> result) {
+        RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(runtime.getTelemetry(),
+                new RuntimeTelemetry.Operation("cache", name,
+                        Map.of("teaql.cache.operation", operation)));
+        try {
+            T value = work.get();
+            scope.success(Map.of("teaql.cache.result", result.apply(value)));
+            return value;
+        } catch (RuntimeException | Error error) {
+            scope.failure(error);
+            throw error;
+        }
     }
 
     @Override

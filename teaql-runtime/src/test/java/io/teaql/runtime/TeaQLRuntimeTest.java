@@ -145,6 +145,56 @@ public class TeaQLRuntimeTest {
     }
 
     @Test
+    public void defaultContextObservesActualLocalCacheOperations() {
+        List<String> events = new ArrayList<>();
+        List<RuntimeTelemetry.Operation> operations = new ArrayList<>();
+        RuntimeTelemetry telemetry = operation -> {
+            operations.add(operation);
+            events.add("start:" + operation.name());
+            return new RuntimeTelemetry.Scope() {
+                @Override public void success(Map<String, Object> attributes) {
+                    events.add("success:" + attributes.get("teaql.cache.result"));
+                }
+                @Override public void failure(Throwable error) {
+                    events.add("failure:" + error.getClass().getSimpleName());
+                }
+            };
+        };
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new DummyMetaFactory()).telemetry(telemetry).build();
+        DefaultUserContext context = new DefaultUserContext(runtime);
+        String key = "runtime-cache-" + System.nanoTime();
+
+        context.putToLocalCache(key, "value");
+        Assert.assertEquals("value", context.getFromLocalCache(key, String.class));
+        context.removeFromLocalCache(key);
+        Assert.assertNull(context.getFromLocalCache(key, String.class));
+
+        Assert.assertEquals(List.of(
+                "start:local.put", "success:stored",
+                "start:local.get", "success:hit",
+                "start:local.remove", "success:removed",
+                "start:local.get", "success:miss"), events);
+        Assert.assertTrue(operations.stream().allMatch(op -> "cache".equals(op.family())));
+        Assert.assertTrue(operations.stream().allMatch(op ->
+                !op.attributes().toString().contains(key)));
+    }
+
+    @Test
+    public void cacheTelemetryFailureDoesNotChangeCacheResult() {
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new DummyMetaFactory())
+                .telemetry(operation -> { throw new IllegalStateException("adapter failed"); })
+                .build();
+        DefaultUserContext context = new DefaultUserContext(runtime);
+        String key = "runtime-cache-fail-open-" + System.nanoTime();
+
+        context.putToLocalCache(key, "value");
+        Assert.assertEquals("value", context.getFromLocalCache(key, String.class));
+        context.removeFromLocalCache(key);
+    }
+
+    @Test
     public void testExecuteForList() {
         List<String> telemetryEvents = new ArrayList<>();
         RuntimeTelemetry telemetry = operation -> {
