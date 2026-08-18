@@ -21,7 +21,7 @@ public class PropertyReference implements Expression, PropertyAware {
     }
 
     @Override
-    public List<String> properties(UserContext ctx) {
+    public List<String> properties(UserContext context) {
         return ListUtil.of(this.propertyName);
     }
 

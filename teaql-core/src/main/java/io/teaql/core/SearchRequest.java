@@ -105,25 +105,25 @@ public interface SearchRequest<T extends Entity> {
         return !aggregations.getAggregates().isEmpty();
     }
 
-    default List<String> dataProperties(UserContext ctx) {
+    default List<String> dataProperties(UserContext context) {
         Set<String> allRelationProperties = new HashSet<>();
         List<SimpleNamedExpression> projections = getProjections();
         if (projections != null) {
             for (SimpleNamedExpression projection : projections) {
-                allRelationProperties.addAll(projection.properties(ctx));
+                allRelationProperties.addAll(projection.properties(context));
             }
         }
 
         List<SimpleNamedExpression> simpleDynamicProperties = getSimpleDynamicProperties();
         if (simpleDynamicProperties != null) {
             for (SimpleNamedExpression dynamicProperty : simpleDynamicProperties) {
-                allRelationProperties.addAll(dynamicProperty.properties(ctx));
+                allRelationProperties.addAll(dynamicProperty.properties(context));
             }
         }
 
         SearchCriteria searchCriteria = getSearchCriteria();
         if (searchCriteria != null) {
-            allRelationProperties.addAll(searchCriteria.properties(ctx));
+            allRelationProperties.addAll(searchCriteria.properties(context));
         }
 
         String partitionProperty = getPartitionProperty();
@@ -133,21 +133,21 @@ public interface SearchRequest<T extends Entity> {
 
         OrderBys orderBy = getOrderBy();
         if (orderBy != null) {
-            allRelationProperties.addAll(orderBy.properties(ctx));
+            allRelationProperties.addAll(orderBy.properties(context));
         }
 
         return new ArrayList<>(allRelationProperties);
     }
 
-    default List<String> aggregationProperties(UserContext ctx) {
+    default List<String> aggregationProperties(UserContext context) {
         Set<String> allRelationProperties = new HashSet<>();
         List<SimpleNamedExpression> all = getAggregations().getSelectedExpressions();
         for (SimpleNamedExpression simpleNamedExpression : all) {
-            allRelationProperties.addAll(simpleNamedExpression.properties(ctx));
+            allRelationProperties.addAll(simpleNamedExpression.properties(context));
         }
         SearchCriteria searchCriteria = getSearchCriteria();
         if (searchCriteria != null) {
-            allRelationProperties.addAll(searchCriteria.properties(ctx));
+            allRelationProperties.addAll(searchCriteria.properties(context));
         }
         return new ArrayList<>(allRelationProperties);
     }

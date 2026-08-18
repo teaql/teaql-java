@@ -24,7 +24,7 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
     }
 
     @Override
-    public void ensureSchema(UserContext ctx) {
+    public void ensureSchema(UserContext context) {
         List<EntityDescriptor> descriptors = EntityMetaFactory.get().allEntityDescriptors();
 
         TeaQLDatabase dbAdapter = new TeaQLDatabase() {
@@ -49,7 +49,7 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
             }
 
             @Override
-            public void execute(io.teaql.core.UserContext ctx, String sql) {
+            public void execute(io.teaql.core.UserContext context, String sql) {
                 this.execute(sql);
             }
 
@@ -74,7 +74,7 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
 
         for (EntityDescriptor descriptor : descriptors) {
             PortableSQLRepository repository = new PortableSQLRepository(descriptor, dbAdapter, null);
-            repository.ensureSchema(ctx);
+            repository.ensureSchema(context);
         }
     }
 }

@@ -89,7 +89,7 @@ public class PortableSQLDatabaseTest {
                         .filterByStatus("NULL-MAPPING")
                         .comment("verify selected SQL null mapping")
                         .purpose("distinguish loaded null from an unselected field")
-                        .executeForList(ctx);
+                        .executeForList(context);
 
         assertEquals(1, tasks.size());
         Task loaded = tasks.get(0);
@@ -103,7 +103,7 @@ public class PortableSQLDatabaseTest {
             Task task = new Task();
             task.updateTitle("Counted task " + i);
             task.updateStatus("DYNAMIC-COUNT");
-            task.auditAs("create dynamic-count fixture").save(ctx);
+            task.auditAs("create dynamic-count fixture").save(context);
         }
 
         TaskRequest countRequest = new TaskRequest();
@@ -116,7 +116,7 @@ public class PortableSQLDatabaseTest {
                 parentRequest
                         .comment("load tasks with grouped count")
                         .purpose("verify aggregate values are attached to parent entities")
-                        .executeForList(ctx);
+                        .executeForList(context);
 
         assertEquals(2, tasks.size());
         for (Task task : tasks) {
@@ -132,14 +132,14 @@ public class PortableSQLDatabaseTest {
             Task task = new Task();
             task.updateTitle("Alias task " + i);
             task.updateStatus("CAMEL-ALIAS");
-            task.auditAs("create alias mapping fixture").save(ctx);
+            task.auditAs("create alias mapping fixture").save(context);
         }
 
         TaskRequest request = new TaskRequest().filterByStatus("CAMEL-ALIAS");
         request.count("recordCount");
         AggregationResult result = request.comment("aggregate camel-case alias")
                 .purpose("verify JDBC-normalized column labels map to requested aliases")
-                .aggregation(ctx);
+                .aggregation(context);
 
         assertEquals(2, result.toNumber(0).intValue());
         assertEquals("recordCount", result.valueList().get(0).keySet().iterator().next());
@@ -151,7 +151,7 @@ public class PortableSQLDatabaseTest {
             Task task = new Task();
             task.updateTitle("Nested task " + i);
             task.updateStatus("NESTED-IN");
-            task.auditAs("create nested-query fixture").save(ctx);
+            task.auditAs("create nested-query fixture").save(context);
         }
 
         TaskRequest nested = new TaskRequest() {
@@ -163,7 +163,7 @@ public class PortableSQLDatabaseTest {
         SmartList<Task> result = new TaskRequest().withIdMatching(nested)
                 .comment("materialize relation-style nested query")
                 .purpose("verify portable scalar IN placeholders")
-                .executeForList(ctx);
+                .executeForList(context);
 
         assertEquals(2, result.size());
     }
@@ -323,7 +323,7 @@ public class PortableSQLDatabaseTest {
     private static SimpleEntityMetaFactory metaFactory;
     private static SQLiteTeaQLDatabase sqliteDb;
     private static PortableSQLDataService sqlDataService;
-    private static UserContext ctx;
+    private static UserContext context;
 
     @BeforeClass
     public static void setup() throws Exception {
@@ -381,11 +381,11 @@ public class PortableSQLDatabaseTest {
                 .idGenerationService(idService)
                 .build();
 
-        ctx = new DefaultUserContext(runtime);
-        ctx.putAttribute("ensureTable", true); // enable schema generation
+        context = new DefaultUserContext(runtime);
+        context.putAttribute("ensureTable", true); // enable schema generation
 
         // Generate schema
-        sqlDataService.ensureSchema(ctx, "Task");
+        sqlDataService.ensureSchema(context, "Task");
     }
 
     @Test
@@ -394,7 +394,7 @@ public class PortableSQLDatabaseTest {
             Task task = new Task();
             task.updateTitle("Browse task " + i);
             task.updateStatus("CONTINUOUS-PAGE");
-            task.auditAs("seed continuous page fixture").save(ctx);
+            task.auditAs("seed continuous page fixture").save(context);
         }
 
         TaskRequest first = new TaskRequest().filterByStatus("CONTINUOUS-PAGE");
@@ -403,10 +403,10 @@ public class PortableSQLDatabaseTest {
         first.optimizeForContinuousPageFetch("continuous-page-test", 60);
         SmartList<Task> firstPage = first.comment("load first browse page")
                 .purpose("verify continuous pagination")
-                .executeForList(ctx);
+                .executeForList(context);
         assertEquals(10, firstPage.size());
         assertEquals("OFFSET_FALLBACK:FIRST_PAGE",
-                ctx.getAttribute(PortableSQLRepository.CONTINUOUS_PAGE_PLAN));
+                context.getAttribute(PortableSQLRepository.CONTINUOUS_PAGE_PLAN));
 
         sqliteDb.clearQueryTrace();
         TaskRequest second = new TaskRequest().filterByStatus("CONTINUOUS-PAGE");
@@ -415,11 +415,11 @@ public class PortableSQLDatabaseTest {
         second.optimizeForContinuousPageFetch("continuous-page-test", 60);
         SmartList<Task> secondPage = second.comment("load next browse page")
                 .purpose("verify continuous pagination")
-                .executeForList(ctx);
+                .executeForList(context);
 
         assertEquals(10, secondPage.size());
-        assertEquals("CURSOR_SEEK", ctx.getAttribute(PortableSQLRepository.CONTINUOUS_PAGE_PLAN));
-        assertNotNull(ctx.getAttribute(PortableSQLRepository.CONTINUOUS_PAGE_CURSOR_ID));
+        assertEquals("CURSOR_SEEK", context.getAttribute(PortableSQLRepository.CONTINUOUS_PAGE_PLAN));
+        assertNotNull(context.getAttribute(PortableSQLRepository.CONTINUOUS_PAGE_CURSOR_ID));
         assertTrue(firstPage.get(9).getId() > secondPage.get(0).getId());
         String executed = sqliteDb.queryTrace().get(0);
         assertTrue(executed, executed.contains("<"));
@@ -435,7 +435,7 @@ public class PortableSQLDatabaseTest {
         SmartList<Task> secondPage = continuousPage("CONTINUOUS-PAGE-ASC", false, 10);
 
         assertEquals(10, secondPage.size());
-        assertEquals("CURSOR_SEEK", ctx.getAttribute(PortableSQLRepository.CONTINUOUS_PAGE_PLAN));
+        assertEquals("CURSOR_SEEK", context.getAttribute(PortableSQLRepository.CONTINUOUS_PAGE_PLAN));
         assertTrue(firstPage.get(9).getId() < secondPage.get(0).getId());
         assertTrue(sqliteDb.queryTrace().get(0), sqliteDb.queryTrace().get(0).contains(">"));
     }
@@ -448,7 +448,7 @@ public class PortableSQLDatabaseTest {
 
         assertEquals(10, page.size());
         assertEquals("OFFSET_FALLBACK:CACHE_MISS",
-                ctx.getAttribute(PortableSQLRepository.CONTINUOUS_PAGE_PLAN));
+                context.getAttribute(PortableSQLRepository.CONTINUOUS_PAGE_PLAN));
     }
 
     @Test
@@ -470,19 +470,19 @@ public class PortableSQLDatabaseTest {
                 throw new IllegalStateException("simulated cursor store outage");
             }
         };
-        ctx.putAttribute(ContinuousPageCursorStore.class.getName(), unavailable);
+        context.putAttribute(ContinuousPageCursorStore.class.getName(), unavailable);
         try {
             SmartList<Task> firstPage = continuousPage("CONTINUOUS-PAGE-STORE-FAIL", true, 0);
             assertEquals(10, firstPage.size());
             assertEquals("OFFSET_FALLBACK:STORE_UNAVAILABLE",
-                    ctx.getAttribute(PortableSQLRepository.CONTINUOUS_PAGE_PLAN));
+                    context.getAttribute(PortableSQLRepository.CONTINUOUS_PAGE_PLAN));
 
             SmartList<Task> secondPage = continuousPage("CONTINUOUS-PAGE-STORE-FAIL", true, 10);
             assertEquals(10, secondPage.size());
             assertEquals("OFFSET_FALLBACK:STORE_UNAVAILABLE",
-                    ctx.getAttribute(PortableSQLRepository.CONTINUOUS_PAGE_PLAN));
+                    context.getAttribute(PortableSQLRepository.CONTINUOUS_PAGE_PLAN));
         } finally {
-            ctx.putAttribute(ContinuousPageCursorStore.class.getName(), null);
+            context.putAttribute(ContinuousPageCursorStore.class.getName(), null);
         }
     }
 
@@ -491,7 +491,7 @@ public class PortableSQLDatabaseTest {
             Task task = new Task();
             task.updateTitle("Browse task " + i);
             task.updateStatus(status);
-            task.auditAs("seed continuous page fixture").save(ctx);
+            task.auditAs("seed continuous page fixture").save(context);
         }
     }
 
@@ -503,7 +503,7 @@ public class PortableSQLDatabaseTest {
         request.optimizeForContinuousPageFetch("continuous-page-test-" + status, 60);
         return request.comment("load browse page")
                 .purpose("verify continuous pagination")
-                .executeForList(ctx);
+                .executeForList(context);
     }
 
     @Test
@@ -512,7 +512,7 @@ public class PortableSQLDatabaseTest {
         Task task1 = new Task();
         task1.updateTitle("Assemble Engine");
         task1.updateStatus("TODO");
-        task1.auditAs("save").save(ctx);
+        task1.auditAs("save").save(context);
 
         assertNotNull("ID should be generated automatically", task1.getId());
         assertEquals(Long.valueOf(200), task1.getId());
@@ -521,32 +521,32 @@ public class PortableSQLDatabaseTest {
         Task task2 = new Task();
         task2.updateTitle("Verify Engine Parts");
         task2.updateStatus("TODO");
-        task2.auditAs("save").save(ctx);
+        task2.auditAs("save").save(context);
         assertEquals(Long.valueOf(201), task2.getId());
 
         // 2. Query Tasks by criteria
         TaskRequest req = new TaskRequest().filterByTitle("Assemble Engine");
-        SmartList<Task> resultList = req.comment("test").purpose("test").executeForList(ctx);
+        SmartList<Task> resultList = req.comment("test").purpose("test").executeForList(context);
         assertEquals(1, resultList.size());
         assertEquals("Assemble Engine", resultList.get(0).getTitle());
 
         // Test filter no results
         TaskRequest reqEmpty = new TaskRequest().filterByTitle("Unknown Task");
-        assertTrue(reqEmpty.comment("test").purpose("test").executeForList(ctx).isEmpty());
+        assertTrue(reqEmpty.comment("test").purpose("test").executeForList(context).isEmpty());
 
         // 3. Update task
         task1.updateStatus("DONE");
-        task1.auditAs("save").save(ctx);
+        task1.auditAs("save").save(context);
 
         TaskRequest reqDone = new TaskRequest().filterByStatus("DONE");
-        SmartList<Task> resultDone = reqDone.comment("test").purpose("test").executeForList(ctx);
+        SmartList<Task> resultDone = reqDone.comment("test").purpose("test").executeForList(context);
         assertEquals(1, resultDone.size());
         assertEquals("Assemble Engine", resultDone.get(0).getTitle());
 
         // 4. Delete task
-        task1.auditAs("delete").delete(ctx);
+        task1.auditAs("delete").delete(context);
 
-        SmartList<Task> resultAfterDelete = new TaskRequest().filterByStatus("DONE").comment("test").purpose("test").executeForList(ctx);
+        SmartList<Task> resultAfterDelete = new TaskRequest().filterByStatus("DONE").comment("test").purpose("test").executeForList(context);
         assertTrue("Task should be removed from DB", resultAfterDelete.isEmpty());
     }
 }

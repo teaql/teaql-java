@@ -5,20 +5,20 @@ import java.util.Map;
 
 public interface DynamicFieldsProvider {
 
-    DynamicFieldDef loadFieldDef(DynamicFieldContext ctx, DynamicFieldRef ref);
+    DynamicFieldDef loadFieldDef(DynamicFieldContext context, DynamicFieldRef ref);
 
-    List<DynamicFieldDef> listFieldDefs(DynamicFieldContext ctx, String ownerType);
+    List<DynamicFieldDef> listFieldDefs(DynamicFieldContext context, String ownerType);
 
-    DynamicFieldValues loadValues(DynamicFieldContext ctx, DynamicOwnerRef ownerRef,
+    DynamicFieldValues loadValues(DynamicFieldContext context, DynamicOwnerRef ownerRef,
                                   DynamicFieldSelection selection);
 
-    Map<DynamicOwnerRef, DynamicFieldValues> loadValues(DynamicFieldContext ctx,
+    Map<DynamicOwnerRef, DynamicFieldValues> loadValues(DynamicFieldContext context,
                                                         List<DynamicOwnerRef> ownerRefs,
                                                         DynamicFieldSelection selection);
 
-    void saveValue(DynamicFieldContext ctx, DynamicSetCommand command);
+    void saveValue(DynamicFieldContext context, DynamicSetCommand command);
 
-    void deleteValue(DynamicFieldContext ctx, DynamicValueRef valueRef);
+    void deleteValue(DynamicFieldContext context, DynamicValueRef valueRef);
 
     DynamicFieldCapabilities capabilities();
 }

@@ -43,7 +43,7 @@ public class TeaQLRuntimeTest {
 
     public static class DummyQueryExecutor implements QueryExecutor {
         @Override
-        public QueryResult query(UserContext ctx, QueryRequest request) {
+        public QueryResult query(UserContext context, QueryRequest request) {
             SmartList<DummyEntity> list = new SmartList<>();
             list.add(new DummyEntity());
             return new DefaultQueryResult(list);
@@ -64,7 +64,7 @@ public class TeaQLRuntimeTest {
         public final List<DefaultMutationRequest> requests = new ArrayList<>();
 
         @Override
-        public MutationResult mutate(UserContext ctx, MutationRequest request) {
+        public MutationResult mutate(UserContext context, MutationRequest request) {
             if (request instanceof DefaultMutationRequest) {
                 DefaultMutationRequest mutationRequest = (DefaultMutationRequest) request;
                 requests.add(mutationRequest);
@@ -86,7 +86,7 @@ public class TeaQLRuntimeTest {
 
     public static class PageQueryExecutor implements QueryExecutor {
         public final List<SearchRequest<?>> requests = new ArrayList<>();
-        @Override public QueryResult query(UserContext ctx, QueryRequest query) {
+        @Override public QueryResult query(UserContext context, QueryRequest query) {
             SearchRequest<?> request = ((DefaultQueryRequest) query).getSearchRequest();
             requests.add(request);
             if (request.hasSimpleAgg()) {
@@ -112,10 +112,10 @@ public class TeaQLRuntimeTest {
         public final List<RawAuditEvent> auditEvents = new ArrayList<>();
 
         @Override
-        public void writeExecutionLog(UserContext ctx, ExecutionMetadata metadata) {}
+        public void writeExecutionLog(UserContext context, ExecutionMetadata metadata) {}
 
         @Override
-        public void writeAuditEvent(UserContext ctx, RawAuditEvent event) {
+        public void writeAuditEvent(UserContext context, RawAuditEvent event) {
             auditEvents.add(event);
         }
     }
@@ -173,7 +173,7 @@ public class TeaQLRuntimeTest {
         TeaQLRuntime runtime = TeaQLRuntime.builder()
                 .metadata(new DummyMetaFactory()).dataService("dummy", executor)
                 .requestPolicy(new RequestPolicy() {
-                    @Override public void enforceSelect(UserContext ctx, SearchRequest<?> query) {
+                    @Override public void enforceSelect(UserContext context, SearchRequest<?> query) {
                         BaseRequest<?> request = (BaseRequest<?>) query;
                         request.appendSearchCriteria(request.createBasicSearchCriteria(
                                 "status", Operator.EQUAL, "ACTIVE"));
@@ -519,7 +519,7 @@ public class TeaQLRuntimeTest {
         DefaultUserContext context = new DefaultUserContext(runtime);
         List<SafeAuditEvent> appEvents = new ArrayList<>();
         context.putAttribute(AppAuditEventSink.class.getName(),
-                (AppAuditEventSink) (ctx, event) -> appEvents.add(event));
+                (AppAuditEventSink) (auditContext, event) -> appEvents.add(event));
 
         DummyEntity entity = new DummyEntity();
         entity.updateProperty("name", "private-value");

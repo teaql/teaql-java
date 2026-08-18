@@ -8,12 +8,12 @@ public class TestPostgresSPIBoot {
         System.out.println("====== [TeaQL Postgres Demo] Testing SPI Loader ======");
         
         long start = System.nanoTime();
-        UserContext ctx = TeaQLUserContextFactory.create();
+        UserContext context = TeaQLUserContextFactory.create();
         long end = System.nanoTime();
         
         System.out.println("  -> UserContext created in " + (end - start) + " ns");
-        System.out.println("  -> [Validate] ASSEMBLER_CHAIN: " + ctx.getStr("ASSEMBLER_CHAIN"));
-        System.out.println("  -> [Validate] DIALECT Configured: " + ctx.getStr("DIALECT"));
+        System.out.println("  -> [Validate] ASSEMBLER_CHAIN: " + context.getStr("ASSEMBLER_CHAIN"));
+        System.out.println("  -> [Validate] DIALECT Configured: " + context.getStr("DIALECT"));
         
         System.out.println("====== [Test Complete] ======");
         System.exit(0);

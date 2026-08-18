@@ -304,45 +304,45 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     private ContinuousPageExecution<T> prepareContinuousPage(
-            UserContext ctx,
+            UserContext context,
             SearchRequest<T> request,
             String originalSql,
             Map<String, Object> originalParameters) {
         ContinuousPageFetchOptions options = request.continuousPageFetchOptions();
         Slice slice = request.getSlice();
-        if (options == null) return fallback(ctx, request, null, "DISABLED");
+        if (options == null) return fallback(context, request, null, "DISABLED");
         if (slice == null || slice.getOffset() <= 0 || slice.getSize() <= 0) {
-            return fallback(ctx, request, queryKey(ctx, request, options, originalSql, originalParameters),
+            return fallback(context, request, queryKey(context, request, options, originalSql, originalParameters),
                     slice == null || slice.getOffset() <= 0 ? "FIRST_PAGE" : "INVALID_SLICE");
         }
         if (request.getPartitionProperty() != null || request.hasSimpleAgg()) {
-            return fallback(ctx, request, null, "UNSUPPORTED_QUERY_SHAPE");
+            return fallback(context, request, null, "UNSUPPORTED_QUERY_SHAPE");
         }
         OrderBys orderBys = request.getOrderBy();
         if (orderBys == null || orderBys.getOrderBys().size() != 1) {
-            return fallback(ctx, request, null, "ORDER_NOT_SINGLE");
+            return fallback(context, request, null, "ORDER_NOT_SINGLE");
         }
         OrderBy order = orderBys.getOrderBys().get(0);
         if (!(order.getExpression() instanceof FunctionApply function)
                 || function.getOperator() != io.teaql.core.AggrFunction.SELF
                 || !(function.first() instanceof PropertyReference property)
                 || !"id".equals(property.getPropertyName())) {
-            return fallback(ctx, request, null, "ORDER_NOT_SEEKABLE_ID");
+            return fallback(context, request, null, "ORDER_NOT_SEEKABLE_ID");
         }
         String direction = order.getDirection() == null ? "ASC" : order.getDirection().toUpperCase();
         if (!"ASC".equals(direction) && !"DESC".equals(direction)) {
-            return fallback(ctx, request, null, "ORDER_DIRECTION_UNSUPPORTED");
+            return fallback(context, request, null, "ORDER_DIRECTION_UNSUPPORTED");
         }
 
-        String queryKey = queryKey(ctx, request, options, originalSql, originalParameters);
-        ContinuousPageCursorStore store = cursorStore(ctx);
+        String queryKey = queryKey(context, request, options, originalSql, originalParameters);
+        ContinuousPageCursorStore store = cursorStore(context);
         Optional<ContinuousPageCursor> found;
         try {
             found = store.get(queryKey, slice.getOffset());
         } catch (RuntimeException unavailable) {
-            return fallback(ctx, request, queryKey, "STORE_UNAVAILABLE");
+            return fallback(context, request, queryKey, "STORE_UNAVAILABLE");
         }
-        if (found.isEmpty()) return fallback(ctx, request, queryKey, "CACHE_MISS");
+        if (found.isEmpty()) return fallback(context, request, queryKey, "CACHE_MISS");
         ContinuousPageCursor cursor = found.get();
         if (cursor.formatVersion() != ContinuousPageCursor.CURRENT_FORMAT_VERSION
                 || !request.getTypeName().equals(cursor.entity())
@@ -351,7 +351,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 || cursor.pageSize() != slice.getSize()
                 || cursor.nextOffset() != slice.getOffset()
                 || cursor.boundary() == null) {
-            return fallback(ctx, request, queryKey, "CURSOR_INVALID");
+            return fallback(context, request, queryKey, "CURSOR_INVALID");
         }
 
         TempRequest optimized = new TempRequest(request);
@@ -362,20 +362,20 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         optimized.appendSearchCriteria("DESC".equals(direction)
                 ? new LT(new PropertyReference("id"), boundary)
                 : new GT(new PropertyReference("id"), boundary));
-        ctx.putAttribute(CONTINUOUS_PAGE_PLAN, "CURSOR_SEEK");
-        ctx.putAttribute(CONTINUOUS_PAGE_CURSOR_ID, cursor.cursorId());
+        context.putAttribute(CONTINUOUS_PAGE_PLAN, "CURSOR_SEEK");
+        context.putAttribute(CONTINUOUS_PAGE_CURSOR_ID, cursor.cursorId());
         return new ContinuousPageExecution<>((SearchRequest<T>) optimized, queryKey, direction, true);
     }
 
     private ContinuousPageExecution<T> fallback(
-            UserContext ctx, SearchRequest<T> request, String queryKey, String reason) {
-        ctx.putAttribute(CONTINUOUS_PAGE_PLAN, "OFFSET_FALLBACK:" + reason);
-        ctx.putAttribute(CONTINUOUS_PAGE_CURSOR_ID, null);
+            UserContext context, SearchRequest<T> request, String queryKey, String reason) {
+        context.putAttribute(CONTINUOUS_PAGE_PLAN, "OFFSET_FALLBACK:" + reason);
+        context.putAttribute(CONTINUOUS_PAGE_CURSOR_ID, null);
         return new ContinuousPageExecution<>(request, queryKey, null, false);
     }
 
     private void registerContinuousPage(
-            UserContext ctx,
+            UserContext context,
             SearchRequest<T> originalRequest,
             ContinuousPageExecution execution,
             List<T> results) {
@@ -415,22 +415,22 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 now,
                 now,
                 now.plusSeconds(options.ttlSeconds()),
-                observableOwner(ctx),
+                observableOwner(context),
                 Map.of("plan", execution.optimized() ? "CURSOR_SEEK" : "OFFSET_FALLBACK"));
         try {
-            cursorStore(ctx).put(queryKey, cursor);
+            cursorStore(context).put(queryKey, cursor);
         } catch (RuntimeException ignored) {
-            ctx.putAttribute(CONTINUOUS_PAGE_PLAN, "OFFSET_FALLBACK:STORE_UNAVAILABLE");
+            context.putAttribute(CONTINUOUS_PAGE_PLAN, "OFFSET_FALLBACK:STORE_UNAVAILABLE");
         }
     }
 
-    private ContinuousPageCursorStore cursorStore(UserContext ctx) {
-        ContinuousPageCursorStore custom = ctx.capability(ContinuousPageCursorStore.class);
+    private ContinuousPageCursorStore cursorStore(UserContext context) {
+        ContinuousPageCursorStore custom = context.capability(ContinuousPageCursorStore.class);
         return custom == null ? defaultCursorStore : custom;
     }
 
     private String queryKey(
-            UserContext ctx,
+            UserContext context,
             SearchRequest<T> request,
             ContinuousPageFetchOptions options,
             String sql,
@@ -442,7 +442,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 canonical.append('|').append(key).append('=').append(String.valueOf(value));
             }
         });
-        observableOwner(ctx).forEach((key, value) ->
+        observableOwner(context).forEach((key, value) ->
                 canonical.append('|').append(key).append('=').append(value));
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256")
@@ -453,11 +453,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         }
     }
 
-    private Map<String, String> observableOwner(UserContext ctx) {
+    private Map<String, String> observableOwner(UserContext context) {
         Map<String, String> owner = new TreeMap<>();
         for (String key : List.of("tenantId", "merchantId", "userId", "sessionId", "applicationId",
                 "permissionScopeHash", "policyVersion")) {
-            Object value = ctx.getAttribute(key);
+            Object value = context.getAttribute(key);
             if (value != null && !String.valueOf(value).isBlank()) owner.put(key, String.valueOf(value));
         }
         return owner;
@@ -869,7 +869,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     // Schema management
     // ==========================================
 
-    public void ensureSchema(UserContext ctx) {
+    public void ensureSchema(UserContext context) {
         List<SQLColumn> allColumns = new ArrayList<>();
         for (PropertyDescriptor ownProperty : entityDescriptor.getOwnProperties()) {
             allColumns.addAll(getSqlColumns(ownProperty));
@@ -888,14 +888,14 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             } catch (Exception e) {
                 dbTableInfo = ListUtil.empty();
             }
-            ensure(ctx, dbTableInfo, table, columns);
+            ensure(context, dbTableInfo, table, columns);
         });
 
-        ensureInitData(ctx);
-        ensureIdSpaceTable(ctx);
+        ensureInitData(context);
+        ensureIdSpaceTable(context);
     }
 
-    public void ensureIdSpaceTable(UserContext ctx) {
+    public void ensureIdSpaceTable(UserContext context) {
         List<Map<String, Object>> dbTableInfo;
         try {
             dbTableInfo = database.getTableColumns(getTqlIdSpaceTable());
@@ -908,14 +908,14 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 + "type_name varchar(100) PRIMARY KEY,\n"
                 + "current_level bigint)\n";
         logInfo(sql + ";");
-        if (ensureTableEnabled(ctx)) {
-            try { database.execute(ctx, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+        if (ensureTableEnabled(context)) {
+            try { database.execute(context, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
         }
     }
 
-    protected void ensure(UserContext ctx, List<Map<String, Object>> tableInfo, String table, List<SQLColumn> columns) {
+    protected void ensure(UserContext context, List<Map<String, Object>> tableInfo, String table, List<SQLColumn> columns) {
         if (tableInfo.isEmpty()) {
-            createTable(ctx, table, columns);
+            createTable(context, table, columns);
             return;
         }
         Map<String, Map<String, Object>> fields = CollStreamUtil.toIdentityMap(
@@ -923,12 +923,12 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         for (SQLColumn column : columns) {
             String dbColumnName = column.getColumnName().toLowerCase();
             if (!fields.containsKey(dbColumnName)) {
-                addColumn(ctx, column);
+                addColumn(context, column);
             }
         }
     }
 
-    protected void createTable(UserContext ctx, String table, List<SQLColumn> columns) {
+    protected void createTable(UserContext context, String table, List<SQLColumn> columns) {
         StringBuilder sb = new StringBuilder();
         sb.append("CREATE TABLE ").append(table).append(" (\n");
         sb.append(columns.stream()
@@ -940,29 +940,29 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 .collect(Collectors.joining(",\n")));
         sb.append(")\n");
         logInfo(sb + ";");
-        if (ensureTableEnabled(ctx)) {
-            try { database.execute(ctx, sb.toString()); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+        if (ensureTableEnabled(context)) {
+            try { database.execute(context, sb.toString()); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
         }
     }
 
-    protected void addColumn(UserContext ctx, SQLColumn column) {
+    protected void addColumn(UserContext context, SQLColumn column) {
         String sql = StrUtil.format("ALTER TABLE {} ADD COLUMN {} {}",
                 dialect.escapeIdentifier(column.getTableName()), dialect.escapeIdentifier(column.getColumnName()), dialect.mapColumnType(column.getType()));
         logInfo(sql + ";");
-        if (ensureTableEnabled(ctx)) {
-            try { database.execute(ctx, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+        if (ensureTableEnabled(context)) {
+            try { database.execute(context, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
         }
     }
 
-    public void ensureInitData(UserContext ctx) {
-        if (entityDescriptor.isRoot()) ensureRoot(ctx);
-        if (entityDescriptor.isConstant()) ensureConstant(ctx);
+    public void ensureInitData(UserContext context) {
+        if (entityDescriptor.isRoot()) ensureRoot(context);
+        if (entityDescriptor.isConstant()) ensureConstant(context);
     }
 
-    private void ensureRoot(UserContext ctx) {
+    private void ensureRoot(UserContext context) {
         List<Map<String, Object>> dbRow;
         try {
-            dbRow = database.query(ctx,
+            dbRow = database.query(context,
                     StrUtil.format("SELECT * FROM {} WHERE id = '1'", tableName(entityDescriptor.getType())),
                     new Object[0]);
         } catch (Exception e) {
@@ -974,8 +974,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             if (version > 0) return;
             String sql = StrUtil.format("UPDATE {} SET version = {} where id = '1'", tableName(entityDescriptor.getType()), -version);
             logInfo(sql + ";");
-            if (ensureTableEnabled(ctx)) {
-                try { database.execute(ctx, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+            if (ensureTableEnabled(context)) {
+                try { database.execute(context, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
             }
             return;
         }
@@ -984,19 +984,19 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         List<Object> rootRow = new ArrayList<>();
         for (PropertyDescriptor ownProperty : entityDescriptor.getOwnProperties()) {
             columns.add(getSqlColumn(ownProperty).getColumnName());
-            rootRow.add(getRootPropertyValue(ctx, ownProperty));
+            rootRow.add(getRootPropertyValue(context, ownProperty));
         }
         String sql = StrUtil.format("INSERT INTO {} ({}) VALUES ({})",
                 tableName(entityDescriptor.getType()),
                 CollectionUtil.join(columns, ","),
                 CollectionUtil.join(rootRow, ",", value -> getSqlValue(value)));
         logInfo(sql + ";");
-        if (ensureTableEnabled(ctx)) {
-            try { database.execute(ctx, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+        if (ensureTableEnabled(context)) {
+            try { database.execute(context, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
         }
     }
 
-    private void ensureConstant(UserContext ctx) {
+    private void ensureConstant(UserContext context) {
         PropertyDescriptor identifier = entityDescriptor.getIdentifier();
         List<String> candidates = identifier.getCandidates();
         List<PropertyDescriptor> ownProperties = entityDescriptor.getOwnProperties();
@@ -1008,24 +1008,24 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             final int i = idx;
             String code = candidates.get(i);
             List<Object> oneConstant = ownProperties.stream()
-                    .map(p -> getConstantPropertyValue(ctx, p, i, code))
+                    .map(p -> getConstantPropertyValue(context, p, i, code))
                     .collect(Collectors.toList());
 
             try {
-                List<Map<String, Object>> existing = database.query(ctx,
+                List<Map<String, Object>> existing = database.query(context,
                         StrUtil.format("SELECT * FROM {} WHERE id = '{}'",
                                 tableName(entityDescriptor.getType()),
-                                getConstantPropertyValue(ctx, entityDescriptor.findIdProperty(), i, code)),
+                                getConstantPropertyValue(context, entityDescriptor.findIdProperty(), i, code)),
                         new Object[0]);
                 if (!existing.isEmpty()) {
                     long version = Long.parseLong(String.valueOf(existing.get(0).get("version")));
                     if (version > 0) continue;
                     String sql = StrUtil.format("UPDATE {} SET version = {} where id = '{}'",
                             tableName(entityDescriptor.getType()), -version,
-                            getConstantPropertyValue(ctx, entityDescriptor.findIdProperty(), i, code));
+                            getConstantPropertyValue(context, entityDescriptor.findIdProperty(), i, code));
                     logInfo(sql + ";");
-                    if (ensureTableEnabled(ctx)) {
-                        try { database.execute(ctx, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+                    if (ensureTableEnabled(context)) {
+                        try { database.execute(context, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
                     }
                     continue;
                 }
@@ -1037,8 +1037,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                     CollectionUtil.join(columns, ","),
                     CollectionUtil.join(oneConstant, ",", value -> getSqlValue(value)));
             logInfo(sql + ";");
-            if (ensureTableEnabled(ctx)) {
-                try { database.execute(ctx, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+            if (ensureTableEnabled(context)) {
+                try { database.execute(context, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
             }
         }
     }
@@ -1085,8 +1085,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         return sqlEntity;
     }
 
-    private List<SQLData> convertToSQLData(UserContext ctx, T entity, PropertyDescriptor property, Object value) {
-        return io.teaql.core.sql.portable.SQLPropertyUtil.toDBRaw(ctx, entity, value, property);
+    private List<SQLData> convertToSQLData(UserContext context, T entity, PropertyDescriptor property, Object value) {
+        return io.teaql.core.sql.portable.SQLPropertyUtil.toDBRaw(context, entity, value, property);
     }
 
     private boolean shouldHandle(PropertyDescriptor pProperty) {
@@ -1153,20 +1153,20 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         return StrUtil.wrapIfMissing(String.valueOf(value), "'", "'");
     }
 
-    private Object getRootPropertyValue(UserContext ctx, PropertyDescriptor property) {
+    private Object getRootPropertyValue(UserContext context, PropertyDescriptor property) {
         if (property.isId()) return 1L;
         if (property.isVersion()) return 1L;
         String createFunction = property.getAdditionalInfo().get("createFunction");
-        if (!ObjectUtil.isEmpty(createFunction)) return ctx.evaluate(createFunction);
+        if (!ObjectUtil.isEmpty(createFunction)) return context.evaluate(createFunction);
         return property.getAdditionalInfo().get("candidates");
     }
 
-    private Object getConstantPropertyValue(UserContext ctx, PropertyDescriptor property, int index, String identifier) {
+    private Object getConstantPropertyValue(UserContext context, PropertyDescriptor property, int index, String identifier) {
         if (property.isVersion()) return 1L;
         PropertyType type = property.getType();
         if (BaseEntity.class.isAssignableFrom(type.javaType())) return "1";
         String createFunction = property.getAdditionalInfo().get("createFunction");
-        if (!ObjectUtil.isEmpty(createFunction)) return ctx.evaluate(createFunction);
+        if (!ObjectUtil.isEmpty(createFunction)) return context.evaluate(createFunction);
         List<String> candidates = property.getCandidates();
         if (property.isIdentifier()) return identifier;
         if (ObjectUtil.isNotEmpty(candidates)) return CollectionUtil.get(candidates, index);
@@ -1299,8 +1299,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     public void setTqlIdSpaceTable(String pTqlIdSpaceTable) { tqlIdSpaceTable = pTqlIdSpaceTable; }
     public TeaQLDatabase getDatabase() { return database; }
 
-    protected boolean ensureTableEnabled(UserContext ctx) {
-        return ctx.getBool("ensureTable", true);
+    protected boolean ensureTableEnabled(UserContext context) {
+        return context.getBool("ensureTable", true);
     }
 
     private void logInfo(String message) {

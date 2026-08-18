@@ -4,7 +4,7 @@ import io.teaql.core.ExecutionMetadata;
 import io.teaql.core.UserContext;
 
 public interface RuntimeLogSink {
-    void writeExecutionLog(UserContext ctx, ExecutionMetadata metadata);
+    void writeExecutionLog(UserContext context, ExecutionMetadata metadata);
 
-    default void writeAuditEvent(UserContext ctx, RawAuditEvent event) {}
+    default void writeAuditEvent(UserContext context, RawAuditEvent event) {}
 }

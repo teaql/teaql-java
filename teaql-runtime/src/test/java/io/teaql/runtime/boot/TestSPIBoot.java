@@ -26,9 +26,9 @@ public class TestSPIBoot {
         int iterations = 1000000;
         long benchmarkStart = System.nanoTime();
         for (int i = 0; i < iterations; i++) {
-            UserContext ctx = TeaQLUserContextFactory.create();
+            UserContext context = TeaQLUserContextFactory.create();
             // Optional: avoid dead code elimination
-            if (ctx == null) break; 
+            if (context == null) break;
         }
         long benchmarkEnd = System.nanoTime();
         

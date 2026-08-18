@@ -836,14 +836,14 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
      * Requires comment to be declared.
      *
      * Usage:
-     *   Q.tasks().filterByName("xxx").comment("Load tasks").purpose("Display board").executeForList(ctx);
+     *   Q.tasks().filterByName("xxx").comment("Load tasks").purpose("Display board").executeForList(context);
      */
     public ExecutableRequest<T> purpose(String purpose) {
         if (comment == null || comment.trim().isEmpty()) {
             throw new TeaQLRuntimeException(
                 "[PURPOSE FAILED] Missing .comment() on " + getTypeName() + " query.\n" +
                 "Call .comment() before .purpose().\n" +
-                "Pattern: Q.xxx().comment(\"...\").purpose(\"...\").executeForList(ctx)");
+                "Pattern: Q.xxx().comment(\"...\").purpose(\"...\").executeForList(context)");
         }
         if (purpose == null || purpose.trim().isEmpty()) {
             throw new TeaQLRuntimeException(

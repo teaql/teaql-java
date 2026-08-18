@@ -11,7 +11,7 @@ public class ExpressionTest {
 
     static class DummyExpression implements Expression {
         @Override
-        public java.util.List<String> properties(UserContext ctx) {
+        public java.util.List<String> properties(UserContext context) {
             return null;
         }
     }

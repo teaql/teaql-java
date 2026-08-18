@@ -13,7 +13,7 @@ public class FunctionApplyTest {
         private String prop;
         public DummyExpression(String prop) { this.prop = prop; }
         @Override
-        public List<String> properties(UserContext ctx) {
+        public List<String> properties(UserContext context) {
             return prop == null ? null : Arrays.asList(prop);
         }
     }

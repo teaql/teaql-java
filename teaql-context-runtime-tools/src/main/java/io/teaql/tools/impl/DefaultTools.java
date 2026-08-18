@@ -15,18 +15,18 @@ import java.util.Map;
 import java.util.Set;
 
 public class DefaultTools implements Tools {
-    private final UserContext ctx;
+    private final UserContext context;
     private final ToolPolicy policy;
     private final ToolAcknowledgements acknowledgements;
     private final Map<Class<?>, ToolProvider> providers;
     private final Set<ToolDescriptor> descriptors;
 
     public DefaultTools(
-            UserContext ctx,
+            UserContext context,
             ToolPolicy policy,
             ToolAcknowledgements acknowledgements,
             List<ToolProvider> providers) {
-        this.ctx = ctx;
+        this.context = context;
         this.policy = policy;
         this.acknowledgements = acknowledgements;
         Map<Class<?>, ToolProvider> providerMap = new LinkedHashMap<>();
@@ -47,7 +47,7 @@ public class DefaultTools implements Tools {
             throw new IllegalArgumentException("Tool not available: " + toolType.getName());
         }
         ToolDescriptor descriptor = provider.descriptor();
-        if (!policy.isAllowed(descriptor, ctx)) {
+        if (!policy.isAllowed(descriptor, context)) {
             throw new SecurityException("Tool denied by policy: " + descriptor.getId());
         }
         if (!acknowledgements.isAcknowledged(descriptor)) {
@@ -57,7 +57,7 @@ public class DefaultTools implements Tools {
                             + " to "
                             + descriptor.getAcknowledgementValue());
         }
-        return provider.create(toolType, ctx);
+        return provider.create(toolType, context);
     }
 
     @Override

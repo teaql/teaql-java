@@ -59,16 +59,16 @@ public class InMemoryDynamicFieldsProviderTest {
     @Test
     public void testWriteAndReadStringValue() {
         InMemoryDynamicFieldsProvider provider = createProvider();
-        DynamicFieldContext ctx = globalCtx();
+        DynamicFieldContext context = globalCtx();
         DynamicOwnerRef owner = DynamicOwnerRef.of("Platform", 1001L);
 
         // Write
-        provider.saveValue(ctx, DynamicSetCommand.of(
+        provider.saveValue(context, DynamicSetCommand.of(
                 owner, "customer_asset_no", DynamicDataType.STRING, "A-10086",
                 "test", "set asset no"));
 
         // Read
-        DynamicFieldValues values = provider.loadValues(ctx, owner,
+        DynamicFieldValues values = provider.loadValues(context, owner,
                 new DynamicFieldSelection().selectString("customer_asset_no"));
 
         assertTrue(values.isSelected("customer_asset_no"));
@@ -78,14 +78,14 @@ public class InMemoryDynamicFieldsProviderTest {
     @Test
     public void testWriteAndReadNumberValue() {
         InMemoryDynamicFieldsProvider provider = createProvider();
-        DynamicFieldContext ctx = globalCtx();
+        DynamicFieldContext context = globalCtx();
         DynamicOwnerRef owner = DynamicOwnerRef.of("Platform", 1001L);
 
-        provider.saveValue(ctx, DynamicSetCommand.of(
+        provider.saveValue(context, DynamicSetCommand.of(
                 owner, "priority_score", DynamicDataType.NUMBER, 80,
                 "test", "set priority"));
 
-        DynamicFieldValues values = provider.loadValues(ctx, owner,
+        DynamicFieldValues values = provider.loadValues(context, owner,
                 new DynamicFieldSelection().selectNumber("priority_score"));
 
         assertEquals(80, values.getNumber("priority_score"));
@@ -94,14 +94,14 @@ public class InMemoryDynamicFieldsProviderTest {
     @Test
     public void testWriteAndReadBoolValue() {
         InMemoryDynamicFieldsProvider provider = createProvider();
-        DynamicFieldContext ctx = globalCtx();
+        DynamicFieldContext context = globalCtx();
         DynamicOwnerRef owner = DynamicOwnerRef.of("Platform", 1001L);
 
-        provider.saveValue(ctx, DynamicSetCommand.of(
+        provider.saveValue(context, DynamicSetCommand.of(
                 owner, "enabled_for_custom_flow", DynamicDataType.BOOL, true,
                 "test", "enable custom flow"));
 
-        DynamicFieldValues values = provider.loadValues(ctx, owner,
+        DynamicFieldValues values = provider.loadValues(context, owner,
                 new DynamicFieldSelection().selectBool("enabled_for_custom_flow"));
 
         assertTrue(values.getBool("enabled_for_custom_flow"));
@@ -110,10 +110,10 @@ public class InMemoryDynamicFieldsProviderTest {
     @Test
     public void testUnselectedFieldThrows() {
         InMemoryDynamicFieldsProvider provider = createProvider();
-        DynamicFieldContext ctx = globalCtx();
+        DynamicFieldContext context = globalCtx();
         DynamicOwnerRef owner = DynamicOwnerRef.of("Platform", 1001L);
 
-        DynamicFieldValues values = provider.loadValues(ctx, owner,
+        DynamicFieldValues values = provider.loadValues(context, owner,
                 new DynamicFieldSelection().selectString("customer_asset_no"));
 
         try {
@@ -127,19 +127,19 @@ public class InMemoryDynamicFieldsProviderTest {
     @Test
     public void testSelectAllLoadsActiveFields() {
         InMemoryDynamicFieldsProvider provider = createProvider();
-        DynamicFieldContext ctx = globalCtx();
+        DynamicFieldContext context = globalCtx();
         DynamicOwnerRef owner = DynamicOwnerRef.of("Platform", 1001L);
 
         // Write some values
-        provider.saveValue(ctx, DynamicSetCommand.of(
+        provider.saveValue(context, DynamicSetCommand.of(
                 owner, "customer_asset_no", DynamicDataType.STRING, "A-10086",
                 "test", "set"));
-        provider.saveValue(ctx, DynamicSetCommand.of(
+        provider.saveValue(context, DynamicSetCommand.of(
                 owner, "priority_score", DynamicDataType.NUMBER, 42,
                 "test", "set"));
 
         // Select all
-        DynamicFieldValues values = provider.loadValues(ctx, owner,
+        DynamicFieldValues values = provider.loadValues(context, owner,
                 new DynamicFieldSelection().selectAll());
 
         assertEquals(3, values.size()); // all 3 active fields
@@ -151,11 +151,11 @@ public class InMemoryDynamicFieldsProviderTest {
     @Test
     public void testNullValueIsDistinguishedFromUnselected() {
         InMemoryDynamicFieldsProvider provider = createProvider();
-        DynamicFieldContext ctx = globalCtx();
+        DynamicFieldContext context = globalCtx();
         DynamicOwnerRef owner = DynamicOwnerRef.of("Platform", 1001L);
 
         // Don't write any value — field exists but has no value
-        DynamicFieldValues values = provider.loadValues(ctx, owner,
+        DynamicFieldValues values = provider.loadValues(context, owner,
                 new DynamicFieldSelection().selectString("customer_asset_no"));
 
         assertTrue("Field should be selected", values.isSelected("customer_asset_no"));
@@ -218,37 +218,37 @@ public class InMemoryDynamicFieldsProviderTest {
     @Test
     public void testListFieldDefs() {
         InMemoryDynamicFieldsProvider provider = createProvider();
-        DynamicFieldContext ctx = globalCtx();
+        DynamicFieldContext context = globalCtx();
 
-        java.util.List<DynamicFieldDef> defs = provider.listFieldDefs(ctx, "Platform");
+        java.util.List<DynamicFieldDef> defs = provider.listFieldDefs(context, "Platform");
         assertEquals(3, defs.size());
     }
 
     @Test
     public void testDeleteValue() {
         InMemoryDynamicFieldsProvider provider = createProvider();
-        DynamicFieldContext ctx = globalCtx();
+        DynamicFieldContext context = globalCtx();
         DynamicOwnerRef owner = DynamicOwnerRef.of("Platform", 1001L);
 
         // Write
-        provider.saveValue(ctx, DynamicSetCommand.of(
+        provider.saveValue(context, DynamicSetCommand.of(
                 owner, "customer_asset_no", DynamicDataType.STRING, "A-10086",
                 "test", "set"));
 
         // Verify written
-        DynamicFieldValues values = provider.loadValues(ctx, owner,
+        DynamicFieldValues values = provider.loadValues(context, owner,
                 new DynamicFieldSelection().selectString("customer_asset_no"));
         assertEquals("A-10086", values.getString("customer_asset_no"));
 
         // Find the field def to get its ID
-        DynamicFieldDef def = provider.loadFieldDef(ctx,
+        DynamicFieldDef def = provider.loadFieldDef(context,
                 DynamicFieldRef.of(DynamicFieldScope.global(), "Platform", "customer_asset_no"));
 
         // Delete
-        provider.deleteValue(ctx, DynamicValueRef.of(owner, def.getId()));
+        provider.deleteValue(context, DynamicValueRef.of(owner, def.getId()));
 
         // Verify deleted (should be null)
-        values = provider.loadValues(ctx, owner,
+        values = provider.loadValues(context, owner,
                 new DynamicFieldSelection().selectString("customer_asset_no"));
         assertTrue(values.isNull("customer_asset_no"));
     }

@@ -58,7 +58,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
 
     @Override
     @SuppressWarnings("unchecked")
-    public QueryResult query(UserContext ctx, QueryRequest request) {
+    public QueryResult query(UserContext context, QueryRequest request) {
         if (!(request instanceof DefaultQueryRequest)) {
             throw new TeaQLRuntimeException("Unsupported QueryRequest in PortableSQLDataService");
         }
@@ -67,25 +67,25 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         PortableSQLRepository<?> repository = getRepository(typeName);
         if (searchRequest.hasSimpleAgg()) {
             AggregationResult aggregation =
-                    repository.doAggregateInternal(ctx, (SearchRequest) searchRequest);
+                    repository.doAggregateInternal(context, (SearchRequest) searchRequest);
             return new DefaultQueryResult(new SmartList<>(), aggregation);
         }
-        SmartList<?> result = repository.loadInternal(ctx, (SearchRequest) searchRequest);
+        SmartList<?> result = repository.loadInternal(context, (SearchRequest) searchRequest);
         
         if (searchRequest.enhanceRelations() != null && !searchRequest.enhanceRelations().isEmpty()) {
-            enhanceRelations(ctx, (SmartList<Entity>) result, searchRequest);
+            enhanceRelations(context, (SmartList<Entity>) result, searchRequest);
         }
-        attachDynamicAggregations(ctx, (SmartList<Entity>) result, searchRequest);
+        attachDynamicAggregations(context, (SmartList<Entity>) result, searchRequest);
         
         return new DefaultQueryResult((SmartList<Entity>) result);
     }
 
     @Override
-    public <T extends Entity> java.util.stream.Stream<T> queryForStream(UserContext ctx, SearchRequest<T> request) {
+    public <T extends Entity> java.util.stream.Stream<T> queryForStream(UserContext context, SearchRequest<T> request) {
         if (request.hasSimpleAgg() || !request.enhanceRelations().isEmpty() || !request.enhanceChildren().isEmpty()) {
             throw new TeaQLRuntimeException("Streaming aggregation/relation enhancement is not supported; stream root rows only");
         }
-        return this.<T>getRepository(request.getTypeName()).streamInternal(ctx, request);
+        return this.<T>getRepository(request.getTypeName()).streamInternal(context, request);
     }
 
     private void attachDynamicAggregations(
@@ -271,7 +271,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
 
     @Override
     @SuppressWarnings("unchecked")
-    public MutationResult mutate(UserContext ctx, MutationRequest request) {
+    public MutationResult mutate(UserContext context, MutationRequest request) {
         if (!(request instanceof DefaultMutationRequest)) {
             throw new TeaQLRuntimeException("Unsupported MutationRequest in PortableSQLDataService");
         }
@@ -282,24 +282,24 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
 
         if (mutation.getAction() == DefaultMutationRequest.Action.SAVE) {
             if (entity.getId() == null) {
-                Long newId = repository.prepareId(ctx, entity);
+                Long newId = repository.prepareId(context, entity);
                 ((BaseEntity) entity).__internalSet("id", newId);
             }
             if (entity.newItem()) {
                 ((BaseEntity) entity).__internalSet("version", 1L);
-                repository.createInternal(ctx, Collections.singletonList(entity));
+                repository.createInternal(context, Collections.singletonList(entity));
             } else if (entity.updateItem()) {
-                repository.updateInternal(ctx, Collections.singletonList(entity));
+                repository.updateInternal(context, Collections.singletonList(entity));
                 ((BaseEntity) entity).__internalSet("version", entity.getVersion() + 1);
             } else if (entity.recoverItem()) {
-                repository.recoverInternal(ctx, Collections.singletonList(entity));
+                repository.recoverInternal(context, Collections.singletonList(entity));
                 ((BaseEntity) entity).__internalSet("version", -entity.getVersion() + 1);
             }
             if (entity instanceof BaseEntity) {
                 ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);
             }
         } else if (mutation.getAction() == DefaultMutationRequest.Action.DELETE) {
-            repository.deleteInternal(ctx, Collections.singletonList(entity));
+            repository.deleteInternal(context, Collections.singletonList(entity));
             ((BaseEntity) entity).__internalSet("version", -(entity.getVersion() + 1));
             if (entity instanceof BaseEntity) {
                 ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);
@@ -310,14 +310,14 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         if (entity.getId() != null
                 && (mutation.getAction() == DefaultMutationRequest.Action.SAVE
                     || mutation.getAction() == DefaultMutationRequest.Action.DELETE)) {
-            persisted = repository.loadPersistedById(ctx, entity.getId());
+            persisted = repository.loadPersistedById(context, entity.getId());
         }
         return new io.teaql.core.DefaultMutationResult(persisted);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T> T executeInTransaction(UserContext ctx, TransactionCallback<T> action) {
+    public <T> T executeInTransaction(UserContext context, TransactionCallback<T> action) {
         final Object[] resultHolder = new Object[1];
         final Exception[] exceptionHolder = new Exception[1];
         database.executeInTransaction(() -> {
@@ -337,8 +337,8 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         return (T) resultHolder[0];
     }
 
-    public void ensureSchema(UserContext ctx, String typeName) {
+    public void ensureSchema(UserContext context, String typeName) {
         PortableSQLRepository<?> repository = getRepository(typeName);
-        repository.ensureSchema(ctx);
+        repository.ensureSchema(context);
     }
 }

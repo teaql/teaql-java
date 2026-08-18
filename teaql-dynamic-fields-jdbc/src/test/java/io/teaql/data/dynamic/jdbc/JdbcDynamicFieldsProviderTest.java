@@ -66,11 +66,11 @@ public class JdbcDynamicFieldsProviderTest {
 
     @Test
     public void testRegisterAndLoadFieldDef() {
-        DynamicFieldContext ctx = globalCtx();
+        DynamicFieldContext context = globalCtx();
         DynamicFieldDef def = createStringField("customer_asset_no", "Customer Asset No");
-        provider.registerFieldDef(ctx, def);
+        provider.registerFieldDef(context, def);
 
-        DynamicFieldDef loaded = provider.loadFieldDef(ctx,
+        DynamicFieldDef loaded = provider.loadFieldDef(context,
                 DynamicFieldRef.of(DynamicFieldScope.global(), "Platform", "customer_asset_no"));
         assertNotNull(loaded);
         assertEquals("customer_asset_no", loaded.getCode());
@@ -80,25 +80,25 @@ public class JdbcDynamicFieldsProviderTest {
 
     @Test
     public void testListFieldDefs() {
-        DynamicFieldContext ctx = globalCtx();
-        provider.registerFieldDef(ctx, createStringField("field_a", "Field A"));
-        provider.registerFieldDef(ctx, createStringField("field_b", "Field B"));
-        provider.registerFieldDef(ctx, createNumberField("field_c", "Field C"));
+        DynamicFieldContext context = globalCtx();
+        provider.registerFieldDef(context, createStringField("field_a", "Field A"));
+        provider.registerFieldDef(context, createStringField("field_b", "Field B"));
+        provider.registerFieldDef(context, createNumberField("field_c", "Field C"));
 
-        List<DynamicFieldDef> defs = provider.listFieldDefs(ctx, "Platform");
+        List<DynamicFieldDef> defs = provider.listFieldDefs(context, "Platform");
         assertEquals(3, defs.size());
     }
 
     @Test
     public void testWriteAndReadStringValue() {
-        DynamicFieldContext ctx = globalCtx();
-        provider.registerFieldDef(ctx, createStringField("customer_asset_no", "Customer Asset No"));
+        DynamicFieldContext context = globalCtx();
+        provider.registerFieldDef(context, createStringField("customer_asset_no", "Customer Asset No"));
 
         DynamicOwnerRef owner = DynamicOwnerRef.of("Platform", 1001L);
-        provider.saveValue(ctx, DynamicSetCommand.of(
+        provider.saveValue(context, DynamicSetCommand.of(
                 owner, "customer_asset_no", DynamicDataType.STRING, "A-10086", "test", "set"));
 
-        DynamicFieldValues values = provider.loadValues(ctx, owner,
+        DynamicFieldValues values = provider.loadValues(context, owner,
                 new DynamicFieldSelection().selectString("customer_asset_no"));
         assertTrue(values.isSelected("customer_asset_no"));
         assertEquals("A-10086", values.getString("customer_asset_no"));
@@ -106,53 +106,53 @@ public class JdbcDynamicFieldsProviderTest {
 
     @Test
     public void testWriteAndReadNumberValue() {
-        DynamicFieldContext ctx = globalCtx();
-        provider.registerFieldDef(ctx, createNumberField("priority_score", "Priority Score"));
+        DynamicFieldContext context = globalCtx();
+        provider.registerFieldDef(context, createNumberField("priority_score", "Priority Score"));
 
         DynamicOwnerRef owner = DynamicOwnerRef.of("Platform", 1001L);
-        provider.saveValue(ctx, DynamicSetCommand.of(
+        provider.saveValue(context, DynamicSetCommand.of(
                 owner, "priority_score", DynamicDataType.NUMBER, 80L, "test", "set"));
 
-        DynamicFieldValues values = provider.loadValues(ctx, owner,
+        DynamicFieldValues values = provider.loadValues(context, owner,
                 new DynamicFieldSelection().selectNumber("priority_score"));
         assertEquals(80L, values.getNumber("priority_score").longValue());
     }
 
     @Test
     public void testUpsertOverwritesExistingValue() {
-        DynamicFieldContext ctx = globalCtx();
-        provider.registerFieldDef(ctx, createStringField("customer_asset_no", "Customer Asset No"));
+        DynamicFieldContext context = globalCtx();
+        provider.registerFieldDef(context, createStringField("customer_asset_no", "Customer Asset No"));
 
         DynamicOwnerRef owner = DynamicOwnerRef.of("Platform", 1001L);
 
         // First write
-        provider.saveValue(ctx, DynamicSetCommand.of(
+        provider.saveValue(context, DynamicSetCommand.of(
                 owner, "customer_asset_no", DynamicDataType.STRING, "OLD", "test", "set"));
 
         // Overwrite
-        provider.saveValue(ctx, DynamicSetCommand.of(
+        provider.saveValue(context, DynamicSetCommand.of(
                 owner, "customer_asset_no", DynamicDataType.STRING, "NEW", "test", "update"));
 
-        DynamicFieldValues values = provider.loadValues(ctx, owner,
+        DynamicFieldValues values = provider.loadValues(context, owner,
                 new DynamicFieldSelection().selectString("customer_asset_no"));
         assertEquals("NEW", values.getString("customer_asset_no"));
     }
 
     @Test
     public void testBatchLoadValues() {
-        DynamicFieldContext ctx = globalCtx();
-        provider.registerFieldDef(ctx, createStringField("customer_asset_no", "Customer Asset No"));
+        DynamicFieldContext context = globalCtx();
+        provider.registerFieldDef(context, createStringField("customer_asset_no", "Customer Asset No"));
 
         DynamicOwnerRef owner1 = DynamicOwnerRef.of("Platform", 1001L);
         DynamicOwnerRef owner2 = DynamicOwnerRef.of("Platform", 1002L);
 
-        provider.saveValue(ctx, DynamicSetCommand.of(
+        provider.saveValue(context, DynamicSetCommand.of(
                 owner1, "customer_asset_no", DynamicDataType.STRING, "A-001", "test", "set"));
-        provider.saveValue(ctx, DynamicSetCommand.of(
+        provider.saveValue(context, DynamicSetCommand.of(
                 owner2, "customer_asset_no", DynamicDataType.STRING, "A-002", "test", "set"));
 
         Map<DynamicOwnerRef, DynamicFieldValues> result = provider.loadValues(
-                ctx, List.of(owner1, owner2),
+                context, List.of(owner1, owner2),
                 new DynamicFieldSelection().selectString("customer_asset_no"));
 
         assertEquals("A-001", result.get(owner1).getString("customer_asset_no"));
@@ -161,37 +161,37 @@ public class JdbcDynamicFieldsProviderTest {
 
     @Test
     public void testDeleteValue() {
-        DynamicFieldContext ctx = globalCtx();
+        DynamicFieldContext context = globalCtx();
         DynamicFieldDef def = createStringField("customer_asset_no", "Customer Asset No");
-        provider.registerFieldDef(ctx, def);
+        provider.registerFieldDef(context, def);
 
         DynamicOwnerRef owner = DynamicOwnerRef.of("Platform", 1001L);
-        provider.saveValue(ctx, DynamicSetCommand.of(
+        provider.saveValue(context, DynamicSetCommand.of(
                 owner, "customer_asset_no", DynamicDataType.STRING, "A-10086", "test", "set"));
 
         // Verify written
-        DynamicFieldValues values = provider.loadValues(ctx, owner,
+        DynamicFieldValues values = provider.loadValues(context, owner,
                 new DynamicFieldSelection().selectString("customer_asset_no"));
         assertEquals("A-10086", values.getString("customer_asset_no"));
 
         // Reload def to get its ID
-        DynamicFieldDef loaded = provider.loadFieldDef(ctx,
+        DynamicFieldDef loaded = provider.loadFieldDef(context,
                 DynamicFieldRef.of(DynamicFieldScope.global(), "Platform", "customer_asset_no"));
 
         // Delete
-        provider.deleteValue(ctx, DynamicValueRef.of(owner, loaded.getId()));
+        provider.deleteValue(context, DynamicValueRef.of(owner, loaded.getId()));
 
         // Verify deleted - should return empty (no rows match)
-        values = provider.loadValues(ctx, owner,
+        values = provider.loadValues(context, owner,
                 new DynamicFieldSelection().selectString("customer_asset_no"));
         assertEquals(0, values.size());
     }
 
     @Test
     public void testFacadeEndToEnd() {
-        DynamicFieldContext ctx = globalCtx();
-        provider.registerFieldDef(ctx, createStringField("customer_asset_no", "Customer Asset No"));
-        provider.registerFieldDef(ctx, createNumberField("priority_score", "Priority Score"));
+        DynamicFieldContext context = globalCtx();
+        provider.registerFieldDef(context, createStringField("customer_asset_no", "Customer Asset No"));
+        provider.registerFieldDef(context, createNumberField("priority_score", "Priority Score"));
 
         DefaultDynamicFieldsFacade facade = new DefaultDynamicFieldsFacade(provider);
 

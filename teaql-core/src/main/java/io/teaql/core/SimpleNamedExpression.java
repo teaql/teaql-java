@@ -28,8 +28,8 @@ public class SimpleNamedExpression implements Expression {
     }
 
     @Override
-    public List<String> properties(UserContext ctx) {
-        return expression.properties(ctx);
+    public List<String> properties(UserContext context) {
+        return expression.properties(context);
     }
 
     @Override

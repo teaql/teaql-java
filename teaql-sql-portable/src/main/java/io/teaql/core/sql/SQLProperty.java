@@ -10,7 +10,7 @@ public interface SQLProperty {
 
     List<SQLColumn> columns();
 
-    List<SQLData> toDBRaw(UserContext ctx, Entity entity, Object value);
+    List<SQLData> toDBRaw(UserContext context, Entity entity, Object value);
 
-    void setPropertyValue(UserContext ctx, Entity entity, ResultSet rs);
+    void setPropertyValue(UserContext context, Entity entity, ResultSet rs);
 }

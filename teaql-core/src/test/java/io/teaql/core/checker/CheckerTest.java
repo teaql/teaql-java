@@ -27,15 +27,15 @@ public class CheckerTest {
                 UserContext.class.getClassLoader(),
                 new Class[]{UserContext.class},
                 new java.lang.reflect.InvocationHandler() {
-                    private Map<String, Object> ctx = new HashMap<>();
+                    private Map<String, Object> context = new HashMap<>();
                     @Override
                     public Object invoke(Object proxy, java.lang.reflect.Method method, Object[] args) throws Throwable {
                         if ("putAttribute".equals(method.getName()) && args != null && args.length == 2) {
-                            ctx.put((String) args[0], args[1]);
+                            context.put((String) args[0], args[1]);
                             return null;
                         }
                         if ("getAttribute".equals(method.getName()) && args != null && args.length == 1) {
-                            return ctx.get((String) args[0]);
+                            return context.get((String) args[0]);
                         }
                         if (method.getReturnType().isPrimitive()) {
                             if (method.getReturnType() == boolean.class) return false;
@@ -50,37 +50,37 @@ public class CheckerTest {
         @Override
         public String type() { return "dummy"; }
         @Override
-        public void checkAndFix(UserContext ctx, DummyEntity entity, ObjectLocation location) { }
+        public void checkAndFix(UserContext context, DummyEntity entity, ObjectLocation location) { }
     }
 
     @Test
     public void testMarkAsCheckedAndNeedCheck() {
         DummyChecker checker = new DummyChecker();
-        UserContext ctx = createDummyContext();
+        UserContext context = createDummyContext();
         DummyEntity entity = new DummyEntity();
         
         // Before marking, should need check
-        assertTrue(checker.needCheck(ctx, entity));
+        assertTrue(checker.needCheck(context, entity));
         
         // Mark as checked twice to cover the list != null branch
-        checker.markAsChecked(ctx, entity);
-        checker.markAsChecked(ctx, entity);
+        checker.markAsChecked(context, entity);
+        checker.markAsChecked(context, entity);
         
         // After marking, should not need check
-        assertFalse(checker.needCheck(ctx, entity));
+        assertFalse(checker.needCheck(context, entity));
         
         // Check another entity when list is not null but does not contain
         DummyEntity entity2 = new DummyEntity();
         entity2.updateId(2L);
-        assertTrue(checker.needCheck(ctx, entity2));
+        assertTrue(checker.needCheck(context, entity2));
         
         // Check null
-        assertFalse(checker.needCheck(ctx, null));
+        assertFalse(checker.needCheck(context, null));
         
         // Check REFER status
         DummyEntity referEntity = new DummyEntity();
         referEntity.set$status(EntityStatus.REFER);
-        assertFalse(checker.needCheck(ctx, referEntity));
+        assertFalse(checker.needCheck(context, referEntity));
     }
     
     @Test
@@ -99,14 +99,14 @@ public class CheckerTest {
     @Test
     public void testRequiredCheck() {
         DummyChecker checker = new DummyChecker();
-        UserContext ctx = createDummyContext();
+        UserContext context = createDummyContext();
         ObjectLocation loc = ObjectLocation.hashRoot("test");
         
-        checker.requiredCheck(ctx, loc, "val");
-        assertNull(ctx.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT));
+        checker.requiredCheck(context, loc, "val");
+        assertNull(context.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT));
         
-        checker.requiredCheck(ctx, loc, null);
-        List<?> results = (List<?>) ctx.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT);
+        checker.requiredCheck(context, loc, null);
+        List<?> results = (List<?>) context.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT);
         assertNotNull(results);
         assertEquals(1, results.size());
     }
@@ -114,49 +114,49 @@ public class CheckerTest {
     @Test
     public void testNumberChecks() {
         DummyChecker checker = new DummyChecker();
-        UserContext ctx = createDummyContext();
+        UserContext context = createDummyContext();
         ObjectLocation loc = ObjectLocation.hashRoot("test");
         
         // Min check
-        checker.minNumberCheck(ctx, loc, 5, 10);
-        assertNull(ctx.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT));
-        checker.minNumberCheck(ctx, loc, 5, 3);
-        List<?> results = (List<?>) ctx.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT);
+        checker.minNumberCheck(context, loc, 5, 10);
+        assertNull(context.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT));
+        checker.minNumberCheck(context, loc, 5, 3);
+        List<?> results = (List<?>) context.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT);
         assertNotNull(results);
         assertEquals(1, results.size());
         
         // Max check
-        checker.maxNumberCheck(ctx, loc, 10, 5);
+        checker.maxNumberCheck(context, loc, 10, 5);
         assertEquals(1, results.size());
-        checker.maxNumberCheck(ctx, loc, 10, 15);
+        checker.maxNumberCheck(context, loc, 10, 15);
         assertEquals(2, results.size());
     }
     
     @Test
     public void testStringChecks() {
         DummyChecker checker = new DummyChecker();
-        UserContext ctx = createDummyContext();
+        UserContext context = createDummyContext();
         ObjectLocation loc = ObjectLocation.hashRoot("test");
         
         // Min check
-        checker.minStringCheck(ctx, loc, 3, "hello");
-        assertNull(ctx.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT));
-        checker.minStringCheck(ctx, loc, 5, "hi");
-        List<?> results = (List<?>) ctx.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT);
+        checker.minStringCheck(context, loc, 3, "hello");
+        assertNull(context.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT));
+        checker.minStringCheck(context, loc, 5, "hi");
+        List<?> results = (List<?>) context.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT);
         assertNotNull(results);
         assertEquals(1, results.size());
         
         // Max check
-        checker.maxStringCheck(ctx, loc, 5, "hi");
+        checker.maxStringCheck(context, loc, 5, "hi");
         assertEquals(1, results.size());
-        checker.maxStringCheck(ctx, loc, 3, "hello");
+        checker.maxStringCheck(context, loc, 3, "hello");
         assertEquals(2, results.size());
     }
 
     @Test
     public void testDateTimeChecks() {
         DummyChecker checker = new DummyChecker();
-        UserContext ctx = createDummyContext();
+        UserContext context = createDummyContext();
         ObjectLocation loc = ObjectLocation.hashRoot("test");
         
         LocalDateTime now = LocalDateTime.now();
@@ -164,17 +164,17 @@ public class CheckerTest {
         LocalDateTime future = now.plusDays(1);
         
         // Min check
-        checker.minDateTimeCheck(ctx, loc, past, now);
-        assertNull(ctx.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT));
-        checker.minDateTimeCheck(ctx, loc, future, now);
-        List<?> results = (List<?>) ctx.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT);
+        checker.minDateTimeCheck(context, loc, past, now);
+        assertNull(context.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT));
+        checker.minDateTimeCheck(context, loc, future, now);
+        List<?> results = (List<?>) context.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT);
         assertNotNull(results);
         assertEquals(1, results.size());
         
         // Max check
-        checker.maxDateTimeCheck(ctx, loc, future, now);
+        checker.maxDateTimeCheck(context, loc, future, now);
         assertEquals(1, results.size());
-        checker.maxDateTimeCheck(ctx, loc, past, now);
+        checker.maxDateTimeCheck(context, loc, past, now);
         assertEquals(2, results.size());
     }
 

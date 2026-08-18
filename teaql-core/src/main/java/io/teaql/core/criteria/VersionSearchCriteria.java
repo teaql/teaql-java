@@ -14,8 +14,8 @@ public class VersionSearchCriteria implements SearchCriteria {
     }
 
     @Override
-    public List<String> properties(UserContext ctx) {
-        return searchCriteria.properties(ctx);
+    public List<String> properties(UserContext context) {
+        return searchCriteria.properties(context);
     }
 
     public SearchCriteria getSearchCriteria() {

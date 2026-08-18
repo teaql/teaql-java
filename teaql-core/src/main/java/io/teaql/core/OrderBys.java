@@ -23,11 +23,11 @@ public class OrderBys implements Expression {
     }
 
     @Override
-    public List<String> properties(UserContext ctx) {
+    public List<String> properties(UserContext context) {
         List<String> ret = new ArrayList<>();
 
         for (Expression expression : orderBys) {
-            List<String> properties = expression.properties(ctx);
+            List<String> properties = expression.properties(context);
             if (properties != null) {
                 ret.addAll(properties);
             }

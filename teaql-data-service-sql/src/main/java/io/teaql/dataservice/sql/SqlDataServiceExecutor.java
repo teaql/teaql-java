@@ -45,27 +45,27 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
     }
 
     @Override
-    public QueryResult query(UserContext ctx, QueryRequest request) {
-        return getPortableService().query(ctx, request);
+    public QueryResult query(UserContext context, QueryRequest request) {
+        return getPortableService().query(context, request);
     }
 
     @Override
-    public <T extends io.teaql.core.Entity> java.util.stream.Stream<T> queryForStream(UserContext ctx, io.teaql.core.SearchRequest<T> request) {
-        return getPortableService().queryForStream(ctx, request);
+    public <T extends io.teaql.core.Entity> java.util.stream.Stream<T> queryForStream(UserContext context, io.teaql.core.SearchRequest<T> request) {
+        return getPortableService().queryForStream(context, request);
     }
 
     @Override
-    public MutationResult mutate(UserContext ctx, MutationRequest request) {
-        return getPortableService().mutate(ctx, request);
+    public MutationResult mutate(UserContext context, MutationRequest request) {
+        return getPortableService().mutate(context, request);
     }
 
     @Override
-    public <T> T executeInTransaction(UserContext ctx, TransactionCallback<T> action) {
-        return getPortableService().executeInTransaction(ctx, action);
+    public <T> T executeInTransaction(UserContext context, TransactionCallback<T> action) {
+        return getPortableService().executeInTransaction(context, action);
     }
 
     @Override
-    public void ensureSchema(UserContext ctx) {
+    public void ensureSchema(UserContext context) {
     }
 
     public SqlExecutionAdapter getExecutionAdapter() {
@@ -83,7 +83,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     return executionAdapter.queryForList(sql, args);
                 }
                 @Override
-                public java.util.stream.Stream<java.util.Map<String, Object>> queryForStream(io.teaql.core.UserContext ctx, String sql, Object[] args) {
+                public java.util.stream.Stream<java.util.Map<String, Object>> queryForStream(io.teaql.core.UserContext context, String sql, Object[] args) {
                     return executionAdapter.queryForStream(sql, args);
                 }
                 @Override
@@ -108,7 +108,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                 }
 
                 @Override
-                public java.util.List<java.util.Map<String, Object>> query(io.teaql.core.UserContext ctx, String sql, Object[] args) {
+                public java.util.List<java.util.Map<String, Object>> query(io.teaql.core.UserContext context, String sql, Object[] args) {
                     long start = System.nanoTime();
                     java.util.List<java.util.Map<String, Object>> res = executionAdapter.queryForList(sql, args);
                     long elapsed = (System.nanoTime() - start) / 1000;
@@ -121,12 +121,12 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     meta.setParameterizedQuery(sql);
                     meta.setParameters(parameters(args));
                     meta.setDebugQuery(debugSql(sql, args, debugDatabaseKind));
-                    ctx.recordExecutionMetadata(meta);
+                    context.recordExecutionMetadata(meta);
                     return res;
                 }
 
                 @Override
-                public int executeUpdate(io.teaql.core.UserContext ctx, String sql, Object[] args) {
+                public int executeUpdate(io.teaql.core.UserContext context, String sql, Object[] args) {
                     long start = System.nanoTime();
                     int res = executionAdapter.update(sql, args);
                     long elapsed = (System.nanoTime() - start) / 1000;
@@ -139,12 +139,12 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     meta.setParameterizedQuery(sql);
                     meta.setParameters(parameters(args));
                     meta.setDebugQuery(debugSql(sql, args, debugDatabaseKind));
-                    ctx.recordExecutionMetadata(meta);
+                    context.recordExecutionMetadata(meta);
                     return res;
                 }
 
                 @Override
-                public int[] batchUpdate(io.teaql.core.UserContext ctx, String sql, java.util.List<Object[]> batchArgs) {
+                public int[] batchUpdate(io.teaql.core.UserContext context, String sql, java.util.List<Object[]> batchArgs) {
                     long start = System.nanoTime();
                     int[] res = executionAdapter.batchUpdate(sql, batchArgs);
                     long elapsed = (System.nanoTime() - start) / 1000;
@@ -165,12 +165,12 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     meta.setParameterizedQuery(sql);
                     meta.setParameters(batchParameters(batchArgs));
                     meta.setDebugQuery(loggedSql);
-                    ctx.recordExecutionMetadata(meta);
+                    context.recordExecutionMetadata(meta);
                     return res;
                 }
 
                 @Override
-                public void execute(io.teaql.core.UserContext ctx, String sql) {
+                public void execute(io.teaql.core.UserContext context, String sql) {
                     long start = System.nanoTime();
                     executionAdapter.execute(sql);
                     long elapsed = (System.nanoTime() - start) / 1000;
@@ -182,7 +182,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     meta.setParameterizedQuery(sql);
                     meta.setParameters(java.util.List.of());
                     meta.setDebugQuery(sql);
-                    ctx.recordExecutionMetadata(meta);
+                    context.recordExecutionMetadata(meta);
                 }
             };
             portableService = new io.teaql.core.sql.portable.PortableSQLDataService(name, dbAdapter, io.teaql.core.meta.EntityMetaFactory.get());

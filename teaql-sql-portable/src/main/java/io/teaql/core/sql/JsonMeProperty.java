@@ -22,13 +22,13 @@ import io.teaql.core.meta.Relation;
 public class JsonMeProperty extends GenericSQLProperty {
     private static final ObjectMapper defaultObjectMapper = new ObjectMapper();
 
-    protected ObjectMapper resolveMapper(UserContext ctx) {
-        ObjectMapper mapper = (ObjectMapper) ctx.getObj("objectMapper");
+    protected ObjectMapper resolveMapper(UserContext context) {
+        ObjectMapper mapper = (ObjectMapper) context.getObj("objectMapper");
         return mapper != null ? mapper : defaultObjectMapper;
     }
 
-    public List<SQLData> toDBRaw(UserContext ctx, Entity entity, Object v) {
-        ObjectMapper objectMapper = resolveMapper(ctx);
+    public List<SQLData> toDBRaw(UserContext context, Entity entity, Object v) {
+        ObjectMapper objectMapper = resolveMapper(context);
         // clean up current field
         entity.setProperty(getName(), null);
         try {
@@ -40,7 +40,7 @@ public class JsonMeProperty extends GenericSQLProperty {
                 byte[] gzip = ZipUtil.gzip(value.getBytes(StandardCharsets.UTF_8));
                 value = Base64.encode(gzip);
             }
-            return super.toDBRaw(ctx, entity, value);
+            return super.toDBRaw(context, entity, value);
         }
         catch (JsonProcessingException pE) {
             throw new TeaQLRuntimeException(pE);
@@ -48,11 +48,11 @@ public class JsonMeProperty extends GenericSQLProperty {
     }
 
     @Override
-    public void setPropertyValue(UserContext ctx, Entity entity, ResultSet rs) {
+    public void setPropertyValue(UserContext context, Entity entity, ResultSet rs) {
         if (!findName(rs, getName())) {
             return;
         }
-        ObjectMapper objectMapper = resolveMapper(ctx);
+        ObjectMapper objectMapper = resolveMapper(context);
         try {
             Object value = getValue(rs);
             String jsonValue = Convert.convert(String.class, value);

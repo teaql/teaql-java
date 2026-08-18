@@ -47,25 +47,25 @@ public class AuditedTest {
         assertEquals(entity, audited.entity());
         assertEquals("test audit", entity.getComment());
         
-        DummyContext ctx = new DummyContext();
+        DummyContext context = new DummyContext();
         
         // save
-        DummyEntity saved = audited.save(ctx);
+        DummyEntity saved = audited.save(context);
         assertEquals(entity, saved);
-        assertEquals(entity, ctx.savedGraph);
+        assertEquals(entity, context.savedGraph);
         
         // delete
-        ctx.savedGraph = null;
-        audited.delete(ctx);
-        assertEquals(entity, ctx.savedGraph);
+        context.savedGraph = null;
+        audited.delete(context);
+        assertEquals(entity, context.savedGraph);
         // Since delete marks the entity to be deleted, there is no direct public way to verify the change set here, but it triggers markAsDeleted.
         
         // recover
-        ctx.savedGraph = null;
+        context.savedGraph = null;
         entity.set$status(EntityStatus.PERSISTED_DELETED);
-        DummyEntity recovered = audited.recover(ctx);
+        DummyEntity recovered = audited.recover(context);
         assertEquals(entity, recovered);
-        assertEquals(entity, ctx.savedGraph);
+        assertEquals(entity, context.savedGraph);
     }
 
     @Test(expected = IllegalArgumentException.class)

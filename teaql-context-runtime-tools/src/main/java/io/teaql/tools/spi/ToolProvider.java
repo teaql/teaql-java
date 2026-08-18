@@ -11,5 +11,5 @@ public interface ToolProvider {
         return descriptor().getToolType().equals(toolType);
     }
 
-    <T> T create(Class<T> toolType, UserContext ctx);
+    <T> T create(Class<T> toolType, UserContext context);
 }

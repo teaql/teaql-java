@@ -42,35 +42,35 @@ public final class OrderManagementApp {
         DriverManagerDataSource source = new DriverManagerDataSource("jdbc:sqlite:" + database);
         JdbcSqlExecutor jdbc = new JdbcSqlExecutor(source);
         SqliteDataServiceExecutor executor = new SqliteDataServiceExecutor("sqlite", jdbc, source);
-        UserContext ctx = context(executor);
-        executor.ensureSchema(ctx);
+        UserContext context = context(executor);
+        executor.ensureSchema(context);
         System.out.println("[schema] ensured 7 generated entity tables");
 
         SmartList<CommercePlatform> platforms = Q.commercePlatforms()
                 .withNameIs("Northwind Demo")
                 .comment("Check whether deterministic quick-start data exists")
                 .purpose("Initialize the local order-management example")
-                .executeForList(ctx);
+                .executeForList(context);
         CommercePlatform platform;
         if (platforms.isEmpty()) {
             platform = new CommercePlatform().updateName("Northwind Demo");
-            platform.auditAs("Create quick-start commerce platform").save(ctx);
+            platform.auditAs("Create quick-start commerce platform").save(context);
         } else platform = platforms.get(0);
 
         SmartList<CustomerOrder> seeded = Q.customerOrders()
                 .withOrderNumberIs("WEB-2026-001")
                 .comment("Check whether the deterministic order exists")
                 .purpose("Initialize the local order-management example")
-                .executeForList(ctx);
+                .executeForList(context);
         if (seeded.isEmpty()) {
             Customer customer = new Customer().updateName("Acme Retail")
                     .updateEmail("masked-in-quick-start").updateCommercePlatform(platform);
-            customer.auditAs("Create masked quick-start customer").save(ctx);
+            customer.auditAs("Create masked quick-start customer").save(context);
             CustomerOrder order = new CustomerOrder().updateOrderNumber("WEB-2026-001")
                     .updateOrderDate(LocalDate.of(2026, 8, 12))
                     .updateTotalAmount(new BigDecimal("129.95"))
                     .updateStatusToPending().updateCustomer(customer).updateCommercePlatform(platform);
-            order.auditAs("Create deterministic quick-start order").save(ctx);
+            order.auditAs("Create deterministic quick-start order").save(context);
             System.out.println("[seed] inserted deterministic customer and order");
         } else System.out.println("[seed] deterministic data already exists; no duplicate rows added");
 
@@ -78,7 +78,7 @@ public final class OrderManagementApp {
                 .withOrderNumberContaining("WEB-").orderByIdAscending()
                 .comment("List WEB orders for the terminal quick start")
                 .purpose("Show the operator a deterministic order list")
-                .executeForList(ctx);
+                .executeForList(context);
         System.out.println("[query] matched " + orders.size() + " order(s)");
         for (CustomerOrder order : orders) {
             System.out.println("  " + order.getOrderNumber() + "  " + order.getOrderDate() + "  " + order.getTotalAmount());
@@ -88,13 +88,13 @@ public final class OrderManagementApp {
                 .withRequestIdIs("quick-start-pending-orders")
                 .comment("Check idempotent quick-start preset")
                 .purpose("Persist the operator's reusable search")
-                .executeForList(ctx);
+                .executeForList(context);
         if (presets.isEmpty()) {
             OrderSearchPreset preset = new OrderSearchPreset().updateName("Pending web orders")
                     .updateFilterJson("{\"order_number\":\"WEB-\"}")
                     .updateRequestId("quick-start-pending-orders").updateOwnerUserId("quick-start-user")
                     .updateCommercePlatform(platform);
-            preset.auditAs("Save idempotent quick-start search preset").save(ctx);
+            preset.auditAs("Save idempotent quick-start search preset").save(context);
             System.out.println("[mutation] saved preset #" + preset.getId());
         } else System.out.println("[mutation] preset #" + presets.get(0).getId() + " already exists");
     }
@@ -104,7 +104,7 @@ public final class OrderManagementApp {
         new EntityMetaRegistry().assemble(metadata);
         EntityMetaFactory.registerGlobal(metadata);
         AtomicLong ids = new AtomicLong(1000);
-        InternalIdGenerationService idGeneration = (ctx, entity) -> ids.getAndIncrement();
+        InternalIdGenerationService idGeneration = (context, entity) -> ids.getAndIncrement();
         TeaQLRuntime runtime = TeaQLRuntime.builder().metadata(metadata)
                 .dataService("default", executor).dataService("sqlite", executor)
                 .idGenerationService(idGeneration).build();

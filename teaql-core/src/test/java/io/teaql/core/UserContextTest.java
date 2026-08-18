@@ -36,9 +36,9 @@ public class UserContextTest {
 
     @Test
     public void testDefaultMethods() {
-        DummyUserContext ctx = new DummyUserContext() {};
-        assertNull(ctx.extension("any"));
-        assertNull(ctx.capability(String.class));
+        DummyUserContext context = new DummyUserContext() {};
+        assertNull(context.extension("any"));
+        assertNull(context.capability(String.class));
     }
 
     @Test
@@ -76,26 +76,26 @@ public class UserContextTest {
 
     @Test(expected = TeaQLRuntimeException.class)
     public void testDynamicFieldsWithoutCapability() {
-        DummyUserContext ctx = new DummyUserContext() {};
-        ctx.dynamicFields();
+        DummyUserContext context = new DummyUserContext() {};
+        context.dynamicFields();
     }
 
     @Test(expected = TeaQLRuntimeException.class)
     public void testGenerateBusinessIdWithoutCapability() {
-        DummyUserContext ctx = new DummyUserContext() {};
-        ctx.generateBusinessId(null, null, null);
+        DummyUserContext context = new DummyUserContext() {};
+        context.generateBusinessId(null, null, null);
     }
     
     @Test
     public void testGenerateBusinessIdWithCapability() {
         BusinessIdGenerator generator = new BusinessIdGenerator() {
             @Override
-            public String generateBusinessId(UserContext ctx, Entity entity, EntityDescriptor entityDesc, PropertyDescriptor propertyDesc) {
+            public String generateBusinessId(UserContext context, Entity entity, EntityDescriptor entityDesc, PropertyDescriptor propertyDesc) {
                 return "BID-123";
             }
         };
         
-        DummyUserContext ctx = new DummyUserContext() {
+        DummyUserContext context = new DummyUserContext() {
             @Override
             public <T> T capability(Class<T> capabilityType) {
                 if (capabilityType == BusinessIdGenerator.class) {
@@ -105,7 +105,7 @@ public class UserContextTest {
             }
         };
         
-        String bid = ctx.generateBusinessId(null, null, null);
+        String bid = context.generateBusinessId(null, null, null);
         assertEquals("BID-123", bid);
     }
 }

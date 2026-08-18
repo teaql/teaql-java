@@ -10,7 +10,7 @@ public class SimpleNamedExpressionTest {
 
     static class DummyExpression implements Expression {
         @Override
-        public List<String> properties(UserContext ctx) {
+        public List<String> properties(UserContext context) {
             return Arrays.asList("prop1", "prop2");
         }
     }

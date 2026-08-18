@@ -73,7 +73,7 @@ public class ContextToolsTest {
         }
 
         @Override
-        public <T> T create(Class<T> toolType, UserContext ctx) {
+        public <T> T create(Class<T> toolType, UserContext context) {
             return toolType.cast(new MemoryTool() {
             });
         }
@@ -94,7 +94,7 @@ public class ContextToolsTest {
         }
 
         @Override
-        public <T> T create(Class<T> toolType, UserContext ctx) {
+        public <T> T create(Class<T> toolType, UserContext context) {
             return toolType.cast(new DangerousTool() {
             });
         }

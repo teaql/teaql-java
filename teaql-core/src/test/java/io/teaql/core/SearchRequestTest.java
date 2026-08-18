@@ -94,49 +94,49 @@ public class SearchRequestTest {
     @Test
     public void testDataProperties() {
         DummySearchRequest req = new DummySearchRequest();
-        UserContext ctx = null; // assume properties(ctx) ignores ctx in simple test mock
+        UserContext context = null; // assume properties(context) ignores context in simple test mock
         
         // Empty
-        List<String> props = req.dataProperties(ctx);
+        List<String> props = req.dataProperties(context);
         assertTrue(props.isEmpty());
         
         // Add projection
         SimpleNamedExpression proj = new SimpleNamedExpression("prop1");
         req.getProjections().add(proj);
-        props = req.dataProperties(ctx);
+        props = req.dataProperties(context);
         assertTrue(props.contains("prop1"));
         
         // Add dynamic properties
         SimpleNamedExpression dynProp = new SimpleNamedExpression("dynProp");
         req.getSimpleDynamicProperties().add(dynProp);
-        props = req.dataProperties(ctx);
+        props = req.dataProperties(context);
         assertTrue(props.contains("dynProp"));
         
         // Add partition property with non-zero size slice
         req.setPartitionProperty("partProp");
-        props = req.dataProperties(ctx);
+        props = req.dataProperties(context);
         assertTrue(props.contains("partProp"));
         
         // Zero size slice
         Slice zeroSlice = new Slice();
         zeroSlice.setSize(0);
         req.setSlice(zeroSlice);
-        props = req.dataProperties(ctx);
+        props = req.dataProperties(context);
         assertFalse(props.contains("partProp")); // should not be added if size == 0
         
         // Add order by
         OrderBys orderBys = new OrderBys();
         orderBys.addOrderBy(new OrderBy("orderProp", "DESC"));
         req.setOrderBys(orderBys);
-        props = req.dataProperties(ctx);
+        props = req.dataProperties(context);
         assertTrue(props.contains("orderProp"));
         
         // Add search criteria
         SearchCriteria criteria = new SearchCriteria() {
-            @Override public List<String> properties(UserContext ctx) { return Arrays.asList("critProp"); }
+            @Override public List<String> properties(UserContext context) { return Arrays.asList("critProp"); }
         };
         req.setSearchCriteria(criteria);
-        props = req.dataProperties(ctx);
+        props = req.dataProperties(context);
         assertTrue(props.contains("critProp"));
     }
 
@@ -148,15 +148,15 @@ public class SearchRequestTest {
         aggs.getSimpleDimensions().add(dim);
         req.setAggregations(aggs);
         
-        UserContext ctx = null;
-        List<String> props = req.aggregationProperties(ctx);
+        UserContext context = null;
+        List<String> props = req.aggregationProperties(context);
         assertTrue(props.contains("dimProp"));
         
         SearchCriteria criteria = new SearchCriteria() {
-            @Override public List<String> properties(UserContext ctx) { return Arrays.asList("critPropAgg"); }
+            @Override public List<String> properties(UserContext context) { return Arrays.asList("critPropAgg"); }
         };
         req.setSearchCriteria(criteria);
-        props = req.aggregationProperties(ctx);
+        props = req.aggregationProperties(context);
         assertTrue(props.contains("critPropAgg"));
     }
 
@@ -170,8 +170,8 @@ public class SearchRequestTest {
             @Override public OrderBys getOrderBy() { return null; }
             @Override public Aggregations getAggregations() { return new Aggregations(); }
         };
-        UserContext ctx = null;
-        assertTrue(reqNull.dataProperties(ctx).isEmpty());
-        assertTrue(reqNull.aggregationProperties(ctx).isEmpty());
+        UserContext context = null;
+        assertTrue(reqNull.dataProperties(context).isEmpty());
+        assertTrue(reqNull.aggregationProperties(context).isEmpty());
     }
 }

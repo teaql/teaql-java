@@ -9,7 +9,7 @@ import java.util.List;
  */
 public interface PropertyAware {
 
-    default List<String> properties(UserContext ctx) {
+    default List<String> properties(UserContext context) {
         return Collections.emptyList();
     }
 }

@@ -13,22 +13,22 @@ public final class ContextTools {
     private ContextTools() {
     }
 
-    public static Tools of(UserContext ctx) {
-        return builder(ctx).build();
+    public static Tools of(UserContext context) {
+        return builder(context).build();
     }
 
-    public static Builder builder(UserContext ctx) {
-        return new Builder(ctx);
+    public static Builder builder(UserContext context) {
+        return new Builder(context);
     }
 
     public static final class Builder {
-        private final UserContext ctx;
+        private final UserContext context;
         private ToolPolicy policy = ToolPolicy.allowStandardTools();
         private ToolAcknowledgements acknowledgements = ToolAcknowledgements.system();
         private final List<ToolProvider> providers = new ArrayList<>();
 
-        private Builder(UserContext ctx) {
-            this.ctx = ctx;
+        private Builder(UserContext context) {
+            this.context = context;
         }
 
         public Builder policy(ToolPolicy policy) {
@@ -58,7 +58,7 @@ public final class ContextTools {
         public Tools build() {
             List<ToolProvider> allProviders = new ArrayList<>(providers);
             ServiceLoader.load(ToolProvider.class).forEach(allProviders::add);
-            return new DefaultTools(ctx, policy, acknowledgements, allProviders);
+            return new DefaultTools(context, policy, acknowledgements, allProviders);
         }
     }
 }

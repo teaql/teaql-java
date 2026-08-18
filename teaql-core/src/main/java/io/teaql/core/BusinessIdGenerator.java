@@ -12,11 +12,11 @@ public interface BusinessIdGenerator {
     /**
      * 生成业务字符串 ID。
      *
-     * @param ctx          当前用户上下文
+     * @param context          当前用户上下文
      * @param entity       当前正在操作的实体实例
      * @param entityDesc   实体元数据描述
      * @param propertyDesc 需要生成 ID 的字段元数据描述
      * @return 格式化后的业务序列号
      */
-    String generateBusinessId(UserContext ctx, Entity entity, EntityDescriptor entityDesc, PropertyDescriptor propertyDesc);
+    String generateBusinessId(UserContext context, Entity entity, EntityDescriptor entityDesc, PropertyDescriptor propertyDesc);
 }

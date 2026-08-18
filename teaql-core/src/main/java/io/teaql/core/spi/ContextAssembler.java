@@ -37,11 +37,11 @@ public interface ContextAssembler extends Comparable<ContextAssembler> {
      * The implementation must be extremely fast (nanosecond level). 
      * It should simply mount/attach the references of global resources to the provided context.
      * 
-     * Example: ctx.putAttribute("DIALECT", myCachedPgDialect);
+     * Example: context.putAttribute("DIALECT", myCachedPgDialect);
      *
-     * @param ctx The newly instantiated UserContext
+     * @param context The newly instantiated UserContext
      */
-    void mountTo(UserContext ctx);
+    void mountTo(UserContext context);
 
     @Override
     default int compareTo(ContextAssembler other) {

@@ -18,11 +18,11 @@ public class PostgresContextAssembler implements ContextAssembler {
     }
 
     @Override
-    public void mountTo(UserContext ctx) {
+    public void mountTo(UserContext context) {
         // Mount postgres dialect info to the current user context
-        ctx.putAttribute("DIALECT", "POSTGRES");
+        context.putAttribute("DIALECT", "POSTGRES");
         // Append to assembly chain for debugging
-        String currentChain = (String) ctx.getObj("ASSEMBLER_CHAIN", "");
-        ctx.putAttribute("ASSEMBLER_CHAIN", currentChain + "Postgres->");
+        String currentChain = (String) context.getObj("ASSEMBLER_CHAIN", "");
+        context.putAttribute("ASSEMBLER_CHAIN", currentChain + "Postgres->");
     }
 }

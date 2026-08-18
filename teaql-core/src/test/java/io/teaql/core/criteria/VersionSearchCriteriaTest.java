@@ -15,7 +15,7 @@ public class VersionSearchCriteriaTest {
         private String prop;
         public DummyCriteria(String prop) { this.prop = prop; }
         @Override
-        public List<String> properties(UserContext ctx) {
+        public List<String> properties(UserContext context) {
             return prop == null ? null : Arrays.asList(prop);
         }
     }

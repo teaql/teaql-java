@@ -29,7 +29,7 @@ public class TfpEndpointHandler {
         this.objectMapper = objectMapper;
     }
 
-    public Map<String, Object> handleQuery(UserContext ctx, byte[] payload) throws Exception {
+    public Map<String, Object> handleQuery(UserContext context, byte[] payload) throws Exception {
         JsonNode root = objectMapper.readTree(payload);
         String entityName = root.path("entity").asText();
 
@@ -51,7 +51,7 @@ public class TfpEndpointHandler {
         // Current implementation is a basic mapper for query.
         
         DefaultQueryRequest queryRequest = new DefaultQueryRequest(request);
-        var result = queryExecutor.query(ctx, queryRequest);
+        var result = queryExecutor.query(context, queryRequest);
 
         Map<String, Object> response = new HashMap<>();
         if (result instanceof DefaultQueryResult) {
@@ -64,7 +64,7 @@ public class TfpEndpointHandler {
         return response;
     }
 
-    public Map<String, Object> handleMutation(UserContext ctx, byte[] payload) throws Exception {
+    public Map<String, Object> handleMutation(UserContext context, byte[] payload) throws Exception {
         JsonNode root = objectMapper.readTree(payload);
         String entityName = root.path("entity").asText();
         String actionStr = root.path("action").asText();
@@ -81,7 +81,7 @@ public class TfpEndpointHandler {
                 DefaultMutationRequest.Action.DELETE : DefaultMutationRequest.Action.SAVE;
 
         DefaultMutationRequest mutationRequest = new DefaultMutationRequest(entity, action);
-        mutationExecutor.mutate(ctx, mutationRequest);
+        mutationExecutor.mutate(context, mutationRequest);
 
         Map<String, Object> response = new HashMap<>();
         response.put("affectedRows", 1);

@@ -20,11 +20,11 @@ public interface InternalIdGenerationService {
     /**
      * Allocates a new unique ID for the given entity.
      *
-     * @param ctx    the user context
+     * @param context    the user context
      * @param entity the entity that needs an ID
      * @return a new unique ID
      */
-    Long generateId(UserContext ctx, Entity entity);
+    Long generateId(UserContext context, Entity entity);
 
     /**
      * Allocates a new unique ID for the given type name.

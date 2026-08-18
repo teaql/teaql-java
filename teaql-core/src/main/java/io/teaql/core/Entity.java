@@ -93,7 +93,7 @@ public interface Entity {
      * When Triple-Intent enforcement is enabled, saving without auditAs() will be rejected.
      *
      * @param action a human-readable description of the mutation intent
-     * @return this entity for fluent chaining: entity.auditAs("...").save(ctx)
+     * @return this entity for fluent chaining: entity.auditAs("...").save(context)
      */
     @SuppressWarnings("unchecked")
     default <T extends Entity> Audited<T> auditAs(String action) {

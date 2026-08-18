@@ -35,7 +35,7 @@ import static org.junit.Assert.*;
 
 public class SqliteIntegrationTest {
 
-    private static UserContext ctx;
+    private static UserContext context;
     private static TeaQLRuntime runtime;
 
     public static class Task extends BaseEntity {
@@ -171,7 +171,7 @@ public class SqliteIntegrationTest {
                 .idGenerationService(idService)
                 .build();
         
-        ctx = new DefaultUserContext(runtime);
+        context = new DefaultUserContext(runtime);
 
         // Drop existing tables for clean test state
         try {
@@ -182,7 +182,7 @@ public class SqliteIntegrationTest {
         }
 
         // Ensure Schema
-        sqliteExecutor.ensureSchema(ctx);
+        sqliteExecutor.ensureSchema(context);
     }
 
     @AfterClass
@@ -192,13 +192,13 @@ public class SqliteIntegrationTest {
 
     @Test
     public void testSqliteCrud() {
-        ctx.pushTrace("SqliteIntegrationTest.testSqliteCrud");
+        context.pushTrace("SqliteIntegrationTest.testSqliteCrud");
         
         // 1. Create and Save Tasks
         Task task1 = new Task();
         task1.updateTitle("Assemble Assembly Line");
         task1.updateStatus("TODO");
-        Task created = task1.auditAs("save").save(ctx);
+        Task created = task1.auditAs("save").save(context);
 
         assertSame(task1, created);
         assertNotNull(task1.getId());
@@ -208,36 +208,36 @@ public class SqliteIntegrationTest {
         Task task2 = new Task();
         task2.updateTitle("Write Integration Tests");
         task2.updateStatus("TODO");
-        task2.auditAs("save").save(ctx);
+        task2.auditAs("save").save(context);
 
         // 2. Query Tasks by criteria
         TaskRequest req = new TaskRequest().filterByTitle("Assemble Assembly Line");
-        SmartList<Task> resultList = req.comment("test").purpose("test").executeForList(ctx);
+        SmartList<Task> resultList = req.comment("test").purpose("test").executeForList(context);
         assertEquals(1, resultList.size());
         assertEquals("Assemble Assembly Line", resultList.get(0).getTitle());
 
         // Test filter no results
         TaskRequest reqEmpty = new TaskRequest().filterByTitle("Clean up workspace");
-        assertTrue(reqEmpty.comment("test").purpose("test").executeForList(ctx).isEmpty());
+        assertTrue(reqEmpty.comment("test").purpose("test").executeForList(context).isEmpty());
 
         // 3. Update task
         task1.updateStatus("DONE");
-        Task updated = task1.auditAs("save").save(ctx);
+        Task updated = task1.auditAs("save").save(context);
         assertSame(task1, updated);
         assertEquals(Long.valueOf(2L), updated.getVersion());
 
         TaskRequest reqDone = new TaskRequest().filterByStatus("DONE");
-        SmartList<Task> resultDone = reqDone.comment("test").purpose("test").executeForList(ctx);
+        SmartList<Task> resultDone = reqDone.comment("test").purpose("test").executeForList(context);
         assertEquals(1, resultDone.size());
         assertEquals("Assemble Assembly Line", resultDone.get(0).getTitle());
 
         // 4. Delete task
-        Task deleted = task1.auditAs("delete").delete(ctx);
+        Task deleted = task1.auditAs("delete").delete(context);
         assertSame(task1, deleted);
         assertEquals(Long.valueOf(-3L), deleted.getVersion());
         assertEquals(EntityStatus.PERSISTED_DELETED, deleted.get$status());
 
-        SmartList<Task> resultAfterDelete = new TaskRequest().filterByStatus("DONE").comment("test").purpose("test").executeForList(ctx);
+        SmartList<Task> resultAfterDelete = new TaskRequest().filterByStatus("DONE").comment("test").purpose("test").executeForList(context);
         assertTrue(resultAfterDelete.isEmpty());
     }
 

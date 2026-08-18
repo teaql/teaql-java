@@ -30,7 +30,7 @@ import static org.junit.Assert.*;
 
 public class MysqlIntegrationTest {
 
-    private static UserContext ctx;
+    private static UserContext context;
     private static TeaQLRuntime runtime;
 
     public static class Task extends BaseEntity {
@@ -172,7 +172,7 @@ public class MysqlIntegrationTest {
                 .idGenerationService(idService)
                 .build();
         
-        ctx = new DefaultUserContext(runtime);
+        context = new DefaultUserContext(runtime);
 
         // Drop existing tables for clean test state
         try {
@@ -183,7 +183,7 @@ public class MysqlIntegrationTest {
         }
 
         // Ensure Schema
-        mysqlExecutor.ensureSchema(ctx);
+        mysqlExecutor.ensureSchema(context);
     }
 
     @AfterClass
@@ -196,7 +196,7 @@ public class MysqlIntegrationTest {
         Task task1 = new Task();
         task1.updateTitle("Assemble Assembly Line");
         task1.updateStatus("TODO");
-        task1.auditAs("save").save(ctx);
+        task1.auditAs("save").save(context);
 
         assertNotNull(task1.getId());
         assertEquals("Status should transition to PERSISTED", EntityStatus.PERSISTED, task1.get$status());
@@ -204,31 +204,31 @@ public class MysqlIntegrationTest {
         Task task2 = new Task();
         task2.updateTitle("Write Integration Tests");
         task2.updateStatus("TODO");
-        task2.auditAs("save").save(ctx);
+        task2.auditAs("save").save(context);
 
         // 2. Query Tasks by criteria
         TaskRequest req = new TaskRequest().filterByTitle("Assemble Assembly Line");
-        SmartList<Task> resultList = req.comment("test").purpose("test").executeForList(ctx);
+        SmartList<Task> resultList = req.comment("test").purpose("test").executeForList(context);
         assertEquals(1, resultList.size());
         assertEquals("Assemble Assembly Line", resultList.get(0).getTitle());
 
         // Test filter no results
         TaskRequest reqEmpty = new TaskRequest().filterByTitle("Clean up workspace");
-        assertTrue(reqEmpty.comment("test").purpose("test").executeForList(ctx).isEmpty());
+        assertTrue(reqEmpty.comment("test").purpose("test").executeForList(context).isEmpty());
 
         // 3. Update task
         task1.updateStatus("DONE");
-        task1.auditAs("save").save(ctx);
+        task1.auditAs("save").save(context);
 
         TaskRequest reqDone = new TaskRequest().filterByStatus("DONE");
-        SmartList<Task> resultDone = reqDone.comment("test").purpose("test").executeForList(ctx);
+        SmartList<Task> resultDone = reqDone.comment("test").purpose("test").executeForList(context);
         assertEquals(1, resultDone.size());
         assertEquals("Assemble Assembly Line", resultDone.get(0).getTitle());
 
         // 4. Delete task
-        task1.auditAs("delete").delete(ctx);
+        task1.auditAs("delete").delete(context);
 
-        SmartList<Task> resultAfterDelete = new TaskRequest().filterByStatus("DONE").comment("test").purpose("test").executeForList(ctx);
+        SmartList<Task> resultAfterDelete = new TaskRequest().filterByStatus("DONE").comment("test").purpose("test").executeForList(context);
         assertTrue(resultAfterDelete.isEmpty());
     }
 }

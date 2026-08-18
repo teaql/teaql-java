@@ -52,7 +52,7 @@ public class MemoryDataService implements DataServiceExecutor, QueryExecutor, Mu
     }
 
     @Override
-    public QueryResult query(UserContext ctx, QueryRequest request) {
+    public QueryResult query(UserContext context, QueryRequest request) {
         if (!(request instanceof DefaultQueryRequest)) {
             throw new TeaQLRuntimeException("Unsupported QueryRequest in MemoryDataService");
         }
@@ -75,7 +75,7 @@ public class MemoryDataService implements DataServiceExecutor, QueryExecutor, Mu
     }
 
     @Override
-    public MutationResult mutate(UserContext ctx, MutationRequest request) {
+    public MutationResult mutate(UserContext context, MutationRequest request) {
         if (!(request instanceof DefaultMutationRequest)) {
             throw new TeaQLRuntimeException("Unsupported MutationRequest in MemoryDataService");
         }

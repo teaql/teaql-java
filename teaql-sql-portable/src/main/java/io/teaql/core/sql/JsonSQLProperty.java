@@ -21,14 +21,14 @@ public class JsonSQLProperty extends GenericSQLProperty implements SQLProperty {
 
     private static final ObjectMapper defaultObjectMapper = new ObjectMapper();
 
-    protected ObjectMapper resolveMapper(UserContext ctx) {
-        ObjectMapper mapper = (ObjectMapper) ctx.getObj("objectMapper");
+    protected ObjectMapper resolveMapper(UserContext context) {
+        ObjectMapper mapper = (ObjectMapper) context.getObj("objectMapper");
         return mapper != null ? mapper : defaultObjectMapper;
     }
 
     @Override
-    public List<SQLData> toDBRaw(UserContext ctx, Entity entity, Object v) {
-        ObjectMapper objectMapper = resolveMapper(ctx);
+    public List<SQLData> toDBRaw(UserContext context, Entity entity, Object v) {
+        ObjectMapper objectMapper = resolveMapper(context);
         try {
             String value = objectMapper.writeValueAsString(v);
             Boolean zip = MapUtil.getBool(getAdditionalInfo(), "zip");
@@ -36,7 +36,7 @@ public class JsonSQLProperty extends GenericSQLProperty implements SQLProperty {
                 byte[] gzip = ZipUtil.gzip(value.getBytes(StandardCharsets.UTF_8));
                 value = Base64.encode(gzip);
             }
-            return super.toDBRaw(ctx, entity, value);
+            return super.toDBRaw(context, entity, value);
         }
         catch (JsonProcessingException pE) {
             throw new TeaQLRuntimeException(pE);
@@ -44,11 +44,11 @@ public class JsonSQLProperty extends GenericSQLProperty implements SQLProperty {
     }
 
     @Override
-    public void setPropertyValue(UserContext ctx, Entity entity, ResultSet rs) {
+    public void setPropertyValue(UserContext context, Entity entity, ResultSet rs) {
         if (!findName(rs, getName())) {
             return;
         }
-        ObjectMapper objectMapper = resolveMapper(ctx);
+        ObjectMapper objectMapper = resolveMapper(context);
         try {
             Class targetType = getType().javaType();
             Object value = getValue(rs);

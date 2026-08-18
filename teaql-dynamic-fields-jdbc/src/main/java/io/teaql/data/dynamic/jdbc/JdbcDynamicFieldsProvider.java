@@ -100,16 +100,16 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
     /**
      * Registers a field definition. Assigns an ID via teaql_id_space if not set.
      */
-    public DynamicFieldDef registerFieldDef(DynamicFieldContext ctx, DynamicFieldDef def) {
+    public DynamicFieldDef registerFieldDef(DynamicFieldContext context, DynamicFieldDef def) {
         Objects.requireNonNull(def, "def");
         if (def.getId() == 0) {
-            def.setId(ctx.nextId("DynamicFieldDef"));
+            def.setId(context.nextId("DynamicFieldDef"));
         }
         if (def.getStatus() == null) {
             def.setStatus(DynamicFieldStatus.ACTIVE);
         }
         long now = System.currentTimeMillis();
-        String userId = resolveUserId(ctx);
+        String userId = resolveUserId(context);
         executor.update(SQL_INSERT_FIELD_DEF, new Object[]{
                 def.getId(),
                 def.getScope().scopeType(), def.getScope().scopeId(),
@@ -128,7 +128,7 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
     // ─── DynamicFieldsProvider Implementation ──────────────────────────
 
     @Override
-    public DynamicFieldDef loadFieldDef(DynamicFieldContext ctx, DynamicFieldRef ref) {
+    public DynamicFieldDef loadFieldDef(DynamicFieldContext context, DynamicFieldRef ref) {
         List<Map<String, Object>> rows = executor.queryForList(SQL_LOAD_FIELD_DEF, new Object[]{
                 ref.scope().scopeType(), ref.scope().scopeId(),
                 ref.ownerType(), ref.code()
@@ -140,9 +140,9 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
     }
 
     @Override
-    public List<DynamicFieldDef> listFieldDefs(DynamicFieldContext ctx, String ownerType) {
+    public List<DynamicFieldDef> listFieldDefs(DynamicFieldContext context, String ownerType) {
         List<Map<String, Object>> rows = executor.queryForList(SQL_LIST_FIELD_DEFS, new Object[]{
-                ctx.scopeType(), ctx.scopeId(), ownerType
+                context.scopeType(), context.scopeId(), ownerType
         });
         List<DynamicFieldDef> result = new ArrayList<>();
         for (Map<String, Object> row : rows) {
@@ -152,10 +152,10 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
     }
 
     @Override
-    public DynamicFieldValues loadValues(DynamicFieldContext ctx, DynamicOwnerRef ownerRef,
+    public DynamicFieldValues loadValues(DynamicFieldContext context, DynamicOwnerRef ownerRef,
                                          DynamicFieldSelection selection) {
         List<Map<String, Object>> rows = executor.queryForList(SQL_LOAD_VALUES_SINGLE, new Object[]{
-                ctx.scopeType(), ctx.scopeId(),
+                context.scopeType(), context.scopeId(),
                 ownerRef.ownerType(), ownerRef.ownerId()
         });
         return buildFieldValues(rows, selection);
@@ -163,7 +163,7 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
 
     @Override
     public Map<DynamicOwnerRef, DynamicFieldValues> loadValues(
-            DynamicFieldContext ctx, List<DynamicOwnerRef> ownerRefs,
+            DynamicFieldContext context, List<DynamicOwnerRef> ownerRefs,
             DynamicFieldSelection selection) {
 
         if (ownerRefs.isEmpty()) {
@@ -181,8 +181,8 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
         sql.append("AND v.owner_type = ? AND v.owner_id IN (");
 
         Object[] params = new Object[3 + ownerRefs.size()];
-        params[0] = ctx.scopeType();
-        params[1] = ctx.scopeId();
+        params[0] = context.scopeType();
+        params[1] = context.scopeId();
         params[2] = ownerType;
         for (int i = 0; i < ownerRefs.size(); i++) {
             if (i > 0) sql.append(", ");
@@ -210,13 +210,13 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
     }
 
     @Override
-    public void saveValue(DynamicFieldContext ctx, DynamicSetCommand command) {
+    public void saveValue(DynamicFieldContext context, DynamicSetCommand command) {
         // Look up the field def to get its id
         DynamicFieldRef ref = DynamicFieldRef.of(
-                DynamicFieldScope.of(ctx.scopeType(), ctx.scopeId()),
+                DynamicFieldScope.of(context.scopeType(), context.scopeId()),
                 command.ownerRef().ownerType(),
                 command.fieldCode());
-        DynamicFieldDef def = loadFieldDef(ctx, ref);
+        DynamicFieldDef def = loadFieldDef(context, ref);
         if (def == null) {
             throw DynamicFieldException.notFound(command.fieldCode());
         }
@@ -229,7 +229,7 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
         }
 
         long now = System.currentTimeMillis();
-        String userId = ctx.userId();
+        String userId = context.userId();
 
         // Extract typed values
         String stringVal = null;
@@ -252,7 +252,7 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
         int updated = executor.update(SQL_UPDATE_VALUE, new Object[]{
                 stringVal, numberVal, boolVal, datetimeVal, enumVal,
                 userId, now,
-                ctx.scopeType(), ctx.scopeId(),
+                context.scopeType(), context.scopeId(),
                 command.ownerRef().ownerType(), command.ownerRef().ownerId(),
                 def.getId()
         });
@@ -260,7 +260,7 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
         // If no row existed, INSERT
         if (updated == 0) {
             executor.update(SQL_INSERT_VALUE, new Object[]{
-                    ctx.scopeType(), ctx.scopeId(),
+                    context.scopeType(), context.scopeId(),
                     command.ownerRef().ownerType(), command.ownerRef().ownerId(),
                     def.getId(),
                     stringVal, numberVal, boolVal, datetimeVal, enumVal,
@@ -270,10 +270,10 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
     }
 
     @Override
-    public void deleteValue(DynamicFieldContext ctx, DynamicValueRef valueRef) {
+    public void deleteValue(DynamicFieldContext context, DynamicValueRef valueRef) {
         // We need scope info from context
         executor.update(SQL_DELETE_VALUE, new Object[]{
-                ctx.scopeType(), ctx.scopeId(),
+                context.scopeType(), context.scopeId(),
                 valueRef.ownerRef().ownerType(), valueRef.ownerRef().ownerId(),
                 valueRef.fieldId()
         });
@@ -385,9 +385,9 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
         return 0;
     }
 
-    protected String resolveUserId(DynamicFieldContext ctx) {
-        if (ctx == null) { return null; }
-        return ctx.userId();
+    protected String resolveUserId(DynamicFieldContext context) {
+        if (context == null) { return null; }
+        return context.userId();
     }
 
     protected String resolveLogicalTypeName(DynamicFieldDef def) {

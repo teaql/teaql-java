@@ -285,31 +285,31 @@ public class LogManager implements RuntimeLogSink {
     }
 
     @Override
-    public void writeExecutionLog(io.teaql.core.UserContext ctx, io.teaql.core.ExecutionMetadata metadata) {
+    public void writeExecutionLog(io.teaql.core.UserContext context, io.teaql.core.ExecutionMetadata metadata) {
         if (!LogConfig.getInstance().shouldLogSql(metadata.getDebugQuery())) {
             return;
         }
         String content = LogFormatterFactory.getFormatter().formatExecutionLog(metadata);
-        CustomLogSink customSink = resolveCustomSink(ctx);
+        CustomLogSink customSink = resolveCustomSink(context);
         asyncWrite(content, customSink);
     }
 
     @Override
-    public void writeAuditEvent(io.teaql.core.UserContext ctx, RawAuditEvent event) {
+    public void writeAuditEvent(io.teaql.core.UserContext context, RawAuditEvent event) {
         java.util.List<FieldChange> changes = event.changes().stream()
                 .map(change -> new FieldChange(
                         change.field(), change.oldValue(), change.newValue()))
                 .collect(java.util.stream.Collectors.toList());
-        writeAuditLog(ctx, event.traceChain(), new AuditEvent(
+        writeAuditLog(context, event.traceChain(), new AuditEvent(
                 event.entityType(), event.entityId(), event.kind().name(), changes));
     }
 
-    public void writeAuditLog(io.teaql.core.UserContext ctx, List<TraceNode> traceChain, AuditEvent event) {
+    public void writeAuditLog(io.teaql.core.UserContext context, List<TraceNode> traceChain, AuditEvent event) {
         if (!LogConfig.getInstance().shouldLogAudit(event.getEntityType())) {
             return;
         }
         String content = LogFormatterFactory.getFormatter().formatAuditLog(traceChain, event);
-        CustomLogSink customSink = resolveCustomSink(ctx);
+        CustomLogSink customSink = resolveCustomSink(context);
         asyncWrite(content, customSink);
     }
 
@@ -317,7 +317,7 @@ public class LogManager implements RuntimeLogSink {
         return s.hasNext() ? s.next() : "";
     }
 
-    protected CustomLogSink resolveCustomSink(io.teaql.core.UserContext ctx) {
-        return ctx != null ? ctx.capability(CustomLogSink.class) : null;
+    protected CustomLogSink resolveCustomSink(io.teaql.core.UserContext context) {
+        return context != null ? context.capability(CustomLogSink.class) : null;
     }
 }

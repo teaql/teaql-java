@@ -42,7 +42,7 @@ public class SubQuerySearchCriteria implements SearchCriteria, PropertyAware {
     }
 
     @Override
-    public List<String> properties(UserContext ctx) {
+    public List<String> properties(UserContext context) {
         return ListUtil.of(propertyName);
     }
 

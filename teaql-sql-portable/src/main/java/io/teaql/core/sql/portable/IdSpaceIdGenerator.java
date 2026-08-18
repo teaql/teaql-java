@@ -90,7 +90,7 @@ public class IdSpaceIdGenerator implements InternalIdGenerationService {
     }
 
     @Override
-    public Long generateId(io.teaql.core.UserContext ctx, io.teaql.core.Entity entity) {
+    public Long generateId(io.teaql.core.UserContext context, io.teaql.core.Entity entity) {
         return nextId(entity.typeName());
     }
 

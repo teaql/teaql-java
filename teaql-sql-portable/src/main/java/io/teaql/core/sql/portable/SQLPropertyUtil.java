@@ -64,9 +64,9 @@ public class SQLPropertyUtil {
         throw new TeaQLRuntimeException("Cannot derive SQL metadata for property: " + property.getName() + " (class: " + property.getClass().getName() + ")");
     }
 
-    public static List<SQLData> toDBRaw(UserContext ctx, Entity entity, Object value, PropertyDescriptor property) {
+    public static List<SQLData> toDBRaw(UserContext context, Entity entity, Object value, PropertyDescriptor property) {
         if (property instanceof SQLProperty) {
-            return ((SQLProperty) property).toDBRaw(ctx, entity, value);
+            return ((SQLProperty) property).toDBRaw(context, entity, value);
         }
         String tableName = getTableName(property);
         String columnName = getColumnName(property);

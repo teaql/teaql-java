@@ -72,17 +72,17 @@ public class InMemoryDynamicFieldsProvider implements DynamicFieldsProvider {
     // ─── DynamicFieldsProvider Implementation ──────────────────────────
 
     @Override
-    public DynamicFieldDef loadFieldDef(DynamicFieldContext ctx, DynamicFieldRef ref) {
+    public DynamicFieldDef loadFieldDef(DynamicFieldContext context, DynamicFieldRef ref) {
         String key = defKey(
-                DynamicFieldScope.of(ctx.scopeType(), ctx.scopeId()),
+                DynamicFieldScope.of(context.scopeType(), context.scopeId()),
                 ref.ownerType(),
                 ref.code());
         return fieldDefs.get(key);
     }
 
     @Override
-    public List<DynamicFieldDef> listFieldDefs(DynamicFieldContext ctx, String ownerType) {
-        String prefix = ctx.scopeType() + "/" + ctx.scopeId() + "/" + ownerType + "/";
+    public List<DynamicFieldDef> listFieldDefs(DynamicFieldContext context, String ownerType) {
+        String prefix = context.scopeType() + "/" + context.scopeId() + "/" + ownerType + "/";
         List<DynamicFieldDef> result = new ArrayList<>();
         for (Map.Entry<String, DynamicFieldDef> entry : fieldDefs.entrySet()) {
             if (entry.getKey().startsWith(prefix)) {
@@ -94,21 +94,21 @@ public class InMemoryDynamicFieldsProvider implements DynamicFieldsProvider {
     }
 
     @Override
-    public DynamicFieldValues loadValues(DynamicFieldContext ctx, DynamicOwnerRef ownerRef,
+    public DynamicFieldValues loadValues(DynamicFieldContext context, DynamicOwnerRef ownerRef,
                                          DynamicFieldSelection selection) {
         Map<DynamicOwnerRef, DynamicFieldValues> batch =
-                loadValues(ctx, Collections.singletonList(ownerRef), selection);
+                loadValues(context, Collections.singletonList(ownerRef), selection);
         return batch.getOrDefault(ownerRef, DynamicFieldValues.empty());
     }
 
     @Override
     public Map<DynamicOwnerRef, DynamicFieldValues> loadValues(
-            DynamicFieldContext ctx, List<DynamicOwnerRef> ownerRefs,
+            DynamicFieldContext context, List<DynamicOwnerRef> ownerRefs,
             DynamicFieldSelection selection) {
 
         List<DynamicFieldDef> allDefs = null;
         if (selection.isSelectAll() && !ownerRefs.isEmpty()) {
-            allDefs = listFieldDefs(ctx, ownerRefs.get(0).ownerType());
+            allDefs = listFieldDefs(context, ownerRefs.get(0).ownerType());
         }
 
         Map<DynamicOwnerRef, DynamicFieldValues> result = new HashMap<>();
@@ -118,10 +118,10 @@ public class InMemoryDynamicFieldsProvider implements DynamicFieldsProvider {
             if (selection.isSelectAll()) {
                 // Load all active fields
                 List<DynamicFieldDef> defs = (allDefs != null && ownerRef.ownerType().equals(ownerRefs.get(0).ownerType()))
-                        ? allDefs : listFieldDefs(ctx, ownerRef.ownerType());
+                        ? allDefs : listFieldDefs(context, ownerRef.ownerType());
                 for (DynamicFieldDef def : defs) {
                     if (!def.isActive()) continue;
-                    String vKey = valueKey(ctx, ownerRef, def.getId());
+                    String vKey = valueKey(context, ownerRef, def.getId());
                     Object val = fieldValues.get(vKey);
                     values.add(toFieldValue(def.getCode(), def.getDataType(), val));
                 }
@@ -131,12 +131,12 @@ public class InMemoryDynamicFieldsProvider implements DynamicFieldsProvider {
             // Load selected fields
             for (DynamicFieldSelection.DynamicFieldSelectionEntry entry : selection.getEntries()) {
                 DynamicFieldRef ref = DynamicFieldRef.of(
-                        DynamicFieldScope.of(ctx.scopeType(), ctx.scopeId()),
+                        DynamicFieldScope.of(context.scopeType(), context.scopeId()),
                         ownerRef.ownerType(),
                         entry.code());
-                DynamicFieldDef def = loadFieldDef(ctx, ref);
+                DynamicFieldDef def = loadFieldDef(context, ref);
                 if (def == null) continue;
-                String vKey = valueKey(ctx, ownerRef, def.getId());
+                String vKey = valueKey(context, ownerRef, def.getId());
                 Object val = fieldValues.get(vKey);
                 values.add(toFieldValue(entry.code(), entry.dataType(), val));
             }
@@ -146,12 +146,12 @@ public class InMemoryDynamicFieldsProvider implements DynamicFieldsProvider {
     }
 
     @Override
-    public void saveValue(DynamicFieldContext ctx, DynamicSetCommand command) {
+    public void saveValue(DynamicFieldContext context, DynamicSetCommand command) {
         DynamicFieldRef ref = DynamicFieldRef.of(
-                DynamicFieldScope.of(ctx.scopeType(), ctx.scopeId()),
+                DynamicFieldScope.of(context.scopeType(), context.scopeId()),
                 command.ownerRef().ownerType(),
                 command.fieldCode());
-        DynamicFieldDef def = loadFieldDef(ctx, ref);
+        DynamicFieldDef def = loadFieldDef(context, ref);
         if (def == null) {
             throw DynamicFieldException.notFound(command.fieldCode());
         }
@@ -163,7 +163,7 @@ public class InMemoryDynamicFieldsProvider implements DynamicFieldsProvider {
             throw DynamicFieldException.notEditable(command.fieldCode());
         }
 
-        String vKey = valueKey(ctx, command.ownerRef(), def.getId());
+        String vKey = valueKey(context, command.ownerRef(), def.getId());
         fieldValues.remove(vKey);
         if (command.value() != null) {
             fieldValues.put(vKey, command.value());
@@ -171,12 +171,12 @@ public class InMemoryDynamicFieldsProvider implements DynamicFieldsProvider {
     }
 
     @Override
-    public void deleteValue(DynamicFieldContext ctx, DynamicValueRef valueRef) {
+    public void deleteValue(DynamicFieldContext context, DynamicValueRef valueRef) {
         DynamicFieldDef def = fieldDefsById.get(valueRef.fieldId());
         if (def == null) {
             return;
         }
-        String vKey = valueKey(ctx, valueRef.ownerRef(), valueRef.fieldId());
+        String vKey = valueKey(context, valueRef.ownerRef(), valueRef.fieldId());
         fieldValues.remove(vKey);
     }
 
@@ -198,8 +198,8 @@ public class InMemoryDynamicFieldsProvider implements DynamicFieldsProvider {
         return scope.scopeType() + "/" + scope.scopeId() + "/" + ownerType + "/" + code;
     }
 
-    private static String valueKey(DynamicFieldContext ctx, DynamicOwnerRef ownerRef, long fieldId) {
-        return ctx.scopeType() + "/" + ctx.scopeId() + "/"
+    private static String valueKey(DynamicFieldContext context, DynamicOwnerRef ownerRef, long fieldId) {
+        return context.scopeType() + "/" + context.scopeId() + "/"
                 + ownerRef.ownerType() + "/" + ownerRef.ownerId() + "/" + fieldId;
     }
 

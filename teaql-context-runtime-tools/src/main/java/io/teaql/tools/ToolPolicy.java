@@ -7,14 +7,14 @@ import java.util.Set;
 
 public interface ToolPolicy {
 
-    boolean isAllowed(ToolDescriptor descriptor, UserContext ctx);
+    boolean isAllowed(ToolDescriptor descriptor, UserContext context);
 
     static ToolPolicy allowStandardTools() {
-        return (descriptor, ctx) -> descriptor.getRisk() == ToolRisk.MEMORY_ONLY;
+        return (descriptor, context) -> descriptor.getRisk() == ToolRisk.MEMORY_ONLY;
     }
 
     static ToolPolicy denyAll() {
-        return (descriptor, ctx) -> false;
+        return (descriptor, context) -> false;
     }
 
     static Builder builder() {
@@ -59,7 +59,7 @@ public interface ToolPolicy {
         }
 
         public ToolPolicy build() {
-            return (descriptor, ctx) -> {
+            return (descriptor, context) -> {
                 Class<?> toolType = descriptor.getToolType();
                 if (deniedTypes.contains(toolType)) {
                     return false;

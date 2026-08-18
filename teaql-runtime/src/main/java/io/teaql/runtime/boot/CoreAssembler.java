@@ -20,9 +20,9 @@ public class CoreAssembler implements ContextAssembler {
     }
 
     @Override
-    public void mountTo(UserContext ctx) {
+    public void mountTo(UserContext context) {
         // Mount constant properties to every new UserContext to prove the SPI is assembling it.
-        ctx.putAttribute("SYSTEM_VERSION", "TeaQL-1.198-RELEASE");
-        ctx.putAttribute("ASSEMBLER_CHAIN", "Core->");
+        context.putAttribute("SYSTEM_VERSION", "TeaQL-1.198-RELEASE");
+        context.putAttribute("ASSEMBLER_CHAIN", "Core->");
     }
 }

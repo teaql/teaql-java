@@ -21,7 +21,7 @@ public class Dm8DataServiceExecutor extends SqlDataServiceExecutor {
     }
 
     @Override
-    public void ensureSchema(UserContext ctx) {
+    public void ensureSchema(UserContext context) {
         List<EntityDescriptor> descriptors = EntityMetaFactory.get().allEntityDescriptors();
 
         TeaQLDatabase dbAdapter = new TeaQLDatabase() {
@@ -59,7 +59,7 @@ public class Dm8DataServiceExecutor extends SqlDataServiceExecutor {
 
         for (EntityDescriptor descriptor : descriptors) {
             PortableSQLRepository repository = new PortableSQLRepository(descriptor, dbAdapter, null);
-            repository.ensureSchema(ctx);
+            repository.ensureSchema(context);
         }
     }
 }

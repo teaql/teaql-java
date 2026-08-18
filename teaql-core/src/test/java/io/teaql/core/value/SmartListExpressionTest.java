@@ -16,7 +16,7 @@ public class SmartListExpressionTest {
     static class DummyExpression<T, E> implements Expression<T, E> {
         private E value;
         public DummyExpression(E value) { this.value = value; }
-        @Override public E eval(T ctx) { return value; }
+        @Override public E eval(T context) { return value; }
     }
 
     @Test

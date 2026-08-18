@@ -14,10 +14,10 @@ import java.util.stream.Stream;
  *       .filterByName("xxx")
  *       .comment("Load tasks")
  *       .purpose("Display kanban board") // returns ExecutableRequest
- *       .executeForList(ctx);             // only ExecutableRequest can execute
+ *       .executeForList(context);             // only ExecutableRequest can execute
  *
  *   // Compile error: purpose() has not produced an ExecutableRequest
- *   Q.tasks().executeForList(ctx);
+ *   Q.tasks().executeForList(context);
  */
 public class ExecutableRequest<T extends Entity> {
     private final SearchRequest<T> request;
@@ -27,15 +27,15 @@ public class ExecutableRequest<T extends Entity> {
     }
 
     /** Creates a generated entity only after Comment and Purpose are declared. */
-    public T newEntity(UserContext ctx) {
-        if (ctx == null) {
+    public T newEntity(UserContext context) {
+        if (context == null) {
             throw new IllegalArgumentException("UserContext is required for entity creation");
         }
-        return ctx.initializeEntity(request.getTypeName(), request.internalNewEntity());
+        return context.initializeEntity(request.getTypeName(), request.internalNewEntity());
     }
 
-    public SmartList<T> executeForList(UserContext ctx) {
-        return ctx.executeForList(this);
+    public SmartList<T> executeForList(UserContext context) {
+        return context.executeForList(this);
     }
 
     /**
@@ -43,7 +43,7 @@ public class ExecutableRequest<T extends Entity> {
      * the returned SmartList. Generated request filters and trusted runtime
      * policy are shared by the rows and count aggregation.
      */
-    public SmartList<T> executeForPage(UserContext ctx, int offset, int limit) {
+    public SmartList<T> executeForPage(UserContext context, int offset, int limit) {
         if (offset < 0) {
             throw new IllegalArgumentException("offset must not be negative");
         }
@@ -51,19 +51,19 @@ public class ExecutableRequest<T extends Entity> {
             throw new IllegalArgumentException(
                     "limit must be between 1 and " + SearchRequest.DEFAULT_HARD_LIMIT);
         }
-        return ctx.executeForPage(this, offset, limit);
+        return context.executeForPage(this, offset, limit);
     }
 
-    public T executeForOne(UserContext ctx) {
-        return ctx.executeForOne(this);
+    public T executeForOne(UserContext context) {
+        return context.executeForOne(this);
     }
 
-    public Stream<T> executeForStream(UserContext ctx) {
-        return ctx.executeForStream(this);
+    public Stream<T> executeForStream(UserContext context) {
+        return context.executeForStream(this);
     }
 
-    public AggregationResult aggregation(UserContext ctx) {
-        return ctx.aggregation(this);
+    public AggregationResult aggregation(UserContext context) {
+        return context.aggregation(this);
     }
 
     public SearchRequest<T> request() {

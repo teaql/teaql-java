@@ -15,11 +15,11 @@ import java.util.Map;
 import java.util.StringJoiner;
 
 public class JdkHttpTool implements AgentHttpTool {
-    private final UserContext ctx;
+    private final UserContext context;
     private final HttpClient client;
 
-    public JdkHttpTool(UserContext ctx) {
-        this.ctx = ctx;
+    public JdkHttpTool(UserContext context) {
+        this.context = context;
         this.client = HttpClient.newHttpClient();
     }
 
@@ -75,8 +75,8 @@ public class JdkHttpTool implements AgentHttpTool {
             if (intent == null || intent.trim().isEmpty()) {
                 throw new IllegalStateException("HTTP tool execution requires purpose or audit text.");
             }
-            if (ctx != null) {
-                ctx.pushTrace("HTTP " + method + " " + url + " " + intentType + ": " + intent);
+            if (context != null) {
+                context.pushTrace("HTTP " + method + " " + url + " " + intentType + ": " + intent);
             }
             try {
                 HttpRequest request = buildRequest();
@@ -85,8 +85,8 @@ public class JdkHttpTool implements AgentHttpTool {
             } catch (Exception e) {
                 throw new RuntimeException("HTTP tool execution failed", e);
             } finally {
-                if (ctx != null) {
-                    ctx.popTrace();
+                if (context != null) {
+                    context.popTrace();
                 }
             }
         }

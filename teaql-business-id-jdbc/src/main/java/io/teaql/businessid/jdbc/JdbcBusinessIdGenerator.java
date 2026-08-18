@@ -50,7 +50,7 @@ public class JdbcBusinessIdGenerator implements BusinessIdGenerator {
     }
 
     @Override
-    public String generateBusinessId(UserContext ctx, Entity entity, EntityDescriptor entityDesc, PropertyDescriptor propertyDesc) {
+    public String generateBusinessId(UserContext context, Entity entity, EntityDescriptor entityDesc, PropertyDescriptor propertyDesc) {
         String rule = propertyDesc.getAdditionalInfo().get("business_id_rule");
         if (StrUtil.isEmpty(rule)) {
             throw new IllegalArgumentException("No business_id_rule defined in metadata for " + entityDesc.getType() + "." + propertyDesc.getName());

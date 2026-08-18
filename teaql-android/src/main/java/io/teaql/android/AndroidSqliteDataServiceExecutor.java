@@ -23,7 +23,7 @@ public class AndroidSqliteDataServiceExecutor extends SqlDataServiceExecutor {
     }
 
     @Override
-    public <T> T executeInTransaction(UserContext ctx, TransactionCallback<T> action) {
+    public <T> T executeInTransaction(UserContext context, TransactionCallback<T> action) {
         db.beginTransaction();
         try {
             T result = action.doInTransaction();
@@ -35,7 +35,7 @@ public class AndroidSqliteDataServiceExecutor extends SqlDataServiceExecutor {
     }
 
     @Override
-    public void ensureSchema(UserContext ctx) {
+    public void ensureSchema(UserContext context) {
         List<EntityDescriptor> descriptors = EntityMetaFactory.get().allEntityDescriptors();
         SqlExecutionAdapter adapter = getExecutionAdapter();
         
@@ -61,7 +61,7 @@ public class AndroidSqliteDataServiceExecutor extends SqlDataServiceExecutor {
             }
 
             @Override
-            public void execute(UserContext ctx, String sql) {
+            public void execute(UserContext context, String sql) {
                 this.execute(sql);
             }
 
@@ -92,7 +92,7 @@ public class AndroidSqliteDataServiceExecutor extends SqlDataServiceExecutor {
 
         for (EntityDescriptor descriptor : descriptors) {
             PortableSQLRepository repository = new PortableSQLRepository(descriptor, dbAdapter, null);
-            repository.ensureSchema(ctx);
+            repository.ensureSchema(context);
         }
     }
 }

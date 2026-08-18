@@ -7,10 +7,10 @@ public final class LogSinks {
     private LogSinks() {
     }
 
-    public static void register(UserContext ctx, CustomLogSink sink) {
-        if (ctx == null) {
+    public static void register(UserContext context, CustomLogSink sink) {
+        if (context == null) {
             return;
         }
-        ctx.putAttribute(CustomLogSink.class.getName(), sink);
+        context.putAttribute(CustomLogSink.class.getName(), sink);
     }
 }

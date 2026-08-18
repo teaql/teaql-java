@@ -18,10 +18,10 @@ public class HttpToolProvider implements ToolProvider {
     }
 
     @Override
-    public <T> T create(Class<T> toolType, UserContext ctx) {
+    public <T> T create(Class<T> toolType, UserContext context) {
         if (!supports(toolType)) {
             throw new IllegalArgumentException("Unsupported tool type: " + toolType.getName());
         }
-        return toolType.cast(new JdkHttpTool(ctx));
+        return toolType.cast(new JdkHttpTool(context));
     }
 }

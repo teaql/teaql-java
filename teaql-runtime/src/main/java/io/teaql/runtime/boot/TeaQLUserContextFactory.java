@@ -68,11 +68,11 @@ public class TeaQLUserContextFactory {
             bootstrap();
         }
         
-        UserContext ctx = new DefaultUserContext(null);
+        UserContext context = new DefaultUserContext(null);
         for (ContextAssembler assembler : assemblers) {
-            assembler.mountTo(ctx);
+            assembler.mountTo(context);
         }
         
-        return ctx;
+        return context;
     }
 }

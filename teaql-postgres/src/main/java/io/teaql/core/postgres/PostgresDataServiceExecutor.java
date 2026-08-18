@@ -18,7 +18,7 @@ public class PostgresDataServiceExecutor extends SqlDataServiceExecutor {
     }
 
     @Override
-    public void ensureSchema(UserContext ctx) {
+    public void ensureSchema(UserContext context) {
         List<EntityDescriptor> descriptors = EntityMetaFactory.get().allEntityDescriptors();
 
         TeaQLDatabase dbAdapter = new TeaQLDatabase() {
@@ -56,7 +56,7 @@ public class PostgresDataServiceExecutor extends SqlDataServiceExecutor {
 
         for (EntityDescriptor descriptor : descriptors) {
             PortableSQLRepository repository = new PortableSQLRepository(descriptor, dbAdapter, null);
-            repository.ensureSchema(ctx);
+            repository.ensureSchema(context);
         }
     }
 }

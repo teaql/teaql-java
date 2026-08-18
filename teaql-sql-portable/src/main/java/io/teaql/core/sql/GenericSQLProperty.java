@@ -44,7 +44,7 @@ public class GenericSQLProperty extends PropertyDescriptor implements SQLPropert
     }
 
     @Override
-    public List<SQLData> toDBRaw(UserContext ctx, Entity entity, Object value) {
+    public List<SQLData> toDBRaw(UserContext context, Entity entity, Object value) {
         SQLData d = new SQLData();
         d.setColumnName(columnName);
         d.setTableName(tableName);
@@ -58,7 +58,7 @@ public class GenericSQLProperty extends PropertyDescriptor implements SQLPropert
     }
 
     @Override
-    public void setPropertyValue(UserContext ctx, Entity entity, ResultSet rs) {
+    public void setPropertyValue(UserContext context, Entity entity, ResultSet rs) {
         if (!findName(rs, getName())) {
             return;
         }
