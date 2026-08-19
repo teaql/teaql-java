@@ -102,7 +102,7 @@ public class IdSpaceIdGenerator implements InternalIdGenerationService {
         try {
             database.execute(
                     "CREATE TABLE IF NOT EXISTS " + idSpaceTable
-                    + " (type_name VARCHAR(100) PRIMARY KEY, current_level BIGINT)");
+                    + " (type_name VARCHAR(100) NOT NULL PRIMARY KEY, current_level BIGINT)");
         } catch (Exception e) {
             LOG.fine("teaql_id_space table may already exist: " + e.getMessage());
         }

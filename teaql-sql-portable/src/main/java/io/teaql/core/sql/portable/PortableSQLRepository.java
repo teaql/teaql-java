@@ -905,7 +905,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         if (!ObjectUtil.isEmpty(dbTableInfo)) return;
 
         String sql = "CREATE TABLE " + getTqlIdSpaceTable() + " (\n"
-                + "type_name varchar(100) PRIMARY KEY,\n"
+                + "type_name varchar(100) NOT NULL PRIMARY KEY,\n"
                 + "current_level bigint)\n";
         logInfo(sql + ";");
         if (ensureTableEnabled(context)) {
@@ -934,7 +934,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         sb.append(columns.stream()
                 .map(column -> {
                     String dbColumn = dialect.escapeIdentifier(column.getColumnName()) + " " + dialect.mapColumnType(column.getType());
-                    if (column.isIdColumn()) dbColumn += " PRIMARY KEY";
+                    if (column.isIdColumn()) dbColumn += " NOT NULL PRIMARY KEY";
                     return dbColumn;
                 })
                 .collect(Collectors.joining(",\n")));
