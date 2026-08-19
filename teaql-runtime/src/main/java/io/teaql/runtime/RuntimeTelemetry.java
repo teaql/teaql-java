@@ -30,6 +30,27 @@ public interface RuntimeTelemetry {
 
     default void shutdown() {}
 
+    /** Stable category derived from a native error type, never its message. */
+    static String errorCategory(Throwable error) {
+        return errorCategory(error == null ? "unknown" : error.getClass().getSimpleName());
+    }
+
+    static String errorCategory(String errorType) {
+        String type = errorType == null ? "unknown" : errorType.toLowerCase(java.util.Locale.ROOT);
+        if (containsAny(type, "timeout", "deadline")) return "timeout";
+        if (containsAny(type, "authentication", "authorization", "unauthorized", "forbidden", "permission")) return "authorization";
+        if (containsAny(type, "validation", "invalidargument", "valueerror", "parse", "format")) return "validation";
+        if (containsAny(type, "conflict", "optimistic", "version", "duplicate", "alreadyexists")) return "conflict";
+        if (containsAny(type, "transport", "network", "connection", "socket", "http", "ioexception")) return "transport";
+        if (containsAny(type, "provider", "sql", "database", "jdbc")) return "provider";
+        return "internal";
+    }
+
+    private static boolean containsAny(String value, String... terms) {
+        for (String term : terms) if (value.contains(term)) return true;
+        return false;
+    }
+
     record Operation(String family, String name, Map<String, Object> attributes) {
         public Operation {
             Map<String, Object> safe = new LinkedHashMap<>();

@@ -122,13 +122,19 @@ public final class OpenTelemetryRuntimeTelemetry implements RuntimeTelemetry {
             @Override
             public synchronized void failure(Throwable error) {
                 if (ended) return;
+                String category = RuntimeTelemetry.errorCategory(error);
                 span.setAttribute("teaql.error.type",
                         error == null ? "unknown" : error.getClass().getSimpleName());
+                span.setAttribute("teaql.error.category", category);
                 span.setStatus(StatusCode.ERROR);
-                finish("failure");
+                finish("failure", category);
             }
 
             private void finish(String outcome) {
+                finish(outcome, null);
+            }
+
+            private void finish(String outcome, String errorCategory) {
                 ended = true;
                 double durationMs = Math.max(0d, (System.nanoTime() - startedAt) / 1_000_000d);
                 Attributes dimensions = Attributes.builder()
@@ -138,15 +144,18 @@ public final class OpenTelemetryRuntimeTelemetry implements RuntimeTelemetry {
                 duration.record(durationMs, dimensions);
                 operations.add(1, dimensions);
                 if (logger != null) {
-                    logger.logRecordBuilder()
+                    var record = logger.logRecordBuilder()
                             .setSeverity(Severity.INFO)
                             .setSeverityText("INFO")
                             .setBody("TeaQL runtime operation completed")
                             .setAttribute("teaql.operation.family", operation.family())
                             .setAttribute("teaql.operation.name", operation.name())
                             .setAttribute("teaql.operation.outcome", outcome)
-                            .setAttribute("teaql.operation.duration_ms", durationMs)
-                            .emit();
+                            .setAttribute("teaql.operation.duration_ms", durationMs);
+                    if (errorCategory != null) {
+                        record.setAttribute("teaql.error.category", errorCategory);
+                    }
+                    record.emit();
                 }
                 activation.close();
                 span.end();

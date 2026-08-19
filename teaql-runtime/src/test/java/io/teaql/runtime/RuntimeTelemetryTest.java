@@ -9,6 +9,13 @@ import org.junit.Test;
 
 public class RuntimeTelemetryTest {
     @Test
+    public void classifiesNativeErrorTypesWithoutInspectingMessages() {
+        assertEquals("timeout", RuntimeTelemetry.errorCategory("DatabaseTimeoutException"));
+        assertEquals("authorization", RuntimeTelemetry.errorCategory("PermissionException"));
+        assertEquals("internal", RuntimeTelemetry.errorCategory("UnknownTeaQLError"));
+    }
+
+    @Test
     public void recordsBalancedSafeLifecycle() {
         List<String> phases = new ArrayList<>();
         List<RuntimeTelemetry.Operation> operations = new ArrayList<>();
