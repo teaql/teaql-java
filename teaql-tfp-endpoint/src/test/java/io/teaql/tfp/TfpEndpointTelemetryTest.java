@@ -22,6 +22,7 @@ import io.teaql.runtime.RuntimeTelemetry;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -46,8 +47,8 @@ public class TfpEndpointTelemetryTest {
                 queryExecutor(request -> new DefaultQueryResult(rows)),
                 mutationExecutor(), new ObjectMapper(), telemetry);
 
-        Map<String, Object> response = handler.handleQuery(null,
-                "{\"entity\":\"Probe\",\"limitValue\":10}".getBytes());
+        Map<String, Object> response = handler.handleQuery(null, trusted(),
+                queryPayload().getBytes());
 
         assertEquals(rows, response.get("data"));
         assertEquals("tfp", telemetry.operations.get(0).family());
@@ -64,7 +65,7 @@ public class TfpEndpointTelemetryTest {
                 mutationExecutor(), new ObjectMapper(), telemetry);
 
         IllegalStateException thrown = assertThrows(IllegalStateException.class,
-                () -> handler.handleQuery(null, "{\"entity\":\"Probe\"}".getBytes()));
+                () -> handler.handleQuery(null, trusted(), queryPayload().getBytes()));
 
         assertSame(original, thrown);
         assertSame(original, telemetry.failures.get(0));
@@ -76,8 +77,8 @@ public class TfpEndpointTelemetryTest {
                 queryExecutor(request -> new DefaultQueryResult(new SmartList<>())),
                 mutationExecutor(), new ObjectMapper(), telemetry);
 
-        handler.handleMutation(null,
-                "{\"entity\":\"Probe\",\"action\":\"Save\",\"payload\":{}}".getBytes());
+        handler.handleMutation(null, trusted(),
+                "{\"entity\":\"Probe\",\"action\":\"Create\",\"payload\":{},\"comment\":\"create probe\"}".getBytes());
 
         assertEquals("tfp", telemetry.operations.get(0).family());
         assertEquals("server.mutation", telemetry.operations.get(0).name());
@@ -92,7 +93,7 @@ public class TfpEndpointTelemetryTest {
                 queryExecutor(request -> new DefaultQueryResult(new SmartList<>())),
                 mutationExecutor(), new ObjectMapper(), telemetry);
 
-        handler.handleQuery(null, "{\"entity\":\"Probe\"}".getBytes(),
+        handler.handleQuery(null, trusted(), queryPayload().getBytes(),
                 telemetry.expectedCarrier);
 
         assertEquals(List.of("activate", "start:server.query", "close"),
@@ -102,6 +103,17 @@ public class TfpEndpointTelemetryTest {
     public static final class Probe extends BaseEntity {
         @Override
         public String typeName() { return "Probe"; }
+    }
+
+    private static String queryPayload() {
+        return "{\"entity\":\"Probe\",\"filterCondition\":{\"id\":{\"$eq\":1}},"
+                + "\"limitValue\":10,\"commentText\":\"test query\",\"purposeText\":\"test\"}";
+    }
+
+    private static TrustedFederalContext trusted() {
+        return new TrustedFederalContext("id", 7L, "tester", "tests",
+                Set.of("Probe"), Map.of("Probe", Map.of("id", "id")),
+                Map.of("Probe", Map.of()), Map.of("Probe", Set.of("Create")), 100);
     }
 
     private static QueryExecutor queryExecutor(
