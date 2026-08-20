@@ -24,6 +24,7 @@ import org.junit.Test;
 
 public class TfpEndpointPolicyTest {
     private QueryRequest capturedQuery;
+    private MutationRequest capturedMutation;
 
     @Before
     public void metadata() {
@@ -40,9 +41,10 @@ public class TfpEndpointPolicyTest {
                 () -> handler.handleQuery(null, query("id")));
         org.junit.Assert.assertEquals("TFP_UNAUTHORIZED", unauthorized.getCode());
 
-        handler.handleQuery(null, trusted(), query("id"));
+        Map<String, Object> response = handler.handleQuery(null, trusted(), query("id"));
         assertNotNull(capturedQuery);
         assertNotNull(((io.teaql.runtime.DefaultQueryRequest) capturedQuery).getSearchRequest().getSearchCriteria());
+        org.junit.Assert.assertTrue(response.get("data") instanceof java.util.List<?>);
     }
 
     @Test
@@ -57,6 +59,21 @@ public class TfpEndpointPolicyTest {
                 "{\"entity\":\"Probe\",\"action\":\"Create\",\"payload\":{\"secret\":1},\"comment\":\"x\"}".getBytes()));
     }
 
+    @Test
+    public void updateLoadsIdentityAndExpectedVersionWithoutJacksonSetters() throws Exception {
+        TfpEndpointHandler handler = handler();
+        handler.handleMutation(null, trusted(), ("{\"entity\":\"Probe\",\"action\":\"Update\","
+                + "\"id\":42,\"expectedVersion\":3,\"payload\":{\"status\":\"PAID\"},"
+                + "\"comment\":\"cross-language update\"}").getBytes());
+
+        io.teaql.runtime.DefaultMutationRequest request =
+                (io.teaql.runtime.DefaultMutationRequest) capturedMutation;
+        Probe entity = (Probe) request.getEntity();
+        org.junit.Assert.assertEquals(Long.valueOf(42), entity.getId());
+        org.junit.Assert.assertEquals(Long.valueOf(3), entity.getVersion());
+        org.junit.Assert.assertEquals("PAID", entity.getStatus());
+    }
+
     private TfpEndpointHandler handler() {
         QueryExecutor query = new QueryExecutor() {
             public QueryResult query(io.teaql.core.UserContext c, QueryRequest request) {
@@ -66,7 +83,9 @@ public class TfpEndpointPolicyTest {
             public DataServiceCapabilities capabilities() { return new DataServiceCapabilities(); }
         };
         MutationExecutor mutation = new MutationExecutor() {
-            public MutationResult mutate(io.teaql.core.UserContext c, MutationRequest request) { return null; }
+            public MutationResult mutate(io.teaql.core.UserContext c, MutationRequest request) {
+                capturedMutation = request; return null;
+            }
             public String name() { return "test"; }
             public DataServiceCapabilities capabilities() { return new DataServiceCapabilities(); }
         };
@@ -80,8 +99,9 @@ public class TfpEndpointPolicyTest {
 
     private TrustedFederalContext trusted() {
         return new TrustedFederalContext("id", 7L, "tester", "tests", Set.of("Probe"),
-                Map.of("Probe", Map.of("id", "id")), Map.of("Probe", Map.of()),
-                Map.of("Probe", Set.of("Create")), 100);
+                Map.of("Probe", Map.of("id", "id")),
+                Map.of("Probe", Map.of("status", "status")),
+                Map.of("Probe", Set.of("Create", "Update")), 100);
     }
 
     private void assertCode(String code, Throwing action) {
@@ -89,5 +109,10 @@ public class TfpEndpointPolicyTest {
         org.junit.Assert.assertEquals(code, error.getCode());
     }
     private interface Throwing { void run() throws Exception; }
-    public static final class Probe extends BaseEntity { public String typeName() { return "Probe"; } }
+    public static final class Probe extends BaseEntity {
+        private String status;
+        public String typeName() { return "Probe"; }
+        public String getStatus() { return status; }
+        public void setStatus(String value) { status = value; }
+    }
 }

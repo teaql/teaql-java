@@ -127,7 +127,7 @@ public class TfpEndpointHandler {
 
         Map<String, Object> response = new HashMap<>();
         if (result instanceof DefaultQueryResult) {
-            response.put("data", ((DefaultQueryResult) result).getResult());
+            response.put("data", ((DefaultQueryResult) result).getResult().getData());
         } else {
             response.put("data", Collections.emptyList());
         }
@@ -135,8 +135,7 @@ public class TfpEndpointHandler {
         response.put("status", "YES");
         Object data = response.get("data");
         scope.success(Map.of("teaql.result.cardinality",
-                data instanceof io.teaql.core.SmartList<?> list ? list.size()
-                        : data instanceof java.util.Collection<?> collection ? collection.size() : 0));
+                data instanceof java.util.Collection<?> collection ? collection.size() : 0));
         return response;
         } catch (Exception | Error error) {
             scope.failure(error);
@@ -204,9 +203,7 @@ public class TfpEndpointHandler {
         if (!"Create".equals(actionStr)) {
             if (!root.hasNonNull("id")) throw new TfpEndpointException(
                     "TFP_INVALID_REQUEST", "Mutation id is required");
-            mappedPayload.set("id", root.get("id"));
         }
-        if (root.hasNonNull("expectedVersion")) mappedPayload.set("version", root.get("expectedVersion"));
 
         EntityDescriptor descriptor = EntityMetaFactory.get().resolveEntityDescriptor(entityName);
         if (descriptor == null) {
@@ -214,6 +211,12 @@ public class TfpEndpointHandler {
         }
 
         Entity entity = (Entity) objectMapper.treeToValue(mappedPayload, descriptor.getTargetType());
+        if (!"Create".equals(actionStr)) {
+            entity.setProperty("id", root.get("id").longValue());
+        }
+        if (root.hasNonNull("expectedVersion")) {
+            entity.setProperty("version", root.get("expectedVersion").longValue());
+        }
 
         DefaultMutationRequest.Action action = "Delete".equalsIgnoreCase(actionStr) ? 
                 DefaultMutationRequest.Action.DELETE : DefaultMutationRequest.Action.SAVE;

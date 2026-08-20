@@ -50,7 +50,7 @@ public class TfpEndpointTelemetryTest {
         Map<String, Object> response = handler.handleQuery(null, trusted(),
                 queryPayload().getBytes());
 
-        assertEquals(rows, response.get("data"));
+        assertEquals(rows.getData(), response.get("data"));
         assertEquals("tfp", telemetry.operations.get(0).family());
         assertEquals("server.query", telemetry.operations.get(0).name());
         assertEquals("server", telemetry.operations.get(0).attributes().get("teaql.tfp.role"));
