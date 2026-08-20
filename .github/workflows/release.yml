@@ -1,0 +1,63 @@
+name: Publish Maven release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+concurrency:
+  group: teaql-java-maven-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: maven
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+          server-id: TEAQL
+          server-username: TEAQL_MAVEN_USERNAME
+          server-password: TEAQL_MAVEN_PASSWORD
+      - name: Read and validate release version
+        id: release
+        shell: bash
+        run: |
+          version="$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)"
+          test -n "$version"
+          case "$version" in
+            *SNAPSHOT*) echo "Refusing to publish snapshot version: $version" >&2; exit 1 ;;
+          esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Verify tag points at the release commit
+        if: github.event_name == 'push'
+        run: test "$(git rev-list -n 1 "$GITHUB_REF_NAME")" = "$GITHUB_SHA"
+      - name: Test all modules
+        run: mvn -B test
+      - name: Refuse to overwrite an existing release
+        if: github.event_name == 'push'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          url="https://maven.teaql.io/repository/maven-releases/io/teaql/teaql-core/$VERSION/teaql-core-$VERSION.pom"
+          if curl --fail --silent --show-error --head "$url" >/dev/null 2>&1; then
+            echo "Release already exists and will not be overwritten: $VERSION" >&2
+            exit 1
+          fi
+      - name: Publish all Maven modules
+        if: github.event_name == 'push'
+        run: mvn -B deploy -DskipTests
+        env:
+          TEAQL_MAVEN_USERNAME: ${{ secrets.TEAQL_MAVEN_USERNAME }}
+          TEAQL_MAVEN_PASSWORD: ${{ secrets.TEAQL_MAVEN_PASSWORD }}
+      - name: Verify remote release completeness
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: tools/verify_maven_release.sh "$VERSION"
