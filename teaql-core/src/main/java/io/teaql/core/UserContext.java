@@ -4,8 +4,50 @@ import java.util.stream.Stream;
 import io.teaql.core.utils.OptNullBasicTypeFromObjectGetter;
 import java.util.List;
 import io.teaql.data.dynamic.DynamicFieldsFacade;
+import io.teaql.core.checker.CheckResult;
+import io.teaql.core.i18n.I18nCatalog;
+import io.teaql.core.i18n.Locale;
 
 public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
+
+    String TEAQL_LOCALE = "teaql.locale";
+    String TEAQL_I18N_CATALOG = "teaql.i18n.catalog";
+
+    default Locale locale() {
+        Locale locale = getAttribute(TEAQL_LOCALE, Locale.class);
+        return locale == null ? Locale.ENGLISH : locale;
+    }
+
+    default UserContext setLocaleCode(String code) {
+        Locale locale = Locale.fromCode(code);
+        putAttribute(TEAQL_LOCALE, locale);
+        return this;
+    }
+
+    default UserContext setLanguageCode(String code) {
+        return setLocaleCode(code);
+    }
+
+    default UserContext installI18nCatalog(I18nCatalog catalog) {
+        if (catalog == null) throw new IllegalArgumentException("catalog must not be null");
+        putAttribute(TEAQL_I18N_CATALOG, catalog);
+        return this;
+    }
+
+    default I18nCatalog i18nCatalog() {
+        I18nCatalog catalog = getAttribute(TEAQL_I18N_CATALOG, I18nCatalog.class);
+        return catalog == null ? I18nCatalog.builtin() : catalog;
+    }
+
+    default CheckResult translateCheckResult(CheckResult result) {
+        result.setNaturalLanguageStatement(i18nCatalog().render(result, locale()));
+        return result;
+    }
+
+    default List<CheckResult> translateCheckResults(List<CheckResult> results) {
+        results.forEach(this::translateCheckResult);
+        return results;
+    }
 
     /**
      * Applies trusted, context-owned defaults to a newly generated entity.

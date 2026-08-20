@@ -108,6 +108,7 @@ public interface Checker<T extends BaseEntity> {
     }
 
     default void appendResult(UserContext context, CheckResult result) {
+        context.translateCheckResult(result);
         java.util.List list = (java.util.List) context.getAttribute(TEAQL_DATA_CHECK_RESULT);
         if (list == null) {
             list = new java.util.ArrayList();

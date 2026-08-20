@@ -1,10 +1,12 @@
 module io.teaql.core {
     requires io.teaql.utils;
     requires transitive io.teaql.data.dynamic;
+    requires com.fasterxml.jackson.databind;
 
     // === Public API needed by generated code ===
     exports io.teaql.core;
     exports io.teaql.core.checker;
+    exports io.teaql.core.i18n;
     exports io.teaql.core.criteria;
     exports io.teaql.core.meta;
     exports io.teaql.core.parser;

@@ -6,7 +6,7 @@
 
     <groupId>io.teaql</groupId>
     <artifactId>teaql-java-parent</artifactId>
-    <version>1.531-RELEASE</version>
+    <version>1.532-RELEASE</version>
     <packaging>pom</packaging>
 
     <name>teaql-java-parent</name>
