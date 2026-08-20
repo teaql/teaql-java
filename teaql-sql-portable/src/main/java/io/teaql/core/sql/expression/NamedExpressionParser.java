@@ -2,8 +2,6 @@ package io.teaql.core.sql.expression;
 
 import java.util.Map;
 
-import io.teaql.core.utils.StrUtil;
-
 import io.teaql.core.Expression;
 import io.teaql.core.SimpleNamedExpression;
 import io.teaql.core.UserContext;
@@ -25,12 +23,10 @@ public class NamedExpressionParser implements SQLExpressionParser<SimpleNamedExp
         Expression inner = expression.getExpression();
         String sql = ExpressionHelper.toSql(userContext, inner, idTable, parameters, sqlColumnResolver);
         String name = expression.name();
-        if (!name.toLowerCase().equals(name)) {
-            name = StrUtil.wrap(name, "\"");
-        }
-        if (sql.equals(name)) {
+        String escapedName = sqlColumnResolver.escapeIdentifier(name);
+        if (sql.equals(name) || sql.equals(escapedName)) {
             return sql;
         }
-        return StrUtil.format("{} AS {}", sql, name);
+        return io.teaql.core.utils.StrUtil.format("{} AS {}", sql, escapedName);
     }
 }
