@@ -12,6 +12,35 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
 
     String TEAQL_LOCALE = "teaql.locale";
     String TEAQL_I18N_CATALOG = "teaql.i18n.catalog";
+    String TEAQL_ACTIVE_ROOT = "teaql.active.root";
+
+    default UserContext withActiveRoot(ContextEntityRef root) {
+        if (root == null) throw new IllegalArgumentException("root must not be null");
+        putAttribute(TEAQL_ACTIVE_ROOT, root);
+        return this;
+    }
+
+    default ContextEntityRef activeRoot() {
+        return getAttribute(TEAQL_ACTIVE_ROOT, ContextEntityRef.class);
+    }
+
+    default ContextEntityRef requireActiveRoot(String expectedType) {
+        ContextEntityRef root = activeRoot();
+        if (root == null) {
+            throw new ContextRootException(ContextRootException.Reason.MISSING, expectedType, null);
+        }
+        if (!root.entityType().equals(expectedType)) {
+            throw new ContextRootException(ContextRootException.Reason.TYPE_MISMATCH, expectedType, root);
+        }
+        return root;
+    }
+
+    default void verifyActiveRoot(String expectedType, Long suppliedId) {
+        ContextEntityRef root = requireActiveRoot(expectedType);
+        if (suppliedId != null && !root.id().equals(suppliedId)) {
+            throw new ContextRootException(ContextRootException.Reason.VALUE_MISMATCH, expectedType, root);
+        }
+    }
 
     default Locale locale() {
         Locale locale = getAttribute(TEAQL_LOCALE, Locale.class);

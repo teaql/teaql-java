@@ -6,6 +6,8 @@ import io.teaql.core.meta.PropertyDescriptor;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.junit.Assert.*;
@@ -39,6 +41,24 @@ public class UserContextTest {
         DummyUserContext context = new DummyUserContext() {};
         assertNull(context.extension("any"));
         assertNull(context.capability(String.class));
+    }
+
+    @Test
+    public void activeRootIsTypedAndFailsClosed() {
+        Map<String, Object> values = new HashMap<>();
+        DummyUserContext context = new DummyUserContext() {
+            @Override public void putAttribute(String key, Object value) { values.put(key, value); }
+            @Override public Object getAttribute(String key) { return values.get(key); }
+            @Override public <T> T getAttribute(String key, Class<T> type) { return type.cast(values.get(key)); }
+        };
+        ContextRootException missing = assertThrows(
+                ContextRootException.class, () -> context.requireActiveRoot("Tenant"));
+        assertEquals(ContextRootException.Reason.MISSING, missing.getReason());
+        context.withActiveRoot(new ContextEntityRef("Tenant", 42L));
+        assertEquals(Long.valueOf(42), context.requireActiveRoot("Tenant").id());
+        ContextRootException mismatch = assertThrows(
+                ContextRootException.class, () -> context.verifyActiveRoot("Tenant", 7L));
+        assertEquals(ContextRootException.Reason.VALUE_MISMATCH, mismatch.getReason());
     }
 
     @Test
