@@ -253,7 +253,8 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
     public final <T> T evaluate(String expression, Object... args) {
         // Built-in: "now" returns the current local date-time.
         if ("now".equalsIgnoreCase(expression)) {
-            return (T) java.time.LocalDateTime.now();
+            Object captured = getAttribute(io.teaql.core.checker.Checker.TEAQL_FIX_TIME);
+            return (T) (captured != null ? captured : java.time.LocalDateTime.now());
         }
         // Delegate to subclass or extension for application-defined expressions.
         return evaluateExpression(expression, args);

@@ -17,6 +17,7 @@ public interface Checker<T extends BaseEntity> {
 
     String TEAQL_DATA_CHECK_RESULT = "teaql_data_check_result";
     String TEAQL_DATA_CHECKED_ITEMS = "teaql_data_checkedItems";
+    String TEAQL_FIX_TIME = "teaql_fix_time";
 
     String type();
 

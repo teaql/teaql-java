@@ -4,6 +4,9 @@ import io.teaql.core.*;
 import io.teaql.core.meta.EntityDescriptor;
 import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.PropertyDescriptor;
+import io.teaql.core.checker.CheckException;
+import io.teaql.core.checker.CheckResult;
+import io.teaql.core.checker.Checker;
 import java.util.*;
 
 public class TeaQLRuntime {
@@ -13,6 +16,7 @@ public class TeaQLRuntime {
     private final InternalIdGenerationService idGenerationService;
     private final RuntimeLogSink logSink;
     private final RuntimeTelemetry telemetry;
+    private final Map<String, Checker<?>> checkers = new java.util.concurrent.ConcurrentHashMap<>();
 
     private TeaQLRuntime(Builder builder) {
         this.metadata = builder.metadata;
@@ -54,6 +58,7 @@ public class TeaQLRuntime {
     /** Installs a passive generated manifest. Database schemas remain unchanged. */
     public TeaQLRuntime install(RuntimeModule module) {
         module.install(metadata);
+        module.checkers().forEach(checker -> checkers.put(checker.type(), checker));
         return this;
     }
 
@@ -262,6 +267,7 @@ public class TeaQLRuntime {
             pushed = true;
         }
         try {
+            checkAndFix(context, entity);
             // Get entity's own EntityRoot
             EntityRoot entityRoot = ((BaseEntity) entity).getEntityRoot();
 
@@ -324,6 +330,37 @@ public class TeaQLRuntime {
         } catch (RuntimeException | Error error) {
             telemetryScope.failure(error);
             throw error;
+        }
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private void checkAndFix(UserContext context, Entity entity) {
+        Checker checker = checkers.get(entity.runtimeType());
+        if (checker == null) {
+            checker = checkers.get(entity.typeName());
+        }
+        if (checker == null) {
+            return;
+        }
+        context.putAttribute(Checker.TEAQL_DATA_CHECK_RESULT, new ArrayList<CheckResult>());
+        context.putAttribute(Checker.TEAQL_DATA_CHECKED_ITEMS, new ArrayList<>());
+        boolean ownsFixTime = context.getAttribute(Checker.TEAQL_FIX_TIME) == null;
+        if (ownsFixTime) {
+            context.putAttribute(Checker.TEAQL_FIX_TIME, java.time.LocalDateTime.now());
+        }
+        try {
+            checker.checkAndFix(context, (BaseEntity) entity);
+            List<CheckResult> violations = (List<CheckResult>)
+                    context.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT);
+            if (violations != null && !violations.isEmpty()) {
+                throw new CheckException(new ArrayList<>(violations));
+            }
+        } finally {
+            context.putAttribute(Checker.TEAQL_DATA_CHECK_RESULT, null);
+            context.putAttribute(Checker.TEAQL_DATA_CHECKED_ITEMS, null);
+            if (ownsFixTime) {
+                context.putAttribute(Checker.TEAQL_FIX_TIME, null);
+            }
         }
     }
 

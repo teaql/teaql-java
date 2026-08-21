@@ -4,6 +4,9 @@ import io.teaql.core.*;
 import io.teaql.core.meta.EntityDescriptor;
 import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.criteria.Operator;
+import io.teaql.core.checker.CheckException;
+import io.teaql.core.checker.Checker;
+import io.teaql.core.checker.ObjectLocation;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -13,6 +16,20 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.Map;
 
 public class TeaQLRuntimeTest {
+
+    public static class DummyChecker implements Checker<DummyEntity> {
+        int calls;
+
+        @Override public String type() { return "Dummy"; }
+
+        @Override
+        public void checkAndFix(UserContext context, DummyEntity entity, ObjectLocation location) {
+            calls++;
+            if (!needCheck(context, entity)) return;
+            markAsChecked(context, entity);
+            requiredCheck(context, newLocation(location, "name"), entity.name);
+        }
+    }
 
     public static class DummyEntity extends BaseEntity {
         private String name;
@@ -142,6 +159,36 @@ public class TeaQLRuntimeTest {
                 .metadata(new DummyMetaFactory())
                 .build();
         Assert.assertNotNull(runtime);
+    }
+
+    @Test
+    public void checkerFailurePreventsMutationAndTraversalStateIsSaveScoped() {
+        RecordingMutationExecutor executor = new RecordingMutationExecutor();
+        DummyChecker checker = new DummyChecker();
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new DummyMetaFactory())
+                .dataService("dummy", executor)
+                .idGenerationService((context, entity) -> 42L)
+                .build()
+                .install(RuntimeModule.of().withCheckers(checker));
+        DefaultUserContext context = new DefaultUserContext(runtime);
+        DummyEntity entity = new DummyEntity();
+        entity.setComment("create invalid dummy");
+
+        for (int attempt = 0; attempt < 2; attempt++) {
+            try {
+                runtime.saveGraph(context, entity);
+                Assert.fail("invalid entity must fail before mutation");
+            } catch (CheckException expected) {
+                Assert.assertEquals(1, expected.getViolates().size());
+                Assert.assertEquals("name", expected.getViolates().get(0).getLocation().toString());
+            }
+        }
+        Assert.assertEquals(2, checker.calls);
+        Assert.assertTrue(executor.requests.isEmpty());
+        Assert.assertNull(entity.getId());
+        Assert.assertNull(context.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT));
+        Assert.assertNull(context.getAttribute(Checker.TEAQL_DATA_CHECKED_ITEMS));
     }
 
     @Test
