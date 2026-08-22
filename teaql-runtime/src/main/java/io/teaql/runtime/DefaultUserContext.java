@@ -239,6 +239,11 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
     }
 
     @Override
+    public boolean isExecutionLoggingEnabled() {
+        return runtime == null || runtime.isExecutionLoggingEnabled();
+    }
+
+    @Override
     public void recordExecutionMetadata(io.teaql.core.ExecutionMetadata metadata) {
         if (metadata.getTraceChain() == null || metadata.getTraceChain().isEmpty()) {
             metadata.setTraceChain(getTraceChain());

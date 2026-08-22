@@ -98,6 +98,16 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
     List<TraceNode> getTraceChain();
 
     void popTrace();
+
+    /**
+     * Whether providers should construct and record execution-log metadata.
+     * Logging is enabled by default; benchmark and other explicitly quiet
+     * runtimes may disable it before the provider allocates debug payloads.
+     */
+    default boolean isExecutionLoggingEnabled() {
+        return true;
+    }
+
     void recordExecutionMetadata(ExecutionMetadata metadata);
 
     // Business-facing API

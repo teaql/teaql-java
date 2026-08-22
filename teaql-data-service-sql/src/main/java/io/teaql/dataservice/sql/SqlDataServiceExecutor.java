@@ -137,8 +137,10 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
 
                 @Override
                 public java.util.List<java.util.Map<String, Object>> query(io.teaql.core.UserContext context, String sql, Object[] args) {
-                    long start = System.nanoTime();
+                    boolean logging = context.isExecutionLoggingEnabled();
+                    long start = logging ? System.nanoTime() : 0L;
                     java.util.List<java.util.Map<String, Object>> res = executionAdapter.queryForList(sql, args);
+                    if (!logging) return res;
                     long elapsed = (System.nanoTime() - start) / 1000;
                     io.teaql.core.ExecutionMetadata meta = new io.teaql.core.ExecutionMetadata();
                     meta.setBackend("SQL-" + name);
@@ -177,8 +179,10 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
 
                 @Override
                 public int executeUpdate(io.teaql.core.UserContext context, String sql, Object[] args) {
-                    long start = System.nanoTime();
+                    boolean logging = context.isExecutionLoggingEnabled();
+                    long start = logging ? System.nanoTime() : 0L;
                     int res = executionAdapter.update(sql, args);
+                    if (!logging) return res;
                     long elapsed = (System.nanoTime() - start) / 1000;
                     io.teaql.core.ExecutionMetadata meta = new io.teaql.core.ExecutionMetadata();
                     meta.setBackend("SQL-" + name);
@@ -195,8 +199,10 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
 
                 @Override
                 public int[] batchUpdate(io.teaql.core.UserContext context, String sql, java.util.List<Object[]> batchArgs) {
-                    long start = System.nanoTime();
+                    boolean logging = context.isExecutionLoggingEnabled();
+                    long start = logging ? System.nanoTime() : 0L;
                     int[] res = executionAdapter.batchUpdate(sql, batchArgs);
+                    if (!logging) return res;
                     long elapsed = (System.nanoTime() - start) / 1000;
                     int total = 0; if (res != null) { for(int i: res) total += i; }
                     String loggedSql = sql;
@@ -221,8 +227,10 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
 
                 @Override
                 public void execute(io.teaql.core.UserContext context, String sql) {
-                    long start = System.nanoTime();
+                    boolean logging = context.isExecutionLoggingEnabled();
+                    long start = logging ? System.nanoTime() : 0L;
                     executionAdapter.execute(sql);
+                    if (!logging) return;
                     long elapsed = (System.nanoTime() - start) / 1000;
                     io.teaql.core.ExecutionMetadata meta = new io.teaql.core.ExecutionMetadata();
                     meta.setBackend("SQL-" + name);

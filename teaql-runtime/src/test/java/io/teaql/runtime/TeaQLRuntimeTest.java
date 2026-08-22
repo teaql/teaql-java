@@ -17,6 +17,22 @@ import java.util.Map;
 
 public class TeaQLRuntimeTest {
 
+    @Test
+    public void executionLoggingDefaultsOnAndCanBeDisabledWithoutDisablingAudit() {
+        TeaQLRuntime defaultRuntime = TeaQLRuntime.builder()
+                .metadata(new DummyMetaFactory())
+                .build();
+        Assert.assertTrue(defaultRuntime.isExecutionLoggingEnabled());
+        Assert.assertTrue(new DefaultUserContext(defaultRuntime).isExecutionLoggingEnabled());
+
+        TeaQLRuntime quietRuntime = TeaQLRuntime.builder()
+                .metadata(new DummyMetaFactory())
+                .executionLogging(false)
+                .build();
+        Assert.assertFalse(quietRuntime.isExecutionLoggingEnabled());
+        Assert.assertFalse(new DefaultUserContext(quietRuntime).isExecutionLoggingEnabled());
+    }
+
     public static class DummyChecker implements Checker<DummyEntity> {
         int calls;
 
@@ -634,6 +650,7 @@ public class TeaQLRuntimeTest {
                 .dataService("dummy", executor)
                 .idGenerationService((context, entity) -> 700L)
                 .logSink(standardSink)
+                .executionLogging(false)
                 .build();
         DefaultUserContext context = new DefaultUserContext(runtime);
         List<SafeAuditEvent> appEvents = new ArrayList<>();
