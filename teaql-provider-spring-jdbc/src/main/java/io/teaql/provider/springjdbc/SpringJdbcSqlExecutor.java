@@ -3,17 +3,24 @@ package io.teaql.provider.springjdbc;
 import io.teaql.dataservice.sql.SqlExecutionAdapter;
 import io.teaql.dataservice.sql.SqlRowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 public class SpringJdbcSqlExecutor implements SqlExecutionAdapter {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final TransactionTemplate transactionTemplate;
 
     public SpringJdbcSqlExecutor(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+        this.transactionTemplate = new TransactionTemplate(new DataSourceTransactionManager(
+                Objects.requireNonNull(jdbcTemplate.getJdbcTemplate().getDataSource(),
+                        "A DataSource is required for transactional SQL execution")));
     }
 
     @Override
@@ -73,5 +80,10 @@ public class SpringJdbcSqlExecutor implements SqlExecutionAdapter {
     @Override
     public int[] batchUpdate(String sql, List<Object[]> paramsList) {
         return jdbcTemplate.getJdbcTemplate().batchUpdate(sql, paramsList);
+    }
+
+    @Override
+    public void executeInTransaction(Runnable action) {
+        transactionTemplate.executeWithoutResult(status -> action.run());
     }
 }

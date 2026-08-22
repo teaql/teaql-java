@@ -14,6 +14,7 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
 public class SpringJdbcSqlExecutorTest {
 
@@ -93,5 +94,24 @@ public class SpringJdbcSqlExecutorTest {
 
         assertEquals(1, names.size());
         assertEquals("Alice", names.get(0));
+    }
+
+    @Test
+    public void testExecuteInTransactionRollsBackOnFailure() {
+        try {
+            sqlAdapter.executeInTransaction(() -> {
+                sqlAdapter.update(
+                        "INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
+                        new Object[]{200, "rollback", 1});
+                throw new IllegalStateException("force rollback");
+            });
+            fail("Expected transaction failure");
+        } catch (IllegalStateException expected) {
+            assertEquals("force rollback", expected.getMessage());
+        }
+
+        List<Map<String, Object>> rows = sqlAdapter.queryForList(
+                "SELECT * FROM test_user WHERE id = ?", new Object[]{200});
+        assertEquals(0, rows.size());
     }
 }

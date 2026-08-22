@@ -4,18 +4,18 @@ import io.teaql.core.InternalIdGenerationService;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
 /**
  * {@link InternalIdGenerationService} implementation backed by the {@code teaql_id_space} table.
  *
  * <p>This is the standard ID generation strategy for SQL-based TeaQL deployments.
- * It uses a simple SELECT-then-UPDATE approach within a transaction to allocate
- * monotonically increasing IDs per type name.</p>
+ * It uses a portable optimistic compare-and-set update to allocate monotonically
+ * increasing IDs per type name.</p>
  *
- * <p>Thread safety is guaranteed by the database transaction (row-level lock on
- * the {@code teaql_id_space} row for the given type name).</p>
+ * <p>Cross-process safety is guaranteed by including the previously read level
+ * in the update predicate and accepting the allocation only when exactly one row
+ * was changed. A concurrent winner causes this generator to read and retry.</p>
  *
  * <p>Usage:</p>
  * <pre>{@code
@@ -31,6 +31,7 @@ import java.util.logging.Logger;
 public class IdSpaceIdGenerator implements InternalIdGenerationService {
 
     private static final Logger LOG = Logger.getLogger(IdSpaceIdGenerator.class.getName());
+    private static final int MAX_ALLOCATION_ATTEMPTS = 100;
 
     private final TeaQLDatabase database;
     private final String idSpaceTable;
@@ -52,41 +53,66 @@ public class IdSpaceIdGenerator implements InternalIdGenerationService {
 
     @Override
     public long nextId(String typeName) {
-        AtomicLong result = new AtomicLong();
-
-        database.executeInTransaction(() -> {
-            Number dbCurrent = null;
-            try {
-                List<Map<String, Object>> rows = database.query(
-                        "SELECT current_level FROM " + idSpaceTable + " WHERE type_name = ?",
-                        new Object[]{typeName});
-                if (!rows.isEmpty()) {
-                    Object val = rows.get(0).get("current_level");
-                    if (val instanceof Number) {
-                        dbCurrent = (Number) val;
-                    } else if (val != null) {
-                        dbCurrent = Long.parseLong(String.valueOf(val));
+        for (int attempt = 1; attempt <= MAX_ALLOCATION_ATTEMPTS; attempt++) {
+            Long current = readCurrentLevel(typeName);
+            if (current == null) {
+                try {
+                    int inserted = database.executeUpdate(
+                            "INSERT INTO " + idSpaceTable
+                                    + " (type_name, current_level) VALUES (?, ?)",
+                            new Object[]{typeName, 1L});
+                    if (inserted == 1) {
+                        return 1L;
                     }
+                    throw new IllegalStateException(
+                            "Expected one inserted ID space row for type " + typeName
+                                    + ", inserted " + inserted);
+                } catch (RuntimeException insertFailure) {
+                    // A competing instance may have inserted the same primary-key row.
+                    // Only treat it as contention when that row is now observable.
+                    if (readCurrentLevel(typeName) == null) {
+                        throw insertFailure;
+                    }
+                    continue;
                 }
-            } catch (Exception ignored) {
-                // Table may not exist yet on first call
             }
 
-            if (dbCurrent == null) {
-                result.set(1L);
-                database.executeUpdate(
-                        "INSERT INTO " + idSpaceTable + " (type_name, current_level) VALUES (?, ?)",
-                        new Object[]{typeName, 1L});
-                return;
+            long next = Math.addExact(current, 1L);
+            int updated = database.executeUpdate(
+                    "UPDATE " + idSpaceTable
+                            + " SET current_level = ?"
+                            + " WHERE type_name = ? AND current_level = ?",
+                    new Object[]{next, typeName, current});
+            if (updated == 1) {
+                return next;
             }
-            long next = dbCurrent.longValue() + 1;
-            database.executeUpdate(
-                    "UPDATE " + idSpaceTable + " SET current_level = ? WHERE type_name = ?",
-                    new Object[]{next, typeName});
-            result.set(next);
-        });
+            if (updated != 0) {
+                throw new IllegalStateException(
+                        "Expected at most one ID space row for type " + typeName
+                                + ", updated " + updated);
+            }
+            // Another process won the compare-and-set. Re-read and retry.
+        }
+        throw new IllegalStateException(
+                "Unable to allocate ID for type " + typeName + " after "
+                        + MAX_ALLOCATION_ATTEMPTS + " optimistic-lock attempts");
+    }
 
-        return result.get();
+    private Long readCurrentLevel(String typeName) {
+        List<Map<String, Object>> rows = database.query(
+                "SELECT current_level FROM " + idSpaceTable + " WHERE type_name = ?",
+                new Object[]{typeName});
+        if (rows.isEmpty()) {
+            return null;
+        }
+        Object value = rows.get(0).get("current_level");
+        if (value == null) {
+            throw new IllegalStateException(
+                    "ID space current_level must not be null for type " + typeName);
+        }
+        return value instanceof Number
+                ? ((Number) value).longValue()
+                : Long.parseLong(String.valueOf(value));
     }
 
     @Override
