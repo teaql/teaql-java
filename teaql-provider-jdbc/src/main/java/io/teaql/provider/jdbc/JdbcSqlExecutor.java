@@ -199,11 +199,29 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             if (type == java.time.LocalDateTime.class && value instanceof java.sql.Timestamp timestamp) {
                 return (V) timestamp.toLocalDateTime();
             }
+            if (type == java.time.LocalDateTime.class) {
+                return (V) java.time.LocalDateTime.parse(String.valueOf(value).replace(' ', 'T'));
+            }
             if (type == java.time.LocalDate.class && value instanceof java.sql.Date date) {
                 return (V) date.toLocalDate();
             }
+            if (type == java.time.LocalDate.class && value instanceof java.sql.Timestamp timestamp) {
+                return (V) timestamp.toLocalDateTime().toLocalDate();
+            }
+            if (type == java.time.LocalDate.class) {
+                String text = String.valueOf(value);
+                return (V) java.time.LocalDate.parse(text.substring(0, Math.min(10, text.length())));
+            }
             if (type == java.time.LocalTime.class && value instanceof java.sql.Time time) {
                 return (V) time.toLocalTime();
+            }
+            if (type == java.time.LocalTime.class && value instanceof java.sql.Timestamp timestamp) {
+                return (V) timestamp.toLocalDateTime().toLocalTime();
+            }
+            if (type == java.time.LocalTime.class) {
+                String text = String.valueOf(value);
+                int separator = Math.max(text.indexOf('T'), text.indexOf(' '));
+                return (V) java.time.LocalTime.parse(separator < 0 ? text : text.substring(separator + 1));
             }
             if (type == String.class) return (V) String.valueOf(value);
             throw new IllegalArgumentException("Cannot convert JDBC value " + value.getClass().getName()

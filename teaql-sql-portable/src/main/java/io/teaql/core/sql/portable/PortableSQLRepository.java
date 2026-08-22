@@ -526,7 +526,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 mapperExtension instanceof io.teaql.core.CompiledRowMapper<?> explicitMapper
                         ? explicitMapper
                         : plan == null ? compileRowMapper(executedRequest) : plan.rowMapper();
-        if (selectedMapper != null) {
+        if (selectedMapper != null && database.supportsCompiledRowMapping()) {
             io.teaql.core.CompiledRowMapper<?> rawMapper = selectedMapper;
             @SuppressWarnings("unchecked")
             io.teaql.core.CompiledRowMapper<T> mapper =

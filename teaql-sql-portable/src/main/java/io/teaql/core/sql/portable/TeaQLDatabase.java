@@ -11,6 +11,10 @@ import java.util.stream.Stream;
  */
 public interface TeaQLDatabase {
 
+    default boolean supportsCompiledRowMapping() {
+        return false;
+    }
+
     /**
      * Execute a query and return a list of rows. Each row is a Map (column name -> value).
      */

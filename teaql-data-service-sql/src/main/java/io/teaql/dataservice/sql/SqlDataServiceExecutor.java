@@ -102,6 +102,11 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
         if (portableService == null) {
             io.teaql.core.sql.portable.TeaQLDatabase dbAdapter = new io.teaql.core.sql.portable.TeaQLDatabase() {
                 @Override
+                public boolean supportsCompiledRowMapping() {
+                    return true;
+                }
+
+                @Override
                 public java.util.List<java.util.Map<String, Object>> query(String sql, Object[] args) {
                     return executionAdapter.queryForList(sql, args);
                 }
