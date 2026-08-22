@@ -16,16 +16,22 @@ import io.teaql.core.utils.MapUtil;
 import io.teaql.core.utils.ObjectUtil;
 
 public class SmartList<T extends Entity> implements Iterable<T> {
-    List<T> data = new ArrayList<T>();
+    List<T> data;
 
-    List<AggregationResult> aggregationResults = new ArrayList<>();
+    List<AggregationResult> aggregationResults;
 
-    Map<String, SmartList> facets = new HashMap<>();
+    Map<String, SmartList> facets;
 
     public SmartList() {
+        data = new ArrayList<>();
+    }
+
+    public SmartList(int expectedSize) {
+        data = new ArrayList<>(Math.max(0, expectedSize));
     }
 
     public SmartList(List<T> data) {
+        this(data == null ? 0 : data.size());
         if (data != null) {
             this.data.addAll(data);
         }
@@ -77,11 +83,11 @@ public class SmartList<T extends Entity> implements Iterable<T> {
     }
 
     public void addAggregationResult(UserContext userContext, AggregationResult aggregationResult) {
-        aggregationResults.add(aggregationResult);
+        mutableAggregationResults().add(aggregationResult);
     }
 
     public List<AggregationResult> getAggregationResults() {
-        return aggregationResults;
+        return mutableAggregationResults();
     }
 
     public void setAggregationResults(List<AggregationResult> pAggregationResults) {
@@ -144,11 +150,11 @@ public class SmartList<T extends Entity> implements Iterable<T> {
     }
 
     public void addFacet(String name, SmartList facet) {
-        facets.put(name, facet);
+        mutableFacets().put(name, facet);
     }
 
     public Map<String, SmartList> getFacets() {
-        return facets;
+        return mutableFacets();
     }
 
     public void setFacets(Map<String, SmartList> facets) {
@@ -156,15 +162,25 @@ public class SmartList<T extends Entity> implements Iterable<T> {
     }
 
     public SmartList getFacet(String name) {
-        return facets.get(name);
+        return facets == null ? null : facets.get(name);
     }
 
     public SmartList removeFacet(String name) {
-        return facets.remove(name);
+        return facets == null ? null : facets.remove(name);
     }
 
     public void clearFacets() {
-        facets.clear();
+        if (facets != null) facets.clear();
+    }
+
+    private List<AggregationResult> mutableAggregationResults() {
+        if (aggregationResults == null) aggregationResults = new ArrayList<>();
+        return aggregationResults;
+    }
+
+    private Map<String, SmartList> mutableFacets() {
+        if (facets == null) facets = new HashMap<>();
+        return facets;
     }
 
     public Map<String, Object> aggregationProperties() {

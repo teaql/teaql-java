@@ -508,11 +508,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             }
         }
         List<Map<String, Object>> rows = database.query(userContext, psql.sql, psql.args);
-        List<T> results = rows.stream()
-                .map(row -> mapRowToEntity(userContext, executedRequest, row))
-                .collect(Collectors.toList());
-        registerContinuousPage(userContext, request, pageExecution, results);
-        SmartList<T> smartList = new SmartList<>(results);
+        SmartList<T> smartList = new SmartList<>(rows.size());
+        for (Map<String, Object> row : rows) {
+            smartList.add(mapRowToEntity(userContext, executedRequest, row));
+        }
+        registerContinuousPage(userContext, request, pageExecution, smartList.getData());
         
         java.util.List<io.teaql.core.FacetRequest> facetRequests = request.getFacetRequests();
         if (facetRequests != null && !facetRequests.isEmpty()) {
