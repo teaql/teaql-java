@@ -220,7 +220,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     private record ColumnBinding(
             int index,
             PropertyDescriptor property,
-            EntityDescriptor relationDescriptor) {}
+            EntityDescriptor relationDescriptor,
+            int loadedPropertyIndex) {}
 
     private record QueryShape(String key, Object[] arguments) {}
 
@@ -641,7 +642,13 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             EntityDescriptor relationDescriptor = property instanceof Relation
                     ? resolveDescriptor((Class<? extends Entity>) property.getType().javaType())
                     : null;
-            bindings.add(new ColumnBinding(index++, property, relationDescriptor));
+            bindings.add(new ColumnBinding(
+                    index++,
+                    property,
+                    relationDescriptor,
+                    BaseEntity.loadedPropertyIndex(
+                            (Class<? extends BaseEntity>) resultDescriptor.getTargetType(),
+                            property.getName())));
         }
 
         return row -> {
@@ -664,7 +671,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                         value = reference;
                     }
                 }
-                base.__internalSet(property.getName(), value);
+                base.__internalHydrate(
+                        property.getName(), value, binding.loadedPropertyIndex());
             }
             base.set$status(resolvePersistedStatus(entity.getVersion()));
             base.clearUpdatedProperties();

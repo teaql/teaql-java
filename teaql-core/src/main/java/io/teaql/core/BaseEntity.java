@@ -26,7 +26,17 @@ public class BaseEntity implements Entity {
 
     private Map<String, PropertyChange> updatedProperties = new ConcurrentHashMap<>();
 
-    private final Set<String> loadedProperties = ConcurrentHashMap.newKeySet();
+    private static final ClassValue<LoadedPropertyLayout> LOADED_PROPERTY_LAYOUTS =
+            new ClassValue<>() {
+                @Override
+                protected LoadedPropertyLayout computeValue(Class<?> type) {
+                    return new LoadedPropertyLayout();
+                }
+            };
+
+    private long loadedPropertyBits;
+    private Set<String> overflowLoadedProperties;
+    private boolean hydratingProperty;
 
     private Map<String, Object> additionalInfo = new ConcurrentHashMap<>();
 
@@ -355,12 +365,57 @@ public class BaseEntity implements Entity {
 
     @FrameworkInternal("Expression and hydration infrastructure only")
     public void markPropertyLoaded(String propertyName) {
-		if (propertyName != null) loadedProperties.add(propertyName);
+		if (propertyName == null || hydratingProperty) return;
+        markPropertyLoaded(loadedPropertyIndex(getClass(), propertyName), propertyName);
 	}
 
     public boolean isPropertyLoaded(String propertyName) {
-		return loadedProperties.contains(propertyName);
+		if (propertyName == null) return false;
+        Integer index = LOADED_PROPERTY_LAYOUTS.get(getClass()).find(propertyName);
+        if (index == null) return overflowLoadedProperties != null
+                && overflowLoadedProperties.contains(propertyName);
+        if (index < Long.SIZE) return (loadedPropertyBits & (1L << index)) != 0;
+        return overflowLoadedProperties != null && overflowLoadedProperties.contains(propertyName);
 	}
+
+    @FrameworkInternal("Compiled hydration infrastructure only")
+    public static int loadedPropertyIndex(Class<? extends BaseEntity> entityType, String propertyName) {
+        return LOADED_PROPERTY_LAYOUTS.get(entityType).index(propertyName);
+    }
+
+    @FrameworkInternal("Compiled hydration infrastructure only")
+    public void __internalHydrate(String propertyName, Object value, int loadedPropertyIndex) {
+        hydratingProperty = true;
+        try {
+            __internalSet(propertyName, value);
+        } finally {
+            hydratingProperty = false;
+        }
+        markPropertyLoaded(loadedPropertyIndex, propertyName);
+    }
+
+    private void markPropertyLoaded(int index, String propertyName) {
+        if (index < Long.SIZE) {
+            loadedPropertyBits |= 1L << index;
+            return;
+        }
+        if (overflowLoadedProperties == null) overflowLoadedProperties = new java.util.HashSet<>();
+        overflowLoadedProperties.add(propertyName);
+    }
+
+    private static final class LoadedPropertyLayout {
+        private final ConcurrentHashMap<String, Integer> indexes = new ConcurrentHashMap<>();
+        private final java.util.concurrent.atomic.AtomicInteger nextIndex =
+                new java.util.concurrent.atomic.AtomicInteger();
+
+        int index(String propertyName) {
+            return indexes.computeIfAbsent(propertyName, ignored -> nextIndex.getAndIncrement());
+        }
+
+        Integer find(String propertyName) {
+            return indexes.get(propertyName);
+        }
+    }
 
     @Override
     public Entity updateProperty(String propertyName, Object value) {

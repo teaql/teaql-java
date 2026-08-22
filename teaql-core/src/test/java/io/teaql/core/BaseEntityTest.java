@@ -204,6 +204,27 @@ public class BaseEntityTest {
         assertEquals("anotherType", e.getSubType());
         assertEquals("anotherType", e.runtimeType());
     }
+
+    @Test
+    public void testLoadedPropertyBitsAndOverflowPreserveSemantics() {
+        TestEntity entity = new TestEntity();
+        for (int i = 0; i < 70; i++) entity.markPropertyLoaded("field" + i);
+
+        for (int i = 0; i < 70; i++) assertTrue(entity.isPropertyLoaded("field" + i));
+        assertFalse(entity.isPropertyLoaded("notLoaded"));
+    }
+
+    @Test
+    public void testCompiledHydrationMarksLoadedWithoutRecordingAnUpdate() {
+        TestEntity entity = new TestEntity();
+        int index = BaseEntity.loadedPropertyIndex(TestEntity.class, "name");
+
+        entity.__internalHydrate("name", "Hydrated", index);
+
+        assertEquals("Hydrated", entity.getName());
+        assertTrue(entity.isPropertyLoaded("name"));
+        assertTrue(entity.getUpdatedProperties().isEmpty());
+    }
     
     @Test
     public void testActionList() {
