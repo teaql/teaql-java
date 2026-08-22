@@ -53,6 +53,22 @@ public class SqlDataServiceExecutorTest {
     }
 
     @Test
+    public void genericExecutorRejectsSchemaInitialization() {
+        UnsupportedOperationException error = Assert.assertThrows(
+                UnsupportedOperationException.class,
+                () -> executor.ensureSchema(null));
+
+        assertEquals(
+                "Schema initialization is not implemented by "
+                        + "io.teaql.dataservice.sql.SqlDataServiceExecutor "
+                        + "(database kind: postgresql, dialect: PostgreSqlDialect). "
+                        + "Use the database-specific executor "
+                        + "io.teaql.core.postgres.PostgresDataServiceExecutor "
+                        + "and call SchemaExecutor.ensureSchema(context) explicitly.",
+                error.getMessage());
+    }
+
+    @Test
     public void debugSqlRendersCopyPasteStatement() {
         String sql = "SELECT * FROM school WHERE name = ? AND active = ? AND phone IS ? AND note = '?'";
         Object[] parameters = {"O'Brien School", true, null};

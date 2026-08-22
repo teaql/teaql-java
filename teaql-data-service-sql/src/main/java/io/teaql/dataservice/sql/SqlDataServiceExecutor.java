@@ -66,6 +66,29 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
 
     @Override
     public void ensureSchema(UserContext context) {
+        throw new UnsupportedOperationException(
+                "Schema initialization is not implemented by " + getClass().getName()
+                        + " (database kind: " + debugDatabaseKind
+                        + ", dialect: " + dialect.getClass().getSimpleName() + "). "
+                        + "Use the database-specific executor "
+                        + suggestedSchemaExecutor(debugDatabaseKind)
+                        + " and call SchemaExecutor.ensureSchema(context) explicitly.");
+    }
+
+    private static String suggestedSchemaExecutor(String databaseKind) {
+        return switch (databaseKind == null ? "" : databaseKind.toLowerCase(java.util.Locale.ROOT)) {
+            case "postgres", "postgresql" -> "io.teaql.core.postgres.PostgresDataServiceExecutor";
+            case "mysql" -> "io.teaql.core.mysql.MysqlDataServiceExecutor";
+            case "sqlite" -> "io.teaql.core.sqlite.SqliteDataServiceExecutor";
+            case "oracle" -> "io.teaql.core.oracle.OracleDataServiceExecutor";
+            case "mssql", "sqlserver" -> "io.teaql.core.mssql.MssqlDataServiceExecutor";
+            case "db2" -> "io.teaql.core.db2.DB2DataServiceExecutor";
+            case "hana" -> "io.teaql.core.hana.HanaDataServiceExecutor";
+            case "dm8" -> "io.teaql.core.dm8.Dm8DataServiceExecutor";
+            case "duckdb" -> "io.teaql.core.duck.DuckDataServiceExecutor";
+            case "snowflake" -> "io.teaql.core.snowflake.SnowflakeDataServiceExecutor";
+            default -> "a matching database-specific DataServiceExecutor";
+        };
     }
 
     public SqlExecutionAdapter getExecutionAdapter() {
