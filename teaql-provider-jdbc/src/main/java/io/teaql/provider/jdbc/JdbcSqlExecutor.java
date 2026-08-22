@@ -45,6 +45,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 }
             }
             ResultSet rs = ps.executeQuery();
+            String[] columnLabels = columnLabels(rs);
             java.util.Iterator<Map<String, Object>> iterator = new java.util.Iterator<>() {
                 private boolean ready;
                 private boolean hasNext;
@@ -70,9 +71,8 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                     ready = false;
                     try {
                         Map<String, Object> row = new java.util.HashMap<>();
-                        int count = rs.getMetaData().getColumnCount();
-                        for (int i = 1; i <= count; i++) {
-                            row.put(rs.getMetaData().getColumnLabel(i).toLowerCase(), rs.getObject(i));
+                        for (int i = 0; i < columnLabels.length; i++) {
+                            row.put(columnLabels[i], rs.getObject(i + 1));
                         }
                         return row;
                     } catch (SQLException e) {
@@ -114,15 +114,11 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 }
             }
             try (ResultSet rs = ps.executeQuery()) {
-                int columnCount = rs.getMetaData().getColumnCount();
+                String[] columnLabels = columnLabels(rs);
                 while (rs.next()) {
                     java.util.Map<String, Object> row = new java.util.HashMap<>();
-                    for (int i = 1; i <= columnCount; i++) {
-                        String label = rs.getMetaData().getColumnLabel(i);
-                        if (label != null) {
-                            label = label.toLowerCase();
-                        }
-                        row.put(label, rs.getObject(i));
+                    for (int i = 0; i < columnLabels.length; i++) {
+                        row.put(columnLabels[i], rs.getObject(i + 1));
                     }
                     result.add(row);
                 }
@@ -134,6 +130,17 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         } finally {
             if (owned && connection != null) try { connection.close(); } catch (SQLException ignored) { }
         }
+    }
+
+    private static String[] columnLabels(ResultSet resultSet) throws SQLException {
+        java.sql.ResultSetMetaData metadata = resultSet.getMetaData();
+        int columnCount = metadata.getColumnCount();
+        String[] labels = new String[columnCount];
+        for (int i = 0; i < columnCount; i++) {
+            String label = metadata.getColumnLabel(i + 1);
+            labels[i] = label == null ? null : label.toLowerCase(java.util.Locale.ROOT);
+        }
+        return labels;
     }
 
     @Override
