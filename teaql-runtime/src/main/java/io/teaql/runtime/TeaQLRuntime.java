@@ -15,6 +15,7 @@ public class TeaQLRuntime {
     private final RequestPolicy requestPolicy;
     private final InternalIdGenerationService idGenerationService;
     private final RuntimeLogSink logSink;
+    private final boolean executionLoggingEnabled;
     private final RuntimeTelemetry telemetry;
     private final Map<String, Checker<?>> checkers = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -24,6 +25,7 @@ public class TeaQLRuntime {
         this.requestPolicy = builder.requestPolicy;
         this.idGenerationService = builder.idGenerationService;
         this.logSink = builder.logSink;
+        this.executionLoggingEnabled = builder.executionLoggingEnabled;
         this.telemetry = builder.telemetry != null ? builder.telemetry : RuntimeTelemetry.NOOP;
     }
 
@@ -49,6 +51,10 @@ public class TeaQLRuntime {
 
     public RuntimeLogSink getLogSink() {
         return logSink;
+    }
+
+    public boolean isExecutionLoggingEnabled() {
+        return executionLoggingEnabled;
     }
 
     public RuntimeTelemetry getTelemetry() {
@@ -122,6 +128,9 @@ public class TeaQLRuntime {
         if (!(countResult instanceof DefaultQueryResult result)
                 || result.getAggregationResult() == null) {
             throw new TeaQLRuntimeException("Exact page count is not supported for route: " + route);
+        }
+        if (rows.isSharedEmpty()) {
+            rows = new SmartList<>();
         }
         rows.addAggregationResult(context, result.getAggregationResult());
         return rows;
@@ -751,6 +760,7 @@ public class TeaQLRuntime {
         private RequestPolicy requestPolicy;
         private InternalIdGenerationService idGenerationService;
         private RuntimeLogSink logSink;
+        private boolean executionLoggingEnabled = true;
         private RuntimeTelemetry telemetry = RuntimeTelemetry.NOOP;
 
         public Builder metadata(EntityMetaFactory metadata) {
@@ -783,6 +793,16 @@ public class TeaQLRuntime {
 
         public Builder logSink(RuntimeLogSink logSink) {
             this.logSink = logSink;
+            return this;
+        }
+
+        /**
+         * Controls construction and delivery of execution-log metadata.
+         * Defaults to true. Disabling this does not disable audit events or
+         * runtime telemetry, which have independent lifecycle and sampling.
+         */
+        public Builder executionLogging(boolean enabled) {
+            this.executionLoggingEnabled = enabled;
             return this;
         }
 

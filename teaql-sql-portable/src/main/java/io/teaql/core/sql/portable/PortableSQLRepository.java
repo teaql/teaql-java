@@ -508,6 +508,10 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             }
         }
         List<Map<String, Object>> rows = database.query(userContext, psql.sql, psql.args);
+        if (rows.isEmpty() && ObjectUtil.isEmpty(request.getFacetRequests())) {
+            registerContinuousPage(userContext, request, pageExecution, List.of());
+            return SmartList.empty(request.returnType());
+        }
         SmartList<T> smartList = new SmartList<>(rows.size());
         for (Map<String, Object> row : rows) {
             smartList.add(mapRowToEntity(userContext, executedRequest, row));

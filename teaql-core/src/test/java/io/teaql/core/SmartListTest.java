@@ -12,6 +12,27 @@ public class SmartListTest {
         @Override public String typeName() { return "dummy"; }
     }
 
+    static class OtherEntity extends BaseEntity {
+        @Override public String typeName() { return "other"; }
+    }
+
+    @Test
+    public void typedEmptyListIsSharedPerEntityTypeAndImmutable() {
+        SmartList<DummyEntity> first = SmartList.empty(DummyEntity.class);
+        SmartList<DummyEntity> second = SmartList.empty(DummyEntity.class);
+        SmartList<OtherEntity> other = SmartList.empty(OtherEntity.class);
+
+        assertSame(first, second);
+        assertNotSame(first, other);
+        assertTrue(first.isEmpty());
+        assertTrue(first.isSharedEmpty());
+        assertFalse(new SmartList<DummyEntity>().isSharedEmpty());
+        assertThrows(UnsupportedOperationException.class,
+                () -> first.add(new DummyEntity(1L)));
+        assertThrows(UnsupportedOperationException.class,
+                () -> first.getData().add(new DummyEntity(1L)));
+    }
+
     private UserContext createDummyContext() {
         return (UserContext) java.lang.reflect.Proxy.newProxyInstance(
             UserContext.class.getClassLoader(),
