@@ -128,6 +128,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     private List<String> auxiliaryTableNames;
     private List<PropertyDescriptor> allProperties = new ArrayList<>();
     private Map<Class, SQLExpressionParser> expressionParsers = new ConcurrentHashMap<>();
+    private final Map<String, CompiledQueryPlan> compiledQueryPlans = new ConcurrentHashMap<>();
+    private static final int MAX_COMPILED_QUERY_PLANS = 512;
 
     public interface PortableSQLRepositoryResolver {
         PortableSQLRepository<?> resolve(String typeName);
@@ -208,6 +210,10 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             this.args = args;
         }
     }
+
+    private record CompiledQueryPlan(String sql, int parameterCount) {}
+
+    private record QueryShape(String key, Object[] arguments) {}
 
     private PositionalSQL toPositional(String namedSql, Map<String, Object> params) {
         List<Object> args = new ArrayList<>();
@@ -470,19 +476,37 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             boolean optimized) {}
 
     public SmartList<T> loadInternal(UserContext userContext, SearchRequest<T> request) {
-        Map<String, Object> params = new HashMap<>();
-        String sql = buildDataSQL(userContext, request, params);
-        if (ObjectUtil.isEmpty(sql)) {
-            return new SmartList<>();
+        QueryShape shape = simpleQueryShape(userContext, request);
+        CompiledQueryPlan plan = shape == null ? null : compiledQueryPlans.get(shape.key());
+        ContinuousPageExecution pageExecution;
+        SearchRequest<T> executedRequest;
+        PositionalSQL psql;
+        if (plan != null && plan.parameterCount() == shape.arguments().length) {
+            psql = new PositionalSQL(plan.sql(), shape.arguments());
+            pageExecution = fallback(userContext, request, null, "DISABLED");
+            executedRequest = request;
         }
-        ContinuousPageExecution pageExecution = prepareContinuousPage(
-                userContext, request, sql, params);
-        SearchRequest<T> executedRequest = pageExecution.request();
-        if (pageExecution.request() != request) {
-            params = new HashMap<>();
-            sql = buildDataSQL(userContext, executedRequest, params);
+        else {
+            Map<String, Object> params = new HashMap<>();
+            String sql = buildDataSQL(userContext, request, params);
+            if (ObjectUtil.isEmpty(sql)) {
+                return new SmartList<>();
+            }
+            pageExecution = prepareContinuousPage(userContext, request, sql, params);
+            executedRequest = pageExecution.request();
+            if (pageExecution.request() != request) {
+                params = new HashMap<>();
+                sql = buildDataSQL(userContext, executedRequest, params);
+            }
+            psql = toPositional(sql, params);
+            if (shape != null && psql.args.length == shape.arguments().length) {
+                if (compiledQueryPlans.size() >= MAX_COMPILED_QUERY_PLANS) {
+                    compiledQueryPlans.clear();
+                }
+                compiledQueryPlans.putIfAbsent(shape.key(),
+                        new CompiledQueryPlan(psql.sql, psql.args.length));
+            }
         }
-        PositionalSQL psql = toPositional(sql, params);
         List<Map<String, Object>> rows = database.query(userContext, psql.sql, psql.args);
         List<T> results = rows.stream()
                 .map(row -> mapRowToEntity(userContext, executedRequest, row))
@@ -544,6 +568,113 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         }
         
         return smartList;
+    }
+
+    private QueryShape simpleQueryShape(UserContext context, SearchRequest<T> request) {
+        if (!(request instanceof io.teaql.core.BaseRequest<?> )
+                || request.continuousPageFetchOptions() != null
+                || request.hasSimpleAgg()
+                || ObjectUtil.isNotEmpty(request.getPartitionProperty())
+                || ObjectUtil.isNotEmpty(request.getSearchForText())
+                || ObjectUtil.isNotEmpty(request.getSimpleDynamicProperties())
+                || ObjectUtil.isNotEmpty(request.getDynamicAggregateAttributes())
+                || ObjectUtil.isNotEmpty(request.enhanceRelations())
+                || ObjectUtil.isNotEmpty(request.enhanceChildren())
+                || ObjectUtil.isNotEmpty(request.getFacetRequests())
+                || ObjectUtil.isNotEmpty(request.getPropagateAggregations())
+                || ObjectUtil.isNotEmpty(request.getPropagateDimensions())
+                || request.getDynamicFieldSelection() != null) {
+            return null;
+        }
+        StringBuilder key = new StringBuilder(192)
+                .append(dialect.getClass().getName()).append('|')
+                .append(request.getClass().getName()).append('|')
+                .append(request.returnType().getName()).append('|');
+        List<Object> arguments = new ArrayList<>();
+        for (SimpleNamedExpression projection : request.getProjections()) {
+            key.append("S:").append(projection.name()).append('=');
+            if (!appendExpressionShape(projection.getExpression(), key, arguments, false)) return null;
+            key.append(';');
+        }
+        key.append("W:");
+        if (!appendExpressionShape(request.getSearchCriteria(), key, arguments, false)) return null;
+        key.append("|O:");
+        for (OrderBy order : request.getOrderBy().getOrderBys()) {
+            if (!appendExpressionShape(order.getExpression(), key, arguments, false)) return null;
+            key.append(':').append(order.getDirection()).append(';');
+        }
+        Slice slice = request.getSlice();
+        if (slice == null) {
+            key.append("|L:none");
+        }
+        else {
+            key.append("|L:param:O:").append(slice.getOffset() == 0 ? "zero" : "param");
+            arguments.add(slice.getSize());
+            if (slice.getOffset() != 0) arguments.add(slice.getOffset());
+        }
+        key.append("|M:").append(context.getBool(io.teaql.core.sql.SqlAstCompiler.MULTI_TABLE, false))
+                .append(':').append(context.getBool(MULTI_TABLE, false))
+                .append("|I:").append(context.getBool(
+                        io.teaql.core.sql.SqlAstCompiler.IGNORE_SUBTYPES, false));
+        return new QueryShape(key.toString(), arguments.toArray());
+    }
+
+    private boolean appendExpressionShape(
+            Expression expression, StringBuilder key, List<Object> arguments, boolean inlineParameter) {
+        if (expression == null) {
+            key.append("null");
+            return true;
+        }
+        if (expression instanceof io.teaql.core.criteria.VersionSearchCriteria version) {
+            SearchCriteria nested = version.getSearchCriteria();
+            boolean active = isActiveVersionPredicate(nested);
+            key.append(active ? "VACTIVE(" : "V(");
+            boolean supported = appendExpressionShape(nested, key, arguments, active);
+            key.append(')');
+            return supported;
+        }
+        if (expression instanceof PropertyReference property) {
+            key.append("P:").append(property.getPropertyName());
+            return true;
+        }
+        if (expression instanceof Parameter parameter) {
+            Object value = parameter.getValue();
+            if (inlineParameter) {
+                key.append("C:0");
+                return true;
+            }
+            Collection<?> expanded = expandedParameterValues(value);
+            if (expanded == null) {
+                key.append("?:1");
+                arguments.add(value);
+            }
+            else {
+                key.append("?:").append(expanded.size());
+                if (expanded.isEmpty()) arguments.add(null);
+                else arguments.addAll(expanded);
+            }
+            return true;
+        }
+        if (expression instanceof FunctionApply function) {
+            key.append("F:").append(function.getOperator()).append('(');
+            for (Expression child : function.getExpressions()) {
+                if (!appendExpressionShape(child, key, arguments, inlineParameter)) return false;
+                key.append(',');
+            }
+            key.append(')');
+            return true;
+        }
+        return false;
+    }
+
+    private boolean isActiveVersionPredicate(SearchCriteria criteria) {
+        if (!(criteria instanceof io.teaql.core.criteria.TwoOperatorCriteria function)
+                || function.getOperator() != Operator.GREATER_THAN
+                || !(function.first() instanceof PropertyReference property)
+                || !"version".equals(property.getPropertyName())
+                || !(function.second() instanceof Parameter parameter)
+                || !(parameter.getValue() instanceof Number number)) return false;
+        return number.longValue() == 0L && number.doubleValue() == 0D;
     }
 
     @SuppressWarnings("unchecked")
