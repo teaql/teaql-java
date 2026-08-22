@@ -212,7 +212,15 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         }
     }
 
-    private record CompiledQueryPlan(String sql, int parameterCount) {}
+    private record CompiledQueryPlan(
+            String sql,
+            int parameterCount,
+            io.teaql.core.CompiledRowMapper<?> rowMapper) {}
+
+    private record ColumnBinding(
+            int index,
+            PropertyDescriptor property,
+            EntityDescriptor relationDescriptor) {}
 
     private record QueryShape(String key, Object[] arguments) {}
 
@@ -504,13 +512,22 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 if (compiledQueryPlans.size() >= MAX_COMPILED_QUERY_PLANS) {
                     compiledQueryPlans.clear();
                 }
-                compiledQueryPlans.putIfAbsent(shape.key(),
-                        new CompiledQueryPlan(psql.sql, psql.args.length));
+                CompiledQueryPlan candidate = new CompiledQueryPlan(
+                        psql.sql,
+                        psql.args.length,
+                        compileRowMapper(executedRequest));
+                CompiledQueryPlan existing = compiledQueryPlans.putIfAbsent(shape.key(), candidate);
+                plan = existing == null ? candidate : existing;
             }
         }
         SmartList<T> smartList;
         Object mapperExtension = request.getExtension(COMPILED_ROW_MAPPER);
-        if (mapperExtension instanceof io.teaql.core.CompiledRowMapper<?> rawMapper) {
+        io.teaql.core.CompiledRowMapper<?> selectedMapper =
+                mapperExtension instanceof io.teaql.core.CompiledRowMapper<?> explicitMapper
+                        ? explicitMapper
+                        : plan == null ? compileRowMapper(executedRequest) : plan.rowMapper();
+        if (selectedMapper != null) {
+            io.teaql.core.CompiledRowMapper<?> rawMapper = selectedMapper;
             @SuppressWarnings("unchecked")
             io.teaql.core.CompiledRowMapper<T> mapper =
                     (io.teaql.core.CompiledRowMapper<T>) rawMapper;
@@ -588,6 +605,71 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         }
         
         return smartList;
+    }
+
+    private io.teaql.core.CompiledRowMapper<T> compileRowMapper(SearchRequest<T> request) {
+        // Subtype discriminators and dynamic projections carry values that are not entity properties.
+        // Keep those uncommon shapes on the generic mapper until their binding model is explicit.
+        if (entityDescriptor.hasChildren()
+                || ObjectUtil.isNotEmpty(request.getSimpleDynamicProperties())) return null;
+
+        List<SimpleNamedExpression> projections = request.getProjections();
+        List<PropertyDescriptor> selected = new ArrayList<>();
+        if (ObjectUtil.isEmpty(projections)) {
+            for (PropertyDescriptor property : allProperties) {
+                if (shouldHandle(property)) selected.add(property);
+            }
+        }
+        else {
+            for (SimpleNamedExpression projection : projections) {
+                PropertyDescriptor property = null;
+                for (PropertyDescriptor candidate : allProperties) {
+                    if (candidate.getName().equals(projection.name())) {
+                        property = candidate;
+                        break;
+                    }
+                }
+                if (property == null || !shouldHandle(property)) return null;
+                selected.add(property);
+            }
+        }
+
+        EntityDescriptor resultDescriptor = resolveDescriptor(request.returnType());
+        List<ColumnBinding> bindings = new ArrayList<>(selected.size());
+        int index = 1;
+        for (PropertyDescriptor property : selected) {
+            EntityDescriptor relationDescriptor = property instanceof Relation
+                    ? resolveDescriptor((Class<? extends Entity>) property.getType().javaType())
+                    : null;
+            bindings.add(new ColumnBinding(index++, property, relationDescriptor));
+        }
+
+        return row -> {
+            @SuppressWarnings("unchecked")
+            T entity = (T) resultDescriptor.createEntity();
+            BaseEntity base = (BaseEntity) entity;
+            for (ColumnBinding binding : bindings) {
+                PropertyDescriptor property = binding.property();
+                Object value;
+                if (binding.relationDescriptor() == null) {
+                    value = row.get(binding.index(), property.getType().javaType());
+                }
+                else {
+                    Long id = row.get(binding.index(), Long.class);
+                    if (id == null) value = null;
+                    else {
+                        BaseEntity reference = (BaseEntity) binding.relationDescriptor().createEntity();
+                        reference.__internalSet(BaseEntity.ID_PROPERTY, id);
+                        reference.set$status(io.teaql.core.EntityStatus.REFER);
+                        value = reference;
+                    }
+                }
+                base.__internalSet(property.getName(), value);
+            }
+            base.set$status(resolvePersistedStatus(entity.getVersion()));
+            base.clearUpdatedProperties();
+            return entity;
+        };
     }
 
     private QueryShape simpleQueryShape(UserContext context, SearchRequest<T> request) {
