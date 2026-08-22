@@ -1218,12 +1218,20 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         while (parameters.containsKey(limitKey)) limitKey += "_1";
         parameters.put(limitKey, slice.getSize());
         
-        String offsetKey = "offset0";
-        while (parameters.containsKey(offsetKey)) offsetKey += "_1";
-        parameters.put(offsetKey, slice.getOffset());
+        String offsetPlaceholder;
+        if (slice.getOffset() == 0) {
+            // Zero is a runtime-controlled pagination constant, not caller SQL.
+            offsetPlaceholder = "0";
+        }
+        else {
+            String offsetKey = "offset0";
+            while (parameters.containsKey(offsetKey)) offsetKey += "_1";
+            parameters.put(offsetKey, slice.getOffset());
+            offsetPlaceholder = ":" + offsetKey;
+        }
         
         return dialect.prepareParameterizedLimit(
-                ":" + limitKey, ":" + offsetKey, !request.getOrderBy().isEmpty());
+                ":" + limitKey, offsetPlaceholder, !request.getOrderBy().isEmpty());
     }
 
     public String getTypeSQL(UserContext userContext) {
