@@ -149,6 +149,28 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                 }
 
                 @Override
+                public <T extends io.teaql.core.Entity> java.util.List<T> query(
+                        io.teaql.core.UserContext context, String sql, Object[] args,
+                        io.teaql.core.CompiledRowMapper<T> rowMapper) {
+                    boolean logging = context.isExecutionLoggingEnabled();
+                    long start = logging ? System.nanoTime() : 0L;
+                    java.util.List<T> res = executionAdapter.query(sql, args, rowMapper);
+                    if (!logging) return res;
+                    long elapsed = (System.nanoTime() - start) / 1000;
+                    io.teaql.core.ExecutionMetadata meta = new io.teaql.core.ExecutionMetadata();
+                    meta.setBackend("SQL-" + name);
+                    meta.setOperation(io.teaql.core.DataServiceOperation.QUERY);
+                    meta.setElapsedUs(elapsed);
+                    meta.setResultCount(res.size());
+                    meta.setResultSummary("Fetched " + res.size() + " typed rows");
+                    meta.setParameterizedQuery(sql);
+                    meta.setParameters(parameters(args));
+                    meta.setDebugQuery(debugSql(sql, args, debugDatabaseKind));
+                    context.recordExecutionMetadata(meta);
+                    return res;
+                }
+
+                @Override
                 public int executeUpdate(io.teaql.core.UserContext context, String sql, Object[] args) {
                     long start = System.nanoTime();
                     int res = executionAdapter.update(sql, args);

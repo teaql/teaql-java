@@ -92,6 +92,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     private static final Pattern NAMED_PARAM = Pattern.compile(":(\\w+)");
     public static final String CONTINUOUS_PAGE_PLAN = "teaql.continuousPage.plan";
     public static final String CONTINUOUS_PAGE_CURSOR_ID = "teaql.continuousPage.cursorId";
+    public static final String COMPILED_ROW_MAPPER = "teaql.sql.compiledRowMapper";
     private final ContinuousPageCursorStore defaultCursorStore =
             new InMemoryContinuousPageCursorStore();
 
@@ -507,14 +508,29 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                         new CompiledQueryPlan(psql.sql, psql.args.length));
             }
         }
-        List<Map<String, Object>> rows = database.query(userContext, psql.sql, psql.args);
-        if (rows.isEmpty() && ObjectUtil.isEmpty(request.getFacetRequests())) {
-            registerContinuousPage(userContext, request, pageExecution, List.of());
-            return SmartList.empty(request.returnType());
+        SmartList<T> smartList;
+        Object mapperExtension = request.getExtension(COMPILED_ROW_MAPPER);
+        if (mapperExtension instanceof io.teaql.core.CompiledRowMapper<?> rawMapper) {
+            @SuppressWarnings("unchecked")
+            io.teaql.core.CompiledRowMapper<T> mapper =
+                    (io.teaql.core.CompiledRowMapper<T>) rawMapper;
+            List<T> entities = database.query(userContext, psql.sql, psql.args, mapper);
+            if (entities.isEmpty() && ObjectUtil.isEmpty(request.getFacetRequests())) {
+                registerContinuousPage(userContext, request, pageExecution, List.of());
+                return SmartList.empty(request.returnType());
+            }
+            smartList = SmartList.takeOwnership(entities);
         }
-        SmartList<T> smartList = new SmartList<>(rows.size());
-        for (Map<String, Object> row : rows) {
-            smartList.add(mapRowToEntity(userContext, executedRequest, row));
+        else {
+            List<Map<String, Object>> rows = database.query(userContext, psql.sql, psql.args);
+            if (rows.isEmpty() && ObjectUtil.isEmpty(request.getFacetRequests())) {
+                registerContinuousPage(userContext, request, pageExecution, List.of());
+                return SmartList.empty(request.returnType());
+            }
+            smartList = new SmartList<>(rows.size());
+            for (Map<String, Object> row : rows) {
+                smartList.add(mapRowToEntity(userContext, executedRequest, row));
+            }
         }
         registerContinuousPage(userContext, request, pageExecution, smartList.getData());
         

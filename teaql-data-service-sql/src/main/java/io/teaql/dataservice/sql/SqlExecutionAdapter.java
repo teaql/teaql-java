@@ -7,6 +7,11 @@ import java.util.stream.Stream;
 public interface SqlExecutionAdapter {
     
     <T> List<T> query(String sql, Map<String, Object> params, SqlRowMapper<T> rowMapper);
+
+    default <T extends io.teaql.core.Entity> List<T> query(
+            String sql, Object[] params, io.teaql.core.CompiledRowMapper<T> rowMapper) {
+        throw new UnsupportedOperationException("compiled row mapping is not supported");
+    }
     
     <T> Stream<T> queryForStream(String sql, Map<String, Object> params, SqlRowMapper<T> rowMapper);
     default Stream<Map<String, Object>> queryForStream(String sql, Object[] params) {

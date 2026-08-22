@@ -98,6 +98,26 @@ public class JdbcSqlExecutorTest {
     }
 
     @Test
+    public void testCompiledRowMapperReadsTypedValuesWithoutIntermediateMap() {
+        sqlExecutor.update(
+                "INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
+                new Object[] {7, null, 42});
+
+        List<TypedUser> rows = sqlExecutor.query(
+                "SELECT id, name, age * 1.0 FROM test_user WHERE id = ?",
+                new Object[] {7},
+                row -> new TypedUser(
+                        row.get(1, Long.class),
+                        row.get(2, String.class),
+                        row.get(3, java.math.BigDecimal.class)));
+
+        assertEquals(1, rows.size());
+        assertEquals(Long.valueOf(7), rows.get(0).id);
+        assertEquals(null, rows.get(0).name);
+        assertEquals(0, new java.math.BigDecimal("42.0").compareTo(rows.get(0).age));
+    }
+
+    @Test
     public void testSqliteLocalDateParametersUseIsoTextOrdering() throws Exception {
         DataSource sqlite = new SimpleDataSource("jdbc:sqlite::memory:", "", "");
         try (Connection connection = sqlite.getConnection();
@@ -196,5 +216,17 @@ public class JdbcSqlExecutorTest {
         public <T> T unwrap(Class<T> iface) throws SQLException { return null; }
         @Override
         public boolean isWrapperFor(Class<?> iface) throws SQLException { return false; }
+    }
+
+    private static final class TypedUser extends io.teaql.core.BaseEntity {
+        private final Long id;
+        private final String name;
+        private final java.math.BigDecimal age;
+
+        private TypedUser(Long id, String name, java.math.BigDecimal age) {
+            this.id = id;
+            this.name = name;
+            this.age = age;
+        }
     }
 }

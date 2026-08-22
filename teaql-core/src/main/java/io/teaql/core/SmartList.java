@@ -55,6 +55,13 @@ public class SmartList<T extends Entity> implements Iterable<T> {
         return (SmartList<T>) TYPED_EMPTY.computeIfAbsent(entityType, ignored -> new SmartList<>(true));
     }
 
+    @FrameworkInternal
+    public static <T extends Entity> SmartList<T> takeOwnership(List<T> data) {
+        SmartList<T> result = new SmartList<>();
+        result.data = data == null ? new ArrayList<>() : data;
+        return result;
+    }
+
     public boolean isSharedEmpty() {
         return immutable;
     }

@@ -132,6 +132,85 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         }
     }
 
+    @Override
+    public <T extends io.teaql.core.Entity> List<T> query(
+            String sql, Object[] params, io.teaql.core.CompiledRowMapper<T> rowMapper) {
+        List<T> result = new ArrayList<>();
+        Connection connection = null;
+        boolean owned = false;
+        try {
+            connection = transactionConnection.get();
+            if (connection == null) { connection = dataSource.getConnection(); owned = true; }
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                if (params != null) {
+                    for (int i = 0; i < params.length; i++) bind(statement, i + 1, params[i]);
+                }
+                try (ResultSet rows = statement.executeQuery()) {
+                    io.teaql.core.DataRow dataRow = new JdbcDataRow(rows);
+                    while (rows.next()) result.add(rowMapper.map(dataRow));
+                }
+            }
+            return result;
+        } catch (SQLException exception) {
+            throw new RuntimeException("JDBC typed query failed for parameterized SQL: " + sql, exception);
+        } finally {
+            if (owned && connection != null) try { connection.close(); } catch (SQLException ignored) { }
+        }
+    }
+
+    private record JdbcDataRow(ResultSet resultSet) implements io.teaql.core.DataRow {
+        @Override
+        public Object get(int columnIndex) {
+            try {
+                return resultSet.getObject(columnIndex);
+            } catch (SQLException exception) {
+                throw new RuntimeException("Failed to read JDBC column " + columnIndex, exception);
+            }
+        }
+
+        @Override
+        public <V> V get(int columnIndex, Class<V> type) {
+            try {
+                Object value = resultSet.getObject(columnIndex);
+                return convertColumn(type, value);
+            } catch (SQLException exception) {
+                throw new RuntimeException("Failed to read JDBC column " + columnIndex + " as "
+                        + type.getName(), exception);
+            }
+        }
+
+        @SuppressWarnings("unchecked")
+        private static <V> V convertColumn(Class<V> type, Object value) {
+            if (value == null || type.isInstance(value)) return (V) value;
+            if (value instanceof Number number) {
+                if (type == Long.class) return (V) Long.valueOf(number.longValue());
+                if (type == Integer.class) return (V) Integer.valueOf(number.intValue());
+                if (type == Double.class) return (V) Double.valueOf(number.doubleValue());
+                if (type == Float.class) return (V) Float.valueOf(number.floatValue());
+                if (type == Short.class) return (V) Short.valueOf(number.shortValue());
+                if (type == Byte.class) return (V) Byte.valueOf(number.byteValue());
+                if (type == java.math.BigDecimal.class) {
+                    return (V) (number instanceof java.math.BigInteger integer
+                            ? new java.math.BigDecimal(integer)
+                            : java.math.BigDecimal.valueOf(number.doubleValue()));
+                }
+                if (type == Boolean.class) return (V) Boolean.valueOf(number.longValue() != 0);
+            }
+            if (type == java.time.LocalDateTime.class && value instanceof java.sql.Timestamp timestamp) {
+                return (V) timestamp.toLocalDateTime();
+            }
+            if (type == java.time.LocalDate.class && value instanceof java.sql.Date date) {
+                return (V) date.toLocalDate();
+            }
+            if (type == java.time.LocalTime.class && value instanceof java.sql.Time time) {
+                return (V) time.toLocalTime();
+            }
+            if (type == String.class) return (V) String.valueOf(value);
+            throw new IllegalArgumentException("Cannot convert JDBC value " + value.getClass().getName()
+                    + " to " + type.getName());
+        }
+    }
+
     private static String[] columnLabels(ResultSet resultSet) throws SQLException {
         java.sql.ResultSetMetaData metadata = resultSet.getMetaData();
         int columnCount = metadata.getColumnCount();
