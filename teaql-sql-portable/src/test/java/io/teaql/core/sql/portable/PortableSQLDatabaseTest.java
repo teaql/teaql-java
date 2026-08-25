@@ -423,7 +423,7 @@ public class PortableSQLDatabaseTest {
         assertTrue(firstPage.get(9).getId() > secondPage.get(0).getId());
         String executed = sqliteDb.queryTrace().get(0);
         assertTrue(executed, executed.contains("<"));
-        assertTrue(executed, executed.matches("(?s).*OFFSET \\?.*args: .*0.*"));
+        assertTrue(executed, executed.contains("OFFSET 0"));
     }
 
     @Test

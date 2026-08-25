@@ -451,8 +451,10 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             ContinuousPageFetchOptions options,
             String sql,
             Map<String, Object> parameters) {
+        String paginationNeutralSql = sql.replaceAll(
+                "(?i)\\bOFFSET\\s+(?:\\?|:[A-Za-z_][A-Za-z0-9_]*|\\d+)", "OFFSET ?");
         StringBuilder canonical = new StringBuilder(options.namespace())
-                .append('|').append(request.getTypeName()).append('|').append(sql);
+                .append('|').append(request.getTypeName()).append('|').append(paginationNeutralSql);
         new TreeMap<>(parameters).forEach((key, value) -> {
             if (!key.startsWith("limit") && !key.startsWith("offset")) {
                 canonical.append('|').append(key).append('=').append(String.valueOf(value));
