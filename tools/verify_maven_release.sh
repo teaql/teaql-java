@@ -31,7 +31,10 @@ for attempt in 1 2 3 4 5; do
   sleep 3
 done
 
-mapfile -t modules < <(sed -n '/<modules>/,/<\/modules>/s:.*<module>\([^<]*\)</module>.*:\1:p' pom.xml)
+mapfile -t modules < <(
+  sed -n '/<modules>/,/<\/modules>/s:.*<module>\([^<]*\)</module>.*:\1:p' pom.xml \
+    | grep -v '^examples/'
+)
 if [[ "${#modules[@]}" -ne 33 ]]; then
   echo "Expected 33 child modules, found ${#modules[@]}" >&2
   exit 1

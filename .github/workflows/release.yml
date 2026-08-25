@@ -53,7 +53,7 @@ jobs:
           fi
       - name: Publish all Maven modules
         if: github.event_name == 'push'
-        run: mvn -B deploy -DskipTests
+        run: mvn -B deploy -DskipTests -pl '!examples/conformance/lib,!examples/conformance'
         env:
           TEAQL_MAVEN_USERNAME: ${{ secrets.TEAQL_MAVEN_USERNAME }}
           TEAQL_MAVEN_PASSWORD: ${{ secrets.TEAQL_MAVEN_PASSWORD }}
