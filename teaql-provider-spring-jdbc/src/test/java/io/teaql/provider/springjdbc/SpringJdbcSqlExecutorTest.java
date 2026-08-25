@@ -97,6 +97,26 @@ public class SpringJdbcSqlExecutorTest {
     }
 
     @Test
+    public void testCompiledRowMapperUsesTypedPositionalColumns() {
+        sqlAdapter.update(
+                "INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
+                new Object[]{101, "Typed", 7});
+
+        List<CompiledTestEntity> rows = sqlAdapter.query(
+                "SELECT id, name, age > 0 FROM test_user WHERE id = ?",
+                new Object[]{101},
+                row -> new CompiledTestEntity(
+                        row.get(1, Long.class),
+                        row.get(2, String.class),
+                        row.get(3, Boolean.class)));
+
+        assertEquals(1, rows.size());
+        assertEquals(Long.valueOf(101), rows.get(0).id);
+        assertEquals("Typed", rows.get(0).name);
+        assertEquals(Boolean.TRUE, rows.get(0).active);
+    }
+
+    @Test
     public void testExecuteInTransactionRollsBackOnFailure() {
         try {
             sqlAdapter.executeInTransaction(() -> {
@@ -113,5 +133,22 @@ public class SpringJdbcSqlExecutorTest {
         List<Map<String, Object>> rows = sqlAdapter.queryForList(
                 "SELECT * FROM test_user WHERE id = ?", new Object[]{200});
         assertEquals(0, rows.size());
+    }
+
+    private static final class CompiledTestEntity extends io.teaql.core.BaseEntity {
+        private final Long id;
+        private final String name;
+        private final Boolean active;
+
+        private CompiledTestEntity(Long id, String name, Boolean active) {
+            this.id = id;
+            this.name = name;
+            this.active = active;
+        }
+
+        @Override
+        public String typeName() {
+            return "CompiledTestEntity";
+        }
     }
 }

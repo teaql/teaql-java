@@ -76,6 +76,8 @@
         <module>teaql-business-id-jdbc</module>
         <module>teaql-tfp-endpoint</module>
         <module>teaql-opentelemetry</module>
+        <module>examples/conformance/lib</module>
+        <module>examples/conformance</module>
     </modules>
 
     <dependencyManagement>

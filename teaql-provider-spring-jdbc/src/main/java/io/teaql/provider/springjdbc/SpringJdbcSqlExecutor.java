@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 public class SpringJdbcSqlExecutor implements SqlExecutionAdapter {
 
@@ -26,6 +28,15 @@ public class SpringJdbcSqlExecutor implements SqlExecutionAdapter {
     @Override
     public <T> List<T> query(String sql, Map<String, Object> params, SqlRowMapper<T> rowMapper) {
         return jdbcTemplate.query(sql, params, rowMapper::mapRow);
+    }
+
+    @Override
+    public <T extends io.teaql.core.Entity> List<T> query(
+            String sql, Object[] params, io.teaql.core.CompiledRowMapper<T> rowMapper) {
+        return jdbcTemplate.getJdbcOperations().query(
+                sql,
+                (resultSet, rowNumber) -> rowMapper.map(new SpringJdbcDataRow(resultSet)),
+                params == null ? new Object[0] : params);
     }
 
     @Override
@@ -85,5 +96,75 @@ public class SpringJdbcSqlExecutor implements SqlExecutionAdapter {
     @Override
     public void executeInTransaction(Runnable action) {
         transactionTemplate.executeWithoutResult(status -> action.run());
+    }
+
+    private record SpringJdbcDataRow(ResultSet resultSet) implements io.teaql.core.DataRow {
+        @Override
+        public Object get(int columnIndex) {
+            try {
+                return resultSet.getObject(columnIndex);
+            } catch (SQLException exception) {
+                throw new IllegalStateException("Failed to read JDBC column " + columnIndex, exception);
+            }
+        }
+
+        @Override
+        public <V> V get(int columnIndex, Class<V> type) {
+            try {
+                return convert(type, resultSet.getObject(columnIndex));
+            } catch (SQLException exception) {
+                throw new IllegalStateException(
+                        "Failed to read JDBC column " + columnIndex + " as " + type.getName(), exception);
+            }
+        }
+
+        @SuppressWarnings("unchecked")
+        private static <V> V convert(Class<V> type, Object value) {
+            if (value == null || type.isInstance(value)) return (V) value;
+            if (value instanceof Number number) {
+                if (type == Long.class) return (V) Long.valueOf(number.longValue());
+                if (type == Integer.class) return (V) Integer.valueOf(number.intValue());
+                if (type == Double.class) return (V) Double.valueOf(number.doubleValue());
+                if (type == Float.class) return (V) Float.valueOf(number.floatValue());
+                if (type == Short.class) return (V) Short.valueOf(number.shortValue());
+                if (type == Byte.class) return (V) Byte.valueOf(number.byteValue());
+                if (type == java.math.BigDecimal.class) {
+                    return (V) (number instanceof java.math.BigInteger integer
+                            ? new java.math.BigDecimal(integer)
+                            : java.math.BigDecimal.valueOf(number.doubleValue()));
+                }
+                if (type == Boolean.class) return (V) Boolean.valueOf(number.longValue() != 0);
+            }
+            if (type == java.time.LocalDateTime.class && value instanceof java.sql.Timestamp timestamp) {
+                return (V) timestamp.toLocalDateTime();
+            }
+            if (type == java.time.LocalDateTime.class) {
+                return (V) java.time.LocalDateTime.parse(String.valueOf(value).replace(' ', 'T'));
+            }
+            if (type == java.time.LocalDate.class && value instanceof java.sql.Date date) {
+                return (V) date.toLocalDate();
+            }
+            if (type == java.time.LocalDate.class && value instanceof java.sql.Timestamp timestamp) {
+                return (V) timestamp.toLocalDateTime().toLocalDate();
+            }
+            if (type == java.time.LocalDate.class) {
+                String text = String.valueOf(value);
+                return (V) java.time.LocalDate.parse(text.substring(0, Math.min(10, text.length())));
+            }
+            if (type == java.time.LocalTime.class && value instanceof java.sql.Time time) {
+                return (V) time.toLocalTime();
+            }
+            if (type == java.time.LocalTime.class && value instanceof java.sql.Timestamp timestamp) {
+                return (V) timestamp.toLocalDateTime().toLocalTime();
+            }
+            if (type == java.time.LocalTime.class) {
+                String text = String.valueOf(value);
+                int separator = Math.max(text.indexOf('T'), text.indexOf(' '));
+                return (V) java.time.LocalTime.parse(separator < 0 ? text : text.substring(separator + 1));
+            }
+            if (type == String.class) return (V) String.valueOf(value);
+            throw new IllegalArgumentException(
+                    "Cannot convert JDBC value " + value.getClass().getName() + " to " + type.getName());
+        }
     }
 }
