@@ -205,6 +205,14 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         return searchCriteria;
     }
 
+    /**
+     * Replaces the current criteria as one atomic parser operation. Dynamic input adapters use
+     * this to roll back a partially resolved relation path when a later field segment is stale.
+     */
+    public void replaceSearchCriteria(SearchCriteria searchCriteria) {
+        this.searchCriteria = searchCriteria;
+    }
+
     @Override
     public OrderBys getOrderBy() {
         return orderBys;

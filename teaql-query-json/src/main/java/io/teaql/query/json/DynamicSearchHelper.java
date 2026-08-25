@@ -2,9 +2,14 @@ package io.teaql.query.json;
 
 import java.util.Date;
 import java.util.Iterator;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
@@ -68,6 +73,53 @@ class SearchField {
 
 public class DynamicSearchHelper {
 
+    public static final String WARNINGS_EXTENSION = "teaql.dynamicSearch.warnings";
+    private static final Logger LOGGER = Logger.getLogger(DynamicSearchHelper.class.getName());
+
+    public static List<DynamicSearchWarning> warningsOf(BaseRequest request) {
+        Object warnings = request.getExtensions().get(WARNINGS_EXTENSION);
+        if (!(warnings instanceof List<?>)) {
+            return Collections.emptyList();
+        }
+        List<DynamicSearchWarning> result = new ArrayList<>();
+        for (Object warning : (List<?>) warnings) {
+            if (warning instanceof DynamicSearchWarning) {
+                result.add((DynamicSearchWarning) warning);
+            }
+        }
+        return Collections.unmodifiableList(result);
+    }
+
+    protected void warnUnknownField(BaseRequest request, String clause, String fieldPath) {
+        DynamicSearchWarning warning =
+                new DynamicSearchWarning(
+                        DynamicSearchWarning.UNKNOWN_FIELD,
+                        request.getTypeName(),
+                        clause,
+                        fieldPath);
+        Object existing = request.getExtensions().get(WARNINGS_EXTENSION);
+        List<DynamicSearchWarning> warnings;
+        if (existing instanceof List<?>) {
+            @SuppressWarnings("unchecked")
+            List<DynamicSearchWarning> typed = (List<DynamicSearchWarning>) existing;
+            warnings = typed;
+        }
+        else {
+            warnings = new ArrayList<>();
+            request.putExtension(WARNINGS_EXTENSION, warnings);
+        }
+        warnings.add(warning);
+        LOGGER.log(
+                Level.WARNING,
+                "Ignored unknown dynamic search field: code={0}, requestType={1}, clause={2}, fieldPath={3}",
+                new Object[] {
+                    warning.getCode(),
+                    warning.getRequestType(),
+                    warning.getClause(),
+                    warning.getFieldPath()
+                });
+    }
+
     protected static JsonNode jsonFromString(String jsonExpr) {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
@@ -129,6 +181,9 @@ public class DynamicSearchHelper {
             String fieldName = field.getKey();
 
             if (!baseRequest.isOneOfSelfField(fieldName)) {
+                if (!fieldName.startsWith("_")) {
+                    warnUnknownField(baseRequest, "FILTER", fieldName);
+                }
                 continue;
             }
             JsonNode fieldValue = field.getValue();
@@ -155,12 +210,31 @@ public class DynamicSearchHelper {
         if (fieldNames.length < 2) {
             return true; // need to continue
         }
+        SearchCriteria originalCriteria = rootRequest.getSearchCriteria();
         BaseRequest currentRequest = rootRequest;
         for (int i = 0; i < fieldNames.length - 1; i++) {
-            Optional<BaseRequest> optional = currentRequest.subRequestOfFieldName(fieldNames[i]);
+            Optional<BaseRequest> optional;
+            try {
+                optional = currentRequest.subRequestOfFieldName(fieldNames[i]);
+            }
+            catch (IllegalArgumentException exception) {
+                rootRequest.replaceSearchCriteria(originalCriteria);
+                warnUnknownField(rootRequest, "FILTER", fieldName);
+                return false;
+            }
+            if (optional.isEmpty()) {
+                rootRequest.replaceSearchCriteria(originalCriteria);
+                warnUnknownField(rootRequest, "FILTER", fieldName);
+                return false;
+            }
             currentRequest = optional.get();
         }
         final String lastSegmentOfField = fieldNames[fieldNames.length - 1];
+        if (!currentRequest.isOneOfSelfField(lastSegmentOfField)) {
+            rootRequest.replaceSearchCriteria(originalCriteria);
+            warnUnknownField(rootRequest, "FILTER", fieldName);
+            return false;
+        }
         // last segment of field, use it as value
         currentRequest.appendSearchCriteria(
                 currentRequest.createBasicSearchCriteria(
@@ -356,6 +430,7 @@ public class DynamicSearchHelper {
         // single text
         if (fieldValue.isTextual()) {
             if (!baseRequest.isOneOfSelfField(fieldValue.asText())) {
+                warnUnknownField(baseRequest, "ORDER_BY", fieldValue.asText());
                 return;
             }
             this.addOrderBy(baseRequest, fieldValue.asText(), false);
@@ -381,6 +456,7 @@ public class DynamicSearchHelper {
     protected void addSingleJsonOrderBy(BaseRequest baseRequest, JsonNode jsonValueNode) {
         String field = jsonValueNode.get("field").asText();
         if (!baseRequest.isOneOfSelfField(field)) {
+            warnUnknownField(baseRequest, "ORDER_BY", field);
             return;
         }
         Boolean useAsc = jsonValueNode.get("useAsc").booleanValue();
