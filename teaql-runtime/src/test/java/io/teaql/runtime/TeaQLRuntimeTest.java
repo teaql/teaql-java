@@ -590,6 +590,39 @@ public class TeaQLRuntimeTest {
     }
 
     @Test
+    public void testSaveGraphDoesNotConsumeIndependentLedgerFromSameContext() {
+        RecordingMutationExecutor executor = new RecordingMutationExecutor();
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new AdvancedMetaFactory())
+                .dataService("dummy", executor)
+                .build();
+        DefaultUserContext context = new DefaultUserContext(runtime);
+
+        DummyEntity first = new DummyEntity();
+        first.updateId(11L);
+        first.set$status(EntityStatus.PERSISTED);
+        first.updateProperty("name", "save me");
+        first.setComment("save first graph only");
+
+        DummyEntity independent = new DummyEntity();
+        independent.updateId(22L);
+        independent.set$status(EntityStatus.PERSISTED);
+        independent.updateProperty("name", "keep pending");
+
+        Assert.assertNotSame(first.getEntityRoot(), independent.getEntityRoot());
+
+        runtime.saveGraph(context, first);
+
+        Assert.assertTrue(executor.requests.stream()
+                .anyMatch(request -> request.getEntity().getId().equals(11L)));
+        Assert.assertFalse(executor.requests.stream()
+                .anyMatch(request -> request.getEntity().getId().equals(22L)));
+        Assert.assertFalse(independent.getEntityRoot()
+                .changedFieldNames(new EntityKey("Dummy", 22L))
+                .isEmpty());
+    }
+
+    @Test
     public void testSaveGraphAllocatesIdsAndRecordsChangesForNewChildren() {
         RecordingMutationExecutor executor = new RecordingMutationExecutor();
         AtomicLong ids = new AtomicLong(100);
