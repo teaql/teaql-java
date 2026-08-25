@@ -277,23 +277,23 @@ public class TeaQLRuntime {
         }
         try {
             checkAndFix(context, entity);
-            // Get entity's own EntityRoot
-            EntityRoot entityRoot = ((BaseEntity) entity).getEntityRoot();
+            // Get entity's own EntityMutationLedger
+            EntityMutationLedger entityMutationLedger = ((BaseEntity) entity).getEntityMutationLedger();
 
             // Allocate identifiers before roots are merged. New children commonly
             // receive their field updates while their id is still null, so those
-            // updates cannot yet have been recorded in an EntityRoot ledger.
+            // updates cannot yet have been recorded in an EntityMutationLedger ledger.
             assignMissingGraphIds(
                     context, entity, Collections.newSetFromMap(new IdentityHashMap<>()));
 
-            // Merge related entities' EntityRoots into this one
-            mergeRelatedEntityRoots(
+            // Merge related entities' EntityMutationLedgers into this one
+            mergeRelatedEntityMutationLedgers(
                     entity,
-                    entityRoot,
+                    entityMutationLedger,
                     Collections.newSetFromMap(new IdentityHashMap<>()));
             recordGraphChanges(
                     entity,
-                    entityRoot,
+                    entityMutationLedger,
                     Collections.newSetFromMap(new IdentityHashMap<>()));
 
             EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());
@@ -325,13 +325,13 @@ public class TeaQLRuntime {
                     Collections.newSetFromMap(new IdentityHashMap<>()));
             if (mutationExecutor instanceof TransactionExecutor transactionExecutor) {
                 transactionExecutor.executeInTransaction(context, () -> {
-                    executeLedgerPlan(context, entityRoot, mutationExecutor, realEntities);
+                    executeLedgerPlan(context, entityMutationLedger, mutationExecutor, realEntities);
                     return null;
                 });
             } else {
-                executeLedgerPlan(context, entityRoot, mutationExecutor, realEntities);
+                executeLedgerPlan(context, entityMutationLedger, mutationExecutor, realEntities);
             }
-            entityRoot.clearCurrentChangeSet();
+            entityMutationLedger.clearCurrentChangeSet();
             telemetryScope.success();
         } finally {
             if (pushed) context.popTrace();
@@ -374,7 +374,7 @@ public class TeaQLRuntime {
     }
 
     /**
-     * Merge related entities' EntityRoots into the main entity's EntityRoot.
+     * Merge related entities' EntityMutationLedgers into the main entity's EntityMutationLedger.
      * This ensures that when saving an Order, its OrderItems' changes are also saved.
      */
     private void assignMissingGraphIds(
@@ -386,32 +386,32 @@ public class TeaQLRuntime {
         if (entity.getId() == null && idGenerationService != null) {
             Long newId = idGenerationService.generateId(context, entity);
             baseEntity.__internalSet("id", newId);
-            baseEntity.getEntityRoot().markAsNew(new EntityKey(entity.typeName(), newId));
+            baseEntity.getEntityMutationLedger().markAsNew(new EntityKey(entity.typeName(), newId));
         }
 
         visitRelatedEntities(
                 entity, related -> assignMissingGraphIds(context, related, visited));
     }
 
-    private void mergeRelatedEntityRoots(
-            Entity entity, EntityRoot targetRoot, Set<Entity> visited) {
+    private void mergeRelatedEntityMutationLedgers(
+            Entity entity, EntityMutationLedger targetRoot, Set<Entity> visited) {
         if (!(entity instanceof BaseEntity) || !visited.add(entity)) {
             return;
         }
 
         visitRelatedEntities(entity, related -> {
             BaseEntity relatedBase = (BaseEntity) related;
-            EntityRoot relatedRoot = relatedBase.getEntityRoot();
+            EntityMutationLedger relatedRoot = relatedBase.getEntityMutationLedger();
             if (relatedRoot != null && relatedRoot != targetRoot) {
                 targetRoot.mergeFrom(relatedRoot);
-                relatedBase.setEntityRoot(targetRoot);
+                relatedBase.setEntityMutationLedger(targetRoot);
             }
-            mergeRelatedEntityRoots(related, targetRoot, visited);
+            mergeRelatedEntityMutationLedgers(related, targetRoot, visited);
         });
     }
 
     private void recordGraphChanges(
-            Entity entity, EntityRoot targetRoot, Set<Entity> visited) {
+            Entity entity, EntityMutationLedger targetRoot, Set<Entity> visited) {
         if (!(entity instanceof BaseEntity baseEntity) || !visited.add(entity)) {
             return;
         }
@@ -468,7 +468,7 @@ public class TeaQLRuntime {
                 related -> collectRealEntities(related, realEntities, visited));
     }
 
-    private void executeLedgerPlan(UserContext context, EntityRoot root, MutationExecutor mutationExecutor, Map<EntityKey, BaseEntity> realEntities) {
+    private void executeLedgerPlan(UserContext context, EntityMutationLedger root, MutationExecutor mutationExecutor, Map<EntityKey, BaseEntity> realEntities) {
         EntityChangeSet changeSet = root.currentChangeSet();
         Set<EntityKey> deletedKeys = root.deletedKeys();
         Set<EntityKey> newKeys = root.newKeys();
@@ -653,8 +653,8 @@ public class TeaQLRuntime {
             }
 
             if (entity instanceof BaseEntity baseEntity && entity.getId() != null) {
-                EntityRoot entityRoot = baseEntity.getEntityRoot();
-                entityRoot.markAsDelete(new EntityKey(entity.typeName(), entity.getId()));
+                EntityMutationLedger entityMutationLedger = baseEntity.getEntityMutationLedger();
+                entityMutationLedger.markAsDelete(new EntityKey(entity.typeName(), entity.getId()));
             }
 
             DefaultMutationRequest.Action action = DefaultMutationRequest.Action.DELETE;

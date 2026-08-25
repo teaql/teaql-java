@@ -6,9 +6,9 @@ import java.util.*;
  * Central change tracking context shared across all entities in a save graph.
  * Holds the change set stack, deleted keys, new keys, trace chains, and original versions.
  *
- * This is the Java equivalent of Rust's {@code EntityRoot}.
+ * This is the Java equivalent of Rust's {@code EntityMutationLedger}.
  */
-public class EntityRoot {
+public class EntityMutationLedger {
     private final ChangeSetStack changeSets = new ChangeSetStack();
     private String comment;
     private final Set<EntityKey> deletedKeys = new TreeSet<>();
@@ -111,10 +111,10 @@ public class EntityRoot {
     }
 
     /**
-     * Merge another EntityRoot's changes into this one.
+     * Merge another EntityMutationLedger's changes into this one.
      * Used when saving an entity graph (e.g., Order + OrderItems).
      */
-    public void mergeFrom(EntityRoot other) {
+    public void mergeFrom(EntityMutationLedger other) {
         if (other == null) return;
         
         // Merge change sets

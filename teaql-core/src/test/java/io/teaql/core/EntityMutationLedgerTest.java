@@ -8,14 +8,14 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-public class EntityRootTest {
+public class EntityMutationLedgerTest {
 
     private static final EntityKey ORDER = new EntityKey("Order", 1L);
     private static final EntityKey OTHER_ORDER = new EntityKey("Order", 2L);
 
     @Test
     public void markAsNewRecordsOnlyRequestedKeyAndIsIdempotent() {
-        EntityRoot root = new EntityRoot();
+        EntityMutationLedger root = new EntityMutationLedger();
 
         root.markAsNew(ORDER);
         root.markAsNew(ORDER);
@@ -27,7 +27,7 @@ public class EntityRootTest {
 
     @Test
     public void newKeysViewIsReadOnly() {
-        EntityRoot root = new EntityRoot();
+        EntityMutationLedger root = new EntityMutationLedger();
         root.markAsNew(ORDER);
 
         assertThrows(UnsupportedOperationException.class, () -> root.newKeys().add(OTHER_ORDER));
@@ -35,7 +35,7 @@ public class EntityRootTest {
 
     @Test
     public void markAsDeleteRecordsOnlyRequestedKeyAndIsIdempotent() {
-        EntityRoot root = new EntityRoot();
+        EntityMutationLedger root = new EntityMutationLedger();
 
         root.markAsDelete(ORDER);
         root.markAsDelete(ORDER);
@@ -47,7 +47,7 @@ public class EntityRootTest {
 
     @Test
     public void deletedKeysViewIsReadOnly() {
-        EntityRoot root = new EntityRoot();
+        EntityMutationLedger root = new EntityMutationLedger();
         root.markAsDelete(ORDER);
 
         assertThrows(
@@ -57,7 +57,7 @@ public class EntityRootTest {
 
     @Test
     public void markingEntityDeletedClearsItsChangesFromEveryScopeOnly() {
-        EntityRoot root = new EntityRoot();
+        EntityMutationLedger root = new EntityMutationLedger();
         root.set(ORDER, "status", "CREATED");
         root.set(OTHER_ORDER, "status", "CREATED");
         root.pushChangeSet();
@@ -75,7 +75,7 @@ public class EntityRootTest {
 
     @Test
     public void mergeFromNullIsNoOp() {
-        EntityRoot target = new EntityRoot();
+        EntityMutationLedger target = new EntityMutationLedger();
         target.set(ORDER, "status", "CREATED");
 
         target.mergeFrom(null);
@@ -86,9 +86,9 @@ public class EntityRootTest {
 
     @Test
     public void mergeFromCopiesChangesAndPreservesExistingTargetChanges() {
-        EntityRoot target = new EntityRoot();
+        EntityMutationLedger target = new EntityMutationLedger();
         target.set(ORDER, "status", "CREATED");
-        EntityRoot source = new EntityRoot();
+        EntityMutationLedger source = new EntityMutationLedger();
         source.set(OTHER_ORDER, "status", "PAID");
         source.set(OTHER_ORDER, "total", 200L);
 
@@ -101,8 +101,8 @@ public class EntityRootTest {
 
     @Test
     public void mergeFromCopiesNewAndDeletedKeys() {
-        EntityRoot target = new EntityRoot();
-        EntityRoot source = new EntityRoot();
+        EntityMutationLedger target = new EntityMutationLedger();
+        EntityMutationLedger source = new EntityMutationLedger();
         source.markAsNew(ORDER);
         source.markAsDelete(OTHER_ORDER);
 
@@ -114,8 +114,8 @@ public class EntityRootTest {
 
     @Test
     public void mergeFromCopiesTraceChainsAndOriginalVersions() {
-        EntityRoot target = new EntityRoot();
-        EntityRoot source = new EntityRoot();
+        EntityMutationLedger target = new EntityMutationLedger();
+        EntityMutationLedger source = new EntityMutationLedger();
         source.setTraceChain(ORDER, "checkout > submit");
         source.setOriginalVersion(ORDER, 7L);
 
@@ -127,8 +127,8 @@ public class EntityRootTest {
 
     @Test
     public void mergeLeavesSourceAndTargetIndependent() {
-        EntityRoot target = new EntityRoot();
-        EntityRoot source = new EntityRoot();
+        EntityMutationLedger target = new EntityMutationLedger();
+        EntityMutationLedger source = new EntityMutationLedger();
         source.set(ORDER, "status", "CREATED");
         source.markAsNew(ORDER);
 

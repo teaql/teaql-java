@@ -471,33 +471,33 @@ public class TeaQLRuntimeTest {
                 .build();
 
         // Simulate related entities
-        EntityRoot root = new EntityRoot();
+        EntityMutationLedger root = new EntityMutationLedger();
         root.pushChangeSet();
         root.setComment("root comment");
 
         DummyEntity e1 = new DummyEntity(); // to delete
         e1.updateId(101L);
         e1.set$status(EntityStatus.PERSISTED);
-        e1.setEntityRoot(root);
+        e1.setEntityMutationLedger(root);
         e1.markToRemove();
 
         DummyEntity e2 = new DummyEntity(); // to update
         e2.updateId(102L);
         e2.set$status(EntityStatus.PERSISTED);
-        e2.setEntityRoot(root);
+        e2.setEntityMutationLedger(root);
         e2.updateProperty("name", "updated");
 
         DummyEntity e3 = new DummyEntity(); // to insert
         e3.updateId(103L);
         e3.set$status(EntityStatus.NEW);
-        e3.setEntityRoot(root);
+        e3.setEntityMutationLedger(root);
         e3.updateProperty("name", "inserted");
         root.markAsNew(new EntityKey(e3.typeName(), e3.getId()));
 
         DummyEntity e4 = new DummyEntity(); // to delete only
         e4.updateId(104L);
         e4.set$status(EntityStatus.PERSISTED);
-        e4.setEntityRoot(root);
+        e4.setEntityMutationLedger(root);
         e4.markToRemove();
         
         java.util.Map<EntityKey, BaseEntity> realEntities = new java.util.HashMap<>();
@@ -507,7 +507,7 @@ public class TeaQLRuntimeTest {
         realEntities.put(new EntityKey("Dummy", 104L), e4);
 
         java.lang.reflect.Method method = TeaQLRuntime.class.getDeclaredMethod(
-            "executeLedgerPlan", UserContext.class, EntityRoot.class, MutationExecutor.class, java.util.Map.class);
+            "executeLedgerPlan", UserContext.class, EntityMutationLedger.class, MutationExecutor.class, java.util.Map.class);
         method.setAccessible(true);
         method.invoke(runtime, new DefaultUserContext(runtime), root, executor, realEntities);
 
@@ -545,7 +545,7 @@ public class TeaQLRuntimeTest {
     }
 
     @Test
-    public void testSaveGraphMergesRelatedEntityRoots() {
+    public void testSaveGraphMergesRelatedEntityMutationLedgers() {
         RecordingMutationExecutor executor = new RecordingMutationExecutor();
         TeaQLRuntime runtime = TeaQLRuntime.builder()
                 .metadata(new AdvancedMetaFactory())
@@ -579,9 +579,9 @@ public class TeaQLRuntimeTest {
         runtime.saveGraph(new DefaultUserContext(runtime), rootEntity);
         
         // Verify all entities share the same root now
-        Assert.assertSame(rootEntity.getEntityRoot(), toOneChild.getEntityRoot());
-        Assert.assertSame(rootEntity.getEntityRoot(), listChild1.getEntityRoot());
-        Assert.assertSame(rootEntity.getEntityRoot(), listChild2.getEntityRoot());
+        Assert.assertSame(rootEntity.getEntityMutationLedger(), toOneChild.getEntityMutationLedger());
+        Assert.assertSame(rootEntity.getEntityMutationLedger(), listChild1.getEntityMutationLedger());
+        Assert.assertSame(rootEntity.getEntityMutationLedger(), listChild2.getEntityMutationLedger());
         
         List<DefaultMutationRequest> requests = executor.requests;
         Assert.assertTrue(requests.stream().anyMatch(r -> r.getEntity().getId().equals(2L)));
@@ -609,7 +609,7 @@ public class TeaQLRuntimeTest {
         independent.set$status(EntityStatus.PERSISTED);
         independent.updateProperty("name", "keep pending");
 
-        Assert.assertNotSame(first.getEntityRoot(), independent.getEntityRoot());
+        Assert.assertNotSame(first.getEntityMutationLedger(), independent.getEntityMutationLedger());
 
         runtime.saveGraph(context, first);
 
@@ -617,7 +617,7 @@ public class TeaQLRuntimeTest {
                 .anyMatch(request -> request.getEntity().getId().equals(11L)));
         Assert.assertFalse(executor.requests.stream()
                 .anyMatch(request -> request.getEntity().getId().equals(22L)));
-        Assert.assertFalse(independent.getEntityRoot()
+        Assert.assertFalse(independent.getEntityMutationLedger()
                 .changedFieldNames(new EntityKey("Dummy", 22L))
                 .isEmpty());
     }
@@ -642,7 +642,7 @@ public class TeaQLRuntimeTest {
 
         Assert.assertEquals(Long.valueOf(100), parent.getId());
         Assert.assertEquals(Long.valueOf(101), child.getId());
-        Assert.assertSame(parent.getEntityRoot(), child.getEntityRoot());
+        Assert.assertSame(parent.getEntityMutationLedger(), child.getEntityMutationLedger());
         Assert.assertTrue(executor.requests.stream()
                 .anyMatch(request -> request.getEntity() == parent));
         Assert.assertTrue(executor.requests.stream()

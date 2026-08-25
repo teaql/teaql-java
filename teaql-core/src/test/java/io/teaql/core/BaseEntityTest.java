@@ -35,8 +35,8 @@ public class BaseEntityTest {
         @Override
         public Object __internalGet(String property) {
             if ("name".equals(property)) {
-                if (getEntityRoot() != null && getId() != null) {
-                    Object rootVal = getEntityRoot().get(new EntityKey(typeName(), getId()), property);
+                if (getEntityMutationLedger() != null && getId() != null) {
+                    Object rootVal = getEntityMutationLedger().get(new EntityKey(typeName(), getId()), property);
                     if (rootVal != null) return rootVal;
                 }
                 return this.name;
@@ -68,8 +68,8 @@ public class BaseEntityTest {
         entity.set$status(EntityStatus.PERSISTED); // Persisted entity
         entity.clearUpdatedProperties();
         
-        EntityRoot root = new EntityRoot();
-        entity.setEntityRoot(root);
+        EntityMutationLedger root = new EntityMutationLedger();
+        entity.setEntityMutationLedger(root);
 
         // 1. Updating a persisted entity records the new value under its EntityKey.
         entity.updateName("Alice");
@@ -102,8 +102,8 @@ public class BaseEntityTest {
     public void testTraceChainCopiedToRoot() {
         TestEntity entity = new TestEntity();
         entity.updateId(101L);
-        EntityRoot root = new EntityRoot();
-        entity.setEntityRoot(root);
+        EntityMutationLedger root = new EntityMutationLedger();
+        entity.setEntityMutationLedger(root);
 
         entity.setTraceChain("trace-123");
         entity.updateName("Bob");
@@ -115,8 +115,8 @@ public class BaseEntityTest {
     @Test
     public void testEntityWithoutIdFallsBackToLocalTracking() {
         TestEntity entity = new TestEntity();
-        EntityRoot root = new EntityRoot();
-        entity.setEntityRoot(root);
+        EntityMutationLedger root = new EntityMutationLedger();
+        entity.setEntityMutationLedger(root);
 
         // No ID set
         entity.updateName("Charlie");
@@ -365,7 +365,7 @@ public class BaseEntityTest {
     }
     
     @Test
-    public void testEntityRootIntegrationExtras() {
+    public void testEntityMutationLedgerIntegrationExtras() {
         TestEntity e = new TestEntity();
         e.updateId(1L);
         e.updateVersion(2L);
@@ -374,8 +374,8 @@ public class BaseEntityTest {
         assertFalse(e.isMarkedAsDelete());
         assertNull(e.getOriginalVersion());
         
-        EntityRoot root = new EntityRoot();
-        e.setEntityRoot(root);
+        EntityMutationLedger root = new EntityMutationLedger();
+        e.setEntityMutationLedger(root);
         
         // assertion removed
         assertEquals(Long.valueOf(2L), e.getOriginalVersion());
@@ -494,9 +494,9 @@ public class BaseEntityTest {
         assertEquals(20L, e.__internalGet("id"));
         assertEquals(6L, e.__internalGet("version"));
         
-        EntityRoot root = new EntityRoot();
-        e.setEntityRoot(root); // setEntityRoot branches
-        e.setEntityRoot(root); // already set, branch hit
+        EntityMutationLedger root = new EntityMutationLedger();
+        e.setEntityMutationLedger(root); // setEntityMutationLedger branches
+        e.setEntityMutationLedger(root); // already set, branch hit
         
         root.set(new EntityKey(e.typeName(), e.getId()), "id", 30L);
         assertEquals(30L, e.__internalGet("id")); // get from root branch
@@ -522,18 +522,18 @@ public class BaseEntityTest {
         e.__internalSet("name", "test_name");
         assertEquals("test_name", e.getDisplayName());
         
-        // update id before setting entityRoot to hit id != null branch
+        // update id before setting entityMutationLedger to hit id != null branch
         TestEntity eRootTest = new TestEntity();
         eRootTest.updateId(500L);
-        EntityRoot root2 = new EntityRoot();
-        eRootTest.setEntityRoot(root2);
+        EntityMutationLedger root2 = new EntityMutationLedger();
+        eRootTest.setEntityMutationLedger(root2);
         
-        // getUpdatedProperties when entityRoot != null and id != null
+        // getUpdatedProperties when entityMutationLedger != null and id != null
         assertNotNull(eRootTest.getUpdatedProperties());
         
-        // getUpdatedProperties when entityRoot != null and id == null
+        // getUpdatedProperties when entityMutationLedger != null and id == null
         TestEntity eRootTest2 = new TestEntity();
-        eRootTest2.setEntityRoot(root2);
+        eRootTest2.setEntityMutationLedger(root2);
         assertNotNull(eRootTest2.getUpdatedProperties());
         
         // isNew, isMarkedAsDelete, getOriginalVersion with id != null and root != null
@@ -579,8 +579,8 @@ public class BaseEntityTest {
     public void testMoreBaseEntityBranches() {
         TestEntity e = new TestEntity();
         e.updateId(100L);
-        EntityRoot root = new EntityRoot();
-        e.setEntityRoot(root);
+        EntityMutationLedger root = new EntityMutationLedger();
+        e.setEntityMutationLedger(root);
         
         // setComment
         e.setComment("comment");
@@ -618,8 +618,8 @@ public class BaseEntityTest {
             io.teaql.core.meta.EntityMetaFactory.registerGlobal(null);
         }
         
-        // setEntityRoot same
-        e.setEntityRoot(root);
+        // setEntityMutationLedger same
+        e.setEntityMutationLedger(root);
         
         // dirtyFields
         assertTrue(e.dirtyFields().contains("id")); // it has 'id' because we called root.set
@@ -677,7 +677,7 @@ public class BaseEntityTest {
         e.setComment(null);
         e.setComment(null);
         
-        // __internalGet, getUpdatedProperties, markAsDeleted, isMarkedAsDelete, isNew, getOriginalVersion, markToRemove, handleUpdate when id == null or entityRoot == null
+        // __internalGet, getUpdatedProperties, markAsDeleted, isMarkedAsDelete, isNew, getOriginalVersion, markToRemove, handleUpdate when id == null or entityMutationLedger == null
         e.getUpdatedProperties();
         e.set$status(io.teaql.core.EntityStatus.PERSISTED);
         e.markAsDeleted();
@@ -694,8 +694,8 @@ public class BaseEntityTest {
             e.__internalGet("nonExistent");
         } catch (Exception ignored) {}
         
-        EntityRoot root = new EntityRoot();
-        e.setEntityRoot(root); // id == null, root != null
+        EntityMutationLedger root = new EntityMutationLedger();
+        e.setEntityMutationLedger(root); // id == null, root != null
         e.getUpdatedProperties();
         e.isMarkedAsDelete();
         e.isNew();
@@ -710,7 +710,7 @@ public class BaseEntityTest {
         // getUpdatedProperties when id != null, root != null but changes empty
         TestEntity e2 = new TestEntity();
         e2.updateId(1L);
-        e2.setEntityRoot(root);
+        e2.setEntityMutationLedger(root);
         e2.getUpdatedProperties();
         
         // addRelation when descriptor == null
@@ -773,7 +773,7 @@ public class BaseEntityTest {
     }
 
     @Test
-    public void testEntityRootDelegates() {
+    public void testEntityMutationLedgerDelegates() {
         BaseEntity entity = new BaseEntity() {
             @Override public String typeName() { return "DummyEntity"; }
             @Override public boolean newItem() { return true; }
@@ -782,8 +782,8 @@ public class BaseEntityTest {
         entity.__internalSet("id", 1L);
         entity.__internalSet("version", 1L);
         
-        // Test entityRoot == null branches
-        entity.setEntityRoot(null);
+        // Test entityMutationLedger == null branches
+        entity.setEntityMutationLedger(null);
         try { entity.__internalGet("name"); } catch(Exception ignored) {}
         entity.getUpdatedProperties();
         entity.dirtyFields();
@@ -791,8 +791,8 @@ public class BaseEntityTest {
         entity.isMarkedAsDelete();
         entity.isNew();
         
-        EntityRoot root = new EntityRoot();
-        entity.setEntityRoot(root);
+        EntityMutationLedger root = new EntityMutationLedger();
+        entity.setEntityMutationLedger(root);
         
         entity.setComment("test comment");
         assertEquals("test comment", root.getComment());
@@ -821,7 +821,7 @@ public class BaseEntityTest {
         BaseEntity entityNoId = new BaseEntity() {
             @Override public String typeName() { return "NoIdEntity"; }
         };
-        entityNoId.setEntityRoot(root);
+        entityNoId.setEntityMutationLedger(root);
         try {
             entityNoId.__internalGet("name");
         } catch (Exception ignored) {}

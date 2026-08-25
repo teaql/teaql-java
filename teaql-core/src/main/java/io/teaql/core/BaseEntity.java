@@ -51,7 +51,7 @@ public class BaseEntity implements Entity {
     /**
      * Shared change tracking root for the entire entity graph.
      */
-    private EntityRoot entityRoot = new EntityRoot();
+    private EntityMutationLedger entityMutationLedger = new EntityMutationLedger();
 
     @Override
     public String getComment() {
@@ -61,8 +61,8 @@ public class BaseEntity implements Entity {
     @Override
     public void setComment(String comment) {
         this._comment = comment;
-        if (entityRoot != null) {
-            entityRoot.setComment(comment);
+        if (entityMutationLedger != null) {
+            entityMutationLedger.setComment(comment);
         }
     }
 
@@ -125,10 +125,10 @@ public class BaseEntity implements Entity {
 
     @FrameworkInternal("Business code should use typed getXxx() methods")
     public Object __internalGet(String property) {
-        // First try to get from entityRoot if available
-        if (entityRoot != null && id != null) {
+        // First try to get from entityMutationLedger if available
+        if (entityMutationLedger != null && id != null) {
             EntityKey key = new EntityKey(typeName(), id);
-            Object value = entityRoot.get(key, property);
+            Object value = entityMutationLedger.get(key, property);
             if (value != null) {
                 return value;
             }
@@ -196,9 +196,9 @@ public class BaseEntity implements Entity {
 
     @Override
     public List<String> getUpdatedProperties() {
-        if (entityRoot != null && id != null) {
+        if (entityMutationLedger != null && id != null) {
             EntityKey key = new EntityKey(typeName(), id);
-            Set<String> rootChanges = entityRoot.changedFieldNames(key);
+            Set<String> rootChanges = entityMutationLedger.changedFieldNames(key);
             if (rootChanges != null && !rootChanges.isEmpty()) {
                 return new ArrayList<>(rootChanges);
             }
@@ -259,8 +259,8 @@ public class BaseEntity implements Entity {
     @Override
     public void markAsDeleted() {
         gotoNextStatus(EntityAction.DELETE);
-        if (entityRoot != null && id != null) {
-            entityRoot.markAsDelete(new EntityKey(typeName(), id));
+        if (entityMutationLedger != null && id != null) {
+            entityMutationLedger.markAsDelete(new EntityKey(typeName(), id));
         }
     }
 
@@ -309,26 +309,26 @@ public class BaseEntity implements Entity {
         displayName = pDisplayName;
     }
 
-    // --- EntityRoot integration ---
+    // --- EntityMutationLedger integration ---
 
-    public EntityRoot getEntityRoot() {
-        return entityRoot;
+    public EntityMutationLedger getEntityMutationLedger() {
+        return entityMutationLedger;
     }
 
-    public void setEntityRoot(EntityRoot entityRoot) {
-        this.entityRoot = entityRoot;
-        if (entityRoot != null && id != null && newItem()) {
-            entityRoot.markAsNew(new EntityKey(typeName(), id));
+    public void setEntityMutationLedger(EntityMutationLedger entityMutationLedger) {
+        this.entityMutationLedger = entityMutationLedger;
+        if (entityMutationLedger != null && id != null && newItem()) {
+            entityMutationLedger.markAsNew(new EntityKey(typeName(), id));
         }
-        if (entityRoot != null && id != null && version != null) {
-            entityRoot.setOriginalVersion(new EntityKey(typeName(), id), version);
+        if (entityMutationLedger != null && id != null && version != null) {
+            entityMutationLedger.setOriginalVersion(new EntityKey(typeName(), id), version);
         }
     }
 
     public Set<String> dirtyFields() {
-        if (entityRoot != null && id != null) {
+        if (entityMutationLedger != null && id != null) {
             EntityKey key = new EntityKey(typeName(), id);
-            Set<String> fields = entityRoot.changedFieldNames(key);
+            Set<String> fields = entityMutationLedger.changedFieldNames(key);
             if (fields != null && !fields.isEmpty()) {
                 return fields;
             }
@@ -337,24 +337,24 @@ public class BaseEntity implements Entity {
     }
 
     public boolean isMarkedAsDelete() {
-        if (entityRoot == null || id == null) {
+        if (entityMutationLedger == null || id == null) {
             return deleteItem();
         }
-        return entityRoot.isMarkedAsDelete(new EntityKey(typeName(), id));
+        return entityMutationLedger.isMarkedAsDelete(new EntityKey(typeName(), id));
     }
 
     public boolean isNew() {
-        if (entityRoot == null || id == null) {
+        if (entityMutationLedger == null || id == null) {
             return newItem();
         }
-        return entityRoot.isNew(new EntityKey(typeName(), id));
+        return entityMutationLedger.isNew(new EntityKey(typeName(), id));
     }
 
     public Long getOriginalVersion() {
-        if (entityRoot == null || id == null) {
+        if (entityMutationLedger == null || id == null) {
             return null;
         }
-        return entityRoot.getOriginalVersion(new EntityKey(typeName(), id));
+        return entityMutationLedger.getOriginalVersion(new EntityKey(typeName(), id));
     }
 
     @Override
@@ -452,11 +452,11 @@ public class BaseEntity implements Entity {
         }
         updatedProperties.put(propertyName, new PropertyChange(propertyName, oldValue, newValue));
 
-        if (entityRoot != null && id != null) {
+        if (entityMutationLedger != null && id != null) {
             EntityKey key = new EntityKey(typeName(), id);
-            entityRoot.set(key, propertyName, newValue);
+            entityMutationLedger.set(key, propertyName, newValue);
             if (_traceChain != null) {
-                entityRoot.setTraceChain(key, _traceChain);
+                entityMutationLedger.setTraceChain(key, _traceChain);
             }
         }
     }
@@ -486,8 +486,8 @@ public class BaseEntity implements Entity {
 
     public BaseEntity markToRemove() {
         gotoNextStatus(EntityAction.DELETE);
-        if (entityRoot != null && id != null) {
-            entityRoot.markAsDelete(new EntityKey(typeName(), id));
+        if (entityMutationLedger != null && id != null) {
+            entityMutationLedger.markAsDelete(new EntityKey(typeName(), id));
         }
         return this;
     }
