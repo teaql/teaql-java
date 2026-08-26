@@ -183,7 +183,7 @@ public class MysqlIntegrationTest {
         }
 
         // Ensure Schema
-        mysqlExecutor.ensureSchema(context);
+        context.ensureSchema();
     }
 
     @AfterClass

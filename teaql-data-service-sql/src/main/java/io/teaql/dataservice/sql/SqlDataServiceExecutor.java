@@ -65,14 +65,15 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
     }
 
     @Override
-    public void ensureSchema(UserContext context) {
+    public void ensureSchema(UserContext context, io.teaql.core.SchemaExecutor.Invocation invocation) {
+        io.teaql.core.SchemaExecutor.Invocation.requireContextOwned(invocation);
         throw new UnsupportedOperationException(
                 "Schema initialization is not implemented by " + getClass().getName()
                         + " (database kind: " + debugDatabaseKind
                         + ", dialect: " + dialect.getClass().getSimpleName() + "). "
                         + "Use the database-specific executor "
                         + suggestedSchemaExecutor(debugDatabaseKind)
-                        + " and call SchemaExecutor.ensureSchema(context) explicitly.");
+                        + " and call context.ensureSchema() explicitly.");
     }
 
     private static String suggestedSchemaExecutor(String databaseKind) {

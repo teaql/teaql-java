@@ -180,7 +180,7 @@ public class Dm8IntegrationTest {
         } catch (Exception e) {}
 
         // Ensure Schema
-        dmExecutor.ensureSchema(context);
+        context.ensureSchema();
     }
 
     @AfterClass

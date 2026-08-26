@@ -43,7 +43,7 @@ public final class OrderManagementApp {
         JdbcSqlExecutor jdbc = new JdbcSqlExecutor(source);
         SqliteDataServiceExecutor executor = new SqliteDataServiceExecutor("sqlite", jdbc, source);
         UserContext context = context(executor);
-        executor.ensureSchema(context);
+        context.ensureSchema();
         System.out.println("[schema] ensured 7 generated entity tables");
 
         SmartList<CommercePlatform> platforms = Q.commercePlatforms()

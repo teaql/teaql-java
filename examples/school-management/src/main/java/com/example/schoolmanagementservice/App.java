@@ -84,8 +84,8 @@ public class App {
           if (!(dataServiceExecutor instanceof SchemaExecutor schema)) {
               throw new IllegalStateException("default data service has no schema capability");
           }
-          schema.ensureSchema(context);
-          schema.ensureSchema(context);
+          context.ensureSchema();
+          context.ensureSchema();
           SmartList<Platform> platforms = Q.platforms()
               .comment("verify seeded Platform root")
               .purpose("local runtime verification")

@@ -25,7 +25,8 @@ public class MysqlDataServiceExecutor extends SqlDataServiceExecutor {
     }
 
     @Override
-    public void ensureSchema(UserContext context) {
+    public void ensureSchema(UserContext context, io.teaql.core.SchemaExecutor.Invocation invocation) {
+        io.teaql.core.SchemaExecutor.Invocation.requireContextOwned(invocation);
         List<EntityDescriptor> descriptors = EntityMetaFactory.get().allEntityDescriptors();
 
         TeaQLDatabase dbAdapter = new TeaQLDatabase() {

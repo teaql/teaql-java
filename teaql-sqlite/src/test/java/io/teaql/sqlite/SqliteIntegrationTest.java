@@ -182,7 +182,7 @@ public class SqliteIntegrationTest {
         }
 
         // Ensure Schema
-        sqliteExecutor.ensureSchema(context);
+        context.ensureSchema();
     }
 
     @AfterClass

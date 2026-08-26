@@ -17,6 +17,7 @@ public class TeaQLRuntime {
     private final RuntimeLogSink logSink;
     private final boolean executionLoggingEnabled;
     private final RuntimeTelemetry telemetry;
+    private final SchemaExecutor schemaExecutor;
     private final Map<String, Checker<?>> checkers = new java.util.concurrent.ConcurrentHashMap<>();
 
     private TeaQLRuntime(Builder builder) {
@@ -27,6 +28,7 @@ public class TeaQLRuntime {
         this.logSink = builder.logSink;
         this.executionLoggingEnabled = builder.executionLoggingEnabled;
         this.telemetry = builder.telemetry != null ? builder.telemetry : RuntimeTelemetry.NOOP;
+        this.schemaExecutor = builder.schemaExecutor;
     }
 
     public static Builder builder() {
@@ -59,6 +61,10 @@ public class TeaQLRuntime {
 
     public RuntimeTelemetry getTelemetry() {
         return telemetry;
+    }
+
+    SchemaExecutor getSchemaExecutor() {
+        return schemaExecutor;
     }
 
     /** Installs a passive generated manifest. Database schemas remain unchanged. */
@@ -762,6 +768,7 @@ public class TeaQLRuntime {
         private RuntimeLogSink logSink;
         private boolean executionLoggingEnabled = true;
         private RuntimeTelemetry telemetry = RuntimeTelemetry.NOOP;
+        private SchemaExecutor schemaExecutor;
 
         public Builder metadata(EntityMetaFactory metadata) {
             this.metadata = metadata;
@@ -778,6 +785,9 @@ public class TeaQLRuntime {
                 throw new IllegalStateException("Cannot register data service on custom registry");
             }
             dsr.register(name, executor);
+            if (schemaExecutor == null && executor instanceof SchemaExecutor schema) {
+                schemaExecutor = schema;
+            }
             return this;
         }
 

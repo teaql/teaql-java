@@ -183,7 +183,7 @@ public class PostgresIntegrationTest {
         }
 
         // Ensure Schema
-        postgresExecutor.ensureSchema(context);
+        context.ensureSchema();
     }
 
     @AfterClass

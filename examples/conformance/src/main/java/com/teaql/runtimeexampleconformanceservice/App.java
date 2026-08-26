@@ -84,7 +84,7 @@ public class App {
           if (!(dataServiceExecutor instanceof SchemaExecutor schema)) {
               throw new IllegalStateException("default data service has no schema capability");
           }
-          schema.ensureSchema(context);
+          context.ensureSchema();
           System.out.println("PASS ensureSchema (explicit SQLite DDL from Runtime Module)");
 
           Platform platform = Q.platforms()

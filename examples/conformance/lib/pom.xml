@@ -12,7 +12,7 @@
   <properties>
     <java.version>21</java.version>
     <spring-boot.version>4.1.0</spring-boot.version>
-    <teaql.version>1.536-RELEASE</teaql.version>
+    <teaql.version>1.539-RELEASE</teaql.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.parameters>true</maven.compiler.parameters>
   </properties>
@@ -52,7 +52,7 @@
         <dependency>
           <groupId>io.teaql</groupId>
           <artifactId>teaql-sqlite</artifactId>
-          <version>1.539-RELEASE</version>
+          <version>${teaql.version}</version>
         </dependency>
     <dependency>
       <groupId>io.teaql</groupId>

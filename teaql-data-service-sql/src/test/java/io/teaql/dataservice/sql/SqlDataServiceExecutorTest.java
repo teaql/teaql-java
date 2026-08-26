@@ -54,18 +54,11 @@ public class SqlDataServiceExecutorTest {
 
     @Test
     public void genericExecutorRejectsSchemaInitialization() {
-        UnsupportedOperationException error = Assert.assertThrows(
-                UnsupportedOperationException.class,
-                () -> executor.ensureSchema(null));
+        SecurityException boundary = Assert.assertThrows(
+                SecurityException.class,
+                () -> executor.ensureSchema(null, null));
+        assertEquals("Ensure Schema must be invoked through UserContext.ensureSchema()", boundary.getMessage());
 
-        assertEquals(
-                "Schema initialization is not implemented by "
-                        + "io.teaql.dataservice.sql.SqlDataServiceExecutor "
-                        + "(database kind: postgresql, dialect: PostgreSqlDialect). "
-                        + "Use the database-specific executor "
-                        + "io.teaql.core.postgres.PostgresDataServiceExecutor "
-                        + "and call SchemaExecutor.ensureSchema(context) explicitly.",
-                error.getMessage());
     }
 
     @Test

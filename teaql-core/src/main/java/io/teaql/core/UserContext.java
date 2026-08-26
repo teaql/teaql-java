@@ -14,6 +14,14 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
     String TEAQL_I18N_CATALOG = "teaql.i18n.catalog";
     String TEAQL_ACTIVE_ROOT = "teaql.active.root";
 
+    default void ensureSchema() {
+        SchemaExecutor schema = capability(SchemaExecutor.class);
+        if (schema == null) {
+            throw new TeaQLRuntimeException("Schema capability is not configured in this UserContext");
+        }
+        schema.ensureSchema(this, SchemaExecutor.Invocation.contextOwned());
+    }
+
     default UserContext withActiveRoot(ContextEntityRef root) {
         if (root == null) throw new IllegalArgumentException("root must not be null");
         putAttribute(TEAQL_ACTIVE_ROOT, root);
