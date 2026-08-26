@@ -1,5 +1,6 @@
 package io.teaql.core.sql.portable;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -1134,8 +1135,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             ensure(context, dbTableInfo, table, columns);
         });
 
-        ensureInitData(context);
         ensureIdSpaceTable(context);
+        ensureInitData(context);
     }
 
     public void ensureIdSpaceTable(UserContext context) {
@@ -1213,6 +1214,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         }
 
         if (!dbRow.isEmpty()) {
+            ensureBootstrapIdFloor(context, 1L);
             long version = Long.parseLong(String.valueOf(dbRow.get(0).get("version")));
             if (version > 0) return;
             String sql = StrUtil.format("UPDATE {} SET version = {} where id = '1'", tableName(entityDescriptor.getType()), -version);
@@ -1237,6 +1239,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         if (ensureTableEnabled(context)) {
             try { database.execute(context, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
         }
+        ensureBootstrapIdFloor(context, 1L);
     }
 
     private void ensureConstant(UserContext context) {
@@ -1253,6 +1256,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             List<Object> oneConstant = ownProperties.stream()
                     .map(p -> getConstantPropertyValue(context, p, i, code))
                     .collect(Collectors.toList());
+            Object constantId = getConstantPropertyValue(
+                    context, entityDescriptor.findIdProperty(), i, code);
 
             try {
                 List<Map<String, Object>> existing = database.query(context,
@@ -1262,7 +1267,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                         new Object[0]);
                 if (!existing.isEmpty()) {
                     long version = Long.parseLong(String.valueOf(existing.get(0).get("version")));
-                    if (version > 0) continue;
+                    if (version > 0) {
+                        reconcileConstant(context, ownProperties, oneConstant, existing.get(0), version);
+                        ensureBootstrapIdFloor(context, constantId);
+                        continue;
+                    }
                     String sql = StrUtil.format("UPDATE {} SET version = {} where id = '{}'",
                             tableName(entityDescriptor.getType()), -version,
                             getConstantPropertyValue(context, entityDescriptor.findIdProperty(), i, code));
@@ -1270,6 +1279,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                     if (ensureTableEnabled(context)) {
                         try { database.execute(context, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
                     }
+                    ensureBootstrapIdFloor(context, constantId);
                     continue;
                 }
             } catch (Exception ignored) {
@@ -1283,6 +1293,67 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             if (ensureTableEnabled(context)) {
                 try { database.execute(context, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
             }
+            ensureBootstrapIdFloor(context, constantId);
+        }
+    }
+
+    private void ensureBootstrapIdFloor(UserContext context, Object id) {
+        if (!ensureTableEnabled(context) || id == null) return;
+        long floor = id instanceof Number
+                ? ((Number) id).longValue()
+                : Long.parseLong(String.valueOf(id));
+        new IdSpaceIdGenerator(database, getTqlIdSpaceTable())
+                .ensureFloor(entityDescriptor.getType(), floor);
+    }
+
+    private void reconcileConstant(
+            UserContext context,
+            List<PropertyDescriptor> properties,
+            List<Object> desiredValues,
+            Map<String, Object> existing,
+            long version) {
+        List<String> assignments = new ArrayList<>();
+        Object id = null;
+        for (int i = 0; i < properties.size(); i++) {
+            PropertyDescriptor property = properties.get(i);
+            Object desired = desiredValues.get(i);
+            String column = getSqlColumn(property).getColumnName();
+            if (property.isId()) {
+                id = desired;
+                continue;
+            }
+            if (property.isVersion()) continue;
+            if (!bootstrapValuesEqual(findColumnValue(existing, column), desired)) {
+                assignments.add(dialect.escapeIdentifier(column) + " = " + getSqlValue(desired));
+            }
+        }
+        if (assignments.isEmpty()) return;
+        assignments.add("version = version + 1");
+        String sql = StrUtil.format(
+                "UPDATE {} SET {} WHERE id = {} AND version = {}",
+                tableName(entityDescriptor.getType()),
+                CollectionUtil.join(assignments, ","),
+                getSqlValue(id),
+                version);
+        logInfo(sql + ";");
+        if (ensureTableEnabled(context)) database.execute(context, sql);
+    }
+
+    private Object findColumnValue(Map<String, Object> row, String column) {
+        for (Map.Entry<String, Object> entry : row.entrySet()) {
+            if (entry.getKey().equalsIgnoreCase(column)) return entry.getValue();
+        }
+        return null;
+    }
+
+    private boolean bootstrapValuesEqual(Object existing, Object desired) {
+        if (java.util.Objects.equals(existing, desired)) return true;
+        if (existing == null || desired == null) return false;
+        try {
+            return new BigDecimal(String.valueOf(existing))
+                    .compareTo(new BigDecimal(String.valueOf(desired))) == 0;
+        } catch (NumberFormatException ignored) {
+            return String.valueOf(existing).equals(String.valueOf(desired));
         }
     }
 

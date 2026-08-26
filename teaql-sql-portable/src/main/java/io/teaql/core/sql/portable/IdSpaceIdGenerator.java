@@ -98,6 +98,43 @@ public class IdSpaceIdGenerator implements InternalIdGenerationService {
                         + MAX_ALLOCATION_ATTEMPTS + " optimistic-lock attempts");
     }
 
+    /** Advances an ID space to at least {@code floor} without ever moving it backwards. */
+    public void ensureFloor(String typeName, long floor) {
+        for (int attempt = 1; attempt <= MAX_ALLOCATION_ATTEMPTS; attempt++) {
+            Long current = readCurrentLevel(typeName);
+            if (current == null) {
+                try {
+                    int inserted = database.executeUpdate(
+                            "INSERT INTO " + idSpaceTable
+                                    + " (type_name, current_level) VALUES (?, ?)",
+                            new Object[]{typeName, floor});
+                    if (inserted == 1) return;
+                    throw new IllegalStateException(
+                            "Expected one inserted ID space row for type " + typeName
+                                    + ", inserted " + inserted);
+                } catch (RuntimeException insertFailure) {
+                    if (readCurrentLevel(typeName) == null) throw insertFailure;
+                    continue;
+                }
+            }
+            if (current >= floor) return;
+            int updated = database.executeUpdate(
+                    "UPDATE " + idSpaceTable
+                            + " SET current_level = ?"
+                            + " WHERE type_name = ? AND current_level = ?",
+                    new Object[]{floor, typeName, current});
+            if (updated == 1) return;
+            if (updated != 0) {
+                throw new IllegalStateException(
+                        "Expected at most one ID space row for type " + typeName
+                                + ", updated " + updated);
+            }
+        }
+        throw new IllegalStateException(
+                "Unable to advance ID floor for type " + typeName + " to " + floor
+                        + " after " + MAX_ALLOCATION_ATTEMPTS + " optimistic-lock attempts");
+    }
+
     private Long readCurrentLevel(String typeName) {
         List<Map<String, Object>> rows = database.query(
                 "SELECT current_level FROM " + idSpaceTable + " WHERE type_name = ?",
