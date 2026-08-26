@@ -1,5 +1,8 @@
 package io.teaql.core.checker;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class ObjectLocation {
     private ObjectLocation parent;
 
@@ -44,5 +47,57 @@ public class ObjectLocation {
 
     public boolean isThirdLevel() {
         return getLevel() == 3;
+    }
+
+    /** Canonical casing-neutral path using KSML property names. */
+    public String modelPath() {
+        return render(false, false);
+    }
+
+    /** Java diagnostic path using lower-camel property names. */
+    public String nativePath() {
+        return render(true, false);
+    }
+
+    /** RFC 6901 JSON pointer using TeaQL's default lower-camel wire policy. */
+    public String instancePath() {
+        return render(true, true);
+    }
+
+    private String render(boolean lowerCamel, boolean pointer) {
+        List<ObjectLocation> locations = new ArrayList<>();
+        for (ObjectLocation current = this; current != null; current = current.getParent()) {
+            locations.add(0, current);
+        }
+        StringBuilder result = new StringBuilder();
+        for (ObjectLocation location : locations) {
+            if (location instanceof HashLocation hash) {
+                String member = lowerCamel ? lowerCamel(hash.getMember()) : hash.getMember();
+                if (pointer) {
+                    result.append('/').append(escapePointer(member));
+                } else {
+                    if (!result.isEmpty()) result.append('.');
+                    result.append(member);
+                }
+            } else if (location instanceof ArrayLocation array) {
+                if (pointer) result.append('/').append(array.getIndex());
+                else result.append('[').append(array.getIndex()).append(']');
+            }
+        }
+        return result.toString();
+    }
+
+    private static String lowerCamel(String name) {
+        String[] parts = name.split("_", -1);
+        StringBuilder result = new StringBuilder(parts.length == 0 ? "" : parts[0]);
+        for (int i = 1; i < parts.length; i++) {
+            if (parts[i].isEmpty()) continue;
+            result.append(Character.toUpperCase(parts[i].charAt(0))).append(parts[i].substring(1));
+        }
+        return result.toString();
+    }
+
+    private static String escapePointer(String value) {
+        return value.replace("~", "~0").replace("/", "~1");
     }
 }

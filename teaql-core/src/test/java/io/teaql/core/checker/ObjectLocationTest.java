@@ -6,6 +6,23 @@ import static org.junit.Assert.*;
 public class ObjectLocationTest {
 
     @Test
+    public void rendersCanonicalNativeAndExternalPaths() {
+        ObjectLocation location = ObjectLocation.hashRoot("order_items")
+                .element(2)
+                .member("user_url");
+
+        assertEquals("order_items[2].user_url", location.modelPath());
+        assertEquals("orderItems[2].userUrl", location.nativePath());
+        assertEquals("/orderItems/2/userUrl", location.instancePath());
+        assertEquals("order_items[2].user_url", location.toString());
+    }
+
+    @Test
+    public void escapesJsonPointerMembers() {
+        assertEquals("/a~0~1b", ObjectLocation.hashRoot("a~/b").instancePath());
+    }
+
+    @Test
     public void testObjectLocationFormattingAndNestingLevels() {
         // Test hashRoot
         ObjectLocation hash = ObjectLocation.hashRoot("user");
