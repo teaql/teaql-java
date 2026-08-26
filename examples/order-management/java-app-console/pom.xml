@@ -11,6 +11,7 @@
   <properties>
     <maven.compiler.release>21</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <teaql.version>1.539-RELEASE</teaql.version>
   </properties>
   <dependencies>
     <dependency>
@@ -21,7 +22,7 @@
     <dependency>
       <groupId>io.teaql</groupId>
       <artifactId>teaql-provider-jdbc</artifactId>
-      <version>1.528-RELEASE</version>
+      <version>${teaql.version}</version>
     </dependency>
     <dependency>
       <groupId>org.xerial</groupId>
