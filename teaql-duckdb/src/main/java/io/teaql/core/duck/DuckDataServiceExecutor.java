@@ -25,17 +25,17 @@ public class DuckDataServiceExecutor extends SqlDataServiceExecutor {
         TeaQLDatabase dbAdapter = new TeaQLDatabase() {
             @Override
             public List<Map<String, Object>> query(String sql, Object[] args) {
-                throw new UnsupportedOperationException();
+                return getExecutionAdapter().queryForList(sql, args);
             }
 
             @Override
             public int executeUpdate(String sql, Object[] args) {
-                throw new UnsupportedOperationException();
+                return getExecutionAdapter().update(sql, args);
             }
 
             @Override
             public int[] batchUpdate(String sql, List<Object[]> batchArgs) {
-                throw new UnsupportedOperationException();
+                return getExecutionAdapter().batchUpdate(sql, batchArgs);
             }
 
             @Override
@@ -45,7 +45,7 @@ public class DuckDataServiceExecutor extends SqlDataServiceExecutor {
 
             @Override
             public void executeInTransaction(Runnable action) {
-                throw new UnsupportedOperationException();
+                action.run();
             }
 
             @Override
