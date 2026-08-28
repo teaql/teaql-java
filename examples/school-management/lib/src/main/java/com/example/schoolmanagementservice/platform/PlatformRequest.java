@@ -248,11 +248,19 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
         return createBasicSearchCriteria(Platform.ID_PROPERTY, operator, values);
     }
 
+    public PlatformRequest<T> withIdIsNot(Long id){
+       return withId(Operator.NOT_EQUAL, id);
+    }
+
+    public PlatformRequest<T> withIdIn(Long... id){
+       return withId(Operator.IN, (Object[])id);
+    }
+
+    public PlatformRequest<T> withIdNotIn(Long... id){
+       return withId(Operator.NOT_IN, (Object[])id);
+    }
     public PlatformRequest<T> withIdIs(Long id){
        return withId(Operator.EQUAL, id);
-    }
-    public PlatformRequest<T> withIdIn(Long... id){
-       return withId(Operator.EQUAL, (Object[])id);
     }
 
 
@@ -280,6 +288,17 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
         return createBasicSearchCriteria(Platform.NAME_PROPERTY, operator, values);
     }
 
+    public PlatformRequest<T> withNameIsNot(String name){
+       return withName(Operator.NOT_EQUAL, name);
+    }
+
+    public PlatformRequest<T> withNameIn(String... name){
+       return withName(Operator.IN, (Object[])name);
+    }
+
+    public PlatformRequest<T> withNameNotIn(String... name){
+       return withName(Operator.NOT_IN, (Object[])name);
+    }
     public PlatformRequest<T> withNameGreaterThan(String name){
        return withName(Operator.GREATER_THAN, name);
     }
@@ -306,8 +325,20 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
        return withName(Operator.CONTAIN, name);
     }
 
+    public PlatformRequest<T> withNameNotContaining(String name){
+       return withName(Operator.NOT_CONTAIN, name);
+    }
+
+    public PlatformRequest<T> withNameNotStartingWith(String name){
+       return withName(Operator.NOT_BEGIN_WITH, name);
+    }
+
     public PlatformRequest<T> withNameEndingWith(String name){
        return withName(Operator.END_WITH, name);
+    }
+
+    public PlatformRequest<T> withNameNotEndingWith(String name){
+       return withName(Operator.NOT_END_WITH, name);
     }
 
     public PlatformRequest<T> withNameIs(String name){
@@ -343,6 +374,17 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
         return createBasicSearchCriteria(Platform.BASE_URL_PROPERTY, operator, values);
     }
 
+    public PlatformRequest<T> withBaseUrlIsNot(String baseUrl){
+       return withBaseUrl(Operator.NOT_EQUAL, baseUrl);
+    }
+
+    public PlatformRequest<T> withBaseUrlIn(String... baseUrl){
+       return withBaseUrl(Operator.IN, (Object[])baseUrl);
+    }
+
+    public PlatformRequest<T> withBaseUrlNotIn(String... baseUrl){
+       return withBaseUrl(Operator.NOT_IN, (Object[])baseUrl);
+    }
     public PlatformRequest<T> withBaseUrlGreaterThan(String baseUrl){
        return withBaseUrl(Operator.GREATER_THAN, baseUrl);
     }
@@ -369,8 +411,20 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
        return withBaseUrl(Operator.CONTAIN, baseUrl);
     }
 
+    public PlatformRequest<T> withBaseUrlNotContaining(String baseUrl){
+       return withBaseUrl(Operator.NOT_CONTAIN, baseUrl);
+    }
+
+    public PlatformRequest<T> withBaseUrlNotStartingWith(String baseUrl){
+       return withBaseUrl(Operator.NOT_BEGIN_WITH, baseUrl);
+    }
+
     public PlatformRequest<T> withBaseUrlEndingWith(String baseUrl){
        return withBaseUrl(Operator.END_WITH, baseUrl);
+    }
+
+    public PlatformRequest<T> withBaseUrlNotEndingWith(String baseUrl){
+       return withBaseUrl(Operator.NOT_END_WITH, baseUrl);
     }
 
     public PlatformRequest<T> withBaseUrlIs(String baseUrl){
@@ -406,6 +460,21 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
         return createBasicSearchCriteria(Platform.CREATE_TIME_PROPERTY, operator, values);
     }
 
+    public PlatformRequest<T> withCreateTimeIs(LocalDateTime createTime){
+       return withCreateTime(Operator.EQUAL, createTime);
+    }
+
+    public PlatformRequest<T> withCreateTimeIsNot(LocalDateTime createTime){
+       return withCreateTime(Operator.NOT_EQUAL, createTime);
+    }
+
+    public PlatformRequest<T> withCreateTimeIn(LocalDateTime... createTime){
+       return withCreateTime(Operator.IN, (Object[])createTime);
+    }
+
+    public PlatformRequest<T> withCreateTimeNotIn(LocalDateTime... createTime){
+       return withCreateTime(Operator.NOT_IN, (Object[])createTime);
+    }
     public PlatformRequest<T> withCreateTimeGreaterThan(LocalDateTime createTime){
        return withCreateTime(Operator.GREATER_THAN, createTime);
     }
@@ -471,6 +540,21 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
         return createBasicSearchCriteria(Platform.UPDATE_TIME_PROPERTY, operator, values);
     }
 
+    public PlatformRequest<T> withUpdateTimeIs(LocalDateTime updateTime){
+       return withUpdateTime(Operator.EQUAL, updateTime);
+    }
+
+    public PlatformRequest<T> withUpdateTimeIsNot(LocalDateTime updateTime){
+       return withUpdateTime(Operator.NOT_EQUAL, updateTime);
+    }
+
+    public PlatformRequest<T> withUpdateTimeIn(LocalDateTime... updateTime){
+       return withUpdateTime(Operator.IN, (Object[])updateTime);
+    }
+
+    public PlatformRequest<T> withUpdateTimeNotIn(LocalDateTime... updateTime){
+       return withUpdateTime(Operator.NOT_IN, (Object[])updateTime);
+    }
     public PlatformRequest<T> withUpdateTimeGreaterThan(LocalDateTime updateTime){
        return withUpdateTime(Operator.GREATER_THAN, updateTime);
     }
@@ -536,6 +620,21 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
         return createBasicSearchCriteria(Platform.VERSION_PROPERTY, operator, values);
     }
 
+    public PlatformRequest<T> withVersionIs(Long version){
+       return withVersion(Operator.EQUAL, version);
+    }
+
+    public PlatformRequest<T> withVersionIsNot(Long version){
+       return withVersion(Operator.NOT_EQUAL, version);
+    }
+
+    public PlatformRequest<T> withVersionIn(Long... version){
+       return withVersion(Operator.IN, (Object[])version);
+    }
+
+    public PlatformRequest<T> withVersionNotIn(Long... version){
+       return withVersion(Operator.NOT_IN, (Object[])version);
+    }
     public PlatformRequest<T> withVersionGreaterThan(Long version){
        return withVersion(Operator.GREATER_THAN, version);
     }

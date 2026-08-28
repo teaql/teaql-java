@@ -282,11 +282,19 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
         return createBasicSearchCriteria(SchoolType.ID_PROPERTY, operator, values);
     }
 
+    public SchoolTypeRequest<T> withIdIsNot(Long id){
+       return withId(Operator.NOT_EQUAL, id);
+    }
+
+    public SchoolTypeRequest<T> withIdIn(Long... id){
+       return withId(Operator.IN, (Object[])id);
+    }
+
+    public SchoolTypeRequest<T> withIdNotIn(Long... id){
+       return withId(Operator.NOT_IN, (Object[])id);
+    }
     public SchoolTypeRequest<T> withIdIs(Long id){
        return withId(Operator.EQUAL, id);
-    }
-    public SchoolTypeRequest<T> withIdIn(Long... id){
-       return withId(Operator.EQUAL, (Object[])id);
     }
 
 
@@ -314,6 +322,17 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
         return createBasicSearchCriteria(SchoolType.NAME_PROPERTY, operator, values);
     }
 
+    public SchoolTypeRequest<T> withNameIsNot(String name){
+       return withName(Operator.NOT_EQUAL, name);
+    }
+
+    public SchoolTypeRequest<T> withNameIn(String... name){
+       return withName(Operator.IN, (Object[])name);
+    }
+
+    public SchoolTypeRequest<T> withNameNotIn(String... name){
+       return withName(Operator.NOT_IN, (Object[])name);
+    }
     public SchoolTypeRequest<T> withNameGreaterThan(String name){
        return withName(Operator.GREATER_THAN, name);
     }
@@ -340,8 +359,20 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
        return withName(Operator.CONTAIN, name);
     }
 
+    public SchoolTypeRequest<T> withNameNotContaining(String name){
+       return withName(Operator.NOT_CONTAIN, name);
+    }
+
+    public SchoolTypeRequest<T> withNameNotStartingWith(String name){
+       return withName(Operator.NOT_BEGIN_WITH, name);
+    }
+
     public SchoolTypeRequest<T> withNameEndingWith(String name){
        return withName(Operator.END_WITH, name);
+    }
+
+    public SchoolTypeRequest<T> withNameNotEndingWith(String name){
+       return withName(Operator.NOT_END_WITH, name);
     }
 
     public SchoolTypeRequest<T> withNameIs(String name){
@@ -377,6 +408,17 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
         return createBasicSearchCriteria(SchoolType.CODE_PROPERTY, operator, values);
     }
 
+    public SchoolTypeRequest<T> withCodeIsNot(String code){
+       return withCode(Operator.NOT_EQUAL, code);
+    }
+
+    public SchoolTypeRequest<T> withCodeIn(String... code){
+       return withCode(Operator.IN, (Object[])code);
+    }
+
+    public SchoolTypeRequest<T> withCodeNotIn(String... code){
+       return withCode(Operator.NOT_IN, (Object[])code);
+    }
     public SchoolTypeRequest<T> withCodeGreaterThan(String code){
        return withCode(Operator.GREATER_THAN, code);
     }
@@ -403,8 +445,20 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
        return withCode(Operator.CONTAIN, code);
     }
 
+    public SchoolTypeRequest<T> withCodeNotContaining(String code){
+       return withCode(Operator.NOT_CONTAIN, code);
+    }
+
+    public SchoolTypeRequest<T> withCodeNotStartingWith(String code){
+       return withCode(Operator.NOT_BEGIN_WITH, code);
+    }
+
     public SchoolTypeRequest<T> withCodeEndingWith(String code){
        return withCode(Operator.END_WITH, code);
+    }
+
+    public SchoolTypeRequest<T> withCodeNotEndingWith(String code){
+       return withCode(Operator.NOT_END_WITH, code);
     }
 
     public SchoolTypeRequest<T> withCodeIs(String code){
@@ -440,6 +494,21 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
         return createBasicSearchCriteria(SchoolType.DISPLAY_ORDER_PROPERTY, operator, values);
     }
 
+    public SchoolTypeRequest<T> withDisplayOrderIs(BigDecimal displayOrder){
+       return withDisplayOrder(Operator.EQUAL, displayOrder);
+    }
+
+    public SchoolTypeRequest<T> withDisplayOrderIsNot(BigDecimal displayOrder){
+       return withDisplayOrder(Operator.NOT_EQUAL, displayOrder);
+    }
+
+    public SchoolTypeRequest<T> withDisplayOrderIn(BigDecimal... displayOrder){
+       return withDisplayOrder(Operator.IN, (Object[])displayOrder);
+    }
+
+    public SchoolTypeRequest<T> withDisplayOrderNotIn(BigDecimal... displayOrder){
+       return withDisplayOrder(Operator.NOT_IN, (Object[])displayOrder);
+    }
     public SchoolTypeRequest<T> withDisplayOrderGreaterThan(BigDecimal displayOrder){
        return withDisplayOrder(Operator.GREATER_THAN, displayOrder);
     }
@@ -485,6 +554,21 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
         return createBasicSearchCriteria(SchoolType.VERSION_PROPERTY, operator, values);
     }
 
+    public SchoolTypeRequest<T> withVersionIs(Long version){
+       return withVersion(Operator.EQUAL, version);
+    }
+
+    public SchoolTypeRequest<T> withVersionIsNot(Long version){
+       return withVersion(Operator.NOT_EQUAL, version);
+    }
+
+    public SchoolTypeRequest<T> withVersionIn(Long... version){
+       return withVersion(Operator.IN, (Object[])version);
+    }
+
+    public SchoolTypeRequest<T> withVersionNotIn(Long... version){
+       return withVersion(Operator.NOT_IN, (Object[])version);
+    }
     public SchoolTypeRequest<T> withVersionGreaterThan(Long version){
        return withVersion(Operator.GREATER_THAN, version);
     }

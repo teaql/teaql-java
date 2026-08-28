@@ -329,11 +329,19 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
         return createBasicSearchCriteria(School.ID_PROPERTY, operator, values);
     }
 
+    public SchoolRequest<T> withIdIsNot(Long id){
+       return withId(Operator.NOT_EQUAL, id);
+    }
+
+    public SchoolRequest<T> withIdIn(Long... id){
+       return withId(Operator.IN, (Object[])id);
+    }
+
+    public SchoolRequest<T> withIdNotIn(Long... id){
+       return withId(Operator.NOT_IN, (Object[])id);
+    }
     public SchoolRequest<T> withIdIs(Long id){
        return withId(Operator.EQUAL, id);
-    }
-    public SchoolRequest<T> withIdIn(Long... id){
-       return withId(Operator.EQUAL, (Object[])id);
     }
 
 
@@ -427,6 +435,17 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
         return createBasicSearchCriteria(School.NAME_PROPERTY, operator, values);
     }
 
+    public SchoolRequest<T> withNameIsNot(String name){
+       return withName(Operator.NOT_EQUAL, name);
+    }
+
+    public SchoolRequest<T> withNameIn(String... name){
+       return withName(Operator.IN, (Object[])name);
+    }
+
+    public SchoolRequest<T> withNameNotIn(String... name){
+       return withName(Operator.NOT_IN, (Object[])name);
+    }
     public SchoolRequest<T> withNameGreaterThan(String name){
        return withName(Operator.GREATER_THAN, name);
     }
@@ -453,8 +472,20 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
        return withName(Operator.CONTAIN, name);
     }
 
+    public SchoolRequest<T> withNameNotContaining(String name){
+       return withName(Operator.NOT_CONTAIN, name);
+    }
+
+    public SchoolRequest<T> withNameNotStartingWith(String name){
+       return withName(Operator.NOT_BEGIN_WITH, name);
+    }
+
     public SchoolRequest<T> withNameEndingWith(String name){
        return withName(Operator.END_WITH, name);
+    }
+
+    public SchoolRequest<T> withNameNotEndingWith(String name){
+       return withName(Operator.NOT_END_WITH, name);
     }
 
     public SchoolRequest<T> withNameIs(String name){
@@ -490,6 +521,17 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
         return createBasicSearchCriteria(School.ADDRESS_PROPERTY, operator, values);
     }
 
+    public SchoolRequest<T> withAddressIsNot(String address){
+       return withAddress(Operator.NOT_EQUAL, address);
+    }
+
+    public SchoolRequest<T> withAddressIn(String... address){
+       return withAddress(Operator.IN, (Object[])address);
+    }
+
+    public SchoolRequest<T> withAddressNotIn(String... address){
+       return withAddress(Operator.NOT_IN, (Object[])address);
+    }
     public SchoolRequest<T> withAddressGreaterThan(String address){
        return withAddress(Operator.GREATER_THAN, address);
     }
@@ -516,8 +558,20 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
        return withAddress(Operator.CONTAIN, address);
     }
 
+    public SchoolRequest<T> withAddressNotContaining(String address){
+       return withAddress(Operator.NOT_CONTAIN, address);
+    }
+
+    public SchoolRequest<T> withAddressNotStartingWith(String address){
+       return withAddress(Operator.NOT_BEGIN_WITH, address);
+    }
+
     public SchoolRequest<T> withAddressEndingWith(String address){
        return withAddress(Operator.END_WITH, address);
+    }
+
+    public SchoolRequest<T> withAddressNotEndingWith(String address){
+       return withAddress(Operator.NOT_END_WITH, address);
     }
 
     public SchoolRequest<T> withAddressIs(String address){
@@ -553,6 +607,21 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
         return createBasicSearchCriteria(School.ESTABLISHED_DATE_PROPERTY, operator, values);
     }
 
+    public SchoolRequest<T> withEstablishedDateIs(LocalDate establishedDate){
+       return withEstablishedDate(Operator.EQUAL, establishedDate);
+    }
+
+    public SchoolRequest<T> withEstablishedDateIsNot(LocalDate establishedDate){
+       return withEstablishedDate(Operator.NOT_EQUAL, establishedDate);
+    }
+
+    public SchoolRequest<T> withEstablishedDateIn(LocalDate... establishedDate){
+       return withEstablishedDate(Operator.IN, (Object[])establishedDate);
+    }
+
+    public SchoolRequest<T> withEstablishedDateNotIn(LocalDate... establishedDate){
+       return withEstablishedDate(Operator.NOT_IN, (Object[])establishedDate);
+    }
     public SchoolRequest<T> withEstablishedDateGreaterThan(LocalDate establishedDate){
        return withEstablishedDate(Operator.GREATER_THAN, establishedDate);
     }
@@ -618,6 +687,21 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
         return createBasicSearchCriteria(School.STUDENT_CAPACITY_PROPERTY, operator, values);
     }
 
+    public SchoolRequest<T> withStudentCapacityIs(Integer studentCapacity){
+       return withStudentCapacity(Operator.EQUAL, studentCapacity);
+    }
+
+    public SchoolRequest<T> withStudentCapacityIsNot(Integer studentCapacity){
+       return withStudentCapacity(Operator.NOT_EQUAL, studentCapacity);
+    }
+
+    public SchoolRequest<T> withStudentCapacityIn(Integer... studentCapacity){
+       return withStudentCapacity(Operator.IN, (Object[])studentCapacity);
+    }
+
+    public SchoolRequest<T> withStudentCapacityNotIn(Integer... studentCapacity){
+       return withStudentCapacity(Operator.NOT_IN, (Object[])studentCapacity);
+    }
     public SchoolRequest<T> withStudentCapacityGreaterThan(Integer studentCapacity){
        return withStudentCapacity(Operator.GREATER_THAN, studentCapacity);
     }
@@ -695,6 +779,21 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
         return createBasicSearchCriteria(School.CREATE_TIME_PROPERTY, operator, values);
     }
 
+    public SchoolRequest<T> withCreateTimeIs(LocalDateTime createTime){
+       return withCreateTime(Operator.EQUAL, createTime);
+    }
+
+    public SchoolRequest<T> withCreateTimeIsNot(LocalDateTime createTime){
+       return withCreateTime(Operator.NOT_EQUAL, createTime);
+    }
+
+    public SchoolRequest<T> withCreateTimeIn(LocalDateTime... createTime){
+       return withCreateTime(Operator.IN, (Object[])createTime);
+    }
+
+    public SchoolRequest<T> withCreateTimeNotIn(LocalDateTime... createTime){
+       return withCreateTime(Operator.NOT_IN, (Object[])createTime);
+    }
     public SchoolRequest<T> withCreateTimeGreaterThan(LocalDateTime createTime){
        return withCreateTime(Operator.GREATER_THAN, createTime);
     }
@@ -760,6 +859,21 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
         return createBasicSearchCriteria(School.UPDATE_TIME_PROPERTY, operator, values);
     }
 
+    public SchoolRequest<T> withUpdateTimeIs(LocalDateTime updateTime){
+       return withUpdateTime(Operator.EQUAL, updateTime);
+    }
+
+    public SchoolRequest<T> withUpdateTimeIsNot(LocalDateTime updateTime){
+       return withUpdateTime(Operator.NOT_EQUAL, updateTime);
+    }
+
+    public SchoolRequest<T> withUpdateTimeIn(LocalDateTime... updateTime){
+       return withUpdateTime(Operator.IN, (Object[])updateTime);
+    }
+
+    public SchoolRequest<T> withUpdateTimeNotIn(LocalDateTime... updateTime){
+       return withUpdateTime(Operator.NOT_IN, (Object[])updateTime);
+    }
     public SchoolRequest<T> withUpdateTimeGreaterThan(LocalDateTime updateTime){
        return withUpdateTime(Operator.GREATER_THAN, updateTime);
     }
@@ -825,6 +939,21 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
         return createBasicSearchCriteria(School.VERSION_PROPERTY, operator, values);
     }
 
+    public SchoolRequest<T> withVersionIs(Long version){
+       return withVersion(Operator.EQUAL, version);
+    }
+
+    public SchoolRequest<T> withVersionIsNot(Long version){
+       return withVersion(Operator.NOT_EQUAL, version);
+    }
+
+    public SchoolRequest<T> withVersionIn(Long... version){
+       return withVersion(Operator.IN, (Object[])version);
+    }
+
+    public SchoolRequest<T> withVersionNotIn(Long... version){
+       return withVersion(Operator.NOT_IN, (Object[])version);
+    }
     public SchoolRequest<T> withVersionGreaterThan(Long version){
        return withVersion(Operator.GREATER_THAN, version);
     }
