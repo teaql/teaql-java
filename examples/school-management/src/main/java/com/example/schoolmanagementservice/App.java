@@ -144,7 +144,8 @@ public class App {
           assertQuery(context, "date range", Q.schools().withEstablishedDateBetween(LocalDate.of(1995, 1, 1), LocalDate.of(1995, 12, 31)), 1);
           assertQuery(context, "known", Q.schools().withAddressIsKnown(), 1);
           assertQuery(context, "unknown", Q.schools().withAddressIsUnknown(), 0);
-          assertQuery(context, "boolean", Q.schools().whichAreActive(), 1);
+          assertQuery(context, "boolean true", Q.schools().whichAreActive(), 1);
+          assertQuery(context, "boolean false", Q.schools().whichAreNotActive(), 0);
           assertQuery(context, "constant relation", Q.schools().withSchoolTypeIsPrimary(), 1);
 
           School related = Q.schools()
