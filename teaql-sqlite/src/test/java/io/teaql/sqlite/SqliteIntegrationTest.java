@@ -37,6 +37,7 @@ public class SqliteIntegrationTest {
 
     private static UserContext context;
     private static TeaQLRuntime runtime;
+    private static JdbcSqlExecutor jdbcSqlExecutor;
 
     public static class Task extends BaseEntity {
         public String title;
@@ -159,7 +160,7 @@ public class SqliteIntegrationTest {
         EntityMetaFactory.registerGlobal(metaFactory);
 
         DataSource ds = new SimpleDataSource(url, user, password);
-        JdbcSqlExecutor jdbcSqlExecutor = new JdbcSqlExecutor(ds);
+        jdbcSqlExecutor = new JdbcSqlExecutor(ds);
         io.teaql.core.sqlite.SqliteDataServiceExecutor sqliteExecutor = new io.teaql.core.sqlite.SqliteDataServiceExecutor("sqlite", jdbcSqlExecutor, ds);
 
         AtomicLong idGen = new AtomicLong(2);
@@ -183,6 +184,17 @@ public class SqliteIntegrationTest {
 
         // Ensure Schema
         context.ensureSchema();
+    }
+
+    @Test
+    public void testEnsureSchemaRegistersSoundexIdempotently() {
+        context.ensureSchema();
+        List<java.util.Map<String, Object>> rows = jdbcSqlExecutor.queryForList(
+                "SELECT soundex('Robert') AS robert, soundex('Rupert') AS rupert, soundex(NULL) AS empty",
+                new Object[0]);
+        assertEquals("R163", rows.get(0).get("robert"));
+        assertEquals(rows.get(0).get("robert"), rows.get(0).get("rupert"));
+        assertEquals("?000", rows.get(0).get("empty"));
     }
 
     @AfterClass

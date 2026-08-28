@@ -12,14 +12,33 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 
 public class JdbcSqlExecutor implements SqlExecutionAdapter {
 
     private final DataSource dataSource;
     private final ThreadLocal<Connection> transactionConnection = new ThreadLocal<>();
+    private final List<Consumer<Connection>> connectionInitializers = new CopyOnWriteArrayList<>();
 
     public JdbcSqlExecutor(DataSource dataSource) {
         this.dataSource = dataSource;
+    }
+
+    public JdbcSqlExecutor addConnectionInitializer(Consumer<Connection> initializer) {
+        connectionInitializers.add(initializer);
+        return this;
+    }
+
+    private Connection openConnection() throws SQLException {
+        Connection connection = dataSource.getConnection();
+        try {
+            for (Consumer<Connection> initializer : connectionInitializers) initializer.accept(connection);
+            return connection;
+        } catch (RuntimeException exception) {
+            try { connection.close(); } catch (SQLException ignored) { }
+            throw exception;
+        }
     }
 
     @Override
@@ -36,7 +55,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
     @Override
     public Stream<Map<String, Object>> queryForStream(String sql, Object[] params) {
         try {
-            Connection connection = dataSource.getConnection();
+            Connection connection = openConnection();
             PreparedStatement ps = connection.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
             ps.setFetchSize(200);
             if (params != null) {
@@ -106,7 +125,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         boolean owned = false;
         try {
             connection = transactionConnection.get();
-            if (connection == null) { connection = dataSource.getConnection(); owned = true; }
+            if (connection == null) { connection = openConnection(); owned = true; }
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
             if (params != null) {
                 for (int i = 0; i < params.length; i++) {
@@ -140,7 +159,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         boolean owned = false;
         try {
             connection = transactionConnection.get();
-            if (connection == null) { connection = dataSource.getConnection(); owned = true; }
+            if (connection == null) { connection = openConnection(); owned = true; }
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 if (params != null) {
                     for (int i = 0; i < params.length; i++) bind(statement, i + 1, params[i]);
@@ -256,7 +275,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         boolean owned = false;
         try {
             connection = transactionConnection.get();
-            if (connection == null) { connection = dataSource.getConnection(); owned = true; }
+            if (connection == null) { connection = openConnection(); owned = true; }
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.execute();
             }
@@ -278,7 +297,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         boolean owned = false;
         try {
             connection = transactionConnection.get();
-            if (connection == null) { connection = dataSource.getConnection(); owned = true; }
+            if (connection == null) { connection = openConnection(); owned = true; }
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
             for (int i = 0; i < params.length; i++) {
                 bind(ps, i + 1, params[i]);
@@ -298,7 +317,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         boolean owned = false;
         try {
             connection = transactionConnection.get();
-            if (connection == null) { connection = dataSource.getConnection(); owned = true; }
+            if (connection == null) { connection = openConnection(); owned = true; }
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
             for (Object[] params : paramsList) {
                 for (int i = 0; i < params.length; i++) {
@@ -321,7 +340,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             action.run();
             return;
         }
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = openConnection()) {
             boolean autoCommit = connection.getAutoCommit();
             connection.setAutoCommit(false);
             transactionConnection.set(connection);
