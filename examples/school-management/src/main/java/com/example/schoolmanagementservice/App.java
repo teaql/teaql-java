@@ -147,6 +147,20 @@ public class App {
           assertQuery(context, "boolean", Q.schools().whichAreActive(), 1);
           assertQuery(context, "constant relation", Q.schools().withSchoolTypeIsPrimary(), 1);
 
+          School related = Q.schools()
+              .withNameIs("Riverside Primary School")
+              .selectPlatformWith(Q.platformsWithMinimalFields().selectName().selectBaseUrl())
+              .selectSchoolTypeWith(Q.schoolTypesWithMinimalFields().selectName().selectCode())
+              .comment("Query parity: typed forward relations")
+              .purpose("Execute the shared School Query conformance case")
+              .executeForOne(context);
+          require(related != null
+                  && related.getPlatform() != null
+                  && "Campus Learning Platform".equals(related.getPlatform().getName())
+                  && related.getSchoolType() != null
+                  && "PRIMARY".equals(related.getSchoolType().getCode()),
+              "Typed forward relation query did not hydrate Platform and SchoolType");
+
           SmartList<School> projected = Q.schools()
               .selectName()
               .orderByIdDescending()
