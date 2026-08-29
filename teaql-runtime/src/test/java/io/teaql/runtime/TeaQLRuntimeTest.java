@@ -620,6 +620,46 @@ public class TeaQLRuntimeTest {
         Assert.assertFalse(independent.getEntityMutationLedger()
                 .changedFieldNames(new EntityKey("Dummy", 22L))
                 .isEmpty());
+        Assert.assertTrue(first.getEntityMutationLedger().currentChangeSet().isEmpty());
+    }
+
+    @Test
+    public void testFailedSaveRetainsOnlyItsOwnPendingLedger() {
+        RecordingMutationExecutor executor = new RecordingMutationExecutor() {
+            @Override
+            public MutationResult mutate(UserContext context, MutationRequest request) {
+                throw new TeaQLRuntimeException("expected mutation failure");
+            }
+        };
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new AdvancedMetaFactory())
+                .dataService("dummy", executor)
+                .build();
+        DefaultUserContext context = new DefaultUserContext(runtime);
+
+        DummyEntity failing = new DummyEntity();
+        failing.updateId(31L);
+        failing.set$status(EntityStatus.PERSISTED);
+        failing.updateProperty("name", "must remain pending");
+        failing.setComment("fail this graph");
+
+        DummyEntity independent = new DummyEntity();
+        independent.updateId(32L);
+        independent.set$status(EntityStatus.PERSISTED);
+        independent.updateProperty("name", "independent pending");
+
+        try {
+            runtime.saveGraph(context, failing);
+            Assert.fail("failed mutation was accepted");
+        } catch (TeaQLRuntimeException expected) {
+            Assert.assertEquals("expected mutation failure", expected.getMessage());
+        }
+
+        Assert.assertFalse(failing.getEntityMutationLedger()
+                .changedFieldNames(new EntityKey("Dummy", 31L)).isEmpty());
+        Assert.assertFalse(independent.getEntityMutationLedger()
+                .changedFieldNames(new EntityKey("Dummy", 32L)).isEmpty());
+        Assert.assertNotSame(failing.getEntityMutationLedger(), independent.getEntityMutationLedger());
     }
 
     @Test
