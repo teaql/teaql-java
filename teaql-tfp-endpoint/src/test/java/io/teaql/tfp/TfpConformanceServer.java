@@ -86,7 +86,8 @@ public final class TfpConformanceServer {
 
     private static TrustedFederalContext trusted() {
         Map<String, String> readable = Map.of(
-                "id", "id", "status", "status", "orderNumber", "orderNumber");
+                "id", "id", "status", "status", "orderNumber", "orderNumber",
+                "reviewed", "reviewed");
         return new TrustedFederalContext("tenantId", 1L, "conformance-agent", "tfp-conformance",
                 Set.of("CustomerOrder"), Map.of("CustomerOrder", readable),
                 Map.of("CustomerOrder", Map.of("status", "status")),
@@ -99,6 +100,7 @@ public final class TfpConformanceServer {
                 CustomerOrder order = new CustomerOrder();
                 order.updateId(7L); order.updateVersion(1L); order.setTenantId(1L);
                 order.setStatus("NEW"); order.setOrderNumber("ORD-007");
+                order.setReviewed(Boolean.TRUE);
                 SmartList<CustomerOrder> rows = new SmartList<>(); rows.add(order);
                 return new DefaultQueryResult(rows);
             }
@@ -123,6 +125,7 @@ public final class TfpConformanceServer {
         private String status;
         private String orderNumber;
         private Long tenantId;
+        private Boolean reviewed;
         public String typeName() { return "CustomerOrder"; }
         public String getStatus() { return status; }
         public void setStatus(String value) { status = value; }
@@ -130,5 +133,7 @@ public final class TfpConformanceServer {
         public void setOrderNumber(String value) { orderNumber = value; }
         public Long getTenantId() { return tenantId; }
         public void setTenantId(Long value) { tenantId = value; }
+        public Boolean getReviewed() { return reviewed; }
+        public void setReviewed(Boolean value) { reviewed = value; }
     }
 }

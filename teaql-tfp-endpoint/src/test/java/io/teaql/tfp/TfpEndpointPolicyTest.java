@@ -6,6 +6,7 @@ import static org.junit.Assert.assertThrows;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.teaql.core.BaseEntity;
 import io.teaql.core.DataServiceCapabilities;
+import io.teaql.core.FunctionApply;
 import io.teaql.core.MutationExecutor;
 import io.teaql.core.MutationRequest;
 import io.teaql.core.MutationResult;
@@ -17,6 +18,7 @@ import io.teaql.core.meta.EntityDescriptor;
 import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
 import io.teaql.runtime.DefaultQueryResult;
+import io.teaql.core.criteria.Operator;
 import java.util.Map;
 import java.util.Set;
 import org.junit.Before;
@@ -74,6 +76,52 @@ public class TfpEndpointPolicyTest {
         org.junit.Assert.assertEquals("PAID", entity.getStatus());
     }
 
+    @Test
+    public void parsesExtendedPortablePredicatesAndNullableBoolean() throws Exception {
+        TfpEndpointHandler handler = handler();
+        String[] filters = {
+                "{\"id\":{\"$ne\":8}}",
+                "{\"id\":{\"$notIn\":[8,9]}}",
+                "{\"id\":{\"$gt\":6}}",
+                "{\"id\":{\"$lt\":8}}",
+                "{\"id\":{\"$between\":[7,9]}}",
+                "{\"orderNumber\":{\"$notContains\":\"BAD\"}}",
+                "{\"orderNumber\":{\"$startsWith\":\"ORD\"}}",
+                "{\"orderNumber\":{\"$notStartsWith\":\"BAD\"}}",
+                "{\"orderNumber\":{\"$endsWith\":\"007\"}}",
+                "{\"orderNumber\":{\"$notEndsWith\":\"999\"}}",
+                "{\"reviewed\":{\"$isKnown\":true}}",
+                "{\"reviewed\":{\"$isUnknown\":true}}",
+                "{\"reviewed\":{\"$eq\":true}}",
+                "{\"reviewed\":{\"$eq\":false}}"
+        };
+        Operator[] operators = {
+                Operator.NOT_EQUAL, Operator.NOT_IN, Operator.GREATER_THAN,
+                Operator.LESS_THAN, Operator.BETWEEN, Operator.NOT_CONTAIN,
+                Operator.BEGIN_WITH, Operator.NOT_BEGIN_WITH, Operator.END_WITH,
+                Operator.NOT_END_WITH, Operator.IS_NOT_NULL, Operator.IS_NULL,
+                Operator.EQUAL, Operator.EQUAL
+        };
+        for (int i = 0; i < filters.length; i++) {
+            String filter = filters[i];
+            handler.handleQuery(null, trusted(), queryWithFilter(filter));
+            FunctionApply all = (FunctionApply) ((io.teaql.runtime.DefaultQueryRequest) capturedQuery)
+                    .getSearchRequest().getSearchCriteria();
+            FunctionApply translated = (FunctionApply) all.first();
+            org.junit.Assert.assertEquals(filter, operators[i], translated.getOperator());
+        }
+        for (String filter : new String[] {
+                "{\"id\":{\"$between\":[7]}}",
+                "{\"id\":{\"$notIn\":[]}}",
+                "{\"reviewed\":{\"$isKnown\":false}}",
+                "{\"reviewed\":{\"$isUnknown\":null}}",
+                "{\"reviewed\":{\"$eq\":null}}"
+        }) {
+            assertCode("TFP_INVALID_REQUEST",
+                    () -> handler.handleQuery(null, trusted(), queryWithFilter(filter)));
+        }
+    }
+
     private TfpEndpointHandler handler() {
         QueryExecutor query = new QueryExecutor() {
             public QueryResult query(io.teaql.core.UserContext c, QueryRequest request) {
@@ -97,9 +145,15 @@ public class TfpEndpointPolicyTest {
                 + "\":{\"$eq\":1}},\"limitValue\":10,\"commentText\":\"test\",\"purposeText\":\"test\"}").getBytes();
     }
 
+    private byte[] queryWithFilter(String filter) {
+        return ("{\"entity\":\"Probe\",\"filterCondition\":" + filter
+                + ",\"limitValue\":10,\"commentText\":\"test\",\"purposeText\":\"test\"}")
+                .getBytes();
+    }
+
     private TrustedFederalContext trusted() {
         return new TrustedFederalContext("id", 7L, "tester", "tests", Set.of("Probe"),
-                Map.of("Probe", Map.of("id", "id")),
+                Map.of("Probe", Map.of("id", "id", "orderNumber", "orderNumber", "reviewed", "reviewed")),
                 Map.of("Probe", Map.of("status", "status")),
                 Map.of("Probe", Set.of("Create", "Update")), 100);
     }

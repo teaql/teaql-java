@@ -278,13 +278,52 @@ public class TfpEndpointHandler {
         Operator operator;
         switch (operation.getKey()) {
             case "$eq": operator = Operator.EQUAL; break;
+            case "$ne": operator = Operator.NOT_EQUAL; break;
+            case "$gt": operator = Operator.GREATER_THAN; break;
             case "$gte": operator = Operator.GREATER_THAN_OR_EQUAL; break;
+            case "$lt": operator = Operator.LESS_THAN; break;
             case "$lte": operator = Operator.LESS_THAN_OR_EQUAL; break;
             case "$contains": operator = Operator.CONTAIN; break;
+            case "$notContains": operator = Operator.NOT_CONTAIN; break;
+            case "$startsWith": operator = Operator.BEGIN_WITH; break;
+            case "$notStartsWith": operator = Operator.NOT_BEGIN_WITH; break;
+            case "$endsWith": operator = Operator.END_WITH; break;
+            case "$notEndsWith": operator = Operator.NOT_END_WITH; break;
             case "$in": operator = Operator.IN; break;
+            case "$notIn": operator = Operator.NOT_IN; break;
+            case "$between": operator = Operator.BETWEEN; break;
+            case "$isKnown": operator = Operator.IS_NOT_NULL; break;
+            case "$isUnknown": operator = Operator.IS_NULL; break;
             default: throw new TfpEndpointException("TFP_INVALID_REQUEST", "Unsupported predicate operator");
         }
-        Object value = objectMapper.convertValue(operation.getValue(), Object.class);
+        JsonNode operand = operation.getValue();
+        if ((operator == Operator.EQUAL || operator == Operator.NOT_EQUAL
+                || operator == Operator.GREATER_THAN || operator == Operator.GREATER_THAN_OR_EQUAL
+                || operator == Operator.LESS_THAN || operator == Operator.LESS_THAN_OR_EQUAL)
+                && operand.isNull()) {
+            throw new TfpEndpointException("TFP_INVALID_REQUEST",
+                    operation.getKey() + " does not accept null; use $isKnown or $isUnknown");
+        }
+        if (operator == Operator.IS_NULL || operator == Operator.IS_NOT_NULL) {
+            if (!operand.isBoolean() || !operand.booleanValue())
+                throw new TfpEndpointException("TFP_INVALID_REQUEST",
+                        operation.getKey() + " requires true");
+            return request.createBasicSearchCriteria(field, operator);
+        }
+        if (operator == Operator.BETWEEN) {
+            if (!operand.isArray() || operand.size() != 2)
+                throw new TfpEndpointException("TFP_INVALID_REQUEST",
+                        "$between requires exactly two values");
+            Object lower = objectMapper.convertValue(operand.get(0), Object.class);
+            Object upper = objectMapper.convertValue(operand.get(1), Object.class);
+            return request.createBasicSearchCriteria(field, operator, lower, upper);
+        }
+        if (operator == Operator.IN || operator == Operator.NOT_IN) {
+            if (!operand.isArray() || operand.isEmpty() || operand.size() > 100)
+                throw new TfpEndpointException("TFP_INVALID_REQUEST",
+                        operation.getKey() + " size must be between 1 and 100");
+        }
+        Object value = objectMapper.convertValue(operand, Object.class);
         return request.createBasicSearchCriteria(field, operator, value);
     }
 
