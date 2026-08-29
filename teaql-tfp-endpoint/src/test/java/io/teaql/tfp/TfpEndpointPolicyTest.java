@@ -33,7 +33,10 @@ public class TfpEndpointPolicyTest {
         SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
         EntityDescriptor descriptor = new EntityDescriptor();
         descriptor.setType("Probe"); descriptor.setTargetType(Probe.class);
-        metadata.register(descriptor); EntityMetaFactory.registerGlobal(metadata);
+        metadata.register(descriptor);
+        EntityDescriptor status = new EntityDescriptor();
+        status.setType("ProbeStatus"); status.setTargetType(ProbeStatus.class);
+        metadata.register(status); EntityMetaFactory.registerGlobal(metadata);
     }
 
     @Test
@@ -122,6 +125,28 @@ public class TfpEndpointPolicyTest {
         }
     }
 
+    @Test
+    public void mapsTrustedFacetIntoNativeRequest() throws Exception {
+        TfpEndpointHandler handler = handler();
+        handler.handleQuery(null, trusted(), ("{\"entity\":\"Probe\","
+                + "\"filterCondition\":{\"id\":{\"$gt\":0}},"
+                + "\"facets\":[{\"facetName\":\"statusFacet\",\"relationName\":\"status\","
+                + "\"includeAllFacets\":true,\"query\":{\"entity\":\"ProbeStatus\","
+                + "\"selectItems\":[\"id\",\"code\"],\"aggregateItems\":[{"
+                + "\"function\":\"Count\",\"field\":\"id\",\"alias\":\"probeCount\"}],"
+                + "\"commentText\":\"load status facet\",\"purposeText\":\"render filters\"}}],"
+                + "\"limitValue\":10,\"commentText\":\"load probes\","
+                + "\"purposeText\":\"render list\"}").getBytes());
+        var request = ((io.teaql.runtime.DefaultQueryRequest) capturedQuery).getSearchRequest();
+        org.junit.Assert.assertEquals(1, request.getFacetRequests().size());
+        var facet = request.getFacetRequests().get(0);
+        org.junit.Assert.assertEquals("statusFacet", facet.getFacetName());
+        org.junit.Assert.assertEquals("status", facet.getRelationName());
+        org.junit.Assert.assertEquals("ProbeStatus", facet.getRequest().getTypeName());
+        org.junit.Assert.assertEquals("probeCount",
+                facet.getRequest().getAggregations().getAggregates().get(0).name());
+    }
+
     private TfpEndpointHandler handler() {
         QueryExecutor query = new QueryExecutor() {
             public QueryResult query(io.teaql.core.UserContext c, QueryRequest request) {
@@ -152,8 +177,10 @@ public class TfpEndpointPolicyTest {
     }
 
     private TrustedFederalContext trusted() {
-        return new TrustedFederalContext("id", 7L, "tester", "tests", Set.of("Probe"),
-                Map.of("Probe", Map.of("id", "id", "orderNumber", "orderNumber", "reviewed", "reviewed")),
+        return new TrustedFederalContext("id", 7L, "tester", "tests", Set.of("Probe", "ProbeStatus"),
+                Map.of(
+                        "Probe", Map.of("id", "id", "status", "status", "orderNumber", "orderNumber", "reviewed", "reviewed"),
+                        "ProbeStatus", Map.of("id", "id", "code", "code")),
                 Map.of("Probe", Map.of("status", "status")),
                 Map.of("Probe", Set.of("Create", "Update")), 100);
     }
@@ -168,5 +195,8 @@ public class TfpEndpointPolicyTest {
         public String typeName() { return "Probe"; }
         public String getStatus() { return status; }
         public void setStatus(String value) { status = value; }
+    }
+    public static final class ProbeStatus extends BaseEntity {
+        public String typeName() { return "ProbeStatus"; }
     }
 }

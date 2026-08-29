@@ -603,12 +603,17 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                                 fetchRelReq.appendSearchCriteria(request.getSearchCriteria());
                             }
                             SmartList<?> loadedRels = relationRepo.loadInternal(userContext, fetchRelReq);
+                            java.util.List<String> countAliases = relationReq.getAggregations().getAggregates()
+                                    .stream().map(io.teaql.core.SimpleNamedExpression::name).toList();
+                            if (countAliases.isEmpty()) countAliases = java.util.List.of("count");
                             for (Object obj : loadedRels) {
                                 io.teaql.core.Entity rel = (io.teaql.core.Entity) obj;
                                 Object cnt = idToCount.get(rel.getId());
                                 int countInt = toIntOrZero(cnt);
                                 if (rel instanceof io.teaql.core.BaseEntity) {
-                                    ((io.teaql.core.BaseEntity) rel).addDynamicProperty("count", countInt);
+                                    for (String alias : countAliases) {
+                                        ((io.teaql.core.BaseEntity) rel).addDynamicProperty(alias, countInt);
+                                    }
                                 }
                                 facetEntities.add(rel);
                             }

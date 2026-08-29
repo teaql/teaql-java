@@ -54,6 +54,7 @@ public final class TfpConformanceServer {
             status = 400;
             response = Map.of("code", error.getCode(), "message", error.getMessage());
         } catch (Exception error) {
+            error.printStackTrace(System.err);
             status = 500;
             response = Map.of("code", "TFP_EXECUTION_FAILED", "message", "TFP request failed");
         }
@@ -81,7 +82,14 @@ public final class TfpConformanceServer {
         EntityDescriptor descriptor = new EntityDescriptor();
         descriptor.setType("CustomerOrder"); descriptor.setTargetType(CustomerOrder.class);
         SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
-        metadata.register(descriptor); EntityMetaFactory.registerGlobal(metadata);
+        metadata.register(descriptor);
+        EntityDescriptor statusDescriptor = new EntityDescriptor();
+        statusDescriptor.setType("OrderStatus"); statusDescriptor.setTargetType(OrderStatus.class);
+        statusDescriptor.addSimpleProperty("id", Long.class);
+        statusDescriptor.addSimpleProperty("code", String.class);
+        statusDescriptor.addSimpleProperty("label", String.class);
+        metadata.register(statusDescriptor);
+        EntityMetaFactory.registerGlobal(metadata);
     }
 
     private static TrustedFederalContext trusted() {
@@ -89,7 +97,9 @@ public final class TfpConformanceServer {
                 "id", "id", "status", "status", "orderNumber", "orderNumber",
                 "reviewed", "reviewed");
         return new TrustedFederalContext("tenantId", 1L, "conformance-agent", "tfp-conformance",
-                Set.of("CustomerOrder"), Map.of("CustomerOrder", readable),
+                Set.of("CustomerOrder", "OrderStatus"), Map.of(
+                        "CustomerOrder", readable,
+                        "OrderStatus", Map.of("id", "id", "code", "code", "label", "label")),
                 Map.of("CustomerOrder", Map.of("status", "status")),
                 Map.of("CustomerOrder", Set.of("Create", "Update", "Delete")), 100);
     }
@@ -102,6 +112,17 @@ public final class TfpConformanceServer {
                 order.setStatus("NEW"); order.setOrderNumber("ORD-007");
                 order.setReviewed(Boolean.TRUE);
                 SmartList<CustomerOrder> rows = new SmartList<>(); rows.add(order);
+                var searchRequest = ((io.teaql.runtime.DefaultQueryRequest) request).getSearchRequest();
+                if (!searchRequest.getFacetRequests().isEmpty()) {
+                    SmartList<OrderStatus> statuses = new SmartList<>();
+                    OrderStatus newest = new OrderStatus(); newest.updateId(1001L);
+                    newest.setCode("NEW"); newest.setLabel("New");
+                    newest.addDynamicProperty("orderCount", 1); statuses.add(newest);
+                    OrderStatus paid = new OrderStatus(); paid.updateId(1002L);
+                    paid.setCode("PAID"); paid.setLabel("Paid");
+                    paid.addDynamicProperty("orderCount", 0); statuses.add(paid);
+                    rows.addFacet(searchRequest.getFacetRequests().get(0).getFacetName(), statuses);
+                }
                 return new DefaultQueryResult(rows);
             }
             public String name() { return "tfp-conformance"; }
@@ -135,5 +156,22 @@ public final class TfpConformanceServer {
         public void setTenantId(Long value) { tenantId = value; }
         public Boolean getReviewed() { return reviewed; }
         public void setReviewed(Boolean value) { reviewed = value; }
+    }
+
+    public static final class OrderStatus extends BaseEntity {
+        private String code;
+        private String label;
+        public String typeName() { return "OrderStatus"; }
+        public String getCode() { return code; }
+        public void setCode(String value) { code = value; }
+        public String getLabel() { return label; }
+        public void setLabel(String value) { label = value; }
+        @Override public Object __internalGet(String property) {
+            return switch (property) {
+                case "code" -> code;
+                case "label" -> label;
+                default -> super.__internalGet(property);
+            };
+        }
     }
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.teaql.core.BaseRequest;
+import io.teaql.core.AggrFunction;
 import io.teaql.core.Entity;
 import io.teaql.core.MutationExecutor;
 import io.teaql.core.QueryExecutor;
@@ -20,6 +21,8 @@ import io.teaql.runtime.RuntimeTelemetry;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 public class TfpEndpointHandler {
 
@@ -72,7 +75,7 @@ public class TfpEndpointHandler {
         rejectPrivilegedInput(root, "$", true);
         rejectUnknownTopLevel(root, java.util.Set.of("entity", "filterCondition", "limitValue",
                 "offsetValue", "orderItems", "selectItems", "groupByItems", "aggregateItems",
-                "commentText", "purposeText"));
+                "facets", "commentText", "purposeText"));
         String entityName = root.path("entity").asText();
 
         requireAllowedEntity(trusted, entityName);
@@ -119,6 +122,8 @@ public class TfpEndpointHandler {
             request.selectProperty(mapField(fields, selected.asText()));
         }
 
+        addFacets(request, root.path("facets"), trusted, fields);
+
         requireNonBlank(root, "commentText", "TFP_INVALID_REQUEST");
         requireNonBlank(root, "purposeText", "TFP_POLICY_VIOLATION");
         
@@ -127,9 +132,19 @@ public class TfpEndpointHandler {
 
         Map<String, Object> response = new HashMap<>();
         if (result instanceof DefaultQueryResult) {
-            response.put("data", ((DefaultQueryResult) result).getResult().getData());
+            var list = ((DefaultQueryResult) result).getResult();
+            response.put("data", list.getData());
+            Map<String, Object> facetData = new HashMap<>();
+            request.getFacetRequests().forEach(facet -> {
+                var values = list.getFacet(facet.getFacetName());
+                facetData.put(facet.getFacetName(), values == null
+                        ? Collections.emptyList()
+                        : wireFacetRows(values, facet.getRequest(), trusted));
+            });
+            response.put("facets", facetData);
         } else {
             response.put("data", Collections.emptyList());
+            response.put("facets", Collections.emptyMap());
         }
         response.put("resultCode", 0);
         response.put("status", "YES");
@@ -141,6 +156,93 @@ public class TfpEndpointHandler {
             scope.failure(error);
             throw error;
         }
+    }
+
+    private java.util.List<Map<String, Object>> wireFacetRows(io.teaql.core.SmartList values,
+            io.teaql.core.SearchRequest<?> request, TrustedFederalContext trusted) {
+        Map<String, String> mappings = trusted.readableFields(request.getTypeName());
+        Map<String, String> wireNames = new HashMap<>();
+        if (mappings != null) mappings.forEach((wire, internal) -> wireNames.put(internal, wire));
+        java.util.List<String> properties = new java.util.ArrayList<>();
+        request.getProjections().forEach(projection -> properties.add(projection.name()));
+        request.getAggregations().getAggregates().forEach(aggregate -> properties.add(aggregate.name()));
+        java.util.List<Map<String, Object>> rows = new java.util.ArrayList<>();
+        for (Object value : values) {
+            if (!(value instanceof Entity entity)) continue;
+            Map<String, Object> row = new java.util.LinkedHashMap<>();
+            for (String property : properties) {
+                row.put(wireNames.getOrDefault(property, property), entity.getProperty(property));
+            }
+            rows.add(row);
+        }
+        return rows;
+    }
+
+    private void addFacets(BaseRequest.TempRequest outer, JsonNode facets,
+            TrustedFederalContext trusted, Map<String, String> outerFields) {
+        if (facets == null || facets.isMissingNode() || facets.isNull()) return;
+        if (!facets.isArray() || facets.size() > 10)
+            throw new TfpEndpointException("TFP_INVALID_REQUEST", "facets must be an array of at most 10 items");
+        Set<String> names = new HashSet<>();
+        for (JsonNode facet : facets) {
+            rejectUnknownTopLevel(facet, Set.of("facetName", "relationName", "query", "includeAllFacets"));
+            String name = facet.path("facetName").asText();
+            if (!name.matches("[A-Za-z0-9_]{1,64}") || !names.add(name))
+                throw new TfpEndpointException("TFP_INVALID_REQUEST", "Invalid or duplicate facetName");
+            String relation = mapField(outerFields, facet.path("relationName").asText());
+            JsonNode nested = facet.path("query");
+            if (!nested.isObject())
+                throw new TfpEndpointException("TFP_INVALID_REQUEST", "Facet query is required");
+            if (!nested.path("facets").isEmpty())
+                throw new TfpEndpointException("TFP_INVALID_REQUEST", "Nested facets are not supported");
+            BaseRequest.TempRequest nestedRequest = buildFacetQuery(nested, trusted);
+            boolean includeAll = !facet.has("includeAllFacets") || facet.path("includeAllFacets").asBoolean();
+            outer.addFacet(name, relation, nestedRequest, includeAll);
+        }
+    }
+
+    private BaseRequest.TempRequest buildFacetQuery(JsonNode root, TrustedFederalContext trusted) {
+        rejectUnknownTopLevel(root, Set.of("entity", "filterCondition", "limitValue", "offsetValue",
+                "orderItems", "selectItems", "groupByItems", "aggregateItems", "facets",
+                "commentText", "purposeText"));
+        String entity = root.path("entity").asText();
+        requireAllowedEntity(trusted, entity);
+        Map<String, String> fields = trusted.readableFields(entity);
+        if (fields == null) throw new TfpEndpointException("TFP_POLICY_VIOLATION",
+                "No readable field policy for facet entity");
+        EntityDescriptor descriptor = EntityMetaFactory.get().resolveEntityDescriptor(entity);
+        if (descriptor == null) throw new TfpEndpointException("TFP_INVALID_REQUEST", "Unknown facet entity");
+        BaseRequest.TempRequest request = new BaseRequest.TempRequest(descriptor.getTargetType(), entity);
+        JsonNode filter = root.get("filterCondition");
+        if (filter != null && !filter.isNull()) request.appendSearchCriteria(parseFilter(request, filter, fields));
+        request.appendSearchCriteria(request.createBasicSearchCriteria(
+                trusted.tenantField(), Operator.EQUAL, trusted.tenantId()));
+        for (JsonNode selected : iterable(root.path("selectItems")))
+            request.selectProperty(mapField(fields, selected.asText()));
+        for (JsonNode order : iterable(root.path("orderItems"))) {
+            String field = mapField(fields, order.path("field").asText());
+            String direction = order.path("direction").asText();
+            if ("Asc".equalsIgnoreCase(direction)) request.addOrderByAscending(field);
+            else if ("Desc".equalsIgnoreCase(direction)) request.addOrderByDescending(field);
+            else throw new TfpEndpointException("TFP_INVALID_REQUEST", "Unsupported facet order direction");
+        }
+        if (!root.path("groupByItems").isEmpty())
+            throw new TfpEndpointException("TFP_INVALID_REQUEST", "Facet groupByItems are not supported");
+        int aggregateCount = 0;
+        for (JsonNode aggregate : iterable(root.path("aggregateItems"))) {
+            if (!"count".equalsIgnoreCase(aggregate.path("function").asText()))
+                throw new TfpEndpointException("TFP_INVALID_REQUEST", "TFP facets support Count only");
+            String alias = aggregate.path("alias").asText();
+            if (!alias.matches("[A-Za-z0-9_]{1,64}"))
+                throw new TfpEndpointException("TFP_INVALID_REQUEST", "Invalid facet count alias");
+            request.addAggregate(alias, mapField(fields, aggregate.path("field").asText()), AggrFunction.COUNT);
+            aggregateCount++;
+        }
+        if (aggregateCount == 0)
+            throw new TfpEndpointException("TFP_INVALID_REQUEST", "TFP facet requires a Count aggregate");
+        requireNonBlank(root, "commentText", "TFP_INVALID_REQUEST");
+        requireNonBlank(root, "purposeText", "TFP_POLICY_VIOLATION");
+        return request;
     }
 
     public Map<String, Object> handleMutation(UserContext context, byte[] payload) throws Exception {
