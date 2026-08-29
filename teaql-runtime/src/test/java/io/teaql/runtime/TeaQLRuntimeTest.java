@@ -372,6 +372,40 @@ public class TeaQLRuntimeTest {
     }
 
     @Test
+    public void TOPN_010_nestedRelationTelemetryCarriesPlanDimensions() {
+        List<RuntimeTelemetry.Operation> operations = new ArrayList<>();
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new DummyMetaFactory())
+                .dataService("dummy", new DummyQueryExecutor())
+                .telemetry(operation -> {
+                    operations.add(operation);
+                    return RuntimeTelemetry.NoopScope.INSTANCE;
+                })
+                .build();
+        DefaultUserContext context = new DefaultUserContext(runtime);
+        BaseRequest<DummyEntity> nested = (BaseRequest<DummyEntity>) bareDummyRequest();
+        nested.putExtension("teaql.internal.top_n.parent_count", 3);
+        nested.putExtension("teaql.internal.top_n.per_parent_limit", 2);
+        nested.putExtension("teaql.internal.top_n.probe_threshold", 3);
+        nested.putExtension("teaql.internal.top_n.selected_plan", "probe");
+        nested.putExtension("teaql.internal.top_n.probe_count", 3);
+
+        context.pushTrace("authorized root query");
+        try {
+            context.internalExecuteForList(nested);
+        } finally {
+            context.popTrace();
+        }
+
+        Map<String, Object> attributes = operations.get(0).attributes();
+        Assert.assertEquals(3, attributes.get("teaql.relation.parent_count"));
+        Assert.assertEquals(2, attributes.get("teaql.relation.per_parent_limit"));
+        Assert.assertEquals(3, attributes.get("teaql.relation.configured_probe_threshold"));
+        Assert.assertEquals("probe", attributes.get("teaql.relation.selected_plan"));
+        Assert.assertEquals(3, attributes.get("teaql.relation.probe_count"));
+    }
+
+    @Test
     public void testNestedQueryWithoutAuthorizedRootTraceIsRejected() {
         TeaQLRuntime runtime = TeaQLRuntime.builder()
                 .metadata(new DummyMetaFactory())

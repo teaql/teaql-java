@@ -12,6 +12,7 @@ import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
 import io.teaql.core.meta.SimplePropertyType;
 import io.teaql.core.sql.GenericSQLProperty;
+import io.teaql.core.sql.GenericSQLRelation;
 import io.teaql.core.sql.SQLProperty;
 import io.teaql.core.sql.SQLColumn;
 import io.teaql.runtime.*;
@@ -25,6 +26,60 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class PortableSQLDatabaseTest {
+
+    public static class TopNParent extends BaseEntity {
+        private String name;
+        private SmartList<TopNChild> children;
+        @Override public String typeName() { return "TopNParent"; }
+        @Override public Object __internalGet(String property) {
+            if ("name".equals(property)) return name;
+            if ("children".equals(property)) return children;
+            return super.__internalGet(property);
+        }
+        @Override public void __internalSet(String property, Object value) {
+            if ("name".equals(property)) { name = (String) value; return; }
+            if ("children".equals(property)) { children = (SmartList<TopNChild>) value; return; }
+            super.__internalSet(property, value);
+        }
+    }
+
+    public static class TopNChild extends BaseEntity {
+        private TopNParent parent;
+        private String name;
+        private String state;
+        @Override public String typeName() { return "TopNChild"; }
+        @Override public Object __internalGet(String property) {
+            if ("parent".equals(property)) return parent;
+            if ("name".equals(property)) return name;
+            if ("state".equals(property)) return state;
+            return super.__internalGet(property);
+        }
+        @Override public void __internalSet(String property, Object value) {
+            if ("parent".equals(property)) { parent = (TopNParent) value; return; }
+            if ("name".equals(property)) { name = (String) value; return; }
+            if ("state".equals(property)) { state = (String) value; return; }
+            super.__internalSet(property, value);
+        }
+    }
+
+    public static class TopNParentRequest extends BaseRequest<TopNParent> {
+        public TopNParentRequest() { super(TopNParent.class); }
+        @Override public String getTypeName() { return "TopNParent"; }
+        public TopNParentRequest where(String field, Operator op, Object... values) {
+            appendSearchCriteria(createBasicSearchCriteria(field, op, values));
+            return this;
+        }
+        public TopNParentRequest comment(String value) { super.internalComment(value); return this; }
+    }
+
+    public static class TopNChildRequest extends BaseRequest<TopNChild> {
+        public TopNChildRequest() { super(TopNChild.class); }
+        @Override public String getTypeName() { return "TopNChild"; }
+        public TopNChildRequest where(String field, Operator op, Object... values) {
+            appendSearchCriteria(createBasicSearchCriteria(field, op, values));
+            return this;
+        }
+    }
 
     // ── Stub Entity and Request ──────────────────────────
 
@@ -99,6 +154,123 @@ public class PortableSQLDatabaseTest {
         Task loaded = tasks.get(0);
         assertNull(loaded.getTitle());
         assertTrue("selected SQL NULL must still invoke the entity mapper", loaded.isLoaded("title"));
+    }
+
+    @Test
+    public void TOPN_001_TO_009_windowAndProbePlansAreEquivalentOnSQLite() {
+        registerTopNFixture();
+        sqlDataService.setTopNRelationPlanPolicy(TopNRelationPlanPolicy.ALWAYS_PROBE);
+
+        Map<Long, List<Long>> probe = loadTopNFixture(null);
+        int probeQueries = sqliteDb.queryTrace().size();
+        Map<Long, List<Long>> window = loadTopNFixture(0);
+        int windowQueries = sqliteDb.queryTrace().size();
+
+        assertEquals(window, probe);
+        assertEquals(Map.of(1L, List.of(11L, 12L), 2L, List.of(21L, 22L), 3L, List.of()), window);
+        assertEquals("one parent query plus one bounded child query per parent", 4, probeQueries);
+        assertEquals("one parent query plus one partition window query", 2, windowQueries);
+        assertTrue("Top-N plan selection must not issue COUNT", sqliteDb.queryTrace().stream()
+                .noneMatch(sql -> sql.toLowerCase(Locale.ROOT).contains("count(")));
+    }
+
+    @Test
+    public void TOPN_001_TO_003_AND_011_thresholdBoundaryIsStableAcrossExecutions() {
+        registerTopNFixture();
+        sqlDataService.setTopNRelationPlanPolicy(TopNRelationPlanPolicy.WINDOW);
+
+        assertEquals(loadTopNFixture(3), loadTopNFixture(3));
+        assertEquals(4, sqliteDb.queryTrace().size());
+        loadTopNFixture(2);
+        assertEquals(2, sqliteDb.queryTrace().size());
+        loadTopNFixture(0);
+        assertEquals(2, sqliteDb.queryTrace().size());
+    }
+
+    @Test
+    public void TOPN_008_emptyParentSetReturnsTypedEmptyWithoutChildQuery() {
+        registerTopNFixture();
+        sqliteDb.clearQueryTrace();
+        TopNParentRequest parent = new TopNParentRequest().where("name", Operator.EQUAL, "missing");
+        parent.selectProperty("id");
+        parent.selectProperty("version");
+        parent.selectProperty("name");
+        parent.enhanceRelation("children", new TopNChildRequest().top(2));
+        SmartList<TopNParent> rows = parent.comment("load an empty parent set")
+                .purpose("verify empty Top-N relation semantics")
+                .executeForList(context);
+        assertTrue(rows.isEmpty());
+        assertEquals(1, sqliteDb.queryTrace().size());
+    }
+
+    private Map<Long, List<Long>> loadTopNFixture(Integer threshold) {
+        sqliteDb.clearQueryTrace();
+        TopNChildRequest child = new TopNChildRequest().where("state", Operator.EQUAL, "visible");
+        child.selectProperty("id");
+        child.selectProperty("version");
+        child.selectProperty("name");
+        child.selectProperty("state");
+        child.addOrderByDescending("name");
+        child.offset(0, 2);
+        if (threshold != null) child.topNProbeParentThreshold(threshold);
+        TopNParentRequest parent = new TopNParentRequest();
+        parent.selectProperty("id");
+        parent.selectProperty("version");
+        parent.selectProperty("name");
+        parent.addOrderByAscending("id");
+        parent.enhanceRelation("children", child);
+        SmartList<TopNParent> rows = parent.comment("load per-parent Top-N fixture")
+                .purpose("verify governed relation plan equivalence")
+                .executeForList(context);
+        Map<Long, List<Long>> result = new LinkedHashMap<>();
+        for (TopNParent row : rows) {
+            SmartList<TopNChild> children = row.getProperty("children");
+            result.put(row.getId(), children == null ? List.of() : children.toList(Entity::getId));
+        }
+        return result;
+    }
+
+    private void registerTopNFixture() {
+        boolean registered = metaFactory.allEntityDescriptors().stream()
+                .anyMatch(descriptor -> "TopNParent".equals(descriptor.getType()));
+        if (registered) {
+            sqliteDb.execute("DELETE FROM top_n_child_data");
+            sqliteDb.execute("DELETE FROM top_n_parent_data");
+            seedTopNFixture();
+            return;
+        }
+        EntityDescriptor parent = relationEntity(
+                "TopNParent", TopNParent.class, TopNParent::new, "top_n_parent_data",
+                List.of(new Object[] {"id", "INTEGER", Long.class},
+                        new Object[] {"version", "INTEGER", Long.class},
+                        new Object[] {"name", "VARCHAR(100)", String.class}));
+        metaFactory.register(parent);
+        EntityDescriptor child = relationEntity(
+                "TopNChild", TopNChild.class, TopNChild::new, "top_n_child_data",
+                List.of(new Object[] {"id", "INTEGER", Long.class},
+                        new Object[] {"version", "INTEGER", Long.class},
+                        new Object[] {"name", "VARCHAR(100)", String.class},
+                        new Object[] {"state", "VARCHAR(100)", String.class}));
+        GenericSQLRelation relation = (GenericSQLRelation) child.addObjectProperty(
+                metaFactory, "parent", "TopNParent", "children", TopNParent.class,
+                GenericSQLRelation::new);
+        relation.setTableName("top_n_child_data");
+        relation.setColumnName("parent");
+        relation.setColumnType("INTEGER");
+        metaFactory.register(child);
+        sqlDataService.ensureSchema(context, "TopNParent");
+        sqlDataService.ensureSchema(context, "TopNChild");
+        sqliteDb.execute("DELETE FROM top_n_child_data");
+        sqliteDb.execute("DELETE FROM top_n_parent_data");
+        seedTopNFixture();
+    }
+
+    private void seedTopNFixture() {
+        sqliteDb.execute("INSERT INTO top_n_parent_data VALUES (1,1,'A'),(2,1,'B'),(3,1,'C')");
+        sqliteDb.execute("INSERT INTO top_n_child_data (id,version,name,state,parent) VALUES "
+                + "(11,1,'same','visible',1),(12,1,'same','visible',1),(13,1,'same','visible',1),"
+                + "(14,1,'hidden','hidden',1),(21,1,'same','visible',2),(22,1,'same','visible',2),"
+                + "(23,1,'same','visible',2)");
     }
 
     @Test

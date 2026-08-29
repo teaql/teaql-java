@@ -15,6 +15,13 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
     private final Map<String, PortableSQLRepository<?>> repositories = new ConcurrentHashMap<>();
     private final PortableSQLRepository.PortableSQLRepositoryResolver resolver = this::getRepository;
     private io.teaql.core.sql.dialect.SqlDialect dialect;
+    private TopNRelationPlanPolicy topNRelationPlanPolicy = TopNRelationPlanPolicy.WINDOW;
+
+    static final String TOP_N_PARENT_COUNT = "teaql.internal.top_n.parent_count";
+    static final String TOP_N_PER_PARENT_LIMIT = "teaql.internal.top_n.per_parent_limit";
+    static final String TOP_N_PROBE_THRESHOLD = "teaql.internal.top_n.probe_threshold";
+    static final String TOP_N_SELECTED_PLAN = "teaql.internal.top_n.selected_plan";
+    static final String TOP_N_PROBE_COUNT = "teaql.internal.top_n.probe_count";
 
     public PortableSQLDataService(String name, TeaQLDatabase database, EntityMetaFactory metadata) {
         this.name = name;
@@ -34,6 +41,10 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
 
     public void setDialect(io.teaql.core.sql.dialect.SqlDialect dialect) {
         this.dialect = dialect;
+    }
+
+    public void setTopNRelationPlanPolicy(TopNRelationPlanPolicy policy) {
+        this.topNRelationPlanPolicy = Objects.requireNonNull(policy, "policy");
     }
 
     @Override
@@ -224,8 +235,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         io.teaql.core.internal.TempRequest parentTemp = new io.teaql.core.internal.TempRequest(parentRequest);
         parentTemp.appendSearchCriteria(parentTemp.createBasicSearchCriteria(BaseEntity.ID_PROPERTY, io.teaql.core.criteria.Operator.IN, parents));
 
-        QueryResult res = query(userContext, new DefaultQueryRequest(parentTemp));
-        SmartList<Entity> parentItems = (SmartList<Entity>) ((DefaultQueryResult)res).getResult();
+        SmartList<Entity> parentItems = userContext.internalExecuteForList(parentTemp);
 
         Map<Long, Entity> map = parentItems.mapById();
         for (Entity result : results) {
@@ -247,15 +257,38 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         io.teaql.core.internal.TempRequest childTempRequest = new io.teaql.core.internal.TempRequest(childRequest);
         PropertyDescriptor reverseProperty = relation.getReverseProperty();
         childTempRequest.selectProperty(reverseProperty.getName());
-        if (childTempRequest.getSlice() != null) {
-            childTempRequest.setPartitionProperty(reverseProperty.getName());
-        }
-        childTempRequest.appendSearchCriteria(
-                childTempRequest.createBasicSearchCriteria(
-                        reverseProperty.getName(), io.teaql.core.criteria.Operator.IN, dataSet));
+        Slice slice = childTempRequest.getSlice();
+        boolean boundedTopN = slice != null && slice.getSize() > 0;
+        Integer configuredThreshold = childTempRequest.topNProbeParentThreshold();
+        boolean probe = boundedTopN && shouldProbe(dataSet.size(), configuredThreshold);
+        SmartList<Entity> children = new SmartList<>();
 
-        QueryResult res = query(userContext, new DefaultQueryRequest(childTempRequest));
-        SmartList<Entity> children = (SmartList<Entity>) ((DefaultQueryResult)res).getResult();
+        if (probe) {
+            addTopNTelemetry(childTempRequest, dataSet.size(), slice.getSize(), configuredThreshold,
+                    "probe", dataSet.size());
+            for (Entity parent : dataSet) {
+                io.teaql.core.internal.TempRequest probeRequest =
+                        new io.teaql.core.internal.TempRequest(childRequest);
+                probeRequest.selectProperty(reverseProperty.getName());
+                probeRequest.setPartitionProperty(null);
+                probeRequest.appendSearchCriteria(
+                        probeRequest.createBasicSearchCriteria(
+                                reverseProperty.getName(), io.teaql.core.criteria.Operator.EQUAL, parent));
+                addTopNTelemetry(probeRequest, dataSet.size(), slice.getSize(), configuredThreshold,
+                        "probe", dataSet.size());
+                userContext.internalExecuteForList(probeRequest).forEach(children::add);
+            }
+        } else {
+            if (boundedTopN) {
+                childTempRequest.setPartitionProperty(reverseProperty.getName());
+                addTopNTelemetry(childTempRequest, dataSet.size(), slice.getSize(), configuredThreshold,
+                        "window", 0);
+            }
+            childTempRequest.appendSearchCriteria(
+                    childTempRequest.createBasicSearchCriteria(
+                            reverseProperty.getName(), io.teaql.core.criteria.Operator.IN, dataSet));
+            userContext.internalExecuteForList(childTempRequest).forEach(children::add);
+        }
 
         Map<Long, Entity> longTMap = dataSet.mapById();
         for (Entity childEntity : children) {
@@ -267,6 +300,28 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                 }
             }
         }
+    }
+
+    private boolean shouldProbe(int parentCount, Integer configuredThreshold) {
+        if (configuredThreshold != null) {
+            return configuredThreshold > 0 && parentCount <= configuredThreshold;
+        }
+        return topNRelationPlanPolicy == TopNRelationPlanPolicy.ALWAYS_PROBE;
+    }
+
+    private void addTopNTelemetry(
+            BaseRequest<?> request,
+            int parentCount,
+            int perParentLimit,
+            Integer configuredThreshold,
+            String selectedPlan,
+            int probeCount) {
+        request.putExtension(TOP_N_PARENT_COUNT, parentCount);
+        request.putExtension(TOP_N_PER_PARENT_LIMIT, perParentLimit);
+        request.putExtension(TOP_N_PROBE_THRESHOLD,
+                configuredThreshold == null ? "provider-default" : configuredThreshold);
+        request.putExtension(TOP_N_SELECTED_PLAN, selectedPlan);
+        request.putExtension(TOP_N_PROBE_COUNT, probeCount);
     }
 
     @Override

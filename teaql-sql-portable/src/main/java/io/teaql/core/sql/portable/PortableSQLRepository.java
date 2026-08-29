@@ -1690,7 +1690,9 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     private void ensureOrderByForPartition(SearchRequest<T> request) {
         OrderBys orderBy = request.getOrderBy();
-        if (orderBy.isEmpty()) orderBy.addOrderBy(new OrderBy("id"));
+        boolean hasId = orderBy.properties(null).stream()
+                .anyMatch(BaseEntity.ID_PROPERTY::equals);
+        if (!hasId) orderBy.addOrderBy(new OrderBy(BaseEntity.ID_PROPERTY));
     }
 
         public List<SQLColumn> getPropertyColumns(String idTable, String propertyName) {

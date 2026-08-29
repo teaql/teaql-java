@@ -162,9 +162,21 @@ public class TeaQLRuntime {
      */
     public <T extends Entity> SmartList<T> internalExecuteForList(
             UserContext context, SearchRequest<T> request) {
+        Map<String, Object> relationAttributes = new java.util.LinkedHashMap<>();
+        relationAttributes.put("teaql.entity.type", request.getTypeName());
+        copyRelationPlanAttribute(request, relationAttributes,
+                "teaql.internal.top_n.parent_count", "teaql.relation.parent_count");
+        copyRelationPlanAttribute(request, relationAttributes,
+                "teaql.internal.top_n.per_parent_limit", "teaql.relation.per_parent_limit");
+        copyRelationPlanAttribute(request, relationAttributes,
+                "teaql.internal.top_n.probe_threshold", "teaql.relation.configured_probe_threshold");
+        copyRelationPlanAttribute(request, relationAttributes,
+                "teaql.internal.top_n.selected_plan", "teaql.relation.selected_plan");
+        copyRelationPlanAttribute(request, relationAttributes,
+                "teaql.internal.top_n.probe_count", "teaql.relation.probe_count");
         RuntimeTelemetry.Scope relationScope = RuntimeTelemetry.startSafely(telemetry,
                 new RuntimeTelemetry.Operation("relation_load", request.getTypeName() + ".relation",
-                        Map.of("teaql.entity.type", request.getTypeName())));
+                        relationAttributes));
         try {
         if (context.getTraceChain() == null || context.getTraceChain().isEmpty()) {
             throw new TeaQLRuntimeException(
@@ -181,6 +193,12 @@ public class TeaQLRuntime {
             relationScope.failure(error);
             throw error;
         }
+    }
+
+    private static void copyRelationPlanAttribute(
+            SearchRequest<?> request, Map<String, Object> attributes, String extension, String attribute) {
+        Object value = request.getExtension(extension);
+        if (value != null) attributes.put(attribute, value);
     }
 
     private static void enforceMaterializedLimit(SearchRequest<?> request, int hardLimit) {

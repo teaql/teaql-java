@@ -23,6 +23,7 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
     public SqliteDataServiceExecutor(String name, SqlExecutionAdapter executionAdapter, DataSource dataSource) {
         super(name, executionAdapter);
         this.debugDatabaseKind = "sqlite";
+        this.topNRelationPlanPolicy = io.teaql.core.sql.portable.TopNRelationPlanPolicy.ALWAYS_PROBE;
         this.dataSource = dataSource;
     }
 

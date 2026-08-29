@@ -18,6 +18,8 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
     private final DataServiceCapabilities capabilities;
     protected io.teaql.core.sql.dialect.SqlDialect dialect = new io.teaql.core.sql.dialect.PostgreSqlDialect();
     protected String debugDatabaseKind = "postgresql";
+    protected io.teaql.core.sql.portable.TopNRelationPlanPolicy topNRelationPlanPolicy =
+            io.teaql.core.sql.portable.TopNRelationPlanPolicy.WINDOW;
 
     public SqlDataServiceExecutor(String name, SqlExecutionAdapter executionAdapter) {
         this.name = name;
@@ -246,6 +248,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
             };
             portableService = new io.teaql.core.sql.portable.PortableSQLDataService(name, dbAdapter, io.teaql.core.meta.EntityMetaFactory.get());
             portableService.setDialect(this.dialect);
+            portableService.setTopNRelationPlanPolicy(this.topNRelationPlanPolicy);
         }
         return portableService;
     }
