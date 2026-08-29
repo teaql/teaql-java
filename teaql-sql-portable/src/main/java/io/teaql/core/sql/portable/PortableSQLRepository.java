@@ -1318,8 +1318,52 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             ensure(context, dbTableInfo, table, columns);
         });
 
+        ensureCanonicalRelationIndexes(context);
+
         ensureIdSpaceTable(context);
         ensureInitData(context);
+    }
+
+    /**
+     * Ensure the canonical index used by both per-parent window queries and
+     * bounded probes. A model-specific ordering still requires an explicitly
+     * declared matching index; this only covers the stable relation/id shape.
+     */
+    private void ensureCanonicalRelationIndexes(UserContext context) {
+        PropertyDescriptor idProperty = entityDescriptor.findIdProperty();
+        if (idProperty == null) return;
+        SQLColumn idColumn = getSqlColumn(idProperty);
+        for (PropertyDescriptor property : entityDescriptor.getOwnProperties()) {
+            if (!(property instanceof Relation relation)) continue;
+            if (relation.getRelationKeeper() != entityDescriptor) continue;
+            SQLColumn relationColumn = getSqlColumn(property);
+            if (!ObjectUtil.equals(relationColumn.getTableName(), idColumn.getTableName())) continue;
+
+            String table = relationColumn.getTableName();
+            String indexName = canonicalRelationIndexName(
+                    table, relationColumn.getColumnName(), idColumn.getColumnName());
+            String sql = "CREATE INDEX " + dialect.escapeIdentifier(indexName)
+                    + " ON " + dialect.escapeIdentifier(table)
+                    + " (" + dialect.escapeIdentifier(relationColumn.getColumnName())
+                    + ", " + dialect.escapeIdentifier(idColumn.getColumnName()) + " DESC)";
+            logInfo(sql + ";");
+            if (ensureTableEnabled(context)) {
+                try {
+                    database.execute(context, sql);
+                } catch (Exception duplicateOrUnsupported) {
+                    // Schema ensure is idempotent. Existing schema operations use
+                    // the same best-effort contract for duplicate DDL.
+                    logInfo("Ignored: " + duplicateOrUnsupported.getMessage());
+                }
+            }
+        }
+    }
+
+    private String canonicalRelationIndexName(String table, String relation, String id) {
+        String raw = "idx_" + table + "_" + relation + "_" + id;
+        if (raw.length() <= 30) return raw;
+        String hash = Integer.toUnsignedString(raw.hashCode(), 36);
+        return raw.substring(0, Math.max(1, 29 - hash.length())) + "_" + hash;
     }
 
     public void ensureIdSpaceTable(UserContext context) {

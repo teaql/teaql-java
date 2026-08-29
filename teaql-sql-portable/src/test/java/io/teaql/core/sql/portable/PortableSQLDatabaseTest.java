@@ -203,6 +203,19 @@ public class PortableSQLDatabaseTest {
         assertEquals(1, sqliteDb.queryTrace().size());
     }
 
+    @Test
+    public void TOPN_012_canonicalRelationIndexEnsureIsIdempotentOnSQLite() {
+        registerTopNFixture();
+        sqlDataService.ensureSchema(context, "TopNChild");
+        sqlDataService.ensureSchema(context, "TopNChild");
+
+        List<Map<String, Object>> indexes = sqliteDb.query(
+                "SELECT name, sql FROM sqlite_master WHERE type='index' "
+                        + "AND tbl_name='top_n_child_data' AND sql LIKE '%parent%id DESC%'",
+                new Object[0]);
+        assertEquals(1, indexes.size());
+    }
+
     private Map<Long, List<Long>> loadTopNFixture(Integer threshold) {
         sqliteDb.clearQueryTrace();
         TopNChildRequest child = new TopNChildRequest().where("state", Operator.EQUAL, "visible");

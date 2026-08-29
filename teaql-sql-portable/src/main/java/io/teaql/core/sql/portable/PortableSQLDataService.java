@@ -259,6 +259,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         childTempRequest.selectProperty(reverseProperty.getName());
         Slice slice = childTempRequest.getSlice();
         boolean boundedTopN = slice != null && slice.getSize() > 0;
+        if (boundedTopN) ensureStableEntityIdOrder(childTempRequest);
         Integer configuredThreshold = childTempRequest.topNProbeParentThreshold();
         boolean probe = boundedTopN && shouldProbe(dataSet.size(), configuredThreshold);
         SmartList<Entity> children = new SmartList<>();
@@ -271,6 +272,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                         new io.teaql.core.internal.TempRequest(childRequest);
                 probeRequest.selectProperty(reverseProperty.getName());
                 probeRequest.setPartitionProperty(null);
+                ensureStableEntityIdOrder(probeRequest);
                 probeRequest.appendSearchCriteria(
                         probeRequest.createBasicSearchCriteria(
                                 reverseProperty.getName(), io.teaql.core.criteria.Operator.EQUAL, parent));
@@ -300,6 +302,12 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                 }
             }
         }
+    }
+
+    private void ensureStableEntityIdOrder(BaseRequest<?> request) {
+        boolean hasId = request.getOrderBy().properties(null).stream()
+                .anyMatch(BaseEntity.ID_PROPERTY::equals);
+        if (!hasId) request.getOrderBy().addOrderBy(new OrderBy(BaseEntity.ID_PROPERTY));
     }
 
     private boolean shouldProbe(int parentCount, Integer configuredThreshold) {
