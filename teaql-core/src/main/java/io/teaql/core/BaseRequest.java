@@ -49,6 +49,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
     protected int hardLimit = DEFAULT_HARD_LIMIT;
 
     protected ContinuousPageFetchOptions continuousPageFetchOptions;
+    protected IdSetPaginationOptions idSetPaginationOptions;
 
     // enhance relations
     protected Map<String, SearchRequest> enhanceRelations = new HashMap<>();
@@ -246,6 +247,20 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
 
     public BaseRequest<T> optimizeForContinuousPageFetch(String namespace, int ttlSeconds) {
         this.continuousPageFetchOptions = new ContinuousPageFetchOptions(namespace, ttlSeconds);
+        return this;
+    }
+
+    @Override
+    public IdSetPaginationOptions idSetPaginationOptions() { return idSetPaginationOptions; }
+
+    public BaseRequest<T> optimizePaginationWithIdSet() {
+        this.idSetPaginationOptions = IdSetPaginationOptions.defaults();
+        return this;
+    }
+
+    public BaseRequest<T> optimizePaginationWithIdSet(
+            String namespace, int ttlSeconds, int maxIds) {
+        this.idSetPaginationOptions = new IdSetPaginationOptions(namespace, ttlSeconds, maxIds);
         return this;
     }
 

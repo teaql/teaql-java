@@ -58,6 +58,8 @@ public class TfpEndpointPolicyTest {
         assertCode("TFP_FORBIDDEN_FIELD", () -> handler.handleQuery(null, trusted(), query("secret")));
         assertCode("TFP_POLICY_VIOLATION", () -> handler.handleQuery(null, trusted(),
                 "{\"entity\":\"Probe\",\"hardLimit\":999,\"commentText\":\"x\",\"purposeText\":\"x\"}".getBytes()));
+        assertCode("TFP_POLICY_VIOLATION", () -> handler.handleQuery(null, trusted(),
+                "{\"entity\":\"Probe\",\"idSetPagination\":{\"namespace\":\"attacker\",\"maxIds\":9999999},\"commentText\":\"x\",\"purposeText\":\"x\"}".getBytes()));
         assertCode("TFP_AUDIT_REASON_REQUIRED", () -> handler.handleMutation(null, trusted(),
                 "{\"entity\":\"Probe\",\"action\":\"Create\",\"payload\":{},\"comment\":\" \"}".getBytes()));
         assertCode("TFP_FORBIDDEN_FIELD", () -> handler.handleMutation(null, trusted(),

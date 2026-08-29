@@ -125,6 +125,19 @@ public class TeaQLRuntime {
         }
         baseRequest.offset(offset, limit);
         SmartList<T> rows = executeForList(context, request);
+        Object idSetAccuracy = context.getAttribute("teaql.idSet.countAccuracy");
+        Object idSetCount = context.getAttribute("teaql.idSet.count");
+        if ("EXACT".equals(idSetAccuracy) && idSetCount instanceof Number exactCount) {
+            if (rows.isSharedEmpty()) rows = new SmartList<>();
+            AggregationItem item = new AggregationItem();
+            item.setValues(Map.of(
+                    new SimpleNamedExpression(TeaQLConstants.ROOT_LIST_PARAMETER_NAME),
+                    exactCount.longValue()));
+            AggregationResult total = new AggregationResult();
+            total.setData(List.of(item));
+            rows.addAggregationResult(context, total);
+            return rows;
+        }
         SearchRequest<?> countRequest = baseRequest.internalCountRequest();
         EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
         String route = descriptor.getDataService();

@@ -438,7 +438,8 @@ public class TfpEndpointHandler {
         if (!node.isObject()) throw new TfpEndpointException("TFP_INVALID_REQUEST", "TFP payload must be an object");
         java.util.Set<String> forbidden = java.util.Set.of("tenant", "tenantId", "merchant", "merchantId",
                 "user", "userId", "permissions", "requestPolicy", "purposePolicy", "trustedContext",
-                "hardLimit", "hard_limit", "hardLimitValue", "hard_limit_value");
+                "hardLimit", "hard_limit", "hardLimitValue", "hard_limit_value",
+                "idSetPagination", "id_set_pagination", "paginationWithIdSet");
         java.util.Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
         while (fields.hasNext()) {
             var entry = fields.next();

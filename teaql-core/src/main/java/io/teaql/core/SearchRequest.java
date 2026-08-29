@@ -85,6 +85,9 @@ public interface SearchRequest<T extends Entity> {
     /** Local runtime hint; deliberately excluded from federation input. */
     default ContinuousPageFetchOptions continuousPageFetchOptions() { return null; }
 
+    /** Local runtime hint; deliberately excluded from federation input. */
+    default IdSetPaginationOptions idSetPaginationOptions() { return null; }
+
     Map<String, SearchRequest> enhanceRelations();
 
     Map<String, SearchRequest> enhanceChildren();

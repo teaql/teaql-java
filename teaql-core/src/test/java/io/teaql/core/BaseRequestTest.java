@@ -31,6 +31,25 @@ public class BaseRequestTest {
                 () -> request.optimizeForContinuousPageFetch("orders", 0));
     }
 
+    @Test
+    public void idSetPaginationIsExplicitLocalAndValidated() {
+        BaseRequest.TempRequest request =
+                new BaseRequest.TempRequest(BaseEntity.class, "BaseEntity");
+        assertNull(request.idSetPaginationOptions());
+        request.optimizePaginationWithIdSet();
+        assertEquals("default", request.idSetPaginationOptions().namespace());
+        assertEquals(600, request.idSetPaginationOptions().ttlSeconds());
+        assertEquals(3_000_000, request.idSetPaginationOptions().maxIds());
+        request.optimizePaginationWithIdSet("orders", 30, 1_000);
+        assertEquals("orders", request.idSetPaginationOptions().namespace());
+        assertThrows(IllegalArgumentException.class,
+                () -> request.optimizePaginationWithIdSet(" ", 30, 1));
+        assertThrows(IllegalArgumentException.class,
+                () -> request.optimizePaginationWithIdSet("orders", 0, 1));
+        assertThrows(IllegalArgumentException.class,
+                () -> request.optimizePaginationWithIdSet("orders", 30, 0));
+    }
+
     private BaseRequest.TempRequest request;
 
     @Before

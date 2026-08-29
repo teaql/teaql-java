@@ -46,6 +46,9 @@ import io.teaql.core.UserContext;
 import io.teaql.core.ContinuousPageCursor;
 import io.teaql.core.ContinuousPageCursorStore;
 import io.teaql.core.ContinuousPageFetchOptions;
+import io.teaql.core.IdSetPaginationOptions;
+import io.teaql.core.IdSetStore;
+import io.teaql.core.RetainedIdSet;
 import io.teaql.core.FunctionApply;
 import io.teaql.core.Parameter;
 import io.teaql.core.PropertyReference;
@@ -93,9 +96,18 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     private static final Pattern NAMED_PARAM = Pattern.compile(":(\\w+)");
     public static final String CONTINUOUS_PAGE_PLAN = "teaql.continuousPage.plan";
     public static final String CONTINUOUS_PAGE_CURSOR_ID = "teaql.continuousPage.cursorId";
+    public static final String ID_SET_PLAN = "teaql.idSet.plan";
+    public static final String ID_SET_COUNT = "teaql.idSet.count";
+    public static final String ID_SET_COUNT_ACCURACY = "teaql.idSet.countAccuracy";
     public static final String COMPILED_ROW_MAPPER = "teaql.sql.compiledRowMapper";
     private final ContinuousPageCursorStore defaultCursorStore =
             new InMemoryContinuousPageCursorStore();
+    private final IdSetStore defaultIdSetStore = new InMemoryIdSetStore();
+    private static final ConcurrentHashMap<String, IdSetBuildLock> ID_SET_BUILD_LOCKS = new ConcurrentHashMap<>();
+    private static final class IdSetBuildLock {
+        final Object monitor = new Object();
+        final java.util.concurrent.atomic.AtomicInteger users = new java.util.concurrent.atomic.AtomicInteger(1);
+    }
 
     private io.teaql.core.sql.SqlEntityMetadata sqlMetadata;
     private io.teaql.core.sql.dialect.SqlDialect dialect = new io.teaql.core.sql.dialect.PostgreSqlDialect();
@@ -499,8 +511,153 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             String direction,
             boolean optimized) {}
 
+    private record IdSetExecution<E extends Entity>(
+            SearchRequest<E> request, long[] pageIds, boolean optimized) {}
+
+    @SuppressWarnings("unchecked")
+    private IdSetExecution<T> prepareIdSetPage(UserContext context, SearchRequest<T> original) {
+        IdSetPaginationOptions options = original.idSetPaginationOptions();
+        if (options == null) return idSetFallback(context, original, "ID_SET_DISABLED", null, "UNKNOWN");
+        Slice slice = original.getSlice();
+        if (slice == null || slice.getOffset() < 0 || slice.getSize() <= 0
+                || original.continuousPageFetchOptions() != null
+                || original.getPartitionProperty() != null || original.hasSimpleAgg()) {
+            return idSetFallback(context, original, "ID_SET_FALLBACK_UNSUPPORTED_SHAPE", null, "UNKNOWN");
+        }
+
+        TempRequest working = new TempRequest(original);
+        OrderBys stableOrders = new OrderBys();
+        boolean hasId = false;
+        if (original.getOrderBy() != null) {
+            for (OrderBy order : original.getOrderBy().getOrderBys()) {
+                if (!(order.getExpression() instanceof FunctionApply function)
+                        || function.getOperator() != io.teaql.core.AggrFunction.SELF
+                        || !(function.first() instanceof PropertyReference property)) {
+                    return idSetFallback(context, original,
+                            "ID_SET_FALLBACK_NON_DETERMINISTIC_ORDER", null, "UNKNOWN");
+                }
+                hasId |= "id".equals(property.getPropertyName());
+                stableOrders.addOrderBy(order);
+            }
+        }
+        if (!hasId) stableOrders.addOrderBy(new OrderBy("id"));
+        working.setOrderBy(stableOrders);
+
+        TempRequest idRequest = new TempRequest(working);
+        idRequest.getProjections().clear();
+        idRequest.selectProperty("id");
+        idRequest.offset(0, options.maxIds() + 1);
+        Map<String, Object> idParams = new HashMap<>();
+        String idSql = buildDataSQL(context, idRequest, idParams);
+        if (ObjectUtil.isEmpty(idSql)) {
+            return idSetFallback(context, original, "ID_SET_FALLBACK_UNSUPPORTED_SHAPE", null, "UNKNOWN");
+        }
+        String key = idSetQueryKey(context, working, options, idSql, idParams);
+        IdSetStore store = idSetStore(context);
+        RetainedIdSet retained;
+        try {
+            retained = store.get(key).orElse(null);
+        } catch (RuntimeException unavailable) {
+            return idSetFallback(context, original, "ID_SET_FALLBACK_STORE_UNAVAILABLE", null, "UNKNOWN");
+        }
+        boolean hit = retained != null;
+        if (retained == null) {
+            IdSetBuildLock lock = ID_SET_BUILD_LOCKS.compute(key, (ignored, existing) -> {
+                if (existing == null) return new IdSetBuildLock();
+                existing.users.incrementAndGet(); return existing;
+            });
+            synchronized (lock.monitor) {
+                try {
+                    retained = store.get(key).orElse(null);
+                    if (retained != null) hit = true;
+                    else {
+                        PositionalSQL positional = toPositional(idSql, idParams);
+                        List<Map<String, Object>> rows = database.query(context, positional.sql, positional.args);
+                        if (rows.size() > options.maxIds()) {
+                            return idSetFallback(context, original,
+                                    "ID_SET_FALLBACK_LIMIT_EXCEEDED",
+                                    (long) options.maxIds() + 1, "LOWER_BOUND");
+                        }
+                        long[] ids = new long[rows.size()];
+                        for (int i = 0; i < rows.size(); i++) {
+                            Object value = rows.get(i).get("id");
+                            if (!(value instanceof Number number) || number.longValue() < 0) {
+                                return idSetFallback(context, original,
+                                        "ID_SET_FALLBACK_UNSUPPORTED_SHAPE", null, "UNKNOWN");
+                            }
+                            ids[i] = number.longValue();
+                        }
+                        retained = new RetainedIdSet(key, ids,
+                                Instant.now().plusSeconds(options.ttlSeconds()));
+                        store.put(retained);
+                    }
+                } catch (RuntimeException unavailable) {
+                    return idSetFallback(context, original,
+                            "ID_SET_FALLBACK_STORE_UNAVAILABLE", null, "UNKNOWN");
+                } finally {
+                    if (lock.users.decrementAndGet() == 0) ID_SET_BUILD_LOCKS.remove(key, lock);
+                }
+            }
+        }
+        long[] all = retained.ids();
+        int start = Math.min(slice.getOffset(), all.length);
+        int end = Math.min(start + slice.getSize(), all.length);
+        long[] pageIds = Arrays.copyOfRange(all, start, end);
+        context.putAttribute(ID_SET_PLAN, hit ? "ID_SET_HIT" : "ID_SET_BUILD");
+        context.putAttribute(ID_SET_COUNT, (long) all.length);
+        context.putAttribute(ID_SET_COUNT_ACCURACY, "EXACT");
+        TempRequest page = new TempRequest(working);
+        page.offset(0, Math.max(1, pageIds.length));
+        if (pageIds.length > 0) {
+            page.appendSearchCriteria(page.createBasicSearchCriteria("id", Operator.IN, pageIds));
+        }
+        return new IdSetExecution<>((SearchRequest<T>) page, pageIds, true);
+    }
+
+    private IdSetExecution<T> idSetFallback(UserContext context, SearchRequest<T> request,
+            String plan, Long count, String accuracy) {
+        context.putAttribute(ID_SET_PLAN, plan);
+        context.putAttribute(ID_SET_COUNT, count);
+        context.putAttribute(ID_SET_COUNT_ACCURACY, accuracy);
+        return new IdSetExecution<>(request, new long[0], false);
+    }
+
+    private IdSetStore idSetStore(UserContext context) {
+        IdSetStore custom = context.capability(IdSetStore.class);
+        return custom == null ? defaultIdSetStore : custom;
+    }
+
+    private String idSetQueryKey(UserContext context, SearchRequest<T> request,
+            IdSetPaginationOptions options, String sql, Map<String, Object> parameters) {
+        StringBuilder canonical = new StringBuilder(options.namespace())
+                .append('|').append(request.getTypeName())
+                .append("|route=").append(entityDescriptor.getDataService())
+                .append("|source=").append(System.identityHashCode(database))
+                .append('|').append(sql);
+        new TreeMap<>(parameters).forEach((name, value) -> {
+            if (!name.startsWith("limit") && !name.startsWith("offset")) {
+                canonical.append('|').append(name).append('=').append(String.valueOf(value));
+            }
+        });
+        observableOwner(context).forEach((name, value) ->
+                canonical.append('|').append(name).append('=').append(value));
+        if (context.activeRoot() != null) canonical.append("|root=").append(context.activeRoot());
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(canonical.toString().getBytes(StandardCharsets.UTF_8));
+            return "teaql:id-set:v1:" + HexFormat.of().formatHex(digest);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new TeaQLRuntimeException("SHA-256 unavailable", e);
+        }
+    }
+
     public SmartList<T> loadInternal(UserContext userContext, SearchRequest<T> request) {
-        QueryShape shape = simpleQueryShape(userContext, request);
+        IdSetExecution<T> idSetExecution = prepareIdSetPage(userContext, request);
+        if (idSetExecution.optimized() && idSetExecution.pageIds().length == 0) {
+            return SmartList.empty(request.returnType());
+        }
+        SearchRequest<T> requestedPage = idSetExecution.request();
+        QueryShape shape = idSetExecution.optimized() ? null : simpleQueryShape(userContext, request);
         CompiledQueryPlan plan = shape == null ? null : compiledQueryPlans.get(shape.key());
         ContinuousPageExecution pageExecution;
         SearchRequest<T> executedRequest;
@@ -512,13 +669,15 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         }
         else {
             Map<String, Object> params = new HashMap<>();
-            String sql = buildDataSQL(userContext, request, params);
+            String sql = buildDataSQL(userContext, requestedPage, params);
             if (ObjectUtil.isEmpty(sql)) {
                 return new SmartList<>();
             }
-            pageExecution = prepareContinuousPage(userContext, request, sql, params);
+            pageExecution = idSetExecution.optimized()
+                    ? fallback(userContext, requestedPage, null, "DISABLED")
+                    : prepareContinuousPage(userContext, requestedPage, sql, params);
             executedRequest = pageExecution.request();
-            if (pageExecution.request() != request) {
+            if (pageExecution.request() != requestedPage) {
                 params = new HashMap<>();
                 sql = buildDataSQL(userContext, executedRequest, params);
             }
@@ -565,6 +724,13 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             }
         }
         registerContinuousPage(userContext, request, pageExecution, smartList.getData());
+        if (idSetExecution.optimized()) {
+            Map<Long, Integer> positions = new HashMap<>();
+            long[] pageIds = idSetExecution.pageIds();
+            for (int i = 0; i < pageIds.length; i++) positions.put(pageIds[i], i);
+            smartList.getData().sort(java.util.Comparator.comparingInt(entity ->
+                    positions.getOrDefault(entity.getId(), Integer.MAX_VALUE)));
+        }
         
         java.util.List<io.teaql.core.FacetRequest> facetRequests = request.getFacetRequests();
         if (facetRequests != null && !facetRequests.isEmpty()) {

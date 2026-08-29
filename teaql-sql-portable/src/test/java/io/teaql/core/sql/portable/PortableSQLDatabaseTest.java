@@ -20,6 +20,9 @@ import java.sql.*;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class PortableSQLDatabaseTest {
 
@@ -850,6 +853,199 @@ public class PortableSQLDatabaseTest {
         return request.comment("load browse page")
                 .purpose("verify continuous pagination")
                 .executeForList(context);
+    }
+
+    @Test
+    public void testIdSetPaginationBuildsOnceJumpsAndReturnsExactCount() {
+        seedContinuousPageTasks("ID-SET-PAGE", 5);
+        sqliteDb.clearQueryTrace();
+
+        TaskRequest jumpedRequest = new TaskRequest().filterByStatus("ID-SET-PAGE");
+        jumpedRequest.addOrderByDescending("id");
+        jumpedRequest.optimizePaginationWithIdSet("id-set-page", 60, 100);
+        SmartList<Task> jumped = jumpedRequest.comment("jump to retained ID page")
+                .purpose("verify ID set pagination").executeForPage(context, 2, 2);
+
+        assertEquals(2, jumped.size());
+        assertEquals(5, jumped.getTotalCount());
+        assertTrue(jumped.get(0).getId() > jumped.get(1).getId());
+        assertEquals("ID_SET_BUILD", context.getAttribute(PortableSQLRepository.ID_SET_PLAN));
+        assertEquals("EXACT", context.getAttribute(PortableSQLRepository.ID_SET_COUNT_ACCURACY));
+        assertEquals(2, sqliteDb.queryTrace().size());
+        assertTrue(sqliteDb.queryTrace().stream().noneMatch(sql -> sql.toLowerCase().contains("count(")));
+
+        sqliteDb.clearQueryTrace();
+        TaskRequest firstRequest = new TaskRequest().filterByStatus("ID-SET-PAGE");
+        firstRequest.addOrderByDescending("id");
+        firstRequest.optimizePaginationWithIdSet("id-set-page", 60, 100);
+        SmartList<Task> first = firstRequest.comment("load retained first page")
+                .purpose("verify ID set cache hit").executeForPage(context, 0, 2);
+        assertEquals(5, first.getTotalCount());
+        assertEquals("ID_SET_HIT", context.getAttribute(PortableSQLRepository.ID_SET_PLAN));
+        assertEquals(1, sqliteDb.queryTrace().size());
+        assertTrue(first.get(0).getId() > first.get(1).getId());
+        assertTrue(first.get(1).getId() > jumped.get(0).getId());
+    }
+
+    @Test
+    public void testIdSetPaginationEmptyOverflowStoreFailureAndUnsupportedShape() {
+        TaskRequest emptyRequest = new TaskRequest().filterByStatus("ID-SET-EMPTY");
+        emptyRequest.addOrderByDescending("id");
+        emptyRequest.offset(0, 2).optimizePaginationWithIdSet("empty", 60, 10);
+        assertTrue(emptyRequest.comment("empty ID set").purpose("cache empty result")
+                .executeForList(context).isEmpty());
+        assertEquals("ID_SET_BUILD", context.getAttribute(PortableSQLRepository.ID_SET_PLAN));
+        assertEquals(0L, context.getAttribute(PortableSQLRepository.ID_SET_COUNT));
+        sqliteDb.clearQueryTrace();
+        TaskRequest emptyHit = new TaskRequest().filterByStatus("ID-SET-EMPTY");
+        emptyHit.addOrderByDescending("id");
+        emptyHit.offset(0, 2).optimizePaginationWithIdSet("empty", 60, 10);
+        assertTrue(emptyHit.comment("empty ID set hit").purpose("reuse empty result")
+                .executeForList(context).isEmpty());
+        assertEquals("ID_SET_HIT", context.getAttribute(PortableSQLRepository.ID_SET_PLAN));
+        assertTrue(sqliteDb.queryTrace().isEmpty());
+
+        seedContinuousPageTasks("ID-SET-OVERFLOW", 5);
+        TaskRequest overflow = new TaskRequest().filterByStatus("ID-SET-OVERFLOW");
+        overflow.addOrderByDescending("id");
+        overflow.optimizePaginationWithIdSet("overflow", 60, 3);
+        SmartList<Task> overflowPage = overflow.comment("overflow fallback")
+                .purpose("preserve ordinary page semantics").executeForPage(context, 0, 2);
+        assertEquals(2, overflowPage.size());
+        assertEquals(5, overflowPage.getTotalCount());
+        assertEquals("ID_SET_FALLBACK_LIMIT_EXCEEDED",
+                context.getAttribute(PortableSQLRepository.ID_SET_PLAN));
+        assertEquals("LOWER_BOUND", context.getAttribute(PortableSQLRepository.ID_SET_COUNT_ACCURACY));
+        assertEquals(4L, context.getAttribute(PortableSQLRepository.ID_SET_COUNT));
+
+        IdSetStore unavailable = new IdSetStore() {
+            @Override public Optional<RetainedIdSet> get(String key) { throw new IllegalStateException("down"); }
+            @Override public void put(RetainedIdSet value) { throw new IllegalStateException("down"); }
+            @Override public void invalidate(String key) { throw new IllegalStateException("down"); }
+        };
+        context.putAttribute(IdSetStore.class.getName(), unavailable);
+        try {
+            TaskRequest fallback = new TaskRequest().filterByStatus("ID-SET-OVERFLOW");
+            fallback.addOrderByDescending("id"); fallback.offset(0, 2);
+            fallback.optimizePaginationWithIdSet("store-down", 60, 10);
+            assertEquals(2, fallback.comment("store fallback").purpose("preserve rows")
+                    .executeForList(context).size());
+            assertEquals("ID_SET_FALLBACK_STORE_UNAVAILABLE",
+                    context.getAttribute(PortableSQLRepository.ID_SET_PLAN));
+        } finally { context.putAttribute(IdSetStore.class.getName(), null); }
+
+        TaskRequest unsupported = new TaskRequest().filterByStatus("ID-SET-OVERFLOW");
+        unsupported.setPartitionProperty("status"); unsupported.offset(0, 2);
+        unsupported.optimizePaginationWithIdSet("unsupported", 60, 10);
+        unsupported.comment("unsupported ID set shape").purpose("verify fallback")
+                .executeForList(context);
+        assertEquals("ID_SET_FALLBACK_UNSUPPORTED_SHAPE",
+                context.getAttribute(PortableSQLRepository.ID_SET_PLAN));
+    }
+
+    @Test
+    public void testIdSetPaginationTtlIsolationTieBreakerAndDeletedSnapshot() throws Exception {
+        seedContinuousPageTasks("ID-SET-LIFECYCLE", 5);
+        context.putAttribute("userId", "alice");
+        TaskRequest first = new TaskRequest().filterByStatus("ID-SET-LIFECYCLE");
+        first.addOrderByDescending("status");
+        first.offset(0, 2).optimizePaginationWithIdSet("lifecycle", 1, 10);
+        SmartList<Task> firstRows = first.comment("build scoped ID set")
+                .purpose("verify lifecycle").executeForList(context);
+        assertEquals(2, firstRows.size());
+        assertTrue(sqliteDb.queryTrace().stream().anyMatch(sql -> sql.contains("status DESC, id ASC")));
+
+        context.putAttribute("userId", "bob");
+        TaskRequest isolated = new TaskRequest().filterByStatus("ID-SET-LIFECYCLE");
+        isolated.addOrderByDescending("status");
+        isolated.offset(0, 2).optimizePaginationWithIdSet("lifecycle", 1, 10);
+        isolated.comment("build isolated ID set").purpose("verify principal isolation")
+                .executeForList(context);
+        assertEquals("ID_SET_BUILD", context.getAttribute(PortableSQLRepository.ID_SET_PLAN));
+
+        context.withActiveRoot(new ContextEntityRef("Platform", 1L));
+        TaskRequest rooted = new TaskRequest().filterByStatus("ID-SET-LIFECYCLE");
+        rooted.addOrderByDescending("status");
+        rooted.offset(0, 2).optimizePaginationWithIdSet("lifecycle", 1, 10);
+        rooted.comment("build root-scoped ID set").purpose("verify root isolation")
+                .executeForList(context);
+        assertEquals("ID_SET_BUILD", context.getAttribute(PortableSQLRepository.ID_SET_PLAN));
+        context.putAttribute(UserContext.TEAQL_ACTIVE_ROOT, null);
+
+        Thread.sleep(1_050);
+        TaskRequest expired = new TaskRequest().filterByStatus("ID-SET-LIFECYCLE");
+        expired.addOrderByDescending("status");
+        expired.offset(0, 2).optimizePaginationWithIdSet("lifecycle", 1, 10);
+        expired.comment("rebuild expired ID set").purpose("verify TTL")
+                .executeForList(context);
+        assertEquals("ID_SET_BUILD", context.getAttribute(PortableSQLRepository.ID_SET_PLAN));
+
+        TaskRequest snapshot = new TaskRequest().filterByStatus("ID-SET-LIFECYCLE");
+        snapshot.addOrderByDescending("id");
+        snapshot.offset(0, 2).optimizePaginationWithIdSet("snapshot", 60, 10);
+        snapshot.comment("build deletion snapshot").purpose("verify no shifting")
+                .executeForList(context);
+        TaskRequest beforeDelete = new TaskRequest().filterByStatus("ID-SET-LIFECYCLE");
+        beforeDelete.addOrderByDescending("id");
+        beforeDelete.offset(2, 2).optimizePaginationWithIdSet("snapshot", 60, 10);
+        SmartList<Task> expected = beforeDelete.comment("read retained page")
+                .purpose("capture retained member").executeForList(context);
+        assertEquals(2, expected.size());
+        sqliteDb.executeUpdate("DELETE FROM task_data WHERE id = ?", new Object[] {expected.get(0).getId()});
+        TaskRequest afterDelete = new TaskRequest().filterByStatus("ID-SET-LIFECYCLE");
+        afterDelete.addOrderByDescending("id");
+        afterDelete.offset(2, 2).optimizePaginationWithIdSet("snapshot", 60, 10);
+        SmartList<Task> retained = afterDelete.comment("read page after deletion")
+                .purpose("do not shift another ID").executeForList(context);
+        assertEquals(1, retained.size());
+        assertEquals(expected.get(1).getId(), retained.get(0).getId());
+        context.putAttribute("userId", null);
+    }
+
+    @Test
+    public void testIdSetPaginationCoalescesConcurrentMisses() throws Exception {
+        seedContinuousPageTasks("ID-SET-CONCURRENT", 5);
+        InMemoryIdSetStore delegate = new InMemoryIdSetStore();
+        AtomicInteger puts = new AtomicInteger();
+        AtomicInteger gets = new AtomicInteger();
+        CountDownLatch initialGets = new CountDownLatch(2);
+        IdSetStore store = new IdSetStore() {
+            @Override public Optional<RetainedIdSet> get(String key) {
+                if (gets.incrementAndGet() <= 2) {
+                    initialGets.countDown();
+                    try { assertTrue(initialGets.await(5, TimeUnit.SECONDS)); }
+                    catch (InterruptedException e) { throw new RuntimeException(e); }
+                }
+                return delegate.get(key);
+            }
+            @Override public void put(RetainedIdSet value) { puts.incrementAndGet(); delegate.put(value); }
+            @Override public void invalidate(String key) { delegate.invalidate(key); }
+        };
+        TeaQLRuntime runtime = ((DefaultUserContext) context).getRuntime();
+        UserContext firstContext = new DefaultUserContext(runtime);
+        UserContext secondContext = new DefaultUserContext(runtime);
+        firstContext.putAttribute(IdSetStore.class.getName(), store);
+        secondContext.putAttribute(IdSetStore.class.getName(), store);
+        var executor = java.util.concurrent.Executors.newFixedThreadPool(2, runnable -> {
+            Thread thread = new Thread(runnable);
+            thread.setName("id-set-" + gets.get());
+            return thread;
+        });
+        try {
+            var firstFuture = executor.submit(() -> executeConcurrentIdSet(firstContext));
+            var secondFuture = executor.submit(() -> executeConcurrentIdSet(secondContext));
+            assertEquals(2, firstFuture.get(10, TimeUnit.SECONDS).size());
+            assertEquals(2, secondFuture.get(10, TimeUnit.SECONDS).size());
+            assertEquals(1, puts.get());
+        } finally { executor.shutdownNow(); }
+    }
+
+    private SmartList<Task> executeConcurrentIdSet(UserContext executionContext) {
+        TaskRequest request = new TaskRequest().filterByStatus("ID-SET-CONCURRENT");
+        request.addOrderByDescending("id"); request.offset(0, 2);
+        request.optimizePaginationWithIdSet("concurrent", 60, 10);
+        return request.comment("concurrent ID set").purpose("verify single flight")
+                .executeForList(executionContext);
     }
 
     @Test
