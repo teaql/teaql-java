@@ -47,9 +47,9 @@ public class App {
 
   @Bean
   public DataServiceExecutor dataServiceExecutor(
-      SpringJdbcSqlExecutor executor, DataSource dataSource) {
+      DataSource dataSource) {
       return new io.teaql.core.sqlite.SqliteDataServiceExecutor(
-          "default", executor, dataSource);
+          "default", new io.teaql.provider.jdbc.JdbcSqlExecutor(dataSource), dataSource);
   }
 
   @Bean
@@ -171,7 +171,45 @@ public class App {
           require(projected.size() == 1
                   && "Riverside Primary School".equals(projected.get(0).getName()),
               "Projection/order query did not preserve the typed School result");
-          System.out.println("PASS Java School bootstrap and portable Query parity");
+
+          SmartList<School> includeAllFacet = Q.schools()
+              .withNameContaining("Primary")
+              .facetBySchoolTypeAs(
+                  "schoolTypeFacet",
+                  Q.schoolTypesWithMinimalFields().selectCode().countAs("schoolCount"),
+                  true)
+              .comment("Facet SchoolType values including zero-count constants")
+              .purpose("Verify Java native SQLite Facet semantics")
+              .executeForList(context);
+          SmartList<SchoolType> allValues = includeAllFacet.getFacet("schoolTypeFacet");
+          require(allValues != null && allValues.size() == 2,
+              "include-all SchoolType facet did not retain both constants");
+          Number primaryCount = allValues.get(0).getDynamicProperty("schoolCount");
+          Number secondaryCount = allValues.get(1).getDynamicProperty("schoolCount");
+          require("PRIMARY".equals(allValues.get(0).getCode())
+                  && primaryCount != null && primaryCount.intValue() == 1,
+              "PRIMARY facet count must be 1, got " + primaryCount);
+          require("SECONDARY".equals(allValues.get(1).getCode())
+                  && secondaryCount != null && secondaryCount.intValue() == 0,
+              "SECONDARY facet count must be 0, got " + secondaryCount);
+
+          SmartList<School> matchedOnlyFacet = Q.schools()
+              .withNameContaining("Primary")
+              .facetBySchoolTypeAs(
+                  "schoolTypeFacet",
+                  Q.schoolTypesWithMinimalFields().selectCode().countAs("schoolCount"),
+                  false)
+              .comment("Facet only SchoolType values matched by the outer School filter")
+              .purpose("Verify Java native SQLite matched-only Facet semantics")
+              .executeForList(context);
+          SmartList<SchoolType> matchedValues = matchedOnlyFacet.getFacet("schoolTypeFacet");
+          require(matchedValues != null && matchedValues.size() == 1,
+              "matched-only SchoolType facet must contain one value");
+          require("PRIMARY".equals(matchedValues.get(0).getCode())
+                  && ((Number) matchedValues.get(0).getDynamicProperty("schoolCount")).intValue() == 1,
+              "matched-only PRIMARY facet count must be 1");
+
+          System.out.println("PASS Java School bootstrap, portable Query, and native SQLite Facet parity");
       };
   }
 

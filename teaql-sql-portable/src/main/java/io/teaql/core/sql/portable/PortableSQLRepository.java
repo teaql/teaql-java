@@ -591,8 +591,9 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                             List<Object> relIds = new ArrayList<>();
                             Map<Long, Object> idToCount = new HashMap<>();
                             for (Map<String, Object> facetRow : facetRows) {
-                                Object relId = facetRow.get(facetRequest.getRelationName());
-                                Object countVal = facetRow.get("count");
+                                Object relId = findFacetRelationValue(
+                                        facetRow, facetRequest.getRelationName());
+                                Object countVal = findColumnValue(facetRow, "count");
                                 if (relId != null) {
                                     relIds.add(relId);
                                     idToCount.put(io.teaql.core.utils.Convert.convert(Long.class, relId), countVal);
@@ -1360,6 +1361,15 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             if (entry.getKey().equalsIgnoreCase(column)) return entry.getValue();
         }
         return null;
+    }
+
+    private Object findFacetRelationValue(Map<String, Object> row, String relationName) {
+        Object value = findColumnValue(row, relationName);
+        if (value != null) return value;
+        PropertyDescriptor property = findProperty(relationName);
+        if (property == null) return null;
+        SQLColumn column = getSqlColumn(property);
+        return column == null ? null : findColumnValue(row, column.getColumnName());
     }
 
     private boolean bootstrapValuesEqual(Object existing, Object desired) {

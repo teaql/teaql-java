@@ -90,7 +90,11 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
         }
         jdbc.addConnectionInitializer(connection -> {
             try {
-                Function.create(connection, "soundex", new Function() {
+                java.sql.Connection sqliteConnection = connection;
+                if (!(sqliteConnection instanceof org.sqlite.SQLiteConnection)) {
+                    sqliteConnection = connection.unwrap(org.sqlite.SQLiteConnection.class);
+                }
+                Function.create(sqliteConnection, "soundex", new Function() {
                     @Override protected void xFunc() throws java.sql.SQLException {
                         result(sqliteCompatibleSoundex(value_text(0)));
                     }
