@@ -143,6 +143,17 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         return resolver;
     }
 
+    /**
+     * A repository resolved by this data service can be embedded as a SQL
+     * subquery when the nested request is explicitly unlimited. Bounded child
+     * requests retain their materialized semantics because moving LIMIT into
+     * an IN subquery can change which relation identities participate.
+     */
+    @Override
+    public boolean canMixinSubQuery(UserContext userContext, SearchRequest subQuery) {
+        return resolver != null && subQuery != null && subQuery.getSlice() == null;
+    }
+
     public PortableSQLRepository(EntityDescriptor entityDescriptor, TeaQLDatabase database, PortableSQLRepositoryResolver resolver) {
         this.entityDescriptor = entityDescriptor;
         this.database = database;

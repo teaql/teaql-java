@@ -17,6 +17,7 @@ import io.teaql.core.sql.SQLColumn;
 import io.teaql.runtime.*;
 
 import java.sql.*;
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -216,6 +217,29 @@ public class PortableSQLDatabaseTest {
         assertEquals(2, result.size());
     }
 
+    @Test
+    public void testNativeSubQueryExecutesPositiveAndNegativePredicatesOnSQLite() {
+        for (int i = 0; i < 2; i++) {
+            Task task = new Task();
+            task.updateTitle("Native nested task " + i);
+            task.updateStatus("NESTED-NATIVE");
+            task.auditAs("create native nested-query fixture").save(context);
+        }
+        TaskRequest nested = new TaskRequest().filterByStatus("NESTED-NATIVE");
+        nested.unlimited();
+        SmartList<Task> included = new TaskRequest().withIdMatching(nested)
+                .comment("execute positive SQLite subquery")
+                .purpose("verify positive relation predicate")
+                .executeForList(context);
+        SmartList<Task> excluded = new TaskRequest().withoutIdMatching(nested)
+                .comment("execute negative SQLite subquery")
+                .purpose("verify negative relation predicate")
+                .executeForList(context);
+
+        assertEquals(2, included.size());
+        assertTrue(excluded.stream().noneMatch(task -> "NESTED-NATIVE".equals(task.getStatus())));
+    }
+
     public static class TaskRequest extends BaseRequest<Task> {
         public TaskRequest() {
             super(Task.class);
@@ -242,10 +266,271 @@ public class PortableSQLDatabaseTest {
             return this;
         }
 
+        public TaskRequest withoutIdMatching(TaskRequest nested) {
+            appendSearchCriteria(SearchCriteria.not(new SubQuerySearchCriteria("id", nested, "id")));
+            return this;
+        }
+
         public TaskRequest comment(String comment) {
             super.internalComment(comment);
             return this;
         }
+    }
+
+    public static class QueryScalar extends BaseEntity {
+        @Override
+        public String typeName() {
+            return "QueryScalar";
+        }
+    }
+
+    public static class QueryGroup extends BaseEntity {
+        private String name;
+        public String getName() { return name; }
+        @Override public Object __internalGet(String property) {
+            if ("name".equals(property)) return name;
+            return super.__internalGet(property);
+        }
+        @Override public void __internalSet(String property, Object value) {
+            if ("name".equals(property)) { name = (String) value; return; }
+            super.__internalSet(property, value);
+        }
+        @Override
+        public String typeName() {
+            return "QueryGroup";
+        }
+    }
+
+    public static class QueryRecord extends BaseEntity {
+        private Long queryGroup;
+        private String name;
+        public Long getQueryGroup() { return queryGroup; }
+        public String getName() { return name; }
+        @Override public Object __internalGet(String property) {
+            if ("query_group".equals(property)) return queryGroup;
+            if ("name".equals(property)) return name;
+            return super.__internalGet(property);
+        }
+        @Override public void __internalSet(String property, Object value) {
+            if ("query_group".equals(property)) {
+                queryGroup = value == null ? null : ((Number) value).longValue();
+                return;
+            }
+            if ("name".equals(property)) { name = (String) value; return; }
+            super.__internalSet(property, value);
+        }
+        @Override
+        public String typeName() {
+            return "QueryRecord";
+        }
+    }
+
+    public static class QueryGroupRequest extends BaseRequest<QueryGroup> {
+        public QueryGroupRequest() { super(QueryGroup.class); }
+        @Override public String getTypeName() { return "QueryGroup"; }
+        public QueryGroupRequest where(String field, Operator op, Object... values) {
+            appendSearchCriteria(createBasicSearchCriteria(field, op, values));
+            return this;
+        }
+        public QueryGroupRequest withRecordsMatching(QueryRecordRequest child) {
+            appendSearchCriteria(new SubQuerySearchCriteria("id", child, "query_group"));
+            return this;
+        }
+        public QueryGroupRequest withoutRecordsMatching(QueryRecordRequest child) {
+            appendSearchCriteria(SearchCriteria.not(
+                    new SubQuerySearchCriteria("id", child, "query_group")));
+            return this;
+        }
+        public QueryGroupRequest comment(String value) { super.internalComment(value); return this; }
+    }
+
+    public static class QueryRecordRequest extends BaseRequest<QueryRecord> {
+        public QueryRecordRequest() { super(QueryRecord.class); }
+        @Override public String getTypeName() { return "QueryRecord"; }
+        public QueryRecordRequest where(String field, Operator op, Object... values) {
+            appendSearchCriteria(createBasicSearchCriteria(field, op, values));
+            return this;
+        }
+        public QueryRecordRequest withGroupMatching(QueryGroupRequest child) {
+            appendSearchCriteria(new SubQuerySearchCriteria("query_group", child, "id"));
+            return this;
+        }
+        public QueryRecordRequest withoutGroupMatching(QueryGroupRequest child) {
+            appendSearchCriteria(SearchCriteria.not(
+                    new SubQuerySearchCriteria("query_group", child, "id")));
+            return this;
+        }
+        public QueryRecordRequest comment(String value) { super.internalComment(value); return this; }
+    }
+
+    @Test
+    public void testCompleteForwardAndReverseRelationFixtureIncludingOrphanNullOnSQLite() {
+        EntityDescriptor group = relationEntity(
+                "QueryGroup", QueryGroup.class, QueryGroup::new, "query_group_data",
+                List.of(new Object[] {"id", "INTEGER", Long.class},
+                        new Object[] {"name", "VARCHAR(100)", String.class},
+                        new Object[] {"version", "INTEGER", Long.class}));
+        EntityDescriptor record = relationEntity(
+                "QueryRecord", QueryRecord.class, QueryRecord::new, "query_record_data",
+                List.of(new Object[] {"id", "INTEGER", Long.class},
+                        new Object[] {"query_group", "INTEGER", Long.class},
+                        new Object[] {"name", "VARCHAR(100)", String.class},
+                        new Object[] {"version", "INTEGER", Long.class}));
+        metaFactory.register(group);
+        metaFactory.register(record);
+        sqlDataService.ensureSchema(context, "QueryGroup");
+        sqlDataService.ensureSchema(context, "QueryRecord");
+        sqliteDb.execute("DELETE FROM query_group_data");
+        sqliteDb.execute("DELETE FROM query_record_data");
+        sqliteDb.execute("INSERT INTO query_group_data VALUES "
+                + "(1,'Core',1),(2,'Other',1),(3,'Empty',1)");
+        sqliteDb.execute("INSERT INTO query_record_data VALUES "
+                + "(11,1,'included',1),(12,2,'excluded',1),(13,NULL,'orphan',1)");
+
+        QueryGroupRequest core = new QueryGroupRequest().where("name", Operator.EQUAL, "Core");
+        assertNames(List.of("included"), new QueryRecordRequest().withGroupMatching(core));
+        assertNames(List.of("excluded"), new QueryRecordRequest().withoutGroupMatching(core));
+        assertNames(List.of("included", "excluded"),
+                new QueryRecordRequest().where("query_group", Operator.IS_NOT_NULL));
+        assertNames(List.of("orphan"),
+                new QueryRecordRequest().where("query_group", Operator.IS_NULL));
+
+        QueryRecordRequest allRecords = new QueryRecordRequest();
+        allRecords.unlimited();
+        assertNames(List.of("Core", "Other"),
+                new QueryGroupRequest().withRecordsMatching(allRecords));
+        assertNames(List.of("Empty"),
+                new QueryGroupRequest().withoutRecordsMatching(allRecords));
+    }
+
+    private static <T extends BaseEntity> EntityDescriptor relationEntity(
+            String type, Class<T> targetType, java.util.function.Supplier<T> supplier,
+            String table, List<Object[]> definitions) {
+        EntityDescriptor descriptor = new EntityDescriptor();
+        descriptor.setType(type);
+        descriptor.setTargetType(targetType);
+        descriptor.setEntitySupplier(supplier);
+        descriptor.setDataService("sql");
+        List<PropertyDescriptor> properties = new ArrayList<>();
+        for (Object[] definition : definitions) {
+            GenericSQLProperty property = new GenericSQLProperty(
+                    table, (String) definition[0], (String) definition[1]);
+            property.setName((String) definition[0]);
+            property.setOwner(descriptor);
+            property.setType(new SimplePropertyType((Class<?>) definition[2]));
+            properties.add(property);
+        }
+        descriptor.setProperties(properties);
+        return descriptor;
+    }
+
+    private static void assertNames(List<String> expected, BaseRequest<?> request) {
+        request.addOrderByAscending("id");
+        ExecutableRequest<?> executable;
+        if (request instanceof QueryGroupRequest groupRequest) {
+            executable = groupRequest.comment("execute complete relation predicate")
+                    .purpose("retain complete relation fixture evidence");
+        } else {
+            executable = ((QueryRecordRequest) request)
+                    .comment("execute complete relation predicate")
+                    .purpose("retain complete relation fixture evidence");
+        }
+        SmartList<?> rows = executable.executeForList(context);
+        assertEquals(expected, rows.stream().map(row -> (String) ((Entity) row).getProperty("name"))
+                .toList());
+    }
+
+    public static class QueryScalarRequest extends BaseRequest<QueryScalar> {
+        public QueryScalarRequest() {
+            super(QueryScalar.class);
+        }
+
+        @Override
+        public String getTypeName() {
+            return "QueryScalar";
+        }
+
+        public QueryScalarRequest where(String field, Operator operator, Object... values) {
+            appendSearchCriteria(createBasicSearchCriteria(field, operator, values));
+            return this;
+        }
+
+        public QueryScalarRequest comment(String comment) {
+            super.internalComment(comment);
+            return this;
+        }
+    }
+
+    @Test
+    public void testCompleteScalarFixtureIncludingNullableBooleanExecutesOnSQLite() {
+        EntityDescriptor descriptor = new EntityDescriptor();
+        descriptor.setType("QueryScalar");
+        descriptor.setTargetType(QueryScalar.class);
+        descriptor.setEntitySupplier(QueryScalar::new);
+        descriptor.setDataService("sql");
+        List<PropertyDescriptor> properties = new ArrayList<>();
+        properties.add(scalarProperty(descriptor, "id", "INTEGER", Long.class));
+        properties.add(scalarProperty(descriptor, "required_text", "VARCHAR(100)", String.class));
+        properties.add(scalarProperty(descriptor, "optional_text", "VARCHAR(100)", String.class));
+        properties.add(scalarProperty(descriptor, "required_integer", "INTEGER", Long.class));
+        properties.add(scalarProperty(descriptor, "optional_long", "INTEGER", Long.class));
+        properties.add(scalarProperty(descriptor, "required_decimal", "NUMERIC", BigDecimal.class));
+        properties.add(scalarProperty(descriptor, "required_float", "REAL", Float.class));
+        properties.add(scalarProperty(descriptor, "required_double", "REAL", Double.class));
+        properties.add(scalarProperty(descriptor, "required_date", "DATE", java.time.LocalDate.class));
+        properties.add(scalarProperty(descriptor, "required_time", "INTEGER", Long.class));
+        properties.add(scalarProperty(descriptor, "required_timestamp", "TIMESTAMP", Long.class));
+        properties.add(scalarProperty(descriptor, "active", "BOOLEAN", Boolean.class));
+        properties.add(scalarProperty(descriptor, "reviewed", "BOOLEAN", Boolean.class));
+        properties.add(scalarProperty(descriptor, "version", "INTEGER", Long.class));
+        descriptor.setProperties(properties);
+        metaFactory.register(descriptor);
+        sqlDataService.ensureSchema(context, "QueryScalar");
+        sqliteDb.execute("DELETE FROM query_scalar_data");
+        sqliteDb.execute(
+                "INSERT INTO query_scalar_data VALUES "
+                        + "(1,'Alpha','optional',42,42000000000,42.125,42.5,42.75,'2026-08-29',34200000,1777632600000,1,0,1),"
+                        + "(2,'Beta',NULL,7,NULL,7.500,7.5,7.75,'2026-08-30',36000000,1777720400000,0,NULL,1),"
+                        + "(3,'Gamma','tail',99,99000000000,99.875,99.5,99.75,'2026-08-31',37800000,1777808200000,1,1,1)");
+
+        assertEquals(1, scalarCount("required_text", Operator.EQUAL, "Alpha"));
+        assertEquals(2, scalarCount("required_text", Operator.NOT_EQUAL, "Alpha"));
+        assertEquals(2, scalarCount("required_text", Operator.IN, "Alpha", "Gamma"));
+        assertEquals(1, scalarCount("required_text", Operator.BEGIN_WITH, "Al"));
+        assertEquals(1, scalarCount("required_text", Operator.END_WITH, "ma"));
+        assertEquals(1, scalarCount("required_text", Operator.CONTAIN, "et"));
+        assertEquals(2, scalarCount("required_integer", Operator.BETWEEN, 40L, 100L));
+        assertEquals(1, scalarCount("required_decimal", Operator.GREATER_THAN, new BigDecimal("50")));
+        assertEquals(1, scalarCount("required_float", Operator.LESS_THAN_OR_EQUAL, 7.5F));
+        assertEquals(1, scalarCount("required_double", Operator.GREATER_THAN_OR_EQUAL, 99.75D));
+        assertEquals(2, scalarCount("required_date", Operator.BETWEEN,
+                java.time.LocalDate.parse("2026-08-30"), java.time.LocalDate.parse("2026-08-31")));
+        assertEquals(1, scalarCount("required_time", Operator.GREATER_THAN, 36_000_000L));
+        assertEquals(2, scalarCount("required_timestamp", Operator.LESS_THAN, 1_777_750_000_000L));
+        assertEquals(1, scalarCount("optional_text", Operator.IS_NULL));
+        assertEquals(2, scalarCount("optional_long", Operator.IS_NOT_NULL));
+        assertEquals(1, scalarCount("active", Operator.EQUAL, false));
+        assertEquals(1, scalarCount("reviewed", Operator.EQUAL, true));
+        assertEquals(1, scalarCount("reviewed", Operator.EQUAL, false));
+        assertEquals(1, scalarCount("reviewed", Operator.IS_NULL));
+    }
+
+    private static GenericSQLProperty scalarProperty(
+            EntityDescriptor owner, String name, String sqlType, Class<?> javaType) {
+        GenericSQLProperty property = new GenericSQLProperty("query_scalar_data", name, sqlType);
+        property.setName(name);
+        property.setOwner(owner);
+        property.setType(new SimplePropertyType(javaType));
+        return property;
+    }
+
+    private static int scalarCount(String field, Operator operator, Object... values) {
+        QueryScalarRequest request = new QueryScalarRequest().where(field, operator, values);
+        request.count();
+        AggregationResult result = request.comment("execute complete scalar predicate")
+                .purpose("retain Query conformance evidence")
+                .aggregation(context);
+        return result.toNumber(0).intValue();
     }
 
     // ── SQLite TeaQLDatabase Implementation ────────────────
@@ -265,7 +550,7 @@ public class PortableSQLDatabaseTest {
             List<Map<String, Object>> results = new ArrayList<>();
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
                 for (int i = 0; i < args.length; i++) {
-                    stmt.setObject(i + 1, args[i]);
+                    bindSqlite(stmt, i + 1, args[i]);
                 }
                 try (ResultSet rs = stmt.executeQuery()) {
                     ResultSetMetaData meta = rs.getMetaData();
@@ -297,7 +582,7 @@ public class PortableSQLDatabaseTest {
             System.out.println("[SQL-UPDATE] " + sql + " | args: " + Arrays.toString(args));
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
                 for (int i = 0; i < args.length; i++) {
-                    stmt.setObject(i + 1, args[i]);
+                    bindSqlite(stmt, i + 1, args[i]);
                 }
                 return stmt.executeUpdate();
             } catch (SQLException e) {
@@ -311,7 +596,7 @@ public class PortableSQLDatabaseTest {
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
                 for (Object[] args : batchArgs) {
                     for (int i = 0; i < args.length; i++) {
-                        stmt.setObject(i + 1, args[i]);
+                        bindSqlite(stmt, i + 1, args[i]);
                     }
                     stmt.addBatch();
                 }
@@ -345,6 +630,19 @@ public class PortableSQLDatabaseTest {
                 }
             } catch (SQLException e) {
                 throw new RuntimeException(e);
+            }
+        }
+
+        private static void bindSqlite(PreparedStatement statement, int index, Object value)
+                throws SQLException {
+            if (value instanceof java.time.LocalDate date) {
+                statement.setString(index, date.toString());
+            } else if (value instanceof java.time.LocalDateTime dateTime) {
+                statement.setString(index, java.sql.Timestamp.valueOf(dateTime).toString());
+            } else if (value instanceof java.time.LocalTime time) {
+                statement.setString(index, time.toString());
+            } else {
+                statement.setObject(index, value);
             }
         }
 

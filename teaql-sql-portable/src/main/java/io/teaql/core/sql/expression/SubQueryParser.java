@@ -58,6 +58,13 @@ public class SubQueryParser implements SQLExpressionParser<SubQuerySearchCriteri
             // select depends on property
             tempRequest.selectProperty(dependsOnPropertyName);
             tempRequest.appendSearchCriteria(dependsOn.getSearchCriteria());
+            // A NULL in an IN projection is irrelevant, but in a NOT(IN(...))
+            // relation predicate it poisons every outer comparison. Filtering
+            // it for every relation subquery is semantically neutral for IN
+            // and keeps orphan foreign keys from breaking HaveNo semantics.
+            tempRequest.appendSearchCriteria(
+                    tempRequest.createBasicSearchCriteria(
+                            dependsOnPropertyName, Operator.IS_NOT_NULL));
 
             userContext.putAttribute(IGNORE_SUBTYPES, true);
             String subQuery = subRepository.buildDataSQL(userContext, tempRequest, parameters);
