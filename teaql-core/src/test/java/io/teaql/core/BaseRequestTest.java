@@ -50,6 +50,19 @@ public class BaseRequestTest {
                 () -> request.optimizePaginationWithIdSet("orders", 30, 0));
     }
 
+    @Test
+    public void topn_001_002_003ProbeThresholdIsExplicitAndValidated() {
+        BaseRequest.TempRequest request =
+                new BaseRequest.TempRequest(BaseEntity.class, "BaseEntity");
+        assertNull(request.topNProbeParentThreshold());
+        request.topNProbeParentThreshold(32);
+        assertEquals(Integer.valueOf(32), request.topNProbeParentThreshold());
+        request.topNProbeParentThreshold(0);
+        assertEquals(Integer.valueOf(0), request.topNProbeParentThreshold());
+        assertThrows(IllegalArgumentException.class,
+                () -> request.topNProbeParentThreshold(-1));
+    }
+
     private BaseRequest.TempRequest request;
 
     @Before

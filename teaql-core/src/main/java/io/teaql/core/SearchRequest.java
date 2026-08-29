@@ -88,6 +88,13 @@ public interface SearchRequest<T extends Entity> {
     /** Local runtime hint; deliberately excluded from federation input. */
     default IdSetPaginationOptions idSetPaginationOptions() { return null; }
 
+    /**
+     * Local per-parent Top-N planner override. Null uses the provider default,
+     * zero forces the window plan, and a positive value permits bounded probes
+     * only when the already-loaded parent count is at or below the value.
+     */
+    default Integer topNProbeParentThreshold() { return null; }
+
     Map<String, SearchRequest> enhanceRelations();
 
     Map<String, SearchRequest> enhanceChildren();

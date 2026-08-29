@@ -50,6 +50,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
 
     protected ContinuousPageFetchOptions continuousPageFetchOptions;
     protected IdSetPaginationOptions idSetPaginationOptions;
+    protected Integer topNProbeParentThreshold;
 
     // enhance relations
     protected Map<String, SearchRequest> enhanceRelations = new HashMap<>();
@@ -261,6 +262,24 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
     public BaseRequest<T> optimizePaginationWithIdSet(
             String namespace, int ttlSeconds, int maxIds) {
         this.idSetPaginationOptions = new IdSetPaginationOptions(namespace, ttlSeconds, maxIds);
+        return this;
+    }
+
+    @Override
+    public Integer topNProbeParentThreshold() {
+        return topNProbeParentThreshold;
+    }
+
+    /**
+     * Overrides the provider's per-parent Top-N plan. Zero forces a window
+     * query; a positive threshold permits bounded probes only for a parent set
+     * no larger than the supplied value.
+     */
+    public BaseRequest<T> topNProbeParentThreshold(int threshold) {
+        if (threshold < 0) {
+            throw new IllegalArgumentException("topNProbeParentThreshold must not be negative");
+        }
+        this.topNProbeParentThreshold = threshold;
         return this;
     }
 
@@ -888,6 +907,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
                 && Objects.equals(enhanceRelations, that.enhanceRelations)
                 && Objects.equals(getDynamicAggregateAttributes(), that.getDynamicAggregateAttributes())
                 && Objects.equals(getPartitionProperty(), that.getPartitionProperty())
+                && Objects.equals(topNProbeParentThreshold(), that.topNProbeParentThreshold())
                 && Objects.equals(returnType(), that.returnType())
                 && Objects.equals(getAggregations(), that.getAggregations())
                 && Objects.equals(getPropagateAggregations(), that.getPropagateAggregations())
@@ -908,6 +928,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
                 enhanceRelations,
                 getDynamicAggregateAttributes(),
                 getPartitionProperty(),
+                topNProbeParentThreshold(),
                 returnType,
                 getAggregations(),
                 getPropagateAggregations(),

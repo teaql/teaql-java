@@ -36,6 +36,7 @@ public class TempRequest extends BaseRequest {
         aggregateCacheTime = pRequest.getAggregateCacheTime();
         continuousPageFetchOptions = pRequest.continuousPageFetchOptions();
         idSetPaginationOptions = pRequest.idSetPaginationOptions();
+        topNProbeParentThreshold = pRequest.topNProbeParentThreshold();
         if (pRequest.getExtensions() != null) {
             this.extensions.putAll(pRequest.getExtensions());
         }
