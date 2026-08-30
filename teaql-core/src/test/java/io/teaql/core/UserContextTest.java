@@ -31,7 +31,6 @@ public class UserContextTest {
         @Override public <T extends Entity> AggregationResult internalAggregation(SearchRequest request) { return null; }
         @Override public void saveGraph(Object items) {}
         @Override public void saveGraph(Entity entity) {}
-        @Override public void delete(Entity pEntity) {}
         @Override public <T> T evaluate(String expression, Object... args) { return null; }
         @Override public Object getObj(String key, Object defaultValue) { return null; }
     }

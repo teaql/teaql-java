@@ -289,7 +289,7 @@ public class BaseEntityTest {
     public void testMarkDeleteRecover() {
         TestEntity e = new TestEntity();
         e.set$status(EntityStatus.PERSISTED);
-        e.markAsDeleted();
+        e.markForDeletion();
         assertEquals(EntityStatus.UPDATED_DELETED, e.get$status());
         
         e.set$status(EntityStatus.PERSISTED_DELETED);
@@ -297,7 +297,7 @@ public class BaseEntityTest {
         assertEquals(EntityStatus.UPDATED_RECOVER, e.get$status());
         
         e.set$status(EntityStatus.PERSISTED);
-        e.markToRemove();
+        e.markForDeletion();
         assertEquals(EntityStatus.UPDATED_DELETED, e.get$status());
         
         e.set$status(EntityStatus.PERSISTED_DELETED);
@@ -381,7 +381,7 @@ public class BaseEntityTest {
         assertEquals(Long.valueOf(2L), e.getOriginalVersion());
         
         e.set$status(EntityStatus.PERSISTED);
-        e.markAsDeleted();
+        e.markForDeletion();
         assertTrue(e.isMarkedAsDelete());
         
         e.setComment("test_comment");
@@ -568,11 +568,11 @@ public class BaseEntityTest {
         io.teaql.data.dynamic.DynamicFieldValues dfv2 = e.collectDynamicFieldValues();
         assertNotNull(dfv2);
         
-        // markToRemove, markAsDeleted without root
+        // markForDeletion, markForDeletion without root
         TestEntity e2 = new TestEntity(); // no root
         e2.set$status(EntityStatus.PERSISTED);
-        e2.markToRemove();
-        e2.markAsDeleted();
+        e2.markForDeletion();
+        e2.markForDeletion();
     }
     
     @Test
@@ -624,9 +624,9 @@ public class BaseEntityTest {
         // dirtyFields
         assertTrue(e.dirtyFields().contains("id")); // it has 'id' because we called root.set
         
-        // markToRemove, isMarkedAsDelete
+        // markForDeletion, isMarkedAsDelete
         e.set$status(io.teaql.core.EntityStatus.PERSISTED);
-        e.markToRemove();
+        e.markForDeletion();
         assertTrue(e.isMarkedAsDelete());
         
         // getOriginalVersion
@@ -663,9 +663,9 @@ public class BaseEntityTest {
         // isNew from root
         assertTrue(e.isNew());
         
-        // markAsDeleted from root
+        // markForDeletion from root
         try {
-            e.markAsDeleted();
+            e.markForDeletion();
         } catch (Exception ex) {}
     }
     
@@ -677,16 +677,16 @@ public class BaseEntityTest {
         e.setComment(null);
         e.setComment(null);
         
-        // __internalGet, getUpdatedProperties, markAsDeleted, isMarkedAsDelete, isNew, getOriginalVersion, markToRemove, handleUpdate when id == null or entityMutationLedger == null
+        // __internalGet, getUpdatedProperties, markForDeletion, isMarkedAsDelete, isNew, getOriginalVersion, markForDeletion, handleUpdate when id == null or entityMutationLedger == null
         e.getUpdatedProperties();
         e.set$status(io.teaql.core.EntityStatus.PERSISTED);
-        e.markAsDeleted();
+        e.markForDeletion();
         e.isMarkedAsDelete();
         e.isNew();
         e.getOriginalVersion();
         
         e.set$status(io.teaql.core.EntityStatus.PERSISTED);
-        e.markToRemove();
+        e.markForDeletion();
         e.set$status(io.teaql.core.EntityStatus.PERSISTED);
         e.handleUpdate("name", "v1", "v2");
         
@@ -701,9 +701,9 @@ public class BaseEntityTest {
         e.isNew();
         e.getOriginalVersion();
         e.set$status(io.teaql.core.EntityStatus.PERSISTED);
-        e.markAsDeleted();
+        e.markForDeletion();
         e.set$status(io.teaql.core.EntityStatus.PERSISTED);
-        e.markToRemove();
+        e.markForDeletion();
         e.set$status(io.teaql.core.EntityStatus.PERSISTED);
         e.handleUpdate("name", "v1", "v2");
         
@@ -787,7 +787,7 @@ public class BaseEntityTest {
         try { entity.__internalGet("name"); } catch(Exception ignored) {}
         entity.getUpdatedProperties();
         entity.dirtyFields();
-        try { entity.markAsDeleted(); } catch(Exception ignored) {}
+        try { entity.markForDeletion(); } catch(Exception ignored) {}
         entity.isMarkedAsDelete();
         entity.isNew();
         
@@ -806,8 +806,8 @@ public class BaseEntityTest {
         assertTrue(entity.getUpdatedProperties().contains("name"));
         assertTrue(entity.dirtyFields().contains("name"));
         
-        // markAsDeleted
-        entity.markAsDeleted();
+        // markForDeletion
+        entity.markForDeletion();
         assertTrue(entity.isMarkedAsDelete());
         assertTrue(root.isMarkedAsDelete(key));
         
@@ -828,7 +828,7 @@ public class BaseEntityTest {
         entityNoId.getUpdatedProperties();
         entityNoId.dirtyFields();
         try {
-            entityNoId.markAsDeleted();
+            entityNoId.markForDeletion();
         } catch (Exception ignored) {}
         entityNoId.isMarkedAsDelete();
         entityNoId.isNew();

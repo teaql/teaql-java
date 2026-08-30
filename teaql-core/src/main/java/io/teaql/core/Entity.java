@@ -76,7 +76,7 @@ public interface Entity {
         return DynamicFieldValues.empty();
     }
 
-    void markAsDeleted();
+    Entity markForDeletion();
 
     void markAsRecover();
 

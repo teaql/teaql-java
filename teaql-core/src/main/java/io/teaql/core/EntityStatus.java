@@ -44,6 +44,9 @@ public enum EntityStatus {
         statusTransaction.put(UPDATED, PERSIST, PERSISTED);
         statusTransaction.put(UPDATED_DELETED, PERSIST, PERSISTED_DELETED);
         statusTransaction.put(UPDATED_DELETED, DELETE, UPDATED_DELETED);
+        // Graph composition may set a relation or another final field after deletion intent
+        // has been recorded. The update must preserve, never cancel, PendingDeletion.
+        statusTransaction.put(UPDATED_DELETED, UPDATE, UPDATED_DELETED);
         statusTransaction.put(UPDATED_RECOVER, PERSIST, PERSISTED);
         statusTransaction.put(UPDATED_RECOVER, RECOVER, UPDATED_RECOVER);
     }

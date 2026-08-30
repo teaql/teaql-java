@@ -195,7 +195,7 @@ public class MemoryDatabaseTest {
 
         // 4. Delete task
         task1.setComment("Delete task 1");
-        task1.auditAs("delete test").delete(context);
+        task1.markForDeletion().auditAs("delete test").save(context);
 
         SmartList<Task> resultAfterDelete = new TaskRequest().filterByStatus("DONE").comment("Test query").purpose("Verify delete").executeForList(context);
         assertTrue("Task should be removed from DB", resultAfterDelete.isEmpty());

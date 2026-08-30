@@ -2,7 +2,7 @@ package io.teaql.core;
 
 /**
  * A wrapper that carries a mandatory audit comment with an entity.
- * Only `Audited<T>` has `.save()`, `.delete()`, and `.recover()` methods — bare entities cannot be saved directly.
+ * Only `Audited<T>` has `.save()` and `.recover()` methods — bare entities cannot be saved directly.
  */
 public class Audited<T extends Entity> {
     private final T inner;
@@ -21,13 +21,6 @@ public class Audited<T extends Entity> {
 
     @SuppressWarnings("unchecked")
     public <R extends T> R save(UserContext context) {
-        context.saveGraph(this.inner);
-        return (R) this.inner;
-    }
-
-    @SuppressWarnings("unchecked")
-    public <R extends T> R delete(UserContext context) {
-        this.inner.markAsDeleted();
         context.saveGraph(this.inner);
         return (R) this.inner;
     }

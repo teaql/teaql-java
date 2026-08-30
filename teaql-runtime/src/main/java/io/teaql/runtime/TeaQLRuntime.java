@@ -524,7 +524,7 @@ public class TeaQLRuntime {
                 deleteEntity.__internalSet("id", key.id());
                 deleteEntity.set$status(io.teaql.core.EntityStatus.PERSISTED);
             }
-            deleteEntity.markToRemove();
+            deleteEntity.markForDeletion();
             if (root.getComment() != null) deleteEntity.setComment(root.getComment());
 
             DefaultMutationRequest mutationRequest = new DefaultMutationRequest(
@@ -660,51 +660,6 @@ public class TeaQLRuntime {
             return result;
         } catch (RuntimeException | Error error) {
             scope.failure(error);
-            throw error;
-        }
-    }
-
-    public void delete(UserContext context, Entity entity) {
-        RuntimeTelemetry.Scope telemetryScope = RuntimeTelemetry.startSafely(telemetry,
-                new RuntimeTelemetry.Operation("mutation", entity.typeName() + ".delete", Map.of(
-                        "teaql.entity.type", entity.typeName(),
-                        "teaql.mutation.kind", "delete")));
-        try {
-        if (entity.getComment() == null || entity.getComment().trim().isEmpty()) {
-            throw new TeaQLRuntimeException("[AUDIT REQUIRED] Missing .auditAs() or .setComment() before delete().");
-        }
-        boolean pushed = false;
-        if (entity.getComment() != null && !entity.getComment().trim().isEmpty()) {
-            context.pushTrace(entity.getComment());
-            pushed = true;
-        }
-        try {
-            EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());
-            String route = descriptor.getDataService();
-            if (route == null || route.isEmpty()) {
-                route = "default";
-            }
-            MutationExecutor mutationExecutor = registry.resolveMutationExecutor(route);
-            if (mutationExecutor == null) {
-                throw new TeaQLRuntimeException("No MutationExecutor registered for route: " + route);
-            }
-
-            if (entity instanceof BaseEntity baseEntity && entity.getId() != null) {
-                EntityMutationLedger entityMutationLedger = baseEntity.getEntityMutationLedger();
-                entityMutationLedger.markAsDelete(new EntityKey(entity.typeName(), entity.getId()));
-            }
-
-            DefaultMutationRequest.Action action = DefaultMutationRequest.Action.DELETE;
-            MutationRequest mutationRequest = new DefaultMutationRequest(entity, action);
-            mutateWithTelemetry(context, mutationExecutor, mutationRequest,
-                    entity.typeName(), "delete");
-            emitAuditEvent(context, entity, MutationAuditKind.DELETED, Collections.emptyMap());
-            telemetryScope.success();
-        } finally {
-            if (pushed) context.popTrace();
-        }
-        } catch (RuntimeException | Error error) {
-            telemetryScope.failure(error);
             throw error;
         }
     }

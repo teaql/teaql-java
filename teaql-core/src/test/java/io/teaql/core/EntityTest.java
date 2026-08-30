@@ -20,7 +20,7 @@ public class EntityTest {
             @Override public void addDynamicProperty(String propertyName, Object value) {}
             @Override public void appendDynamicProperty(String propertyName, Object value) {}
             @Override public <T> T getDynamicProperty(String propertyName) { return null; }
-            @Override public void markAsDeleted() {}
+            @Override public Entity markForDeletion() { return this; }
             @Override public void markAsRecover() {}
         };
 
@@ -52,5 +52,20 @@ public class EntityTest {
         // This will cover the false branch of 'instanceof BaseEntity' in Entity.java
         assertEquals("val", baseEntity.getProperty("prop"));
         baseEntity.setProperty("prop", "newVal");
+    }
+
+    @Test
+    public void updateAfterDeletionIntentPreservesPendingDeletion() {
+        BaseEntity entity = new BaseEntity() {
+            @Override public String typeName() { return "dummy"; }
+            @Override public Object __internalGet(String propertyName) { return null; }
+            @Override public void __internalSet(String propertyName, Object value) {}
+        };
+        entity.set$status(EntityStatus.PERSISTED);
+
+        entity.markForDeletion();
+        entity.handleUpdate("owner", null, new BaseEntity());
+
+        assertEquals(EntityStatus.UPDATED_DELETED, entity.get$status());
     }
 }

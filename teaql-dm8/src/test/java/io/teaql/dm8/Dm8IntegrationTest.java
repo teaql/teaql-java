@@ -223,7 +223,7 @@ public class Dm8IntegrationTest {
         assertEquals("Assemble Assembly Line", resultDone.get(0).getTitle());
 
         // 4. Delete task
-        task1.auditAs("delete").delete(context);
+        task1.markForDeletion().auditAs("delete").save(context);
 
         SmartList<Task> resultAfterDelete = new TaskRequest().filterByStatus("DONE").comment("test").purpose("test").executeForList(context);
         assertTrue(resultAfterDelete.isEmpty());

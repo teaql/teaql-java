@@ -244,7 +244,7 @@ public class SqliteIntegrationTest {
         assertEquals("Assemble Assembly Line", resultDone.get(0).getTitle());
 
         // 4. Delete task
-        Task deleted = task1.auditAs("delete").delete(context);
+        Task deleted = task1.markForDeletion().auditAs("delete").save(context);
         assertSame(task1, deleted);
         assertEquals(Long.valueOf(-3L), deleted.getVersion());
         assertEquals(EntityStatus.PERSISTED_DELETED, deleted.get$status());

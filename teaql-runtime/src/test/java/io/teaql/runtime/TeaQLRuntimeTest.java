@@ -513,7 +513,7 @@ public class TeaQLRuntimeTest {
         e1.updateId(101L);
         e1.set$status(EntityStatus.PERSISTED);
         e1.setEntityMutationLedger(root);
-        e1.markToRemove();
+        e1.markForDeletion();
 
         DummyEntity e2 = new DummyEntity(); // to update
         e2.updateId(102L);
@@ -532,7 +532,7 @@ public class TeaQLRuntimeTest {
         e4.updateId(104L);
         e4.set$status(EntityStatus.PERSISTED);
         e4.setEntityMutationLedger(root);
-        e4.markToRemove();
+        e4.markForDeletion();
         
         java.util.Map<EntityKey, BaseEntity> realEntities = new java.util.HashMap<>();
         realEntities.put(new EntityKey("Dummy", 101L), e1);
@@ -732,9 +732,13 @@ public class TeaQLRuntimeTest {
                 .build();
 
         DummyEntity entity = new DummyEntity();
+        entity.__internalSet("id", 1L);
+        entity.__internalSet("version", 1L);
         entity.setComment("test delete");
         entity.set$status(EntityStatus.PERSISTED);
-        runtime.delete(new DefaultUserContext(runtime), entity);
+        entity.markForDeletion()
+                .auditAs("test delete")
+                .save(new DefaultUserContext(runtime));
 
         Assert.assertFalse(executor.requests.isEmpty());
         Assert.assertEquals(DefaultMutationRequest.Action.DELETE, executor.requests.get(0).getAction());

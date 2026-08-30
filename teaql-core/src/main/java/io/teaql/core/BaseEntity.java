@@ -257,11 +257,12 @@ public class BaseEntity implements Entity {
     }
 
     @Override
-    public void markAsDeleted() {
+    public BaseEntity markForDeletion() {
         gotoNextStatus(EntityAction.DELETE);
         if (entityMutationLedger != null && id != null) {
             entityMutationLedger.markAsDelete(new EntityKey(typeName(), id));
         }
+        return this;
     }
 
     @Override
@@ -482,14 +483,6 @@ public class BaseEntity implements Entity {
         PropertyChange propertyChange = updatedProperties.get(propertyName);
         if (propertyChange == null) return null;
         return propertyChange.getNewValue();
-    }
-
-    public BaseEntity markToRemove() {
-        gotoNextStatus(EntityAction.DELETE);
-        if (entityMutationLedger != null && id != null) {
-            entityMutationLedger.markAsDelete(new EntityKey(typeName(), id));
-        }
-        return this;
     }
 
     public BaseEntity markToRecover() {

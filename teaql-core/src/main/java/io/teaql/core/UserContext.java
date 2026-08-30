@@ -181,8 +181,6 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
 
     void saveGraph(Entity entity);
 
-    void delete(Entity pEntity);
-
     @Override
     default Object getObj(String key, Object defaultValue) {
         Object val = getAttribute(key);

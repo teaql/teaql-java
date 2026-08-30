@@ -34,7 +34,6 @@ public class AuditedTest {
         @Override public <T extends Entity> java.util.stream.Stream<T> internalExecuteForStream(SearchRequest searchRequest) { return null; }
         @Override public <T extends Entity> java.util.stream.Stream<T> internalExecuteForStream(SearchRequest searchRequest, int enhanceBatchSize) { return null; }
         @Override public <T extends Entity> AggregationResult internalAggregation(SearchRequest request) { return null; }
-        @Override public void delete(Entity pEntity) {}
         @Override public <T> T evaluate(String expression, Object... args) { return null; }
         @Override public Object getObj(String key, Object defaultValue) { return null; }
     }
@@ -56,9 +55,9 @@ public class AuditedTest {
         
         // delete
         context.savedGraph = null;
-        audited.delete(context);
+        entity.markForDeletion().auditAs("delete test").save(context);
         assertEquals(entity, context.savedGraph);
-        // Since delete marks the entity to be deleted, there is no direct public way to verify the change set here, but it triggers markAsDeleted.
+        // Deletion is persisted through the same audited save boundary.
         
         // recover
         context.savedGraph = null;

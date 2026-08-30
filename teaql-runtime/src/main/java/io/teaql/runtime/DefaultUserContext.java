@@ -111,11 +111,6 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
     }
 
     @Override
-    public void delete(Entity pEntity) {
-        runtime.delete(this, pEntity);
-    }
-
-    @Override
     public void putAttribute(String key, Object value) {
         if (value == null) {
             storage.remove(key);

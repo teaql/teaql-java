@@ -162,7 +162,7 @@ public class App {
           require(updated.getVersion() == oldVersion + 1, "Update must increment version");
           System.out.printf("PASS Update (version %d -> %d)%n", oldVersion, updated.getVersion());
 
-          updated.auditAs("Delete the conformance work item").delete(context);
+          updated.markForDeletion().auditAs("Delete the conformance work item").save(context);
           SmartList<WorkItem> remaining = Q.workItems()
               .withTitleIs("Updated title")
               .comment("Verify ordinary queries exclude deleted rows")
