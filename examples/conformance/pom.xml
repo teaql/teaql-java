@@ -16,7 +16,7 @@
     <libversion>1.0.0</libversion>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.parameters>true</maven.compiler.parameters>
-    <teaql.version>1.541-RELEASE</teaql.version>
+    <teaql.version>1.544-RELEASE</teaql.version>
   </properties>
 
   <repositories>
