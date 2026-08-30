@@ -5,6 +5,7 @@ import io.teaql.core.utils.OptNullBasicTypeFromObjectGetter;
 import java.util.List;
 import io.teaql.data.dynamic.DynamicFieldsFacade;
 import io.teaql.core.checker.CheckResult;
+import io.teaql.core.checker.FixEvidence;
 import io.teaql.core.i18n.I18nCatalog;
 import io.teaql.core.i18n.Locale;
 
@@ -13,6 +14,35 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
     String TEAQL_LOCALE = "teaql.locale";
     String TEAQL_I18N_CATALOG = "teaql.i18n.catalog";
     String TEAQL_ACTIVE_ROOT = "teaql.active.root";
+    String TEAQL_FIX_EVIDENCE_CURRENT = "teaql.fix.evidence.current";
+    String TEAQL_FIX_EVIDENCE_LAST = "teaql.fix.evidence.last";
+
+    default void beginFixEvidence() {
+        putAttribute(TEAQL_FIX_EVIDENCE_CURRENT, new java.util.ArrayList<FixEvidence>());
+    }
+
+    @SuppressWarnings("unchecked")
+    default void recordFixEvidence(FixEvidence evidence) {
+        List<FixEvidence> current = (List<FixEvidence>) getAttribute(TEAQL_FIX_EVIDENCE_CURRENT);
+        if (current == null) {
+            current = new java.util.ArrayList<>();
+            putAttribute(TEAQL_FIX_EVIDENCE_CURRENT, current);
+        }
+        current.add(evidence);
+    }
+
+    @SuppressWarnings("unchecked")
+    default void finishFixEvidence() {
+        List<FixEvidence> current = (List<FixEvidence>) getAttribute(TEAQL_FIX_EVIDENCE_CURRENT);
+        putAttribute(TEAQL_FIX_EVIDENCE_LAST, current == null ? List.of() : List.copyOf(current));
+        putAttribute(TEAQL_FIX_EVIDENCE_CURRENT, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    default List<FixEvidence> lastFixEvidence() {
+        List<FixEvidence> evidence = (List<FixEvidence>) getAttribute(TEAQL_FIX_EVIDENCE_LAST);
+        return evidence == null ? List.of() : evidence;
+    }
 
     default void ensureSchema() {
         SchemaExecutor schema = capability(SchemaExecutor.class);

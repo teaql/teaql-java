@@ -20,6 +20,14 @@ public class CheckResult {
         return checkResult;
     }
 
+    public static CheckResult invalidType(ObjectLocation location, String message) {
+        CheckResult checkResult = new CheckResult();
+        checkResult.setLocation(location);
+        checkResult.setRuleId(RuleId.INVALID_TYPE);
+        checkResult.setNaturalLanguageStatement(message);
+        return checkResult;
+    }
+
     public static CheckResult min(ObjectLocation location, Number minNumber, Number current) {
         CheckResult checkResult = new CheckResult();
         checkResult.setLocation(location);
@@ -143,6 +151,7 @@ public class CheckResult {
         MAX_STR_LEN,
         MIN_DATE,
         MAX_DATE,
-        REQUIRED
+        REQUIRED,
+        INVALID_TYPE
     }
 }

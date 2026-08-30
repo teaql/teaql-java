@@ -6,6 +6,7 @@ public class SQLColumn {
     String tableName;
     String columnName;
     String type;
+    boolean required;
 
     public SQLColumn(String pTableName, String pColumnName) {
         tableName = pTableName;
@@ -38,5 +39,13 @@ public class SQLColumn {
 
     public void setType(String pType) {
         type = pType;
+    }
+
+    public boolean isRequired() {
+        return required;
+    }
+
+    public void setRequired(boolean pRequired) {
+        required = pRequired;
     }
 }

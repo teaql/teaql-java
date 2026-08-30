@@ -59,6 +59,7 @@ public class SQLPropertyUtil {
         if (tableName != null && columnName != null) {
             SQLColumn sqlColumn = new SQLColumn(tableName, columnName);
             sqlColumn.setType(columnType);
+            sqlColumn.setRequired(property.getBoolean("required", false));
             return ListUtil.of(sqlColumn);
         }
         throw new TeaQLRuntimeException("Cannot derive SQL metadata for property: " + property.getName() + " (class: " + property.getClass().getName() + ")");

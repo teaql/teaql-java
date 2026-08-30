@@ -65,6 +65,12 @@ public interface Checker<T extends BaseEntity> {
         }
     }
 
+    default void invalidTypeCheck(UserContext context, ObjectLocation location, String message) {
+        CheckResult result = CheckResult.invalidType(location, message);
+        appendResult(context, result);
+        result.setNaturalLanguageStatement(message);
+    }
+
     default void minNumberCheck(
             UserContext context, ObjectLocation location, Number minNumber, Number current) {
         if (NumberUtil.isLess(NumberUtil.toBigDecimal(current), NumberUtil.toBigDecimal(minNumber))) {

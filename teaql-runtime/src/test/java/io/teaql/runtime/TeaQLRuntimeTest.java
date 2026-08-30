@@ -718,9 +718,13 @@ public class TeaQLRuntimeTest {
         Assert.assertEquals(Long.valueOf(101), child.getId());
         Assert.assertSame(parent.getEntityMutationLedger(), child.getEntityMutationLedger());
         Assert.assertTrue(executor.requests.stream()
-                .anyMatch(request -> request.getEntity() == parent));
+                .anyMatch(request -> "Container".equals(request.getEntity().typeName())
+                        && parent.getId().equals(request.getEntity().getId())));
         Assert.assertTrue(executor.requests.stream()
-                .anyMatch(request -> request.getEntity() == child));
+                .anyMatch(request -> "Dummy".equals(request.getEntity().typeName())
+                        && child.getId().equals(request.getEntity().getId())));
+        Assert.assertTrue(executor.requests.stream()
+                .noneMatch(request -> request.getEntity() == parent || request.getEntity() == child));
     }
 
     @Test

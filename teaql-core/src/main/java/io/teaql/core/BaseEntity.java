@@ -123,6 +123,14 @@ public class BaseEntity implements Entity {
         }
     }
 
+    @FrameworkInternal("Mutation transaction rollback only")
+    public void __internalRestorePersistenceState(
+            Long restoredVersion, EntityStatus restoredStatus, boolean versionWasLoaded) {
+        this.version = restoredVersion;
+        this.$status = restoredStatus;
+        restorePropertyLoaded(VERSION_PROPERTY, versionWasLoaded);
+    }
+
     @FrameworkInternal("Business code should use typed getXxx() methods")
     public Object __internalGet(String property) {
         // First try to get from entityMutationLedger if available
@@ -393,6 +401,17 @@ public class BaseEntity implements Entity {
             hydratingProperty = false;
         }
         markPropertyLoaded(loadedPropertyIndex, propertyName);
+        captureHydratedOriginalVersion();
+    }
+
+    /**
+     * Hydration may assign {@code id} and {@code version} in either column order.
+     * Once both are available, retain the authoritative database version in the
+     * entity-owned Mutation Ledger without creating a business mutation.
+     */
+    private void captureHydratedOriginalVersion() {
+        if (entityMutationLedger == null || id == null || version == null) return;
+        entityMutationLedger.setOriginalVersion(new EntityKey(typeName(), id), version);
     }
 
     private void markPropertyLoaded(int index, String propertyName) {
@@ -402,6 +421,28 @@ public class BaseEntity implements Entity {
         }
         if (overflowLoadedProperties == null) overflowLoadedProperties = new java.util.HashSet<>();
         overflowLoadedProperties.add(propertyName);
+    }
+
+    private void restorePropertyLoaded(String propertyName, boolean loaded) {
+        Integer index = LOADED_PROPERTY_LAYOUTS.get(getClass()).find(propertyName);
+        if (index == null) {
+            if (loaded) {
+                if (overflowLoadedProperties == null) overflowLoadedProperties = new java.util.HashSet<>();
+                overflowLoadedProperties.add(propertyName);
+            } else if (overflowLoadedProperties != null) {
+                overflowLoadedProperties.remove(propertyName);
+            }
+            return;
+        }
+        if (index < Long.SIZE) {
+            if (loaded) loadedPropertyBits |= 1L << index;
+            else loadedPropertyBits &= ~(1L << index);
+        } else if (loaded) {
+            if (overflowLoadedProperties == null) overflowLoadedProperties = new java.util.HashSet<>();
+            overflowLoadedProperties.add(propertyName);
+        } else if (overflowLoadedProperties != null) {
+            overflowLoadedProperties.remove(propertyName);
+        }
     }
 
     private static final class LoadedPropertyLayout {

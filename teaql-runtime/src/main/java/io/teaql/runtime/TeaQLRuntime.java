@@ -360,14 +360,30 @@ public class TeaQLRuntime {
                     entity,
                     realEntities,
                     Collections.newSetFromMap(new IdentityHashMap<>()));
-            if (mutationExecutor instanceof TransactionExecutor transactionExecutor) {
-                transactionExecutor.executeInTransaction(context, () -> {
-                    executeLedgerPlan(context, entityMutationLedger, mutationExecutor, realEntities);
-                    return null;
-                });
-            } else {
-                executeLedgerPlan(context, entityMutationLedger, mutationExecutor, realEntities);
+            Map<BaseEntity, PersistenceState> persistenceStates = new IdentityHashMap<>();
+            realEntities.values().forEach(value -> persistenceStates.put(
+                    value,
+                    new PersistenceState(
+                            value.getVersion(), value.get$status(),
+                            value.isPropertyLoaded(BaseEntity.VERSION_PROPERTY))));
+            List<PendingMutation> completed;
+            try {
+                if (mutationExecutor instanceof TransactionExecutor transactionExecutor) {
+                    completed = transactionExecutor.executeInTransaction(context, () ->
+                            executeLedgerPlan(context, entityMutationLedger, mutationExecutor, realEntities));
+                } else {
+                    completed = executeLedgerPlan(
+                            context, entityMutationLedger, mutationExecutor, realEntities);
+                }
+            } catch (RuntimeException | Error failure) {
+                restoreGraphPersistenceState(
+                        entity,
+                        entityMutationLedger,
+                        persistenceStates,
+                        Collections.newSetFromMap(new IdentityHashMap<>()));
+                throw failure;
             }
+            completeLedgerPlan(context, completed);
             entityMutationLedger.clearCurrentChangeSet();
             telemetryScope.success();
         } finally {
@@ -390,6 +406,7 @@ public class TeaQLRuntime {
         }
         context.putAttribute(Checker.TEAQL_DATA_CHECK_RESULT, new ArrayList<CheckResult>());
         context.putAttribute(Checker.TEAQL_DATA_CHECKED_ITEMS, new ArrayList<>());
+        context.beginFixEvidence();
         boolean ownsFixTime = context.getAttribute(Checker.TEAQL_FIX_TIME) == null;
         if (ownsFixTime) {
             context.putAttribute(Checker.TEAQL_FIX_TIME, java.time.LocalDateTime.now());
@@ -402,6 +419,7 @@ public class TeaQLRuntime {
                 throw new CheckException(new ArrayList<>(violations));
             }
         } finally {
+            context.finishFixEvidence();
             context.putAttribute(Checker.TEAQL_DATA_CHECK_RESULT, null);
             context.putAttribute(Checker.TEAQL_DATA_CHECKED_ITEMS, null);
             if (ownsFixTime) {
@@ -452,7 +470,12 @@ public class TeaQLRuntime {
         if (!(entity instanceof BaseEntity baseEntity) || !visited.add(entity)) {
             return;
         }
-        if (baseEntity.getId() != null) {
+        // A relation reference may share the materialized entity's ledger after
+        // graph composition. It has no authoritative field snapshot of its own;
+        // replaying shared dirty names through the reference would overwrite
+        // real values with its local null placeholders.
+        if (baseEntity.getId() != null
+                && baseEntity.get$status() != io.teaql.core.EntityStatus.REFER) {
             EntityKey key = new EntityKey(baseEntity.typeName(), baseEntity.getId());
             for (String property : baseEntity.getUpdatedProperties()) {
                 targetRoot.set(key, property, baseEntity.__internalGet(property));
@@ -498,14 +521,45 @@ public class TeaQLRuntime {
             Set<Entity> visited) {
         if (!(entity instanceof BaseEntity baseEntity) || !visited.add(entity)) return;
         if (baseEntity.getId() != null) {
-            realEntities.put(new EntityKey(baseEntity.typeName(), baseEntity.getId()), baseEntity);
+            realEntities.merge(
+                    new EntityKey(baseEntity.typeName(), baseEntity.getId()),
+                    baseEntity,
+                    TeaQLRuntime::preferMaterializedEntity);
         }
         visitRelatedEntities(
                 entity,
                 related -> collectRealEntities(related, realEntities, visited));
     }
 
-    private void executeLedgerPlan(UserContext context, EntityMutationLedger root, MutationExecutor mutationExecutor, Map<EntityKey, BaseEntity> realEntities) {
+    /**
+     * A hydrated graph can contain both a materialized entity and lightweight
+     * relation references with the same logical key. Persistence must keep the
+     * materialized instance: a later reference must not erase its loaded
+     * version, fields, or mutation state merely because graph traversal reaches
+     * the reference last.
+     */
+    private static BaseEntity preferMaterializedEntity(
+            BaseEntity existing, BaseEntity candidate) {
+        if (existing.get$status() == io.teaql.core.EntityStatus.REFER
+                && candidate.get$status() != io.teaql.core.EntityStatus.REFER) {
+            return candidate;
+        }
+        if (candidate.get$status() == io.teaql.core.EntityStatus.REFER
+                && existing.get$status() != io.teaql.core.EntityStatus.REFER) {
+            return existing;
+        }
+        if (existing.getVersion() == null && candidate.getVersion() != null) {
+            return candidate;
+        }
+        return existing;
+    }
+
+    private List<PendingMutation> executeLedgerPlan(
+            UserContext context,
+            EntityMutationLedger root,
+            MutationExecutor mutationExecutor,
+            Map<EntityKey, BaseEntity> realEntities) {
+        List<PendingMutation> completed = new ArrayList<>();
         EntityChangeSet changeSet = root.currentChangeSet();
         Set<EntityKey> deletedKeys = root.deletedKeys();
         Set<EntityKey> newKeys = root.newKeys();
@@ -518,12 +572,13 @@ public class TeaQLRuntime {
             if (descriptor == null) {
                 throw new TeaQLRuntimeException("No entity descriptor for: " + key.entity());
             }
-            BaseEntity deleteEntity = realEntities.get(key);
-            if (deleteEntity == null) {
-                deleteEntity = (BaseEntity) descriptor.createEntity();
-                deleteEntity.__internalSet("id", key.id());
-                deleteEntity.set$status(io.teaql.core.EntityStatus.PERSISTED);
-            }
+            BaseEntity target = realEntities.get(key);
+            BaseEntity deleteEntity = mutationEntity(descriptor, target);
+            deleteEntity.__internalSet("id", key.id());
+            Long originalVersion = root.getOriginalVersion(key);
+            if (originalVersion == null && target != null) originalVersion = target.getVersion();
+            if (originalVersion != null) deleteEntity.__internalSet("version", originalVersion);
+            deleteEntity.set$status(io.teaql.core.EntityStatus.PERSISTED);
             deleteEntity.markForDeletion();
             if (root.getComment() != null) deleteEntity.setComment(root.getComment());
 
@@ -531,8 +586,9 @@ public class TeaQLRuntime {
                 deleteEntity, DefaultMutationRequest.Action.DELETE);
             MutationResult result = mutateWithTelemetry(context, mutationExecutor, mutationRequest,
                     key.entity(), "delete");
-            applyPersistedEntity(descriptor, deleteEntity, result);
-            emitAuditEvent(context, deleteEntity, MutationAuditKind.DELETED, Collections.emptyMap());
+            completed.add(new PendingMutation(
+                    descriptor, target == null ? deleteEntity : target, result,
+                    MutationAuditKind.DELETED, Collections.emptyMap()));
         }
 
         // 2. Group changes
@@ -562,11 +618,9 @@ public class TeaQLRuntime {
             for (EntityKey key : keys) {
                 Map<String, Object> changes = changeSet.changes().get(key);
                 if (changes == null) continue;
-                BaseEntity entity = realEntities.get(key);
-                if (entity == null) {
-                    entity = (BaseEntity) descriptor.createEntity();
-                    entity.__internalSet("id", key.id());
-                }
+                BaseEntity target = realEntities.get(key);
+                BaseEntity entity = mutationEntity(descriptor, target);
+                entity.__internalSet("id", key.id());
                 Long version = root.getOriginalVersion(key);
                 if (version != null) {
                     entity.__internalSet("version", version);
@@ -580,9 +634,9 @@ public class TeaQLRuntime {
                     entity, DefaultMutationRequest.Action.SAVE);
                 MutationResult result = mutateWithTelemetry(context, mutationExecutor, mutationRequest,
                         entityName, "save");
-                applyPersistedEntity(descriptor, entity, result);
-                emitAuditEvent(context, entity, MutationAuditKind.CREATED, changes);
-                entity.clearUpdatedProperties();
+                completed.add(new PendingMutation(
+                        descriptor, target == null ? entity : target, result,
+                        MutationAuditKind.CREATED, snapshotChanges(changes)));
             }
         }
 
@@ -597,12 +651,11 @@ public class TeaQLRuntime {
             for (EntityKey key : keys) {
                 Map<String, Object> changes = changeSet.changes().get(key);
                 if (changes == null) continue;
-                BaseEntity entity = realEntities.get(key);
-                if (entity == null) {
-                    entity = (BaseEntity) descriptor.createEntity();
-                    entity.__internalSet("id", key.id());
-                }
+                BaseEntity target = realEntities.get(key);
+                BaseEntity entity = mutationEntity(descriptor, target);
+                entity.__internalSet("id", key.id());
                 Long version = root.getOriginalVersion(key);
+                if (version == null && target != null) version = target.getVersion();
                 if (version != null) {
                     entity.__internalSet("version", version);
                 }
@@ -614,16 +667,68 @@ public class TeaQLRuntime {
 
                 DefaultMutationRequest mutationRequest = new DefaultMutationRequest(
                     entity, DefaultMutationRequest.Action.SAVE);
-                MutationAuditKind auditKind = entity.recoverItem()
+                MutationAuditKind auditKind = target != null && target.recoverItem()
                         ? MutationAuditKind.RECOVERED
                         : MutationAuditKind.UPDATED;
                 MutationResult result = mutateWithTelemetry(context, mutationExecutor, mutationRequest,
                         entityName, auditKind.name().toLowerCase(Locale.ROOT));
-                applyPersistedEntity(descriptor, entity, result);
-                emitAuditEvent(context, entity, auditKind, changes);
-                entity.clearUpdatedProperties();
+                completed.add(new PendingMutation(
+                        descriptor, target == null ? entity : target, result,
+                        auditKind, snapshotChanges(changes)));
             }
         }
+        return completed;
+    }
+
+    private void completeLedgerPlan(UserContext context, List<PendingMutation> completed) {
+        for (PendingMutation mutation : completed) {
+            applyPersistedEntity(mutation.descriptor(), mutation.target(), mutation.result());
+            emitAuditEvent(
+                    context, mutation.target(), mutation.auditKind(), mutation.changedValues());
+            mutation.target().clearUpdatedProperties();
+        }
+    }
+
+    private Map<String, Object> snapshotChanges(Map<String, Object> changes) {
+        return Collections.unmodifiableMap(new LinkedHashMap<>(changes));
+    }
+
+    private BaseEntity mutationEntity(EntityDescriptor descriptor, BaseEntity target) {
+        try {
+            return (BaseEntity) descriptor.createEntity();
+        } catch (IllegalStateException missingSupplier) {
+            if (target != null) return target;
+            throw missingSupplier;
+        }
+    }
+
+    private record PendingMutation(
+            EntityDescriptor descriptor,
+            BaseEntity target,
+            MutationResult result,
+            MutationAuditKind auditKind,
+            Map<String, Object> changedValues) {}
+
+    private record PersistenceState(
+            Long version, io.teaql.core.EntityStatus status, boolean versionLoaded) {}
+
+    private void restoreGraphPersistenceState(
+            Entity entity,
+            EntityMutationLedger ledger,
+            Map<BaseEntity, PersistenceState> states,
+            Set<Entity> visited) {
+        if (!(entity instanceof BaseEntity baseEntity) || !visited.add(entity)) return;
+        EntityKey key = new EntityKey(baseEntity.typeName(), baseEntity.getId());
+        PersistenceState state = states.get(baseEntity);
+        if (ledger.isNew(key)) {
+            baseEntity.__internalRestorePersistenceState(
+                    null, io.teaql.core.EntityStatus.NEW, false);
+        } else if (state != null) {
+            baseEntity.__internalRestorePersistenceState(
+                    state.version(), state.status(), state.versionLoaded());
+        }
+        visitRelatedEntities(entity, related ->
+                restoreGraphPersistenceState(related, ledger, states, visited));
     }
 
     private void applyPersistedEntity(

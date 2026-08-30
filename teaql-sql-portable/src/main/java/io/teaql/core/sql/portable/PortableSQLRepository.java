@@ -1406,6 +1406,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 .map(column -> {
                     String dbColumn = dialect.escapeIdentifier(column.getColumnName()) + " " + dialect.mapColumnType(column.getType());
                     if (column.isIdColumn()) dbColumn += " NOT NULL PRIMARY KEY";
+                    else if (column.isRequired()) dbColumn += " NOT NULL";
                     return dbColumn;
                 })
                 .collect(Collectors.joining(",\n")));
@@ -1417,8 +1418,9 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     protected void addColumn(UserContext context, SQLColumn column) {
-        String sql = StrUtil.format("ALTER TABLE {} ADD COLUMN {} {}",
-                dialect.escapeIdentifier(column.getTableName()), dialect.escapeIdentifier(column.getColumnName()), dialect.mapColumnType(column.getType()));
+        String sql = StrUtil.format("ALTER TABLE {} ADD COLUMN {} {}{}",
+                dialect.escapeIdentifier(column.getTableName()), dialect.escapeIdentifier(column.getColumnName()),
+                dialect.mapColumnType(column.getType()), column.isRequired() ? " NOT NULL" : "");
         logInfo(sql + ";");
         if (ensureTableEnabled(context)) {
             try { database.execute(context, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }

@@ -225,6 +225,27 @@ public class BaseEntityTest {
         assertTrue(entity.isPropertyLoaded("name"));
         assertTrue(entity.getUpdatedProperties().isEmpty());
     }
+
+    @Test
+    public void testCompiledHydrationCapturesOriginalVersionInEitherColumnOrder() {
+        TestEntity idThenVersion = new TestEntity();
+        idThenVersion.__internalHydrate(
+                "id", 41L, BaseEntity.loadedPropertyIndex(TestEntity.class, "id"));
+        idThenVersion.__internalHydrate(
+                "version", 7L, BaseEntity.loadedPropertyIndex(TestEntity.class, "version"));
+
+        assertEquals(Long.valueOf(7L), idThenVersion.getOriginalVersion());
+        assertTrue(idThenVersion.getUpdatedProperties().isEmpty());
+
+        TestEntity versionThenId = new TestEntity();
+        versionThenId.__internalHydrate(
+                "version", 9L, BaseEntity.loadedPropertyIndex(TestEntity.class, "version"));
+        versionThenId.__internalHydrate(
+                "id", 42L, BaseEntity.loadedPropertyIndex(TestEntity.class, "id"));
+
+        assertEquals(Long.valueOf(9L), versionThenId.getOriginalVersion());
+        assertTrue(versionThenId.getUpdatedProperties().isEmpty());
+    }
     
     @Test
     public void testActionList() {
