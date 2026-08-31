@@ -80,7 +80,7 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
 
         for (EntityDescriptor descriptor : descriptors) {
             PortableSQLRepository repository = new PortableSQLRepository(descriptor, dbAdapter, null);
-            repository.ensureSchema(context);
+            repository.ensurePhysicalSchema(context);
         }
     }
 

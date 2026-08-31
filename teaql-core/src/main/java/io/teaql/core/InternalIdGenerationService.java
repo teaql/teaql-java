@@ -44,4 +44,13 @@ public interface InternalIdGenerationService {
                 "This IdGenerationService does not support type-name-based ID generation. "
                 + "Use an implementation like IdSpaceIdGenerator.");
     }
+
+    /**
+     * Advances the allocation state for {@code typeName} so future generated IDs are greater
+     * than {@code floor}. Generated schema bootstrap uses this after reserving model-defined IDs.
+     */
+    default void ensureFloor(String typeName, long floor) {
+        throw new UnsupportedOperationException(
+                "This IdGenerationService cannot reserve a fixed-ID floor for " + typeName);
+    }
 }

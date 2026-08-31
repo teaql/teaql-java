@@ -13,17 +13,20 @@ import java.util.Objects;
 public final class RuntimeModule {
     private final List<EntityMetaAssembler> metadataAssemblers;
     private final List<Checker<?>> checkers;
+    private final List<GeneratedSchemaBootstrap> bootstraps;
 
-    private RuntimeModule(List<EntityMetaAssembler> metadataAssemblers, List<Checker<?>> checkers) {
+    private RuntimeModule(List<EntityMetaAssembler> metadataAssemblers, List<Checker<?>> checkers,
+                          List<GeneratedSchemaBootstrap> bootstraps) {
         this.metadataAssemblers = Collections.unmodifiableList(new ArrayList<>(metadataAssemblers));
         this.checkers = Collections.unmodifiableList(new ArrayList<>(checkers));
+        this.bootstraps = Collections.unmodifiableList(new ArrayList<>(bootstraps));
     }
 
     public static RuntimeModule of(EntityMetaAssembler... metadataAssemblers) {
         Objects.requireNonNull(metadataAssemblers, "metadataAssemblers");
         Arrays.stream(metadataAssemblers).forEach(assembler ->
                 Objects.requireNonNull(assembler, "metadataAssembler"));
-        return new RuntimeModule(Arrays.asList(metadataAssemblers), Collections.emptyList());
+        return new RuntimeModule(Arrays.asList(metadataAssemblers), Collections.emptyList(), Collections.emptyList());
     }
 
     /** Adds generated model checkers to this passive manifest. */
@@ -32,7 +35,14 @@ public final class RuntimeModule {
         List<Checker<?>> combined = new ArrayList<>(this.checkers);
         Arrays.stream(checkers).forEach(checker ->
                 combined.add(Objects.requireNonNull(checker, "checker")));
-        return new RuntimeModule(metadataAssemblers, combined);
+        return new RuntimeModule(metadataAssemblers, combined, bootstraps);
+    }
+
+    /** Adds generated typed bootstrap code while keeping installation passive. */
+    public RuntimeModule withBootstrap(GeneratedSchemaBootstrap bootstrap) {
+        List<GeneratedSchemaBootstrap> combined = new ArrayList<>(bootstraps);
+        combined.add(Objects.requireNonNull(bootstrap, "bootstrap"));
+        return new RuntimeModule(metadataAssemblers, checkers, combined);
     }
 
     public RuntimeModule and(RuntimeModule other) {
@@ -41,7 +51,9 @@ public final class RuntimeModule {
         combined.addAll(other.metadataAssemblers);
         List<Checker<?>> combinedCheckers = new ArrayList<>(checkers);
         combinedCheckers.addAll(other.checkers);
-        return new RuntimeModule(combined, combinedCheckers);
+        List<GeneratedSchemaBootstrap> combinedBootstraps = new ArrayList<>(bootstraps);
+        combinedBootstraps.addAll(other.bootstraps);
+        return new RuntimeModule(combined, combinedCheckers, combinedBootstraps);
     }
 
     public void install(EntityMetaFactory metadata) {
@@ -52,4 +64,6 @@ public final class RuntimeModule {
     public List<Checker<?>> checkers() {
         return checkers;
     }
+
+    public List<GeneratedSchemaBootstrap> bootstraps() { return bootstraps; }
 }

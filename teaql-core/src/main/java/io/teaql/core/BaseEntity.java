@@ -99,6 +99,19 @@ public class BaseEntity implements Entity {
         return this;
     }
 
+    @FrameworkInternal("Generated schema bootstrap fixed-ID creation only")
+    public void __internalInitializeNewEntityId(Long fixedId) {
+        if (fixedId == null || fixedId <= 0) {
+            throw new IllegalArgumentException("Generated bootstrap ID must be positive");
+        }
+        if (id != null || !newItem()) {
+            throw new IllegalStateException("Fixed bootstrap ID can only initialize a new entity");
+        }
+        id = fixedId;
+        markPropertyLoaded(ID_PROPERTY);
+        entityMutationLedger.markAsNew(new EntityKey(typeName(), fixedId));
+    }
+
     @Override
     public Long getVersion() {
         return version;

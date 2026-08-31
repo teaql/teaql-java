@@ -19,6 +19,8 @@ public class TeaQLRuntime {
     private final RuntimeTelemetry telemetry;
     private final SchemaExecutor schemaExecutor;
     private final Map<String, Checker<?>> checkers = new java.util.concurrent.ConcurrentHashMap<>();
+    private final List<GeneratedSchemaBootstrap> generatedBootstraps =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
 
     private TeaQLRuntime(Builder builder) {
         this.metadata = builder.metadata;
@@ -71,7 +73,13 @@ public class TeaQLRuntime {
     public TeaQLRuntime install(RuntimeModule module) {
         module.install(metadata);
         module.checkers().forEach(checker -> checkers.put(checker.type(), checker));
+        generatedBootstraps.addAll(module.bootstraps());
         return this;
+    }
+
+    GeneratedSchemaBootstrap getGeneratedSchemaBootstrap() {
+        if (generatedBootstraps.isEmpty()) return null;
+        return context -> generatedBootstraps.forEach(bootstrap -> bootstrap.ensure(context));
     }
 
     public void recordExecutionMetadata(UserContext context, ExecutionMetadata metadata) {
@@ -783,7 +791,16 @@ public class TeaQLRuntime {
         }
         changes.sort(Comparator.comparing(AuditFieldChange::field));
         RawAuditEvent rawEvent = new RawAuditEvent(
-                kind, entity.typeName(), entity.getId(), changes, context.getTraceChain());
+                kind,
+                entity.typeName(),
+                entity.getId(),
+                changes,
+                context.getTraceChain(),
+                context.getAttribute(GeneratedSchemaBootstrap.AUDIT_ACTOR_ATTRIBUTE, String.class),
+                context.getAttribute(GeneratedSchemaBootstrap.AUDIT_CATEGORY_ATTRIBUTE, String.class),
+                entity.getComment(),
+                entity.getVersion(),
+                java.time.Instant.now());
 
         RuntimeTelemetry.Scope telemetryScope = RuntimeTelemetry.startSafely(telemetry,
                 new RuntimeTelemetry.Operation("audit", entity.typeName() + ".audit", Map.of(

@@ -61,7 +61,7 @@ public class HanaDataServiceExecutor extends SqlDataServiceExecutor {
         for (EntityDescriptor descriptor : descriptors) {
             PortableSQLRepository repository = new PortableSQLRepository(descriptor, dbAdapter, null);
             repository.setDialect(this.dialect);
-            repository.ensureSchema(context);
+            repository.ensurePhysicalSchema(context);
         }
     }
 }

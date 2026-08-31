@@ -50,6 +50,19 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
             throw new TeaQLRuntimeException("Schema capability is not configured in this UserContext");
         }
         schema.ensureSchema(this, SchemaExecutor.Invocation.contextOwned());
+        GeneratedSchemaBootstrap bootstrap = capability(GeneratedSchemaBootstrap.class);
+        if (bootstrap != null) {
+            Object previousActor = getAttribute(GeneratedSchemaBootstrap.AUDIT_ACTOR_ATTRIBUTE);
+            Object previousCategory = getAttribute(GeneratedSchemaBootstrap.AUDIT_CATEGORY_ATTRIBUTE);
+            putAttribute(GeneratedSchemaBootstrap.AUDIT_ACTOR_ATTRIBUTE, GeneratedSchemaBootstrap.AUDIT_ACTOR);
+            putAttribute(GeneratedSchemaBootstrap.AUDIT_CATEGORY_ATTRIBUTE, GeneratedSchemaBootstrap.AUDIT_CATEGORY);
+            try {
+                bootstrap.ensure(this);
+            } finally {
+                putAttribute(GeneratedSchemaBootstrap.AUDIT_ACTOR_ATTRIBUTE, previousActor);
+                putAttribute(GeneratedSchemaBootstrap.AUDIT_CATEGORY_ATTRIBUTE, previousCategory);
+            }
+        }
     }
 
     default UserContext withActiveRoot(ContextEntityRef root) {

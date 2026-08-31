@@ -99,6 +99,7 @@ public class IdSpaceIdGenerator implements InternalIdGenerationService {
     }
 
     /** Advances an ID space to at least {@code floor} without ever moving it backwards. */
+    @Override
     public void ensureFloor(String typeName, long floor) {
         for (int attempt = 1; attempt <= MAX_ALLOCATION_ATTEMPTS; attempt++) {
             Long current = readCurrentLevel(typeName);
