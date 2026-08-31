@@ -1297,6 +1297,16 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     // ==========================================
 
     public void ensureSchema(UserContext context) {
+        ensurePhysicalSchema(context);
+        ensureInitData(context);
+    }
+
+    /**
+     * Reconciles physical database objects only. Generated runtime modules use
+     * this boundary before creating roots and constants through audited typed
+     * mutations. It deliberately performs no application-data writes.
+     */
+    public void ensurePhysicalSchema(UserContext context) {
         List<SQLColumn> allColumns = new ArrayList<>();
         for (PropertyDescriptor ownProperty : entityDescriptor.getOwnProperties()) {
             allColumns.addAll(getSqlColumns(ownProperty));
@@ -1321,7 +1331,6 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         ensureCanonicalRelationIndexes(context);
 
         ensureIdSpaceTable(context);
-        ensureInitData(context);
     }
 
     /**

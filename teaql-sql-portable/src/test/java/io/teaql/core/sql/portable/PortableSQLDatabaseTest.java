@@ -306,6 +306,10 @@ public class PortableSQLDatabaseTest {
         descriptor.setProperties(List.of(id, version, code, name));
 
         PortableSQLRepository<Task> repository = new PortableSQLRepository<>(descriptor, database, null);
+        repository.ensurePhysicalSchema(context);
+        List<Map<String, Object>> physicalOnly = database.query(
+                "SELECT id FROM school_type_data", new Object[0]);
+        assertTrue("Physical schema reconciliation must not write bootstrap data", physicalOnly.isEmpty());
         repository.ensureSchema(context);
         repository.ensureSchema(context);
         List<Map<String, Object>> unchanged = database.query(
