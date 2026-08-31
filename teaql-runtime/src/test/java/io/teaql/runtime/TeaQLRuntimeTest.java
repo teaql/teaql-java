@@ -18,19 +18,19 @@ import java.util.Map;
 public class TeaQLRuntimeTest {
 
     @Test
-    public void executionLoggingDefaultsOnAndCanBeDisabledWithoutDisablingAudit() {
+    public void diagnosticSqlLoggingDefaultsOffAndCanBeEnabledExplicitly() {
         TeaQLRuntime defaultRuntime = TeaQLRuntime.builder()
                 .metadata(new DummyMetaFactory())
                 .build();
-        Assert.assertTrue(defaultRuntime.isExecutionLoggingEnabled());
-        Assert.assertTrue(new DefaultUserContext(defaultRuntime).isExecutionLoggingEnabled());
+        Assert.assertFalse(defaultRuntime.isExecutionLoggingEnabled());
+        Assert.assertFalse(new DefaultUserContext(defaultRuntime).isExecutionLoggingEnabled());
 
-        TeaQLRuntime quietRuntime = TeaQLRuntime.builder()
+        TeaQLRuntime diagnosticRuntime = TeaQLRuntime.builder()
                 .metadata(new DummyMetaFactory())
-                .executionLogging(false)
+                .diagnosticSqlLogging(true)
                 .build();
-        Assert.assertFalse(quietRuntime.isExecutionLoggingEnabled());
-        Assert.assertFalse(new DefaultUserContext(quietRuntime).isExecutionLoggingEnabled());
+        Assert.assertTrue(diagnosticRuntime.isExecutionLoggingEnabled());
+        Assert.assertTrue(new DefaultUserContext(diagnosticRuntime).isExecutionLoggingEnabled());
     }
 
     public static class DummyChecker implements Checker<DummyEntity> {

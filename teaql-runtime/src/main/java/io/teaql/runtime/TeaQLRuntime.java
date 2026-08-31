@@ -857,7 +857,9 @@ public class TeaQLRuntime {
         private RequestPolicy requestPolicy;
         private InternalIdGenerationService idGenerationService;
         private RuntimeLogSink logSink;
-        private boolean executionLoggingEnabled = true;
+        // Debug SQL contains rendered parameter values and is therefore an
+        // explicit diagnostic capability, not a default telemetry behavior.
+        private boolean executionLoggingEnabled = false;
         private RuntimeTelemetry telemetry = RuntimeTelemetry.NOOP;
         private SchemaExecutor schemaExecutor;
 
@@ -903,6 +905,15 @@ public class TeaQLRuntime {
          * runtime telemetry, which have independent lifecycle and sampling.
          */
         public Builder executionLogging(boolean enabled) {
+            this.executionLoggingEnabled = enabled;
+            return this;
+        }
+
+        /**
+         * Explicitly enables or disables value-bearing, copy-paste SQL logs.
+         * Ordinary RuntimeTelemetry and audit delivery are independent.
+         */
+        public Builder diagnosticSqlLogging(boolean enabled) {
             this.executionLoggingEnabled = enabled;
             return this;
         }
