@@ -93,7 +93,7 @@ public class SchoolType extends BaseEntity implements RemoteInput {
         }
 
         this.schoolList.add(school);
-        school.cacheRelation(School.SCHOOL_TYPE_PROPERTY, this);
+        school.updateProperty(School.SCHOOL_TYPE_PROPERTY, this);
         return this;
     }
 

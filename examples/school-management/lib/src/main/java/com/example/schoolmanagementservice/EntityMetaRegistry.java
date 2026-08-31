@@ -46,6 +46,7 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       PropertyDescriptor version = 
       entityDescriptor.addSimpleProperty(com.example.schoolmanagementservice.platform.Platform.VERSION_PROPERTY, Long.class)
       ;
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.platform.Platform.ID_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.schoolmanagementservice.platform.Platform.ID_PROPERTY).with("isPassword", "false")
       .with("isVersion", "false")
       .with("oracle_sqlType", "number(11)")
@@ -62,6 +63,7 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("isTime", "false")
       .with("isText", "false");
 
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.platform.Platform.NAME_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.schoolmanagementservice.platform.Platform.NAME_PROPERTY).with("isPassword", "false")
       .with("max", "100")
       .with("isVersion", "false")
@@ -78,6 +80,7 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("isTime", "false")
       .with("isText", "false");
 
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.platform.Platform.BASE_URL_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.schoolmanagementservice.platform.Platform.BASE_URL_PROPERTY).with("isPassword", "false")
       .with("max", "100")
       .with("isVersion", "false")
@@ -94,6 +97,7 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("isTime", "false")
       .with("isText", "false");
 
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.platform.Platform.CREATE_TIME_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.schoolmanagementservice.platform.Platform.CREATE_TIME_PROPERTY).with("isPassword", "false")
       .with("isVersion", "false")
       .with("javaType", "java.time.LocalDateTime")
@@ -112,6 +116,7 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("isTime", "true")
       .with("isText", "false");
 
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.platform.Platform.UPDATE_TIME_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.schoolmanagementservice.platform.Platform.UPDATE_TIME_PROPERTY).with("isPassword", "false")
       .with("isVersion", "false")
       .with("updateFunction", "now")
@@ -131,6 +136,7 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("isTime", "true")
       .with("isText", "false");
 
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.platform.Platform.VERSION_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.schoolmanagementservice.platform.Platform.VERSION_PROPERTY).with("isPassword", "false")
       .with("isVersion", "true")
       .with("oracle_sqlType", "number(11)")
@@ -178,8 +184,10 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       PropertyDescriptor version = 
       entityDescriptor.addSimpleProperty(com.example.schoolmanagementservice.schooltype.SchoolType.VERSION_PROPERTY, Long.class)
       ;
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.schooltype.SchoolType.PLATFORM_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.schoolmanagementservice.schooltype.SchoolType.PLATFORM_PROPERTY).with("candidates", "platform()");
 
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.schooltype.SchoolType.ID_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.schoolmanagementservice.schooltype.SchoolType.ID_PROPERTY).with("isPassword", "false")
       .with("isVersion", "false")
       .with("oracle_sqlType", "number(11)")
@@ -197,6 +205,7 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("isTime", "false")
       .with("isText", "false");
 
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.schooltype.SchoolType.NAME_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.schoolmanagementservice.schooltype.SchoolType.NAME_PROPERTY).with("isPassword", "false")
       .with("max", "100")
       .with("isVersion", "false")
@@ -213,6 +222,7 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("isTime", "false")
       .with("isText", "false");
 
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.schooltype.SchoolType.CODE_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.schoolmanagementservice.schooltype.SchoolType.CODE_PROPERTY).with("identifier", "true")
       .with("isPassword", "false")
       .with("max", "100")
@@ -230,6 +240,7 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("isTime", "false")
       .with("isText", "false");
 
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.schooltype.SchoolType.DISPLAY_ORDER_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.schoolmanagementservice.schooltype.SchoolType.DISPLAY_ORDER_PROPERTY).with("isPassword", "false")
       .with("db2_sqlType", "decimal(19,7)")
       .with("isVersion", "false")
@@ -247,6 +258,7 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("isTime", "false")
       .with("isText", "false");
 
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.schooltype.SchoolType.VERSION_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.schoolmanagementservice.schooltype.SchoolType.VERSION_PROPERTY).with("isPassword", "false")
       .with("isVersion", "true")
       .with("oracle_sqlType", "number(11)")
@@ -307,6 +319,7 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       PropertyDescriptor version = 
       entityDescriptor.addSimpleProperty(com.example.schoolmanagementservice.school.School.VERSION_PROPERTY, Long.class)
       ;
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.school.School.ID_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.schoolmanagementservice.school.School.ID_PROPERTY).with("isPassword", "false")
       .with("isVersion", "false")
       .with("oracle_sqlType", "number(11)")
@@ -323,8 +336,11 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("isTime", "false")
       .with("isText", "false");
 
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.school.School.PLATFORM_PROPERTY).with("required", "true");
 
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.school.School.SCHOOL_TYPE_PROPERTY).with("required", "true");
 
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.school.School.NAME_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.schoolmanagementservice.school.School.NAME_PROPERTY).with("isPassword", "false")
       .with("max", "100")
       .with("isVersion", "false")
@@ -340,6 +356,7 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("isTime", "false")
       .with("isText", "false");
 
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.school.School.ADDRESS_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.schoolmanagementservice.school.School.ADDRESS_PROPERTY).with("isPassword", "false")
       .with("max", "100")
       .with("isVersion", "false")
@@ -355,6 +372,7 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("isTime", "false")
       .with("isText", "false");
 
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.school.School.ESTABLISHED_DATE_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.schoolmanagementservice.school.School.ESTABLISHED_DATE_PROPERTY).with("isPassword", "false")
       .with("isVersion", "false")
       .with("javaType", "java.time.LocalDate")
@@ -369,6 +387,7 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("isTime", "false")
       .with("isText", "false");
 
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.school.School.STUDENT_CAPACITY_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.schoolmanagementservice.school.School.STUDENT_CAPACITY_PROPERTY).with("isPassword", "false")
       .with("db2_sqlType", "decimal(19,7)")
       .with("isVersion", "false")
@@ -386,6 +405,7 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("isTime", "false")
       .with("isText", "false");
 
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.school.School.ACTIVE_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.schoolmanagementservice.school.School.ACTIVE_PROPERTY).with("isPassword", "false")
       .with("isVersion", "false")
       .with("oracle_sqlType", "number(1)")
@@ -402,6 +422,7 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("isTime", "false")
       .with("isText", "false");
 
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.school.School.CREATE_TIME_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.schoolmanagementservice.school.School.CREATE_TIME_PROPERTY).with("isPassword", "false")
       .with("isVersion", "false")
       .with("javaType", "java.time.LocalDateTime")
@@ -419,6 +440,7 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("isTime", "true")
       .with("isText", "false");
 
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.school.School.UPDATE_TIME_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.schoolmanagementservice.school.School.UPDATE_TIME_PROPERTY).with("isPassword", "false")
       .with("isVersion", "false")
       .with("updateFunction", "now")
@@ -437,6 +459,7 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("isTime", "true")
       .with("isText", "false");
 
+      entityDescriptor.findProperty(com.example.schoolmanagementservice.school.School.VERSION_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.schoolmanagementservice.school.School.VERSION_PROPERTY).with("isPassword", "false")
       .with("isVersion", "true")
       .with("oracle_sqlType", "number(11)")

@@ -68,6 +68,22 @@ public class WorkItemRequest<T extends WorkItem> extends BaseRequest<T> {
         return this;
     }
 
+    public WorkItemRequest<T> optimizePaginationWithIdSet(){
+        super.optimizePaginationWithIdSet();
+        return this;
+    }
+
+    public WorkItemRequest<T> optimizePaginationWithIdSet(
+            String namespace, int ttlSeconds, int maxIds){
+        super.optimizePaginationWithIdSet(namespace, ttlSeconds, maxIds);
+        return this;
+    }
+
+    public WorkItemRequest<T> topNProbeParentThreshold(int threshold){
+        super.topNProbeParentThreshold(threshold);
+        return this;
+    }
+
     public WorkItemRequest<T> appendSearchCriteria(SearchCriteria searchCriteria){
         return (WorkItemRequest<T>)super.appendSearchCriteria(searchCriteria);
     }
@@ -212,11 +228,19 @@ public class WorkItemRequest<T extends WorkItem> extends BaseRequest<T> {
         return createBasicSearchCriteria(WorkItem.ID_PROPERTY, operator, values);
     }
 
+    public WorkItemRequest<T> withIdIsNot(Long id){
+       return withId(Operator.NOT_EQUAL, id);
+    }
+
+    public WorkItemRequest<T> withIdIn(Long... id){
+       return withId(Operator.IN, (Object[])id);
+    }
+
+    public WorkItemRequest<T> withIdNotIn(Long... id){
+       return withId(Operator.NOT_IN, (Object[])id);
+    }
     public WorkItemRequest<T> withIdIs(Long id){
        return withId(Operator.EQUAL, id);
-    }
-    public WorkItemRequest<T> withIdIn(Long... id){
-       return withId(Operator.EQUAL, (Object[])id);
     }
 
 
@@ -244,6 +268,17 @@ public class WorkItemRequest<T extends WorkItem> extends BaseRequest<T> {
         return createBasicSearchCriteria(WorkItem.TITLE_PROPERTY, operator, values);
     }
 
+    public WorkItemRequest<T> withTitleIsNot(String title){
+       return withTitle(Operator.NOT_EQUAL, title);
+    }
+
+    public WorkItemRequest<T> withTitleIn(String... title){
+       return withTitle(Operator.IN, (Object[])title);
+    }
+
+    public WorkItemRequest<T> withTitleNotIn(String... title){
+       return withTitle(Operator.NOT_IN, (Object[])title);
+    }
     public WorkItemRequest<T> withTitleGreaterThan(String title){
        return withTitle(Operator.GREATER_THAN, title);
     }
@@ -270,8 +305,20 @@ public class WorkItemRequest<T extends WorkItem> extends BaseRequest<T> {
        return withTitle(Operator.CONTAIN, title);
     }
 
+    public WorkItemRequest<T> withTitleNotContaining(String title){
+       return withTitle(Operator.NOT_CONTAIN, title);
+    }
+
+    public WorkItemRequest<T> withTitleNotStartingWith(String title){
+       return withTitle(Operator.NOT_BEGIN_WITH, title);
+    }
+
     public WorkItemRequest<T> withTitleEndingWith(String title){
        return withTitle(Operator.END_WITH, title);
+    }
+
+    public WorkItemRequest<T> withTitleNotEndingWith(String title){
+       return withTitle(Operator.NOT_END_WITH, title);
     }
 
     public WorkItemRequest<T> withTitleIs(String title){
@@ -307,6 +354,17 @@ public class WorkItemRequest<T extends WorkItem> extends BaseRequest<T> {
         return createBasicSearchCriteria(WorkItem.DESCRIPTION_PROPERTY, operator, values);
     }
 
+    public WorkItemRequest<T> withDescriptionIsNot(String description){
+       return withDescription(Operator.NOT_EQUAL, description);
+    }
+
+    public WorkItemRequest<T> withDescriptionIn(String... description){
+       return withDescription(Operator.IN, (Object[])description);
+    }
+
+    public WorkItemRequest<T> withDescriptionNotIn(String... description){
+       return withDescription(Operator.NOT_IN, (Object[])description);
+    }
     public WorkItemRequest<T> withDescriptionGreaterThan(String description){
        return withDescription(Operator.GREATER_THAN, description);
     }
@@ -333,8 +391,20 @@ public class WorkItemRequest<T extends WorkItem> extends BaseRequest<T> {
        return withDescription(Operator.CONTAIN, description);
     }
 
+    public WorkItemRequest<T> withDescriptionNotContaining(String description){
+       return withDescription(Operator.NOT_CONTAIN, description);
+    }
+
+    public WorkItemRequest<T> withDescriptionNotStartingWith(String description){
+       return withDescription(Operator.NOT_BEGIN_WITH, description);
+    }
+
     public WorkItemRequest<T> withDescriptionEndingWith(String description){
        return withDescription(Operator.END_WITH, description);
+    }
+
+    public WorkItemRequest<T> withDescriptionNotEndingWith(String description){
+       return withDescription(Operator.NOT_END_WITH, description);
     }
 
     public WorkItemRequest<T> withDescriptionIs(String description){
@@ -380,6 +450,11 @@ public class WorkItemRequest<T extends WorkItem> extends BaseRequest<T> {
        return appendSearchCriteria(new SubQuerySearchCriteria(WorkItem.PLATFORM_PROPERTY, platform, Platform.ID_PROPERTY));
     }
 
+    public WorkItemRequest<T> withoutPlatformMatching(PlatformRequest platform){
+       return appendSearchCriteria(SearchCriteria.not(
+           new SubQuerySearchCriteria(WorkItem.PLATFORM_PROPERTY, platform, Platform.ID_PROPERTY)));
+    }
+
     public WorkItemRequest<T> filterByVersion(Long... version){
       if (version == null || version.length == 0) {
         throw new IllegalArgumentException("filterByVersion parameter version cannot be empty");
@@ -403,6 +478,21 @@ public class WorkItemRequest<T extends WorkItem> extends BaseRequest<T> {
         return createBasicSearchCriteria(WorkItem.VERSION_PROPERTY, operator, values);
     }
 
+    public WorkItemRequest<T> withVersionIs(Long version){
+       return withVersion(Operator.EQUAL, version);
+    }
+
+    public WorkItemRequest<T> withVersionIsNot(Long version){
+       return withVersion(Operator.NOT_EQUAL, version);
+    }
+
+    public WorkItemRequest<T> withVersionIn(Long... version){
+       return withVersion(Operator.IN, (Object[])version);
+    }
+
+    public WorkItemRequest<T> withVersionNotIn(Long... version){
+       return withVersion(Operator.NOT_IN, (Object[])version);
+    }
     public WorkItemRequest<T> withVersionGreaterThan(Long version){
        return withVersion(Operator.GREATER_THAN, version);
     }

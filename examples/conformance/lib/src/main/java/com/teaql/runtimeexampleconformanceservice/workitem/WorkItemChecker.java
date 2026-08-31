@@ -26,10 +26,17 @@ public class WorkItemChecker implements Checker<WorkItem>{
       }
       if(workItem.newItem()){
       }else if(workItem.updateItem()){
+        if(!workItem.isPropertyLoaded("title")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "title"), "Mutation requires a fully loaded entity");
+        }if(!workItem.isPropertyLoaded("description")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "description"), "Mutation requires a fully loaded entity");
+        }if(!workItem.isPropertyLoaded("platform")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "platform"), "Mutation requires a fully loaded entity");
+        }
       }
-      checkTitle(_context, workItem.getProperty(WorkItem.TITLE_PROPERTY), newLocation(_parentLocation, WorkItem.TITLE_PROPERTY));
-      checkDescription(_context, workItem.getProperty(WorkItem.DESCRIPTION_PROPERTY), newLocation(_parentLocation, WorkItem.DESCRIPTION_PROPERTY));
-      checkPlatform(_context, workItem.getProperty(WorkItem.PLATFORM_PROPERTY), newLocation(_parentLocation, WorkItem.PLATFORM_PROPERTY));
+      checkTitle(_context, workItem.getProperty(WorkItem.TITLE_PROPERTY), newLocation(_parentLocation, "title"));
+      checkDescription(_context, workItem.getProperty(WorkItem.DESCRIPTION_PROPERTY), newLocation(_parentLocation, "description"));
+      checkPlatform(_context, workItem.getProperty(WorkItem.PLATFORM_PROPERTY), newLocation(_parentLocation, "platform"));
     }
 
     public void checkTitle(UserContext _context, String title, ObjectLocation _parentLocation){

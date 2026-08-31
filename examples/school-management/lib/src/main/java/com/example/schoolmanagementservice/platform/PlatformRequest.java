@@ -72,6 +72,22 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
         return this;
     }
 
+    public PlatformRequest<T> optimizePaginationWithIdSet(){
+        super.optimizePaginationWithIdSet();
+        return this;
+    }
+
+    public PlatformRequest<T> optimizePaginationWithIdSet(
+            String namespace, int ttlSeconds, int maxIds){
+        super.optimizePaginationWithIdSet(namespace, ttlSeconds, maxIds);
+        return this;
+    }
+
+    public PlatformRequest<T> topNProbeParentThreshold(int threshold){
+        super.topNProbeParentThreshold(threshold);
+        return this;
+    }
+
     public PlatformRequest<T> appendSearchCriteria(SearchCriteria searchCriteria){
         return (PlatformRequest<T>)super.appendSearchCriteria(searchCriteria);
     }

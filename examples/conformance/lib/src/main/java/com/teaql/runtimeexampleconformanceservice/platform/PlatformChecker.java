@@ -26,11 +26,14 @@ public class PlatformChecker implements Checker<Platform>{
       }
       if(platform.newItem()){
       }else if(platform.updateItem()){
+        if(!platform.isPropertyLoaded("name")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "name"), "Mutation requires a fully loaded entity");
+        }
       }
-      checkName(_context, platform.getProperty(Platform.NAME_PROPERTY), newLocation(_parentLocation, Platform.NAME_PROPERTY));
+      checkName(_context, platform.getProperty(Platform.NAME_PROPERTY), newLocation(_parentLocation, "name"));
       for(int i = 0; platform.getWorkItemList() != null && i < platform.getWorkItemList().size(); i++){
          WorkItem workItem = platform.getWorkItemList().get(i);
-         new WorkItemChecker().checkAndFix(_context, workItem, newLocation(_parentLocation, Platform.WORK_ITEM_LIST_PROPERTY, i));
+         new WorkItemChecker().checkAndFix(_context, workItem, newLocation(_parentLocation, "work_item_list", i));
       }
     }
 

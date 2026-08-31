@@ -73,6 +73,22 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
         return this;
     }
 
+    public SchoolRequest<T> optimizePaginationWithIdSet(){
+        super.optimizePaginationWithIdSet();
+        return this;
+    }
+
+    public SchoolRequest<T> optimizePaginationWithIdSet(
+            String namespace, int ttlSeconds, int maxIds){
+        super.optimizePaginationWithIdSet(namespace, ttlSeconds, maxIds);
+        return this;
+    }
+
+    public SchoolRequest<T> topNProbeParentThreshold(int threshold){
+        super.topNProbeParentThreshold(threshold);
+        return this;
+    }
+
     public SchoolRequest<T> appendSearchCriteria(SearchCriteria searchCriteria){
         return (SchoolRequest<T>)super.appendSearchCriteria(searchCriteria);
     }
@@ -379,6 +395,11 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
        return appendSearchCriteria(new SubQuerySearchCriteria(School.PLATFORM_PROPERTY, platform, Platform.ID_PROPERTY));
     }
 
+    public SchoolRequest<T> withoutPlatformMatching(PlatformRequest platform){
+       return appendSearchCriteria(SearchCriteria.not(
+           new SubQuerySearchCriteria(School.PLATFORM_PROPERTY, platform, Platform.ID_PROPERTY)));
+    }
+
     public SchoolRequest<T> filterBySchoolType(SchoolType... schoolType){
       if (schoolType == null || schoolType.length == 0) {
         throw new IllegalArgumentException("filterBySchoolType parameter schoolType cannot be empty");
@@ -410,6 +431,11 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
     }
     public SchoolRequest<T> withSchoolTypeMatching(SchoolTypeRequest schoolType){
        return appendSearchCriteria(new SubQuerySearchCriteria(School.SCHOOL_TYPE_PROPERTY, schoolType, SchoolType.ID_PROPERTY));
+    }
+
+    public SchoolRequest<T> withoutSchoolTypeMatching(SchoolTypeRequest schoolType){
+       return appendSearchCriteria(SearchCriteria.not(
+           new SubQuerySearchCriteria(School.SCHOOL_TYPE_PROPERTY, schoolType, SchoolType.ID_PROPERTY)));
     }
 
     public SchoolRequest<T> filterByName(String... name){

@@ -17,6 +17,8 @@ import java.util.Map;
 
 public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
 
+    private static final System.Logger LOGGER =
+            System.getLogger(SqliteDataServiceExecutor.class.getName());
     private final DataSource dataSource;
     private boolean soundexInstalled;
 
@@ -86,8 +88,21 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
 
     private synchronized void ensureSoundexOnEveryConnection() {
         if (soundexInstalled) return;
+        try {
+            getExecutionAdapter().queryForList("SELECT soundex(?) AS soundex_value", new Object[] {"Robert"});
+            soundexInstalled = true;
+            return;
+        } catch (RuntimeException unavailable) {
+            // Some SQLite builds already expose SOUNDEx. Only install the
+            // deterministic TeaQL fallback when the provider lacks it.
+        }
         if (!(getExecutionAdapter() instanceof JdbcSqlExecutor jdbc)) {
-            throw new IllegalStateException("SQLite soundex registration requires JdbcSqlExecutor");
+            LOGGER.log(
+                    System.Logger.Level.WARNING,
+                    "SQLite SOUNDEx is unavailable and {0} cannot install per-connection functions; schema reconciliation will continue, but sounding-like queries require JdbcSqlExecutor or a SQLite build with SOUNDEx enabled",
+                    getExecutionAdapter().getClass().getName());
+            soundexInstalled = true;
+            return;
         }
         jdbc.addConnectionInitializer(connection -> {
             try {

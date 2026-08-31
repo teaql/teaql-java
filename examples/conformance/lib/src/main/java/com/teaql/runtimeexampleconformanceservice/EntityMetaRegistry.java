@@ -24,15 +24,16 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("module", "Example")
       .with("module_key", "example");
 
-      PropertyDescriptor id =
+      PropertyDescriptor id = 
       entityDescriptor.addSimpleProperty(com.teaql.runtimeexampleconformanceservice.platform.Platform.ID_PROPERTY, Long.class)
       ;
-      PropertyDescriptor name =
+      PropertyDescriptor name = 
       entityDescriptor.addSimpleProperty(com.teaql.runtimeexampleconformanceservice.platform.Platform.NAME_PROPERTY, String.class)
       ;
-      PropertyDescriptor version =
+      PropertyDescriptor version = 
       entityDescriptor.addSimpleProperty(com.teaql.runtimeexampleconformanceservice.platform.Platform.VERSION_PROPERTY, Long.class)
       ;
+      entityDescriptor.findProperty(com.teaql.runtimeexampleconformanceservice.platform.Platform.ID_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.teaql.runtimeexampleconformanceservice.platform.Platform.ID_PROPERTY).with("isPassword", "false")
       .with("isVersion", "false")
       .with("oracle_sqlType", "number(11)")
@@ -49,6 +50,7 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("isTime", "false")
       .with("isText", "false");
 
+      entityDescriptor.findProperty(com.teaql.runtimeexampleconformanceservice.platform.Platform.NAME_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.teaql.runtimeexampleconformanceservice.platform.Platform.NAME_PROPERTY).with("isPassword", "false")
       .with("max", "100")
       .with("isVersion", "false")
@@ -65,6 +67,7 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("isTime", "false")
       .with("isText", "false");
 
+      entityDescriptor.findProperty(com.teaql.runtimeexampleconformanceservice.platform.Platform.VERSION_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.teaql.runtimeexampleconformanceservice.platform.Platform.VERSION_PROPERTY).with("isPassword", "false")
       .with("isVersion", "true")
       .with("oracle_sqlType", "number(11)")
@@ -92,21 +95,22 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("module", "Example")
       .with("module_key", "example");
 
-      PropertyDescriptor id =
+      PropertyDescriptor id = 
       entityDescriptor.addSimpleProperty(com.teaql.runtimeexampleconformanceservice.workitem.WorkItem.ID_PROPERTY, Long.class)
       ;
-      PropertyDescriptor title =
+      PropertyDescriptor title = 
       entityDescriptor.addSimpleProperty(com.teaql.runtimeexampleconformanceservice.workitem.WorkItem.TITLE_PROPERTY, String.class)
       ;
-      PropertyDescriptor description =
+      PropertyDescriptor description = 
       entityDescriptor.addSimpleProperty(com.teaql.runtimeexampleconformanceservice.workitem.WorkItem.DESCRIPTION_PROPERTY, String.class)
       ;
-      PropertyDescriptor platform =
+      PropertyDescriptor platform = 
       entityDescriptor.addObjectProperty($factory, com.teaql.runtimeexampleconformanceservice.workitem.WorkItem.PLATFORM_PROPERTY, com.teaql.runtimeexampleconformanceservice.platform.Platform.INTERNAL_TYPE, com.teaql.runtimeexampleconformanceservice.platform.Platform.WORK_ITEM_LIST_PROPERTY, com.teaql.runtimeexampleconformanceservice.platform.Platform.class)
       ;
-      PropertyDescriptor version =
+      PropertyDescriptor version = 
       entityDescriptor.addSimpleProperty(com.teaql.runtimeexampleconformanceservice.workitem.WorkItem.VERSION_PROPERTY, Long.class)
       ;
+      entityDescriptor.findProperty(com.teaql.runtimeexampleconformanceservice.workitem.WorkItem.ID_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.teaql.runtimeexampleconformanceservice.workitem.WorkItem.ID_PROPERTY).with("isPassword", "false")
       .with("isVersion", "false")
       .with("oracle_sqlType", "number(11)")
@@ -123,6 +127,7 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("isTime", "false")
       .with("isText", "false");
 
+      entityDescriptor.findProperty(com.teaql.runtimeexampleconformanceservice.workitem.WorkItem.TITLE_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.teaql.runtimeexampleconformanceservice.workitem.WorkItem.TITLE_PROPERTY).with("isPassword", "false")
       .with("max", "80")
       .with("isVersion", "false")
@@ -155,7 +160,9 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       .with("isTime", "false")
       .with("isText", "false");
 
+      entityDescriptor.findProperty(com.teaql.runtimeexampleconformanceservice.workitem.WorkItem.PLATFORM_PROPERTY).with("required", "true");
 
+      entityDescriptor.findProperty(com.teaql.runtimeexampleconformanceservice.workitem.WorkItem.VERSION_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.teaql.runtimeexampleconformanceservice.workitem.WorkItem.VERSION_PROPERTY).with("isPassword", "false")
       .with("isVersion", "true")
       .with("oracle_sqlType", "number(11)")

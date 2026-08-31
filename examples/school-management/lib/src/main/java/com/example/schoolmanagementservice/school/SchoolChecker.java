@@ -31,21 +31,43 @@ public class SchoolChecker implements Checker<School>{
       if(school.newItem()){
         if(school.getCreateTime() == null){
            school.updateCreateTime(_context.evaluate("now"));
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "create_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
         }if(school.getUpdateTime() == null){
            school.updateUpdateTime(_context.evaluate("now"));
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
         }
       }else if(school.updateItem()){
         school.updateUpdateTime(_context.evaluate("now"));
+        _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
+        if(!school.isPropertyLoaded("platform")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "platform"), "Mutation requires a fully loaded entity");
+        }if(!school.isPropertyLoaded("schoolType")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "school_type"), "Mutation requires a fully loaded entity");
+        }if(!school.isPropertyLoaded("name")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "name"), "Mutation requires a fully loaded entity");
+        }if(!school.isPropertyLoaded("address")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "address"), "Mutation requires a fully loaded entity");
+        }if(!school.isPropertyLoaded("establishedDate")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "established_date"), "Mutation requires a fully loaded entity");
+        }if(!school.isPropertyLoaded("studentCapacity")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "student_capacity"), "Mutation requires a fully loaded entity");
+        }if(!school.isPropertyLoaded("active")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "active"), "Mutation requires a fully loaded entity");
+        }if(!school.isPropertyLoaded("createTime")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "create_time"), "Mutation requires a fully loaded entity");
+        }if(!school.isPropertyLoaded("updateTime")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "update_time"), "Mutation requires a fully loaded entity");
+        }
       }
-      checkPlatform(_context, school.getProperty(School.PLATFORM_PROPERTY), newLocation(_parentLocation, School.PLATFORM_PROPERTY));
-      checkSchoolType(_context, school.getProperty(School.SCHOOL_TYPE_PROPERTY), newLocation(_parentLocation, School.SCHOOL_TYPE_PROPERTY));
-      checkName(_context, school.getProperty(School.NAME_PROPERTY), newLocation(_parentLocation, School.NAME_PROPERTY));
-      checkAddress(_context, school.getProperty(School.ADDRESS_PROPERTY), newLocation(_parentLocation, School.ADDRESS_PROPERTY));
-      checkEstablishedDate(_context, school.getProperty(School.ESTABLISHED_DATE_PROPERTY), newLocation(_parentLocation, School.ESTABLISHED_DATE_PROPERTY));
-      checkStudentCapacity(_context, school.getProperty(School.STUDENT_CAPACITY_PROPERTY), newLocation(_parentLocation, School.STUDENT_CAPACITY_PROPERTY));
-      checkActive(_context, school.getProperty(School.ACTIVE_PROPERTY), newLocation(_parentLocation, School.ACTIVE_PROPERTY));
-      checkCreateTime(_context, school.getProperty(School.CREATE_TIME_PROPERTY), newLocation(_parentLocation, School.CREATE_TIME_PROPERTY));
-      checkUpdateTime(_context, school.getProperty(School.UPDATE_TIME_PROPERTY), newLocation(_parentLocation, School.UPDATE_TIME_PROPERTY));
+      checkPlatform(_context, school.getProperty(School.PLATFORM_PROPERTY), newLocation(_parentLocation, "platform"));
+      checkSchoolType(_context, school.getProperty(School.SCHOOL_TYPE_PROPERTY), newLocation(_parentLocation, "school_type"));
+      checkName(_context, school.getProperty(School.NAME_PROPERTY), newLocation(_parentLocation, "name"));
+      checkAddress(_context, school.getProperty(School.ADDRESS_PROPERTY), newLocation(_parentLocation, "address"));
+      checkEstablishedDate(_context, school.getProperty(School.ESTABLISHED_DATE_PROPERTY), newLocation(_parentLocation, "established_date"));
+      checkStudentCapacity(_context, school.getProperty(School.STUDENT_CAPACITY_PROPERTY), newLocation(_parentLocation, "student_capacity"));
+      checkActive(_context, school.getProperty(School.ACTIVE_PROPERTY), newLocation(_parentLocation, "active"));
+      checkCreateTime(_context, school.getProperty(School.CREATE_TIME_PROPERTY), newLocation(_parentLocation, "create_time"));
+      checkUpdateTime(_context, school.getProperty(School.UPDATE_TIME_PROPERTY), newLocation(_parentLocation, "update_time"));
     }
 
     public void checkPlatform(UserContext _context, Platform platform, ObjectLocation _parentLocation){

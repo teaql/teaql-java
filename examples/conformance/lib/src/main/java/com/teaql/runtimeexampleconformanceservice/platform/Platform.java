@@ -51,7 +51,7 @@ public class Platform extends BaseEntity implements RemoteInput {
         }
 
         this.workItemList.add(workItem);
-        workItem.cacheRelation(WorkItem.PLATFORM_PROPERTY, this);
+        workItem.updatePlatform(this);
         return this;
     }
 

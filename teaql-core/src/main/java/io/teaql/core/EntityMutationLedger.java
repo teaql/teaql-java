@@ -30,6 +30,12 @@ public class EntityMutationLedger {
         changeSets.clearCurrent();
         newKeys.clear();
         deletedKeys.clear();
+        // A successful save establishes a new persistence baseline. Keeping the
+        // pre-save version here makes a later mutation on the same entity use a
+        // stale optimistic-lock value (for example update -> save -> delete ->
+        // save). The materialized entity now carries the authoritative version
+        // returned by the provider, so the next mutation must capture that value.
+        originalVersions.clear();
     }
 
     public void set(EntityKey key, String field, Object value) {

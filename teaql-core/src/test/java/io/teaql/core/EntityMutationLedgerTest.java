@@ -141,4 +141,16 @@ public class EntityMutationLedgerTest {
         assertFalse(source.isNew(OTHER_ORDER));
         assertEquals(1, source.newKeys().size());
     }
+
+    @Test
+    public void successfulSaveClearsThePreviousOptimisticLockBaseline() {
+        EntityMutationLedger ledger = new EntityMutationLedger();
+        ledger.setOriginalVersion(ORDER, 7L);
+        ledger.set(ORDER, "status", "PAID");
+
+        ledger.clearCurrentChangeSet();
+
+        assertNull(ledger.getOriginalVersion(ORDER));
+        assertTrue(ledger.currentChangeSet().changes().isEmpty());
+    }
 }

@@ -29,14 +29,23 @@ public class SchoolTypeChecker implements Checker<SchoolType>{
       }
       if(schoolType.newItem()){
       }else if(schoolType.updateItem()){
+        if(!schoolType.isPropertyLoaded("platform")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "platform"), "Mutation requires a fully loaded entity");
+        }if(!schoolType.isPropertyLoaded("name")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "name"), "Mutation requires a fully loaded entity");
+        }if(!schoolType.isPropertyLoaded("code")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "code"), "Mutation requires a fully loaded entity");
+        }if(!schoolType.isPropertyLoaded("displayOrder")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "display_order"), "Mutation requires a fully loaded entity");
+        }
       }
-      checkPlatform(_context, schoolType.getProperty(SchoolType.PLATFORM_PROPERTY), newLocation(_parentLocation, SchoolType.PLATFORM_PROPERTY));
-      checkName(_context, schoolType.getProperty(SchoolType.NAME_PROPERTY), newLocation(_parentLocation, SchoolType.NAME_PROPERTY));
-      checkCode(_context, schoolType.getProperty(SchoolType.CODE_PROPERTY), newLocation(_parentLocation, SchoolType.CODE_PROPERTY));
-      checkDisplayOrder(_context, schoolType.getProperty(SchoolType.DISPLAY_ORDER_PROPERTY), newLocation(_parentLocation, SchoolType.DISPLAY_ORDER_PROPERTY));
+      checkPlatform(_context, schoolType.getProperty(SchoolType.PLATFORM_PROPERTY), newLocation(_parentLocation, "platform"));
+      checkName(_context, schoolType.getProperty(SchoolType.NAME_PROPERTY), newLocation(_parentLocation, "name"));
+      checkCode(_context, schoolType.getProperty(SchoolType.CODE_PROPERTY), newLocation(_parentLocation, "code"));
+      checkDisplayOrder(_context, schoolType.getProperty(SchoolType.DISPLAY_ORDER_PROPERTY), newLocation(_parentLocation, "display_order"));
       for(int i = 0; schoolType.getSchoolList() != null && i < schoolType.getSchoolList().size(); i++){
          School school = schoolType.getSchoolList().get(i);
-         new SchoolChecker().checkAndFix(_context, school, newLocation(_parentLocation, SchoolType.SCHOOL_LIST_PROPERTY, i));
+         new SchoolChecker().checkAndFix(_context, school, newLocation(_parentLocation, "school_list", i));
       }
     }
 

@@ -71,6 +71,22 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
         return this;
     }
 
+    public SchoolTypeRequest<T> optimizePaginationWithIdSet(){
+        super.optimizePaginationWithIdSet();
+        return this;
+    }
+
+    public SchoolTypeRequest<T> optimizePaginationWithIdSet(
+            String namespace, int ttlSeconds, int maxIds){
+        super.optimizePaginationWithIdSet(namespace, ttlSeconds, maxIds);
+        return this;
+    }
+
+    public SchoolTypeRequest<T> topNProbeParentThreshold(int threshold){
+        super.topNProbeParentThreshold(threshold);
+        return this;
+    }
+
     public SchoolTypeRequest<T> appendSearchCriteria(SearchCriteria searchCriteria){
         return (SchoolTypeRequest<T>)super.appendSearchCriteria(searchCriteria);
     }
@@ -272,6 +288,11 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
     }
     public SchoolTypeRequest<T> withPlatformMatching(PlatformRequest platform){
        return appendSearchCriteria(new SubQuerySearchCriteria(SchoolType.PLATFORM_PROPERTY, platform, Platform.ID_PROPERTY));
+    }
+
+    public SchoolTypeRequest<T> withoutPlatformMatching(PlatformRequest platform){
+       return appendSearchCriteria(SearchCriteria.not(
+           new SubQuerySearchCriteria(SchoolType.PLATFORM_PROPERTY, platform, Platform.ID_PROPERTY)));
     }
 
     public SchoolTypeRequest<T> withId(Operator operator, Object... values){

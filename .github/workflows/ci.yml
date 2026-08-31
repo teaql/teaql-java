@@ -25,6 +25,8 @@ jobs:
           python3 -m unittest discover -v
           python3 tools/error_catalog.py validate errors/catalog.yml
       - name: SpotBugs Check
-        run: mvn spotbugs:check
+        # Generated examples are verified by the dedicated Example Gate. They
+        # intentionally do not inherit the runtime's SpotBugs build plugin.
+        run: mvn spotbugs:check -pl '!examples/conformance/lib,!examples/conformance'
       - name: OWASP Dependency Check
         run: mvn org.owasp:dependency-check-maven:check

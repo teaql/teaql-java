@@ -68,6 +68,22 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
         return this;
     }
 
+    public PlatformRequest<T> optimizePaginationWithIdSet(){
+        super.optimizePaginationWithIdSet();
+        return this;
+    }
+
+    public PlatformRequest<T> optimizePaginationWithIdSet(
+            String namespace, int ttlSeconds, int maxIds){
+        super.optimizePaginationWithIdSet(namespace, ttlSeconds, maxIds);
+        return this;
+    }
+
+    public PlatformRequest<T> topNProbeParentThreshold(int threshold){
+        super.topNProbeParentThreshold(threshold);
+        return this;
+    }
+
     public PlatformRequest<T> appendSearchCriteria(SearchCriteria searchCriteria){
         return (PlatformRequest<T>)super.appendSearchCriteria(searchCriteria);
     }
@@ -185,11 +201,19 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
         return createBasicSearchCriteria(Platform.ID_PROPERTY, operator, values);
     }
 
+    public PlatformRequest<T> withIdIsNot(Long id){
+       return withId(Operator.NOT_EQUAL, id);
+    }
+
+    public PlatformRequest<T> withIdIn(Long... id){
+       return withId(Operator.IN, (Object[])id);
+    }
+
+    public PlatformRequest<T> withIdNotIn(Long... id){
+       return withId(Operator.NOT_IN, (Object[])id);
+    }
     public PlatformRequest<T> withIdIs(Long id){
        return withId(Operator.EQUAL, id);
-    }
-    public PlatformRequest<T> withIdIn(Long... id){
-       return withId(Operator.EQUAL, (Object[])id);
     }
 
 
@@ -217,6 +241,17 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
         return createBasicSearchCriteria(Platform.NAME_PROPERTY, operator, values);
     }
 
+    public PlatformRequest<T> withNameIsNot(String name){
+       return withName(Operator.NOT_EQUAL, name);
+    }
+
+    public PlatformRequest<T> withNameIn(String... name){
+       return withName(Operator.IN, (Object[])name);
+    }
+
+    public PlatformRequest<T> withNameNotIn(String... name){
+       return withName(Operator.NOT_IN, (Object[])name);
+    }
     public PlatformRequest<T> withNameGreaterThan(String name){
        return withName(Operator.GREATER_THAN, name);
     }
@@ -243,8 +278,20 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
        return withName(Operator.CONTAIN, name);
     }
 
+    public PlatformRequest<T> withNameNotContaining(String name){
+       return withName(Operator.NOT_CONTAIN, name);
+    }
+
+    public PlatformRequest<T> withNameNotStartingWith(String name){
+       return withName(Operator.NOT_BEGIN_WITH, name);
+    }
+
     public PlatformRequest<T> withNameEndingWith(String name){
        return withName(Operator.END_WITH, name);
+    }
+
+    public PlatformRequest<T> withNameNotEndingWith(String name){
+       return withName(Operator.NOT_END_WITH, name);
     }
 
     public PlatformRequest<T> withNameIs(String name){
@@ -280,6 +327,21 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
         return createBasicSearchCriteria(Platform.VERSION_PROPERTY, operator, values);
     }
 
+    public PlatformRequest<T> withVersionIs(Long version){
+       return withVersion(Operator.EQUAL, version);
+    }
+
+    public PlatformRequest<T> withVersionIsNot(Long version){
+       return withVersion(Operator.NOT_EQUAL, version);
+    }
+
+    public PlatformRequest<T> withVersionIn(Long... version){
+       return withVersion(Operator.IN, (Object[])version);
+    }
+
+    public PlatformRequest<T> withVersionNotIn(Long... version){
+       return withVersion(Operator.NOT_IN, (Object[])version);
+    }
     public PlatformRequest<T> withVersionGreaterThan(Long version){
        return withVersion(Operator.GREATER_THAN, version);
     }

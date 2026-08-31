@@ -30,23 +30,35 @@ public class PlatformChecker implements Checker<Platform>{
       if(platform.newItem()){
         if(platform.getCreateTime() == null){
            platform.updateCreateTime(_context.evaluate("now"));
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "create_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
         }if(platform.getUpdateTime() == null){
            platform.updateUpdateTime(_context.evaluate("now"));
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
         }
       }else if(platform.updateItem()){
         platform.updateUpdateTime(_context.evaluate("now"));
+        _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
+        if(!platform.isPropertyLoaded("name")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "name"), "Mutation requires a fully loaded entity");
+        }if(!platform.isPropertyLoaded("baseUrl")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "base_url"), "Mutation requires a fully loaded entity");
+        }if(!platform.isPropertyLoaded("createTime")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "create_time"), "Mutation requires a fully loaded entity");
+        }if(!platform.isPropertyLoaded("updateTime")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "update_time"), "Mutation requires a fully loaded entity");
+        }
       }
-      checkName(_context, platform.getProperty(Platform.NAME_PROPERTY), newLocation(_parentLocation, Platform.NAME_PROPERTY));
-      checkBaseUrl(_context, platform.getProperty(Platform.BASE_URL_PROPERTY), newLocation(_parentLocation, Platform.BASE_URL_PROPERTY));
-      checkCreateTime(_context, platform.getProperty(Platform.CREATE_TIME_PROPERTY), newLocation(_parentLocation, Platform.CREATE_TIME_PROPERTY));
-      checkUpdateTime(_context, platform.getProperty(Platform.UPDATE_TIME_PROPERTY), newLocation(_parentLocation, Platform.UPDATE_TIME_PROPERTY));
+      checkName(_context, platform.getProperty(Platform.NAME_PROPERTY), newLocation(_parentLocation, "name"));
+      checkBaseUrl(_context, platform.getProperty(Platform.BASE_URL_PROPERTY), newLocation(_parentLocation, "base_url"));
+      checkCreateTime(_context, platform.getProperty(Platform.CREATE_TIME_PROPERTY), newLocation(_parentLocation, "create_time"));
+      checkUpdateTime(_context, platform.getProperty(Platform.UPDATE_TIME_PROPERTY), newLocation(_parentLocation, "update_time"));
       for(int i = 0; platform.getSchoolTypeList() != null && i < platform.getSchoolTypeList().size(); i++){
          SchoolType schoolType = platform.getSchoolTypeList().get(i);
-         new SchoolTypeChecker().checkAndFix(_context, schoolType, newLocation(_parentLocation, Platform.SCHOOL_TYPE_LIST_PROPERTY, i));
+         new SchoolTypeChecker().checkAndFix(_context, schoolType, newLocation(_parentLocation, "school_type_list", i));
       }
       for(int i = 0; platform.getSchoolList() != null && i < platform.getSchoolList().size(); i++){
          School school = platform.getSchoolList().get(i);
-         new SchoolChecker().checkAndFix(_context, school, newLocation(_parentLocation, Platform.SCHOOL_LIST_PROPERTY, i));
+         new SchoolChecker().checkAndFix(_context, school, newLocation(_parentLocation, "school_list", i));
       }
     }
 

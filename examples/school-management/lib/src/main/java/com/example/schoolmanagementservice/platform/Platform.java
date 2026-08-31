@@ -98,7 +98,7 @@ public class Platform extends BaseEntity implements RemoteInput {
         }
 
         this.schoolTypeList.add(schoolType);
-        schoolType.cacheRelation(SchoolType.PLATFORM_PROPERTY, this);
+        schoolType.updatePlatform(this);
         return this;
     }
     public Platform addSchool(School school){
@@ -111,7 +111,7 @@ public class Platform extends BaseEntity implements RemoteInput {
         }
 
         this.schoolList.add(school);
-        school.cacheRelation(School.PLATFORM_PROPERTY, this);
+        school.updatePlatform(this);
         return this;
     }
 
