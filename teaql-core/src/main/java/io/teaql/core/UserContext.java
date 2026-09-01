@@ -146,6 +146,10 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
 
     void pushTrace(String comment);
 
+    default void pushTrace(TraceKind kind, String name, String value) {
+        pushTrace(value);
+    }
+
     List<TraceNode> getTraceChain();
 
     void popTrace();
@@ -157,6 +161,14 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
      */
     default boolean isExecutionLoggingEnabled() {
         return true;
+    }
+
+    default boolean isQueryExecutionLoggingEnabled() {
+        return isExecutionLoggingEnabled();
+    }
+
+    default boolean isMutationExecutionLoggingEnabled() {
+        return isExecutionLoggingEnabled();
     }
 
     void recordExecutionMetadata(ExecutionMetadata metadata);

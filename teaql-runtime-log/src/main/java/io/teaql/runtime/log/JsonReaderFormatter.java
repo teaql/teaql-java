@@ -10,7 +10,9 @@ public class JsonReaderFormatter implements LogFormatter {
             return "[]";
         }
         return "[" + traceChain.stream()
-                .map(t -> (CharSequence)("\"" + escapeJson(t.getComment()) + "\""))
+                .map(t -> (CharSequence)("{\"kind\":\"" + t.getKind()
+                        + "\",\"name\":\"" + escapeJson(t.getName())
+                        + "\",\"value\":\"" + escapeJson(t.getComment()) + "\"}"))
                 .collect(Collectors.joining(",")) + "]";
     }
 
@@ -21,11 +23,19 @@ public class JsonReaderFormatter implements LogFormatter {
 
     @Override
     public String formatExecutionLog(io.teaql.core.ExecutionMetadata metadata) {
-        return String.format("{\"type\":\"EXEC_LOG\",\"trace\":%s,\"backend\":\"%s\",\"elapsedUs\":%d,\"summary\":\"%s\",\"query\":\"%s\"}",
+        return String.format("{\"type\":\"EXEC_LOG\",\"tracePath\":%s,\"backend\":\"%s\",\"operation\":\"%s\",\"comment\":\"%s\",\"purpose\":\"%s\",\"auditReason\":\"%s\",\"elapsedUs\":%d,\"resultCount\":%s,\"affectedRows\":%s,\"summary\":\"%s\",\"parameterizedSQL\":\"%s\",\"parameters\":\"%s\",\"debugSQL\":\"%s\"}",
                 formatTraceChain(metadata.getTraceChain()),
                 escapeJson(metadata.getBackend()),
+                metadata.getOperation(),
+                escapeJson(metadata.getComment()),
+                escapeJson(metadata.getPurpose()),
+                escapeJson(metadata.getAuditReason()),
                 metadata.getElapsedUs(),
+                metadata.getResultCount(),
+                metadata.getAffectedRows(),
                 escapeJson(metadata.getResultSummary()),
+                escapeJson(metadata.getParameterizedQuery()),
+                escapeJson(String.valueOf(metadata.getParameters())),
                 escapeJson(metadata.getDebugQuery()));
     }
 

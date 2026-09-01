@@ -234,6 +234,11 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
     }
 
     @Override
+    public void pushTrace(TraceKind kind, String name, String value) {
+        traceChain.add(new TraceNode(kind, name, value));
+    }
+
+    @Override
     public void popTrace() {
         if (!traceChain.isEmpty()) {
             traceChain.remove(traceChain.size() - 1);
@@ -251,13 +256,64 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
     }
 
     @Override
+    public boolean isQueryExecutionLoggingEnabled() {
+        return runtime == null || runtime.isQueryExecutionLoggingEnabled();
+    }
+
+    @Override
+    public boolean isMutationExecutionLoggingEnabled() {
+        return runtime == null || runtime.isMutationExecutionLoggingEnabled();
+    }
+
+    @Override
     public void recordExecutionMetadata(io.teaql.core.ExecutionMetadata metadata) {
         if (metadata.getTraceChain() == null || metadata.getTraceChain().isEmpty()) {
             metadata.setTraceChain(getTraceChain());
         }
+        if (metadata.getTraceChain() != null) {
+            for (TraceNode node : metadata.getTraceChain()) {
+                if (node.getKind() == TraceKind.COMMENT) metadata.setComment(node.getComment());
+                if (node.getKind() == TraceKind.PURPOSE) metadata.setPurpose(node.getComment());
+                if (node.getKind() == TraceKind.AUDIT_REASON) metadata.setAuditReason(node.getComment());
+            }
+        }
+        java.util.List<TraceNode> canonical = new java.util.ArrayList<>();
+        if (metadata.getTraceChain() != null) {
+            metadata.getTraceChain().stream()
+                    .filter(node -> node.getKind() != TraceKind.COMMENT
+                            && node.getKind() != TraceKind.PURPOSE
+                            && node.getKind() != TraceKind.AUDIT_REASON
+                            && node.getKind() != TraceKind.PROVIDER
+                            && node.getKind() != TraceKind.SQL)
+                    .forEach(canonical::add);
+        }
+        String backend = metadata.getBackend() == null ? "unknown" : metadata.getBackend();
+        canonical.add(new TraceNode(TraceKind.PROVIDER, backend, backend));
+        String sqlOperation = sqlOperation(metadata);
+        canonical.add(new TraceNode(TraceKind.SQL, sqlOperation, sqlOperation));
+        metadata.setTraceChain(canonical);
         if (runtime != null) {
             runtime.recordExecutionMetadata(this, metadata);
         }
+    }
+
+    private static String sqlOperation(io.teaql.core.ExecutionMetadata metadata) {
+        String sql = metadata.getParameterizedQuery();
+        if (sql != null) {
+            String normalized = sql.stripLeading();
+            while (normalized.startsWith("/*")) {
+                int end = normalized.indexOf("*/");
+                if (end < 0) break;
+                normalized = normalized.substring(end + 2).stripLeading();
+            }
+            int boundary = normalized.indexOf(' ');
+            String keyword = (boundary < 0 ? normalized : normalized.substring(0, boundary))
+                    .replaceAll("[^A-Za-z]", "").toLowerCase(java.util.Locale.ROOT);
+            if (!keyword.isEmpty()) return keyword;
+        }
+        return metadata.getOperation() == null
+                ? "sql"
+                : metadata.getOperation().name().toLowerCase(java.util.Locale.ROOT);
     }
 
     @SuppressWarnings("unchecked")

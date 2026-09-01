@@ -18,6 +18,8 @@ public final class ExecutionMetadata {
     private String debugQuery;
     private List<TraceNode> traceChain;
     private String comment;
+    private String purpose;
+    private String auditReason;
 
     public String getBackend() { return backend; }
     public void setBackend(String backend) { this.backend = backend; }
@@ -61,6 +63,12 @@ public final class ExecutionMetadata {
 
     public String getComment() { return comment; }
     public void setComment(String comment) { this.comment = comment; }
+
+    public String getPurpose() { return purpose; }
+    public void setPurpose(String purpose) { this.purpose = purpose; }
+
+    public String getAuditReason() { return auditReason; }
+    public void setAuditReason(String auditReason) { this.auditReason = auditReason; }
 
     private long elapsedUs;
     private String resultSummary;

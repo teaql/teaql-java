@@ -13,8 +13,11 @@ public class HumanReaderFormatter implements LogFormatter {
         if (traceChain == null || traceChain.isEmpty()) {
             return "";
         }
-        return traceChain.stream()
-                .map(t -> (CharSequence) t.getComment())
+        return java.util.stream.IntStream.range(0, traceChain.size())
+                .mapToObj(i -> {
+                    TraceNode t = traceChain.get(i);
+                    return i + ":" + t.getKind() + ":" + t.getName() + "=" + t.getComment();
+                })
                 .collect(Collectors.joining(" -> "));
     }
 
@@ -24,9 +27,12 @@ public class HumanReaderFormatter implements LogFormatter {
         String traceStr = formatTraceChain(metadata.getTraceChain());
         String traceDisplay = traceStr.isEmpty() ? "" : " - [" + traceStr + "]";
         
-        String cleanQuery = metadata.getDebugQuery() == null ? "" : metadata.getDebugQuery().replace('\n', ' ');
-        return String.format("[%s]-[%5dµs]-[DEBUG]-ExecutionLog%s - [%s]\n          %s",
-                ts, metadata.getElapsedUs(), traceDisplay, metadata.getResultSummary(), cleanQuery);
+        String parameterized = metadata.getParameterizedQuery() == null ? "" : metadata.getParameterizedQuery().replace('\n', ' ');
+        String debug = metadata.getDebugQuery() == null ? "" : metadata.getDebugQuery().replace('\n', ' ');
+        return String.format("[%s]-[%5dµs]-[DEBUG]-ExecutionLog%s - [%s] comment=%s purpose=%s auditReason=%s\n          Parameterized SQL: %s params=%s\n          Debug SQL: %s",
+                ts, metadata.getElapsedUs(), traceDisplay, metadata.getResultSummary(),
+                metadata.getComment(), metadata.getPurpose(), metadata.getAuditReason(),
+                parameterized, metadata.getParameters(), debug);
     }
 
     @Override

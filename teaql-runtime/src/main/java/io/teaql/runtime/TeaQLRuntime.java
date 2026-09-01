@@ -15,7 +15,8 @@ public class TeaQLRuntime {
     private final RequestPolicy requestPolicy;
     private final InternalIdGenerationService idGenerationService;
     private final RuntimeLogSink logSink;
-    private final boolean executionLoggingEnabled;
+    private final boolean queryExecutionLoggingEnabled;
+    private final boolean mutationExecutionLoggingEnabled;
     private final RuntimeTelemetry telemetry;
     private final SchemaExecutor schemaExecutor;
     private final Map<String, Checker<?>> checkers = new java.util.concurrent.ConcurrentHashMap<>();
@@ -28,7 +29,8 @@ public class TeaQLRuntime {
         this.requestPolicy = builder.requestPolicy;
         this.idGenerationService = builder.idGenerationService;
         this.logSink = builder.logSink;
-        this.executionLoggingEnabled = builder.executionLoggingEnabled;
+        this.queryExecutionLoggingEnabled = builder.queryExecutionLoggingEnabled;
+        this.mutationExecutionLoggingEnabled = builder.mutationExecutionLoggingEnabled;
         this.telemetry = builder.telemetry != null ? builder.telemetry : RuntimeTelemetry.NOOP;
         this.schemaExecutor = builder.schemaExecutor;
     }
@@ -58,8 +60,12 @@ public class TeaQLRuntime {
     }
 
     public boolean isExecutionLoggingEnabled() {
-        return executionLoggingEnabled;
+        return queryExecutionLoggingEnabled || mutationExecutionLoggingEnabled;
     }
+
+    public boolean isQueryExecutionLoggingEnabled() { return queryExecutionLoggingEnabled; }
+
+    public boolean isMutationExecutionLoggingEnabled() { return mutationExecutionLoggingEnabled; }
 
     public RuntimeTelemetry getTelemetry() {
         return telemetry;
@@ -103,12 +109,14 @@ public class TeaQLRuntime {
         }
         boolean pushedComment = false;
         boolean pushedPurpose = false;
+        context.pushTrace(TraceKind.OPERATION, request.getTypeName(), "query");
+        context.pushTrace(TraceKind.REQUEST, request.getTypeName(), request.getTypeName());
         if (request.comment() != null && !request.comment().trim().isEmpty()) {
-            context.pushTrace(request.comment());
+            context.pushTrace(TraceKind.COMMENT, request.getTypeName(), request.comment());
             pushedComment = true;
         }
         if (request.purpose() != null && !request.purpose().trim().isEmpty()) {
-            context.pushTrace(request.purpose());
+            context.pushTrace(TraceKind.PURPOSE, request.getTypeName(), request.purpose());
             pushedPurpose = true;
         }
         try {
@@ -118,6 +126,8 @@ public class TeaQLRuntime {
         } finally {
             if (pushedPurpose) context.popTrace();
             if (pushedComment) context.popTrace();
+            context.popTrace();
+            context.popTrace();
         }
         } catch (RuntimeException | Error error) {
             telemetryScope.failure(error);
@@ -194,9 +204,14 @@ public class TeaQLRuntime {
         if (requestPolicy != null) {
             requestPolicy.enforceSelect(context, request);
         }
-        SmartList<T> result = executeForListResolved(context, request);
-        relationScope.success(Map.of("teaql.result.cardinality", result.size()));
-        return result;
+        context.pushTrace(TraceKind.RELATION, request.getTypeName(), request.getTypeName());
+        try {
+            SmartList<T> result = executeForListResolved(context, request);
+            relationScope.success(Map.of("teaql.result.cardinality", result.size()));
+            return result;
+        } finally {
+            context.popTrace();
+        }
         } catch (RuntimeException | Error error) {
             relationScope.failure(error);
             throw error;
@@ -265,11 +280,11 @@ public class TeaQLRuntime {
         boolean pushedComment = false;
         boolean pushedPurpose = false;
         if (request.comment() != null && !request.comment().trim().isEmpty()) {
-            context.pushTrace(request.comment());
+            context.pushTrace(TraceKind.COMMENT, request.getTypeName(), request.comment());
             pushedComment = true;
         }
         if (request.purpose() != null && !request.purpose().trim().isEmpty()) {
-            context.pushTrace(request.purpose());
+            context.pushTrace(TraceKind.PURPOSE, request.getTypeName(), request.purpose());
             pushedPurpose = true;
         }
         try {
@@ -316,8 +331,10 @@ public class TeaQLRuntime {
             throw new TeaQLRuntimeException("[AUDIT REQUIRED] Missing .auditAs() or .setComment() before saveGraph().");
         }
         boolean pushed = false;
+        context.pushTrace(TraceKind.OPERATION, entity.typeName(), "mutation");
+        context.pushTrace(TraceKind.ENTITY, entity.typeName(), entity.typeName());
         if (entity.getComment() != null && !entity.getComment().trim().isEmpty()) {
-            context.pushTrace(entity.getComment());
+            context.pushTrace(TraceKind.AUDIT_REASON, entity.typeName(), entity.getComment());
             pushed = true;
         }
         try {
@@ -396,6 +413,8 @@ public class TeaQLRuntime {
             telemetryScope.success();
         } finally {
             if (pushed) context.popTrace();
+            context.popTrace();
+            context.popTrace();
         }
         } catch (RuntimeException | Error error) {
             telemetryScope.failure(error);
@@ -873,10 +892,11 @@ public class TeaQLRuntime {
         private DataServiceRegistry registry = new DefaultDataServiceRegistry();
         private RequestPolicy requestPolicy;
         private InternalIdGenerationService idGenerationService;
-        private RuntimeLogSink logSink;
-        // Debug SQL contains rendered parameter values and is therefore an
-        // explicit diagnostic capability, not a default telemetry behavior.
-        private boolean executionLoggingEnabled = false;
+        private RuntimeLogSink logSink = new DefaultTextRuntimeLogSink();
+        // Debug SQL contains rendered parameter values. It is enabled by
+        // default and can be disabled independently for queries and mutations.
+        private boolean queryExecutionLoggingEnabled = true;
+        private boolean mutationExecutionLoggingEnabled = true;
         private RuntimeTelemetry telemetry = RuntimeTelemetry.NOOP;
         private SchemaExecutor schemaExecutor;
 
@@ -922,7 +942,18 @@ public class TeaQLRuntime {
          * runtime telemetry, which have independent lifecycle and sampling.
          */
         public Builder executionLogging(boolean enabled) {
-            this.executionLoggingEnabled = enabled;
+            this.queryExecutionLoggingEnabled = enabled;
+            this.mutationExecutionLoggingEnabled = enabled;
+            return this;
+        }
+
+        public Builder queryExecutionLogging(boolean enabled) {
+            this.queryExecutionLoggingEnabled = enabled;
+            return this;
+        }
+
+        public Builder mutationExecutionLogging(boolean enabled) {
+            this.mutationExecutionLoggingEnabled = enabled;
             return this;
         }
 
@@ -931,7 +962,8 @@ public class TeaQLRuntime {
          * Ordinary RuntimeTelemetry and audit delivery are independent.
          */
         public Builder diagnosticSqlLogging(boolean enabled) {
-            this.executionLoggingEnabled = enabled;
+            this.queryExecutionLoggingEnabled = enabled;
+            this.mutationExecutionLoggingEnabled = enabled;
             return this;
         }
 

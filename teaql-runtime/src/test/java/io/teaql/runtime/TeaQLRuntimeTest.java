@@ -18,19 +18,28 @@ import java.util.Map;
 public class TeaQLRuntimeTest {
 
     @Test
-    public void diagnosticSqlLoggingDefaultsOffAndCanBeEnabledExplicitly() {
+    public void executionLoggingDefaultsOnAndQueryMutationCanBeDisabledIndependently() {
         TeaQLRuntime defaultRuntime = TeaQLRuntime.builder()
                 .metadata(new DummyMetaFactory())
                 .build();
-        Assert.assertFalse(defaultRuntime.isExecutionLoggingEnabled());
-        Assert.assertFalse(new DefaultUserContext(defaultRuntime).isExecutionLoggingEnabled());
+        Assert.assertTrue(defaultRuntime.isQueryExecutionLoggingEnabled());
+        Assert.assertTrue(defaultRuntime.isMutationExecutionLoggingEnabled());
 
-        TeaQLRuntime diagnosticRuntime = TeaQLRuntime.builder()
+        TeaQLRuntime queryDisabled = TeaQLRuntime.builder()
                 .metadata(new DummyMetaFactory())
-                .diagnosticSqlLogging(true)
+                .queryExecutionLogging(false)
                 .build();
-        Assert.assertTrue(diagnosticRuntime.isExecutionLoggingEnabled());
-        Assert.assertTrue(new DefaultUserContext(diagnosticRuntime).isExecutionLoggingEnabled());
+        DefaultUserContext queryDisabledContext = new DefaultUserContext(queryDisabled);
+        Assert.assertFalse(queryDisabledContext.isQueryExecutionLoggingEnabled());
+        Assert.assertTrue(queryDisabledContext.isMutationExecutionLoggingEnabled());
+
+        TeaQLRuntime mutationDisabled = TeaQLRuntime.builder()
+                .metadata(new DummyMetaFactory())
+                .mutationExecutionLogging(false)
+                .build();
+        DefaultUserContext mutationDisabledContext = new DefaultUserContext(mutationDisabled);
+        Assert.assertTrue(mutationDisabledContext.isQueryExecutionLoggingEnabled());
+        Assert.assertFalse(mutationDisabledContext.isMutationExecutionLoggingEnabled());
     }
 
     public static class DummyChecker implements Checker<DummyEntity> {
@@ -143,14 +152,50 @@ public class TeaQLRuntimeTest {
 
     public static class RecordingRuntimeLogSink implements RuntimeLogSink {
         public final List<RawAuditEvent> auditEvents = new ArrayList<>();
+        public final List<ExecutionMetadata> executions = new ArrayList<>();
 
         @Override
-        public void writeExecutionLog(UserContext context, ExecutionMetadata metadata) {}
+        public void writeExecutionLog(UserContext context, ExecutionMetadata metadata) { executions.add(metadata); }
 
         @Override
         public void writeAuditEvent(UserContext context, RawAuditEvent event) {
             auditEvents.add(event);
         }
+    }
+
+    @Test
+    public void executionMetadataRetainsStructuredIntentAndThreeLevelTrace() {
+        RecordingRuntimeLogSink sink = new RecordingRuntimeLogSink();
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new DummyMetaFactory()).logSink(sink).build();
+        DefaultUserContext context = new DefaultUserContext(runtime);
+        context.pushTrace(TraceKind.OPERATION, "School", "query");
+        context.pushTrace(TraceKind.REQUEST, "School", "School");
+        context.pushTrace(TraceKind.COMMENT, "School", "what: load school graph");
+        context.pushTrace(TraceKind.PURPOSE, "School", "why: render details");
+        context.pushTrace(TraceKind.RELATION, "School.platform", "platform");
+        context.pushTrace(TraceKind.RELATION, "Platform.organization", "organization");
+        context.pushTrace(TraceKind.RELATION, "Organization.region", "region");
+        ExecutionMetadata metadata = new ExecutionMetadata();
+        metadata.setOperation(DataServiceOperation.QUERY);
+        metadata.setParameterizedQuery("SELECT name FROM school_data WHERE id = ?");
+        metadata.setParameters(List.of(7L));
+        metadata.setDebugQuery("SELECT name FROM school_data WHERE id = 7");
+        metadata.setResultCount(1);
+        context.recordExecutionMetadata(metadata);
+
+        Assert.assertEquals(1, sink.executions.size());
+        ExecutionMetadata recorded = sink.executions.get(0);
+        Assert.assertEquals("what: load school graph", recorded.getComment());
+        Assert.assertEquals("why: render details", recorded.getPurpose());
+        Assert.assertEquals(7, recorded.getTraceChain().size());
+        Assert.assertEquals(TraceKind.OPERATION, recorded.getTraceChain().get(0).getKind());
+        Assert.assertEquals(TraceKind.REQUEST, recorded.getTraceChain().get(1).getKind());
+        Assert.assertEquals(TraceKind.RELATION, recorded.getTraceChain().get(4).getKind());
+        Assert.assertEquals(TraceKind.PROVIDER, recorded.getTraceChain().get(5).getKind());
+        Assert.assertEquals(TraceKind.SQL, recorded.getTraceChain().get(6).getKind());
+        Assert.assertEquals("SELECT name FROM school_data WHERE id = ?", recorded.getParameterizedQuery());
+        Assert.assertEquals("SELECT name FROM school_data WHERE id = 7", recorded.getDebugQuery());
     }
 
     public static class DummyMetaFactory implements EntityMetaFactory {
@@ -783,7 +828,9 @@ public class TeaQLRuntimeTest {
         Assert.assertEquals("private-value", raw.changes().stream()
                 .filter(change -> "name".equals(change.field()))
                 .findFirst().orElseThrow().newValue());
-        Assert.assertEquals("create audited entity", raw.traceChain().get(0).getComment());
+        Assert.assertTrue(raw.traceChain().stream().anyMatch(node ->
+                node.getKind() == TraceKind.AUDIT_REASON
+                        && "create audited entity".equals(node.getComment())));
 
         Assert.assertEquals(1, appEvents.size());
         SafeAuditField safeName = appEvents.get(0).fields().stream()

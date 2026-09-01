@@ -137,6 +137,17 @@ public class App {
           require(listed.size() == 1, "Q API must return one typed work item");
           System.out.println("PASS Q API (typed SmartList<WorkItem>)");
 
+          WorkItem withPlatform = Q.workItems()
+              .withTitleIs("Initial title")
+              .selectPlatformWith(Q.platforms().selectName())
+              .comment("what: load work item with platform")
+              .purpose("why: prove generated relation trace inheritance")
+              .executeForOne(context);
+          require(withPlatform != null && withPlatform.getPlatform() != null
+                  && "Runtime Example".equals(withPlatform.getPlatform().getName()),
+              "Forward Platform relation was not loaded");
+          System.out.println("PASS relation query (typed Platform and inherited trace intent)");
+
           WorkItem full = listed.get(0);
           require("Initial title".equals(E.workItem(full).getTitle().eval()), "E loaded title mismatch");
           require("N/A".equals(E.workItem(full).getDescription().orIfNull("N/A")),
