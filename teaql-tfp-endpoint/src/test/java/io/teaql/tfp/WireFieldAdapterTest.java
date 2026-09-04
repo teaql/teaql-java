@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.Map;
 import org.junit.Test;
 import io.teaql.core.checker.CheckResult;
+import io.teaql.core.checker.JsonFieldNamingProfile;
 import io.teaql.core.checker.ObjectLocation;
 
 public class WireFieldAdapterTest {
@@ -40,5 +41,21 @@ public class WireFieldAdapterTest {
                 () -> WireFieldAdapter.normalize((ObjectNode) json.readTree(
                         "{\"userUrl\":\"a\",\"legacyUrl\":\"a\"}"), metadata));
         assertEquals("WIRE_FIELD_COLLISION", collision.getCode());
+    }
+
+    @Test
+    public void serializesCanonicalLocationAndSelectedWirePath() throws Exception {
+        CheckResult violation = CheckResult.required(ObjectLocation.hashRoot("school_type"));
+        violation.setRootType("School");
+        violation.setSourceInstancePath("/legacySchoolType");
+
+        ObjectNode wire = (ObjectNode) json.valueToTree(
+                violation.toWire(JsonFieldNamingProfile.CAMEL_CASE));
+        assertEquals("required", wire.path("ruleId").asText());
+        assertEquals("School", wire.path("entityType").asText());
+        assertEquals("property", wire.path("location").path(0).path("kind").asText());
+        assertEquals("school_type", wire.path("location").path(0).path("name").asText());
+        assertEquals("/schoolType", wire.path("instancePath").asText());
+        assertEquals("/legacySchoolType", wire.path("sourceInstancePath").asText());
     }
 }
