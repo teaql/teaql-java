@@ -1,5 +1,6 @@
 package io.teaql.core.checker;
 
+import java.util.List;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -14,7 +15,23 @@ public class ObjectLocationTest {
         assertEquals("order_items[2].user_url", location.modelPath());
         assertEquals("orderItems[2].userUrl", location.nativePath());
         assertEquals("/orderItems/2/userUrl", location.instancePath());
+        assertEquals("/order_items/2/user_url", location.instancePath(JsonFieldNamingProfile.SNAKE_CASE));
+        assertEquals("/OrderItems/2/UserUrl", location.instancePath(JsonFieldNamingProfile.PASCAL_CASE));
         assertEquals("order_items[2].user_url", location.toString());
+    }
+
+    @Test
+    public void projectsCheckerResultWithProfileAndSubmittedAlias() {
+        CheckResult result = CheckResult.required(ObjectLocation.hashRoot("user_url"));
+        result.setRootType("customer_account");
+        result.setSourceInstancePath("/user_url");
+
+        WireCheckResult wire = result.toWire(JsonFieldNamingProfile.CAMEL_CASE);
+        assertEquals("required", wire.ruleId());
+        assertEquals("customer_account", wire.entityType());
+        assertEquals(List.of(WireLocationSegment.property("user_url")), wire.location());
+        assertEquals("/userUrl", wire.instancePath());
+        assertEquals("/user_url", wire.sourceInstancePath());
     }
 
     @Test
