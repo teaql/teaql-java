@@ -27,6 +27,16 @@ public final class WireEntityMetadata {
         this.acceptedToCanonical = Map.copyOf(accepted);
     }
 
+    /** Converts dependency-free metadata emitted by GeneratedRuntimeModule. */
+    public static Map<String, WireEntityMetadata> fromGenerated(
+            Map<String, Map<String, String>> mappings,
+            Map<String, Map<String, String>> aliases) {
+        Map<String, WireEntityMetadata> result = new LinkedHashMap<>();
+        mappings.forEach((entity, fields) -> result.put(entity,
+                new WireEntityMetadata(entity, fields, aliases.getOrDefault(entity, Map.of()))));
+        return Map.copyOf(result);
+    }
+
     private static void register(Map<String, String> accepted, String name, String canonical) {
         String previous = accepted.putIfAbsent(name, canonical);
         if (previous != null && !previous.equals(canonical)) {
