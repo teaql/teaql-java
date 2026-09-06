@@ -2,6 +2,9 @@ package io.teaql.query.json;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertSame;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.teaql.core.BaseRequest;
 import io.teaql.core.Entity;
@@ -9,6 +12,64 @@ import java.util.Optional;
 import org.junit.Test;
 
 public class DynamicSearchHelperTest {
+
+    @Test
+    public void invalidPagingCannotChangeTrustedHardLimitOrFilters() {
+        for (String paging : new String[] {"\"_size\":10001", "\"_size\":-1",
+                "\"_pageSize\":0", "\"_start\":1.5", "\"_size\":\"10\""}) {
+            StubRequest request = new StubRequest("Order");
+            int hardLimit = request.hardLimit();
+            assertThrows(IllegalArgumentException.class, () -> new DynamicSearchHelper().mergeClauses(
+                    request, DynamicSearchHelper.jsonFromString("{\"name\":\"valid\"," + paging + "}")));
+            assertEquals(hardLimit, request.hardLimit());
+            assertTrue(request.getSearchCriteria() == null);
+        }
+    }
+
+    @Test
+    public void unsupportedOperatorAndBadReferenceIdAreNotNullPredicates() {
+        for (String value : new String[] {"{\"$invalid\":1}", "{\"id\":\"not-an-id\"}"}) {
+            StubRequest request = new StubRequest("Order");
+            assertThrows(IllegalArgumentException.class, () -> new DynamicSearchHelper().mergeClauses(
+                    request, DynamicSearchHelper.jsonFromString("{\"name\":" + value + "}")));
+            assertTrue(request.getSearchCriteria() == null);
+            assertTrue(DynamicSearchHelper.warningsOf(request).isEmpty());
+        }
+    }
+
+    @Test
+    public void malformedAndNonObjectInputRemainsFatalWithoutEchoingValues() {
+        for (String input : new String[] {"{secret", "[]", "null", "42", "\"secret\"", "{} {}"}) {
+            IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                    () -> DynamicSearchHelper.jsonFromString(input));
+            assertTrue(!error.getMessage().contains("secret"));
+        }
+    }
+
+    @Test
+    public void reservedContextControlsFailBeforeChangingRequest() {
+        for (String control : new String[] {"_tenant", "_principal", "_policy", "_audit", "_hardLimit"}) {
+            StubRequest request = new StubRequest("Order");
+            assertThrows(IllegalArgumentException.class, () -> new DynamicSearchHelper().mergeClauses(
+                    request, DynamicSearchHelper.jsonFromString(
+                            "{\"name\":\"valid\",\"" + control + "\":\"secret\"}")));
+            assertTrue(request.getSearchCriteria() == null);
+            assertTrue(DynamicSearchHelper.warningsOf(request).isEmpty());
+        }
+    }
+
+    @Test
+    public void staleClauseKeepsValidSiblingAndWarningOmitsItsValue() throws Exception {
+        StubRequest request = new StubRequest("Order");
+        DynamicSearchHelper helper = new DynamicSearchHelper();
+        helper.mergeClauses(request, DynamicSearchHelper.jsonFromString("{\"name\":\"valid\"}"));
+        Object valid = request.getSearchCriteria();
+        helper.mergeClauses(request, DynamicSearchHelper.jsonFromString("{\"removed\":\"SECRET_VALUE\"}"));
+        assertSame(valid, request.getSearchCriteria());
+        String warnings = new ObjectMapper().writeValueAsString(DynamicSearchHelper.warningsOf(request));
+        assertTrue(!warnings.contains("SECRET_VALUE"));
+        assertWarning(request, "FILTER", "removed");
+    }
 
     @Test
     public void unknownTopLevelFilterIsIgnoredAndRecorded() {
@@ -83,6 +144,11 @@ public class DynamicSearchHelperTest {
         @Override
         public boolean isOneOfSelfField(String propertyName) {
             return "id".equals(propertyName) || "name".equals(propertyName);
+        }
+
+        @Override
+        public boolean isDateTimeField(String fieldName) {
+            return false;
         }
 
         @Override

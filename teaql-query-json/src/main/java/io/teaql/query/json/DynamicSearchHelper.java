@@ -7,11 +7,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 
 import io.teaql.core.BaseRequest;
@@ -75,6 +77,8 @@ public class DynamicSearchHelper {
 
     public static final String WARNINGS_EXTENSION = "teaql.dynamicSearch.warnings";
     private static final Logger LOGGER = Logger.getLogger(DynamicSearchHelper.class.getName());
+    private static final Set<String> SEARCH_CONTROLS =
+            Set.of("_orderBy", "_start", "_size", "_page", "_pageSize");
 
     public static List<DynamicSearchWarning> warningsOf(BaseRequest request) {
         Object warnings = request.getExtensions().get(WARNINGS_EXTENSION);
@@ -122,16 +126,40 @@ public class DynamicSearchHelper {
 
     protected static JsonNode jsonFromString(String jsonExpr) {
         try {
-            ObjectMapper objectMapper = new ObjectMapper();
+            ObjectMapper objectMapper = new ObjectMapper()
+                    .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
             JsonNode jsonNode = objectMapper.readTree(jsonExpr);
+            if (jsonNode == null || !jsonNode.isObject()) {
+                throw new IllegalArgumentException("Dynamic search must be a JSON object");
+            }
             return jsonNode;
         }
         catch (Exception e) {
-            throw new IllegalArgumentException("Input JSON format error: " + jsonExpr);
+            throw new IllegalArgumentException("Dynamic search requires a valid JSON object");
         }
     }
 
     public void mergeClauses(BaseRequest baseRequest, JsonNode jsonExpr) {
+        if (jsonExpr == null || !jsonExpr.isObject()) {
+            throw new IllegalArgumentException("Dynamic search must be a JSON object");
+        }
+        // Validate control keys before adding any clauses. Trusted context is not search input.
+        jsonExpr.fieldNames().forEachRemaining(name -> {
+            if (name.startsWith("_") && !SEARCH_CONTROLS.contains(name)) {
+                throw new IllegalArgumentException("Unsupported dynamic search control: " + name);
+            }
+            if (SEARCH_CONTROLS.contains(name) && !"_orderBy".equals(name)) {
+                JsonNode value = jsonExpr.get(name);
+                int minimum = "_page".equals(name) || "_pageSize".equals(name) ? 1 : 0;
+                if (!value.isIntegralNumber() || !value.canConvertToInt() || value.intValue() < minimum) {
+                    throw new IllegalArgumentException("Invalid dynamic search paging control: " + name);
+                }
+                if (("_size".equals(name) || "_pageSize".equals(name))
+                        && value.intValue() > baseRequest.hardLimit()) {
+                    throw new IllegalArgumentException("Dynamic search page size exceeds hard limit");
+                }
+            }
+        });
         this.addJsonFilter(baseRequest, jsonExpr); // where name='x'
         this.addJsonOrderBy(baseRequest, jsonExpr); // order by age
         this.addJsonLimiter(baseRequest, jsonExpr); // limit 0,1000
@@ -368,9 +396,17 @@ public class DynamicSearchHelper {
         }
         if (node.isObject()) {
             if (node.get("id") == null) {
-                return null;
+                throw new IllegalArgumentException("Unsupported dynamic search value or operator object");
             }
-            return node.get("id").asLong();
+            JsonNode id = node.get("id");
+            if (id.isIntegralNumber() && id.canConvertToLong()) return id.longValue();
+            if (id.isTextual()) {
+                try { return Long.parseLong(id.textValue()); }
+                catch (NumberFormatException invalid) {
+                    throw new IllegalArgumentException("Dynamic search reference id must be an integer");
+                }
+            }
+            throw new IllegalArgumentException("Dynamic search reference id must be an integer");
         }
 
         return node.asText().trim();
