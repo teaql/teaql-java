@@ -241,12 +241,14 @@ public class App {
           """;
       // Authorization input is server-owned, never accepted from the JSON form.
       for (long authorizedPlatform : new long[] {1L, 2L}) {
-          SchoolRequest<School> request = Q.schools().withNameIs("Riverside Primary School");
+        for (String searchInput : new String[] {input, "{}"}) {
+          SchoolRequest<School> request = Q.schools().withNameIs("Riverside Primary School")
+              .withPlatformMatching(Q.platforms().withIdIs(authorizedPlatform));
           request.setSize(2);
           request.orderByIdDescending();
           int hardLimit = request.hardLimit();
           var warnings = new java.util.ArrayList<io.teaql.query.json.LocalDynamicSearch.Warning>();
-          io.teaql.query.json.LocalDynamicSearch.merge(request, input, models, filter -> {
+          io.teaql.query.json.LocalDynamicSearch.merge(request, searchInput, models, filter -> {
               if (!"$eq".equals(filter.operator())) {
                   throw new IllegalArgumentException("This demo binding supports equality only");
               }
@@ -262,8 +264,10 @@ public class App {
               .purpose("why: verify stale fields cannot bypass related authorization").executeForList(context);
           require(rows.size() == (authorizedPlatform == 1L ? 1 : 0),
               "Dynamic search lost its related authorization filter");
-          require(warnings.size() == 3 && request.hardLimit() == hardLimit && request.getSize() == 2,
+          require(warnings.size() == (searchInput.equals("{}") ? 0 : 3)
+                  && request.hardLimit() == hardLimit && request.getSize() == 2,
               "Dynamic search warning or limit contract failed");
+        }
       }
       System.out.println("PASS Java generated School dynamic search: related scope, drift warnings, typed bindings");
   }
