@@ -35,6 +35,37 @@ import static org.junit.Assert.*;
 
 public class SqliteIntegrationTest {
 
+    @Test
+    public void localDynamicSearchPreservesTrustedScopeInSqlite() {
+        for (String scope : new String[] {"SEARCH-SCOPE-A", "SEARCH-SCOPE-B"}) {
+            for (int i = 0; i < 3; i++) {
+                Task task = new Task();
+                task.updateTitle("dynamic-search-match");
+                task.updateStatus(scope);
+                task.auditAs("seed scoped dynamic search counterexamples").save(context);
+            }
+        }
+        TaskRequest request = new TaskRequest().filterByStatus("SEARCH-SCOPE-A");
+        request.setSize(2);
+        request.addOrderBy("id", false);
+        int originalHardLimit = request.hardLimit();
+        var warnings = new ArrayList<io.teaql.query.json.LocalDynamicSearch.Warning>();
+        var models = java.util.Map.of("Task", new io.teaql.query.json.LocalDynamicSearch.Model(
+                java.util.Map.of("id", "integer", "title", "string", "status", "string"), java.util.Map.of()));
+        io.teaql.query.json.LocalDynamicSearch.merge(request,
+                "{\"filter\":{\"title\":\"dynamic-search-match\",\"removed\":\"SECRET\"},"
+                        + "\"orderBy\":[{\"field\":\"removed\",\"direction\":\"asc\"}]}",
+                models, filter -> request.createBasicSearchCriteria(filter.fieldPath(), Operator.EQUAL, filter.value().textValue()),
+                order -> new OrderBy(order.fieldPath(), order.direction().toUpperCase(java.util.Locale.ROOT)), warnings::add);
+        SmartList<Task> rows = request.comment("what: scoped dynamic search")
+                .purpose("why: verify unknown clauses preserve server scope").executeForList(context);
+        assertEquals(2, rows.size());
+        assertTrue(rows.stream().allMatch(task -> "SEARCH-SCOPE-A".equals(task.getStatus())));
+        assertTrue(rows.get(0).getId() > rows.get(1).getId());
+        assertEquals(originalHardLimit, request.hardLimit());
+        assertEquals(2, warnings.size());
+    }
+
     private static UserContext context;
     private static TeaQLRuntime runtime;
     private static JdbcSqlExecutor jdbcSqlExecutor;

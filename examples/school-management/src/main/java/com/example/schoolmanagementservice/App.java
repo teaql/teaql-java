@@ -129,6 +129,7 @@ public class App {
               school.auditAs("Create the School Query conformance fixture").save(context);
           }
 
+          verifyDynamicSearch(context);
           assertQuery(context, "string equality", Q.schools().withNameIs("Riverside Primary School"), 1);
           assertQuery(context, "string inequality", Q.schools().withNameIsNot("Another School"), 1);
           assertQuery(context, "string membership", Q.schools().withNameIn("Riverside Primary School", "Another School"), 1);
@@ -225,5 +226,49 @@ public class App {
 
   private static void require(boolean condition, String message) {
       if (!condition) throw new IllegalStateException(message);
+  }
+
+  private static void verifyDynamicSearch(UserContext context) {
+      var models = java.util.Map.of(
+          "School", new io.teaql.query.json.LocalDynamicSearch.Model(
+              java.util.Map.of("name", "string"), java.util.Map.of("platform", "Platform")),
+          "Platform", new io.teaql.query.json.LocalDynamicSearch.Model(
+              java.util.Map.of("name", "string"), java.util.Map.of()));
+      String input = """
+          {"filter":{"name":"Riverside Primary School","platform.name":"Campus Learning Platform",
+            "removed":"SECRET_VALUE","platform.removed":"SECRET_VALUE"},
+           "orderBy":[{"field":"removed","direction":"asc"}]}
+          """;
+      // Authorization input is server-owned, never accepted from the JSON form.
+      for (long authorizedPlatform : new long[] {1L, 2L}) {
+        for (String searchInput : new String[] {input, "{}"}) {
+          SchoolRequest<School> request = Q.schools().withNameIs("Riverside Primary School")
+              .withPlatformMatching(Q.platforms().withIdIs(authorizedPlatform));
+          request.setSize(2);
+          request.orderByIdDescending();
+          int hardLimit = request.hardLimit();
+          var warnings = new java.util.ArrayList<io.teaql.query.json.LocalDynamicSearch.Warning>();
+          io.teaql.query.json.LocalDynamicSearch.merge(request, searchInput, models, filter -> {
+              if (!"$eq".equals(filter.operator())) {
+                  throw new IllegalArgumentException("This demo binding supports equality only");
+              }
+              return switch (filter.fieldPath()) {
+                  case "name" -> Q.schools().withNameIs(filter.value().textValue()).getSearchCriteria();
+                  case "platform.name" -> Q.schools().withPlatformMatching(
+                      Q.platforms().withIdIs(authorizedPlatform).withNameIs(filter.value().textValue()))
+                      .getSearchCriteria();
+                  default -> throw new IllegalArgumentException("Missing trusted demo binding");
+              };
+          }, order -> { throw new IllegalArgumentException("No demo order binding required"); }, warnings::add);
+          SmartList<School> rows = request.comment("what: generated School dynamic search")
+              .purpose("why: verify stale fields cannot bypass related authorization").executeForList(context);
+          require(rows.size() == (authorizedPlatform == 1L ? 1 : 0),
+              "Dynamic search lost its related authorization filter");
+          require(warnings.size() == (searchInput.equals("{}") ? 0 : 3)
+                  && request.hardLimit() == hardLimit && request.getSize() == 2,
+              "Dynamic search warning or limit contract failed");
+        }
+      }
+      System.out.println("PASS Java generated School dynamic search: related scope, drift warnings, typed bindings");
   }
 }
