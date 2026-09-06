@@ -45,6 +45,11 @@
   <dependencies>
     <dependency>
       <groupId>io.teaql</groupId>
+      <artifactId>teaql-query-json</artifactId>
+      <version>${teaql.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.teaql</groupId>
       <artifactId>teaql-provider-spring-jdbc</artifactId>
       <version>${teaql.version}</version>
     </dependency>
