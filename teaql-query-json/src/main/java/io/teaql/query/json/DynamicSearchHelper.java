@@ -160,10 +160,48 @@ public class DynamicSearchHelper {
                 }
             }
         });
+        // Validate syntax for the whole payload before mutating requests or
+        // emitting drift warnings, including values on unknown fields.
+        jsonExpr.fields().forEachRemaining(field -> {
+            if (!SEARCH_CONTROLS.contains(field.getKey())) {
+                validateValueSyntax(field.getValue());
+            }
+        });
+        validateOrderSyntax(jsonExpr.get("_orderBy"));
         this.addJsonFilter(baseRequest, jsonExpr); // where name='x'
         this.addJsonOrderBy(baseRequest, jsonExpr); // order by age
         this.addJsonLimiter(baseRequest, jsonExpr); // limit 0,1000
         this.addJsonPager(baseRequest, jsonExpr);
+    }
+
+    private void validateValueSyntax(JsonNode value) {
+        if (value.isArray()) {
+            value.forEach(this::validateValueSyntax);
+        }
+        else if (value.isObject()) {
+            // Existing Java grammar accepts reference objects, not arbitrary
+            // operator objects. Keep validation identical to native conversion.
+            unwrapValue(value);
+        }
+    }
+
+    private void validateOrderSyntax(JsonNode order) {
+        if (order == null) return;
+        if (order.isTextual() && !order.textValue().isBlank()) return;
+        if (order.isArray()) {
+            order.forEach(this::validateSingleOrderSyntax);
+            return;
+        }
+        validateSingleOrderSyntax(order);
+    }
+
+    private void validateSingleOrderSyntax(JsonNode order) {
+        if (!order.isObject() || !order.has("field") || !order.get("field").isTextual()
+                || order.get("field").textValue().isBlank()
+                || !order.has("useAsc") || !order.get("useAsc").isBoolean()) {
+            throw new IllegalArgumentException(
+                    "Dynamic search order requires a field and boolean useAsc");
+        }
     }
 
     protected void addJsonPager(BaseRequest baseRequest, JsonNode jsonNode) {

@@ -14,6 +14,40 @@ import org.junit.Test;
 public class DynamicSearchHelperTest {
 
     @Test
+    public void invalidPayloadPreservesExistingQueryAndWarnings() {
+        StubRequest request = new StubRequest("Order");
+        DynamicSearchHelper helper = new DynamicSearchHelper();
+        helper.mergeClauses(request, DynamicSearchHelper.jsonFromString(
+                "{\"name\":\"trusted\",\"old_field\":1,\"_size\":10,"
+                        + "\"_orderBy\":[{\"field\":\"id\",\"useAsc\":false}]}"));
+        Object originalCriteria = request.getSearchCriteria();
+        java.util.List<?> originalOrders = new java.util.ArrayList<>(request.getOrderBy().getOrderBys());
+        int originalWarnings = DynamicSearchHelper.warningsOf(request).size();
+        assertThrows(IllegalArgumentException.class, () -> helper.mergeClauses(request,
+                DynamicSearchHelper.jsonFromString(
+                        "{\"name\":\"new\",\"removed\":1,\"id\":{\"$invalid\":1},\"_size\":20}")));
+        assertSame(originalCriteria, request.getSearchCriteria());
+        assertEquals(originalOrders, request.getOrderBy().getOrderBys());
+        assertEquals(originalWarnings, DynamicSearchHelper.warningsOf(request).size());
+        assertEquals(10, request.getSize());
+    }
+
+    @Test
+    public void invalidLaterClauseDoesNotLeaveFiltersOrWarnings() {
+        for (String tail : new String[] {"\"id\":{\"$invalid\":1}",
+                "\"_orderBy\":42", "\"_orderBy\":[{\"field\":\"id\"}]",
+                "\"_orderBy\":[{\"field\":\"id\",\"useAsc\":\"false\"}]"}) {
+            StubRequest request = new StubRequest("Order");
+            assertThrows(IllegalArgumentException.class, () -> new DynamicSearchHelper().mergeClauses(
+                    request, DynamicSearchHelper.jsonFromString(
+                            "{\"name\":\"valid\",\"removed\":\"SECRET_VALUE\"," + tail + "}")));
+            assertTrue(request.getSearchCriteria() == null);
+            assertTrue(request.getOrderBy().isEmpty());
+            assertTrue(DynamicSearchHelper.warningsOf(request).isEmpty());
+        }
+    }
+
+    @Test
     public void invalidPagingCannotChangeTrustedHardLimitOrFilters() {
         for (String paging : new String[] {"\"_size\":10001", "\"_size\":-1",
                 "\"_pageSize\":0", "\"_start\":1.5", "\"_size\":\"10\""}) {
