@@ -35,6 +35,12 @@
         </dependency>
         <!-- Testing dependencies -->
         <dependency>
+            <groupId>io.teaql</groupId>
+            <artifactId>teaql-query-json</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <scope>test</scope>
@@ -55,6 +61,8 @@
                     <argLine>
                         --add-reads io.teaql.sqlite=io.teaql.runtime
                         --add-reads io.teaql.sqlite=java.sql
+                        --add-reads io.teaql.sqlite=io.teaql.query.json
+                        --add-reads io.teaql.sqlite=com.fasterxml.jackson.databind
                         --add-opens io.teaql.sqlite/io.teaql.sqlite=io.teaql.utils
                         --add-opens io.teaql.core/io.teaql.core=io.teaql.utils
                     </argLine>

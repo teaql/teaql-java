@@ -10,7 +10,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.logging.Logger;
+import io.teaql.core.BaseRequest;
+import io.teaql.core.OrderBy;
+import io.teaql.core.SearchCriteria;
 
 /** Typed local UI-search envelope. Trusted metadata is never read from client input.
  * This does not change the legacy Java search grammar or the strict TFP decoder.
@@ -40,6 +44,38 @@ public final class LocalDynamicSearch {
     private static final ObjectMapper JSON = new ObjectMapper()
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
             .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
+
+    /** Apply to a caller-owned Java request only after every native binding succeeds.
+     * Bindings must be pure: construct criteria/orders without modifying the request,
+     * and enforce authorization inside any related query they construct.
+     * Paging, hard limits, projection, intent and existing filters are not replaced.
+     */
+    public static <T extends BaseRequest<?>> Result merge(T request, String source,
+            Map<String, Model> models, Function<Filter, SearchCriteria> filterBinding,
+            Function<Order, OrderBy> orderBinding, Consumer<Warning> warn) {
+        Result normalized = normalize(source, request.getTypeName(), models, ignored -> {});
+        List<SearchCriteria> criteria = new ArrayList<>();
+        if (request.getSearchCriteria() != null) criteria.add(request.getSearchCriteria());
+        for (Filter filter : normalized.filters()) {
+            SearchCriteria bound = filterBinding.apply(filter);
+            if (bound == null) throw invalid("Invalid trusted filter binding");
+            criteria.add(bound);
+        }
+        List<OrderBy> orders = new ArrayList<>(request.getOrderBy().getOrderBys());
+        for (Order order : normalized.orders()) {
+            OrderBy bound = orderBinding.apply(order);
+            if (bound == null) throw invalid("Invalid trusted order binding");
+            orders.add(bound);
+        }
+        // Do not append into an existing mutable AND or ordering list: another
+        // request can still own those nodes. Prepare replacements first.
+        SearchCriteria combined = criteria.isEmpty() ? null : criteria.size() == 1 ? criteria.get(0)
+                : SearchCriteria.and(criteria.toArray(SearchCriteria[]::new));
+        request.replaceSearchCriteria(combined);
+        request.getOrderBy().setOrderBys(orders);
+        emit(normalized.warnings(), warn);
+        return normalized;
+    }
 
     public static Result normalize(String source, String entity, Map<String, Model> models,
             Consumer<Warning> warn) {
@@ -101,12 +137,16 @@ public final class LocalDynamicSearch {
             else orders.add(new Order(path, item.get("direction").textValue()));
         }
         Result result = new Result(filters, orders, warnings);
+        emit(warnings, warn);
+        return result;
+    }
+
+    private static void emit(List<Warning> warnings, Consumer<Warning> warn) {
         for (Warning warning : warnings) {
             if (warn != null) warn.accept(warning);
             else LOG.warning(() -> warning.code() + " entity=" + warning.entity()
                     + " clause=" + warning.clause() + " fieldPath=" + warning.fieldPath());
         }
-        return result;
     }
 
     private static void checkObject(JsonNode value, Set<String> keys) {
