@@ -13,6 +13,7 @@ public final class TrustedFederalContext {
     private final Map<String, Map<String, String>> readableFields;
     private final Map<String, Map<String, String>> writableFields;
     private final Map<String, Set<String>> allowedActions;
+    private final Map<String, WireEntityMetadata> wireMetadata;
     private final int maxPageSize;
 
     public TrustedFederalContext(String tenantField, Object tenantId,
@@ -21,6 +22,17 @@ public final class TrustedFederalContext {
             Map<String, Map<String, String>> readableFields,
             Map<String, Map<String, String>> writableFields,
             Map<String, Set<String>> allowedActions, int maxPageSize) {
+        this(tenantField, tenantId, authenticatedUser, approvedPurpose, allowedEntities,
+                readableFields, writableFields, allowedActions, maxPageSize, Map.of());
+    }
+
+    public TrustedFederalContext(String tenantField, Object tenantId,
+            String authenticatedUser, String approvedPurpose,
+            Set<String> allowedEntities,
+            Map<String, Map<String, String>> readableFields,
+            Map<String, Map<String, String>> writableFields,
+            Map<String, Set<String>> allowedActions, int maxPageSize,
+            Map<String, WireEntityMetadata> wireMetadata) {
         this.tenantField = tenantField;
         this.tenantId = tenantId;
         this.authenticatedUser = authenticatedUser;
@@ -30,6 +42,7 @@ public final class TrustedFederalContext {
         this.writableFields = Map.copyOf(writableFields);
         this.allowedActions = Map.copyOf(allowedActions);
         this.maxPageSize = maxPageSize;
+        this.wireMetadata = Map.copyOf(wireMetadata);
     }
 
     public String tenantField() { return tenantField; }
@@ -37,8 +50,18 @@ public final class TrustedFederalContext {
     public String authenticatedUser() { return authenticatedUser; }
     public String approvedPurpose() { return approvedPurpose; }
     public Set<String> allowedEntities() { return allowedEntities; }
-    public Map<String, String> readableFields(String entity) { return readableFields.get(entity); }
-    public Map<String, String> writableFields(String entity) { return writableFields.get(entity); }
+    public Map<String, String> readableFields(String entity) {
+        return effectiveFields(entity, readableFields.get(entity));
+    }
+    public Map<String, String> writableFields(String entity) {
+        return effectiveFields(entity, writableFields.get(entity));
+    }
     public Set<String> allowedActions(String entity) { return allowedActions.get(entity); }
     public int maxPageSize() { return maxPageSize; }
+    public WireEntityMetadata wireMetadata(String entity) { return wireMetadata.get(entity); }
+
+    private Map<String, String> effectiveFields(String entity, Map<String, String> fields) {
+        WireEntityMetadata metadata = wireMetadata.get(entity);
+        return fields == null || metadata == null ? fields : metadata.acceptedPolicyMap(fields);
+    }
 }

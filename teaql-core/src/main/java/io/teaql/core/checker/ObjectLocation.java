@@ -61,10 +61,31 @@ public class ObjectLocation {
 
     /** RFC 6901 JSON pointer using TeaQL's default lower-camel wire policy. */
     public String instancePath() {
-        return render(true, true);
+        return instancePath(JsonFieldNamingProfile.CAMEL_CASE);
+    }
+
+    /** RFC 6901 JSON pointer rendered with the model-selected wire profile. */
+    public String instancePath(JsonFieldNamingProfile profile) {
+        return render(profile, true);
+    }
+
+    public List<WireLocationSegment> segments() {
+        List<WireLocationSegment> result = new ArrayList<>();
+        for (ObjectLocation current = this; current != null; current = current.getParent()) {
+            if (current instanceof HashLocation hash) {
+                result.add(0, WireLocationSegment.property(hash.getMember()));
+            } else if (current instanceof ArrayLocation array) {
+                result.add(0, WireLocationSegment.index(array.getIndex()));
+            }
+        }
+        return List.copyOf(result);
     }
 
     private String render(boolean lowerCamel, boolean pointer) {
+        return render(lowerCamel ? JsonFieldNamingProfile.CAMEL_CASE : null, pointer);
+    }
+
+    private String render(JsonFieldNamingProfile profile, boolean pointer) {
         List<ObjectLocation> locations = new ArrayList<>();
         for (ObjectLocation current = this; current != null; current = current.getParent()) {
             locations.add(0, current);
@@ -72,7 +93,7 @@ public class ObjectLocation {
         StringBuilder result = new StringBuilder();
         for (ObjectLocation location : locations) {
             if (location instanceof HashLocation hash) {
-                String member = lowerCamel ? lowerCamel(hash.getMember()) : hash.getMember();
+                String member = profile == null ? hash.getMember() : profile.render(hash.getMember());
                 if (pointer) {
                     result.append('/').append(escapePointer(member));
                 } else {

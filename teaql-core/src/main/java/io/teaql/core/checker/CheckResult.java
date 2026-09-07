@@ -1,6 +1,7 @@
 package io.teaql.core.checker;
 
 import java.time.LocalDateTime;
+import java.util.Locale;
 
 public class CheckResult {
     private RuleId ruleId;
@@ -12,6 +13,7 @@ public class CheckResult {
     private Object systemValue;
 
     private String naturalLanguageStatement;
+    private String sourceInstancePath;
 
     public static CheckResult required(ObjectLocation location) {
         CheckResult checkResult = new CheckResult();
@@ -142,6 +144,27 @@ public class CheckResult {
 
     public void setNaturalLanguageStatement(String pNaturalLanguageStatement) {
         naturalLanguageStatement = pNaturalLanguageStatement;
+    }
+
+    /** Exact RFC 6901 pointer submitted through an accepted input alias. */
+    public String getSourceInstancePath() {
+        return sourceInstancePath;
+    }
+
+    public void setSourceInstancePath(String pSourceInstancePath) {
+        sourceInstancePath = pSourceInstancePath;
+    }
+
+    public WireCheckResult toWire(JsonFieldNamingProfile profile) {
+        return new WireCheckResult(
+                ruleId == null ? null : ruleId.name().toLowerCase(Locale.ROOT),
+                rootType,
+                location == null ? null : location.segments(),
+                location == null ? null : location.instancePath(profile),
+                sourceInstancePath,
+                inputValue,
+                systemValue,
+                naturalLanguageStatement);
     }
 
     public enum RuleId {

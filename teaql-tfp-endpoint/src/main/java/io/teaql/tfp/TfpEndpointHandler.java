@@ -294,8 +294,13 @@ public class TfpEndpointHandler {
         if (writable == null || !entityPayload.isObject()) {
             throw new TfpEndpointException("TFP_INVALID_REQUEST", "Invalid mutation payload");
         }
+        ObjectNode normalizedPayload = (ObjectNode) entityPayload;
+        WireEntityMetadata metadata = trusted.wireMetadata(entityName);
+        if (metadata != null) {
+            normalizedPayload = WireFieldAdapter.normalize(normalizedPayload, metadata).values();
+        }
         ObjectNode mappedPayload = objectMapper.createObjectNode();
-        entityPayload.fields().forEachRemaining(entry -> {
+        normalizedPayload.fields().forEachRemaining(entry -> {
             String mapped = writable.get(entry.getKey());
             if (mapped == null) throw new TfpEndpointException("TFP_FORBIDDEN_FIELD",
                     "Mutation field is not allowed: " + entry.getKey());

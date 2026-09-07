@@ -29,4 +29,8 @@ jobs:
         # intentionally do not inherit the runtime's SpotBugs build plugin.
         run: mvn spotbugs:check -pl '!examples/conformance/lib,!examples/conformance'
       - name: OWASP Dependency Check
-        run: mvn org.owasp:dependency-check-maven:check
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        # Pass only the environment variable NAME on the command line, never
+        # the secret value. Pin the scanner for non-inheriting example modules too.
+        run: mvn -B org.owasp:dependency-check-maven:13.0.0:check -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
