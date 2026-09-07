@@ -9,6 +9,8 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
 import io.teaql.core.DataServiceExecutor;
+import io.teaql.core.EntityKey;
+import io.teaql.core.EntityMutationLedger;
 import io.teaql.core.DataServiceRegistry;
 import io.teaql.core.sql.portable.IdSpaceIdGenerator;
 import io.teaql.core.SchemaExecutor;
@@ -80,6 +82,7 @@ public class App {
   public CommandLineRunner teaQLConsoleStartup(
       TeaQLRuntime runtime, DataServiceExecutor dataServiceExecutor) {
       return args -> {
+          verifySameIdVersionIsolation();
           UserContext context = new CustomUserContext(runtime);
           if (!(dataServiceExecutor instanceof SchemaExecutor schema)) {
               throw new IllegalStateException("default data service has no schema capability");
@@ -181,8 +184,24 @@ public class App {
               .executeForList(context);
           require(remaining.isEmpty(), "Deleted row remains visible to ordinary Q API");
           System.out.println("PASS Delete (default Q excludes deleted rows)");
-          System.out.println("PASS Java minimum runtime conformance: 7/7");
+          System.out.println("PASS Java minimum runtime conformance: 8/8");
       };
+  }
+
+  private static void verifySameIdVersionIsolation() {
+      EntityKey order = new EntityKey("Order", 1L);
+      EntityKey execution = new EntityKey("InferenceExecution", 1L);
+      EntityMutationLedger target = new EntityMutationLedger();
+      EntityMutationLedger source = new EntityMutationLedger();
+      target.setOriginalVersion(order, 3L);
+      source.setOriginalVersion(execution, 9L);
+      source.set(execution, "execution_status", "COMPLETED");
+      target.mergeFrom(source);
+      require(Long.valueOf(3L).equals(target.getOriginalVersion(order)),
+          "Order#1 version was overwritten");
+      require(Long.valueOf(9L).equals(target.getOriginalVersion(execution)),
+          "InferenceExecution#1 version was resolved through Order#1");
+      System.out.println("PASS Mutation ledger identity (same ID, different entity types keep versions 3/9)");
   }
 
   private static void require(boolean condition, String message) {
