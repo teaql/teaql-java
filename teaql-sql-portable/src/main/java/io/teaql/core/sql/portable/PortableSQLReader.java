@@ -1,6 +1,7 @@
 package io.teaql.core.sql.portable;
 
 import io.teaql.core.*;
+import io.teaql.core.internal.TempRequest;
 import io.teaql.core.meta.EntityDescriptor;
 import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.PropertyDescriptor;

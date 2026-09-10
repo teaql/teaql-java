@@ -802,7 +802,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         return io.teaql.core.sql.portable.SQLPropertyUtil.toDBRaw(ctx, entity, value, property);
     }
 
-    private boolean shouldHandle(PropertyDescriptor pProperty) {
+    boolean shouldHandle(PropertyDescriptor pProperty) {
         if (pProperty instanceof Relation) return shouldHandle((Relation) pProperty);
         return true;
     }
@@ -1011,6 +1011,16 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     public String getTqlIdSpaceTable() { return tqlIdSpaceTable; }
     public void setTqlIdSpaceTable(String pTqlIdSpaceTable) { tqlIdSpaceTable = pTqlIdSpaceTable; }
     public TeaQLDatabase getDatabase() { return database; }
+    
+    // Getters for component delegates
+    public String getVersionTableName() { return versionTableName; }
+    public List<String> getPrimaryTableNames() { return primaryTableNames; }
+    public String getThisPrimaryTableName() { return thisPrimaryTableName; }
+    public Set<String> getAllTableNames() { return allTableNames; }
+    public List<String> getTypes() { return types; }
+    public List<String> getAuxiliaryTableNames() { return auxiliaryTableNames; }
+    public List<PropertyDescriptor> getAllProperties() { return allProperties; }
+    public io.teaql.core.sql.SqlEntityMetadata getSqlMetadata() { return sqlMetadata; }
 
     protected boolean ensureTableEnabled(UserContext ctx) {
         return ctx.getBool("ensureTable", true);
