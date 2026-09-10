@@ -32,6 +32,12 @@ public class UserContextTest {
         @Override public void delete(Entity pEntity) {}
         @Override public <T> T evaluate(String expression, Object... args) { return null; }
         @Override public Object getObj(String key, Object defaultValue) { return null; }
+        
+        // TransactionContext methods
+        @Override public void beginTransaction(DataServiceRoute route) {}
+        @Override public void commitTransaction(DataServiceRoute route) {}
+        @Override public void rollbackTransaction(DataServiceRoute route) {}
+        @Override public boolean isInTransaction(DataServiceRoute route) { return false; }
     }
 
     @Test
