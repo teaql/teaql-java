@@ -33,8 +33,8 @@ public class MutationPlanner {
      * 2. Generating ID if needed
      * 3. Tracking property changes in the entity root
      */
-    public EntityRoot prepareEntity(UserContext ctx, Entity entity) {
-        EntityRoot entityRoot = ((BaseEntity) entity).getEntityRoot();
+    public EntityMutationLedger prepareEntity(UserContext ctx, Entity entity) {
+        EntityMutationLedger entityRoot = ((BaseEntity) entity).getEntityMutationLedger();
         mergeRelatedEntityRoots(entity, entityRoot);
 
         if (entity.getId() == null && idGenerationService != null) {
@@ -56,7 +56,7 @@ public class MutationPlanner {
     /**
      * Execute the mutation plan: deletes first, then inserts, then updates.
      */
-    public void executePlan(UserContext ctx, EntityRoot entityRoot, Entity entity,
+    public void executePlan(UserContext ctx, EntityMutationLedger entityRoot, Entity entity,
                            MutationExecutor mutationExecutor) {
         Map<EntityKey, BaseEntity> realEntities = new HashMap<>();
         collectRealEntities(entity, realEntities);
@@ -68,7 +68,7 @@ public class MutationPlanner {
      * Merge related entities' EntityRoots into the main entity's EntityRoot.
      * This ensures that when saving an Order, its OrderItems' changes are also saved.
      */
-    void mergeRelatedEntityRoots(Entity entity, EntityRoot targetRoot) {
+    void mergeRelatedEntityRoots(Entity entity, EntityMutationLedger targetRoot) {
         if (!(entity instanceof BaseEntity baseEntity)) {
             return;
         }
@@ -93,11 +93,11 @@ public class MutationPlanner {
         }
     }
 
-    private void mergeSingleRelatedEntity(Entity relEntity, EntityRoot targetRoot) {
-        EntityRoot relRoot = ((BaseEntity) relEntity).getEntityRoot();
+    private void mergeSingleRelatedEntity(Entity relEntity, EntityMutationLedger targetRoot) {
+        EntityMutationLedger relRoot = ((BaseEntity) relEntity).getEntityMutationLedger();
         if (relRoot != null && relRoot != targetRoot) {
             targetRoot.mergeFrom(relRoot);
-            ((BaseEntity) relEntity).setEntityRoot(targetRoot);
+            ((BaseEntity) relEntity).setEntityMutationLedger(targetRoot);
         }
     }
 
@@ -129,7 +129,7 @@ public class MutationPlanner {
     /**
      * Execute the ledger plan: deletes, inserts, updates in that order.
      */
-    void executeLedgerPlan(UserContext ctx, EntityRoot root, MutationExecutor mutationExecutor,
+    void executeLedgerPlan(UserContext ctx, EntityMutationLedger root, MutationExecutor mutationExecutor,
                           Map<EntityKey, BaseEntity> realEntities) {
         EntityChangeSet changeSet = root.currentChangeSet();
         Set<EntityKey> deletedKeys = root.deletedKeys();
@@ -149,7 +149,7 @@ public class MutationPlanner {
                 deleteEntity.__internalSet("id", key.id());
                 deleteEntity.set$status(io.teaql.core.EntityStatus.PERSISTED);
             }
-            deleteEntity.markToRemove();
+            deleteEntity.markForDeletion();
             if (root.getComment() != null) deleteEntity.setComment(root.getComment());
 
             DefaultMutationRequest mutationRequest = new DefaultMutationRequest(
@@ -184,7 +184,7 @@ public class MutationPlanner {
 
     private void executeBatchMutations(UserContext ctx, Map<String, List<EntityKey>> batches,
                                       EntityChangeSet changeSet, Map<EntityKey, BaseEntity> realEntities,
-                                      EntityRoot root, MutationExecutor mutationExecutor,
+                                      EntityMutationLedger root, MutationExecutor mutationExecutor,
                                       DefaultMutationRequest.Action action, boolean markAsUpdated) {
         for (Map.Entry<String, List<EntityKey>> entry : batches.entrySet()) {
             String entityName = entry.getKey();
