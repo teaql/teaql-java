@@ -1,6 +1,8 @@
 package io.teaql.core.spi;
 
-import io.teaql.core.utils.RemoteLock;
+/**
+ * Provider interface for remote lock implementations.
+ */
 
 public interface RemoteLockProvider {
     /**

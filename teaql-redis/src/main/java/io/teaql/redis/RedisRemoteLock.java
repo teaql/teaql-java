@@ -1,6 +1,6 @@
 package io.teaql.redis;
 
-import io.teaql.core.utils.RemoteLock;
+import io.teaql.core.spi.RemoteLock;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.params.SetParams;

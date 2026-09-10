@@ -2,7 +2,7 @@ package io.teaql.redis;
 
 import io.teaql.core.spi.RemoteCacheProvider;
 import io.teaql.core.spi.CacheException;
-import io.teaql.core.utils.RemoteCache;
+import io.teaql.core.spi.RemoteCache;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class RedisRemoteCacheProvider implements RemoteCacheProvider {

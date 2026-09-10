@@ -1,6 +1,8 @@
 package io.teaql.core.spi;
 
-import io.teaql.core.utils.RemoteCache;
+/**
+ * Provider interface for remote cache implementations.
+ */
 
 public interface RemoteCacheProvider {
     /**

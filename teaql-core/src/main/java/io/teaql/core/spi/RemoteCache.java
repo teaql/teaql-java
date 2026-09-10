@@ -1,4 +1,6 @@
-package io.teaql.core.utils;
+package io.teaql.core.spi;
+
+import io.teaql.core.utils.Cache;
 
 /**
  * 远程缓存接口 (Remote Cache Interface)

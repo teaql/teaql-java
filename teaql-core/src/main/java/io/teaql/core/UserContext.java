@@ -99,7 +99,7 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
         io.teaql.core.spi.RemoteCacheProvider provider = capability(io.teaql.core.spi.RemoteCacheProvider.class);
         if (provider != null) {
             try {
-                io.teaql.core.utils.RemoteCache<String, Object> cache = provider.getCache("default");
+                io.teaql.core.spi.RemoteCache<String, Object> cache = provider.getCache("default");
                 if (cache != null) {
                     if (timeToLiveInSeconds > 0) {
                         cache.put(key, value, timeToLiveInSeconds * 1000L);
@@ -114,7 +114,7 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
         io.teaql.core.spi.RemoteCacheProvider provider = capability(io.teaql.core.spi.RemoteCacheProvider.class);
         if (provider != null) {
             try {
-                io.teaql.core.utils.RemoteCache<String, Object> cache = provider.getCache("default");
+                io.teaql.core.spi.RemoteCache<String, Object> cache = provider.getCache("default");
                 if (cache != null) {
                     Object val = cache.get(key);
                     if (clazz.isInstance(val)) return clazz.cast(val);
@@ -127,7 +127,7 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
         io.teaql.core.spi.RemoteCacheProvider provider = capability(io.teaql.core.spi.RemoteCacheProvider.class);
         if (provider != null) {
             try {
-                io.teaql.core.utils.RemoteCache<String, Object> cache = provider.getCache("default");
+                io.teaql.core.spi.RemoteCache<String, Object> cache = provider.getCache("default");
                 if (cache != null) cache.remove(key);
             } catch (Exception e) {}
         }
@@ -140,7 +140,7 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
         io.teaql.core.spi.RemoteLockProvider provider = capability(io.teaql.core.spi.RemoteLockProvider.class);
         if (provider != null) {
             try {
-                io.teaql.core.utils.RemoteLock lock = provider.getLock("default");
+                io.teaql.core.spi.RemoteLock lock = provider.getLock("default");
                 if (lock != null) return lock.tryLock(key, timeoutMillis, expireMillis);
             } catch (Exception e) {}
         }
@@ -150,7 +150,7 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
         io.teaql.core.spi.RemoteLockProvider provider = capability(io.teaql.core.spi.RemoteLockProvider.class);
         if (provider != null) {
             try {
-                io.teaql.core.utils.RemoteLock lock = provider.getLock("default");
+                io.teaql.core.spi.RemoteLock lock = provider.getLock("default");
                 if (lock != null) lock.unlock(key);
             } catch (Exception e) {}
         }

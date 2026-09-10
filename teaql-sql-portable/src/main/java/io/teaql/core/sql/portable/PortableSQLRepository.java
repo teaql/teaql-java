@@ -358,26 +358,31 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         for (PropertyDescriptor property : this.allProperties) {
             if (!shouldHandle(property)) continue;
             if (!(property instanceof Relation)) {
+                if (!row.containsKey(property.getName())) continue;
                 Object value = row.get(property.getName());
-                if (value != null) {
-                    Class targetType = property.getType().javaType();
-                    entity.setProperty(property.getName(),
-                            io.teaql.core.utils.Convert.convert(targetType, value));
-                }
+                Class targetType = property.getType().javaType();
+                entity.setProperty(
+                        property.getName(),
+                        value == null
+                                ? null
+                                : io.teaql.core.utils.Convert.convert(targetType, value));
             } else if (property instanceof Relation) {
+                if (!row.containsKey(property.getName())) continue;
                 Object value = row.get(property.getName());
-                if (value != null) {
-                    try {
-                        Entity ref = createEntity((Class<? extends Entity>) property.getType().javaType());
-                        ((BaseEntity) ref).__internalSet("id", io.teaql.core.utils.Convert.convert(Long.class, value));
-                        if (ref instanceof BaseEntity) {
-                            ((BaseEntity) ref).set$status(io.teaql.core.EntityStatus.REFER);
-                        }
-                        entity.setProperty(property.getName(), ref);
-                    } catch (Exception e) {
-                        System.out.println("mapRowToEntity relation mapping error for property " + property.getName() + ": " + e.getMessage());
-                        e.printStackTrace();
+                if (value == null) {
+                    entity.setProperty(property.getName(), null);
+                    continue;
+                }
+                try {
+                    Entity ref = createEntity((Class<? extends Entity>) property.getType().javaType());
+                    ((BaseEntity) ref).__internalSet("id", io.teaql.core.utils.Convert.convert(Long.class, value));
+                    if (ref instanceof BaseEntity) {
+                        ((BaseEntity) ref).set$status(io.teaql.core.EntityStatus.REFER);
                     }
+                    entity.setProperty(property.getName(), ref);
+                } catch (Exception e) {
+                    System.out.println("mapRowToEntity relation mapping error for property " + property.getName() + ": " + e.getMessage());
+                    e.printStackTrace();
                 }
             }
         }

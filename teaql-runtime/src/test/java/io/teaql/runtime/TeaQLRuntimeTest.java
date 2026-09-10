@@ -238,10 +238,8 @@ public class TeaQLRuntimeTest {
         realEntities.put(new EntityKey("Dummy", 103L), e3);
         realEntities.put(new EntityKey("Dummy", 104L), e4);
 
-        java.lang.reflect.Method method = TeaQLRuntime.class.getDeclaredMethod(
-            "executeLedgerPlan", UserContext.class, EntityRoot.class, MutationExecutor.class, java.util.Map.class);
-        method.setAccessible(true);
-        method.invoke(runtime, new DefaultUserContext(runtime), root, executor, realEntities);
+        io.teaql.runtime.mutation.MutationPlanner planner = runtime.getMutationPlanner();
+        planner.executePlan(new DefaultUserContext(runtime), root, e1, executor);
 
         List<DefaultMutationRequest> requests = executor.requests;
 

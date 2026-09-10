@@ -27,6 +27,7 @@ public class PortableSQLDatabaseTest {
     public static class Task extends BaseEntity {
         private String title;
         private String status;
+        private final Set<String> loadedProperties = new HashSet<>();
 
         public String getTitle() {
             return title;
@@ -42,6 +43,10 @@ public class PortableSQLDatabaseTest {
             return status;
         }
 
+        public boolean isLoaded(String property) {
+            return loadedProperties.contains(property);
+        }
+
         public Task updateStatus(String status) {
             handleUpdate("status", this.status, status);
             this.status = status;
@@ -55,6 +60,7 @@ public class PortableSQLDatabaseTest {
 
         @Override
         public void __internalSet(String property, Object value) {
+            loadedProperties.add(property);
             switch (property) {
                 case "title": this.title = (String) value; break;
                 case "status": this.status = (String) value; break;
@@ -69,6 +75,54 @@ public class PortableSQLDatabaseTest {
                 case "status": return this.status;
                 default: return super.__internalGet(property);
             }
+        }
+    }
+
+    @Test
+    public void testSelectedSqlNullIsMappedAsLoadedNull() {
+        sqliteDb.executeUpdate(
+                "INSERT INTO task_data (id, version, title, status) VALUES (?, ?, ?, ?)",
+                new Object[] {900L, 1L, null, "NULL-MAPPING"});
+
+        SmartList<Task> tasks =
+                new TaskRequest()
+                        .filterByStatus("NULL-MAPPING")
+                        .comment("verify selected SQL null mapping")
+                        .purpose("distinguish loaded null from an unselected field")
+                        .executeForList(ctx);
+
+        assertEquals(1, tasks.size());
+        Task loaded = tasks.get(0);
+        assertNull(loaded.getTitle());
+        assertTrue("selected SQL NULL must still invoke the entity mapper", loaded.isLoaded("title"));
+    }
+
+    @Test
+    public void testSingleDynamicAggregateIsAttachedToEachReturnedParent() {
+        for (int i = 0; i < 2; i++) {
+            Task task = new Task();
+            task.updateTitle("Counted task " + i);
+            task.updateStatus("DYNAMIC-COUNT");
+            task.auditAs("create dynamic-count fixture").save(ctx);
+        }
+
+        TaskRequest countRequest = new TaskRequest();
+        countRequest.count();
+        countRequest.setPartitionProperty("id");
+
+        TaskRequest parentRequest = new TaskRequest().filterByStatus("DYNAMIC-COUNT");
+        parentRequest.addSingleAggregateDynamicProperty("selfCount", countRequest);
+        SmartList<Task> tasks =
+                parentRequest
+                        .comment("load tasks with grouped count")
+                        .purpose("verify aggregate values are attached to parent entities")
+                        .executeForList(ctx);
+
+        assertEquals(2, tasks.size());
+        for (Task task : tasks) {
+            Number count = task.getDynamicProperty("selfCount");
+            assertNotNull("generated count must be attached to its parent", count);
+            assertEquals(1, count.intValue());
         }
     }
 

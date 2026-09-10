@@ -4,6 +4,7 @@ import io.teaql.core.*;
 import io.teaql.core.meta.EntityDescriptor;
 import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.PropertyDescriptor;
+import io.teaql.runtime.mutation.MutationPlanner;
 import java.util.*;
 
 public class TeaQLRuntime {
@@ -12,6 +13,7 @@ public class TeaQLRuntime {
     private final RequestPolicy requestPolicy;
     private final InternalIdGenerationService idGenerationService;
     private final RuntimeLogSink logSink;
+    private final MutationPlanner mutationPlanner;
 
     private TeaQLRuntime(Builder builder) {
         this.metadata = builder.metadata;
@@ -19,6 +21,7 @@ public class TeaQLRuntime {
         this.requestPolicy = builder.requestPolicy;
         this.idGenerationService = builder.idGenerationService;
         this.logSink = builder.logSink;
+        this.mutationPlanner = new MutationPlanner(metadata, idGenerationService);
     }
 
     public static Builder builder() {
@@ -43,6 +46,10 @@ public class TeaQLRuntime {
 
     public RuntimeLogSink getLogSink() {
         return logSink;
+    }
+
+    public MutationPlanner getMutationPlanner() {
+        return mutationPlanner;
     }
 
     public void recordExecutionMetadata(UserContext ctx, ExecutionMetadata metadata) {
@@ -153,25 +160,8 @@ public class TeaQLRuntime {
             pushed = true;
         }
         try {
-            // Get entity's own EntityRoot
-            EntityRoot entityRoot = ((BaseEntity) entity).getEntityRoot();
-            
-            // Merge related entities' EntityRoots into this one
-            mergeRelatedEntityRoots(entity, entityRoot);
-
-            if (entity.getId() == null && idGenerationService != null) {
-                Long newId = idGenerationService.generateId(ctx, entity);
-                ((BaseEntity) entity).__internalSet("id", newId);
-                entityRoot.markAsNew(new EntityKey(entity.typeName(), newId));
-            }
-
-            if (entity instanceof BaseEntity be && be.getId() != null) {
-                EntityKey key = new EntityKey(be.typeName(), be.getId());
-                for (String prop : be.getUpdatedProperties()) {
-                    entityRoot.set(key, prop, be.__internalGet(prop));
-                }
-
-            }
+            // Prepare entity: merge roots, generate ID, track changes
+            EntityRoot entityRoot = mutationPlanner.prepareEntity(ctx, entity);
 
             EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());
             String route = descriptor.getDataService();
@@ -195,186 +185,9 @@ public class TeaQLRuntime {
                 throw new TeaQLRuntimeException("No MutationExecutor registered for route: " + route);
             }
 
-            Map<io.teaql.core.EntityKey, io.teaql.core.BaseEntity> realEntities = new java.util.HashMap<>();
-            collectRealEntities(entity, realEntities);
-            executeLedgerPlan(ctx, entityRoot, mutationExecutor, realEntities);
-            entityRoot.clearCurrentChangeSet();
+            mutationPlanner.executePlan(ctx, entityRoot, entity, mutationExecutor);
         } finally {
             if (pushed) ctx.popTrace();
-        }
-    }
-
-    /**
-     * Merge related entities' EntityRoots into the main entity's EntityRoot.
-     * This ensures that when saving an Order, its OrderItems' changes are also saved.
-     */
-    private void mergeRelatedEntityRoots(Entity entity, EntityRoot targetRoot) {
-        if (!(entity instanceof BaseEntity baseEntity)) {
-            return;
-        }
-
-        EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());
-        if (descriptor == null) return;
-
-        for (PropertyDescriptor prop : descriptor.getProperties()) {
-            if (!(prop instanceof io.teaql.core.meta.Relation)) continue;
-            Object value = entity.getProperty(prop.getName());
-            if (value instanceof Entity relEntity) {
-                // Merge related entity's root into target
-                EntityRoot relRoot = ((BaseEntity) relEntity).getEntityRoot();
-                if (relRoot != null && relRoot != targetRoot) {
-                    targetRoot.mergeFrom(relRoot);
-                    // Update related entity to use the merged root
-                    ((BaseEntity) relEntity).setEntityRoot(targetRoot);
-                }
-                // Recursively merge
-                mergeRelatedEntityRoots(relEntity, targetRoot);
-            } else if (value instanceof Collection<?> collection) {
-                for (Object item : collection) {
-                    if (item instanceof Entity relEntity) {
-                        EntityRoot relRoot = ((BaseEntity) relEntity).getEntityRoot();
-                        if (relRoot != null && relRoot != targetRoot) {
-                            targetRoot.mergeFrom(relRoot);
-                            ((BaseEntity) relEntity).setEntityRoot(targetRoot);
-                        }
-                        mergeRelatedEntityRoots(relEntity, targetRoot);
-                    }
-                }
-            }
-        }
-    }
-
-
-
-
-    private void collectRealEntities(Entity entity, Map<EntityKey, BaseEntity> realEntities) {
-        if (!(entity instanceof BaseEntity baseEntity)) return;
-        if (baseEntity.getId() != null) {
-            realEntities.put(new EntityKey(baseEntity.typeName(), baseEntity.getId()), baseEntity);
-        }
-        EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());
-        if (descriptor == null) return;
-        for (PropertyDescriptor prop : descriptor.getProperties()) {
-            if (!(prop instanceof io.teaql.core.meta.Relation)) continue;
-            Object value = entity.getProperty(prop.getName());
-            if (value instanceof Entity relEntity) {
-                collectRealEntities(relEntity, realEntities);
-            } else if (value instanceof Collection<?> collection) {
-                for (Object item : collection) {
-                    if (item instanceof Entity relEntity) {
-                        collectRealEntities(relEntity, realEntities);
-                    }
-                }
-            }
-        }
-    }
-
-    private void executeLedgerPlan(UserContext ctx, EntityRoot root, MutationExecutor mutationExecutor, Map<EntityKey, BaseEntity> realEntities) {
-        EntityChangeSet changeSet = root.currentChangeSet();
-        Set<EntityKey> deletedKeys = root.deletedKeys();
-        Set<EntityKey> newKeys = root.newKeys();
-
-        // 1. Execute Deletes
-        List<EntityKey> sortedDeletedKeys = new ArrayList<>(deletedKeys);
-        Collections.sort(sortedDeletedKeys);
-        for (EntityKey key : sortedDeletedKeys) {
-            EntityDescriptor descriptor = metadata.resolveEntityDescriptor(key.entity());
-            if (descriptor == null) {
-                throw new TeaQLRuntimeException("No entity descriptor for: " + key.entity());
-            }
-            BaseEntity deleteEntity = realEntities.get(key);
-            if (deleteEntity == null) {
-                deleteEntity = (BaseEntity) descriptor.createEntity();
-                deleteEntity.__internalSet("id", key.id());
-                deleteEntity.set$status(io.teaql.core.EntityStatus.PERSISTED);
-            }
-            deleteEntity.markToRemove();
-            if (root.getComment() != null) deleteEntity.setComment(root.getComment());
-
-            DefaultMutationRequest mutationRequest = new DefaultMutationRequest(
-                deleteEntity, DefaultMutationRequest.Action.DELETE);
-            mutationExecutor.mutate(ctx, mutationRequest);
-        }
-
-        // 2. Group changes
-        Map<String, List<EntityKey>> insertBatches = new TreeMap<>();
-        Map<String, List<EntityKey>> updateBatches = new TreeMap<>();
-
-        for (Map.Entry<EntityKey, Map<String, Object>> entry : changeSet.changes().entrySet()) {
-            EntityKey key = entry.getKey();
-            if (deletedKeys.contains(key)) continue;
-
-            boolean isNew = newKeys.contains(key) || key.id() == null;
-            if (isNew) {
-                insertBatches.computeIfAbsent(key.entity(), k -> new ArrayList<>()).add(key);
-            } else {
-                updateBatches.computeIfAbsent(key.entity(), k -> new ArrayList<>()).add(key);
-            }
-        }
-
-        // 3. Execute Inserts
-        for (Map.Entry<String, List<EntityKey>> entry : insertBatches.entrySet()) {
-            String entityName = entry.getKey();
-            List<EntityKey> keys = entry.getValue();
-            EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entityName);
-            if (descriptor == null) {
-                throw new TeaQLRuntimeException("No entity descriptor for: " + entityName);
-            }
-            for (EntityKey key : keys) {
-                Map<String, Object> changes = changeSet.changes().get(key);
-                if (changes == null) continue;
-                BaseEntity entity = realEntities.get(key);
-                if (entity == null) {
-                    entity = (BaseEntity) descriptor.createEntity();
-                    entity.__internalSet("id", key.id());
-                }
-                Long version = root.getOriginalVersion(key);
-                if (version != null) {
-                    entity.__internalSet("version", version);
-                }
-                for (Map.Entry<String, Object> change : changes.entrySet()) {
-                    entity.updateProperty(change.getKey(), change.getValue());
-                }
-                if (root.getComment() != null) entity.setComment(root.getComment());
-
-                DefaultMutationRequest mutationRequest = new DefaultMutationRequest(
-                    entity, DefaultMutationRequest.Action.SAVE);
-                mutationExecutor.mutate(ctx, mutationRequest);
-                entity.clearUpdatedProperties();
-            }
-        }
-
-        // 4. Execute Updates
-        for (Map.Entry<String, List<EntityKey>> entry : updateBatches.entrySet()) {
-            String entityName = entry.getKey();
-            List<EntityKey> keys = entry.getValue();
-            EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entityName);
-            if (descriptor == null) {
-                throw new TeaQLRuntimeException("No entity descriptor for: " + entityName);
-            }
-            for (EntityKey key : keys) {
-                Map<String, Object> changes = changeSet.changes().get(key);
-                if (changes == null) continue;
-                BaseEntity entity = realEntities.get(key);
-                if (entity == null) {
-                    entity = (BaseEntity) descriptor.createEntity();
-                    entity.__internalSet("id", key.id());
-                }
-                Long version = root.getOriginalVersion(key);
-                if (version != null) {
-                    entity.__internalSet("version", version);
-                }
-                for (Map.Entry<String, Object> change : changes.entrySet()) {
-                    entity.updateProperty(change.getKey(), change.getValue());
-                }
-                entity.set$status(io.teaql.core.EntityStatus.UPDATED);
-                if (root.getComment() != null) entity.setComment(root.getComment());
-
-                DefaultMutationRequest mutationRequest = new DefaultMutationRequest(
-                    entity, DefaultMutationRequest.Action.SAVE);
-                mutationExecutor.mutate(ctx, mutationRequest);
-                entity.clearUpdatedProperties();
-            }
         }
     }
 

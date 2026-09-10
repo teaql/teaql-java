@@ -2,7 +2,7 @@ package io.teaql.redis;
 
 import io.teaql.core.spi.RemoteLockProvider;
 import io.teaql.core.spi.LockException;
-import io.teaql.core.utils.RemoteLock;
+import io.teaql.core.spi.RemoteLock;
 
 public class RedisRemoteLockProvider implements RemoteLockProvider {
     @Override

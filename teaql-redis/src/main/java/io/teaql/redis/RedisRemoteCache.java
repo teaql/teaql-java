@@ -1,6 +1,6 @@
 package io.teaql.redis;
 
-import io.teaql.core.utils.RemoteCache;
+import io.teaql.core.spi.RemoteCache;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import com.fasterxml.jackson.databind.ObjectMapper;

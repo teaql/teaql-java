@@ -1,4 +1,4 @@
-package io.teaql.core.utils;
+package io.teaql.core.spi;
 
 /**
  * 远程分布式锁接口 (Remote Lock Interface)

@@ -64,13 +64,90 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         SearchRequest<?> searchRequest = ((DefaultQueryRequest) request).getSearchRequest();
         String typeName = searchRequest.getTypeName();
         PortableSQLRepository<?> repository = getRepository(typeName);
+        if (searchRequest.hasSimpleAgg()) {
+            AggregationResult aggregation =
+                    repository.doAggregateInternal(ctx, (SearchRequest) searchRequest);
+            return new DefaultQueryResult(new SmartList<>(), aggregation);
+        }
         SmartList<?> result = repository.loadInternal(ctx, (SearchRequest) searchRequest);
         
         if (searchRequest.enhanceRelations() != null && !searchRequest.enhanceRelations().isEmpty()) {
             enhanceRelations(ctx, (SmartList<Entity>) result, searchRequest);
         }
+        attachDynamicAggregations(ctx, (SmartList<Entity>) result, searchRequest);
         
         return new DefaultQueryResult((SmartList<Entity>) result);
+    }
+
+    private void attachDynamicAggregations(
+            UserContext userContext,
+            SmartList<Entity> results,
+            SearchRequest<?> parentRequest) {
+        List<SimpleAggregation> attributes = parentRequest.getDynamicAggregateAttributes();
+        if (results == null || results.isEmpty() || attributes == null || attributes.isEmpty()) {
+            return;
+        }
+
+        Map<Long, Entity> parentsById = results.mapById();
+        if (parentsById.isEmpty()) return;
+
+        for (SimpleAggregation attribute : attributes) {
+            SearchRequest<?> aggregateRequest = attribute.getAggregateRequest();
+            String partitionProperty = aggregateRequest.getPartitionProperty();
+            if (partitionProperty == null || partitionProperty.isBlank()) {
+                throw new TeaQLRuntimeException(
+                        "Dynamic aggregate '"
+                                + attribute.getName()
+                                + "' is missing its relation partition property");
+            }
+
+            io.teaql.core.internal.TempRequest request =
+                    new io.teaql.core.internal.TempRequest(aggregateRequest);
+            request.groupBy(partitionProperty);
+            request.appendSearchCriteria(
+                    request.createBasicSearchCriteria(
+                            partitionProperty, io.teaql.core.criteria.Operator.IN, parentsById.keySet()));
+
+            PortableSQLRepository<?> aggregateRepository =
+                    getRepository(aggregateRequest.getTypeName());
+            AggregationResult aggregation =
+                    aggregateRepository.doAggregateInternal(userContext, request);
+            if (attribute.isSingleNumber()) {
+                for (Entity parent : parentsById.values()) {
+                    parent.addDynamicProperty(attribute.getName(), 0);
+                }
+                aggregation
+                        .toSimpleMap()
+                        .forEach(
+                                (parentId, value) -> {
+                                    Entity parent = parentByAggregationKey(parentsById, parentId);
+                                    if (parent != null) {
+                                        parent.addDynamicProperty(attribute.getName(), value);
+                                    }
+                                });
+                continue;
+            }
+
+            for (Map<String, Object> values : aggregation.toList()) {
+                Object parentId = values.remove(partitionProperty);
+                Entity parent = parentByAggregationKey(parentsById, parentId);
+                if (parent != null) {
+                    parent.appendDynamicProperty(attribute.getName(), values);
+                }
+            }
+        }
+    }
+
+    private Entity parentByAggregationKey(Map<Long, Entity> parentsById, Object parentId) {
+        if (parentId instanceof Number number) {
+            return parentsById.get(number.longValue());
+        }
+        if (parentId == null) return null;
+        try {
+            return parentsById.get(Long.valueOf(String.valueOf(parentId)));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
     
     private void enhanceRelations(

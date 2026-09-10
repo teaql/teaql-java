@@ -15,7 +15,7 @@ import java.util.ServiceLoader;
  */
 public class TeaQLUserContextFactory {
 
-    private static final List<ContextAssembler> assemblers = new ArrayList<>();
+    private static List<ContextAssembler> assemblers = Collections.emptyList();
     private static volatile boolean isBootstrapped = false;
     private static final Object lock = new Object();
 
@@ -39,18 +39,21 @@ public class TeaQLUserContextFactory {
             
             System.out.println("[TeaQL] Bootstrapping Unified Runtime Environment...");
             ServiceLoader<ContextAssembler> loader = ServiceLoader.load(ContextAssembler.class);
+            List<ContextAssembler> discovered = new ArrayList<>();
             for (ContextAssembler assembler : loader) {
-                assemblers.add(assembler);
+                discovered.add(assembler);
             }
             
             // Sort them according to getOrder() priority
-            Collections.sort(assemblers);
+            Collections.sort(discovered);
             
-            for (ContextAssembler assembler : assemblers) {
+            for (ContextAssembler assembler : discovered) {
                 System.out.println("[TeaQL] Initializing Assembler: " + assembler.getClass().getSimpleName() + " (Order: " + assembler.getOrder() + ")");
                 assembler.initGlobalResources();
             }
             
+            // Publish as immutable list for safe concurrent reads
+            assemblers = Collections.unmodifiableList(discovered);
             isBootstrapped = true;
             System.out.println("[TeaQL] Bootstrapping completed successfully.");
         }
