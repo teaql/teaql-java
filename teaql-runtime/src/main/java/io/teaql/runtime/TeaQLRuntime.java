@@ -248,6 +248,14 @@ public class TeaQLRuntime {
             dsr.register(name, executor);
             return this;
         }
+        
+        public Builder dataService(DataServiceRoute route, DataServiceExecutor executor) {
+            if (!(this.registry instanceof DefaultDataServiceRegistry dsr)) {
+                throw new IllegalStateException("Cannot register data service on custom registry");
+            }
+            dsr.register(route, executor);
+            return this;
+        }
 
         public Builder requestPolicy(RequestPolicy requestPolicy) {
             this.requestPolicy = requestPolicy;

@@ -241,4 +241,31 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
     protected <T> T evaluateExpression(String expression, Object... args) {
         return null;
     }
+    
+    // ==========================================
+    // TransactionContext implementation
+    // ==========================================
+    
+    @Override
+    public void beginTransaction(DataServiceRoute route) {
+        // Default implementation - to be overridden by subclasses or providers
+        throw new UnsupportedOperationException("Transactions not supported by default. Use a transaction-capable provider.");
+    }
+    
+    @Override
+    public void commitTransaction(DataServiceRoute route) {
+        // Default implementation - to be overridden by subclasses or providers
+        throw new UnsupportedOperationException("Transactions not supported by default. Use a transaction-capable provider.");
+    }
+    
+    @Override
+    public void rollbackTransaction(DataServiceRoute route) {
+        // Default implementation - to be overridden by subclasses or providers
+        throw new UnsupportedOperationException("Transactions not supported by default. Use a transaction-capable provider.");
+    }
+    
+    @Override
+    public boolean isInTransaction(DataServiceRoute route) {
+        return false; // Default: not in transaction
+    }
 }

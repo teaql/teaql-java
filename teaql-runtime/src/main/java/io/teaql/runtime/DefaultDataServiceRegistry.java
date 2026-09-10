@@ -11,6 +11,10 @@ public class DefaultDataServiceRegistry implements DataServiceRegistry {
     public void register(String name, DataServiceExecutor executor) {
         executors.put(name, executor);
     }
+    
+    public void register(DataServiceRoute route, DataServiceExecutor executor) {
+        executors.put(route.name(), executor);
+    }
 
     @Override
     public DataServiceExecutor resolve(String name) {

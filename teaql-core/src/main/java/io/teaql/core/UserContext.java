@@ -1,18 +1,23 @@
 package io.teaql.core;
 
 import java.util.stream.Stream;
+import io.teaql.core.context.CacheContext;
+import io.teaql.core.context.LockContext;
+import io.teaql.core.context.TraceContext;
+import io.teaql.core.context.TransactionContext;
 import io.teaql.core.utils.OptNullBasicTypeFromObjectGetter;
 import java.util.List;
 import io.teaql.data.dynamic.DynamicFieldsFacade;
 
-public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
+/**
+ * Main execution context interface.
+ * Composes CacheContext, LockContext, TraceContext, and TransactionContext for separation of concerns.
+ */
+public interface UserContext extends OptNullBasicTypeFromObjectGetter<String>, CacheContext, LockContext, TraceContext, TransactionContext {
 
-    void pushTrace(String comment);
-
-    List<TraceNode> getTraceChain();
-
-    void popTrace();
-    void recordExecutionMetadata(ExecutionMetadata metadata);
+    // Trace and audit methods are now inherited from TraceContext
+    // Cache methods are now inherited from CacheContext
+    // Lock methods are now inherited from LockContext
 
     // Business-facing API
     <T extends Entity> T executeForOne(ExecutableRequest<T> request);

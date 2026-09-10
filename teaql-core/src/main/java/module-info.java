@@ -5,6 +5,7 @@ module io.teaql.core {
     // === Public API needed by generated code ===
     exports io.teaql.core;
     exports io.teaql.core.checker;
+    exports io.teaql.core.context;
     exports io.teaql.core.criteria;
     exports io.teaql.core.meta;
     exports io.teaql.core.parser;
@@ -16,4 +17,5 @@ module io.teaql.core {
     uses io.teaql.core.spi.LocalCacheProvider;
     uses io.teaql.core.spi.RemoteLockProvider;
     uses io.teaql.core.spi.LocalLockProvider;
+    uses io.teaql.core.spi.LoggerProvider;
 }
