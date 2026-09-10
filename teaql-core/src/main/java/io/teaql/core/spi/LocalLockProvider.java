@@ -4,10 +4,10 @@ import java.util.concurrent.locks.Lock;
 
 public interface LocalLockProvider {
     /**
-     * 获取指定的本地锁实例
-     * @param name 锁名称
-     * @return 本地锁实例
-     * @throws LockException
+     * Get the local lock instance for the specified name.
+     * @param name the lock name
+     * @return the local lock instance
+     * @throws LockException if lock retrieval fails
      */
     Lock getLock(String name) throws LockException;
 }

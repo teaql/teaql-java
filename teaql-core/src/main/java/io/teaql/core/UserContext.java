@@ -95,7 +95,7 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String>, C
     default Object getAttribute(String key) { return null; }
 
     // ==========================================
-    // Remote Cache (分布式级，跨节点共享)
+    // Remote Cache (distributed, shared across nodes)
     // ==========================================
     default void putToRemoteCache(String key, Object value) {
         putToRemoteCache(key, value, 0);
@@ -139,7 +139,7 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String>, C
     }
 
     // ==========================================
-    // Remote Lock (分布式锁)
+    // Remote Lock (distributed)
     // ==========================================
     default boolean tryRemoteLock(String key, long timeoutMillis, long expireMillis) {
         io.teaql.core.spi.RemoteLockProvider provider = capability(io.teaql.core.spi.RemoteLockProvider.class);
@@ -162,7 +162,7 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String>, C
     }
 
     // ==========================================
-    // Local Cache (本地缓存)
+    // Local Cache (in-memory)
     // ==========================================
     default void putToLocalCache(String key, Object value) {}
     default void putToLocalCache(String key, Object value, int timeToLiveInSeconds) {}
@@ -170,7 +170,7 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String>, C
     default void removeFromLocalCache(String key) {}
 
     // ==========================================
-    // Local Lock (本地锁)
+    // Local Lock (in-memory)
     // ==========================================
     default boolean tryLocalLock(String key, long timeoutMillis, long expireMillis) { return true; }
     default void unlockLocal(String key) {}

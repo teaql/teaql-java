@@ -7,7 +7,7 @@ package io.teaql.core.context;
 public interface CacheContext {
     
     // ==========================================
-    // Remote Cache (分布式级，跨节点共享)
+    // Remote Cache (distributed, shared across nodes)
     // ==========================================
     default void putToRemoteCache(String key, Object value) {
         putToRemoteCache(key, value, 0);
@@ -20,7 +20,7 @@ public interface CacheContext {
     void removeFromRemoteCache(String key);
     
     // ==========================================
-    // Local Cache (本地缓存)
+    // Local Cache (in-memory)
     // ==========================================
     default void putToLocalCache(String key, Object value) {
         putToLocalCache(key, value, 0);

@@ -7,14 +7,14 @@ package io.teaql.core.context;
 public interface LockContext {
     
     // ==========================================
-    // Remote Lock (分布式锁)
+    // Remote Lock (distributed)
     // ==========================================
     boolean tryRemoteLock(String key, long timeoutMillis, long expireMillis);
     
     void unlockRemote(String key);
     
     // ==========================================
-    // Local Lock (本地锁)
+    // Local Lock (in-memory)
     // ==========================================
     boolean tryLocalLock(String key, long timeoutMillis, long expireMillis);
     

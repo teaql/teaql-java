@@ -3,14 +3,14 @@ package io.teaql.core.spi;
 import io.teaql.core.utils.Cache;
 
 /**
- * 远程缓存接口 (Remote Cache Interface)
- * 用于标记或扩展基础 Cache 接口，专用于分布式/远程缓存实现（如 Redis）。
+ * Remote Cache Interface
+ * Extends the base Cache interface for distributed/remote cache implementations (e.g., Redis).
  */
 public interface RemoteCache<K, V> extends Cache<K, V> {
     /**
-     * 刷新远程缓存中指定键的过期时间
-     * @param key 键
-     * @param timeout 超时时间
+     * Refresh the expiration time of the specified key in the remote cache.
+     * @param key the cache key
+     * @param timeout the timeout duration in milliseconds
      */
     void expire(K key, long timeout);
 }

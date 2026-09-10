@@ -6,10 +6,10 @@ package io.teaql.core.spi;
 
 public interface RemoteLockProvider {
     /**
-     * 获取指定的远程分布式锁实例
-     * @param name 锁名称
-     * @return 远程分布式锁
-     * @throws LockException
+     * Get the remote distributed lock instance for the specified name.
+     * @param name the lock name
+     * @return the remote lock instance
+     * @throws LockException if lock retrieval fails
      */
     RemoteLock getLock(String name) throws LockException;
 }
