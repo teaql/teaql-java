@@ -9,7 +9,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 /** Portable optimistic Business ID allocator backed by a TeaQLDatabase. */
-public final class JdbcBusinessIdAllocator implements BusinessIdAllocator {
+public final class JdbcBusinessIdAllocator
+        implements BusinessIdAllocator, BusinessIdSchemaContributor {
     public static final String DEFAULT_TABLE = "teaql_business_id_space";
     private static final int MAX_ATTEMPTS = 100;
 
@@ -29,6 +30,7 @@ public final class JdbcBusinessIdAllocator implements BusinessIdAllocator {
     }
 
     /** Explicit development/test schema operation; construction never executes DDL. */
+    @Override
     public void ensureSchema(UserContext context) {
         database.execute(context, "CREATE TABLE IF NOT EXISTS " + table + " ("
                 + "scope_key VARCHAR(512) PRIMARY KEY, "

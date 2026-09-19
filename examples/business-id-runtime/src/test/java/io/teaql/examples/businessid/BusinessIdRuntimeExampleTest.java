@@ -4,6 +4,7 @@ import io.teaql.businessid.jdbc.JdbcBusinessIdAllocator;
 import io.teaql.core.BaseEntity;
 import io.teaql.core.EntityKey;
 import io.teaql.core.UserContext;
+import io.teaql.core.SchemaExecutor;
 import io.teaql.core.businessid.*;
 import io.teaql.core.meta.EntityDescriptor;
 import io.teaql.core.meta.EntityMetaFactory;
@@ -137,7 +138,14 @@ public class BusinessIdRuntimeExampleTest {
                             LocalDate.of(2026, 9, 20)));
 
             try (Connection schemaConnection = open(databasePath)) {
-                new JdbcBusinessIdAllocator(database(schemaConnection)).ensureSchema(null);
+                JdbcBusinessIdAllocator allocator =
+                        new JdbcBusinessIdAllocator(database(schemaConnection));
+                UserContext context = context(LocalDate.of(2026, 9, 20), allocator);
+                context.putAttribute(
+                        SchemaExecutor.class.getName(),
+                        noOpSchemaExecutor());
+                context.ensureSchema();
+                Assert.assertNotNull(context.businessIds());
             }
 
             CountDownLatch start = new CountDownLatch(1);
@@ -179,7 +187,12 @@ public class BusinessIdRuntimeExampleTest {
     }
 
     private static UserContext context(LocalDate date) {
-        TeaQLRuntime runtime = TeaQLRuntime.builder()
+        return context(date, null);
+    }
+
+    private static UserContext context(
+            LocalDate date, JdbcBusinessIdAllocator businessIdInfrastructure) {
+        TeaQLRuntime.Builder builder = TeaQLRuntime.builder()
                 .metadata(new EntityMetaFactory() {
                     @Override
                     public EntityDescriptor resolveEntityDescriptor(String type) {
@@ -194,8 +207,11 @@ public class BusinessIdRuntimeExampleTest {
                         return List.of();
                     }
                 })
-                .executionLogging(false)
-                .build();
+                .executionLogging(false);
+        if (businessIdInfrastructure != null) {
+            builder.businessIdInfrastructure(businessIdInfrastructure);
+        }
+        TeaQLRuntime runtime = builder.build();
         DefaultUserContext context = new DefaultUserContext(runtime);
         context.putAttribute(BusinessClock.class.getName(),
                 (BusinessClock) ignored -> date);
@@ -210,6 +226,20 @@ public class BusinessIdRuntimeExampleTest {
             statement.execute("PRAGMA busy_timeout=5000");
         }
         return connection;
+    }
+
+    private static SchemaExecutor noOpSchemaExecutor() {
+        return (SchemaExecutor) java.lang.reflect.Proxy.newProxyInstance(
+                SchemaExecutor.class.getClassLoader(),
+                new Class<?>[] {SchemaExecutor.class},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("ensureSchema")) return null;
+                    Class<?> resultType = method.getReturnType();
+                    if (resultType == boolean.class) return false;
+                    if (resultType == int.class) return 0;
+                    if (resultType == long.class) return 0L;
+                    return null;
+                });
     }
 
     private static TeaQLDatabase database(Connection connection) {
