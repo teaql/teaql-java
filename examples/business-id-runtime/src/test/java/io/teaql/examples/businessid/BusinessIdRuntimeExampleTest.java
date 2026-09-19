@@ -1,0 +1,295 @@
+package io.teaql.examples.businessid;
+
+import io.teaql.businessid.jdbc.JdbcBusinessIdAllocator;
+import io.teaql.core.BaseEntity;
+import io.teaql.core.EntityKey;
+import io.teaql.core.UserContext;
+import io.teaql.core.businessid.*;
+import io.teaql.core.meta.EntityDescriptor;
+import io.teaql.core.meta.EntityMetaFactory;
+import io.teaql.core.sql.portable.TeaQLDatabase;
+import io.teaql.runtime.DefaultUserContext;
+import io.teaql.runtime.TeaQLRuntime;
+import io.teaql.runtime.businessid.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.*;
+import java.time.LocalDate;
+import java.util.*;
+import java.util.concurrent.*;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class BusinessIdRuntimeExampleTest {
+    private static final BusinessIdDefinition ORDER_NUMBER =
+            BusinessIdDefinition.dailySequence("order_number", "CO", "commerce_order");
+
+    public record OrderNumber(String value) {
+        public OrderNumber {
+            if (value == null || !value.matches("CO-\\d{8}-\\d{8}")) {
+                throw new IllegalArgumentException("invalid OrderNumber: " + value);
+            }
+        }
+    }
+
+    private static final class Order extends BaseEntity implements BusinessIdSlot {
+        private OrderNumber orderNumber;
+
+        private Order(long id) {
+            updateId(id);
+        }
+
+        @Override
+        public String typeName() {
+            return "CommerceOrder";
+        }
+
+        @Override
+        public String currentValue() {
+            return orderNumber == null ? null : orderNumber.value();
+        }
+
+        @Override
+        public boolean newAggregate() {
+            return newItem();
+        }
+
+        @Override
+        public void assignCanonicalValue(String value) {
+            OrderNumber next = new OrderNumber(value);
+            OrderNumber previous = orderNumber;
+            orderNumber = next;
+            handleUpdate("order_number", previous, next);
+        }
+
+        private OrderNumber orderNumber() {
+            return orderNumber;
+        }
+
+        private void markPersisted() {
+            set$status(io.teaql.core.EntityStatus.PERSISTED);
+        }
+    }
+
+    @Test
+    public void inMemoryProfileIsScopedTypedAndRetryStable() {
+        UserContext context = context(LocalDate.of(2026, 9, 20));
+        DefaultBusinessIdService service =
+                new DefaultBusinessIdService(new InMemoryBusinessIdAllocator());
+        context.putAttribute(BusinessIdService.class.getName(), service);
+
+        Order first = new Order(101);
+        BusinessIdValue initial = context.businessIds().ensure(
+                context, ORDER_NUMBER, "tenant-a", "commerce_order", first);
+        Assert.assertEquals("CO-20260920-00000001", initial.value());
+        Assert.assertEquals(new OrderNumber(initial.value()), first.orderNumber());
+        Assert.assertEquals(
+                first.orderNumber(),
+                first.getEntityMutationLedger().get(
+                        new EntityKey("CommerceOrder", 101L), "order_number"));
+
+        // Simulated provider failure: the same pending entity/ledger is retried.
+        BusinessIdValue retry = context.businessIds().ensure(
+                context, ORDER_NUMBER, "tenant-a", "commerce_order", first);
+        Assert.assertEquals(initial, retry);
+
+        Order second = new Order(102);
+        Assert.assertEquals(
+                "CO-20260920-00000002",
+                context.businessIds().ensure(
+                        context, ORDER_NUMBER, "tenant-a", "commerce_order", second).value());
+
+        Order otherTenant = new Order(103);
+        Assert.assertEquals(
+                "CO-20260920-00000001",
+                context.businessIds().ensure(
+                        context, ORDER_NUMBER, "tenant-b", "commerce_order", otherTenant).value());
+
+        UserContext nextDay = context(LocalDate.of(2026, 9, 21));
+        nextDay.putAttribute(BusinessIdService.class.getName(), service);
+        Assert.assertEquals(
+                "CO-20260921-00000001",
+                nextDay.businessIds().ensure(
+                        nextDay, ORDER_NUMBER, "tenant-a", "commerce_order", new Order(104)).value());
+
+        Order establishedWithoutNumber = new Order(105);
+        establishedWithoutNumber.markPersisted();
+        BusinessIdException immutable = Assert.assertThrows(
+                BusinessIdException.class,
+                () -> context.businessIds().ensure(
+                        context,
+                        ORDER_NUMBER,
+                        "tenant-a",
+                        "commerce_order",
+                        establishedWithoutNumber));
+        Assert.assertEquals(BusinessIdErrorCode.BUSINESS_ID_IMMUTABLE, immutable.getCode());
+    }
+
+    @Test
+    public void sqliteAllocatorIsExplicitCrossInstanceAndRestartSafe() throws Exception {
+        Path databasePath = Files.createTempFile("teaql-business-id", ".db");
+        try {
+            BusinessIdPlan plan = new DailySequenceBusinessIdProfile().plan(
+                    new BusinessIdGenerationRequest(
+                            ORDER_NUMBER,
+                            "tenant-a",
+                            "commerce_order",
+                            LocalDate.of(2026, 9, 20)));
+
+            try (Connection schemaConnection = open(databasePath)) {
+                new JdbcBusinessIdAllocator(database(schemaConnection)).ensureSchema(null);
+            }
+
+            CountDownLatch start = new CountDownLatch(1);
+            ExecutorService workers = Executors.newFixedThreadPool(2);
+            try {
+                List<Future<List<Long>>> futures = new ArrayList<>();
+                for (int worker = 0; worker < 2; worker++) {
+                    futures.add(workers.submit(() -> {
+                        try (Connection connection = open(databasePath)) {
+                            JdbcBusinessIdAllocator allocator =
+                                    new JdbcBusinessIdAllocator(database(connection));
+                            start.await();
+                            List<Long> allocated = new ArrayList<>();
+                            for (int index = 0; index < 25; index++) {
+                                allocated.add(allocator.allocate(plan).sequence());
+                            }
+                            return allocated;
+                        }
+                    }));
+                }
+                start.countDown();
+                Set<Long> allocated = new HashSet<>();
+                for (Future<List<Long>> future : futures) {
+                    allocated.addAll(future.get(15, TimeUnit.SECONDS));
+                }
+                Assert.assertEquals(50, allocated.size());
+            } finally {
+                workers.shutdownNow();
+            }
+
+            try (Connection restarted = open(databasePath)) {
+                JdbcBusinessIdAllocator allocator =
+                        new JdbcBusinessIdAllocator(database(restarted));
+                Assert.assertEquals(51, allocator.allocate(plan).sequence());
+            }
+        } finally {
+            Files.deleteIfExists(databasePath);
+        }
+    }
+
+    private static UserContext context(LocalDate date) {
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new EntityMetaFactory() {
+                    @Override
+                    public EntityDescriptor resolveEntityDescriptor(String type) {
+                        return null;
+                    }
+
+                    @Override
+                    public void register(EntityDescriptor type) {}
+
+                    @Override
+                    public List<EntityDescriptor> allEntityDescriptors() {
+                        return List.of();
+                    }
+                })
+                .executionLogging(false)
+                .build();
+        DefaultUserContext context = new DefaultUserContext(runtime);
+        context.putAttribute(BusinessClock.class.getName(),
+                (BusinessClock) ignored -> date);
+        context.putAttribute(BusinessIdProfileFactory.class.getName(),
+                new DefaultBusinessIdProfileFactory());
+        return context;
+    }
+
+    private static Connection open(Path path) throws SQLException {
+        Connection connection = DriverManager.getConnection("jdbc:sqlite:" + path);
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("PRAGMA busy_timeout=5000");
+        }
+        return connection;
+    }
+
+    private static TeaQLDatabase database(Connection connection) {
+        return new TeaQLDatabase() {
+            @Override
+            public List<Map<String, Object>> query(String sql, Object[] args) {
+                try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                    bind(statement, args);
+                    try (ResultSet resultSet = statement.executeQuery()) {
+                        List<Map<String, Object>> rows = new ArrayList<>();
+                        ResultSetMetaData metadata = resultSet.getMetaData();
+                        while (resultSet.next()) {
+                            Map<String, Object> row = new HashMap<>();
+                            for (int column = 1; column <= metadata.getColumnCount(); column++) {
+                                row.put(metadata.getColumnLabel(column).toLowerCase(Locale.ROOT),
+                                        resultSet.getObject(column));
+                            }
+                            rows.add(row);
+                        }
+                        return rows;
+                    }
+                } catch (SQLException error) {
+                    throw new RuntimeException(error);
+                }
+            }
+
+            @Override
+            public int executeUpdate(String sql, Object[] args) {
+                try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                    bind(statement, args);
+                    return statement.executeUpdate();
+                } catch (SQLException error) {
+                    throw new RuntimeException(error);
+                }
+            }
+
+            @Override
+            public int[] batchUpdate(String sql, List<Object[]> batchArgs) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public void execute(String sql) {
+                try (Statement statement = connection.createStatement()) {
+                    statement.execute(sql);
+                } catch (SQLException error) {
+                    throw new RuntimeException(error);
+                }
+            }
+
+            @Override
+            public void executeInTransaction(Runnable action) {
+                try {
+                    boolean original = connection.getAutoCommit();
+                    connection.setAutoCommit(false);
+                    try {
+                        action.run();
+                        connection.commit();
+                    } catch (RuntimeException error) {
+                        connection.rollback();
+                        throw error;
+                    } finally {
+                        connection.setAutoCommit(original);
+                    }
+                } catch (SQLException error) {
+                    throw new RuntimeException(error);
+                }
+            }
+
+            @Override
+            public List<Map<String, Object>> getTableColumns(String tableName) {
+                throw new UnsupportedOperationException();
+            }
+
+            private void bind(PreparedStatement statement, Object[] args) throws SQLException {
+                if (args == null) return;
+                for (int index = 0; index < args.length; index++) {
+                    statement.setObject(index + 1, args[index]);
+                }
+            }
+        };
+    }
+}

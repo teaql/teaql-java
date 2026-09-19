@@ -13,6 +13,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
+import io.teaql.core.businessid.BusinessClock;
+import io.teaql.core.businessid.BusinessIdProfileFactory;
+import io.teaql.runtime.businessid.DefaultBusinessIdProfileFactory;
+import io.teaql.runtime.businessid.SystemBusinessClock;
 
 public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObjectGetter<String> {
 
@@ -157,6 +161,12 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
         }
         if (value == null && capabilityType == InternalIdGenerationService.class) {
             value = runtime.getIdGenerationService();
+        }
+        if (value == null && capabilityType == BusinessClock.class) {
+            value = SystemBusinessClock.INSTANCE;
+        }
+        if (value == null && capabilityType == BusinessIdProfileFactory.class) {
+            value = new DefaultBusinessIdProfileFactory();
         }
         if (value == null) {
             return null;

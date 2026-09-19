@@ -8,6 +8,8 @@ import io.teaql.core.checker.CheckResult;
 import io.teaql.core.checker.FixEvidence;
 import io.teaql.core.i18n.I18nCatalog;
 import io.teaql.core.i18n.Locale;
+import io.teaql.core.businessid.BusinessClock;
+import io.teaql.core.businessid.BusinessIdService;
 
 public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
 
@@ -202,6 +204,22 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
 
     default <T> T capability(Class<T> capabilityType) {
         return null;
+    }
+
+    default BusinessIdService businessIds() {
+        BusinessIdService service = capability(BusinessIdService.class);
+        if (service == null) {
+            throw new TeaQLRuntimeException("BusinessIdService capability is not registered");
+        }
+        return service;
+    }
+
+    default java.time.LocalDate businessDate() {
+        BusinessClock clock = capability(BusinessClock.class);
+        if (clock == null) {
+            throw new TeaQLRuntimeException("BusinessClock capability is not registered");
+        }
+        return clock.businessDate(this);
     }
 
     /**
