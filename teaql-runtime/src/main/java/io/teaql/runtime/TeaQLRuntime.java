@@ -7,6 +7,10 @@ import io.teaql.core.meta.PropertyDescriptor;
 import io.teaql.core.checker.CheckException;
 import io.teaql.core.checker.CheckResult;
 import io.teaql.core.checker.Checker;
+import io.teaql.core.businessid.BusinessIdAllocator;
+import io.teaql.core.businessid.BusinessIdSchemaContributor;
+import io.teaql.core.businessid.BusinessIdService;
+import io.teaql.runtime.businessid.DefaultBusinessIdService;
 import java.util.*;
 
 public class TeaQLRuntime {
@@ -19,6 +23,8 @@ public class TeaQLRuntime {
     private final boolean mutationExecutionLoggingEnabled;
     private final RuntimeTelemetry telemetry;
     private final SchemaExecutor schemaExecutor;
+    private final BusinessIdService businessIdService;
+    private final BusinessIdSchemaContributor businessIdSchemaContributor;
     private final Map<String, Checker<?>> checkers = new java.util.concurrent.ConcurrentHashMap<>();
     private final List<GeneratedSchemaBootstrap> generatedBootstraps =
             new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -33,6 +39,8 @@ public class TeaQLRuntime {
         this.mutationExecutionLoggingEnabled = builder.mutationExecutionLoggingEnabled;
         this.telemetry = builder.telemetry != null ? builder.telemetry : RuntimeTelemetry.NOOP;
         this.schemaExecutor = builder.schemaExecutor;
+        this.businessIdService = builder.businessIdService;
+        this.businessIdSchemaContributor = builder.businessIdSchemaContributor;
     }
 
     public static Builder builder() {
@@ -73,6 +81,14 @@ public class TeaQLRuntime {
 
     SchemaExecutor getSchemaExecutor() {
         return schemaExecutor;
+    }
+
+    BusinessIdService getBusinessIdService() {
+        return businessIdService;
+    }
+
+    BusinessIdSchemaContributor getBusinessIdSchemaContributor() {
+        return businessIdSchemaContributor;
     }
 
     /** Installs a passive generated manifest. Database schemas remain unchanged. */
@@ -899,6 +915,8 @@ public class TeaQLRuntime {
         private boolean mutationExecutionLoggingEnabled = true;
         private RuntimeTelemetry telemetry = RuntimeTelemetry.NOOP;
         private SchemaExecutor schemaExecutor;
+        private BusinessIdService businessIdService;
+        private BusinessIdSchemaContributor businessIdSchemaContributor;
 
         public Builder metadata(EntityMetaFactory metadata) {
             this.metadata = metadata;
@@ -928,6 +946,24 @@ public class TeaQLRuntime {
 
         public Builder idGenerationService(InternalIdGenerationService idGenerationService) {
             this.idGenerationService = idGenerationService;
+            return this;
+        }
+
+        /** Installs a Business ID service without an infrastructure schema contribution. */
+        public Builder businessIdService(BusinessIdService businessIdService) {
+            this.businessIdService = businessIdService;
+            return this;
+        }
+
+        /**
+         * Installs one provider-backed allocator for generated Fix execution and
+         * the explicit {@code context.ensureSchema()} lifecycle.
+         */
+        public <A extends BusinessIdAllocator & BusinessIdSchemaContributor>
+                Builder businessIdInfrastructure(A allocator) {
+            java.util.Objects.requireNonNull(allocator, "allocator");
+            this.businessIdService = new DefaultBusinessIdService(allocator);
+            this.businessIdSchemaContributor = allocator;
             return this;
         }
 

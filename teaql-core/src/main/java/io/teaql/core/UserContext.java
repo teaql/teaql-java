@@ -9,6 +9,7 @@ import io.teaql.core.checker.FixEvidence;
 import io.teaql.core.i18n.I18nCatalog;
 import io.teaql.core.i18n.Locale;
 import io.teaql.core.businessid.BusinessClock;
+import io.teaql.core.businessid.BusinessIdSchemaContributor;
 import io.teaql.core.businessid.BusinessIdService;
 
 public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
@@ -52,6 +53,11 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
             throw new TeaQLRuntimeException("Schema capability is not configured in this UserContext");
         }
         schema.ensureSchema(this, SchemaExecutor.Invocation.contextOwned());
+        BusinessIdSchemaContributor businessIdSchema =
+                capability(BusinessIdSchemaContributor.class);
+        if (businessIdSchema != null) {
+            businessIdSchema.ensureSchema(this);
+        }
         GeneratedSchemaBootstrap bootstrap = capability(GeneratedSchemaBootstrap.class);
         if (bootstrap != null) {
             Object previousActor = getAttribute(GeneratedSchemaBootstrap.AUDIT_ACTOR_ATTRIBUTE);
