@@ -12,6 +12,7 @@ module io.teaql.core {
     exports io.teaql.core.parser;
     exports io.teaql.core.value;
     exports io.teaql.core.spi;
+    exports io.teaql.core.businessid;
     
     uses io.teaql.core.spi.ContextAssembler;
     uses io.teaql.core.spi.RemoteCacheProvider;
