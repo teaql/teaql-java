@@ -4,7 +4,7 @@ set -euo pipefail
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 verification_dir="$(mktemp -d)"
 trap 'rm -rf -- "$verification_dir"' EXIT
-expected=(conformance order-management school-management)
+expected=(business-id-runtime conformance order-management school-management)
 mapfile -t actual < <(find "$repo/examples" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
 if [[ "${actual[*]}" != "${expected[*]}" ]]; then
   echo "example inventory changed; update scripts/verify-examples.sh: ${actual[*]}" >&2
@@ -13,6 +13,8 @@ fi
 
 cd "$repo"
 mvn -q -DskipTests install
+mvn -q -pl examples/business-id-runtime \
+  -Dtest=BusinessIdRuntimeExampleTest test
 mvn -q -f examples/conformance/lib/pom.xml install -DskipTests
 mvn -q -f examples/conformance/pom.xml spring-boot:run \
   -Dspring-boot.run.arguments="--spring.main.web-application-type=none --spring.datasource.url=jdbc:sqlite:$verification_dir/conformance.db"
