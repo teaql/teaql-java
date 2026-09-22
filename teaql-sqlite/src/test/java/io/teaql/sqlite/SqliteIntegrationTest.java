@@ -10,7 +10,6 @@ import io.teaql.core.sqlite.SqliteDataServiceExecutor;
 import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import io.teaql.dataservice.sql.SqlDataServiceExecutor;
 import io.teaql.runtime.DefaultUserContext;
-import io.teaql.runtime.DefaultTextRuntimeLogSink;
 import io.teaql.runtime.RuntimeLogSink;
 import io.teaql.runtime.TeaQLRuntime;
 
@@ -20,8 +19,6 @@ import org.junit.Test;
 
 import javax.sql.DataSource;
 import java.io.PrintWriter;
-import java.io.PrintStream;
-import java.io.OutputStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -42,11 +39,15 @@ public class SqliteIntegrationTest {
     @Test
     public void ordinarySqlLogsSkipSensitivePayloadConstruction() {
         List<ExecutionMetadata> safeLogs = new ArrayList<>();
-        RuntimeLogSink safeSink = new DefaultTextRuntimeLogSink(
-                new PrintStream(OutputStream.nullOutputStream())) {
+        RuntimeLogSink safeSink = new RuntimeLogSink() {
             @Override
             public void writeExecutionLog(UserContext context, ExecutionMetadata metadata) {
                 safeLogs.add(metadata);
+            }
+
+            @Override
+            public boolean requiresSensitiveSqlData() {
+                return false;
             }
         };
         executeLoggedQueryAndMutation(safeSink);
