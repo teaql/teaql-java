@@ -11,7 +11,6 @@ import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import io.teaql.runtime.DefaultUserContext;
 import io.teaql.runtime.TeaQLRuntime;
 
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -127,15 +126,22 @@ public class MysqlIntegrationTest {
 
     @BeforeClass
     public static void setup() throws Exception {
-        // Use local mysql instance running on port 3306
-        String url = "jdbc:mysql://127.0.0.1:3306/teaql_test?createDatabaseIfNotExist=true&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true";
-        String user = "root";
-        String password = "0254891276";
+        String url = System.getenv("TEAQL_TEST_MYSQL_URL");
+        String user = System.getenv("TEAQL_TEST_MYSQL_USER");
+        String password = System.getenv("TEAQL_TEST_MYSQL_PASSWORD");
+        boolean required = Boolean.parseBoolean(System.getenv("TEAQL_REQUIRE_LIVE_DB"));
+        if (url == null || user == null || password == null) {
+            if (required) fail("MySQL live gate requires URL, USER, and PASSWORD environment variables");
+            org.junit.Assume.assumeTrue("MySQL live test is not configured", false);
+        }
+        assertTrue("Use a dedicated teaql_live_* MySQL database for this test",
+                url.matches("jdbc:mysql://[^/]+/teaql_live_[A-Za-z0-9_]+(\\?.*)?"));
 
         try (Connection conn = DriverManager.getConnection(url, user, password)) {
-            org.junit.Assume.assumeTrue("MySQL is reachable", true);
+            // A successful connection is required before any schema mutation.
         } catch (SQLException e) {
-            org.junit.Assume.assumeTrue("Skipping MySQL tests because MySQL is not reachable on " + url, false);
+            if (required) throw new AssertionError("MySQL live gate cannot connect to " + url, e);
+            org.junit.Assume.assumeTrue("MySQL is not reachable on " + url, false);
         }
 
         SimpleEntityMetaFactory metaFactory = new SimpleEntityMetaFactory();
@@ -154,14 +160,13 @@ public class MysqlIntegrationTest {
         titleProp.setColumnType("VARCHAR(200)");
         io.teaql.core.sql.GenericSQLProperty statusProp = (io.teaql.core.sql.GenericSQLProperty) taskDescriptor.addSimpleProperty("status", String.class);
         statusProp.setColumnType("VARCHAR(50)");
-        
-        taskDescriptor.with("table_name", "task_data");
+
         metaFactory.register(taskDescriptor);
         EntityMetaFactory.registerGlobal(metaFactory);
 
         DataSource ds = new SimpleDataSource(url, user, password);
-        JdbcSqlExecutor jdbcSqlExecutor = new JdbcSqlExecutor(ds);
-        MysqlDataServiceExecutor mysqlExecutor = new MysqlDataServiceExecutor("mysql", jdbcSqlExecutor, ds);
+        JdbcSqlExecutor sqlExecutor = new JdbcSqlExecutor(ds);
+        MysqlDataServiceExecutor mysqlExecutor = new MysqlDataServiceExecutor("mysql", sqlExecutor, ds);
 
         AtomicLong idGen = new AtomicLong(2);
         InternalIdGenerationService idService = (c, entity) -> idGen.getAndIncrement();
@@ -174,20 +179,8 @@ public class MysqlIntegrationTest {
         
         context = new DefaultUserContext(runtime);
 
-        // Drop existing tables for clean test state
-        try {
-            jdbcSqlExecutor.execute("DROP TABLE IF EXISTS task_data");
-            jdbcSqlExecutor.execute("DROP TABLE IF EXISTS teaql_id_space");
-        } catch (Exception e) {
-            // ignore
-        }
-
         // Ensure Schema
         context.ensureSchema();
-    }
-
-    @AfterClass
-    public static void teardown() {
     }
 
     @Test

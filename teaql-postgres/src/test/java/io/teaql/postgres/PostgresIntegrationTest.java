@@ -11,7 +11,6 @@ import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import io.teaql.runtime.DefaultUserContext;
 import io.teaql.runtime.TeaQLRuntime;
 
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -127,15 +126,22 @@ public class PostgresIntegrationTest {
 
     @BeforeClass
     public static void setup() throws Exception {
-        // Use local postgres instance running on port 5433
-        String url = "jdbc:postgresql://127.0.0.1:5433/teaql_test";
-        String user = "postgres";
-        String password = "postgres";
+        String url = System.getenv("TEAQL_TEST_POSTGRES_URL");
+        String user = System.getenv("TEAQL_TEST_POSTGRES_USER");
+        String password = System.getenv("TEAQL_TEST_POSTGRES_PASSWORD");
+        boolean required = Boolean.parseBoolean(System.getenv("TEAQL_REQUIRE_LIVE_DB"));
+        if (url == null || user == null || password == null) {
+            if (required) fail("PostgreSQL live gate requires URL, USER, and PASSWORD environment variables");
+            org.junit.Assume.assumeTrue("PostgreSQL live test is not configured", false);
+        }
+        assertTrue("Use a dedicated teaql_live_* PostgreSQL database for this test",
+                url.matches("jdbc:postgresql://[^/]+/teaql_live_[A-Za-z0-9_]+(\\?.*)?"));
 
         try (Connection conn = DriverManager.getConnection(url, user, password)) {
-            org.junit.Assume.assumeTrue("Postgres is reachable", true);
+            // A successful connection is required before any schema mutation.
         } catch (SQLException e) {
-            org.junit.Assume.assumeTrue("Skipping Postgres tests because Postgres is not reachable on " + url, false);
+            if (required) throw new AssertionError("PostgreSQL live gate cannot connect to " + url, e);
+            org.junit.Assume.assumeTrue("PostgreSQL is not reachable on " + url, false);
         }
 
         SimpleEntityMetaFactory metaFactory = new SimpleEntityMetaFactory();
@@ -154,14 +160,13 @@ public class PostgresIntegrationTest {
         titleProp.setColumnType("VARCHAR(200)");
         io.teaql.core.sql.GenericSQLProperty statusProp = (io.teaql.core.sql.GenericSQLProperty) taskDescriptor.addSimpleProperty("status", String.class);
         statusProp.setColumnType("VARCHAR(50)");
-        
-        taskDescriptor.with("table_name", "task_data");
+
         metaFactory.register(taskDescriptor);
         EntityMetaFactory.registerGlobal(metaFactory);
 
         DataSource ds = new SimpleDataSource(url, user, password);
-        JdbcSqlExecutor jdbcSqlExecutor = new JdbcSqlExecutor(ds);
-        io.teaql.core.postgres.PostgresDataServiceExecutor postgresExecutor = new io.teaql.core.postgres.PostgresDataServiceExecutor("postgres", jdbcSqlExecutor);
+        JdbcSqlExecutor sqlExecutor = new JdbcSqlExecutor(ds);
+        io.teaql.core.postgres.PostgresDataServiceExecutor postgresExecutor = new io.teaql.core.postgres.PostgresDataServiceExecutor("postgres", sqlExecutor);
 
         AtomicLong idGen = new AtomicLong(2);
         InternalIdGenerationService idService = (c, entity) -> idGen.getAndIncrement();
@@ -174,20 +179,8 @@ public class PostgresIntegrationTest {
         
         context = new DefaultUserContext(runtime);
 
-        // Drop existing tables for clean test state
-        try {
-            jdbcSqlExecutor.execute("DROP TABLE IF EXISTS task_data");
-            jdbcSqlExecutor.execute("DROP TABLE IF EXISTS teaql_id_space");
-        } catch (Exception e) {
-            // ignore
-        }
-
         // Ensure Schema
         context.ensureSchema();
-    }
-
-    @AfterClass
-    public static void teardown() {
     }
 
     @Test
