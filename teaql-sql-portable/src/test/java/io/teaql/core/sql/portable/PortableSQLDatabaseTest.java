@@ -79,6 +79,7 @@ public class PortableSQLDatabaseTest {
             appendSearchCriteria(createBasicSearchCriteria(field, op, values));
             return this;
         }
+        public TopNChildRequest comment(String value) { super.internalComment(value); return this; }
     }
 
     // ── Stub Entity and Request ──────────────────────────
@@ -221,6 +222,8 @@ public class PortableSQLDatabaseTest {
     @Test
     public void TOPN_012_canonicalRelationIndexEnsureIsIdempotentOnSQLite() {
         registerTopNFixture();
+        sqliteDb.execute("DROP INDEX idx_top_n_child_data_parent_id");
+        sqliteDb.clearExecuteTrace();
         sqlDataService.ensureSchema(context, "TopNChild");
         sqlDataService.ensureSchema(context, "TopNChild");
 
@@ -229,6 +232,72 @@ public class PortableSQLDatabaseTest {
                         + "AND tbl_name='top_n_child_data' AND sql LIKE '%parent%id DESC%'",
                 new Object[0]);
         assertEquals(1, indexes.size());
+        assertEquals(1, sqliteDb.executeTrace().stream()
+                .filter(sql -> sql.startsWith("CREATE INDEX") && sql.contains("top_n_child_data"))
+                .count());
+    }
+
+    @Test
+    public void TOPN_013_canonicalRelationIndexOnlyIgnoresKnownDuplicateRace() {
+        registerTopNFixture();
+        SQLException[] ddlFailure = {new SQLException(
+                "[SQLITE_ERROR] index idx_top_n_child_data_parent_id already exists", null, 1)};
+        boolean[] authoritativeIndexAbsent = {false};
+        TeaQLDatabase schemaFailureDatabase = new TeaQLDatabase() {
+            @Override public List<Map<String, Object>> query(String sql, Object[] args) {
+                return sqliteDb.query(sql, args);
+            }
+            @Override public int executeUpdate(String sql, Object[] args) {
+                return sqliteDb.executeUpdate(sql, args);
+            }
+            @Override public int[] batchUpdate(String sql, List<Object[]> args) {
+                return sqliteDb.batchUpdate(sql, args);
+            }
+            @Override public void execute(String sql) {
+                if (sql.startsWith("CREATE INDEX")) {
+                    throw new RuntimeException(ddlFailure[0]);
+                }
+                sqliteDb.execute(sql);
+            }
+            @Override public void executeInTransaction(Runnable action) {
+                sqliteDb.executeInTransaction(action);
+            }
+            @Override public List<Map<String, Object>> getTableColumns(String tableName) {
+                return sqliteDb.getTableColumns(tableName);
+            }
+            @Override public Optional<Boolean> indexExists(
+                    UserContext context, String tableName, String indexName) {
+                return authoritativeIndexAbsent[0] ? Optional.of(false) : Optional.empty();
+            }
+        };
+
+        EntityDescriptor child = metaFactory.resolveEntityDescriptor("TopNChild");
+        PortableSQLRepository<?> repository =
+                new PortableSQLRepository<>(child, schemaFailureDatabase, null);
+        repository.ensurePhysicalSchema(context);
+
+        ddlFailure[0] = new SQLException("permission denied for schema public", "42501", 0);
+        try {
+            repository.ensurePhysicalSchema(context);
+            fail("A relation-index permission failure must fail schema reconciliation");
+        } catch (IllegalStateException failure) {
+            assertTrue(failure.getMessage().contains("TopNChild"));
+            assertTrue(failure.getMessage().contains("top_n_child_data"));
+            assertTrue(failure.getMessage().contains("idx_top_n_child_data_parent_id"));
+            assertEquals("42501", ((SQLException) failure.getCause().getCause()).getSQLState());
+        }
+
+        // PostgreSQL 42P07 can also mean an index with this name exists on another table.
+        // The target-table catalog lookup is authoritative, so this is not an idempotent race.
+        authoritativeIndexAbsent[0] = true;
+        ddlFailure[0] = new SQLException("relation already exists", "42P07", 0);
+        try {
+            repository.ensurePhysicalSchema(context);
+            fail("A duplicate index name on another table must fail schema reconciliation");
+        } catch (IllegalStateException failure) {
+            assertTrue(failure.getMessage().contains("TopNChild"));
+            assertEquals("42P07", ((SQLException) failure.getCause().getCause()).getSQLState());
+        }
     }
 
     private Map<Long, List<Long>> loadTopNFixture(Integer threshold) {
@@ -299,6 +368,37 @@ public class PortableSQLDatabaseTest {
                 + "(11,1,'same','visible',1),(12,1,'same','visible',1),(13,1,'same','visible',1),"
                 + "(14,1,'hidden','hidden',1),(21,1,'same','visible',2),(22,1,'same','visible',2),"
                 + "(23,1,'same','visible',2)");
+    }
+
+    @Test
+    public void streamRelationHydrationMustFailRatherThanReturnPartialEntity() {
+        registerTopNFixture();
+        EntityDescriptor child = metaFactory.resolveEntityDescriptor("TopNChild");
+        SimpleEntityMetaFactory incompleteMetadata = new SimpleEntityMetaFactory();
+        incompleteMetadata.register(child);
+        PortableSQLRepository<TopNChild> incompleteRepository =
+                new PortableSQLRepository<>(child, sqliteDb, null, incompleteMetadata);
+
+        TopNChildRequest request = new TopNChildRequest()
+                .where("id", Operator.EQUAL, 11L)
+                .comment("load child and its parent through the stream mapper");
+        request.purpose("verify relation hydration failure is visible to callers");
+        try (var rows = incompleteRepository.streamInternal(context, request)) {
+            rows.findFirst();
+            fail("A selected relation must not disappear when its descriptor is unavailable");
+        } catch (TeaQLRuntimeException failure) {
+            assertTrue(failure.getMessage(), failure.getMessage().contains("TopNChild.parent"));
+            assertTrue(failure.getCause() instanceof IllegalStateException);
+        }
+
+        PortableSQLRepository<TopNChild> completeRepository =
+                new PortableSQLRepository<>(child, sqliteDb, null, metaFactory);
+        try (var rows = completeRepository.streamInternal(context, request)) {
+            TopNChild hydrated = rows.findFirst().orElseThrow();
+            TopNParent parent = hydrated.getProperty("parent");
+            assertNotNull(parent);
+            assertEquals(1L, parent.getId().longValue());
+        }
     }
 
     @Test
@@ -795,6 +895,7 @@ public class PortableSQLDatabaseTest {
     public static class SQLiteTeaQLDatabase implements TeaQLDatabase {
         private final Connection connection;
         private final List<String> queryTrace = new ArrayList<>();
+        private final List<String> executeTrace = new ArrayList<>();
 
         public SQLiteTeaQLDatabase() throws Exception {
             this.connection = DriverManager.getConnection("jdbc:sqlite::memory:");
@@ -826,12 +927,26 @@ public class PortableSQLDatabaseTest {
             return results;
         }
 
+        @Override
+        public java.util.stream.Stream<Map<String, Object>> queryForStream(
+                UserContext userContext, String sql, Object[] args) {
+            return query(userContext, sql, args).stream();
+        }
+
         public void clearQueryTrace() {
             queryTrace.clear();
         }
 
         public List<String> queryTrace() {
             return List.copyOf(queryTrace);
+        }
+
+        public void clearExecuteTrace() {
+            executeTrace.clear();
+        }
+
+        public List<String> executeTrace() {
+            return List.copyOf(executeTrace);
         }
 
         @Override
@@ -865,6 +980,7 @@ public class PortableSQLDatabaseTest {
 
         @Override
         public void execute(String sql) {
+            executeTrace.add(sql);
             try (Statement stmt = connection.createStatement()) {
                 stmt.execute(sql);
             } catch (SQLException e) {
@@ -918,6 +1034,16 @@ public class PortableSQLDatabaseTest {
                 // table doesn't exist yet
             }
             return columns;
+        }
+
+        @Override
+        public Optional<Boolean> indexExists(
+                UserContext context, String tableName, String indexName) {
+            List<Map<String, Object>> indexes = query(
+                    "SELECT 1 AS present FROM sqlite_master "
+                            + "WHERE type = 'index' AND tbl_name = ? AND name = ? LIMIT 1",
+                    new Object[] {tableName, indexName});
+            return Optional.of(!indexes.isEmpty());
         }
     }
 

@@ -14,6 +14,7 @@ import javax.sql.DataSource;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
 
@@ -77,6 +78,16 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
                 } catch (Exception e) {
                     return Collections.emptyList();
                 }
+            }
+
+            @Override
+            public Optional<Boolean> indexExists(
+                    UserContext context, String tableName, String indexName) {
+                List<Map<String, Object>> rows = getExecutionAdapter().queryForList(
+                        "SELECT 1 AS present FROM sqlite_master "
+                                + "WHERE type = 'index' AND tbl_name = ? AND name = ? LIMIT 1",
+                        new Object[] {tableName, indexName});
+                return Optional.of(!rows.isEmpty());
             }
         };
 

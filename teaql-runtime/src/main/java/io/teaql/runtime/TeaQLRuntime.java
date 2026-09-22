@@ -75,6 +75,10 @@ public class TeaQLRuntime {
 
     public boolean isMutationExecutionLoggingEnabled() { return mutationExecutionLoggingEnabled; }
 
+    public boolean requiresSensitiveSqlLogData() {
+        return logSink != null && logSink.requiresSensitiveSqlData();
+    }
+
     public RuntimeTelemetry getTelemetry() {
         return telemetry;
     }
