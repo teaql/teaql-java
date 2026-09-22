@@ -3,6 +3,8 @@ package io.teaql.mysql;
 import io.teaql.core.*;
 import io.teaql.core.criteria.Operator;
 import io.teaql.core.sql.SQLEntityDescriptor;
+import io.teaql.core.sql.portable.IdSpaceIdGenerator;
+import io.teaql.core.sql.portable.TeaQLDatabase;
 import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.PropertyDescriptor;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
@@ -22,7 +24,11 @@ import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.Collections;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.logging.Logger;
 
 import static org.junit.Assert.*;
@@ -31,6 +37,37 @@ public class MysqlIntegrationTest {
 
     private static UserContext context;
     private static TeaQLRuntime runtime;
+    private static DataSource dataSource;
+
+    private static final class JdbcTeaQLDatabase implements TeaQLDatabase {
+        private final JdbcSqlExecutor executor;
+
+        private JdbcTeaQLDatabase(DataSource dataSource) {
+            this.executor = new JdbcSqlExecutor(dataSource);
+        }
+
+        @Override public List<java.util.Map<String, Object>> query(String sql, Object[] args) {
+            return executor.queryForList(sql, args);
+        }
+
+        @Override public int executeUpdate(String sql, Object[] args) {
+            return executor.update(sql, args);
+        }
+
+        @Override public int[] batchUpdate(String sql, List<Object[]> args) {
+            return executor.batchUpdate(sql, args);
+        }
+
+        @Override public void execute(String sql) { executor.execute(sql); }
+
+        @Override public void executeInTransaction(Runnable action) {
+            executor.executeInTransaction(action);
+        }
+
+        @Override public List<java.util.Map<String, Object>> getTableColumns(String tableName) {
+            throw new UnsupportedOperationException("Schema inspection belongs to the dialect executor");
+        }
+    }
 
     public static class Task extends BaseEntity {
         public String title;
@@ -164,23 +201,50 @@ public class MysqlIntegrationTest {
         metaFactory.register(taskDescriptor);
         EntityMetaFactory.registerGlobal(metaFactory);
 
-        DataSource ds = new SimpleDataSource(url, user, password);
-        JdbcSqlExecutor sqlExecutor = new JdbcSqlExecutor(ds);
-        MysqlDataServiceExecutor mysqlExecutor = new MysqlDataServiceExecutor("mysql", sqlExecutor, ds);
-
-        AtomicLong idGen = new AtomicLong(2);
-        InternalIdGenerationService idService = (c, entity) -> idGen.getAndIncrement();
+        dataSource = new SimpleDataSource(url, user, password);
+        JdbcSqlExecutor sqlExecutor = new JdbcSqlExecutor(dataSource);
+        MysqlDataServiceExecutor mysqlExecutor = new MysqlDataServiceExecutor("mysql", sqlExecutor, dataSource);
+        IdSpaceIdGenerator idGenerator = new IdSpaceIdGenerator(new JdbcTeaQLDatabase(dataSource));
+        idGenerator.ensureIdSpaceTable();
 
         runtime = TeaQLRuntime.builder()
                 .metadata(metaFactory)
                 .dataService("mysql", mysqlExecutor)
-                .idGenerationService(idService)
+                .idGenerationService(idGenerator)
                 .build();
         
         context = new DefaultUserContext(runtime);
 
         // Ensure Schema
         context.ensureSchema();
+    }
+
+    @Test
+    public void testPortableIdGeneratorAcrossConcurrentInstancesAndRestart() throws Exception {
+        String typeName = "MysqlLiveIdProbe";
+        IdSpaceIdGenerator first = new IdSpaceIdGenerator(new JdbcTeaQLDatabase(dataSource));
+        long baseline = first.nextId(typeName);
+
+        ExecutorService pool = Executors.newFixedThreadPool(4);
+        try {
+            List<Callable<Long>> allocations = new ArrayList<>();
+            for (int i = 0; i < 40; i++) {
+                allocations.add(() -> new IdSpaceIdGenerator(
+                        new JdbcTeaQLDatabase(dataSource)).nextId(typeName));
+            }
+            List<Future<Long>> futures = pool.invokeAll(allocations);
+            List<Long> ids = new ArrayList<>();
+            for (Future<Long> future : futures) ids.add(future.get());
+            Collections.sort(ids);
+            for (int i = 0; i < ids.size(); i++) {
+                assertEquals(baseline + i + 1L, ids.get(i).longValue());
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+
+        assertEquals(baseline + 41L,
+                new IdSpaceIdGenerator(new JdbcTeaQLDatabase(dataSource)).nextId(typeName));
     }
 
     @Test

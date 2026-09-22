@@ -215,8 +215,11 @@ mvn -pl teaql-postgres,teaql-mysql -am \
   -Dsurefire.failIfNoSpecifiedTests=false test
 ```
 
-The tests create `task_data` and `teaql_id_space` within those isolated
-databases; dispose of the databases after the run.
+The tests create `task_data`, `context_probe_data`, and `teaql_id_space` within
+those isolated databases. In addition to schema and CRUD behavior, each dialect
+uses the production `IdSpaceIdGenerator` for entity saves and verifies 40
+contended allocations across four independent generator instances followed by
+restart continuity. Dispose of the databases after the run.
 
 ## Documentation
 
