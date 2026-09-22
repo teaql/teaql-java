@@ -131,6 +131,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     private final EntityDescriptor entityDescriptor;
     private final TeaQLDatabase database;
+    private final EntityMetaFactory metadata;
     private String childType = "_child_type";
     private String childSqlType = "VARCHAR(100)";
     private String tqlIdSpaceTable = "teaql_id_space";
@@ -167,9 +168,18 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     public PortableSQLRepository(EntityDescriptor entityDescriptor, TeaQLDatabase database, PortableSQLRepositoryResolver resolver) {
+        this(entityDescriptor, database, resolver, null);
+    }
+
+    public PortableSQLRepository(
+            EntityDescriptor entityDescriptor,
+            TeaQLDatabase database,
+            PortableSQLRepositoryResolver resolver,
+            EntityMetaFactory metadata) {
         this.entityDescriptor = entityDescriptor;
         this.database = database;
         this.resolver = resolver;
+        this.metadata = metadata;
         initSQLMeta(entityDescriptor);
         initExpressionParsers();
     }
@@ -1134,9 +1144,9 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         if (entityDescriptor.getTargetType() == entityType) {
             return entityDescriptor;
         }
-        EntityMetaFactory metadata = EntityMetaFactory.get();
-        if (metadata != null) {
-            for (EntityDescriptor descriptor : metadata.allEntityDescriptors()) {
+        EntityMetaFactory descriptorSource = metadata != null ? metadata : EntityMetaFactory.get();
+        if (descriptorSource != null) {
+            for (EntityDescriptor descriptor : descriptorSource.allEntityDescriptors()) {
                 if (descriptor.getTargetType() == entityType) {
                     return descriptor;
                 }

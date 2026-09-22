@@ -204,6 +204,21 @@ public class PortableSQLDatabaseTest {
     }
 
     @Test
+    public void TOPN_009_relationHydrationUsesServiceMetadataWithoutGlobalRegistry() {
+        registerTopNFixture();
+        EntityMetaFactory previous = EntityMetaFactory.get();
+        try {
+            EntityMetaFactory.registerGlobal(null);
+            Map<Long, List<Long>> rows = loadTopNFixture(3);
+            assertEquals(List.of(11L, 12L), rows.get(1L));
+            assertEquals(List.of(21L, 22L), rows.get(2L));
+            assertEquals(List.of(), rows.get(3L));
+        } finally {
+            EntityMetaFactory.registerGlobal(previous);
+        }
+    }
+
+    @Test
     public void TOPN_012_canonicalRelationIndexEnsureIsIdempotentOnSQLite() {
         registerTopNFixture();
         sqlDataService.ensureSchema(context, "TopNChild");
