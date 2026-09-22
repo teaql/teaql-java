@@ -92,6 +92,23 @@ Applications can replace runtime services such as `RequestPolicy`,
 `RuntimeLogSink`, `DataServiceRegistry`, `InternalIdGenerationService`, and
 `EntityMetaFactory` in their integration layer.
 
+Query and Mutation execution logs are enabled by default. The built-in default
+sink is safe for ordinary operator output: it includes intent, trace, elapsed
+time, outcome, and parameterized SQL, but excludes bind values and rendered
+Debug SQL. Enable copy/paste SQL only for a controlled troubleshooting surface:
+
+```java
+TeaQLRuntime runtime = TeaQLRuntime.builder()
+    .metadata(metadata)
+    .queryExecutionLogging(true)
+    .mutationExecutionLogging(true)
+    .diagnosticSqlLogging(true) // values and Debug SQL; apply restricted retention
+    .build();
+```
+
+The Query and Mutation switches remain independent. Selecting diagnostic SQL
+changes the built-in destination; it does not enable or disable either family.
+
 ## Choose Modules
 
 Most applications need the core runtime, one data-access path, and one database
