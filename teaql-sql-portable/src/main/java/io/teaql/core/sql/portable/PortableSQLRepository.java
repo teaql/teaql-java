@@ -1367,7 +1367,17 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 try {
                     database.execute(context, sql);
                 } catch (Exception failure) {
-                    if (SchemaExceptionClassifier.isDuplicateIndex(failure)) continue;
+                    if (SchemaExceptionClassifier.isDuplicateIndex(failure)) {
+                        try {
+                            // PostgreSQL index names are schema-wide. A duplicate name on a
+                            // different table must not be mistaken for this index being present.
+                            if (database.indexExists(context, table, indexName).orElse(true)) {
+                                continue;
+                            }
+                        } catch (Exception inspectionFailure) {
+                            failure.addSuppressed(inspectionFailure);
+                        }
+                    }
                     throw canonicalRelationIndexFailure("create", table, indexName, failure);
                 }
             }

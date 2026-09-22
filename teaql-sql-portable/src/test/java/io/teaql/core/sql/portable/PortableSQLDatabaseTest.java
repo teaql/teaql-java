@@ -226,6 +226,7 @@ public class PortableSQLDatabaseTest {
         registerTopNFixture();
         SQLException[] ddlFailure = {new SQLException(
                 "[SQLITE_ERROR] index idx_top_n_child_data_parent_id already exists", null, 1)};
+        boolean[] authoritativeIndexAbsent = {false};
         TeaQLDatabase schemaFailureDatabase = new TeaQLDatabase() {
             @Override public List<Map<String, Object>> query(String sql, Object[] args) {
                 return sqliteDb.query(sql, args);
@@ -248,6 +249,10 @@ public class PortableSQLDatabaseTest {
             @Override public List<Map<String, Object>> getTableColumns(String tableName) {
                 return sqliteDb.getTableColumns(tableName);
             }
+            @Override public Optional<Boolean> indexExists(
+                    UserContext context, String tableName, String indexName) {
+                return authoritativeIndexAbsent[0] ? Optional.of(false) : Optional.empty();
+            }
         };
 
         EntityDescriptor child = metaFactory.resolveEntityDescriptor("TopNChild");
@@ -264,6 +269,18 @@ public class PortableSQLDatabaseTest {
             assertTrue(failure.getMessage().contains("top_n_child_data"));
             assertTrue(failure.getMessage().contains("idx_top_n_child_data_parent_id"));
             assertEquals("42501", ((SQLException) failure.getCause().getCause()).getSQLState());
+        }
+
+        // PostgreSQL 42P07 can also mean an index with this name exists on another table.
+        // The target-table catalog lookup is authoritative, so this is not an idempotent race.
+        authoritativeIndexAbsent[0] = true;
+        ddlFailure[0] = new SQLException("relation already exists", "42P07", 0);
+        try {
+            repository.ensurePhysicalSchema(context);
+            fail("A duplicate index name on another table must fail schema reconciliation");
+        } catch (IllegalStateException failure) {
+            assertTrue(failure.getMessage().contains("TopNChild"));
+            assertEquals("42P07", ((SQLException) failure.getCause().getCause()).getSQLState());
         }
     }
 
