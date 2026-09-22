@@ -3,6 +3,16 @@ package io.teaql.dataservice.sql;
 import io.teaql.core.UserContext;
 import io.teaql.core.MutationRequest;
 import io.teaql.core.QueryRequest;
+import io.teaql.core.BaseEntity;
+import io.teaql.core.BaseRequest;
+import io.teaql.core.meta.EntityDescriptor;
+import io.teaql.core.meta.EntityMetaFactory;
+import io.teaql.core.meta.SimpleEntityMetaFactory;
+import io.teaql.core.meta.SimplePropertyType;
+import io.teaql.core.sql.GenericSQLProperty;
+import io.teaql.runtime.DefaultQueryRequest;
+import io.teaql.runtime.DefaultUserContext;
+import io.teaql.runtime.TeaQLRuntime;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.Assert;
@@ -50,6 +60,61 @@ public class SqlDataServiceExecutorTest {
         Assert.assertThrows(io.teaql.core.TeaQLRuntimeException.class, () -> {
             executor.mutate(null, new MutationRequest() {});
         });
+    }
+
+    @Test
+    public void portableServiceIsScopedByInvokingContextMetadata() {
+        EntityMetaFactory previous = EntityMetaFactory.get();
+        try {
+            EntityMetaFactory.registerGlobal(null);
+            UserContext alphaContext = contextFor(metadataFor("alpha_task_data"));
+            UserContext betaContext = contextFor(metadataFor("beta_task_data"));
+
+            executor.query(alphaContext, new DefaultQueryRequest(new ScopedTaskRequest()));
+            assertTrue(mockAdapter.lastSql, mockAdapter.lastSql.contains("alpha_task_data"));
+
+            executor.query(betaContext, new DefaultQueryRequest(new ScopedTaskRequest()));
+            assertTrue(mockAdapter.lastSql, mockAdapter.lastSql.contains("beta_task_data"));
+
+            executor.query(alphaContext, new DefaultQueryRequest(new ScopedTaskRequest()));
+            assertTrue(mockAdapter.lastSql, mockAdapter.lastSql.contains("alpha_task_data"));
+        } finally {
+            EntityMetaFactory.registerGlobal(previous);
+        }
+    }
+
+    private UserContext contextFor(EntityMetaFactory metadata) {
+        return new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata).build());
+    }
+
+    private SimpleEntityMetaFactory metadataFor(String tableName) {
+        SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
+        EntityDescriptor descriptor = new EntityDescriptor();
+        descriptor.setType("ScopedTask");
+        descriptor.setTargetType(ScopedTask.class);
+        descriptor.setEntitySupplier(ScopedTask::new);
+        descriptor.setDataService("sql");
+        GenericSQLProperty id = new GenericSQLProperty(tableName, "id", "BIGINT");
+        id.setName("id");
+        id.setOwner(descriptor);
+        id.setType(new SimplePropertyType(Long.class));
+        GenericSQLProperty version =
+                new GenericSQLProperty(tableName, "version", "BIGINT");
+        version.setName("version");
+        version.setOwner(descriptor);
+        version.setType(new SimplePropertyType(Long.class));
+        descriptor.setProperties(List.of(id, version));
+        metadata.register(descriptor);
+        return metadata;
+    }
+
+    public static class ScopedTask extends BaseEntity {
+        @Override public String typeName() { return "ScopedTask"; }
+    }
+
+    public static class ScopedTaskRequest extends BaseRequest<ScopedTask> {
+        public ScopedTaskRequest() { super(ScopedTask.class); }
+        @Override public String getTypeName() { return "ScopedTask"; }
     }
 
     @Test
@@ -124,6 +189,14 @@ public class SqlDataServiceExecutorTest {
 
         @Override
         public List<Map<String, Object>> queryForList(String sql, Object[] params) {
+            this.lastSql = sql;
+            return Collections.emptyList();
+        }
+
+        @Override
+        public <T extends io.teaql.core.Entity> List<T> query(
+                String sql, Object[] params, io.teaql.core.CompiledRowMapper<T> rowMapper) {
+            this.lastSql = sql;
             return Collections.emptyList();
         }
 

@@ -48,22 +48,22 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
 
     @Override
     public QueryResult query(UserContext context, QueryRequest request) {
-        return getPortableService().query(context, request);
+        return getPortableService(context).query(context, request);
     }
 
     @Override
     public <T extends io.teaql.core.Entity> java.util.stream.Stream<T> queryForStream(UserContext context, io.teaql.core.SearchRequest<T> request) {
-        return getPortableService().queryForStream(context, request);
+        return getPortableService(context).queryForStream(context, request);
     }
 
     @Override
     public MutationResult mutate(UserContext context, MutationRequest request) {
-        return getPortableService().mutate(context, request);
+        return getPortableService(context).mutate(context, request);
     }
 
     @Override
     public <T> T executeInTransaction(UserContext context, TransactionCallback<T> action) {
-        return getPortableService().executeInTransaction(context, action);
+        return getPortableService(context).executeInTransaction(context, action);
     }
 
     @Override
@@ -98,12 +98,37 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
         return executionAdapter;
     }
 
-    // Lazy load the portable service
-    private io.teaql.core.sql.portable.PortableSQLDataService portableService;
+    // The common one-runtime-per-executor path is lock-free after first use. The identity map
+    // preserves isolation when an application deliberately shares one executor across runtimes.
+    private volatile io.teaql.core.meta.EntityMetaFactory primaryMetadata;
+    private volatile io.teaql.core.sql.portable.PortableSQLDataService primaryPortableService;
+    private final java.util.Map<io.teaql.core.meta.EntityMetaFactory,
+            io.teaql.core.sql.portable.PortableSQLDataService> secondaryPortableServices =
+            new java.util.IdentityHashMap<>();
 
-    private synchronized io.teaql.core.sql.portable.PortableSQLDataService getPortableService() {
-        if (portableService == null) {
-            io.teaql.core.sql.portable.TeaQLDatabase dbAdapter = new io.teaql.core.sql.portable.TeaQLDatabase() {
+    private io.teaql.core.sql.portable.PortableSQLDataService getPortableService(UserContext context) {
+        io.teaql.core.meta.EntityMetaFactory metadata =
+                io.teaql.core.meta.EntityMetaFactory.requireFrom(context);
+        io.teaql.core.sql.portable.PortableSQLDataService primary = primaryPortableService;
+        if (primary != null && primaryMetadata == metadata) return primary;
+        synchronized (this) {
+            primary = primaryPortableService;
+            if (primary != null && primaryMetadata == metadata) return primary;
+            if (primary == null) {
+                primary = createPortableService(metadata);
+                primaryMetadata = metadata;
+                primaryPortableService = primary;
+                return primary;
+            }
+            return secondaryPortableServices.computeIfAbsent(
+                    metadata, this::createPortableService);
+        }
+    }
+
+    private io.teaql.core.sql.portable.PortableSQLDataService createPortableService(
+            io.teaql.core.meta.EntityMetaFactory metadata) {
+        io.teaql.core.sql.portable.TeaQLDatabase dbAdapter =
+                new io.teaql.core.sql.portable.TeaQLDatabase() {
                 @Override
                 public boolean supportsCompiledRowMapping() {
                     return true;
@@ -255,10 +280,10 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     context.recordExecutionMetadata(meta);
                 }
             };
-            portableService = new io.teaql.core.sql.portable.PortableSQLDataService(name, dbAdapter, io.teaql.core.meta.EntityMetaFactory.get());
-            portableService.setDialect(this.dialect);
-            portableService.setTopNRelationPlanPolicy(this.topNRelationPlanPolicy);
-        }
+        io.teaql.core.sql.portable.PortableSQLDataService portableService =
+                new io.teaql.core.sql.portable.PortableSQLDataService(name, dbAdapter, metadata);
+        portableService.setDialect(this.dialect);
+        portableService.setTopNRelationPlanPolicy(this.topNRelationPlanPolicy);
         return portableService;
     }
 

@@ -37,7 +37,7 @@ public class AndroidSqliteDataServiceExecutor extends SqlDataServiceExecutor {
     @Override
     public void ensureSchema(UserContext context, io.teaql.core.SchemaExecutor.Invocation invocation) {
         io.teaql.core.SchemaExecutor.Invocation.requireContextOwned(invocation);
-        List<EntityDescriptor> descriptors = EntityMetaFactory.get().allEntityDescriptors();
+        List<EntityDescriptor> descriptors = EntityMetaFactory.requireFrom(context).allEntityDescriptors();
         SqlExecutionAdapter adapter = getExecutionAdapter();
         
         io.teaql.core.sql.portable.TeaQLDatabase dbAdapter = new io.teaql.core.sql.portable.TeaQLDatabase() {

@@ -4,7 +4,6 @@ import io.teaql.core.InternalIdGenerationService;
 
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
 
 /**
  * {@link InternalIdGenerationService} implementation backed by the {@code teaql_id_space} table.
@@ -30,7 +29,6 @@ import java.util.logging.Logger;
  */
 public class IdSpaceIdGenerator implements InternalIdGenerationService {
 
-    private static final Logger LOG = Logger.getLogger(IdSpaceIdGenerator.class.getName());
     private static final int MAX_ALLOCATION_ATTEMPTS = 100;
 
     private final TeaQLDatabase database;
@@ -167,8 +165,11 @@ public class IdSpaceIdGenerator implements InternalIdGenerationService {
             database.execute(
                     "CREATE TABLE IF NOT EXISTS " + idSpaceTable
                     + " (type_name VARCHAR(100) NOT NULL PRIMARY KEY, current_level BIGINT)");
-        } catch (Exception e) {
-            LOG.fine("teaql_id_space table may already exist: " + e.getMessage());
+        } catch (RuntimeException failure) {
+            throw new IllegalStateException(
+                    "Unable to ensure persistent ID-space table " + idSpaceTable
+                            + "; verify database connectivity and schema permissions",
+                    failure);
         }
     }
 }
