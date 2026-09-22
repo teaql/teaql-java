@@ -1335,7 +1335,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             try {
                 dbTableInfo = database.getTableColumns(table);
             } catch (Exception e) {
-                dbTableInfo = ListUtil.empty();
+                throw schemaFailure("inspect", table, e);
             }
             ensure(context, dbTableInfo, table, columns);
         });
@@ -1392,7 +1392,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         try {
             dbTableInfo = database.getTableColumns(getTqlIdSpaceTable());
         } catch (Exception e) {
-            dbTableInfo = ListUtil.empty();
+            throw schemaFailure("inspect", getTqlIdSpaceTable(), e);
         }
         if (!ObjectUtil.isEmpty(dbTableInfo)) return;
 
@@ -1401,7 +1401,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 + "current_level bigint)\n";
         logInfo(sql + ";");
         if (ensureTableEnabled(context)) {
-            try { database.execute(context, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+            try {
+                database.execute(context, sql);
+            } catch (Exception e) {
+                throw schemaFailure("create", getTqlIdSpaceTable(), e);
+            }
         }
     }
 
@@ -1434,7 +1438,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         sb.append(")\n");
         logInfo(sb + ";");
         if (ensureTableEnabled(context)) {
-            try { database.execute(context, sb.toString()); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+            try {
+                database.execute(context, sb.toString());
+            } catch (Exception e) {
+                throw schemaFailure("create", table, e);
+            }
         }
     }
 
@@ -1444,8 +1452,19 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 dialect.mapColumnType(column.getType()), column.isRequired() ? " NOT NULL" : "");
         logInfo(sql + ";");
         if (ensureTableEnabled(context)) {
-            try { database.execute(context, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+            try {
+                database.execute(context, sql);
+            } catch (Exception e) {
+                throw schemaFailure("add column " + column.getColumnName(), column.getTableName(), e);
+            }
         }
+    }
+
+    private IllegalStateException schemaFailure(String operation, String table, Exception cause) {
+        return new IllegalStateException(
+                "Failed to " + operation + " schema for entity '" + entityDescriptor.getType()
+                        + "' on table '" + table + "'",
+                cause);
     }
 
     public void ensureInitData(UserContext context) {
