@@ -184,6 +184,38 @@ public class MysqlIntegrationTest {
     }
 
     @Test
+    public void testSchemaUsesInvokingContextMetadata() {
+        SimpleEntityMetaFactory isolated = new SimpleEntityMetaFactory();
+        SQLEntityDescriptor probe = new SQLEntityDescriptor();
+        probe.setType("ContextProbe");
+        probe.setTargetType(Task.class);
+        probe.setEntitySupplier(Task::new);
+        probe.setDataService("mysql");
+        io.teaql.core.sql.GenericSQLProperty id =
+                (io.teaql.core.sql.GenericSQLProperty) probe.addSimpleProperty("id", Long.class);
+        id.setColumnType("BIGINT");
+        io.teaql.core.sql.GenericSQLProperty version =
+                (io.teaql.core.sql.GenericSQLProperty) probe.addSimpleProperty("version", Long.class);
+        version.setColumnType("BIGINT");
+        isolated.register(probe);
+
+        DataSource dataSource = new SimpleDataSource(
+                System.getenv("TEAQL_TEST_MYSQL_URL"),
+                System.getenv("TEAQL_TEST_MYSQL_USER"),
+                System.getenv("TEAQL_TEST_MYSQL_PASSWORD"));
+        JdbcSqlExecutor jdbc = new JdbcSqlExecutor(dataSource);
+        TeaQLRuntime isolatedRuntime = TeaQLRuntime.builder()
+                .metadata(isolated)
+                .dataService("mysql", new MysqlDataServiceExecutor("mysql", jdbc, dataSource))
+                .idGenerationService((c, entity) -> 1L)
+                .build();
+
+        new DefaultUserContext(isolatedRuntime).ensureSchema();
+        assertTrue("The invoking context, not global Task metadata, must create ContextProbe",
+                jdbc.queryForList("SELECT id FROM context_probe_data WHERE 1 = 0", new Object[0]).isEmpty());
+    }
+
+    @Test
     public void testMysqlCrud() {
         // 1. Create and Save Tasks
         Task task1 = new Task();
