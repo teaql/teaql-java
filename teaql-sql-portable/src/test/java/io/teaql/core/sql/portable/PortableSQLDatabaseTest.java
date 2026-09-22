@@ -335,6 +335,7 @@ public class PortableSQLDatabaseTest {
         descriptor.setType("Task");
         descriptor.setTargetType(Task.class);
         descriptor.setEntitySupplier(Task::new);
+        descriptor.setDataService("sql");
 
         List<PropertyDescriptor> properties = new ArrayList<>();
         for (String name : List.of("id", "version", "title", "status")) {
@@ -358,6 +359,23 @@ public class PortableSQLDatabaseTest {
         Task loaded = repository.loadPersistedById(context, 77L);
         assertEquals("Mapped table", loaded.getTitle());
         assertEquals(1L, loaded.getVersion().longValue());
+
+        SimpleEntityMetaFactory isolatedMetadata = new SimpleEntityMetaFactory();
+        isolatedMetadata.register(descriptor);
+        TeaQLRuntime isolatedRuntime = TeaQLRuntime.builder()
+                .metadata(isolatedMetadata)
+                .dataService("sql", new PortableSQLDataService("sql", database, isolatedMetadata))
+                .idGenerationService((c, entity) -> 78L)
+                .build();
+        UserContext isolatedContext = new DefaultUserContext(isolatedRuntime);
+        Task created = new Task();
+        created.updateTitle("Saved through mapped table");
+        created.updateStatus("READY");
+        created.auditAs("Verify custom-table post-save reload").save(isolatedContext);
+        assertEquals(EntityStatus.PERSISTED, created.get$status());
+        assertEquals(78L, created.getId().longValue());
+        assertEquals("Saved through mapped table",
+                repository.loadPersistedById(isolatedContext, 78L).getTitle());
     }
 
     private static GenericSQLProperty bootstrapProperty(
