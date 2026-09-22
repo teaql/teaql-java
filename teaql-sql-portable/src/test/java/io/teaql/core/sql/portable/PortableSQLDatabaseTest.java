@@ -328,6 +328,38 @@ public class PortableSQLDatabaseTest {
         assertEquals(1L, ((Number) reconciled.get(1).get("version")).longValue());
     }
 
+    @Test
+    public void postSaveReloadUsesTheMappedPrimaryTable() throws Exception {
+        SQLiteTeaQLDatabase database = new SQLiteTeaQLDatabase();
+        EntityDescriptor descriptor = new EntityDescriptor();
+        descriptor.setType("Task");
+        descriptor.setTargetType(Task.class);
+        descriptor.setEntitySupplier(Task::new);
+
+        List<PropertyDescriptor> properties = new ArrayList<>();
+        for (String name : List.of("id", "version", "title", "status")) {
+            boolean numeric = "id".equals(name) || "version".equals(name);
+            GenericSQLProperty property = new GenericSQLProperty(
+                    "custom_task_data", name, numeric ? "INTEGER" : "VARCHAR(100)");
+            property.setName(name);
+            property.setOwner(descriptor);
+            property.setType(new SimplePropertyType(numeric ? Long.class : String.class));
+            properties.add(property);
+        }
+        descriptor.setProperties(properties);
+
+        PortableSQLRepository<Task> repository =
+                new PortableSQLRepository<>(descriptor, database, null);
+        repository.ensurePhysicalSchema(context);
+        database.executeUpdate(
+                "INSERT INTO custom_task_data (id, version, title, status) VALUES (?, ?, ?, ?)",
+                new Object[] {77L, 1L, "Mapped table", "READY"});
+
+        Task loaded = repository.loadPersistedById(context, 77L);
+        assertEquals("Mapped table", loaded.getTitle());
+        assertEquals(1L, loaded.getVersion().longValue());
+    }
+
     private static GenericSQLProperty bootstrapProperty(
             EntityDescriptor owner, String name, String sqlType, Class<?> javaType) {
         GenericSQLProperty property =
