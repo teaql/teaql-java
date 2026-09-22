@@ -67,12 +67,12 @@ public final class JdbcBusinessIdAllocator
                     Map<String, Object> row = rows.get(0);
                     long current = number(row, "current_value");
                     long version = number(row, "version");
-                    long next = current + 1;
-                    if (next > plan.maximumSequence()) {
+                    if (current >= plan.maximumSequence()) {
                         throw new BusinessIdException(
                                 BusinessIdErrorCode.BUSINESS_ID_RANGE_EXHAUSTED,
                                 "Business ID range exhausted for " + scopeKey);
                     }
+                    long next = current + 1;
                     int updated = database.executeUpdate(
                             "UPDATE " + table
                                     + " SET current_value = ?, version = version + 1, updated_at = ?"

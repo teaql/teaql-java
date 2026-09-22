@@ -109,6 +109,14 @@ public class MysqlIntegrationTest {
         }
     }
 
+    public static class RelationParent extends BaseEntity {
+        @Override public String typeName() { return "RelationParent"; }
+    }
+
+    public static class RelationChild extends BaseEntity {
+        @Override public String typeName() { return "RelationChild"; }
+    }
+
     public static class TaskRequest extends BaseRequest<Task> {
         public TaskRequest() { super(Task.class); }
 
@@ -277,6 +285,69 @@ public class MysqlIntegrationTest {
         new DefaultUserContext(isolatedRuntime).ensureSchema();
         assertTrue("The invoking context, not global Task metadata, must create ContextProbe",
                 jdbc.queryForList("SELECT id FROM context_probe_data WHERE 1 = 0", new Object[0]).isEmpty());
+    }
+
+    @Test
+    public void testCanonicalRelationIndexIsIdempotentOnLiveMysql() {
+        SimpleEntityMetaFactory isolated = relationMetadata("mysql");
+        JdbcSqlExecutor jdbc = new JdbcSqlExecutor(dataSource);
+        TeaQLRuntime isolatedRuntime = TeaQLRuntime.builder()
+                .metadata(isolated)
+                .dataService("mysql", new MysqlDataServiceExecutor("mysql", jdbc, dataSource))
+                .build();
+        UserContext isolatedContext = new DefaultUserContext(isolatedRuntime);
+
+        isolatedContext.ensureSchema();
+        isolatedContext.ensureSchema();
+
+        List<java.util.Map<String, Object>> indexes = jdbc.queryForList(
+                "SELECT DISTINCT index_name FROM information_schema.statistics "
+                        + "WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?",
+                new Object[] {"rel_child_data", "idx_rel_child_data_parent_id"});
+        assertEquals("Repeated ensureSchema must retain exactly one canonical relation index",
+                1, indexes.size());
+    }
+
+    private static SimpleEntityMetaFactory relationMetadata(String dataService) {
+        SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
+        SQLEntityDescriptor parent = relationEntity(
+                "RelationParent", RelationParent.class, RelationParent::new,
+                "rel_parent_data", dataService);
+        metadata.register(parent);
+        SQLEntityDescriptor child = relationEntity(
+                "RelationChild", RelationChild.class, RelationChild::new,
+                "rel_child_data", dataService);
+        io.teaql.core.sql.GenericSQLRelation relation =
+                (io.teaql.core.sql.GenericSQLRelation) child.addObjectProperty(
+                        metadata, "parent", "RelationParent", "children",
+                        RelationParent.class, io.teaql.core.sql.GenericSQLRelation::new);
+        relation.setTableName("rel_child_data");
+        relation.setColumnName("parent");
+        relation.setColumnType("BIGINT");
+        metadata.register(child);
+        return metadata;
+    }
+
+    private static SQLEntityDescriptor relationEntity(
+            String type, Class<? extends Entity> targetType,
+            java.util.function.Supplier<? extends Entity> supplier,
+            String table, String dataService) {
+        SQLEntityDescriptor descriptor = new SQLEntityDescriptor();
+        descriptor.setType(type);
+        descriptor.setTargetType(targetType);
+        descriptor.setEntitySupplier(supplier);
+        descriptor.setDataService(dataService);
+        io.teaql.core.sql.GenericSQLProperty id =
+                (io.teaql.core.sql.GenericSQLProperty) descriptor.addSimpleProperty("id", Long.class);
+        id.setTableName(table);
+        id.setColumnName("id");
+        id.setColumnType("BIGINT");
+        io.teaql.core.sql.GenericSQLProperty version =
+                (io.teaql.core.sql.GenericSQLProperty) descriptor.addSimpleProperty("version", Long.class);
+        version.setTableName(table);
+        version.setColumnName("version");
+        version.setColumnType("BIGINT");
+        return descriptor;
     }
 
     @Test
