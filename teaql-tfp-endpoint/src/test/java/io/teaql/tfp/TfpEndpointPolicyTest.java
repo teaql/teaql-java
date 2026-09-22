@@ -5,6 +5,7 @@ import static org.junit.Assert.assertThrows;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.teaql.core.BaseEntity;
+import io.teaql.core.BaseRequest;
 import io.teaql.core.DataServiceCapabilities;
 import io.teaql.core.FunctionApply;
 import io.teaql.core.MutationExecutor;
@@ -14,10 +15,13 @@ import io.teaql.core.QueryExecutor;
 import io.teaql.core.QueryRequest;
 import io.teaql.core.QueryResult;
 import io.teaql.core.SmartList;
+import io.teaql.core.UserContext;
 import io.teaql.core.meta.EntityDescriptor;
 import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
 import io.teaql.runtime.DefaultQueryResult;
+import io.teaql.runtime.DefaultUserContext;
+import io.teaql.runtime.TeaQLRuntime;
 import io.teaql.core.criteria.Operator;
 import java.util.Map;
 import java.util.Set;
@@ -27,49 +31,63 @@ import org.junit.Test;
 public class TfpEndpointPolicyTest {
     private QueryRequest capturedQuery;
     private MutationRequest capturedMutation;
+    private UserContext context;
 
     @Before
     public void metadata() {
         SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
         EntityDescriptor descriptor = new EntityDescriptor();
         descriptor.setType("Probe"); descriptor.setTargetType(Probe.class);
+        descriptor.addSimpleProperty("id", Long.class);
+        descriptor.addSimpleProperty("status", String.class);
         metadata.register(descriptor);
         EntityDescriptor status = new EntityDescriptor();
         status.setType("ProbeStatus"); status.setTargetType(ProbeStatus.class);
-        metadata.register(status); EntityMetaFactory.registerGlobal(metadata);
+        metadata.register(status);
+        EntityMetaFactory.registerGlobal(null);
+        context = context(metadata);
     }
 
     @Test
     public void requiresTrustedContextAndNeverDropsFilter() throws Exception {
         TfpEndpointHandler handler = handler();
         TfpEndpointException unauthorized = assertThrows(TfpEndpointException.class,
-                () -> handler.handleQuery(null, query("id")));
+                () -> handler.handleQuery(context, query("id")));
         org.junit.Assert.assertEquals("TFP_UNAUTHORIZED", unauthorized.getCode());
 
-        Map<String, Object> response = handler.handleQuery(null, trusted(), query("id"));
+        Map<String, Object> response = handler.handleQuery(context, trusted(), query("id"));
         assertNotNull(capturedQuery);
         assertNotNull(((io.teaql.runtime.DefaultQueryRequest) capturedQuery).getSearchRequest().getSearchCriteria());
         org.junit.Assert.assertTrue(response.get("data") instanceof java.util.List<?>);
     }
 
     @Test
+    public void rejectsGovernedRequestsWithoutAnInvokingContext() {
+        io.teaql.core.TeaQLRuntimeException error = assertThrows(
+                io.teaql.core.TeaQLRuntimeException.class,
+                () -> handler().handleQuery(null, trusted(), query("id")));
+        org.junit.Assert.assertEquals(
+                "Entity metadata requires a non-null UserContext", error.getMessage());
+    }
+
+    @Test
     public void rejectsForbiddenFilterUnknownFieldsAndUnsafeMutation() {
         TfpEndpointHandler handler = handler();
-        assertCode("TFP_FORBIDDEN_FIELD", () -> handler.handleQuery(null, trusted(), query("secret")));
-        assertCode("TFP_POLICY_VIOLATION", () -> handler.handleQuery(null, trusted(),
+        assertCode("TFP_FORBIDDEN_FIELD", () -> handler.handleQuery(context, trusted(), query("secret")));
+        assertCode("TFP_POLICY_VIOLATION", () -> handler.handleQuery(context, trusted(),
                 "{\"entity\":\"Probe\",\"hardLimit\":999,\"commentText\":\"x\",\"purposeText\":\"x\"}".getBytes()));
-        assertCode("TFP_POLICY_VIOLATION", () -> handler.handleQuery(null, trusted(),
+        assertCode("TFP_POLICY_VIOLATION", () -> handler.handleQuery(context, trusted(),
                 "{\"entity\":\"Probe\",\"idSetPagination\":{\"namespace\":\"attacker\",\"maxIds\":9999999},\"commentText\":\"x\",\"purposeText\":\"x\"}".getBytes()));
-        assertCode("TFP_AUDIT_REASON_REQUIRED", () -> handler.handleMutation(null, trusted(),
+        assertCode("TFP_AUDIT_REASON_REQUIRED", () -> handler.handleMutation(context, trusted(),
                 "{\"entity\":\"Probe\",\"action\":\"Create\",\"payload\":{},\"comment\":\" \"}".getBytes()));
-        assertCode("TFP_FORBIDDEN_FIELD", () -> handler.handleMutation(null, trusted(),
+        assertCode("TFP_FORBIDDEN_FIELD", () -> handler.handleMutation(context, trusted(),
                 "{\"entity\":\"Probe\",\"action\":\"Create\",\"payload\":{\"secret\":1},\"comment\":\"x\"}".getBytes()));
     }
 
     @Test
     public void updateLoadsIdentityAndExpectedVersionWithoutJacksonSetters() throws Exception {
         TfpEndpointHandler handler = handler();
-        handler.handleMutation(null, trusted(), ("{\"entity\":\"Probe\",\"action\":\"Update\","
+        handler.handleMutation(context, trusted(), ("{\"entity\":\"Probe\",\"action\":\"Update\","
                 + "\"id\":42,\"expectedVersion\":3,\"payload\":{\"status\":\"PAID\"},"
                 + "\"comment\":\"cross-language update\"}").getBytes());
 
@@ -109,7 +127,7 @@ public class TfpEndpointPolicyTest {
         };
         for (int i = 0; i < filters.length; i++) {
             String filter = filters[i];
-            handler.handleQuery(null, trusted(), queryWithFilter(filter));
+            handler.handleQuery(context, trusted(), queryWithFilter(filter));
             FunctionApply all = (FunctionApply) ((io.teaql.runtime.DefaultQueryRequest) capturedQuery)
                     .getSearchRequest().getSearchCriteria();
             FunctionApply translated = (FunctionApply) all.first();
@@ -123,14 +141,14 @@ public class TfpEndpointPolicyTest {
                 "{\"reviewed\":{\"$eq\":null}}"
         }) {
             assertCode("TFP_INVALID_REQUEST",
-                    () -> handler.handleQuery(null, trusted(), queryWithFilter(filter)));
+                    () -> handler.handleQuery(context, trusted(), queryWithFilter(filter)));
         }
     }
 
     @Test
     public void mapsTrustedFacetIntoNativeRequest() throws Exception {
         TfpEndpointHandler handler = handler();
-        handler.handleQuery(null, trusted(), ("{\"entity\":\"Probe\","
+        handler.handleQuery(context, trusted(), ("{\"entity\":\"Probe\","
                 + "\"filterCondition\":{\"id\":{\"$gt\":0}},"
                 + "\"facets\":[{\"facetName\":\"statusFacet\",\"relationName\":\"status\","
                 + "\"includeAllFacets\":true,\"query\":{\"entity\":\"ProbeStatus\","
@@ -149,6 +167,55 @@ public class TfpEndpointPolicyTest {
                 facet.getRequest().getAggregations().getAggregates().get(0).name());
     }
 
+    @Test
+    public void isolatesTopLevelFacetAndMutationMetadataByInvokingContext() throws Exception {
+        TfpEndpointHandler handler = handler();
+        SimpleEntityMetaFactory alternate = new SimpleEntityMetaFactory();
+        EntityDescriptor probe = new EntityDescriptor();
+        probe.setType("Probe");
+        probe.setTargetType(AlternateProbe.class);
+        probe.addSimpleProperty("id", Long.class);
+        probe.addSimpleProperty("status", String.class);
+        alternate.register(probe);
+        EntityDescriptor status = new EntityDescriptor();
+        status.setType("ProbeStatus");
+        status.setTargetType(AlternateProbeStatus.class);
+        alternate.register(status);
+        UserContext alternateContext = context(alternate);
+
+        byte[] faceted = ("{\"entity\":\"Probe\","
+                + "\"facets\":[{\"facetName\":\"statusFacet\",\"relationName\":\"status\","
+                + "\"query\":{\"entity\":\"ProbeStatus\",\"selectItems\":[\"id\"],"
+                + "\"aggregateItems\":[{\"function\":\"Count\",\"field\":\"id\","
+                + "\"alias\":\"probeCount\"}],\"commentText\":\"load statuses\","
+                + "\"purposeText\":\"render facet\"}}],\"limitValue\":10,"
+                + "\"commentText\":\"load probes\",\"purposeText\":\"render list\"}")
+                .getBytes();
+        handler.handleQuery(alternateContext, trusted(), faceted);
+        var alternateRequest =
+                ((io.teaql.runtime.DefaultQueryRequest) capturedQuery).getSearchRequest();
+        org.junit.Assert.assertEquals(AlternateProbe.class, alternateRequest.returnType());
+        org.junit.Assert.assertTrue(
+                ((BaseRequest<?>) alternateRequest).isOneOfSelfField("status"));
+        org.junit.Assert.assertEquals(
+                AlternateProbeStatus.class,
+                alternateRequest.getFacetRequests().get(0).getRequest().returnType());
+
+        handler.handleMutation(alternateContext, trusted(),
+                "{\"entity\":\"Probe\",\"action\":\"Create\","
+                        .concat("\"payload\":{\"status\":\"NEW\"},\"comment\":\"create probe\"}")
+                        .getBytes());
+        org.junit.Assert.assertEquals(
+                AlternateProbe.class,
+                ((io.teaql.runtime.DefaultMutationRequest) capturedMutation)
+                        .getEntity().getClass());
+
+        handler.handleQuery(context, trusted(), query("id"));
+        var originalRequest =
+                ((io.teaql.runtime.DefaultQueryRequest) capturedQuery).getSearchRequest();
+        org.junit.Assert.assertEquals(Probe.class, originalRequest.returnType());
+    }
+
     private TfpEndpointHandler handler() {
         QueryExecutor query = new QueryExecutor() {
             public QueryResult query(io.teaql.core.UserContext c, QueryRequest request) {
@@ -165,6 +232,10 @@ public class TfpEndpointPolicyTest {
             public DataServiceCapabilities capabilities() { return new DataServiceCapabilities(); }
         };
         return new TfpEndpointHandler(query, mutation, new ObjectMapper());
+    }
+
+    private UserContext context(SimpleEntityMetaFactory metadata) {
+        return new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata).build());
     }
 
     private byte[] query(String field) {
@@ -199,6 +270,15 @@ public class TfpEndpointPolicyTest {
         public void setStatus(String value) { status = value; }
     }
     public static final class ProbeStatus extends BaseEntity {
+        public String typeName() { return "ProbeStatus"; }
+    }
+    public static final class AlternateProbe extends BaseEntity {
+        private String status;
+        public String typeName() { return "Probe"; }
+        public String getStatus() { return status; }
+        public void setStatus(String value) { status = value; }
+    }
+    public static final class AlternateProbeStatus extends BaseEntity {
         public String typeName() { return "ProbeStatus"; }
     }
 }

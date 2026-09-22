@@ -12,12 +12,12 @@ public interface EntityMetaFactory {
     static EntityMetaFactory requireFrom(UserContext context) {
         if (context == null) {
             throw new TeaQLRuntimeException(
-                    "A UserContext with entity metadata is required for this operation");
+                    "Entity metadata requires a non-null UserContext");
         }
         EntityMetaFactory factory = context.capability(EntityMetaFactory.class);
         if (factory == null) {
             throw new TeaQLRuntimeException(
-                    "Entity metadata is not configured in this UserContext for ensureSchema");
+                    "Entity metadata is not configured in this UserContext");
         }
         return factory;
     }

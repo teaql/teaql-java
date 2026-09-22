@@ -742,7 +742,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         return Optional.empty();
     }
 
-    private EntityDescriptor getEntityDescriptor() {
+    protected EntityDescriptor getEntityDescriptor() {
         EntityMetaFactory factory = EntityMetaFactory.get();
         if (factory == null) {
             throw new TeaQLRuntimeException("No EntityMetaFactory registered");
@@ -992,10 +992,19 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
 
     public static class TempRequest extends BaseRequest<Entity> {
         private final String type;
+        private final EntityDescriptor entityDescriptor;
         @SuppressWarnings("unchecked")
         public TempRequest(Class<? extends Entity> returnType, String typeName) {
             super((Class<Entity>) returnType);
             this.type = typeName;
+            this.entityDescriptor = null;
+        }
+        @SuppressWarnings("unchecked")
+        public TempRequest(EntityDescriptor entityDescriptor) {
+            super((Class<Entity>) java.util.Objects.requireNonNull(
+                    entityDescriptor, "entityDescriptor").getTargetType());
+            this.type = entityDescriptor.getType();
+            this.entityDescriptor = entityDescriptor;
         }
         @SuppressWarnings("unchecked")
         public TempRequest(
@@ -1004,10 +1013,16 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
                 Supplier<? extends Entity> entityFactory) {
             super((Class<Entity>) returnType, entityFactory);
             this.type = typeName;
+            this.entityDescriptor = null;
         }
         @Override
         public String getTypeName() {
             return type;
+        }
+
+        @Override
+        protected EntityDescriptor getEntityDescriptor() {
+            return entityDescriptor != null ? entityDescriptor : super.getEntityDescriptor();
         }
     }
 }
