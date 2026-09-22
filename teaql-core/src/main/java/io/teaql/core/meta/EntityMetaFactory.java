@@ -1,11 +1,22 @@
 package io.teaql.core.meta;
 
+import io.teaql.core.TeaQLRuntimeException;
+import io.teaql.core.UserContext;
 import java.util.List;
 
 /**
  * entity meta factory
  */
 public interface EntityMetaFactory {
+    /** Schema operations must use the descriptors installed in the invoking context. */
+    static EntityMetaFactory requireFrom(UserContext context) {
+        EntityMetaFactory factory = context.capability(EntityMetaFactory.class);
+        if (factory == null) {
+            throw new TeaQLRuntimeException(
+                    "Entity metadata is not configured in this UserContext for ensureSchema");
+        }
+        return factory;
+    }
     static EntityMetaFactory get() {
         return Holder.factory;
     }

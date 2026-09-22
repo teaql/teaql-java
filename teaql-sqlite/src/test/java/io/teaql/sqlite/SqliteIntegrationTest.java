@@ -228,6 +228,21 @@ public class SqliteIntegrationTest {
         assertEquals("?000", rows.get(0).get("empty"));
     }
 
+    @Test
+    public void ensureSchemaUsesContextMetadataWithoutGlobalRegistry() {
+        EntityMetaFactory previous = EntityMetaFactory.get();
+        try {
+            EntityMetaFactory.registerGlobal(null);
+            assertSame(runtime.getMetadata(), context.capability(EntityMetaFactory.class));
+            context.ensureSchema();
+            assertFalse(jdbcSqlExecutor.queryForList(
+                    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'task_data'",
+                    new Object[0]).isEmpty());
+        } finally {
+            EntityMetaFactory.registerGlobal(previous);
+        }
+    }
+
     @AfterClass
     public static void teardown() throws Exception {
         Thread.sleep(500); // Allow asynchronous provider work to settle.

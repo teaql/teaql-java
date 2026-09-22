@@ -158,6 +158,9 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
                 value = runtime.getRegistry().resolve("default");
             }
         }
+        if (value == null && capabilityType == io.teaql.core.meta.EntityMetaFactory.class) {
+            value = runtime.getMetadata();
+        }
         if (value == null && capabilityType == GeneratedSchemaBootstrap.class) {
             value = runtime.getGeneratedSchemaBootstrap();
         }
