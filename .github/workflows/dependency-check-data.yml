@@ -27,9 +27,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/teaql-odc-data
-          key: odc-v13-${{ runner.os }}-${{ steps.odc-day.outputs.value }}
+          key: odc-v13.0.0-${{ runner.os }}-${{ steps.odc-day.outputs.value }}
           restore-keys: |
-            odc-v13-${{ runner.os }}-
+            odc-v13.0.0-${{ runner.os }}-
       - name: Refresh NVD data
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
@@ -37,9 +37,10 @@ jobs:
           mvn -B org.owasp:dependency-check-maven:13.0.0:update-only
           -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
           -DdataDirectory=${{ runner.temp }}/teaql-odc-data
+          -DfailOnError=true
       - name: Save refreshed Dependency Check data
         if: success() && steps.odc-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: ${{ runner.temp }}/teaql-odc-data
-          key: odc-v13-${{ runner.os }}-${{ steps.odc-day.outputs.value }}
+          key: odc-v13.0.0-${{ runner.os }}-${{ steps.odc-day.outputs.value }}
