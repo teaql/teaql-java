@@ -1351,6 +1351,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             String table = relationColumn.getTableName();
             String indexName = canonicalRelationIndexName(
                     table, relationColumn.getColumnName(), idColumn.getColumnName());
+            try {
+                if (database.indexExists(context, table, indexName).orElse(false)) continue;
+            } catch (Exception failure) {
+                throw canonicalRelationIndexFailure("inspect", table, indexName, failure);
+            }
             String sql = "CREATE INDEX " + dialect.escapeIdentifier(indexName)
                     + " ON " + dialect.escapeIdentifier(table)
                     + " (" + dialect.escapeIdentifier(relationColumn.getColumnName())
@@ -1359,13 +1364,21 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             if (ensureTableEnabled(context)) {
                 try {
                     database.execute(context, sql);
-                } catch (Exception duplicateOrUnsupported) {
-                    // Schema ensure is idempotent. Existing schema operations use
-                    // the same best-effort contract for duplicate DDL.
-                    logInfo("Ignored: " + duplicateOrUnsupported.getMessage());
+                } catch (Exception failure) {
+                    if (SchemaExceptionClassifier.isDuplicateIndex(failure)) continue;
+                    throw canonicalRelationIndexFailure("create", table, indexName, failure);
                 }
             }
         }
+    }
+
+    private IllegalStateException canonicalRelationIndexFailure(
+            String operation, String table, String indexName, Exception failure) {
+        return new IllegalStateException(
+                "Failed to " + operation + " canonical relation index '" + indexName
+                        + "' for entity '" + entityDescriptor.getType()
+                        + "' on table '" + table + "'",
+                failure);
     }
 
     private String canonicalRelationIndexName(String table, String relation, String id) {
