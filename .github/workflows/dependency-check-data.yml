@@ -1,0 +1,46 @@
+name: Dependency Check Data
+
+on:
+  schedule:
+    - cron: '23 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    name: Refresh NVD data
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Select UTC cache day
+        id: odc-day
+        run: echo "value=$(date -u +%Y%m%d)" >> "$GITHUB_OUTPUT"
+      - name: Restore Dependency Check data
+        id: odc-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/teaql-odc-data
+          key: odc-v13.0.0-${{ runner.os }}-${{ steps.odc-day.outputs.value }}
+          restore-keys: |
+            odc-v13.0.0-${{ runner.os }}-
+      - name: Refresh NVD data
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: >-
+          mvn -B org.owasp:dependency-check-maven:13.0.0:update-only
+          -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
+          -DdataDirectory=${{ runner.temp }}/teaql-odc-data
+          -DfailOnError=true
+      - name: Save refreshed Dependency Check data
+        if: success() && steps.odc-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/teaql-odc-data
+          key: odc-v13.0.0-${{ runner.os }}-${{ steps.odc-day.outputs.value }}

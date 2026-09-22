@@ -2,6 +2,7 @@ package io.teaql.core.sql.portable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
@@ -67,4 +68,17 @@ public interface TeaQLDatabase {
      * Get column information for a database table.
      */
     List<Map<String, Object>> getTableColumns(String tableName);
+
+    /**
+     * Report whether an index already exists for a table.
+     *
+     * <p>An empty result means that this database adapter does not expose index metadata. Schema
+     * reconciliation may still attempt the DDL and narrowly classify a duplicate-index race. A
+     * present result must be authoritative; adapters must not turn metadata failures into
+     * {@code false}.
+     */
+    default Optional<Boolean> indexExists(
+            io.teaql.core.UserContext context, String tableName, String indexName) {
+        return Optional.empty();
+    }
 }
