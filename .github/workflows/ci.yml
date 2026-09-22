@@ -59,6 +59,17 @@ jobs:
           -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
           -DdataDirectory=${{ runner.temp }}/teaql-odc-data
           -DfailOnError=true
+          -Dformat=HTML,JSON
+      - name: Retain Dependency Check reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-reports
+          path: |
+            **/target/dependency-check-report.html
+            **/target/dependency-check-report.json
+          if-no-files-found: warn
+          retention-days: 30
       - name: Save updated Dependency Check data
         if: success() && steps.odc-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
