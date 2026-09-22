@@ -66,6 +66,37 @@ public class PortableSQLSchemaFailureTest {
         Assert.assertEquals(0, database.executeCount);
     }
 
+    @Test
+    public void uppercaseMetadataLabelsStillMakeSchemaRerunsIdempotent() throws Exception {
+        FailingDatabase database = new FailingDatabase();
+        PortableSQLRepository<PortableSQLDatabaseTest.Task> repository = repository(database);
+        UserContext context = context();
+        repository.ensurePhysicalSchema(context);
+        database.uppercaseColumnLabels = true;
+        int initialStatements = database.executeCount;
+
+        repository.ensurePhysicalSchema(context);
+
+        Assert.assertEquals(initialStatements, database.executeCount);
+    }
+
+    @Test
+    public void missingMetadataColumnNameFailsBeforeIssuingDdl() throws Exception {
+        FailingDatabase database = new FailingDatabase();
+        PortableSQLRepository<PortableSQLDatabaseTest.Task> repository = repository(database);
+        UserContext context = context();
+        repository.ensurePhysicalSchema(context);
+        database.omitColumnLabels = true;
+        int initialStatements = database.executeCount;
+
+        IllegalStateException failure = Assert.assertThrows(
+                IllegalStateException.class, () -> repository.ensurePhysicalSchema(context));
+
+        Assert.assertTrue(failure.getMessage().contains("column_name"));
+        Assert.assertTrue(failure.getMessage().contains(TABLE));
+        Assert.assertEquals(initialStatements, database.executeCount);
+    }
+
     private static PortableSQLRepository<PortableSQLDatabaseTest.Task> repository(
             FailingDatabase database) {
         EntityDescriptor descriptor = new EntityDescriptor();
@@ -96,6 +127,8 @@ public class PortableSQLSchemaFailureTest {
             extends PortableSQLDatabaseTest.SQLiteTeaQLDatabase {
         private String failExecutePrefix;
         private String failInspectionTable;
+        private boolean uppercaseColumnLabels;
+        private boolean omitColumnLabels;
         private int executeCount;
 
         private FailingDatabase() throws Exception {}
@@ -114,7 +147,18 @@ public class PortableSQLSchemaFailureTest {
             if (tableName.equals(failInspectionTable)) {
                 throw new IllegalStateException("simulated metadata failure");
             }
-            return super.getTableColumns(tableName);
+            List<Map<String, Object>> columns = super.getTableColumns(tableName);
+            if (omitColumnLabels) {
+                return columns.stream()
+                        .map(column -> Map.<String, Object>of("UNRELATED", column.get("column_name")))
+                        .toList();
+            }
+            if (!uppercaseColumnLabels) {
+                return columns;
+            }
+            return columns.stream()
+                    .map(column -> Map.<String, Object>of("COLUMN_NAME", column.get("column_name")))
+                    .toList();
         }
     }
 }

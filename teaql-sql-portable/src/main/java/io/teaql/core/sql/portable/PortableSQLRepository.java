@@ -1415,13 +1415,25 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             return;
         }
         Map<String, Map<String, Object>> fields = CollStreamUtil.toIdentityMap(
-                tableInfo, m -> String.valueOf(m.get("column_name")).toLowerCase());
+                tableInfo, m -> metadataColumnName(m, table));
         for (SQLColumn column : columns) {
             String dbColumnName = column.getColumnName().toLowerCase();
             if (!fields.containsKey(dbColumnName)) {
                 addColumn(context, column);
             }
         }
+    }
+
+    private String metadataColumnName(Map<String, Object> column, String table) {
+        for (Map.Entry<String, Object> entry : column.entrySet()) {
+            if ("column_name".equalsIgnoreCase(entry.getKey())
+                    && entry.getValue() != null) {
+                return String.valueOf(entry.getValue()).toLowerCase(java.util.Locale.ROOT);
+            }
+        }
+        throw new IllegalStateException(
+                "Missing column_name in schema metadata for entity '"
+                        + entityDescriptor.getType() + "' on table '" + table + "'");
     }
 
     protected void createTable(UserContext context, String table, List<SQLColumn> columns) {
