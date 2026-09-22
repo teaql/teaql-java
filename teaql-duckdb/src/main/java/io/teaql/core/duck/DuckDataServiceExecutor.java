@@ -21,7 +21,7 @@ public class DuckDataServiceExecutor extends SqlDataServiceExecutor {
     @Override
     public void ensureSchema(UserContext context, io.teaql.core.SchemaExecutor.Invocation invocation) {
         io.teaql.core.SchemaExecutor.Invocation.requireContextOwned(invocation);
-        List<EntityDescriptor> descriptors = EntityMetaFactory.get().allEntityDescriptors();
+        List<EntityDescriptor> descriptors = EntityMetaFactory.requireFrom(context).allEntityDescriptors();
 
         TeaQLDatabase dbAdapter = new TeaQLDatabase() {
             @Override
