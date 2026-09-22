@@ -21,6 +21,11 @@ public final class SensitiveDiagnosticTextRuntimeLogSink extends DefaultTextRunt
     }
 
     @Override
+    public boolean requiresSensitiveSqlData() {
+        return true;
+    }
+
+    @Override
     public void writeExecutionLog(UserContext context, ExecutionMetadata metadata) {
         output.printf(
                 "[TeaQL SQL][%s][%dus] %s comment=%s purpose=%s auditReason=%s tracePath=%s%n"

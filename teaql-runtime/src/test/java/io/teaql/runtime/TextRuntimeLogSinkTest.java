@@ -52,9 +52,17 @@ public class TextRuntimeLogSinkTest {
         assertFalse(safe.getLogSink() instanceof SensitiveDiagnosticTextRuntimeLogSink);
         assertTrue(safe.isQueryExecutionLoggingEnabled());
         assertTrue(safe.isMutationExecutionLoggingEnabled());
+        assertFalse(safe.requiresSensitiveSqlLogData());
         assertTrue(sensitive.getLogSink() instanceof SensitiveDiagnosticTextRuntimeLogSink);
         assertFalse(sensitive.isQueryExecutionLoggingEnabled());
         assertTrue(sensitive.isMutationExecutionLoggingEnabled());
+        assertTrue(sensitive.requiresSensitiveSqlLogData());
+        assertTrue(((RuntimeLogSink) (context, metadata) -> {}).requiresSensitiveSqlData());
+        assertTrue(new DefaultTextRuntimeLogSink(output()) {
+            @Override
+            public void writeExecutionLog(
+                    io.teaql.core.UserContext context, ExecutionMetadata metadata) {}
+        }.requiresSensitiveSqlData());
     }
 
     private ByteArrayOutputStream bytes;
