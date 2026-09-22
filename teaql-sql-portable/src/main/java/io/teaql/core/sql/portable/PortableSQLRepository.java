@@ -975,7 +975,9 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     @SuppressWarnings("unchecked")
     public T loadPersistedById(UserContext userContext, Long id) {
-        String sql = "SELECT * FROM " + escapeIdentifier(tableName(entityDescriptor.getType()))
+        String primaryTable = thisPrimaryTableName != null
+                ? thisPrimaryTableName : tableName(entityDescriptor.getType());
+        String sql = "SELECT * FROM " + escapeIdentifier(primaryTable)
                 + " WHERE " + escapeIdentifier("id") + " = ?";
         List<Map<String, Object>> rows = database.query(userContext, sql, new Object[] {id});
         if (rows.size() != 1) {
