@@ -10,6 +10,8 @@ import io.teaql.core.sqlite.SqliteDataServiceExecutor;
 import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import io.teaql.dataservice.sql.SqlDataServiceExecutor;
 import io.teaql.runtime.DefaultUserContext;
+import io.teaql.runtime.DefaultTextRuntimeLogSink;
+import io.teaql.runtime.RuntimeLogSink;
 import io.teaql.runtime.TeaQLRuntime;
 
 import org.junit.AfterClass;
@@ -18,6 +20,8 @@ import org.junit.Test;
 
 import javax.sql.DataSource;
 import java.io.PrintWriter;
+import java.io.PrintStream;
+import java.io.OutputStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -34,6 +38,54 @@ import java.util.logging.Logger;
 import static org.junit.Assert.*;
 
 public class SqliteIntegrationTest {
+
+    @Test
+    public void ordinarySqlLogsSkipSensitivePayloadConstruction() {
+        List<ExecutionMetadata> safeLogs = new ArrayList<>();
+        RuntimeLogSink safeSink = new DefaultTextRuntimeLogSink(
+                new PrintStream(OutputStream.nullOutputStream())) {
+            @Override
+            public void writeExecutionLog(UserContext context, ExecutionMetadata metadata) {
+                safeLogs.add(metadata);
+            }
+        };
+        executeLoggedQueryAndMutation(safeSink);
+        assertTrue(safeLogs.stream().anyMatch(log -> log.getOperation() == DataServiceOperation.QUERY));
+        assertTrue(safeLogs.stream().anyMatch(log -> log.getOperation() == DataServiceOperation.MUTATION));
+        assertTrue(safeLogs.stream().allMatch(log -> log.getParameterizedQuery() != null));
+        assertTrue(safeLogs.stream().allMatch(log -> log.getParameters().isEmpty()));
+        assertTrue(safeLogs.stream().allMatch(log -> log.getDebugQuery() == null));
+
+        List<ExecutionMetadata> diagnosticLogs = new ArrayList<>();
+        executeLoggedQueryAndMutation((context, metadata) -> diagnosticLogs.add(metadata));
+        assertTrue(diagnosticLogs.stream().anyMatch(log ->
+                log.getOperation() == DataServiceOperation.QUERY
+                        && !log.getParameters().isEmpty()
+                        && log.getDebugQuery() != null));
+        assertTrue(diagnosticLogs.stream().anyMatch(log ->
+                log.getOperation() == DataServiceOperation.MUTATION
+                        && !log.getParameters().isEmpty()
+                        && log.getDebugQuery() != null));
+    }
+
+    private void executeLoggedQueryAndMutation(RuntimeLogSink sink) {
+        TeaQLRuntime loggedRuntime = TeaQLRuntime.builder()
+                .metadata(runtime.getMetadata())
+                .dataService("sqlite", runtime.getRegistry().resolve("sqlite"))
+                .idGenerationService(runtime.getIdGenerationService())
+                .logSink(sink)
+                .build();
+        UserContext loggedContext = new DefaultUserContext(loggedRuntime);
+        TaskRequest request = new TaskRequest().filterByTitle("diagnostic-payload-check");
+        request.comment("what: verify SQL payload construction")
+                .purpose("why: check logging sink contract")
+                .executeForList(loggedContext);
+
+        Task task = new Task();
+        task.updateTitle("diagnostic-payload-check");
+        task.updateStatus("LOG-CHECK");
+        task.auditAs("verify logging sink contract").save(loggedContext);
+    }
 
     @Test
     public void localDynamicSearchPreservesTrustedScopeInSqlite() {
