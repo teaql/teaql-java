@@ -210,6 +210,7 @@ public class App {
                   && ((Number) matchedValues.get(0).getDynamicProperty("schoolCount")).intValue() == 1,
               "matched-only PRIMARY facet count must be 1");
 
+          SchoolLifecycleVerifier.verify(runtime);
           System.out.println("PASS Java School bootstrap, portable Query, and native SQLite Facet parity");
       };
   }
