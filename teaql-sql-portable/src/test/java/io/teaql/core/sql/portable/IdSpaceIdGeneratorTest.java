@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 public class IdSpaceIdGeneratorTest {
@@ -51,12 +53,28 @@ public class IdSpaceIdGeneratorTest {
         assertEquals(2, database.updates.size());
     }
 
+    @Test
+    public void failsClosedWhenPersistentIdSpaceTableCannotBeEnsured() {
+        RecordingDatabase database = new RecordingDatabase();
+        RuntimeException providerFailure = new RuntimeException("permission denied");
+        database.executeFailure = providerFailure;
+
+        IllegalStateException failure = assertThrows(
+                IllegalStateException.class,
+                () -> new IdSpaceIdGenerator(database, "tenant_id_space").ensureIdSpaceTable());
+
+        assertTrue(failure.getMessage().contains("tenant_id_space"));
+        assertTrue(failure.getMessage().contains("connectivity and schema permissions"));
+        assertSame(providerFailure, failure.getCause());
+    }
+
     private static final class RecordingDatabase implements TeaQLDatabase {
         private final Map<String, Long> levels = new HashMap<>();
         private final List<String> queries = new ArrayList<>();
         private final List<String> updates = new ArrayList<>();
         private boolean failFirstInsertAsRace;
         private boolean failFirstCompareAndSetAsRace;
+        private RuntimeException executeFailure;
 
         @Override
         public List<Map<String, Object>> query(String sql, Object[] args) {
@@ -101,6 +119,7 @@ public class IdSpaceIdGeneratorTest {
 
         @Override
         public void execute(String sql) {
+            if (executeFailure != null) throw executeFailure;
         }
 
         @Override

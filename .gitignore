@@ -35,6 +35,9 @@ build/
 !tools/__init__.py
 !tools/error_catalog.py
 !tools/test_error_catalog.py
+!tools/test_schema_context_contract.py
+!tools/test_dialect_integration_guide.py
+__pycache__/
 
 # Sensitive
 .env

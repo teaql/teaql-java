@@ -92,6 +92,23 @@ Applications can replace runtime services such as `RequestPolicy`,
 `RuntimeLogSink`, `DataServiceRegistry`, `InternalIdGenerationService`, and
 `EntityMetaFactory` in their integration layer.
 
+Query and Mutation execution logs are enabled by default. The built-in default
+sink is safe for ordinary operator output: it includes intent, trace, elapsed
+time, outcome, and parameterized SQL, but excludes bind values and rendered
+Debug SQL. Enable copy/paste SQL only for a controlled troubleshooting surface:
+
+```java
+TeaQLRuntime runtime = TeaQLRuntime.builder()
+    .metadata(metadata)
+    .queryExecutionLogging(true)
+    .mutationExecutionLogging(true)
+    .diagnosticSqlLogging(true) // values and Debug SQL; apply restricted retention
+    .build();
+```
+
+The Query and Mutation switches remain independent. Selecting diagnostic SQL
+changes the built-in destination; it does not enable or disable either family.
+
 ## Choose Modules
 
 Most applications need the core runtime, one data-access path, and one database
@@ -195,6 +212,31 @@ Useful verification commands:
 mvn test
 mvn spotbugs:check
 ```
+
+The PostgreSQL/MySQL integration tests are optional during an ordinary local
+build, but the `Live SQL dialects` CI workflow requires both databases and
+fails instead of counting a skipped connection as a pass. Run them locally
+against dedicated, freshly created `teaql_live_*` databases (never a shared
+application database):
+
+```bash
+export TEAQL_REQUIRE_LIVE_DB=true
+export TEAQL_TEST_POSTGRES_URL=jdbc:postgresql://127.0.0.1:5432/teaql_live_local
+export TEAQL_TEST_POSTGRES_USER=<test-user>
+export TEAQL_TEST_POSTGRES_PASSWORD=<test-password>
+export TEAQL_TEST_MYSQL_URL='jdbc:mysql://127.0.0.1:3306/teaql_live_local?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true'
+export TEAQL_TEST_MYSQL_USER=<test-user>
+export TEAQL_TEST_MYSQL_PASSWORD=<test-password>
+mvn -pl teaql-postgres,teaql-mysql -am \
+  -Dtest=PostgresIntegrationTest,MysqlIntegrationTest \
+  -Dsurefire.failIfNoSpecifiedTests=false test
+```
+
+The tests create `task_data`, `context_probe_data`, and `teaql_id_space` within
+those isolated databases. In addition to schema and CRUD behavior, each dialect
+uses the production `IdSpaceIdGenerator` for entity saves and verifies 40
+contended allocations across four independent generator instances followed by
+restart continuity. Dispose of the databases after the run.
 
 ## Documentation
 

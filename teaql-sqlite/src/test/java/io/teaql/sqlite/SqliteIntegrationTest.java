@@ -243,6 +243,29 @@ public class SqliteIntegrationTest {
         }
     }
 
+    @Test
+    public void queryAndMutationUseContextMetadataWithoutGlobalRegistry() {
+        EntityMetaFactory previous = EntityMetaFactory.get();
+        try {
+            EntityMetaFactory.registerGlobal(null);
+            Task task = new Task();
+            task.updateTitle("context-owned-query-mutation");
+            task.updateStatus("READY");
+            task.auditAs("verify context-owned SQL metadata").save(context);
+
+            SmartList<Task> rows = new TaskRequest()
+                    .filterByTitle("context-owned-query-mutation")
+                    .comment("what: load context-owned SQL metadata fixture")
+                    .purpose("why: prove query and mutation do not use global metadata")
+                    .executeForList(context);
+            assertEquals(1, rows.size());
+            assertEquals(task.getId(), rows.get(0).getId());
+            assertEquals("READY", rows.get(0).getStatus());
+        } finally {
+            EntityMetaFactory.registerGlobal(previous);
+        }
+    }
+
     @AfterClass
     public static void teardown() throws Exception {
         Thread.sleep(500); // Allow asynchronous provider work to settle.
