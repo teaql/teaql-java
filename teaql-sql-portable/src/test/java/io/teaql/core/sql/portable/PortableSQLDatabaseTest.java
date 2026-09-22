@@ -79,6 +79,7 @@ public class PortableSQLDatabaseTest {
             appendSearchCriteria(createBasicSearchCriteria(field, op, values));
             return this;
         }
+        public TopNChildRequest comment(String value) { super.internalComment(value); return this; }
     }
 
     // ── Stub Entity and Request ──────────────────────────
@@ -299,6 +300,37 @@ public class PortableSQLDatabaseTest {
                 + "(11,1,'same','visible',1),(12,1,'same','visible',1),(13,1,'same','visible',1),"
                 + "(14,1,'hidden','hidden',1),(21,1,'same','visible',2),(22,1,'same','visible',2),"
                 + "(23,1,'same','visible',2)");
+    }
+
+    @Test
+    public void streamRelationHydrationMustFailRatherThanReturnPartialEntity() {
+        registerTopNFixture();
+        EntityDescriptor child = metaFactory.resolveEntityDescriptor("TopNChild");
+        SimpleEntityMetaFactory incompleteMetadata = new SimpleEntityMetaFactory();
+        incompleteMetadata.register(child);
+        PortableSQLRepository<TopNChild> incompleteRepository =
+                new PortableSQLRepository<>(child, sqliteDb, null, incompleteMetadata);
+
+        TopNChildRequest request = new TopNChildRequest()
+                .where("id", Operator.EQUAL, 11L)
+                .comment("load child and its parent through the stream mapper");
+        request.purpose("verify relation hydration failure is visible to callers");
+        try (var rows = incompleteRepository.streamInternal(context, request)) {
+            rows.findFirst();
+            fail("A selected relation must not disappear when its descriptor is unavailable");
+        } catch (TeaQLRuntimeException failure) {
+            assertTrue(failure.getMessage(), failure.getMessage().contains("TopNChild.parent"));
+            assertTrue(failure.getCause() instanceof IllegalStateException);
+        }
+
+        PortableSQLRepository<TopNChild> completeRepository =
+                new PortableSQLRepository<>(child, sqliteDb, null, metaFactory);
+        try (var rows = completeRepository.streamInternal(context, request)) {
+            TopNChild hydrated = rows.findFirst().orElseThrow();
+            TopNParent parent = hydrated.getProperty("parent");
+            assertNotNull(parent);
+            assertEquals(1L, parent.getId().longValue());
+        }
     }
 
     @Test
@@ -824,6 +856,12 @@ public class PortableSQLDatabaseTest {
                 throw new RuntimeException(e);
             }
             return results;
+        }
+
+        @Override
+        public java.util.stream.Stream<Map<String, Object>> queryForStream(
+                UserContext userContext, String sql, Object[] args) {
+            return query(userContext, sql, args).stream();
         }
 
         public void clearQueryTrace() {
