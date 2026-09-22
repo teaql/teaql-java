@@ -5,8 +5,9 @@ SQLite `ensureSchema` twice and verifies Platform `id=1` plus SchoolType constan
 `1001`/`1002` are present exactly once with version 1.
 
 The application-owned `SchoolLifecycleVerifier` also checks a missing required
-name is rejected by Checker before SQL, then exercises audited create, loaded E
-traversal, full-field update, mark-for-deletion plus save, and normal-query
+name is rejected by Checker before mutation or schema SQL during `save`,
+using a SQL-log capture in the checker probe. It then exercises audited create,
+loaded E traversal, full-field update, mark-for-deletion plus save, and normal-query
 absence. The example gate runs with a fresh SQLite database; running it a
 second time against the same database is supported.
 

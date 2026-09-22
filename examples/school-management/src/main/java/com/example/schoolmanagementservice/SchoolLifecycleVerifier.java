@@ -2,10 +2,15 @@ package com.example.schoolmanagementservice;
 
 import com.example.schoolmanagementservice.platform.Platform;
 import com.example.schoolmanagementservice.school.School;
+import io.teaql.core.DataServiceOperation;
+import io.teaql.core.ExecutionMetadata;
 import io.teaql.core.UserContext;
 import io.teaql.core.checker.CheckException;
+import io.teaql.core.meta.SimpleEntityMetaFactory;
 import io.teaql.runtime.TeaQLRuntime;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 /** Application-owned, repeatable Q/E/Checker/mutation smoke test. */
@@ -22,7 +27,15 @@ final class SchoolLifecycleVerifier {
     require(platform != null, "The seeded Platform is missing");
 
     // Checker must reject the missing required name before a database NOT NULL error.
-    UserContext invalidContext = new CustomUserContext(runtime);
+    List<ExecutionMetadata> invalidSql = new ArrayList<>();
+    TeaQLRuntime checkerProbeRuntime = TeaQLRuntime.builder()
+        .metadata(new SimpleEntityMetaFactory())
+        .registry(runtime.getRegistry())
+        .idGenerationService(runtime.getIdGenerationService())
+        .logSink((ctx, metadata) -> invalidSql.add(metadata))
+        .build()
+        .install(GeneratedRuntimeModule.module());
+    UserContext invalidContext = new CustomUserContext(checkerProbeRuntime);
     School invalid = Q.schools()
         .comment("what: prepare an incomplete School")
         .purpose("why: verify pre-SQL checker rejection")
@@ -33,6 +46,7 @@ final class SchoolLifecycleVerifier {
     invalid.updateEstablishedDate(LocalDate.of(2020, 1, 1));
     invalid.updateStudentCapacity(10);
     invalid.updateActive(true);
+    invalidSql.clear();
     boolean checkerRejected = false;
     try {
       invalid.auditAs("Reject an incomplete School in the lifecycle probe").save(invalidContext);
@@ -43,6 +57,10 @@ final class SchoolLifecycleVerifier {
       checkerRejected = true;
     }
     require(checkerRejected, "Checker accepted a School without its required name");
+    require(invalidSql.stream().noneMatch(metadata ->
+            metadata.getOperation() == DataServiceOperation.MUTATION
+                || metadata.getOperation() == DataServiceOperation.SCHEMA),
+        "Checker wrote SQL before rejecting the incomplete School");
 
     UserContext createContext = new CustomUserContext(runtime);
     School created = Q.schools()
