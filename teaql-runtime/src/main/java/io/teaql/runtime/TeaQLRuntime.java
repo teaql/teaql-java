@@ -909,8 +909,8 @@ public class TeaQLRuntime {
         private RequestPolicy requestPolicy;
         private InternalIdGenerationService idGenerationService;
         private RuntimeLogSink logSink = new DefaultTextRuntimeLogSink();
-        // Debug SQL contains rendered parameter values. It is enabled by
-        // default and can be disabled independently for queries and mutations.
+        // Operation logging is default-on, while the default sink deliberately
+        // excludes bind values and rendered Debug SQL.
         private boolean queryExecutionLoggingEnabled = true;
         private boolean mutationExecutionLoggingEnabled = true;
         private RuntimeTelemetry telemetry = RuntimeTelemetry.NOOP;
@@ -994,12 +994,15 @@ public class TeaQLRuntime {
         }
 
         /**
-         * Explicitly enables or disables value-bearing, copy-paste SQL logs.
-         * Ordinary RuntimeTelemetry and audit delivery are independent.
+         * Selects the built-in value-bearing, copy-paste SQL destination.
+         * This does not change the independent Query and Mutation logging
+         * controls. Ordinary RuntimeTelemetry and audit delivery are also
+         * independent.
          */
         public Builder diagnosticSqlLogging(boolean enabled) {
-            this.queryExecutionLoggingEnabled = enabled;
-            this.mutationExecutionLoggingEnabled = enabled;
+            this.logSink = enabled
+                    ? new SensitiveDiagnosticTextRuntimeLogSink()
+                    : new DefaultTextRuntimeLogSink();
             return this;
         }
 
