@@ -102,6 +102,14 @@ final class SchoolLifecycleVerifier {
         .purpose("why: verify mark-for-deletion plus save")
         .executeForOne(verifyContext);
     require(visible == null, "A deleted School remains visible in a normal query");
+    School deleted = Q.schools()
+        .deletedRowsOnly()
+        .withIdIs(id)
+        .comment("what: inspect the deleted School lifecycle probe")
+        .purpose("why: verify the row remains with a negative version")
+        .executeForOne(verifyContext);
+    require(deleted != null && deleted.getVersion() < 0,
+        "Soft-deleted School is missing or has a nonnegative version");
     System.out.println("PASS Java School Q/E/Checker/audited create-update-delete lifecycle");
   }
 
