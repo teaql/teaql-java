@@ -40,6 +40,14 @@ jobs:
           key: odc-v13.0.0-${{ runner.os }}-${{ steps.odc-day.outputs.value }}
           restore-keys: |
             odc-v13.0.0-${{ runner.os }}-
+      - name: Refresh vulnerability data
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: >-
+          mvn -B org.owasp:dependency-check-maven:13.0.0:update-only
+          -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
+          -DdataDirectory=${{ runner.temp }}/teaql-odc-data
+          -DfailOnError=true
       - name: OWASP Dependency Check
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
