@@ -64,6 +64,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
     // basic return type
     protected Class<? extends T> returnType;
     private final Supplier<? extends T> entityFactory;
+    private EntityMetaFactory boundMetadata;
 
     // aggregations
     protected Aggregations aggregations = new Aggregations();
@@ -121,6 +122,16 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
                     "Generated request does not provide an entity factory for " + getTypeName());
         }
         return entityFactory.get();
+    }
+
+    /**
+     * Binds framework-owned model inspection to one runtime metadata snapshot.
+     * Application query execution normally receives this boundary through a
+     * context-aware adapter such as JSON dynamic search.
+     */
+    public BaseRequest<T> bindMetadata(EntityMetaFactory metadata) {
+        this.boundMetadata = Objects.requireNonNull(metadata, "metadata");
+        return this;
     }
 
     protected String prefix(String prefix, String value) {
@@ -318,6 +329,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
     protected BaseRequest<T> buildRequest(Map<String, Object> map) {
         String typeName = getTypeName();
         BaseRequest newReq = new TempRequest(this.returnType, typeName);
+        propagateMetadata(newReq);
         map.entrySet()
                 .forEach(
                         stringObjectEntry -> {
@@ -637,6 +649,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
     /** Framework-owned count snapshot created after trusted policy enforcement. */
     public SearchRequest<?> internalCountRequest() {
         TempRequest countRequest = new TempRequest(returnType, getTypeName(), entityFactory);
+        propagateMetadata(countRequest);
         countRequest.comment = comment;
         countRequest.purpose = purpose;
         countRequest.searchCriteria = searchCriteria;
@@ -743,11 +756,21 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
     }
 
     protected EntityDescriptor getEntityDescriptor() {
-        EntityMetaFactory factory = EntityMetaFactory.get();
+        EntityMetaFactory factory = metadataFactory();
         if (factory == null) {
             throw new TeaQLRuntimeException("No EntityMetaFactory registered");
         }
         return factory.resolveEntityDescriptor(getTypeName());
+    }
+
+    private EntityMetaFactory metadataFactory() {
+        return boundMetadata != null ? boundMetadata : EntityMetaFactory.get();
+    }
+
+    private void propagateMetadata(BaseRequest<?> request) {
+        if (boundMetadata != null) {
+            request.bindMetadata(boundMetadata);
+        }
     }
 
     public boolean isOneOfSelfField(String propertyName) {
@@ -818,15 +841,25 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
                             "The field '%s' of request type '%s' do not exists", fieldName, this.getTypeName()));
         }
         PropertyDescriptor propertyDescriptor = propertyDescriptorOp.get();
+        if (!(propertyDescriptor instanceof Relation relation)) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "The field '%s' of request type '%s' is not a relation",
+                            fieldName, this.getTypeName()));
+        }
         Class returnType = propertyDescriptor.getType().javaType();
-        TempRequest tempRequest =
-                new TempRequest(returnType, returnType.getSimpleName());
+        EntityDescriptor targetDescriptor = relation.getReverseProperty() == null
+                ? null
+                : relation.getReverseProperty().getOwner();
+        TempRequest tempRequest = targetDescriptor == null
+                ? new TempRequest(returnType, returnType.getSimpleName())
+                : new TempRequest(targetDescriptor);
+        propagateMetadata(tempRequest);
         tempRequest.selectProperty(BaseEntity.ID_PROPERTY);
         tempRequest.selectProperty(BaseEntity.VERSION_PROPERTY);
         tempRequest.appendSearchCriteria(
                 createBasicSearchCriteria(BaseEntity.VERSION_PROPERTY, Operator.GREATER_THAN, 0l));
         tempRequest.unlimited();
-        Relation relation = (Relation) propertyDescriptor;
         if (relation.getRelationKeeper() == getEntityDescriptor()) {
             this.appendSearchCriteria(
                     new SubQuerySearchCriteria(fieldName, tempRequest, BaseEntity.ID_PROPERTY));
