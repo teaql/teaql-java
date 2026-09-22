@@ -14,11 +14,14 @@ import io.teaql.core.QueryExecutor;
 import io.teaql.core.QueryRequest;
 import io.teaql.core.QueryResult;
 import io.teaql.core.SmartList;
+import io.teaql.core.UserContext;
 import io.teaql.core.meta.EntityDescriptor;
 import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
 import io.teaql.runtime.DefaultQueryResult;
+import io.teaql.runtime.DefaultUserContext;
 import io.teaql.runtime.RuntimeTelemetry;
+import io.teaql.runtime.TeaQLRuntime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +31,7 @@ import org.junit.Test;
 
 public class TfpEndpointTelemetryTest {
     private final RecordingTelemetry telemetry = new RecordingTelemetry();
+    private UserContext context;
 
     @Before
     public void registerMetadata() {
@@ -36,7 +40,8 @@ public class TfpEndpointTelemetryTest {
         descriptor.setType("Probe");
         descriptor.setTargetType(Probe.class);
         metadata.register(descriptor);
-        EntityMetaFactory.registerGlobal(metadata);
+        EntityMetaFactory.registerGlobal(null);
+        context = new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata).build());
     }
 
     @Test
@@ -47,7 +52,7 @@ public class TfpEndpointTelemetryTest {
                 queryExecutor(request -> new DefaultQueryResult(rows)),
                 mutationExecutor(), new ObjectMapper(), telemetry);
 
-        Map<String, Object> response = handler.handleQuery(null, trusted(),
+        Map<String, Object> response = handler.handleQuery(context, trusted(),
                 queryPayload().getBytes());
 
         assertEquals(rows.getData(), response.get("data"));
@@ -65,7 +70,7 @@ public class TfpEndpointTelemetryTest {
                 mutationExecutor(), new ObjectMapper(), telemetry);
 
         IllegalStateException thrown = assertThrows(IllegalStateException.class,
-                () -> handler.handleQuery(null, trusted(), queryPayload().getBytes()));
+                () -> handler.handleQuery(context, trusted(), queryPayload().getBytes()));
 
         assertSame(original, thrown);
         assertSame(original, telemetry.failures.get(0));
@@ -77,7 +82,7 @@ public class TfpEndpointTelemetryTest {
                 queryExecutor(request -> new DefaultQueryResult(new SmartList<>())),
                 mutationExecutor(), new ObjectMapper(), telemetry);
 
-        handler.handleMutation(null, trusted(),
+        handler.handleMutation(context, trusted(),
                 "{\"entity\":\"Probe\",\"action\":\"Create\",\"payload\":{},\"comment\":\"create probe\"}".getBytes());
 
         assertEquals("tfp", telemetry.operations.get(0).family());
@@ -93,7 +98,7 @@ public class TfpEndpointTelemetryTest {
                 queryExecutor(request -> new DefaultQueryResult(new SmartList<>())),
                 mutationExecutor(), new ObjectMapper(), telemetry);
 
-        handler.handleQuery(null, trusted(), queryPayload().getBytes(),
+        handler.handleQuery(context, trusted(), queryPayload().getBytes(),
                 telemetry.expectedCarrier);
 
         assertEquals(List.of("activate", "start:server.query", "close"),

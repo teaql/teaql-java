@@ -8,12 +8,16 @@ import java.util.List;
  * entity meta factory
  */
 public interface EntityMetaFactory {
-    /** Schema operations must use the descriptors installed in the invoking context. */
+    /** Governed runtime operations must use descriptors installed in the invoking context. */
     static EntityMetaFactory requireFrom(UserContext context) {
+        if (context == null) {
+            throw new TeaQLRuntimeException(
+                    "Entity metadata requires a non-null UserContext");
+        }
         EntityMetaFactory factory = context.capability(EntityMetaFactory.class);
         if (factory == null) {
             throw new TeaQLRuntimeException(
-                    "Entity metadata is not configured in this UserContext for ensureSchema");
+                    "Entity metadata is not configured in this UserContext");
         }
         return factory;
     }
