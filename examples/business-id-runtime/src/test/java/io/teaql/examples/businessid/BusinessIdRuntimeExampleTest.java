@@ -187,6 +187,58 @@ public class BusinessIdRuntimeExampleTest {
     }
 
     @Test
+    public void sqliteAllocatorReportsMissingSchemaWithoutRetryExhaustion() throws Exception {
+        Path databasePath = Files.createTempFile("teaql-business-id-missing-schema", ".db");
+        try (Connection connection = open(databasePath)) {
+            JdbcBusinessIdAllocator allocator =
+                    new JdbcBusinessIdAllocator(database(connection));
+            BusinessIdPlan plan = new DailySequenceBusinessIdProfile().plan(
+                    new BusinessIdGenerationRequest(
+                            ORDER_NUMBER, "tenant-a", "commerce_order",
+                            LocalDate.of(2026, 9, 20)));
+
+            IllegalStateException failure = Assert.assertThrows(
+                    IllegalStateException.class, () -> allocator.allocate(plan));
+            Assert.assertTrue(failure.getMessage(),
+                    failure.getMessage().contains("context.ensureSchema()"));
+            Assert.assertNotNull(failure.getCause());
+        } finally {
+            Files.deleteIfExists(databasePath);
+        }
+    }
+
+    @Test
+    public void sqliteAllocatorRejectsMalformedSequenceRowWithoutRetryExhaustion()
+            throws Exception {
+        Path databasePath = Files.createTempFile("teaql-business-id-malformed", ".db");
+        try (Connection connection = open(databasePath)) {
+            JdbcBusinessIdAllocator allocator =
+                    new JdbcBusinessIdAllocator(database(connection));
+            LocalDate businessDate = LocalDate.of(2026, 9, 20);
+            BusinessIdPlan plan = new DailySequenceBusinessIdProfile().plan(
+                    new BusinessIdGenerationRequest(
+                            ORDER_NUMBER, "tenant-a", "commerce_order", businessDate));
+            UserContext context = context(businessDate, allocator);
+            context.putAttribute(SchemaExecutor.class.getName(), noOpSchemaExecutor());
+            context.ensureSchema();
+            try (PreparedStatement insert = connection.prepareStatement(
+                    "INSERT INTO teaql_business_id_space"
+                            + " (scope_key, current_value, version, updated_at)"
+                            + " VALUES (?, 'invalid', 1, 0)")) {
+                insert.setString(1, plan.scope().canonicalKey());
+                Assert.assertEquals(1, insert.executeUpdate());
+            }
+
+            IllegalStateException failure = Assert.assertThrows(
+                    IllegalStateException.class, () -> allocator.allocate(plan));
+            Assert.assertTrue(failure.getMessage(),
+                    failure.getMessage().contains("current_value"));
+        } finally {
+            Files.deleteIfExists(databasePath);
+        }
+    }
+
+    @Test
     public void sqliteAllocatorRejectsExhaustedAndOverflowedSequencesWithoutMutation()
             throws Exception {
         Path databasePath = Files.createTempFile("teaql-business-id-range", ".db");
