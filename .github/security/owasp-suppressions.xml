@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.4.xsd"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.4.xsd https://dependency-check.github.io/DependencyCheck/dependency-suppression.1.4.xsd">
+  <suppress until="2026-10-23Z">
+    <notes><![CDATA[
+      teaql-java issue #131: io.teaql:teaql-sqlite:1.548-RELEASE is a Java
+      provider wrapper, not the SQLite engine. Its JAR does not bundle SQLite;
+      org.xerial:sqlite-jdbc is a separate dependency and remains scanned.
+      Review this exact-version exception before the next release.
+    ]]></notes>
+    <packageUrl>pkg:maven/io.teaql/teaql-sqlite@1.548-RELEASE</packageUrl>
+    <cpe>cpe:2.3:a:sqlite:sqlite:1.548:release:*:*:*:*:*:*</cpe>
+  </suppress>
+</suppressions>

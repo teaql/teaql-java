@@ -332,6 +332,7 @@
                 <version>13.0.0</version>
                 <configuration>
                     <ossindexAnalyzerEnabled>false</ossindexAnalyzerEnabled>
+                    <suppressionFile>${maven.multiModuleProjectDirectory}/.github/security/owasp-suppressions.xml</suppressionFile>
                 </configuration>
             </plugin>
             <plugin>
