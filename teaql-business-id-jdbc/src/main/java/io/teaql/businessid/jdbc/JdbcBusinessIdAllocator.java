@@ -58,15 +58,20 @@ public final class JdbcBusinessIdAllocator
                     + "updated_at " + dialect.mapColumnType("BIGINT") + " NOT NULL)");
         } catch (RuntimeException createFailure) {
             // Another instance may have created the table after inspection.
-            // Only accept that race when the installed table can be inspected.
+            // Only accept that race when the installed table passes the same
+            // validation as a table that was already present at startup.
+            List<Map<String, Object>> concurrent;
             try {
-                List<Map<String, Object>> concurrent = inspectColumns();
-                if (!concurrent.isEmpty()) {
-                    requireColumns(concurrent);
-                    return;
-                }
+                concurrent = inspectColumns();
             } catch (RuntimeException inspectFailure) {
                 createFailure.addSuppressed(inspectFailure);
+                throw new IllegalStateException(
+                        "Cannot create or inspect Business ID table " + table,
+                        createFailure);
+            }
+            if (!concurrent.isEmpty()) {
+                requireColumns(concurrent);
+                return;
             }
             throw new IllegalStateException(
                     "Cannot create Business ID table " + table, createFailure);
