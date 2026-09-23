@@ -7,9 +7,9 @@ import io.teaql.core.sql.portable.PortableSQLRepository;
 import io.teaql.core.sql.portable.TeaQLDatabase;
 import io.teaql.dataservice.sql.SqlDataServiceExecutor;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class PostgresDataServiceExecutor extends SqlDataServiceExecutor {
 
@@ -50,8 +50,19 @@ public class PostgresDataServiceExecutor extends SqlDataServiceExecutor {
 
             @Override
             public List<Map<String, Object>> getTableColumns(String tableName) {
-                String sql = "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = :tableName AND table_schema = 'public'";
-                return getExecutionAdapter().queryForList(sql, Collections.singletonMap("tableName", tableName.toLowerCase()));
+                String sql = "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ? AND table_schema = 'public'";
+                return getExecutionAdapter().queryForList(sql, new Object[] {tableName.toLowerCase()});
+            }
+
+            @Override
+            public Optional<Boolean> indexExists(
+                    UserContext context, String tableName, String indexName) {
+                List<Map<String, Object>> rows = getExecutionAdapter().queryForList(
+                        "SELECT 1 AS present FROM pg_indexes "
+                                + "WHERE schemaname = current_schema() AND tablename = ? "
+                                + "AND indexname = ? LIMIT 1",
+                        new Object[] {tableName.toLowerCase(), indexName.toLowerCase()});
+                return Optional.of(!rows.isEmpty());
             }
         };
 

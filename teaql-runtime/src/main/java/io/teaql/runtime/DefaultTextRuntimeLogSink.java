@@ -3,36 +3,53 @@ package io.teaql.runtime;
 import io.teaql.core.ExecutionMetadata;
 import io.teaql.core.TraceNode;
 import io.teaql.core.UserContext;
+import java.io.PrintStream;
 import java.util.List;
 import java.util.stream.IntStream;
 
-/** Default value-bearing diagnostic SQL destination. */
-public final class DefaultTextRuntimeLogSink implements RuntimeLogSink {
+/** Default operator log. It deliberately excludes bind values and rendered Debug SQL. */
+public class DefaultTextRuntimeLogSink implements RuntimeLogSink {
+    protected final PrintStream output;
+
+    public DefaultTextRuntimeLogSink() {
+        this(System.err);
+    }
+
+    public DefaultTextRuntimeLogSink(PrintStream output) {
+        this.output = output;
+    }
+
+    @Override
+    public boolean requiresSensitiveSqlData() {
+        // A subclass may override writeExecutionLog() and consume the fields.
+        // Preserve its previous metadata contract unless it opts out itself.
+        return getClass() != DefaultTextRuntimeLogSink.class;
+    }
+
     @Override
     public void writeExecutionLog(UserContext context, ExecutionMetadata metadata) {
-        System.err.printf(
+        output.printf(
                 "[TeaQL SQL][%s][%dus] %s comment=%s purpose=%s auditReason=%s tracePath=%s%n"
-                        + "Parameterized SQL: %s params=%s%nDebug SQL: %s%n",
+                        + "Parameterized SQL: %s%n",
                 metadata.getOperation() == null ? "unknown" : metadata.getOperation().name().toLowerCase(),
                 metadata.getElapsedUs(), resultSummary(metadata),
                 nullToEmpty(metadata.getComment()), nullToEmpty(metadata.getPurpose()),
                 nullToEmpty(metadata.getAuditReason()), formatTrace(metadata.getTraceChain()),
-                nullToEmpty(metadata.getParameterizedQuery()), metadata.getParameters(),
-                nullToEmpty(metadata.getDebugQuery()));
+                nullToEmpty(metadata.getParameterizedQuery()));
     }
 
-    private static String formatTrace(List<TraceNode> nodes) {
+    protected static String formatTrace(List<TraceNode> nodes) {
         if (nodes == null) return "[]";
         return "[" + IntStream.range(0, nodes.size())
                 .mapToObj(index -> index + ":" + nodes.get(index))
                 .reduce((left, right) -> left + " -> " + right).orElse("") + "]";
     }
 
-    private static String nullToEmpty(String value) {
+    protected static String nullToEmpty(String value) {
         return value == null ? "" : value;
     }
 
-    private static String resultSummary(ExecutionMetadata metadata) {
+    protected static String resultSummary(ExecutionMetadata metadata) {
         if (metadata.getResultCount() != null) {
             return metadata.getResultCount() + " rows returned";
         }

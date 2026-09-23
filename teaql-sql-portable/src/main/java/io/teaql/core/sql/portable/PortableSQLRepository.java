@@ -131,6 +131,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     private final EntityDescriptor entityDescriptor;
     private final TeaQLDatabase database;
+    private final EntityMetaFactory metadata;
     private String childType = "_child_type";
     private String childSqlType = "VARCHAR(100)";
     private String tqlIdSpaceTable = "teaql_id_space";
@@ -167,9 +168,18 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     public PortableSQLRepository(EntityDescriptor entityDescriptor, TeaQLDatabase database, PortableSQLRepositoryResolver resolver) {
+        this(entityDescriptor, database, resolver, null);
+    }
+
+    public PortableSQLRepository(
+            EntityDescriptor entityDescriptor,
+            TeaQLDatabase database,
+            PortableSQLRepositoryResolver resolver,
+            EntityMetaFactory metadata) {
         this.entityDescriptor = entityDescriptor;
         this.database = database;
         this.resolver = resolver;
+        this.metadata = metadata;
         initSQLMeta(entityDescriptor);
         initExpressionParsers();
     }
@@ -975,7 +985,9 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     @SuppressWarnings("unchecked")
     public T loadPersistedById(UserContext userContext, Long id) {
-        String sql = "SELECT * FROM " + escapeIdentifier(tableName(entityDescriptor.getType()))
+        String primaryTable = thisPrimaryTableName != null
+                ? thisPrimaryTableName : tableName(entityDescriptor.getType());
+        String sql = "SELECT * FROM " + escapeIdentifier(primaryTable)
                 + " WHERE " + escapeIdentifier("id") + " = ?";
         List<Map<String, Object>> rows = database.query(userContext, sql, new Object[] {id});
         if (rows.size() != 1) {
@@ -1050,8 +1062,9 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                     }
                     entity.setProperty(property.getName(), ref);
                 } catch (Exception e) {
-                    System.out.println("mapRowToEntity relation mapping error for property " + property.getName() + ": " + e.getMessage());
-                    e.printStackTrace();
+                    throw new TeaQLRuntimeException(
+                            "Failed to hydrate selected relation "
+                                    + entityDescriptor.getType() + "." + property.getName(), e);
                 }
             }
         }
@@ -1134,9 +1147,9 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         if (entityDescriptor.getTargetType() == entityType) {
             return entityDescriptor;
         }
-        EntityMetaFactory metadata = EntityMetaFactory.get();
-        if (metadata != null) {
-            for (EntityDescriptor descriptor : metadata.allEntityDescriptors()) {
+        EntityMetaFactory descriptorSource = metadata != null ? metadata : EntityMetaFactory.get();
+        if (descriptorSource != null) {
+            for (EntityDescriptor descriptor : descriptorSource.allEntityDescriptors()) {
                 if (descriptor.getTargetType() == entityType) {
                     return descriptor;
                 }
@@ -1323,7 +1336,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             try {
                 dbTableInfo = database.getTableColumns(table);
             } catch (Exception e) {
-                dbTableInfo = ListUtil.empty();
+                throw schemaFailure("inspect", table, e);
             }
             ensure(context, dbTableInfo, table, columns);
         });
@@ -1351,6 +1364,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             String table = relationColumn.getTableName();
             String indexName = canonicalRelationIndexName(
                     table, relationColumn.getColumnName(), idColumn.getColumnName());
+            try {
+                if (database.indexExists(context, table, indexName).orElse(false)) continue;
+            } catch (Exception failure) {
+                throw canonicalRelationIndexFailure("inspect", table, indexName, failure);
+            }
             String sql = "CREATE INDEX " + dialect.escapeIdentifier(indexName)
                     + " ON " + dialect.escapeIdentifier(table)
                     + " (" + dialect.escapeIdentifier(relationColumn.getColumnName())
@@ -1359,13 +1377,31 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             if (ensureTableEnabled(context)) {
                 try {
                     database.execute(context, sql);
-                } catch (Exception duplicateOrUnsupported) {
-                    // Schema ensure is idempotent. Existing schema operations use
-                    // the same best-effort contract for duplicate DDL.
-                    logInfo("Ignored: " + duplicateOrUnsupported.getMessage());
+                } catch (Exception failure) {
+                    if (SchemaExceptionClassifier.isDuplicateIndex(failure)) {
+                        try {
+                            // PostgreSQL index names are schema-wide. A duplicate name on a
+                            // different table must not be mistaken for this index being present.
+                            if (database.indexExists(context, table, indexName).orElse(true)) {
+                                continue;
+                            }
+                        } catch (Exception inspectionFailure) {
+                            failure.addSuppressed(inspectionFailure);
+                        }
+                    }
+                    throw canonicalRelationIndexFailure("create", table, indexName, failure);
                 }
             }
         }
+    }
+
+    private IllegalStateException canonicalRelationIndexFailure(
+            String operation, String table, String indexName, Exception failure) {
+        return new IllegalStateException(
+                "Failed to " + operation + " canonical relation index '" + indexName
+                        + "' for entity '" + entityDescriptor.getType()
+                        + "' on table '" + table + "'",
+                failure);
     }
 
     private String canonicalRelationIndexName(String table, String relation, String id) {
@@ -1380,7 +1416,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         try {
             dbTableInfo = database.getTableColumns(getTqlIdSpaceTable());
         } catch (Exception e) {
-            dbTableInfo = ListUtil.empty();
+            throw schemaFailure("inspect", getTqlIdSpaceTable(), e);
         }
         if (!ObjectUtil.isEmpty(dbTableInfo)) return;
 
@@ -1389,7 +1425,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 + "current_level bigint)\n";
         logInfo(sql + ";");
         if (ensureTableEnabled(context)) {
-            try { database.execute(context, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+            try {
+                database.execute(context, sql);
+            } catch (Exception e) {
+                throw schemaFailure("create", getTqlIdSpaceTable(), e);
+            }
         }
     }
 
@@ -1399,13 +1439,25 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             return;
         }
         Map<String, Map<String, Object>> fields = CollStreamUtil.toIdentityMap(
-                tableInfo, m -> String.valueOf(m.get("column_name")).toLowerCase());
+                tableInfo, m -> metadataColumnName(m, table));
         for (SQLColumn column : columns) {
             String dbColumnName = column.getColumnName().toLowerCase();
             if (!fields.containsKey(dbColumnName)) {
                 addColumn(context, column);
             }
         }
+    }
+
+    private String metadataColumnName(Map<String, Object> column, String table) {
+        for (Map.Entry<String, Object> entry : column.entrySet()) {
+            if ("column_name".equalsIgnoreCase(entry.getKey())
+                    && entry.getValue() != null) {
+                return String.valueOf(entry.getValue()).toLowerCase(java.util.Locale.ROOT);
+            }
+        }
+        throw new IllegalStateException(
+                "Missing column_name in schema metadata for entity '"
+                        + entityDescriptor.getType() + "' on table '" + table + "'");
     }
 
     protected void createTable(UserContext context, String table, List<SQLColumn> columns) {
@@ -1422,7 +1474,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         sb.append(")\n");
         logInfo(sb + ";");
         if (ensureTableEnabled(context)) {
-            try { database.execute(context, sb.toString()); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+            try {
+                database.execute(context, sb.toString());
+            } catch (Exception e) {
+                throw schemaFailure("create", table, e);
+            }
         }
     }
 
@@ -1432,8 +1488,19 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 dialect.mapColumnType(column.getType()), column.isRequired() ? " NOT NULL" : "");
         logInfo(sql + ";");
         if (ensureTableEnabled(context)) {
-            try { database.execute(context, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+            try {
+                database.execute(context, sql);
+            } catch (Exception e) {
+                throw schemaFailure("add column " + column.getColumnName(), column.getTableName(), e);
+            }
         }
+    }
+
+    private IllegalStateException schemaFailure(String operation, String table, Exception cause) {
+        return new IllegalStateException(
+                "Failed to " + operation + " schema for entity '" + entityDescriptor.getType()
+                        + "' on table '" + table + "'",
+                cause);
     }
 
     public void ensureInitData(UserContext context) {

@@ -1,0 +1,54 @@
+name: Live SQL dialects
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  postgres-mysql:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: teaql_live_ci
+          POSTGRES_USER: teaql_test
+          POSTGRES_PASSWORD: teaql_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U teaql_test -d teaql_live_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: teaql_live_ci
+          MYSQL_ROOT_PASSWORD: teaql_test_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      TEAQL_REQUIRE_LIVE_DB: "true"
+      TEAQL_TEST_POSTGRES_URL: jdbc:postgresql://127.0.0.1:5432/teaql_live_ci
+      TEAQL_TEST_POSTGRES_USER: teaql_test
+      TEAQL_TEST_POSTGRES_PASSWORD: teaql_test_password
+      TEAQL_TEST_MYSQL_URL: "jdbc:mysql://127.0.0.1:3306/teaql_live_ci?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true"
+      TEAQL_TEST_MYSQL_USER: root
+      TEAQL_TEST_MYSQL_PASSWORD: teaql_test_password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Verify both live dialects (skips are forbidden)
+        run: >-
+          mvn -B -ntp -pl teaql-postgres,teaql-mysql -am
+          -Dtest=PostgresIntegrationTest,MysqlIntegrationTest
+          -Dsurefire.failIfNoSpecifiedTests=false test

@@ -12,10 +12,13 @@ import io.teaql.core.QueryExecutor;
 import io.teaql.core.QueryRequest;
 import io.teaql.core.QueryResult;
 import io.teaql.core.SmartList;
+import io.teaql.core.UserContext;
 import io.teaql.core.meta.EntityDescriptor;
 import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
 import io.teaql.runtime.DefaultQueryResult;
+import io.teaql.runtime.DefaultUserContext;
+import io.teaql.runtime.TeaQLRuntime;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
@@ -29,14 +32,14 @@ public final class TfpConformanceServer {
     public static void main(String[] args) throws Exception {
         int port = Integer.parseInt(System.getenv().getOrDefault("TEAQL_TFP_JAVA_PORT", "19092"));
         ObjectMapper mapper = new ObjectMapper();
-        registerMetadata();
+        UserContext context = createContext();
         TfpEndpointHandler endpoint = new TfpEndpointHandler(queryExecutor(), mutationExecutor(), mapper);
         TrustedFederalContext trusted = trusted();
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
         server.createContext("/query", exchange -> handle(exchange, mapper,
-                () -> endpoint.handleQuery(null, trusted, exchange.getRequestBody().readAllBytes(), headers(exchange))));
+                () -> endpoint.handleQuery(context, trusted, exchange.getRequestBody().readAllBytes(), headers(exchange))));
         server.createContext("/mutate", exchange -> handle(exchange, mapper,
-                () -> endpoint.handleMutation(null, trusted, exchange.getRequestBody().readAllBytes(), headers(exchange))));
+                () -> endpoint.handleMutation(context, trusted, exchange.getRequestBody().readAllBytes(), headers(exchange))));
         server.start();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> server.stop(0)));
         System.out.println("Java TFP conformance server listening on 127.0.0.1:" + port);
@@ -78,7 +81,7 @@ public final class TfpConformanceServer {
         return result;
     }
 
-    private static void registerMetadata() {
+    private static UserContext createContext() {
         EntityDescriptor descriptor = new EntityDescriptor();
         descriptor.setType("CustomerOrder"); descriptor.setTargetType(CustomerOrder.class);
         SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
@@ -89,7 +92,8 @@ public final class TfpConformanceServer {
         statusDescriptor.addSimpleProperty("code", String.class);
         statusDescriptor.addSimpleProperty("label", String.class);
         metadata.register(statusDescriptor);
-        EntityMetaFactory.registerGlobal(metadata);
+        EntityMetaFactory.registerGlobal(null);
+        return new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata).build());
     }
 
     private static TrustedFederalContext trusted() {

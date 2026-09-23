@@ -10,6 +10,7 @@ import io.teaql.core.sqlite.SqliteDataServiceExecutor;
 import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import io.teaql.dataservice.sql.SqlDataServiceExecutor;
 import io.teaql.runtime.DefaultUserContext;
+import io.teaql.runtime.RuntimeLogSink;
 import io.teaql.runtime.TeaQLRuntime;
 
 import org.junit.AfterClass;
@@ -34,6 +35,58 @@ import java.util.logging.Logger;
 import static org.junit.Assert.*;
 
 public class SqliteIntegrationTest {
+
+    @Test
+    public void ordinarySqlLogsSkipSensitivePayloadConstruction() {
+        List<ExecutionMetadata> safeLogs = new ArrayList<>();
+        RuntimeLogSink safeSink = new RuntimeLogSink() {
+            @Override
+            public void writeExecutionLog(UserContext context, ExecutionMetadata metadata) {
+                safeLogs.add(metadata);
+            }
+
+            @Override
+            public boolean requiresSensitiveSqlData() {
+                return false;
+            }
+        };
+        executeLoggedQueryAndMutation(safeSink);
+        assertTrue(safeLogs.stream().anyMatch(log -> log.getOperation() == DataServiceOperation.QUERY));
+        assertTrue(safeLogs.stream().anyMatch(log -> log.getOperation() == DataServiceOperation.MUTATION));
+        assertTrue(safeLogs.stream().allMatch(log -> log.getParameterizedQuery() != null));
+        assertTrue(safeLogs.stream().allMatch(log -> log.getParameters().isEmpty()));
+        assertTrue(safeLogs.stream().allMatch(log -> log.getDebugQuery() == null));
+
+        List<ExecutionMetadata> diagnosticLogs = new ArrayList<>();
+        executeLoggedQueryAndMutation((context, metadata) -> diagnosticLogs.add(metadata));
+        assertTrue(diagnosticLogs.stream().anyMatch(log ->
+                log.getOperation() == DataServiceOperation.QUERY
+                        && !log.getParameters().isEmpty()
+                        && log.getDebugQuery() != null));
+        assertTrue(diagnosticLogs.stream().anyMatch(log ->
+                log.getOperation() == DataServiceOperation.MUTATION
+                        && !log.getParameters().isEmpty()
+                        && log.getDebugQuery() != null));
+    }
+
+    private void executeLoggedQueryAndMutation(RuntimeLogSink sink) {
+        TeaQLRuntime loggedRuntime = TeaQLRuntime.builder()
+                .metadata(runtime.getMetadata())
+                .dataService("sqlite", runtime.getRegistry().resolve("sqlite"))
+                .idGenerationService(runtime.getIdGenerationService())
+                .logSink(sink)
+                .build();
+        UserContext loggedContext = new DefaultUserContext(loggedRuntime);
+        TaskRequest request = new TaskRequest().filterByTitle("diagnostic-payload-check");
+        request.comment("what: verify SQL payload construction")
+                .purpose("why: check logging sink contract")
+                .executeForList(loggedContext);
+
+        Task task = new Task();
+        task.updateTitle("diagnostic-payload-check");
+        task.updateStatus("LOG-CHECK");
+        task.auditAs("verify logging sink contract").save(loggedContext);
+    }
 
     @Test
     public void localDynamicSearchPreservesTrustedScopeInSqlite() {
@@ -229,6 +282,37 @@ public class SqliteIntegrationTest {
     }
 
     @Test
+    public void sqliteMetadataFailureDoesNotBecomeAnEmptyTable() {
+        io.teaql.dataservice.sql.SqlExecutionAdapter failingAdapter =
+                (io.teaql.dataservice.sql.SqlExecutionAdapter) java.lang.reflect.Proxy.newProxyInstance(
+                        io.teaql.dataservice.sql.SqlExecutionAdapter.class.getClassLoader(),
+                        new Class<?>[] {io.teaql.dataservice.sql.SqlExecutionAdapter.class},
+                        (proxy, method, args) -> {
+                            if ("queryForList".equals(method.getName())
+                                    && args[0] instanceof String sql
+                                    && sql.startsWith("PRAGMA table_info(")) {
+                                throw new IllegalStateException("simulated SQLite metadata failure");
+                            }
+                            try {
+                                return method.invoke(jdbcSqlExecutor, args);
+                            } catch (java.lang.reflect.InvocationTargetException failure) {
+                                throw failure.getCause();
+                            }
+                        });
+        SqliteDataServiceExecutor failingExecutor =
+                new SqliteDataServiceExecutor("sqlite", failingAdapter, null);
+        UserContext failingContext = new DefaultUserContext(TeaQLRuntime.builder()
+                .metadata(runtime.getMetadata())
+                .dataService("sqlite", failingExecutor)
+                .build());
+
+        IllegalStateException failure = assertThrows(
+                IllegalStateException.class, failingContext::ensureSchema);
+        assertTrue(failure.getMessage().contains("task_data"));
+        assertTrue(failure.getCause().getMessage().contains("simulated SQLite metadata failure"));
+    }
+
+    @Test
     public void ensureSchemaUsesContextMetadataWithoutGlobalRegistry() {
         EntityMetaFactory previous = EntityMetaFactory.get();
         try {
@@ -238,6 +322,29 @@ public class SqliteIntegrationTest {
             assertFalse(jdbcSqlExecutor.queryForList(
                     "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'task_data'",
                     new Object[0]).isEmpty());
+        } finally {
+            EntityMetaFactory.registerGlobal(previous);
+        }
+    }
+
+    @Test
+    public void queryAndMutationUseContextMetadataWithoutGlobalRegistry() {
+        EntityMetaFactory previous = EntityMetaFactory.get();
+        try {
+            EntityMetaFactory.registerGlobal(null);
+            Task task = new Task();
+            task.updateTitle("context-owned-query-mutation");
+            task.updateStatus("READY");
+            task.auditAs("verify context-owned SQL metadata").save(context);
+
+            SmartList<Task> rows = new TaskRequest()
+                    .filterByTitle("context-owned-query-mutation")
+                    .comment("what: load context-owned SQL metadata fixture")
+                    .purpose("why: prove query and mutation do not use global metadata")
+                    .executeForList(context);
+            assertEquals(1, rows.size());
+            assertEquals(task.getId(), rows.get(0).getId());
+            assertEquals("READY", rows.get(0).getStatus());
         } finally {
             EntityMetaFactory.registerGlobal(previous);
         }
