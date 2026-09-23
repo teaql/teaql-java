@@ -287,6 +287,24 @@ public class BusinessIdRuntimeExampleTest {
     }
 
     @Test
+    public void sqliteAllocatorRejectsShortScopeKeyColumn() throws Exception {
+        assertInvalidExistingTable(
+                "CREATE TABLE teaql_business_id_space ("
+                        + "scope_key VARCHAR(64) PRIMARY KEY, current_value BIGINT NOT NULL, "
+                        + "version BIGINT NOT NULL, updated_at BIGINT NOT NULL)",
+                "scope_key");
+    }
+
+    @Test
+    public void sqliteAllocatorRejectsNullableVersion() throws Exception {
+        assertInvalidExistingTable(
+                "CREATE TABLE teaql_business_id_space ("
+                        + "scope_key VARCHAR(512) PRIMARY KEY, current_value BIGINT NOT NULL, "
+                        + "version BIGINT, updated_at BIGINT NOT NULL)",
+                "version");
+    }
+
+    @Test
     public void sqliteAllocatorAcceptsNonNullableUniqueScopeKey() throws Exception {
         Path databasePath = Files.createTempFile("teaql-business-id-unique-scope", ".db");
         try (Connection connection = open(databasePath)) {
