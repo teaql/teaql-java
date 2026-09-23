@@ -164,6 +164,10 @@ dialect for the target database.
 | `teaql-utils`, `teaql-utils-json` | Framework-neutral utility abstractions |
 | `teaql-utils-reflection`, `teaql-utils-spring` | Optional reflection- and Spring-backed utility implementations |
 
+For business IDs, use the context-owned `BusinessIdService` and explicit
+`context.ensureSchema()` lifecycle. The [focused runtime example](examples/business-id-runtime/README.md)
+documents the preferred contract and the deprecated legacy boundary.
+
 ## Framework Notes
 
 ### Spring Boot and SQLite

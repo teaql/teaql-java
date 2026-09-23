@@ -4,9 +4,11 @@ import io.teaql.core.meta.EntityDescriptor;
 import io.teaql.core.meta.PropertyDescriptor;
 
 /**
- * 通用业务 ID 生成器接口。
- * 用于生成像“订单号”、“物流单号”这样带有规则和业务语义的字符串 ID。
+ * Legacy business ID generator retained for existing integrations.
+ * New applications should use {@link io.teaql.core.businessid.BusinessIdService}
+ * through {@link UserContext#businessIds()} instead.
  */
+@Deprecated
 public interface BusinessIdGenerator {
 
     /**

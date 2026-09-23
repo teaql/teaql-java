@@ -4,26 +4,27 @@ import io.teaql.core.BusinessIdGenerator;
 import io.teaql.core.Entity;
 import io.teaql.core.TeaQLRuntimeException;
 import io.teaql.core.UserContext;
+import io.teaql.core.businessid.BusinessIdErrorCode;
+import io.teaql.core.businessid.BusinessIdException;
+import io.teaql.core.businessid.BusinessIdSchemaContributor;
 import io.teaql.core.meta.EntityDescriptor;
 import io.teaql.core.meta.PropertyDescriptor;
 import io.teaql.core.sql.portable.TeaQLDatabase;
 import io.teaql.core.utils.StrUtil;
 
-import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
- * JDBC implementation of BusinessIdGenerator.
- * Uses a dedicated sequence table {@code teaql_biz_sequence} to generate unique IDs.
+ * Legacy JDBC business ID format, retained for existing callers. Prefer the
+ * context-owned BusinessIdService and JdbcBusinessIdAllocator for new models.
+ * Schema creation is explicit through context.ensureSchema().
  */
-public class JdbcBusinessIdGenerator implements BusinessIdGenerator {
+@Deprecated
+public class JdbcBusinessIdGenerator implements BusinessIdGenerator, BusinessIdSchemaContributor {
 
-    private static final Logger LOG = Logger.getLogger(JdbcBusinessIdGenerator.class.getName());
+    private static final int MAX_ATTEMPTS = 100;
     
     private final TeaQLDatabase database;
     private final String sequenceTable;
@@ -33,20 +34,19 @@ public class JdbcBusinessIdGenerator implements BusinessIdGenerator {
     }
 
     public JdbcBusinessIdGenerator(TeaQLDatabase database, String sequenceTable) {
-        this.database = database;
+        this.database = java.util.Objects.requireNonNull(database, "database");
+        if (sequenceTable == null || !sequenceTable.matches("[A-Za-z][A-Za-z0-9_]*")) {
+            throw new IllegalArgumentException("Invalid Business ID table name: " + sequenceTable);
+        }
         this.sequenceTable = sequenceTable;
-        ensureSequenceTable();
     }
 
-    private void ensureSequenceTable() {
+    @Override
+    public void ensureSchema(UserContext context) {
         String ddl = "CREATE TABLE IF NOT EXISTS " + sequenceTable + " ("
                 + "sequence_key VARCHAR(100) PRIMARY KEY, "
                 + "current_value BIGINT NOT NULL)";
-        try {
-            database.execute(ddl);
-        } catch (Exception e) {
-            LOG.log(Level.FINE, "teaql_biz_sequence table may already exist: " + e.getMessage());
-        }
+        database.execute(java.util.Objects.requireNonNull(context, "context"), ddl);
     }
 
     @Override
@@ -60,67 +60,101 @@ public class JdbcBusinessIdGenerator implements BusinessIdGenerator {
         String prefix = parts[0].trim();
         int length = parts.length > 1 ? Integer.parseInt(parts[1].trim()) : 6;
 
-        String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String dateStr = java.util.Objects.requireNonNull(context, "context")
+                .businessDate().format(DateTimeFormatter.BASIC_ISO_DATE);
         String sequenceKey = prefix + ":" + dateStr;
 
-        long seq = nextSequence(sequenceKey);
+        if (length < 1 || length > 18) {
+            throw new IllegalArgumentException("Legacy Business ID digits must be between 1 and 18");
+        }
+        long maximum = 1;
+        for (int i = 0; i < length; i++) maximum = Math.multiplyExact(maximum, 10);
+        long seq = nextSequence(context, sequenceKey, maximum - 1);
 
-        return String.format("%s%s%0" + length + "d", prefix, dateStr, seq);
+        return String.format(java.util.Locale.ROOT,
+                "%s%s%0" + length + "d", prefix, dateStr, seq);
     }
 
-    private long nextSequence(String sequenceKey) {
-        AtomicLong result = new AtomicLong(-1);
-
-        database.executeInTransaction(() -> {
-            Number dbCurrent = null;
+    private long nextSequence(UserContext context, String sequenceKey, long maximum) {
+        RuntimeException lastConflict = null;
+        for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+            List<Map<String, Object>> rows;
             try {
-                List<Map<String, Object>> rows = database.query(
+                rows = database.query(context,
                         "SELECT current_value FROM " + sequenceTable + " WHERE sequence_key = ?",
-                        new Object[]{sequenceKey}
-                );
-                if (rows != null && !rows.isEmpty()) {
-                    dbCurrent = (Number) rows.get(0).get("current_value");
-                }
-            } catch (Exception e) {
-                // Table might not exist or other error, fallback will attempt to fix
-                ensureSequenceTable();
+                        new Object[]{sequenceKey});
+            } catch (RuntimeException failure) {
+                throw new TeaQLRuntimeException(
+                        "Cannot read legacy Business ID table " + sequenceTable
+                                + "; call context.ensureSchema() before generating IDs",
+                        failure);
             }
-
-            if (dbCurrent == null) {
+            if (rows == null) {
+                throw new TeaQLRuntimeException("Legacy Business ID query returned no result set");
+            }
+            if (rows.isEmpty()) {
+                RuntimeException conflict = null;
                 try {
-                    database.executeUpdate(
-                            "INSERT INTO " + sequenceTable + " (sequence_key, current_value) VALUES (?, 1)",
-                            new Object[]{sequenceKey}
-                    );
-                    result.set(1);
-                } catch (Exception e) {
-                    // Concurrent insert collision, retry as update
-                    int updated = database.executeUpdate(
-                            "UPDATE " + sequenceTable + " SET current_value = current_value + 1 WHERE sequence_key = ?",
-                            new Object[]{sequenceKey}
-                    );
-                    if (updated == 0) {
-                        throw new TeaQLRuntimeException("Failed to initialize or update sequence: " + sequenceKey, e);
-                    }
-                    List<Map<String, Object>> rows = database.query(
-                            "SELECT current_value FROM " + sequenceTable + " WHERE sequence_key = ?",
-                            new Object[]{sequenceKey}
-                    );
-                    result.set(((Number) rows.get(0).get("current_value")).longValue());
+                    int inserted = database.executeUpdate(context,
+                            "INSERT INTO " + sequenceTable
+                                    + " (sequence_key, current_value) VALUES (?, 1)",
+                            new Object[]{sequenceKey});
+                    if (inserted == 1) return 1;
+                    conflict = new TeaQLRuntimeException(
+                            "Expected one inserted Business ID row, got " + inserted);
+                } catch (RuntimeException insertionFailure) {
+                    conflict = insertionFailure;
                 }
-                return;
+                lastConflict = conflict;
+                // A collision is retried only after a fresh exact-key read proves a row exists.
+                try {
+                    List<Map<String, Object>> observed = database.query(context,
+                            "SELECT current_value FROM " + sequenceTable
+                                    + " WHERE sequence_key = ?",
+                            new Object[]{sequenceKey});
+                    if (observed == null || observed.isEmpty()) {
+                        throw new TeaQLRuntimeException(
+                                "Business ID insert failed without a matching row for "
+                                        + sequenceKey,
+                                conflict);
+                    }
+                } catch (TeaQLRuntimeException failure) {
+                    throw failure;
+                } catch (RuntimeException readFailure) {
+                    readFailure.addSuppressed(conflict);
+                    throw new TeaQLRuntimeException(
+                            "Cannot verify Business ID insert for " + sequenceKey,
+                            readFailure);
+                }
+            } else {
+                Object value = rows.get(0).get("current_value");
+                if (value == null) value = rows.get(0).get("CURRENT_VALUE");
+                if (!(value instanceof Number)) {
+                    throw new TeaQLRuntimeException(
+                            "Invalid legacy Business ID current_value for " + sequenceKey);
+                }
+                long current = ((Number) value).longValue();
+                if (current >= maximum) {
+                    throw new BusinessIdException(
+                            BusinessIdErrorCode.BUSINESS_ID_RANGE_EXHAUSTED,
+                            "Business ID range exhausted for " + sequenceKey);
+                }
+                int updated = database.executeUpdate(context,
+                        "UPDATE " + sequenceTable
+                                + " SET current_value = ?"
+                                + " WHERE sequence_key = ? AND current_value = ?",
+                        new Object[]{current + 1, sequenceKey, current});
+                if (updated == 1) return current + 1;
+                if (updated != 0) {
+                    throw new TeaQLRuntimeException(
+                            "Expected one updated Business ID row, got " + updated);
+                }
             }
-            database.executeUpdate(
-                    "UPDATE " + sequenceTable + " SET current_value = current_value + 1 WHERE sequence_key = ?",
-                    new Object[]{sequenceKey}
-            );
-            result.set(dbCurrent.longValue() + 1);
-        });
-
-        if (result.get() == -1) {
-            throw new TeaQLRuntimeException("Failed to read sequence value for key: " + sequenceKey);
+            java.util.concurrent.locks.LockSupport.parkNanos(1_000_000L);
         }
-
-        return result.get();
+        throw new BusinessIdException(
+                BusinessIdErrorCode.BUSINESS_ID_ALLOCATION_RETRY_EXHAUSTED,
+                "Legacy Business ID allocation did not converge for " + sequenceKey,
+                lastConflict);
     }
 }

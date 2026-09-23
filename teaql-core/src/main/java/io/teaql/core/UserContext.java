@@ -251,8 +251,10 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
 
     /**
      * Generates a business string ID (like an order number) based on the entity and property descriptors.
-     * Delegates to the registered BusinessIdGenerator capability.
+     * Legacy compatibility path. New applications should use {@link #businessIds()}
+     * with a model-derived BusinessIdDefinition and a context-owned allocator.
      */
+    @Deprecated
     default String generateBusinessId(Entity entity, io.teaql.core.meta.EntityDescriptor entityDesc, io.teaql.core.meta.PropertyDescriptor propertyDesc) {
         BusinessIdGenerator generator = capability(BusinessIdGenerator.class);
         if (generator == null) {
