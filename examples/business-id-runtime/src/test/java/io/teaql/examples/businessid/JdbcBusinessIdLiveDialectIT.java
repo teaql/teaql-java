@@ -45,6 +45,11 @@ public class JdbcBusinessIdLiveDialectIT {
     }
 
     @Test
+    public void dm8AllocatesAcrossInstancesAndRestart() throws Exception {
+        verify("DM8");
+    }
+
+    @Test
     public void sqlServerConcurrentSchemaStartupIsIdempotent() throws Exception {
         String url = System.getenv("TEAQL_TEST_MSSQL_URL");
         String user = System.getenv("TEAQL_TEST_MSSQL_USER");
@@ -99,8 +104,13 @@ public class JdbcBusinessIdLiveDialectIT {
             }
             Assume.assumeTrue(dialect + " live database is not configured", false);
         }
-        Assert.assertTrue("Use a dedicated teaql_live_* database for " + dialect,
-                url.contains("teaql_live_"));
+        if ("DM8".equals(dialect)) {
+            Assert.assertEquals("Use only an isolated disposable DM8 instance",
+                    "true", System.getenv("TEAQL_TEST_DM8_ISOLATED"));
+        } else {
+            Assert.assertTrue("Use a dedicated teaql_live_* database for " + dialect,
+                    url.contains("teaql_live_"));
+        }
 
         BusinessIdDefinition definition = BusinessIdDefinition.dailySequence(
                 "order_number", "CO", "commerce_order");

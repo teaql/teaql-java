@@ -31,3 +31,20 @@ mvn -pl examples/business-id-runtime -am \
   -Dtest=BusinessIdRuntimeExampleTest \
   -Dsurefire.failIfNoSpecifiedTests=false test
 ```
+
+The live suite also verifies PostgreSQL, MySQL, and SQL Server in CI. The
+SQL Server cases include independent-connection allocation and concurrent
+schema startup. The DM8 case is deliberately local-only until a durable,
+licensed CI image is available. Run it only against a disposable DM8 instance;
+the test refuses to run without `TEAQL_TEST_DM8_ISOLATED=true`:
+
+```bash
+TEAQL_REQUIRE_LIVE_DB=true \
+TEAQL_TEST_DM8_ISOLATED=true \
+TEAQL_TEST_DM8_URL='jdbc:dm://127.0.0.1:5236' \
+TEAQL_TEST_DM8_USER='SYSDBA' \
+TEAQL_TEST_DM8_PASSWORD='<test-instance-password>' \
+mvn -pl examples/business-id-runtime -am \
+  '-Dtest=JdbcBusinessIdLiveDialectIT#dm8AllocatesAcrossInstancesAndRestart' \
+  -Dsurefire.failIfNoSpecifiedTests=false test
+```
