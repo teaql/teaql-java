@@ -23,7 +23,7 @@ public class JsonReaderFormatter implements LogFormatter {
 
     @Override
     public String formatExecutionLog(io.teaql.core.ExecutionMetadata metadata) {
-        return String.format("{\"type\":\"EXEC_LOG\",\"tracePath\":%s,\"backend\":\"%s\",\"operation\":\"%s\",\"comment\":\"%s\",\"purpose\":\"%s\",\"auditReason\":\"%s\",\"elapsedUs\":%d,\"resultCount\":%s,\"affectedRows\":%s,\"summary\":\"%s\",\"parameterizedSQL\":\"%s\",\"parameters\":\"%s\",\"debugSQL\":\"%s\"}",
+        String execution = String.format("{\"type\":\"EXEC_LOG\",\"tracePath\":%s,\"backend\":\"%s\",\"operation\":\"%s\",\"comment\":\"%s\",\"purpose\":\"%s\",\"auditReason\":\"%s\",\"elapsedUs\":%d,\"resultCount\":%s,\"affectedRows\":%s,\"summary\":\"%s\",\"parameterizedSQL\":\"%s\"",
                 formatTraceChain(metadata.getTraceChain()),
                 escapeJson(metadata.getBackend()),
                 metadata.getOperation(),
@@ -34,7 +34,11 @@ public class JsonReaderFormatter implements LogFormatter {
                 metadata.getResultCount(),
                 metadata.getAffectedRows(),
                 escapeJson(metadata.getResultSummary()),
-                escapeJson(metadata.getParameterizedQuery()),
+                escapeJson(metadata.getParameterizedQuery()));
+        if (metadata.getDebugQuery() == null) {
+            return execution + "}";
+        }
+        return execution + String.format(",\"parameters\":\"%s\",\"debugSQL\":\"%s\"}",
                 escapeJson(String.valueOf(metadata.getParameters())),
                 escapeJson(metadata.getDebugQuery()));
     }

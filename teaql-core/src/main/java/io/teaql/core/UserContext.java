@@ -179,9 +179,9 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
         return isExecutionLoggingEnabled();
     }
 
-    /** Existing custom contexts retain diagnostic metadata unless they opt out. */
+    /** Custom contexts must explicitly opt in before providers render sensitive SQL. */
     default boolean requiresSensitiveSqlLogData() {
-        return true;
+        return false;
     }
 
     void recordExecutionMetadata(ExecutionMetadata metadata);

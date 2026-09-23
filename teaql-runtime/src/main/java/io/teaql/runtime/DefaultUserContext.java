@@ -288,7 +288,7 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
 
     @Override
     public boolean requiresSensitiveSqlLogData() {
-        return runtime == null || runtime.requiresSensitiveSqlLogData();
+        return runtime != null && runtime.requiresSensitiveSqlLogData();
     }
 
     @Override
