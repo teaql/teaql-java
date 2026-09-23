@@ -74,3 +74,15 @@ test('fails closed for missing, expired or undersized artifacts', async () => {
   assert.deepEqual(state.visited, [42]);
   assert.equal(state.outputs.size, 0);
 });
+
+test('skips an unusable recent run and selects the next trusted artifact', async () => {
+  const newest = { ...trustedRun, id: 43, event: 'workflow_dispatch' };
+  const state = fixture([newest, trustedRun], {
+    43: [{ ...goodArtifact, expired: true }],
+    42: [goodArtifact],
+  });
+
+  assert.equal(await select(state.input), 42);
+  assert.deepEqual(state.visited, [43, 42]);
+  assert.equal(state.outputs.get('run_id'), '42');
+});
