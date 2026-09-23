@@ -220,6 +220,93 @@ public class PortableSQLDatabaseTest {
     }
 
     @Test
+    public void relationHydrationUsesInvokingRuntimeWhenEntityNamesMatch() throws Exception {
+        RelationRuntime first = relationRuntime("parent_a", 11L);
+        RelationRuntime second = relationRuntime("parent_b", 21L);
+        assertNotSame(first.metadata().resolveEntityDescriptor("TopNChild"),
+                second.metadata().resolveEntityDescriptor("TopNChild"));
+
+        EntityMetaFactory previous = EntityMetaFactory.get();
+        try {
+            EntityMetaFactory.registerGlobal(second.metadata());
+            assertEquals(List.of(11L), loadedChildIds(first.context()));
+
+            EntityMetaFactory.registerGlobal(first.metadata());
+            assertEquals(List.of(21L), loadedChildIds(second.context()));
+
+            EntityMetaFactory.registerGlobal(null);
+            assertEquals(List.of(11L), loadedChildIds(first.context()));
+            assertEquals(List.of(21L), loadedChildIds(second.context()));
+        } finally {
+            EntityMetaFactory.registerGlobal(previous);
+        }
+    }
+
+    private static RelationRuntime relationRuntime(String foreignKeyColumn, long childId)
+            throws Exception {
+        SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
+        EntityDescriptor parent = relationEntity(
+                "TopNParent", TopNParent.class, TopNParent::new, "top_n_parent_data",
+                List.of(new Object[] {"id", "INTEGER", Long.class},
+                        new Object[] {"version", "INTEGER", Long.class},
+                        new Object[] {"name", "VARCHAR(100)", String.class}));
+        metadata.register(parent);
+        EntityDescriptor child = relationEntity(
+                "TopNChild", TopNChild.class, TopNChild::new, "top_n_child_data",
+                List.of(new Object[] {"id", "INTEGER", Long.class},
+                        new Object[] {"version", "INTEGER", Long.class},
+                        new Object[] {"name", "VARCHAR(100)", String.class},
+                        new Object[] {"state", "VARCHAR(100)", String.class}));
+        GenericSQLRelation relation = (GenericSQLRelation) child.addObjectProperty(
+                metadata, "parent", "TopNParent", "children", TopNParent.class,
+                GenericSQLRelation::new);
+        relation.setTableName("top_n_child_data");
+        relation.setColumnName(foreignKeyColumn);
+        relation.setColumnType("INTEGER");
+        metadata.register(child);
+
+        SQLiteTeaQLDatabase database = new SQLiteTeaQLDatabase();
+        PortableSQLDataService service = new PortableSQLDataService("sql", database, metadata);
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(metadata)
+                .dataService("sql", service)
+                .idGenerationService((ctx, entity) -> 100L)
+                .build();
+        UserContext runtimeContext = new DefaultUserContext(runtime);
+        runtimeContext.putAttribute("ensureTable", true);
+        service.ensureSchema(runtimeContext, "TopNParent");
+        service.ensureSchema(runtimeContext, "TopNChild");
+        database.execute("DELETE FROM top_n_parent_data");
+        database.execute("INSERT INTO top_n_parent_data (id, version, name)"
+                + " VALUES (1, 1, 'parent')");
+        database.execute("INSERT INTO top_n_child_data (id, version, name, state, "
+                + foreignKeyColumn + ") VALUES (" + childId + ", 1, 'child', 'visible', 1)");
+        return new RelationRuntime(metadata, runtimeContext);
+    }
+
+    private static List<Long> loadedChildIds(UserContext runtimeContext) {
+        TopNChildRequest child = new TopNChildRequest();
+        child.selectProperty("id");
+        child.selectProperty("version");
+        child.selectProperty("name");
+        TopNParentRequest parent = new TopNParentRequest();
+        parent.selectProperty("id");
+        parent.selectProperty("version");
+        parent.selectProperty("name");
+        parent.enhanceRelation("children", child);
+        SmartList<TopNParent> rows = parent
+                .comment("load same-named relation through the invoking runtime")
+                .purpose("prove SQL relation hydration is context-owned")
+                .executeForList(runtimeContext);
+        assertEquals(1, rows.size());
+        SmartList<TopNChild> children = rows.get(0).getProperty("children");
+        assertNotNull(children);
+        return children.toList(Entity::getId);
+    }
+
+    private record RelationRuntime(SimpleEntityMetaFactory metadata, UserContext context) {}
+
+    @Test
     public void TOPN_012_canonicalRelationIndexEnsureIsIdempotentOnSQLite() {
         registerTopNFixture();
         sqliteDb.execute("DROP INDEX idx_top_n_child_data_parent_id");
