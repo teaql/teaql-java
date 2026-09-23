@@ -11,6 +11,9 @@ jobs:
     name: Build and Test
     runs-on: ubuntu-latest
     timeout-minutes: 150
+    permissions:
+      contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v4
       - name: Set up JDK 21
@@ -29,39 +32,30 @@ jobs:
         # Generated examples are verified by the dedicated Example Gate. They
         # intentionally do not inherit the runtime's SpotBugs build plugin.
         run: mvn spotbugs:check -pl '!examples/conformance/lib,!examples/conformance'
-      - name: Select UTC cache day
-        id: odc-day
-        run: echo "value=$(date -u +%Y%m%d)" >> "$GITHUB_OUTPUT"
-      - name: Restore Dependency Check data
-        id: odc-cache
-        uses: actions/cache/restore@v4
+      - name: Verify trusted snapshot selection policy
+        run: node --test .github/scripts/select-odc-snapshot.test.cjs
+      - name: Verify snapshot freshness policy
+        run: bash .github/scripts/verify-odc-snapshot.test.sh
+      - name: Select trusted NVD snapshot
+        id: odc-snapshot
+        uses: actions/github-script@v7
         with:
+          script: |
+            const select = require('./.github/scripts/select-odc-snapshot.cjs');
+            await select({ github, context, core });
+      - name: Download trusted NVD snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: teaql-odc-v13.0.0-${{ runner.os }}
           path: ${{ runner.temp }}/teaql-odc-data
-          key: odc-v13.0.0-${{ runner.os }}-${{ steps.odc-day.outputs.value }}
-          restore-keys: |
-            odc-v13.0.0-${{ runner.os }}-
-      - name: Refresh vulnerability data
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: >-
-          mvn -B org.owasp:dependency-check-maven:13.0.0:update-only
-          -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
-          -DdataDirectory=${{ runner.temp }}/teaql-odc-data
-          -DfailOnError=true
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.odc-snapshot.outputs.run_id }}
+      - name: Verify NVD snapshot freshness
+        run: bash .github/scripts/verify-odc-snapshot.sh "${{ runner.temp }}/teaql-odc-data"
       - name: OWASP Dependency Check
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        # Pass only the environment variable NAME on the command line, never
-        # the secret value. Keep its NVD database separate from setup-java's
-        # Maven cache, whose immutable key cannot retain daily data updates.
         run: >-
           mvn -B org.owasp:dependency-check-maven:13.0.0:check
-          -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
           -DdataDirectory=${{ runner.temp }}/teaql-odc-data
+          -DautoUpdate=false
           -DfailOnError=true
-      - name: Save updated Dependency Check data
-        if: success() && steps.odc-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ runner.temp }}/teaql-odc-data
-          key: odc-v13.0.0-${{ runner.os }}-${{ steps.odc-day.outputs.value }}
