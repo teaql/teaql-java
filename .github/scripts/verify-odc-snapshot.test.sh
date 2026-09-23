@@ -21,6 +21,18 @@ if bash "$verify_script" "$test_dir"; then
   exit 1
 fi
 
+printf '%s\n' "$(( $(date -u +%s) + 60 ))" > "$test_dir/teaql-nvd-refresh.epoch"
+if bash "$verify_script" "$test_dir"; then
+  echo "Future timestamp was accepted" >&2
+  exit 1
+fi
+
+rm -- "$test_dir/teaql-nvd-refresh.epoch"
+if bash "$verify_script" "$test_dir"; then
+  echo "Missing timestamp was accepted" >&2
+  exit 1
+fi
+
 date -u +%s > "$test_dir/teaql-nvd-refresh.epoch"
 truncate -s 0 "$test_dir/odc.mv.db"
 if bash "$verify_script" "$test_dir"; then
