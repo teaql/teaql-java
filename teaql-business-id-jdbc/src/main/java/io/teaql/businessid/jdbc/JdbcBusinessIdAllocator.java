@@ -6,7 +6,6 @@ import io.teaql.core.sql.portable.TeaQLDatabase;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
 /** Portable optimistic Business ID allocator backed by a TeaQLDatabase. */
 public final class JdbcBusinessIdAllocator
@@ -48,47 +47,88 @@ public final class JdbcBusinessIdAllocator
                 .toEpochMilli();
         RuntimeException lastConflict = null;
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-            AtomicReference<BusinessIdAllocation> result = new AtomicReference<>();
+            List<Map<String, Object>> rows;
             try {
-                database.executeInTransaction(() -> {
-                    List<Map<String, Object>> rows = database.query(
-                            "SELECT current_value, version FROM " + table
-                                    + " WHERE scope_key = ?",
-                            new Object[]{scopeKey});
-                    if (rows == null || rows.isEmpty()) {
-                        database.executeUpdate(
-                                "INSERT INTO " + table
-                                        + " (scope_key, current_value, version, updated_at)"
-                                        + " VALUES (?, 1, 1, ?)",
-                                new Object[]{scopeKey, updatedAt});
-                        result.set(new BusinessIdAllocation(plan.scope(), 1));
-                        return;
+                rows = database.query(
+                        "SELECT current_value, version FROM " + table
+                                + " WHERE scope_key = ?",
+                        new Object[]{scopeKey});
+            } catch (RuntimeException failure) {
+                throw new IllegalStateException(
+                        "Cannot read Business ID table " + table
+                                + "; verify database access and call context.ensureSchema()",
+                        failure);
+            }
+            if (rows == null) {
+                throw new IllegalStateException(
+                        "Business ID database returned a null result set for " + scopeKey);
+            }
+            if (rows.isEmpty()) {
+                Integer inserted = null;
+                try {
+                    inserted = database.executeUpdate(
+                            "INSERT INTO " + table
+                                    + " (scope_key, current_value, version, updated_at)"
+                                    + " VALUES (?, 1, 1, ?)",
+                            new Object[]{scopeKey, updatedAt});
+                } catch (RuntimeException insertionFailure) {
+                    lastConflict = insertionFailure;
+                    // A competing instance may have inserted this key. Do not retry an
+                    // unrelated write failure unless that exact row is now observable.
+                    List<Map<String, Object>> observed;
+                    try {
+                        observed = database.query(
+                                "SELECT current_value, version FROM " + table
+                                        + " WHERE scope_key = ?",
+                                new Object[]{scopeKey});
+                    } catch (RuntimeException readFailure) {
+                        readFailure.addSuppressed(insertionFailure);
+                        throw new IllegalStateException(
+                                "Cannot verify Business ID insert for " + scopeKey,
+                                readFailure);
                     }
-                    Map<String, Object> row = rows.get(0);
-                    long current = number(row, "current_value");
-                    long version = number(row, "version");
-                    if (current >= plan.maximumSequence()) {
-                        throw new BusinessIdException(
-                                BusinessIdErrorCode.BUSINESS_ID_RANGE_EXHAUSTED,
-                                "Business ID range exhausted for " + scopeKey);
+                    if (observed == null || observed.isEmpty()) {
+                        throw new IllegalStateException(
+                                "Business ID insert failed without a matching row for "
+                                        + scopeKey,
+                                insertionFailure);
                     }
-                    long next = current + 1;
-                    int updated = database.executeUpdate(
-                            "UPDATE " + table
-                                    + " SET current_value = ?, version = version + 1, updated_at = ?"
-                                    + " WHERE scope_key = ? AND version = ?",
-                            new Object[]{next, updatedAt, scopeKey, version});
-                    if (updated == 1) {
-                        result.set(new BusinessIdAllocation(plan.scope(), next));
-                    }
-                });
-                if (result.get() != null) {
-                    return result.get();
                 }
-            } catch (BusinessIdException error) {
-                throw error;
-            } catch (RuntimeException conflict) {
-                lastConflict = conflict;
+                if (inserted != null) {
+                    if (inserted == 1) {
+                        return new BusinessIdAllocation(plan.scope(), 1);
+                    }
+                    throw new IllegalStateException(
+                            "Expected one inserted Business ID row for " + scopeKey
+                                    + ", inserted " + inserted);
+                }
+            } else {
+                Map<String, Object> row = rows.get(0);
+                long current = number(row, "current_value");
+                long version = number(row, "version");
+                if (current < 1 || version < 1) {
+                    throw new IllegalStateException(
+                            "Invalid Business ID sequence row for " + scopeKey);
+                }
+                if (current >= plan.maximumSequence()) {
+                    throw new BusinessIdException(
+                            BusinessIdErrorCode.BUSINESS_ID_RANGE_EXHAUSTED,
+                            "Business ID range exhausted for " + scopeKey);
+                }
+                long next = current + 1;
+                int updated = database.executeUpdate(
+                        "UPDATE " + table
+                                + " SET current_value = ?, version = version + 1, updated_at = ?"
+                                + " WHERE scope_key = ? AND version = ? AND current_value = ?",
+                        new Object[]{next, updatedAt, scopeKey, version, current});
+                if (updated == 1) {
+                    return new BusinessIdAllocation(plan.scope(), next);
+                }
+                if (updated != 0) {
+                    throw new IllegalStateException(
+                            "Expected at most one updated Business ID row for " + scopeKey
+                                    + ", updated " + updated);
+                }
             }
             java.util.concurrent.locks.LockSupport.parkNanos(1_000_000L);
         }
