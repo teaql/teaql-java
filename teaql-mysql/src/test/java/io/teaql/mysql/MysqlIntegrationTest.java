@@ -25,6 +25,7 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Collections;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -285,6 +286,47 @@ public class MysqlIntegrationTest {
         new DefaultUserContext(isolatedRuntime).ensureSchema();
         assertTrue("The invoking context, not global Task metadata, must create ContextProbe",
                 jdbc.queryForList("SELECT id FROM context_probe_data WHERE 1 = 0", new Object[0]).isEmpty());
+    }
+
+    @Test
+    public void testEnsureSchemaUsesMysqlLongTextInsteadOfPostgresText() {
+        String table = "mysql_long_text_" + UUID.randomUUID().toString().substring(0, 8);
+        SimpleEntityMetaFactory isolated = new SimpleEntityMetaFactory();
+        SQLEntityDescriptor probe = new SQLEntityDescriptor();
+        probe.setType("MysqlLongTextProbe");
+        probe.setTargetType(Task.class);
+        probe.setEntitySupplier(Task::new);
+        probe.setDataService("mysql");
+        for (String name : List.of("id", "version")) {
+            io.teaql.core.sql.GenericSQLProperty field =
+                    (io.teaql.core.sql.GenericSQLProperty) probe.addSimpleProperty(name, Long.class);
+            field.setTableName(table);
+            field.setColumnName(name);
+            field.setColumnType("BIGINT");
+        }
+        io.teaql.core.sql.GenericSQLProperty payload =
+                (io.teaql.core.sql.GenericSQLProperty) probe.addSimpleProperty("payload", String.class);
+        payload.setTableName(table);
+        payload.setColumnName("payload");
+        payload.setColumnType("LARGE_TEXT");
+        isolated.register(probe);
+
+        JdbcSqlExecutor jdbc = new JdbcSqlExecutor(dataSource);
+        TeaQLRuntime isolatedRuntime = TeaQLRuntime.builder()
+                .metadata(isolated)
+                .dataService("mysql", new MysqlDataServiceExecutor("mysql", jdbc, dataSource))
+                .build();
+        UserContext isolatedContext = new DefaultUserContext(isolatedRuntime);
+        isolatedContext.ensureSchema();
+        isolatedContext.ensureSchema();
+
+        List<java.util.Map<String, Object>> columns = jdbc.queryForList(
+                "SELECT data_type FROM information_schema.columns "
+                        + "WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?",
+                new Object[] {table, "payload"});
+        assertEquals(1, columns.size());
+        assertEquals("longtext", String.valueOf(columns.get(0).values().iterator().next())
+                .toLowerCase(java.util.Locale.ROOT));
     }
 
     @Test

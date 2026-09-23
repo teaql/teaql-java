@@ -59,6 +59,7 @@ public class Dm8DataServiceExecutor extends SqlDataServiceExecutor {
 
         for (EntityDescriptor descriptor : descriptors) {
             PortableSQLRepository repository = new PortableSQLRepository(descriptor, dbAdapter, null);
+            repository.setDialect(this.dialect);
             repository.ensurePhysicalSchema(context);
         }
     }
