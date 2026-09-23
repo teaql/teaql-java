@@ -31,3 +31,36 @@ mvn -pl examples/business-id-runtime -am \
   -Dtest=BusinessIdRuntimeExampleTest \
   -Dsurefire.failIfNoSpecifiedTests=false test
 ```
+
+The live suite also verifies PostgreSQL, MySQL, and SQL Server in CI. The
+SQL Server cases include independent-connection allocation and concurrent
+schema startup. DM8 and Oracle are local-only live checks until durable CI
+images and dedicated test credentials are available. Run DM8 only against a
+disposable instance;
+the test refuses to run without `TEAQL_TEST_DM8_ISOLATED=true`:
+
+```bash
+TEAQL_REQUIRE_LIVE_DB=true \
+TEAQL_TEST_DM8_ISOLATED=true \
+TEAQL_TEST_DM8_URL='jdbc:dm://127.0.0.1:5236' \
+TEAQL_TEST_DM8_USER='SYSDBA' \
+TEAQL_TEST_DM8_PASSWORD='<test-instance-password>' \
+mvn -pl examples/business-id-runtime -am \
+  '-Dtest=JdbcBusinessIdLiveDialectIT#dm8AllocatesAcrossInstancesAndRestart' \
+  -Dsurefire.failIfNoSpecifiedTests=false test
+```
+
+For Oracle, create a dedicated `TEAQL_LIVE_*` user in an isolated test PDB,
+then run the Oracle method with that user's credentials. Oracle requires
+`new JdbcBusinessIdAllocator(database, table, new OracleDialect())` so the
+Business ID counter uses `NUMBER(19,0)` rather than unsupported `BIGINT`:
+
+```bash
+TEAQL_REQUIRE_LIVE_DB=true \
+TEAQL_TEST_ORACLE_URL='jdbc:oracle:thin:@//127.0.0.1:1521/FREEPDB1' \
+TEAQL_TEST_ORACLE_USER='TEAQL_LIVE_BID' \
+TEAQL_TEST_ORACLE_PASSWORD='<test-user-password>' \
+mvn -pl examples/business-id-runtime -am \
+  '-Dtest=JdbcBusinessIdLiveDialectIT#oracleAllocatesAcrossInstancesAndRestart' \
+  -Dsurefire.failIfNoSpecifiedTests=false test
+```

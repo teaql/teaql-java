@@ -7,6 +7,7 @@ import io.teaql.core.businessid.BusinessIdDefinition;
 import io.teaql.core.businessid.BusinessIdGenerationRequest;
 import io.teaql.core.businessid.BusinessIdPlan;
 import io.teaql.runtime.businessid.DailySequenceBusinessIdProfile;
+import io.teaql.core.sql.dialect.OracleDialect;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.time.LocalDate;
@@ -24,7 +25,7 @@ import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
 
-/** Live, independent-connection Business ID allocation across PostgreSQL and MySQL. */
+/** Live, independent-connection Business ID allocation across SQL providers. */
 public class JdbcBusinessIdLiveDialectIT {
     private static final LocalDate BUSINESS_DATE = LocalDate.of(2026, 9, 20);
     private static final int ALLOCATIONS_PER_INSTANCE = 40;
@@ -39,6 +40,65 @@ public class JdbcBusinessIdLiveDialectIT {
         verify("MYSQL");
     }
 
+    @Test
+    public void sqlServerAllocatesAcrossInstancesAndRestart() throws Exception {
+        verify("MSSQL");
+    }
+
+    @Test
+    public void dm8AllocatesAcrossInstancesAndRestart() throws Exception {
+        verify("DM8");
+    }
+
+    @Test
+    public void oracleAllocatesAcrossInstancesAndRestart() throws Exception {
+        verify("ORACLE");
+    }
+
+    @Test
+    public void sqlServerConcurrentSchemaStartupIsIdempotent() throws Exception {
+        String url = System.getenv("TEAQL_TEST_MSSQL_URL");
+        String user = System.getenv("TEAQL_TEST_MSSQL_USER");
+        String password = System.getenv("TEAQL_TEST_MSSQL_PASSWORD");
+        if (url == null || user == null || password == null) {
+            if (Boolean.parseBoolean(System.getenv("TEAQL_REQUIRE_LIVE_DB"))) {
+                Assert.fail("MSSQL Business ID live gate requires URL, USER, and PASSWORD");
+            }
+            Assume.assumeTrue("MSSQL live database is not configured", false);
+        }
+        Assert.assertTrue("Use a dedicated teaql_live_* database for MSSQL",
+                url.contains("teaql_live_"));
+        String table = "bid_schema_" + UUID.randomUUID().toString().substring(0, 8);
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService workers = Executors.newFixedThreadPool(2);
+        try {
+            List<Future<?>> futures = new ArrayList<>();
+            for (int worker = 0; worker < 2; worker++) {
+                futures.add(workers.submit(() -> {
+                    try (Connection connection = DriverManager.getConnection(url, user, password)) {
+                        JdbcBusinessIdAllocator allocator = new JdbcBusinessIdAllocator(
+                                BusinessIdRuntimeExampleTest.database(connection), table);
+                        UserContext context = BusinessIdRuntimeExampleTest.context(
+                                BUSINESS_DATE, allocator);
+                        context.putAttribute(SchemaExecutor.class.getName(),
+                                BusinessIdRuntimeExampleTest.noOpSchemaExecutor());
+                        Assert.assertTrue(start.await(15, TimeUnit.SECONDS));
+                        context.ensureSchema();
+                        return null;
+                    }
+                }));
+            }
+            start.countDown();
+            for (Future<?> future : futures) future.get(30, TimeUnit.SECONDS);
+        } finally {
+            workers.shutdownNow();
+        }
+        try (Connection connection = DriverManager.getConnection(url, user, password)) {
+            Assert.assertEquals(4, BusinessIdRuntimeExampleTest.database(connection)
+                    .getTableColumns(table).size());
+        }
+    }
+
     private void verify(String dialect) throws Exception {
         String prefix = "TEAQL_TEST_" + dialect + "_";
         String url = System.getenv(prefix + "URL");
@@ -50,8 +110,16 @@ public class JdbcBusinessIdLiveDialectIT {
             }
             Assume.assumeTrue(dialect + " live database is not configured", false);
         }
-        Assert.assertTrue("Use a dedicated teaql_live_* database for " + dialect,
-                url.contains("teaql_live_"));
+        if ("DM8".equals(dialect)) {
+            Assert.assertEquals("Use only an isolated disposable DM8 instance",
+                    "true", System.getenv("TEAQL_TEST_DM8_ISOLATED"));
+        } else if ("ORACLE".equals(dialect)) {
+            Assert.assertTrue("Use only a dedicated TEAQL_LIVE_* Oracle user",
+                    user.toUpperCase(java.util.Locale.ROOT).startsWith("TEAQL_LIVE_"));
+        } else {
+            Assert.assertTrue("Use a dedicated teaql_live_* database for " + dialect,
+                    url.contains("teaql_live_"));
+        }
 
         BusinessIdDefinition definition = BusinessIdDefinition.dailySequence(
                 "order_number", "CO", "commerce_order");
@@ -61,11 +129,11 @@ public class JdbcBusinessIdLiveDialectIT {
                         "commerce_order", BUSINESS_DATE));
 
         try (Connection schemaConnection = DriverManager.getConnection(url, user, password)) {
-            JdbcBusinessIdAllocator allocator = new JdbcBusinessIdAllocator(
-                    BusinessIdRuntimeExampleTest.database(schemaConnection));
+            JdbcBusinessIdAllocator allocator = allocator(schemaConnection, dialect);
             UserContext context = BusinessIdRuntimeExampleTest.context(BUSINESS_DATE, allocator);
             context.putAttribute(SchemaExecutor.class.getName(),
                     BusinessIdRuntimeExampleTest.noOpSchemaExecutor());
+            context.ensureSchema();
             context.ensureSchema();
         }
 
@@ -76,8 +144,7 @@ public class JdbcBusinessIdLiveDialectIT {
             for (int worker = 0; worker < 2; worker++) {
                 futures.add(workers.submit(() -> {
                     try (Connection connection = DriverManager.getConnection(url, user, password)) {
-                        JdbcBusinessIdAllocator allocator = new JdbcBusinessIdAllocator(
-                                BusinessIdRuntimeExampleTest.database(connection));
+                        JdbcBusinessIdAllocator allocator = allocator(connection, dialect);
                         Assert.assertTrue("Concurrent start timed out",
                                 start.await(15, TimeUnit.SECONDS));
                         List<Long> sequences = new ArrayList<>();
@@ -103,10 +170,19 @@ public class JdbcBusinessIdLiveDialectIT {
         }
 
         try (Connection restarted = DriverManager.getConnection(url, user, password)) {
-            JdbcBusinessIdAllocator allocator = new JdbcBusinessIdAllocator(
-                    BusinessIdRuntimeExampleTest.database(restarted));
+            JdbcBusinessIdAllocator allocator = allocator(restarted, dialect);
             Assert.assertEquals(2L * ALLOCATIONS_PER_INSTANCE + 1,
                     allocator.allocate(plan).sequence());
         }
+    }
+
+    private static JdbcBusinessIdAllocator allocator(Connection connection, String dialect) {
+        if ("ORACLE".equals(dialect)) {
+            return new JdbcBusinessIdAllocator(
+                    BusinessIdRuntimeExampleTest.database(connection),
+                    JdbcBusinessIdAllocator.DEFAULT_TABLE,
+                    new OracleDialect());
+        }
+        return new JdbcBusinessIdAllocator(BusinessIdRuntimeExampleTest.database(connection));
     }
 }

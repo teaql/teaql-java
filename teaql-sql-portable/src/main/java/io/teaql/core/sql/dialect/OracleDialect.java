@@ -40,6 +40,9 @@ public class OracleDialect extends AbstractSqlDialect {
         if ("LARGE_TEXT".equalsIgnoreCase(type)) {
             return "CLOB";
         }
+        if ("BIGINT".equalsIgnoreCase(type)) {
+            return "NUMBER(19,0)";
+        }
         return type;
     }
 }
