@@ -7,6 +7,7 @@ import io.teaql.core.businessid.BusinessIdDefinition;
 import io.teaql.core.businessid.BusinessIdGenerationRequest;
 import io.teaql.core.businessid.BusinessIdPlan;
 import io.teaql.runtime.businessid.DailySequenceBusinessIdProfile;
+import io.teaql.core.sql.dialect.OracleDialect;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.time.LocalDate;
@@ -47,6 +48,11 @@ public class JdbcBusinessIdLiveDialectIT {
     @Test
     public void dm8AllocatesAcrossInstancesAndRestart() throws Exception {
         verify("DM8");
+    }
+
+    @Test
+    public void oracleAllocatesAcrossInstancesAndRestart() throws Exception {
+        verify("ORACLE");
     }
 
     @Test
@@ -107,6 +113,9 @@ public class JdbcBusinessIdLiveDialectIT {
         if ("DM8".equals(dialect)) {
             Assert.assertEquals("Use only an isolated disposable DM8 instance",
                     "true", System.getenv("TEAQL_TEST_DM8_ISOLATED"));
+        } else if ("ORACLE".equals(dialect)) {
+            Assert.assertTrue("Use only a dedicated TEAQL_LIVE_* Oracle user",
+                    user.toUpperCase(java.util.Locale.ROOT).startsWith("TEAQL_LIVE_"));
         } else {
             Assert.assertTrue("Use a dedicated teaql_live_* database for " + dialect,
                     url.contains("teaql_live_"));
@@ -120,8 +129,7 @@ public class JdbcBusinessIdLiveDialectIT {
                         "commerce_order", BUSINESS_DATE));
 
         try (Connection schemaConnection = DriverManager.getConnection(url, user, password)) {
-            JdbcBusinessIdAllocator allocator = new JdbcBusinessIdAllocator(
-                    BusinessIdRuntimeExampleTest.database(schemaConnection));
+            JdbcBusinessIdAllocator allocator = allocator(schemaConnection, dialect);
             UserContext context = BusinessIdRuntimeExampleTest.context(BUSINESS_DATE, allocator);
             context.putAttribute(SchemaExecutor.class.getName(),
                     BusinessIdRuntimeExampleTest.noOpSchemaExecutor());
@@ -136,8 +144,7 @@ public class JdbcBusinessIdLiveDialectIT {
             for (int worker = 0; worker < 2; worker++) {
                 futures.add(workers.submit(() -> {
                     try (Connection connection = DriverManager.getConnection(url, user, password)) {
-                        JdbcBusinessIdAllocator allocator = new JdbcBusinessIdAllocator(
-                                BusinessIdRuntimeExampleTest.database(connection));
+                        JdbcBusinessIdAllocator allocator = allocator(connection, dialect);
                         Assert.assertTrue("Concurrent start timed out",
                                 start.await(15, TimeUnit.SECONDS));
                         List<Long> sequences = new ArrayList<>();
@@ -163,10 +170,19 @@ public class JdbcBusinessIdLiveDialectIT {
         }
 
         try (Connection restarted = DriverManager.getConnection(url, user, password)) {
-            JdbcBusinessIdAllocator allocator = new JdbcBusinessIdAllocator(
-                    BusinessIdRuntimeExampleTest.database(restarted));
+            JdbcBusinessIdAllocator allocator = allocator(restarted, dialect);
             Assert.assertEquals(2L * ALLOCATIONS_PER_INSTANCE + 1,
                     allocator.allocate(plan).sequence());
         }
+    }
+
+    private static JdbcBusinessIdAllocator allocator(Connection connection, String dialect) {
+        if ("ORACLE".equals(dialect)) {
+            return new JdbcBusinessIdAllocator(
+                    BusinessIdRuntimeExampleTest.database(connection),
+                    JdbcBusinessIdAllocator.DEFAULT_TABLE,
+                    new OracleDialect());
+        }
+        return new JdbcBusinessIdAllocator(BusinessIdRuntimeExampleTest.database(connection));
     }
 }

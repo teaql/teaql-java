@@ -3,6 +3,8 @@ package io.teaql.businessid.jdbc;
 import io.teaql.core.UserContext;
 import io.teaql.core.businessid.*;
 import io.teaql.core.sql.portable.TeaQLDatabase;
+import io.teaql.core.sql.dialect.PostgreSqlDialect;
+import io.teaql.core.sql.dialect.SqlDialect;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
@@ -18,17 +20,23 @@ public final class JdbcBusinessIdAllocator
 
     private final TeaQLDatabase database;
     private final String table;
+    private final SqlDialect dialect;
 
     public JdbcBusinessIdAllocator(TeaQLDatabase database) {
         this(database, DEFAULT_TABLE);
     }
 
     public JdbcBusinessIdAllocator(TeaQLDatabase database, String table) {
+        this(database, table, new PostgreSqlDialect());
+    }
+
+    public JdbcBusinessIdAllocator(TeaQLDatabase database, String table, SqlDialect dialect) {
         this.database = java.util.Objects.requireNonNull(database, "database");
         if (table == null || !table.matches("[A-Za-z][A-Za-z0-9_]*")) {
             throw new IllegalArgumentException("Invalid Business ID table name: " + table);
         }
         this.table = table;
+        this.dialect = java.util.Objects.requireNonNull(dialect, "dialect");
     }
 
     /** Explicit development/test schema operation; construction never executes DDL. */
@@ -41,10 +49,10 @@ public final class JdbcBusinessIdAllocator
         }
         try {
             database.execute(context, "CREATE TABLE " + table + " ("
-                    + "scope_key VARCHAR(512) PRIMARY KEY, "
-                    + "current_value BIGINT NOT NULL, "
-                    + "version BIGINT NOT NULL, "
-                    + "updated_at BIGINT NOT NULL)");
+                    + "scope_key " + dialect.mapColumnType("VARCHAR(512)") + " PRIMARY KEY, "
+                    + "current_value " + dialect.mapColumnType("BIGINT") + " NOT NULL, "
+                    + "version " + dialect.mapColumnType("BIGINT") + " NOT NULL, "
+                    + "updated_at " + dialect.mapColumnType("BIGINT") + " NOT NULL)");
         } catch (RuntimeException createFailure) {
             // Another instance may have created the table after inspection.
             // Only accept that race when the installed table can be inspected.
