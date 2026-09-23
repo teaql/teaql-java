@@ -49,6 +49,6 @@ jobs:
           cache: maven
       - name: Verify both live dialects (skips are forbidden)
         run: >-
-          mvn -B -ntp -pl teaql-postgres,teaql-mysql -am
-          -Dtest=PostgresIntegrationTest,MysqlIntegrationTest
+          mvn -B -ntp -pl teaql-postgres,teaql-mysql,examples/business-id-runtime -am
+          -Dtest=PostgresIntegrationTest,MysqlIntegrationTest,JdbcBusinessIdLiveDialectIT
           -Dsurefire.failIfNoSpecifiedTests=false test

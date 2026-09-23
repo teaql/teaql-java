@@ -298,7 +298,7 @@ public class BusinessIdRuntimeExampleTest {
         return context(date, null);
     }
 
-    private static UserContext context(
+    static UserContext context(
             LocalDate date, JdbcBusinessIdAllocator businessIdInfrastructure) {
         TeaQLRuntime.Builder builder = TeaQLRuntime.builder()
                 .metadata(new EntityMetaFactory() {
@@ -336,7 +336,7 @@ public class BusinessIdRuntimeExampleTest {
         return connection;
     }
 
-    private static SchemaExecutor noOpSchemaExecutor() {
+    static SchemaExecutor noOpSchemaExecutor() {
         return (SchemaExecutor) java.lang.reflect.Proxy.newProxyInstance(
                 SchemaExecutor.class.getClassLoader(),
                 new Class<?>[] {SchemaExecutor.class},
@@ -350,7 +350,7 @@ public class BusinessIdRuntimeExampleTest {
                 });
     }
 
-    private static TeaQLDatabase database(Connection connection) {
+    static TeaQLDatabase database(Connection connection) {
         return new TeaQLDatabase() {
             @Override
             public List<Map<String, Object>> query(String sql, Object[] args) {
