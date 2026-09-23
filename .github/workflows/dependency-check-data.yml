@@ -12,7 +12,10 @@ jobs:
   update:
     name: Refresh NVD data
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    # A first-time NVD API import exceeded 150 minutes before reaching 70%.
+    # The mirror bootstrap below normally avoids this, while the longer bound
+    # leaves room for an unusually large authenticated API delta.
+    timeout-minutes: 360
     concurrency:
       group: trusted-nvd-update
       cancel-in-progress: false
@@ -33,12 +36,24 @@ jobs:
           key: odc-v13.0.0-${{ runner.os }}-${{ steps.odc-day.outputs.value }}
           restore-keys: |
             odc-v13.0.0-${{ runner.os }}-
+      - name: Bootstrap empty cache from Dependency-Check data feed
+        run: |
+          data_dir="${{ runner.temp }}/teaql-odc-data"
+          if find "$data_dir" -type f -name '*.mv.db' -size +1M -print -quit 2>/dev/null | grep -q .; then
+            echo "Populated Dependency-Check database restored; skipping full feed bootstrap"
+            exit 0
+          fi
+          mvn -B org.owasp:dependency-check-maven:13.0.0:update-only \
+            '-DnvdDatafeedUrl=https://dependency-check.github.io/DependencyCheck_Builder/nvd_cache/nvdcve-{0}.json.gz' \
+            "-DdataDirectory=$data_dir" \
+            -DfailOnError=true
       - name: Refresh NVD data
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: >-
           mvn -B org.owasp:dependency-check-maven:13.0.0:update-only
           -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
+          -DnvdValidForHours=0
           -DdataDirectory=${{ runner.temp }}/teaql-odc-data
           -DfailOnError=true
       - name: Verify and timestamp refreshed database
