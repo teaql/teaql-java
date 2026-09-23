@@ -1512,14 +1512,9 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     private void ensureRoot(UserContext context) {
-        List<Map<String, Object>> dbRow;
-        try {
-            dbRow = database.query(context,
-                    StrUtil.format("SELECT * FROM {} WHERE id = '1'", tableName(entityDescriptor.getType())),
-                    new Object[0]);
-        } catch (Exception e) {
-            dbRow = ListUtil.empty();
-        }
+        List<Map<String, Object>> dbRow = queryBootstrap(context,
+                StrUtil.format("SELECT * FROM {} WHERE id = '1'", tableName(entityDescriptor.getType())),
+                "inspect root");
 
         if (!dbRow.isEmpty()) {
             ensureBootstrapIdFloor(context, 1L);
@@ -1528,7 +1523,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             String sql = StrUtil.format("UPDATE {} SET version = {} where id = '1'", tableName(entityDescriptor.getType()), -version);
             logInfo(sql + ";");
             if (ensureTableEnabled(context)) {
-                try { database.execute(context, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+                executeBootstrap(context, sql, "restore root");
             }
             return;
         }
@@ -1545,7 +1540,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 CollectionUtil.join(rootRow, ",", value -> getSqlValue(value)));
         logInfo(sql + ";");
         if (ensureTableEnabled(context)) {
-            try { database.execute(context, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+            executeBootstrap(context, sql, "create root");
         }
         ensureBootstrapIdFloor(context, 1L);
     }
@@ -1567,30 +1562,25 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             Object constantId = getConstantPropertyValue(
                     context, entityDescriptor.findIdProperty(), i, code);
 
-            try {
-                List<Map<String, Object>> existing = database.query(context,
-                        StrUtil.format("SELECT * FROM {} WHERE id = '{}'",
-                                tableName(entityDescriptor.getType()),
-                                getConstantPropertyValue(context, entityDescriptor.findIdProperty(), i, code)),
-                        new Object[0]);
-                if (!existing.isEmpty()) {
-                    long version = Long.parseLong(String.valueOf(existing.get(0).get("version")));
-                    if (version > 0) {
-                        reconcileConstant(context, ownProperties, oneConstant, existing.get(0), version);
-                        ensureBootstrapIdFloor(context, constantId);
-                        continue;
-                    }
-                    String sql = StrUtil.format("UPDATE {} SET version = {} where id = '{}'",
-                            tableName(entityDescriptor.getType()), -version,
-                            getConstantPropertyValue(context, entityDescriptor.findIdProperty(), i, code));
-                    logInfo(sql + ";");
-                    if (ensureTableEnabled(context)) {
-                        try { database.execute(context, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
-                    }
+            List<Map<String, Object>> existing = queryBootstrap(context,
+                    StrUtil.format("SELECT * FROM {} WHERE id = '{}'",
+                            tableName(entityDescriptor.getType()), constantId),
+                    "inspect constant");
+            if (!existing.isEmpty()) {
+                long version = Long.parseLong(String.valueOf(existing.get(0).get("version")));
+                if (version > 0) {
+                    reconcileConstant(context, ownProperties, oneConstant, existing.get(0), version);
                     ensureBootstrapIdFloor(context, constantId);
                     continue;
                 }
-            } catch (Exception ignored) {
+                String sql = StrUtil.format("UPDATE {} SET version = {} where id = '{}'",
+                        tableName(entityDescriptor.getType()), -version, constantId);
+                logInfo(sql + ";");
+                if (ensureTableEnabled(context)) {
+                    executeBootstrap(context, sql, "restore constant");
+                }
+                ensureBootstrapIdFloor(context, constantId);
+                continue;
             }
 
             String sql = StrUtil.format("INSERT INTO {} ({}) VALUES ({})",
@@ -1599,10 +1589,34 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                     CollectionUtil.join(oneConstant, ",", value -> getSqlValue(value)));
             logInfo(sql + ";");
             if (ensureTableEnabled(context)) {
-                try { database.execute(context, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+                executeBootstrap(context, sql, "create constant");
             }
             ensureBootstrapIdFloor(context, constantId);
         }
+    }
+
+    private List<Map<String, Object>> queryBootstrap(
+            UserContext context, String sql, String operation) {
+        try {
+            return database.query(context, sql, new Object[0]);
+        } catch (Exception failure) {
+            throw bootstrapFailure(operation, failure);
+        }
+    }
+
+    private void executeBootstrap(UserContext context, String sql, String operation) {
+        try {
+            database.execute(context, sql);
+        } catch (Exception failure) {
+            throw bootstrapFailure(operation, failure);
+        }
+    }
+
+    private IllegalStateException bootstrapFailure(String operation, Exception cause) {
+        return new IllegalStateException(
+                "Cannot " + operation + " for " + entityDescriptor.getType()
+                        + " on table " + tableName(entityDescriptor.getType()),
+                cause);
     }
 
     private void ensureBootstrapIdFloor(UserContext context, Object id) {
@@ -1644,7 +1658,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 getSqlValue(id),
                 version);
         logInfo(sql + ";");
-        if (ensureTableEnabled(context)) database.execute(context, sql);
+        if (ensureTableEnabled(context)) executeBootstrap(context, sql, "reconcile constant");
     }
 
     private Object findColumnValue(Map<String, Object> row, String column) {
