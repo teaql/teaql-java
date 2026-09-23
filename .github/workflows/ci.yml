@@ -61,7 +61,20 @@ jobs:
           -DdataDirectory=${{ runner.temp }}/teaql-odc-data
           -DautoUpdate=false
           -DfailOnError=true
+          -DfailBuildOnCVSS=7
           -Dformats=HTML,JSON
+      - name: OWASP Dependency Check standalone generated examples
+        run: |
+          mvn -B -f examples/school-management/lib/pom.xml install -DskipTests
+          for pom in \
+            examples/school-management/lib/pom.xml \
+            examples/school-management/pom.xml \
+            examples/order-management/java-lib-core/lib/pom.xml; do
+            mvn -B -f "$pom" org.owasp:dependency-check-maven:13.0.0:check \
+              -DdataDirectory=${{ runner.temp }}/teaql-odc-data \
+              -DautoUpdate=false -DfailOnError=true \
+              -DfailBuildOnCVSS=7 -Dformats=HTML,JSON
+          done
       - name: Retain Dependency Check reports
         if: always()
         uses: actions/upload-artifact@v4
