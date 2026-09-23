@@ -58,7 +58,21 @@ public interface Entity {
 
     List<String> getUpdatedProperties();
 
+    /** Legacy process-global metadata path. Prefer the context-bearing overload. */
+    @Deprecated
     void addRelation(String relationName, Entity value);
+
+    /**
+     * Attach a relation using the invoking runtime's metadata instead of the
+     * legacy process-global metadata registry.
+     */
+    default void addRelation(UserContext context, String relationName, Entity value) {
+        if (!(this instanceof BaseEntity baseEntity)) {
+            throw new UnsupportedOperationException(
+                    "Context-owned relation attachment requires a BaseEntity implementation");
+        }
+        baseEntity.addRelation(context, relationName, value);
+    }
 
     void addDynamicProperty(String propertyName, Object value);
 
