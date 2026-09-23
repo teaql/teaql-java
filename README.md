@@ -110,6 +110,8 @@ The Query and Mutation switches remain independent. Selecting diagnostic SQL
 changes the built-in destination; it does not enable or disable either family.
 Custom `RuntimeLogSink` implementations receive only parameterized SQL unless
 they explicitly override `requiresSensitiveSqlData()` to return `true`.
+Custom `UserContext` implementations must also explicitly delegate or override
+`requiresSensitiveSqlLogData()` when they enable a diagnostic sink.
 The optional file-backed `LogManager` requests value-bearing SQL only with
 `TEAQL_SQL_LOG=_full_with_payload`; restrict access and retention before enabling it.
 
