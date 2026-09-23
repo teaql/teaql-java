@@ -21,6 +21,8 @@ jobs:
           cache: maven
       - name: Build with Maven
         run: mvn -B install
+      - name: Verify managed Jackson runtime versions
+        run: bash scripts/verify-jackson-runtime-dependencies.sh
       - name: Validate error catalog
         run: |
           python3 -m unittest discover -v
