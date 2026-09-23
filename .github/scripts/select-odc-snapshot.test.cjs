@@ -17,7 +17,8 @@ function fixture(runs, artifactsByRun = {}) {
       github: {
         rest: {
           actions: {
-            async listWorkflowRunsForWorkflow(args) {
+            // Match the real Octokit REST method used by actions/github-script.
+            async listWorkflowRuns(args) {
               assert.equal(args.workflow_id, 'dependency-check-data.yml');
               assert.equal(args.branch, 'main');
               assert.equal(args.status, 'success');

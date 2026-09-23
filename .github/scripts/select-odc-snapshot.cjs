@@ -4,7 +4,7 @@ module.exports = async function selectOdcSnapshot({ github, context, core }) {
   const { owner, repo } = context.repo;
   const fullName = `${owner}/${repo}`;
   const artifactName = 'teaql-odc-v13.0.0-Linux';
-  const { data } = await github.rest.actions.listWorkflowRunsForWorkflow({
+  const { data } = await github.rest.actions.listWorkflowRuns({
     owner,
     repo,
     workflow_id: 'dependency-check-data.yml',
