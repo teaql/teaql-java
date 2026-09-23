@@ -59,3 +59,14 @@ jobs:
           -DdataDirectory=${{ runner.temp }}/teaql-odc-data
           -DautoUpdate=false
           -DfailOnError=true
+          -Dformats=HTML,JSON
+      - name: Retain Dependency Check reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-reports
+          path: |
+            **/target/dependency-check-report.html
+            **/target/dependency-check-report.json
+          if-no-files-found: warn
+          retention-days: 30
