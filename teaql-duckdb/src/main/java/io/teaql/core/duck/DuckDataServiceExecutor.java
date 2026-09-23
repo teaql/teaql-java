@@ -8,7 +8,6 @@ import io.teaql.core.sql.portable.TeaQLDatabase;
 import io.teaql.dataservice.sql.SqlDataServiceExecutor;
 import io.teaql.dataservice.sql.SqlExecutionAdapter;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -21,7 +20,7 @@ public class DuckDataServiceExecutor extends SqlDataServiceExecutor {
     @Override
     public void ensureSchema(UserContext context, io.teaql.core.SchemaExecutor.Invocation invocation) {
         io.teaql.core.SchemaExecutor.Invocation.requireContextOwned(invocation);
-        List<EntityDescriptor> descriptors = EntityMetaFactory.get().allEntityDescriptors();
+        List<EntityDescriptor> descriptors = EntityMetaFactory.requireFrom(context).allEntityDescriptors();
 
         TeaQLDatabase dbAdapter = new TeaQLDatabase() {
             @Override
@@ -51,8 +50,8 @@ public class DuckDataServiceExecutor extends SqlDataServiceExecutor {
 
             @Override
             public List<Map<String, Object>> getTableColumns(String tableName) {
-                String sql = "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = :tableName";
-                return getExecutionAdapter().queryForList(sql, Collections.singletonMap("tableName", tableName));
+                String sql = "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ?";
+                return getExecutionAdapter().queryForList(sql, new Object[] {tableName});
             }
         };
 

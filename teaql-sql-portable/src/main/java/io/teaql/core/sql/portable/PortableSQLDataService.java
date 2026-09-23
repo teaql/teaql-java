@@ -59,7 +59,8 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             if (descriptor == null) {
                 throw new TeaQLRuntimeException("Entity descriptor not found for type: " + t);
             }
-            PortableSQLRepository<?> repo = new PortableSQLRepository<>(descriptor, database, resolver);
+            PortableSQLRepository<?> repo =
+                    new PortableSQLRepository<>(descriptor, database, resolver, metadata);
             if (this.dialect != null) {
                 repo.setDialect(this.dialect);
             }
@@ -243,7 +244,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             if (oldValue instanceof Entity) {
                 Entity value = map.get(((Entity) oldValue).getId());
                 if (value == null) continue;
-                result.addRelation(relation.getName(), value);
+                attachRelation(result, relation, value);
             }
         }
     }
@@ -298,9 +299,27 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             if (parent instanceof Entity) {
                 Entity parentEntity = longTMap.get(((Entity) parent).getId());
                 if (parentEntity != null) {
-                    parentEntity.addRelation(relation.getName(), childEntity);
+                    attachRelation(parentEntity, relation, childEntity);
                 }
             }
+        }
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private void attachRelation(Entity target, PropertyDescriptor relation, Entity value) {
+        if (relation == null || relation.getType() == null) return;
+        Class<?> relationType = relation.getType().javaType();
+        if (SmartList.class.isAssignableFrom(relationType)) {
+            SmartList existing = target.getProperty(relation.getName());
+            if (existing == null) {
+                existing = new SmartList<>();
+                target.setProperty(relation.getName(), existing);
+            }
+            existing.add(value);
+            return;
+        }
+        if (Entity.class.isAssignableFrom(relationType)) {
+            target.setProperty(relation.getName(), value);
         }
     }
 

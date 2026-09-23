@@ -83,12 +83,13 @@ public class TfpEndpointHandler {
         if (fields == null) throw new TfpEndpointException("TFP_POLICY_VIOLATION",
                 "No readable field policy for entity");
 
-        EntityDescriptor descriptor = EntityMetaFactory.get().resolveEntityDescriptor(entityName);
+        EntityMetaFactory metadata = EntityMetaFactory.requireFrom(context);
+        EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entityName);
         if (descriptor == null) {
             throw new IllegalArgumentException("Unknown entity: " + entityName);
         }
 
-        BaseRequest.TempRequest request = new BaseRequest.TempRequest(descriptor.getTargetType(), entityName);
+        BaseRequest.TempRequest request = new BaseRequest.TempRequest(descriptor);
 
         if (root.has("limitValue") && !root.path("limitValue").isNull()) {
             int limit = root.path("limitValue").asInt();
@@ -122,7 +123,7 @@ public class TfpEndpointHandler {
             request.selectProperty(mapField(fields, selected.asText()));
         }
 
-        addFacets(request, root.path("facets"), trusted, fields);
+        addFacets(context, request, root.path("facets"), trusted, fields);
 
         requireNonBlank(root, "commentText", "TFP_INVALID_REQUEST");
         requireNonBlank(root, "purposeText", "TFP_POLICY_VIOLATION");
@@ -178,7 +179,7 @@ public class TfpEndpointHandler {
         return rows;
     }
 
-    private void addFacets(BaseRequest.TempRequest outer, JsonNode facets,
+    private void addFacets(UserContext context, BaseRequest.TempRequest outer, JsonNode facets,
             TrustedFederalContext trusted, Map<String, String> outerFields) {
         if (facets == null || facets.isMissingNode() || facets.isNull()) return;
         if (!facets.isArray() || facets.size() > 10)
@@ -195,13 +196,14 @@ public class TfpEndpointHandler {
                 throw new TfpEndpointException("TFP_INVALID_REQUEST", "Facet query is required");
             if (!nested.path("facets").isEmpty())
                 throw new TfpEndpointException("TFP_INVALID_REQUEST", "Nested facets are not supported");
-            BaseRequest.TempRequest nestedRequest = buildFacetQuery(nested, trusted);
+            BaseRequest.TempRequest nestedRequest = buildFacetQuery(context, nested, trusted);
             boolean includeAll = !facet.has("includeAllFacets") || facet.path("includeAllFacets").asBoolean();
             outer.addFacet(name, relation, nestedRequest, includeAll);
         }
     }
 
-    private BaseRequest.TempRequest buildFacetQuery(JsonNode root, TrustedFederalContext trusted) {
+    private BaseRequest.TempRequest buildFacetQuery(
+            UserContext context, JsonNode root, TrustedFederalContext trusted) {
         rejectUnknownTopLevel(root, Set.of("entity", "filterCondition", "limitValue", "offsetValue",
                 "orderItems", "selectItems", "groupByItems", "aggregateItems", "facets",
                 "commentText", "purposeText"));
@@ -210,9 +212,10 @@ public class TfpEndpointHandler {
         Map<String, String> fields = trusted.readableFields(entity);
         if (fields == null) throw new TfpEndpointException("TFP_POLICY_VIOLATION",
                 "No readable field policy for facet entity");
-        EntityDescriptor descriptor = EntityMetaFactory.get().resolveEntityDescriptor(entity);
+        EntityDescriptor descriptor =
+                EntityMetaFactory.requireFrom(context).resolveEntityDescriptor(entity);
         if (descriptor == null) throw new TfpEndpointException("TFP_INVALID_REQUEST", "Unknown facet entity");
-        BaseRequest.TempRequest request = new BaseRequest.TempRequest(descriptor.getTargetType(), entity);
+        BaseRequest.TempRequest request = new BaseRequest.TempRequest(descriptor);
         JsonNode filter = root.get("filterCondition");
         if (filter != null && !filter.isNull()) request.appendSearchCriteria(parseFilter(request, filter, fields));
         request.appendSearchCriteria(request.createBasicSearchCriteria(
@@ -312,7 +315,8 @@ public class TfpEndpointHandler {
                     "TFP_INVALID_REQUEST", "Mutation id is required");
         }
 
-        EntityDescriptor descriptor = EntityMetaFactory.get().resolveEntityDescriptor(entityName);
+        EntityDescriptor descriptor =
+                EntityMetaFactory.requireFrom(context).resolveEntityDescriptor(entityName);
         if (descriptor == null) {
             throw new IllegalArgumentException("Unknown entity: " + entityName);
         }

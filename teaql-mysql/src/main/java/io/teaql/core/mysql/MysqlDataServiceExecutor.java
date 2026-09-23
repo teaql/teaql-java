@@ -9,9 +9,9 @@ import io.teaql.dataservice.sql.SqlDataServiceExecutor;
 import io.teaql.dataservice.sql.SqlExecutionAdapter;
 
 import javax.sql.DataSource;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class MysqlDataServiceExecutor extends SqlDataServiceExecutor {
 
@@ -57,8 +57,19 @@ public class MysqlDataServiceExecutor extends SqlDataServiceExecutor {
 
             @Override
             public List<Map<String, Object>> getTableColumns(String tableName) {
-                String sql = "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = :tableName AND table_schema = DATABASE()";
-                return getExecutionAdapter().queryForList(sql, Collections.singletonMap("tableName", tableName));
+                String sql = "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ? AND table_schema = DATABASE()";
+                return getExecutionAdapter().queryForList(sql, new Object[] {tableName});
+            }
+
+            @Override
+            public Optional<Boolean> indexExists(
+                    UserContext context, String tableName, String indexName) {
+                List<Map<String, Object>> rows = getExecutionAdapter().queryForList(
+                        "SELECT 1 AS present FROM information_schema.statistics "
+                                + "WHERE table_schema = DATABASE() AND table_name = ? "
+                                + "AND index_name = ? LIMIT 1",
+                        new Object[] {tableName, indexName});
+                return Optional.of(!rows.isEmpty());
             }
         };
 

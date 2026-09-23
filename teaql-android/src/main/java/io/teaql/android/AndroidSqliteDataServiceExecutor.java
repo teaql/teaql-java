@@ -9,7 +9,6 @@ import io.teaql.core.sql.portable.PortableSQLRepository;
 import io.teaql.dataservice.sql.SqlDataServiceExecutor;
 import io.teaql.dataservice.sql.SqlExecutionAdapter;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -37,7 +36,7 @@ public class AndroidSqliteDataServiceExecutor extends SqlDataServiceExecutor {
     @Override
     public void ensureSchema(UserContext context, io.teaql.core.SchemaExecutor.Invocation invocation) {
         io.teaql.core.SchemaExecutor.Invocation.requireContextOwned(invocation);
-        List<EntityDescriptor> descriptors = EntityMetaFactory.get().allEntityDescriptors();
+        List<EntityDescriptor> descriptors = EntityMetaFactory.requireFrom(context).allEntityDescriptors();
         SqlExecutionAdapter adapter = getExecutionAdapter();
         
         io.teaql.core.sql.portable.TeaQLDatabase dbAdapter = new io.teaql.core.sql.portable.TeaQLDatabase() {
@@ -79,15 +78,12 @@ public class AndroidSqliteDataServiceExecutor extends SqlDataServiceExecutor {
 
             @Override
             public List<Map<String, Object>> getTableColumns(String tableName) {
-                try {
-                    List<Map<String, Object>> columns = adapter.queryForList("PRAGMA table_info(" + tableName + ")", new Object[0]);
-                    for (Map<String, Object> col : columns) {
-                        col.put("column_name", col.get("name"));
-                    }
-                    return columns;
-                } catch (Exception e) {
-                    return Collections.emptyList();
+                List<Map<String, Object>> columns = adapter.queryForList(
+                        "PRAGMA table_info(" + tableName + ")", new Object[0]);
+                for (Map<String, Object> col : columns) {
+                    col.put("column_name", col.get("name"));
                 }
+                return columns;
             }
         };
 

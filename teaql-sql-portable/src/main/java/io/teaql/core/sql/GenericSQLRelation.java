@@ -58,7 +58,7 @@ public class GenericSQLRelation extends Relation implements SQLProperty {
         }
         Class targetType = getType().javaType();
         if (Entity.class.isAssignableFrom(targetType)) {
-            Entity o = createRefer(rs);
+            Entity o = createRefer(context, rs);
             entity.setProperty(getName(), o);
             return;
         }
@@ -81,25 +81,23 @@ public class GenericSQLRelation extends Relation implements SQLProperty {
         return false;
     }
 
-    private Entity createRefer(ResultSet resultSet) {
-        BaseEntity o = (BaseEntity) createEntity((Class<? extends Entity>) getType().javaType());
+    private Entity createRefer(UserContext context, ResultSet resultSet) {
         Object referId = getValue(resultSet);
 
         if (referId == null) {
             return null;
         }
+        BaseEntity o = (BaseEntity) createEntity(context, (Class<? extends Entity>) getType().javaType());
         o.__internalSet("id", ((Number) referId).longValue());
         o.set$status(EntityStatus.REFER);
         return o;
     }
 
-    private Entity createEntity(Class<? extends Entity> entityType) {
-        EntityMetaFactory metadata = EntityMetaFactory.get();
-        if (metadata != null) {
-            for (EntityDescriptor descriptor : metadata.allEntityDescriptors()) {
-                if (descriptor.getTargetType() == entityType) {
-                    return descriptor.createEntity();
-                }
+    private Entity createEntity(UserContext context, Class<? extends Entity> entityType) {
+        EntityMetaFactory metadata = EntityMetaFactory.requireFrom(context);
+        for (EntityDescriptor descriptor : metadata.allEntityDescriptors()) {
+            if (descriptor.getTargetType() == entityType) {
+                return descriptor.createEntity();
             }
         }
         throw new IllegalStateException("No entity descriptor registered for " + entityType.getName());

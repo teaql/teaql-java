@@ -48,22 +48,22 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
 
     @Override
     public QueryResult query(UserContext context, QueryRequest request) {
-        return getPortableService().query(context, request);
+        return getPortableService(context).query(context, request);
     }
 
     @Override
     public <T extends io.teaql.core.Entity> java.util.stream.Stream<T> queryForStream(UserContext context, io.teaql.core.SearchRequest<T> request) {
-        return getPortableService().queryForStream(context, request);
+        return getPortableService(context).queryForStream(context, request);
     }
 
     @Override
     public MutationResult mutate(UserContext context, MutationRequest request) {
-        return getPortableService().mutate(context, request);
+        return getPortableService(context).mutate(context, request);
     }
 
     @Override
     public <T> T executeInTransaction(UserContext context, TransactionCallback<T> action) {
-        return getPortableService().executeInTransaction(context, action);
+        return getPortableService(context).executeInTransaction(context, action);
     }
 
     @Override
@@ -98,12 +98,37 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
         return executionAdapter;
     }
 
-    // Lazy load the portable service
-    private io.teaql.core.sql.portable.PortableSQLDataService portableService;
+    // The common one-runtime-per-executor path is lock-free after first use. The identity map
+    // preserves isolation when an application deliberately shares one executor across runtimes.
+    private volatile io.teaql.core.meta.EntityMetaFactory primaryMetadata;
+    private volatile io.teaql.core.sql.portable.PortableSQLDataService primaryPortableService;
+    private final java.util.Map<io.teaql.core.meta.EntityMetaFactory,
+            io.teaql.core.sql.portable.PortableSQLDataService> secondaryPortableServices =
+            new java.util.IdentityHashMap<>();
 
-    private synchronized io.teaql.core.sql.portable.PortableSQLDataService getPortableService() {
-        if (portableService == null) {
-            io.teaql.core.sql.portable.TeaQLDatabase dbAdapter = new io.teaql.core.sql.portable.TeaQLDatabase() {
+    private io.teaql.core.sql.portable.PortableSQLDataService getPortableService(UserContext context) {
+        io.teaql.core.meta.EntityMetaFactory metadata =
+                io.teaql.core.meta.EntityMetaFactory.requireFrom(context);
+        io.teaql.core.sql.portable.PortableSQLDataService primary = primaryPortableService;
+        if (primary != null && primaryMetadata == metadata) return primary;
+        synchronized (this) {
+            primary = primaryPortableService;
+            if (primary != null && primaryMetadata == metadata) return primary;
+            if (primary == null) {
+                primary = createPortableService(metadata);
+                primaryMetadata = metadata;
+                primaryPortableService = primary;
+                return primary;
+            }
+            return secondaryPortableServices.computeIfAbsent(
+                    metadata, this::createPortableService);
+        }
+    }
+
+    private io.teaql.core.sql.portable.PortableSQLDataService createPortableService(
+            io.teaql.core.meta.EntityMetaFactory metadata) {
+        io.teaql.core.sql.portable.TeaQLDatabase dbAdapter =
+                new io.teaql.core.sql.portable.TeaQLDatabase() {
                 @Override
                 public boolean supportsCompiledRowMapping() {
                     return true;
@@ -152,8 +177,10 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     meta.setResultCount(res.size());
                     meta.setResultSummary("Fetched " + res.size() + " rows");
                     meta.setParameterizedQuery(sql);
-                    meta.setParameters(parameters(args));
-                    meta.setDebugQuery(debugSql(sql, args, debugDatabaseKind));
+                    if (context.requiresSensitiveSqlLogData()) {
+                        meta.setParameters(parameters(args));
+                        meta.setDebugQuery(debugSql(sql, args, debugDatabaseKind));
+                    }
                     context.recordExecutionMetadata(meta);
                     return res;
                 }
@@ -174,8 +201,10 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     meta.setResultCount(res.size());
                     meta.setResultSummary("Fetched " + res.size() + " typed rows");
                     meta.setParameterizedQuery(sql);
-                    meta.setParameters(parameters(args));
-                    meta.setDebugQuery(debugSql(sql, args, debugDatabaseKind));
+                    if (context.requiresSensitiveSqlLogData()) {
+                        meta.setParameters(parameters(args));
+                        meta.setDebugQuery(debugSql(sql, args, debugDatabaseKind));
+                    }
                     context.recordExecutionMetadata(meta);
                     return res;
                 }
@@ -194,8 +223,10 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     meta.setAffectedRows((long) res);
                     meta.setResultSummary("Affected " + res + " rows");
                     meta.setParameterizedQuery(sql);
-                    meta.setParameters(parameters(args));
-                    meta.setDebugQuery(debugSql(sql, args, debugDatabaseKind));
+                    if (context.requiresSensitiveSqlLogData()) {
+                        meta.setParameters(parameters(args));
+                        meta.setDebugQuery(debugSql(sql, args, debugDatabaseKind));
+                    }
                     context.recordExecutionMetadata(meta);
                     return res;
                 }
@@ -208,13 +239,6 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     if (!logging) return res;
                     long elapsed = (System.nanoTime() - start) / 1000;
                     int total = 0; if (res != null) { for(int i: res) total += i; }
-                    String loggedSql = sql;
-                    if (batchArgs != null && !batchArgs.isEmpty()) {
-                        loggedSql = debugSql(sql, batchArgs.get(0), debugDatabaseKind);
-                        if (batchArgs.size() > 1) {
-                            loggedSql += " /* + " + (batchArgs.size() - 1) + " more batches */";
-                        }
-                    }
                     io.teaql.core.ExecutionMetadata meta = new io.teaql.core.ExecutionMetadata();
                     meta.setBackend(debugDatabaseKind.toLowerCase(java.util.Locale.ROOT));
                     meta.setOperation(io.teaql.core.DataServiceOperation.MUTATION);
@@ -222,8 +246,17 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     meta.setAffectedRows((long) total);
                     meta.setResultSummary("Batch affected " + total + " rows");
                     meta.setParameterizedQuery(sql);
-                    meta.setParameters(batchParameters(batchArgs));
-                    meta.setDebugQuery(loggedSql);
+                    if (context.requiresSensitiveSqlLogData()) {
+                        String loggedSql = sql;
+                        if (batchArgs != null && !batchArgs.isEmpty()) {
+                            loggedSql = debugSql(sql, batchArgs.get(0), debugDatabaseKind);
+                            if (batchArgs.size() > 1) {
+                                loggedSql += " /* + " + (batchArgs.size() - 1) + " more batches */";
+                            }
+                        }
+                        meta.setParameters(batchParameters(batchArgs));
+                        meta.setDebugQuery(loggedSql);
+                    }
                     context.recordExecutionMetadata(meta);
                     return res;
                 }
@@ -241,15 +274,16 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     meta.setElapsedUs(elapsed);
                     meta.setResultSummary("Executed");
                     meta.setParameterizedQuery(sql);
-                    meta.setParameters(java.util.List.of());
-                    meta.setDebugQuery(sql);
+                    if (context.requiresSensitiveSqlLogData()) {
+                        meta.setDebugQuery(sql);
+                    }
                     context.recordExecutionMetadata(meta);
                 }
             };
-            portableService = new io.teaql.core.sql.portable.PortableSQLDataService(name, dbAdapter, io.teaql.core.meta.EntityMetaFactory.get());
-            portableService.setDialect(this.dialect);
-            portableService.setTopNRelationPlanPolicy(this.topNRelationPlanPolicy);
-        }
+        io.teaql.core.sql.portable.PortableSQLDataService portableService =
+                new io.teaql.core.sql.portable.PortableSQLDataService(name, dbAdapter, metadata);
+        portableService.setDialect(this.dialect);
+        portableService.setTopNRelationPlanPolicy(this.topNRelationPlanPolicy);
         return portableService;
     }
 

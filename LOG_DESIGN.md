@@ -6,6 +6,7 @@
 *   **可插拔后端 (Pluggable Backend)**：`teaql-runtime` 只暴露 `RuntimeLogSink` 扩展点；文件/stdout 日志实现位于可选 `teaql-runtime-log` 模块。
 *   **白名单配置 (Whitelist Config)**：严格通过带有 `TEAQL_` 前缀的环境变量控制系统行为，保障运行时的安全性与隔离性。
 *   **极致性能 (High Performance)**：采用有界阻塞队列（Bounded Blocking Queue）加独立后台写入线程（LogWriter Thread）实现异步落盘，绝不让磁盘 I/O 拖累核心 SQL 的执行效率。
+*   **安全默认值 (Safe by Default)**：Query 与 Mutation 日志默认开启，但默认 sink 只输出参数化 SQL，不输出 bind values 或可复制执行的 Debug SQL；后两者只能进入显式配置的敏感诊断 sink。
 
 ---
 
@@ -51,6 +52,17 @@
 ### 3.3 运行时拦截 (Runtime Interception)
 *   **SQL 执行拦截**：SQL provider 在执行前后记录耗时并调用 `UserContext.recordExecutionMetadata(...)`。默认 runtime 会将 metadata 交给注入的 `RuntimeLogSink`；`teaql-runtime-log` 的 `LogManager` 是当前文件/stdout 后端实现。
 *   **Audit 生成拦截**：审计事件由运行时或 provider 在确定状态点生成，并交给注入的 `RuntimeLogSink` 后端。未引入或未注入 `teaql-runtime-log` 时，`teaql-runtime` 保持最小运行闭环，不启动日志后台线程。
+
+### 3.4 SQL 日志安全边界
+
+`DefaultTextRuntimeLogSink` 是普通运维日志，只打印 Execution SQL 的参数化
+形式。`SensitiveDiagnosticTextRuntimeLogSink` 会额外打印参数和值已回填的
+Debug SQL，必须视为敏感数据输出，并配置访问控制、保留、滚动与删除策略。
+两种 sink 都不改变数据库执行路径；数据库始终接收参数化 SQL。Query 与
+Mutation 的启停由两个独立开关控制，选择 diagnostic sink 不得改写这两个
+开关。默认 sink 不要求 provider 构造参数副本和 Debug SQL；显式诊断 sink
+及现有自定义 sink 保留这些字段。自定义 sink 若不消费敏感 SQL 数据，可覆写
+`requiresSensitiveSqlData()` 返回 `false`。
 
 ---
 *设计定稿时间: 2026年06月13日*

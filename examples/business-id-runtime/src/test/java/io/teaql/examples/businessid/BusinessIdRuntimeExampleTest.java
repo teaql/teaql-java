@@ -186,6 +186,62 @@ public class BusinessIdRuntimeExampleTest {
         }
     }
 
+    @Test
+    public void sqliteAllocatorRejectsExhaustedAndOverflowedSequencesWithoutMutation()
+            throws Exception {
+        Path databasePath = Files.createTempFile("teaql-business-id-range", ".db");
+        try {
+            LocalDate businessDate = LocalDate.of(2026, 9, 20);
+            BusinessIdPlan plan = new DailySequenceBusinessIdProfile().plan(
+                    new BusinessIdGenerationRequest(
+                            ORDER_NUMBER, "tenant-a", "commerce_order", businessDate));
+            try (Connection connection = open(databasePath)) {
+                JdbcBusinessIdAllocator allocator =
+                        new JdbcBusinessIdAllocator(database(connection));
+                UserContext context = context(businessDate, allocator);
+                context.putAttribute(SchemaExecutor.class.getName(), noOpSchemaExecutor());
+                context.ensureSchema();
+
+                try (PreparedStatement insert = connection.prepareStatement(
+                        "INSERT INTO teaql_business_id_space"
+                                + " (scope_key, current_value, version, updated_at)"
+                                + " VALUES (?, ?, 7, 0)")) {
+                    insert.setString(1, plan.scope().canonicalKey());
+                    insert.setLong(2, plan.maximumSequence());
+                    insert.executeUpdate();
+                }
+
+                for (long storedValue : new long[] {plan.maximumSequence(), Long.MAX_VALUE}) {
+                    try (PreparedStatement update = connection.prepareStatement(
+                            "UPDATE teaql_business_id_space SET current_value = ?, version = 7"
+                                    + " WHERE scope_key = ?")) {
+                        update.setLong(1, storedValue);
+                        update.setString(2, plan.scope().canonicalKey());
+                        Assert.assertEquals(1, update.executeUpdate());
+                    }
+
+                    BusinessIdException failure = Assert.assertThrows(
+                            BusinessIdException.class, () -> allocator.allocate(plan));
+                    Assert.assertEquals(
+                            BusinessIdErrorCode.BUSINESS_ID_RANGE_EXHAUSTED,
+                            failure.getCode());
+                    try (PreparedStatement read = connection.prepareStatement(
+                            "SELECT current_value, version FROM teaql_business_id_space"
+                                    + " WHERE scope_key = ?")) {
+                        read.setString(1, plan.scope().canonicalKey());
+                        try (ResultSet row = read.executeQuery()) {
+                            Assert.assertTrue(row.next());
+                            Assert.assertEquals(storedValue, row.getLong(1));
+                            Assert.assertEquals(7L, row.getLong(2));
+                        }
+                    }
+                }
+            }
+        } finally {
+            Files.deleteIfExists(databasePath);
+        }
+    }
+
     private static UserContext context(LocalDate date) {
         return context(date, null);
     }
