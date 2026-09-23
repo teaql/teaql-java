@@ -1,6 +1,7 @@
 package io.teaql.core;
 
 import org.junit.Test;
+import java.lang.reflect.Proxy;
 import java.util.Set;
 
 import static org.junit.Assert.*;
@@ -407,6 +408,89 @@ public class BaseEntityTest {
         
         e.setComment("test_comment");
         assertEquals("test_comment", e.getComment());
+    }
+
+    @Test
+    public void testAddRelationUsesInvokingContextMetadata() {
+        io.teaql.core.meta.EntityDescriptor single = new io.teaql.core.meta.EntityDescriptor();
+        single.setType("TestEntity");
+        io.teaql.core.meta.PropertyDescriptor singleProperty =
+                new io.teaql.core.meta.PropertyDescriptor();
+        singleProperty.setName("entityRel");
+        singleProperty.setType(new io.teaql.core.meta.SimplePropertyType(Entity.class));
+        io.teaql.core.meta.PropertyDescriptor scalarProperty =
+                new io.teaql.core.meta.PropertyDescriptor();
+        scalarProperty.setName("label");
+        scalarProperty.setType(new io.teaql.core.meta.SimplePropertyType(String.class));
+        single.setProperties(java.util.List.of(singleProperty, scalarProperty));
+        io.teaql.core.meta.SimpleEntityMetaFactory singleMetadata =
+                new io.teaql.core.meta.SimpleEntityMetaFactory();
+        singleMetadata.register(single);
+
+        io.teaql.core.meta.EntityDescriptor many = new io.teaql.core.meta.EntityDescriptor();
+        many.setType("TestEntity");
+        io.teaql.core.meta.PropertyDescriptor manyProperty =
+                new io.teaql.core.meta.PropertyDescriptor();
+        manyProperty.setName("listRel");
+        manyProperty.setType(new io.teaql.core.meta.SimplePropertyType(SmartList.class));
+        many.setProperties(java.util.List.of(manyProperty));
+        io.teaql.core.meta.SimpleEntityMetaFactory manyMetadata =
+                new io.teaql.core.meta.SimpleEntityMetaFactory();
+        manyMetadata.register(many);
+
+        UserContext singleContext = contextWithMetadata(singleMetadata);
+        UserContext manyContext = contextWithMetadata(manyMetadata);
+        io.teaql.core.meta.EntityMetaFactory previous =
+                io.teaql.core.meta.EntityMetaFactory.get();
+        try {
+            io.teaql.core.meta.EntityMetaFactory.registerGlobal(singleMetadata);
+            TestEntity manyEntity = new TestEntity();
+            TestEntity manyChild = new TestEntity();
+            ((Entity) manyEntity).addRelation(manyContext, "listRel", manyChild);
+            assertEquals(1, manyEntity.<SmartList<?>>getProperty("listRel").size());
+            assertSame(manyChild, manyEntity.<SmartList<?>>getProperty("listRel").get(0));
+
+            io.teaql.core.meta.EntityMetaFactory.registerGlobal(null);
+            TestEntity singleEntity = new TestEntity();
+            TestEntity singleChild = new TestEntity();
+            ((Entity) singleEntity).addRelation(singleContext, "entityRel", singleChild);
+            assertSame(singleChild, singleEntity.getProperty("entityRel"));
+
+            TeaQLRuntimeException missingEntity = assertThrows(TeaQLRuntimeException.class,
+                    () -> new TestEntity().addRelation(
+                            contextWithMetadata(new io.teaql.core.meta.SimpleEntityMetaFactory()),
+                            "entityRel", singleChild));
+            assertTrue(missingEntity.getMessage().contains("TestEntity"));
+            IllegalArgumentException missingRelation = assertThrows(IllegalArgumentException.class,
+                    () -> singleEntity.addRelation(singleContext, "missingRel", singleChild));
+            assertTrue(missingRelation.getMessage().contains("TestEntity.missingRel"));
+            IllegalArgumentException scalarRelation = assertThrows(IllegalArgumentException.class,
+                    () -> singleEntity.addRelation(singleContext, "label", singleChild));
+            assertTrue(scalarRelation.getMessage().contains("not a relation"));
+
+            try {
+                singleEntity.addRelation("entityRel", singleChild);
+                fail("Legacy no-context attachment must not silently pick another model");
+            } catch (IllegalStateException expected) {
+                assertTrue(expected.getMessage().contains("addRelation(context"));
+            }
+        } finally {
+            io.teaql.core.meta.EntityMetaFactory.registerGlobal(previous);
+        }
+    }
+
+    private static UserContext contextWithMetadata(
+            io.teaql.core.meta.EntityMetaFactory metadata) {
+        return (UserContext) Proxy.newProxyInstance(
+                UserContext.class.getClassLoader(),
+                new Class<?>[] {UserContext.class},
+                (proxy, method, args) -> {
+                    if ("capability".equals(method.getName())
+                            && args[0] == io.teaql.core.meta.EntityMetaFactory.class) {
+                        return metadata;
+                    }
+                    throw new UnsupportedOperationException(method.getName());
+                });
     }
 
     @Test

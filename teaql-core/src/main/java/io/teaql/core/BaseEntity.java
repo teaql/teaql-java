@@ -228,9 +228,43 @@ public class BaseEntity implements Entity {
     }
 
     @Override
+    @Deprecated
     public void addRelation(String relationName, Entity value) {
-        io.teaql.core.meta.EntityDescriptor descriptor = io.teaql.core.meta.EntityMetaFactory.get()
-                .resolveEntityDescriptor(this.typeName());
+        io.teaql.core.meta.EntityMetaFactory metadata =
+                io.teaql.core.meta.EntityMetaFactory.get();
+        if (metadata == null) {
+            throw new IllegalStateException("Global EntityMetaFactory is not initialized; "
+                    + "use addRelation(context, relationName, value)");
+        }
+        addRelation(metadata.resolveEntityDescriptor(this.typeName()), relationName, value);
+    }
+
+    /** Attach a relation using metadata installed in the invoking context. */
+    @Override
+    public void addRelation(UserContext context, String relationName, Entity value) {
+        io.teaql.core.meta.EntityDescriptor descriptor =
+                io.teaql.core.meta.EntityMetaFactory.requireFrom(context)
+                        .resolveEntityDescriptor(this.typeName());
+        if (descriptor == null) {
+            throw new IllegalStateException("No entity descriptor registered in the invoking context for "
+                    + this.typeName());
+        }
+        io.teaql.core.meta.PropertyDescriptor property = descriptor.findProperty(relationName);
+        if (property == null || property.getType() == null) {
+            throw new IllegalArgumentException("No relation " + this.typeName() + "." + relationName
+                    + " registered in the invoking context");
+        }
+        Class<?> relationType = property.getType().javaType();
+        if (!SmartList.class.isAssignableFrom(relationType)
+                && !Entity.class.isAssignableFrom(relationType)) {
+            throw new IllegalArgumentException("Property " + this.typeName() + "." + relationName
+                    + " is not a relation in the invoking context");
+        }
+        addRelation(descriptor, relationName, value);
+    }
+
+    private void addRelation(
+            io.teaql.core.meta.EntityDescriptor descriptor, String relationName, Entity value) {
         if (descriptor == null) return;
         io.teaql.core.meta.PropertyDescriptor pd = descriptor.findProperty(relationName);
         if (pd == null || pd.getType() == null) return;
