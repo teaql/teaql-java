@@ -24,7 +24,7 @@ import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
 
-/** Live, independent-connection Business ID allocation across PostgreSQL and MySQL. */
+/** Live, independent-connection Business ID allocation across SQL providers. */
 public class JdbcBusinessIdLiveDialectIT {
     private static final LocalDate BUSINESS_DATE = LocalDate.of(2026, 9, 20);
     private static final int ALLOCATIONS_PER_INSTANCE = 40;
@@ -37,6 +37,55 @@ public class JdbcBusinessIdLiveDialectIT {
     @Test
     public void mysqlAllocatesAcrossInstancesAndRestart() throws Exception {
         verify("MYSQL");
+    }
+
+    @Test
+    public void sqlServerAllocatesAcrossInstancesAndRestart() throws Exception {
+        verify("MSSQL");
+    }
+
+    @Test
+    public void sqlServerConcurrentSchemaStartupIsIdempotent() throws Exception {
+        String url = System.getenv("TEAQL_TEST_MSSQL_URL");
+        String user = System.getenv("TEAQL_TEST_MSSQL_USER");
+        String password = System.getenv("TEAQL_TEST_MSSQL_PASSWORD");
+        if (url == null || user == null || password == null) {
+            if (Boolean.parseBoolean(System.getenv("TEAQL_REQUIRE_LIVE_DB"))) {
+                Assert.fail("MSSQL Business ID live gate requires URL, USER, and PASSWORD");
+            }
+            Assume.assumeTrue("MSSQL live database is not configured", false);
+        }
+        Assert.assertTrue("Use a dedicated teaql_live_* database for MSSQL",
+                url.contains("teaql_live_"));
+        String table = "bid_schema_" + UUID.randomUUID().toString().substring(0, 8);
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService workers = Executors.newFixedThreadPool(2);
+        try {
+            List<Future<?>> futures = new ArrayList<>();
+            for (int worker = 0; worker < 2; worker++) {
+                futures.add(workers.submit(() -> {
+                    try (Connection connection = DriverManager.getConnection(url, user, password)) {
+                        JdbcBusinessIdAllocator allocator = new JdbcBusinessIdAllocator(
+                                BusinessIdRuntimeExampleTest.database(connection), table);
+                        UserContext context = BusinessIdRuntimeExampleTest.context(
+                                BUSINESS_DATE, allocator);
+                        context.putAttribute(SchemaExecutor.class.getName(),
+                                BusinessIdRuntimeExampleTest.noOpSchemaExecutor());
+                        Assert.assertTrue(start.await(15, TimeUnit.SECONDS));
+                        context.ensureSchema();
+                        return null;
+                    }
+                }));
+            }
+            start.countDown();
+            for (Future<?> future : futures) future.get(30, TimeUnit.SECONDS);
+        } finally {
+            workers.shutdownNow();
+        }
+        try (Connection connection = DriverManager.getConnection(url, user, password)) {
+            Assert.assertEquals(4, BusinessIdRuntimeExampleTest.database(connection)
+                    .getTableColumns(table).size());
+        }
     }
 
     private void verify(String dialect) throws Exception {
@@ -66,6 +115,7 @@ public class JdbcBusinessIdLiveDialectIT {
             UserContext context = BusinessIdRuntimeExampleTest.context(BUSINESS_DATE, allocator);
             context.putAttribute(SchemaExecutor.class.getName(),
                     BusinessIdRuntimeExampleTest.noOpSchemaExecutor());
+            context.ensureSchema();
             context.ensureSchema();
         }
 

@@ -50,7 +50,44 @@ jobs:
       - name: Verify both live dialects (skips are forbidden)
         run: >-
           mvn -B -ntp -pl teaql-postgres,teaql-mysql,examples/business-id-runtime -am
-          -Dtest=PostgresIntegrationTest,MysqlIntegrationTest,JdbcBusinessIdLiveDialectIT
+          -Dtest=PostgresIntegrationTest,MysqlIntegrationTest,JdbcBusinessIdLiveDialectIT#postgresAllocatesAcrossInstancesAndRestart+mysqlAllocatesAcrossInstancesAndRestart
+          -Dsurefire.failIfNoSpecifiedTests=false test
+
+  business-id-sqlserver:
+    runs-on: ubuntu-latest
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: TeaqlBusinessLiveTest123!
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P TeaqlBusinessLiveTest123! -C -Q 'SELECT 1' -b"
+          --health-interval 10s --health-timeout 5s --health-retries 20
+    env:
+      TEAQL_REQUIRE_LIVE_DB: "true"
+      TEAQL_TEST_MSSQL_URL: "jdbc:sqlserver://127.0.0.1:1433;databaseName=teaql_live_ci;encrypt=false;trustServerCertificate=true"
+      TEAQL_TEST_MSSQL_USER: sa
+      TEAQL_TEST_MSSQL_PASSWORD: TeaqlBusinessLiveTest123!
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Create isolated Business ID test database
+        run: >-
+          docker exec "${{ job.services.sqlserver.id }}"
+          /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa
+          -P TeaqlBusinessLiveTest123! -C
+          -Q 'CREATE DATABASE teaql_live_ci'
+      - name: Verify SQL Server Business ID schema and allocation (skips are forbidden)
+        run: >-
+          mvn -B -ntp -pl examples/business-id-runtime -am
+          '-Dtest=JdbcBusinessIdLiveDialectIT#sqlServerAllocatesAcrossInstancesAndRestart+sqlServerConcurrentSchemaStartupIsIdempotent'
           -Dsurefire.failIfNoSpecifiedTests=false test
 
   sqlserver:

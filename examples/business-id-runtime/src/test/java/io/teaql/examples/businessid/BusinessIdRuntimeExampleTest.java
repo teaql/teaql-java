@@ -239,6 +239,27 @@ public class BusinessIdRuntimeExampleTest {
     }
 
     @Test
+    public void sqliteAllocatorRejectsIncompleteExistingSchema() throws Exception {
+        Path databasePath = Files.createTempFile("teaql-business-id-incomplete-schema", ".db");
+        try (Connection connection = open(databasePath)) {
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("CREATE TABLE teaql_business_id_space (scope_key TEXT PRIMARY KEY)");
+            }
+            JdbcBusinessIdAllocator allocator =
+                    new JdbcBusinessIdAllocator(database(connection));
+            UserContext context = context(LocalDate.of(2026, 9, 20), allocator);
+            context.putAttribute(SchemaExecutor.class.getName(), noOpSchemaExecutor());
+
+            IllegalStateException failure = Assert.assertThrows(
+                    IllegalStateException.class, context::ensureSchema);
+            Assert.assertTrue(failure.getMessage(),
+                    failure.getMessage().contains("missing required columns"));
+        } finally {
+            Files.deleteIfExists(databasePath);
+        }
+    }
+
+    @Test
     public void sqliteAllocatorRejectsExhaustedAndOverflowedSequencesWithoutMutation()
             throws Exception {
         Path databasePath = Files.createTempFile("teaql-business-id-range", ".db");
@@ -419,7 +440,22 @@ public class BusinessIdRuntimeExampleTest {
 
             @Override
             public List<Map<String, Object>> getTableColumns(String tableName) {
-                throw new UnsupportedOperationException();
+                try {
+                    List<Map<String, Object>> columns = new ArrayList<>();
+                    java.sql.DatabaseMetaData metadata = connection.getMetaData();
+                    for (String name : List.of(tableName, tableName.toUpperCase(Locale.ROOT))) {
+                        try (ResultSet result = metadata.getColumns(
+                                connection.getCatalog(), connection.getSchema(), name, null)) {
+                            while (result.next()) {
+                                columns.add(Map.of("column_name", result.getString("COLUMN_NAME")));
+                            }
+                        }
+                        if (!columns.isEmpty()) break;
+                    }
+                    return columns;
+                } catch (SQLException error) {
+                    throw new RuntimeException(error);
+                }
             }
 
             private void bind(PreparedStatement statement, Object[] args) throws SQLException {
