@@ -245,6 +245,21 @@ public class BaseEntity implements Entity {
         io.teaql.core.meta.EntityDescriptor descriptor =
                 io.teaql.core.meta.EntityMetaFactory.requireFrom(context)
                         .resolveEntityDescriptor(this.typeName());
+        if (descriptor == null) {
+            throw new IllegalStateException("No entity descriptor registered in the invoking context for "
+                    + this.typeName());
+        }
+        io.teaql.core.meta.PropertyDescriptor property = descriptor.findProperty(relationName);
+        if (property == null || property.getType() == null) {
+            throw new IllegalArgumentException("No relation " + this.typeName() + "." + relationName
+                    + " registered in the invoking context");
+        }
+        Class<?> relationType = property.getType().javaType();
+        if (!SmartList.class.isAssignableFrom(relationType)
+                && !Entity.class.isAssignableFrom(relationType)) {
+            throw new IllegalArgumentException("Property " + this.typeName() + "." + relationName
+                    + " is not a relation in the invoking context");
+        }
         addRelation(descriptor, relationName, value);
     }
 
