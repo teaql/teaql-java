@@ -15,6 +15,9 @@ public class ExecutionLogPrivacyTest {
     @Test
     public void safeFormattersOmitValueBearingFields() {
         ExecutionMetadata metadata = metadata();
+        // A custom provider may populate parameters without rendered SQL.
+        // The ordinary formatters must still keep those values private.
+        metadata.setParameters(List.of(SECRET));
 
         String human = new HumanReaderFormatter().formatExecutionLog(metadata);
         String json = new JsonReaderFormatter().formatExecutionLog(metadata);
