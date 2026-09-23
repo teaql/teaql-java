@@ -61,8 +61,9 @@ Debug SQL，必须视为敏感数据输出，并配置访问控制、保留、�
 两种 sink 都不改变数据库执行路径；数据库始终接收参数化 SQL。Query 与
 Mutation 的启停由两个独立开关控制，选择 diagnostic sink 不得改写这两个
 开关。默认 sink 不要求 provider 构造参数副本和 Debug SQL；显式诊断 sink
-及现有自定义 sink 保留这些字段。自定义 sink 若不消费敏感 SQL 数据，可覆写
-`requiresSensitiveSqlData()` 返回 `false`。
+保留这些字段。自定义 sink 默认只接收参数化 SQL；确需敏感诊断数据时，必须显式覆写
+`requiresSensitiveSqlData()` 返回 `true`。可选 `LogManager` 仅在
+`TEAQL_SQL_LOG=_full_with_payload` 时请求敏感 SQL 数据。
 
 ---
 *设计定稿时间: 2026年06月13日*

@@ -8,10 +8,11 @@ public interface RuntimeLogSink {
 
     /**
      * Whether the provider should construct bind-value payloads and rendered
-     * diagnostic SQL. Existing custom sinks retain these fields by default.
+     * diagnostic SQL. Sinks must explicitly opt in to receiving value-bearing
+     * metadata; ordinary custom sinks receive only parameterized SQL.
      */
     default boolean requiresSensitiveSqlData() {
-        return true;
+        return false;
     }
 
     default void writeAuditEvent(UserContext context, RawAuditEvent event) {}

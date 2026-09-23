@@ -21,9 +21,7 @@ public class DefaultTextRuntimeLogSink implements RuntimeLogSink {
 
     @Override
     public boolean requiresSensitiveSqlData() {
-        // A subclass may override writeExecutionLog() and consume the fields.
-        // Preserve its previous metadata contract unless it opts out itself.
-        return getClass() != DefaultTextRuntimeLogSink.class;
+        return false;
     }
 
     @Override

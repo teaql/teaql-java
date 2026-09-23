@@ -39,17 +39,7 @@ public class SqliteIntegrationTest {
     @Test
     public void ordinarySqlLogsSkipSensitivePayloadConstruction() {
         List<ExecutionMetadata> safeLogs = new ArrayList<>();
-        RuntimeLogSink safeSink = new RuntimeLogSink() {
-            @Override
-            public void writeExecutionLog(UserContext context, ExecutionMetadata metadata) {
-                safeLogs.add(metadata);
-            }
-
-            @Override
-            public boolean requiresSensitiveSqlData() {
-                return false;
-            }
-        };
+        RuntimeLogSink safeSink = (context, metadata) -> safeLogs.add(metadata);
         executeLoggedQueryAndMutation(safeSink);
         assertTrue(safeLogs.stream().anyMatch(log -> log.getOperation() == DataServiceOperation.QUERY));
         assertTrue(safeLogs.stream().anyMatch(log -> log.getOperation() == DataServiceOperation.MUTATION));
@@ -58,7 +48,17 @@ public class SqliteIntegrationTest {
         assertTrue(safeLogs.stream().allMatch(log -> log.getDebugQuery() == null));
 
         List<ExecutionMetadata> diagnosticLogs = new ArrayList<>();
-        executeLoggedQueryAndMutation((context, metadata) -> diagnosticLogs.add(metadata));
+        executeLoggedQueryAndMutation(new RuntimeLogSink() {
+            @Override
+            public void writeExecutionLog(UserContext context, ExecutionMetadata metadata) {
+                diagnosticLogs.add(metadata);
+            }
+
+            @Override
+            public boolean requiresSensitiveSqlData() {
+                return true;
+            }
+        });
         assertTrue(diagnosticLogs.stream().anyMatch(log ->
                 log.getOperation() == DataServiceOperation.QUERY
                         && !log.getParameters().isEmpty()

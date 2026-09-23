@@ -45,6 +45,11 @@ public class LogConfig {
         return INSTANCE;
     }
 
+    /** Value-bearing SQL requires the explicit payload log level. */
+    public boolean includesSensitiveSqlData() {
+        return sqlLevel == LogLevel.FULL_WITH_PAYLOAD;
+    }
+
     private List<String> parseList(String val) {
         if (val == null || val.trim().isEmpty()) {
             return null;

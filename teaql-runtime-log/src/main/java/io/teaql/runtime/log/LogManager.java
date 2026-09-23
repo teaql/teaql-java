@@ -106,6 +106,11 @@ public class LogManager implements RuntimeLogSink {
         return INSTANCE;
     }
 
+    @Override
+    public boolean requiresSensitiveSqlData() {
+        return LogConfig.getInstance().includesSensitiveSqlData();
+    }
+
     private void calculateNextMidnight() {
         LocalDateTime tomorrowMidnight = LocalDateTime.now().plusDays(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
         this.nextMidnightMillis = tomorrowMidnight.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
@@ -286,7 +291,7 @@ public class LogManager implements RuntimeLogSink {
 
     @Override
     public void writeExecutionLog(io.teaql.core.UserContext context, io.teaql.core.ExecutionMetadata metadata) {
-        if (!LogConfig.getInstance().shouldLogSql(metadata.getDebugQuery())) {
+        if (!LogConfig.getInstance().shouldLogSql(metadata.getParameterizedQuery())) {
             return;
         }
         String content = LogFormatterFactory.getFormatter().formatExecutionLog(metadata);

@@ -28,11 +28,16 @@ public class HumanReaderFormatter implements LogFormatter {
         String traceDisplay = traceStr.isEmpty() ? "" : " - [" + traceStr + "]";
         
         String parameterized = metadata.getParameterizedQuery() == null ? "" : metadata.getParameterizedQuery().replace('\n', ' ');
-        String debug = metadata.getDebugQuery() == null ? "" : metadata.getDebugQuery().replace('\n', ' ');
-        return String.format("[%s]-[%5dµs]-[DEBUG]-ExecutionLog%s - [%s] comment=%s purpose=%s auditReason=%s\n          Parameterized SQL: %s params=%s\n          Debug SQL: %s",
+        String execution = String.format("[%s]-[%5dµs]-[DEBUG]-ExecutionLog%s - [%s] comment=%s purpose=%s auditReason=%s\n          Parameterized SQL: %s",
                 ts, metadata.getElapsedUs(), traceDisplay, metadata.getResultSummary(),
                 metadata.getComment(), metadata.getPurpose(), metadata.getAuditReason(),
-                parameterized, metadata.getParameters(), debug);
+                parameterized);
+        if (metadata.getDebugQuery() == null) {
+            return execution;
+        }
+        String debug = metadata.getDebugQuery().replace('\n', ' ');
+        return execution + String.format(" params=%s\n          Debug SQL: %s",
+                metadata.getParameters(), debug);
     }
 
     @Override

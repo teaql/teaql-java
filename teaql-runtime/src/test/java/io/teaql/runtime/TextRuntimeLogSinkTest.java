@@ -57,8 +57,9 @@ public class TextRuntimeLogSinkTest {
         assertFalse(sensitive.isQueryExecutionLoggingEnabled());
         assertTrue(sensitive.isMutationExecutionLoggingEnabled());
         assertTrue(sensitive.requiresSensitiveSqlLogData());
-        assertTrue(((RuntimeLogSink) (context, metadata) -> {}).requiresSensitiveSqlData());
-        assertTrue(new DefaultTextRuntimeLogSink(output()) {
+        assertFalse(((RuntimeLogSink) (context, metadata) -> {}).requiresSensitiveSqlData());
+        assertFalse(new DefaultUserContext(null).requiresSensitiveSqlLogData());
+        assertFalse(new DefaultTextRuntimeLogSink(output()) {
             @Override
             public void writeExecutionLog(
                     io.teaql.core.UserContext context, ExecutionMetadata metadata) {}
