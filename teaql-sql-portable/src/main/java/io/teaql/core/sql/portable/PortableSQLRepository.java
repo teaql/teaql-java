@@ -1336,7 +1336,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             try {
                 dbTableInfo = database.getTableColumns(table);
             } catch (Exception e) {
-                dbTableInfo = ListUtil.empty();
+                throw schemaFailure("inspect", table, e);
             }
             ensure(context, dbTableInfo, table, columns);
         });
@@ -1416,7 +1416,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         try {
             dbTableInfo = database.getTableColumns(getTqlIdSpaceTable());
         } catch (Exception e) {
-            dbTableInfo = ListUtil.empty();
+            throw schemaFailure("inspect", getTqlIdSpaceTable(), e);
         }
         if (!ObjectUtil.isEmpty(dbTableInfo)) return;
 
@@ -1425,7 +1425,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 + "current_level bigint)\n";
         logInfo(sql + ";");
         if (ensureTableEnabled(context)) {
-            try { database.execute(context, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+            try {
+                database.execute(context, sql);
+            } catch (Exception e) {
+                throw schemaFailure("create", getTqlIdSpaceTable(), e);
+            }
         }
     }
 
@@ -1435,13 +1439,25 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             return;
         }
         Map<String, Map<String, Object>> fields = CollStreamUtil.toIdentityMap(
-                tableInfo, m -> String.valueOf(m.get("column_name")).toLowerCase());
+                tableInfo, m -> metadataColumnName(m, table));
         for (SQLColumn column : columns) {
             String dbColumnName = column.getColumnName().toLowerCase();
             if (!fields.containsKey(dbColumnName)) {
                 addColumn(context, column);
             }
         }
+    }
+
+    private String metadataColumnName(Map<String, Object> column, String table) {
+        for (Map.Entry<String, Object> entry : column.entrySet()) {
+            if ("column_name".equalsIgnoreCase(entry.getKey())
+                    && entry.getValue() != null) {
+                return String.valueOf(entry.getValue()).toLowerCase(java.util.Locale.ROOT);
+            }
+        }
+        throw new IllegalStateException(
+                "Missing column_name in schema metadata for entity '"
+                        + entityDescriptor.getType() + "' on table '" + table + "'");
     }
 
     protected void createTable(UserContext context, String table, List<SQLColumn> columns) {
@@ -1458,7 +1474,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         sb.append(")\n");
         logInfo(sb + ";");
         if (ensureTableEnabled(context)) {
-            try { database.execute(context, sb.toString()); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+            try {
+                database.execute(context, sb.toString());
+            } catch (Exception e) {
+                throw schemaFailure("create", table, e);
+            }
         }
     }
 
@@ -1468,8 +1488,19 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 dialect.mapColumnType(column.getType()), column.isRequired() ? " NOT NULL" : "");
         logInfo(sql + ";");
         if (ensureTableEnabled(context)) {
-            try { database.execute(context, sql); } catch (Exception e) { logInfo("Ignored: " + e.getMessage()); }
+            try {
+                database.execute(context, sql);
+            } catch (Exception e) {
+                throw schemaFailure("add column " + column.getColumnName(), column.getTableName(), e);
+            }
         }
+    }
+
+    private IllegalStateException schemaFailure(String operation, String table, Exception cause) {
+        return new IllegalStateException(
+                "Failed to " + operation + " schema for entity '" + entityDescriptor.getType()
+                        + "' on table '" + table + "'",
+                cause);
     }
 
     public void ensureInitData(UserContext context) {

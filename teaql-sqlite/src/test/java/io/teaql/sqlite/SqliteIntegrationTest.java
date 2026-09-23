@@ -282,6 +282,37 @@ public class SqliteIntegrationTest {
     }
 
     @Test
+    public void sqliteMetadataFailureDoesNotBecomeAnEmptyTable() {
+        io.teaql.dataservice.sql.SqlExecutionAdapter failingAdapter =
+                (io.teaql.dataservice.sql.SqlExecutionAdapter) java.lang.reflect.Proxy.newProxyInstance(
+                        io.teaql.dataservice.sql.SqlExecutionAdapter.class.getClassLoader(),
+                        new Class<?>[] {io.teaql.dataservice.sql.SqlExecutionAdapter.class},
+                        (proxy, method, args) -> {
+                            if ("queryForList".equals(method.getName())
+                                    && args[0] instanceof String sql
+                                    && sql.startsWith("PRAGMA table_info(")) {
+                                throw new IllegalStateException("simulated SQLite metadata failure");
+                            }
+                            try {
+                                return method.invoke(jdbcSqlExecutor, args);
+                            } catch (java.lang.reflect.InvocationTargetException failure) {
+                                throw failure.getCause();
+                            }
+                        });
+        SqliteDataServiceExecutor failingExecutor =
+                new SqliteDataServiceExecutor("sqlite", failingAdapter, null);
+        UserContext failingContext = new DefaultUserContext(TeaQLRuntime.builder()
+                .metadata(runtime.getMetadata())
+                .dataService("sqlite", failingExecutor)
+                .build());
+
+        IllegalStateException failure = assertThrows(
+                IllegalStateException.class, failingContext::ensureSchema);
+        assertTrue(failure.getMessage().contains("task_data"));
+        assertTrue(failure.getCause().getMessage().contains("simulated SQLite metadata failure"));
+    }
+
+    @Test
     public void ensureSchemaUsesContextMetadataWithoutGlobalRegistry() {
         EntityMetaFactory previous = EntityMetaFactory.get();
         try {

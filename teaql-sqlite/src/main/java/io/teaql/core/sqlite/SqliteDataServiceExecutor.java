@@ -11,7 +11,6 @@ import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import org.sqlite.Function;
 
 import javax.sql.DataSource;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -69,15 +68,12 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
 
             @Override
             public List<Map<String, Object>> getTableColumns(String tableName) {
-                try {
-                    List<Map<String, Object>> columns = getExecutionAdapter().queryForList("PRAGMA table_info(" + tableName + ")", new Object[0]);
-                    for (Map<String, Object> col : columns) {
-                        col.put("column_name", col.get("name"));
-                    }
-                    return columns;
-                } catch (Exception e) {
-                    return Collections.emptyList();
+                List<Map<String, Object>> columns = getExecutionAdapter().queryForList(
+                        "PRAGMA table_info(" + tableName + ")", new Object[0]);
+                for (Map<String, Object> col : columns) {
+                    col.put("column_name", col.get("name"));
                 }
+                return columns;
             }
 
             @Override
