@@ -1147,12 +1147,15 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         if (entityDescriptor.getTargetType() == entityType) {
             return entityDescriptor;
         }
-        EntityMetaFactory descriptorSource = metadata != null ? metadata : EntityMetaFactory.get();
-        if (descriptorSource != null) {
-            for (EntityDescriptor descriptor : descriptorSource.allEntityDescriptors()) {
-                if (descriptor.getTargetType() == entityType) {
-                    return descriptor;
-                }
+        if (metadata == null) {
+            throw new IllegalStateException("Repository for " + entityDescriptor.getType()
+                    + " has no runtime metadata snapshot for relation target "
+                    + entityType.getName()
+                    + "; schema-only repositories cannot hydrate relations");
+        }
+        for (EntityDescriptor descriptor : metadata.allEntityDescriptors()) {
+            if (descriptor.getTargetType() == entityType) {
+                return descriptor;
             }
         }
         throw new IllegalStateException("No entity descriptor registered for " + entityType.getName());
