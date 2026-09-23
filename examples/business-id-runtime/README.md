@@ -14,6 +14,17 @@ the context's `BusinessClock`; tests can replace that clock. The JDBC allocator
 uses root/aggregate/namespace/date scoping, optimistic allocation, bounded
 retry, and a range error when the configured digits are exhausted.
 
+For an existing counter table, `context.ensureSchema()` verifies the four
+required columns, a single-column `scope_key` primary or unique key, a text
+`scope_key` with capacity at least 512, and non-null 64-bit integral counter,
+version, and timestamp columns. It does not alter an incompatible table. A
+custom `TeaQLDatabase` adapter must return JDBC `DATA_TYPE`, `TYPE_NAME`,
+`COLUMN_SIZE`, `DECIMAL_DIGITS`, and `NULLABLE` metadata under the lower-case
+keys `data_type`, `type_name`, `column_size`, `decimal_digits`, and `nullable`
+in `getTableColumns`, and implement `getTablePrimaryKeyColumns` or
+`getTableUniqueKeys`. Missing shape metadata fails closed rather than letting
+allocation fail later.
+
 `BusinessIdGenerator`, `UserContext.generateBusinessId(...)`,
 `InMemoryBusinessIdGenerator`, and `JdbcBusinessIdGenerator` are deprecated
 compatibility APIs. They retain the old `PREFIXyyyyMMddNNNN` format and separate

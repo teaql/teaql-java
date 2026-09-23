@@ -65,9 +65,27 @@ public interface TeaQLDatabase {
     }
 
     /**
-     * Get column information for a database table.
+     * Get column information for a database table. Infrastructure that validates
+     * installed table shape expects a {@code column_name} plus JDBC metadata
+     * {@code data_type}, {@code type_name}, {@code column_size},
+     * {@code decimal_digits}, and {@code nullable}; adapters must not invent
+     * values when their provider cannot inspect them.
      */
     List<Map<String, Object>> getTableColumns(String tableName);
+
+    /**
+     * Return the ordered primary-key column names when the adapter can inspect them.
+     * Infrastructure that relies on a particular primary key must fail closed on an
+     * empty {@code Optional}; an empty list means the table has no primary key.
+     */
+    default Optional<List<String>> getTablePrimaryKeyColumns(String tableName) {
+        return Optional.empty();
+    }
+
+    /** Ordered columns of each unique key, when the adapter can inspect them. */
+    default Optional<List<List<String>>> getTableUniqueKeys(String tableName) {
+        return Optional.empty();
+    }
 
     /**
      * Report whether an index already exists for a table.

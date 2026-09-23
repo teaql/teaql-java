@@ -260,6 +260,78 @@ public class BusinessIdRuntimeExampleTest {
     }
 
     @Test
+    public void sqliteAllocatorRejectsExistingTableWithoutUniqueScopeKey() throws Exception {
+        assertInvalidExistingTable(
+                "CREATE TABLE teaql_business_id_space ("
+                        + "scope_key VARCHAR(512), current_value BIGINT NOT NULL, "
+                        + "version BIGINT NOT NULL, updated_at BIGINT NOT NULL)",
+                "scope_key");
+    }
+
+    @Test
+    public void sqliteAllocatorRejectsNullableCounter() throws Exception {
+        assertInvalidExistingTable(
+                "CREATE TABLE teaql_business_id_space ("
+                        + "scope_key VARCHAR(512) PRIMARY KEY, current_value BIGINT, "
+                        + "version BIGINT NOT NULL, updated_at BIGINT NOT NULL)",
+                "current_value");
+    }
+
+    @Test
+    public void sqliteAllocatorRejectsNarrowCounter() throws Exception {
+        assertInvalidExistingTable(
+                "CREATE TABLE teaql_business_id_space ("
+                        + "scope_key VARCHAR(512) PRIMARY KEY, current_value SMALLINT NOT NULL, "
+                        + "version BIGINT NOT NULL, updated_at BIGINT NOT NULL)",
+                "current_value");
+    }
+
+    @Test
+    public void sqliteAllocatorAcceptsNonNullableUniqueScopeKey() throws Exception {
+        Path databasePath = Files.createTempFile("teaql-business-id-unique-scope", ".db");
+        try (Connection connection = open(databasePath)) {
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("CREATE TABLE teaql_business_id_space ("
+                        + "scope_key VARCHAR(512) NOT NULL UNIQUE, "
+                        + "current_value BIGINT NOT NULL, version BIGINT NOT NULL, "
+                        + "updated_at BIGINT NOT NULL)");
+            }
+            JdbcBusinessIdAllocator allocator = new JdbcBusinessIdAllocator(database(connection));
+            UserContext context = context(LocalDate.of(2026, 9, 20), allocator);
+            context.putAttribute(SchemaExecutor.class.getName(), noOpSchemaExecutor());
+            context.ensureSchema();
+            context.ensureSchema();
+            BusinessIdPlan plan = new DailySequenceBusinessIdProfile().plan(
+                    new BusinessIdGenerationRequest(ORDER_NUMBER, "tenant-a",
+                            "commerce_order", LocalDate.of(2026, 9, 20)));
+            Assert.assertEquals(1L, allocator.allocate(plan).sequence());
+            Assert.assertEquals(2L, allocator.allocate(plan).sequence());
+        } finally {
+            Files.deleteIfExists(databasePath);
+        }
+    }
+
+    private static void assertInvalidExistingTable(String ddl, String expectedField)
+            throws Exception {
+        Path databasePath = Files.createTempFile("teaql-business-id-invalid-shape", ".db");
+        try (Connection connection = open(databasePath)) {
+            try (Statement statement = connection.createStatement()) {
+                statement.execute(ddl);
+            }
+            JdbcBusinessIdAllocator allocator = new JdbcBusinessIdAllocator(database(connection));
+            UserContext context = context(LocalDate.of(2026, 9, 20), allocator);
+            context.putAttribute(SchemaExecutor.class.getName(), noOpSchemaExecutor());
+
+            IllegalStateException failure = Assert.assertThrows(
+                    IllegalStateException.class, context::ensureSchema);
+            Assert.assertTrue(failure.getMessage(),
+                    failure.getMessage().contains(expectedField));
+        } finally {
+            Files.deleteIfExists(databasePath);
+        }
+    }
+
+    @Test
     public void sqliteAllocatorRejectsExhaustedAndOverflowedSequencesWithoutMutation()
             throws Exception {
         Path databasePath = Files.createTempFile("teaql-business-id-range", ".db");
@@ -447,12 +519,68 @@ public class BusinessIdRuntimeExampleTest {
                         try (ResultSet result = metadata.getColumns(
                                 connection.getCatalog(), connection.getSchema(), name, null)) {
                             while (result.next()) {
-                                columns.add(Map.of("column_name", result.getString("COLUMN_NAME")));
+                                Map<String, Object> column = new HashMap<>();
+                                column.put("column_name", result.getString("COLUMN_NAME"));
+                                column.put("data_type", result.getInt("DATA_TYPE"));
+                                column.put("type_name", result.getString("TYPE_NAME"));
+                                column.put("column_size", result.getInt("COLUMN_SIZE"));
+                                column.put("decimal_digits", result.getInt("DECIMAL_DIGITS"));
+                                column.put("nullable", result.getInt("NULLABLE"));
+                                columns.add(column);
                             }
                         }
                         if (!columns.isEmpty()) break;
                     }
                     return columns;
+                } catch (SQLException error) {
+                    throw new RuntimeException(error);
+                }
+            }
+
+            @Override
+            public Optional<List<String>> getTablePrimaryKeyColumns(String tableName) {
+                try {
+                    java.sql.DatabaseMetaData metadata = connection.getMetaData();
+                    for (String name : List.of(tableName, tableName.toUpperCase(Locale.ROOT))) {
+                        TreeMap<Short, String> ordered = new TreeMap<>();
+                        try (ResultSet result = metadata.getPrimaryKeys(
+                                connection.getCatalog(), connection.getSchema(), name)) {
+                            while (result.next()) {
+                                ordered.put(result.getShort("KEY_SEQ"),
+                                        result.getString("COLUMN_NAME"));
+                            }
+                        }
+                        if (!ordered.isEmpty()) return Optional.of(List.copyOf(ordered.values()));
+                    }
+                    return Optional.of(List.of());
+                } catch (SQLException error) {
+                    throw new RuntimeException(error);
+                }
+            }
+
+            @Override
+            public Optional<List<List<String>>> getTableUniqueKeys(String tableName) {
+                try {
+                    java.sql.DatabaseMetaData metadata = connection.getMetaData();
+                    for (String name : List.of(tableName, tableName.toUpperCase(Locale.ROOT))) {
+                        Map<String, TreeMap<Short, String>> indexes = new HashMap<>();
+                        try (ResultSet result = metadata.getIndexInfo(
+                                connection.getCatalog(), connection.getSchema(), name,
+                                true, true)) {
+                            while (result.next()) {
+                                String index = result.getString("INDEX_NAME");
+                                String column = result.getString("COLUMN_NAME");
+                                if (index == null || column == null) continue;
+                                indexes.computeIfAbsent(index, ignored -> new TreeMap<>())
+                                        .put(result.getShort("ORDINAL_POSITION"), column);
+                            }
+                        }
+                        if (!indexes.isEmpty()) {
+                            return Optional.of(indexes.values().stream()
+                                    .map(ordered -> List.copyOf(ordered.values())).toList());
+                        }
+                    }
+                    return Optional.of(List.of());
                 } catch (SQLException error) {
                     throw new RuntimeException(error);
                 }
