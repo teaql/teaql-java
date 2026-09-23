@@ -17,7 +17,6 @@ public class MssqlDataServiceExecutor extends SqlDataServiceExecutor {
         super(name, executionAdapter);
         this.dialect = new MssqlDialect();
         this.debugDatabaseKind = "mssql";
-        this.dialect = new MssqlDialect();
     }
 
     @Override
@@ -60,6 +59,7 @@ public class MssqlDataServiceExecutor extends SqlDataServiceExecutor {
 
         for (EntityDescriptor descriptor : descriptors) {
             PortableSQLRepository repository = new PortableSQLRepository(descriptor, dbAdapter, null);
+            repository.setDialect(this.dialect);
             repository.ensurePhysicalSchema(context);
         }
     }
