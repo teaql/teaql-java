@@ -402,6 +402,32 @@ public class PortableSQLDatabaseTest {
     }
 
     @Test
+    public void schemaOnlyRepositoryMustNotHydrateRelationFromGlobalMetadata() {
+        registerTopNFixture();
+        EntityDescriptor child = metaFactory.resolveEntityDescriptor("TopNChild");
+        PortableSQLRepository<TopNChild> schemaOnlyRepository =
+                new PortableSQLRepository<>(child, sqliteDb, null);
+        TopNChildRequest request = new TopNChildRequest()
+                .where("id", Operator.EQUAL, 11L)
+                .comment("load relation without a runtime metadata snapshot");
+        request.purpose("prove a schema-only repository cannot borrow global metadata");
+
+        EntityMetaFactory previousGlobal = EntityMetaFactory.get();
+        EntityMetaFactory.registerGlobal(metaFactory);
+        try (var rows = schemaOnlyRepository.streamInternal(context, request)) {
+            rows.findFirst();
+            fail("A schema-only repository must not resolve a relation from global metadata");
+        } catch (TeaQLRuntimeException failure) {
+            assertTrue(failure.getMessage(), failure.getMessage().contains("TopNChild.parent"));
+            assertTrue(failure.getCause() instanceof IllegalStateException);
+            assertTrue(failure.getCause().getMessage(),
+                    failure.getCause().getMessage().contains("no runtime metadata snapshot"));
+        } finally {
+            EntityMetaFactory.registerGlobal(previousGlobal);
+        }
+    }
+
+    @Test
     public void testConstantBootstrapIsIdempotentAndReconcilesModelChanges() throws Exception {
         SQLiteTeaQLDatabase database = new SQLiteTeaQLDatabase();
         EntityDescriptor descriptor = new EntityDescriptor();
