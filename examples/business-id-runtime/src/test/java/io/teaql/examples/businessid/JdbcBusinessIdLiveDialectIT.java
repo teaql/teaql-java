@@ -10,6 +10,7 @@ import io.teaql.runtime.businessid.DailySequenceBusinessIdProfile;
 import io.teaql.core.sql.dialect.OracleDialect;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.Statement;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -43,6 +44,21 @@ public class JdbcBusinessIdLiveDialectIT {
     @Test
     public void sqlServerAllocatesAcrossInstancesAndRestart() throws Exception {
         verify("MSSQL");
+    }
+
+    @Test
+    public void postgresRejectsUnprotectedBusinessIdTable() throws Exception {
+        rejectUnprotectedTable("POSTGRES");
+    }
+
+    @Test
+    public void mysqlRejectsUnprotectedBusinessIdTable() throws Exception {
+        rejectUnprotectedTable("MYSQL");
+    }
+
+    @Test
+    public void sqlServerRejectsUnprotectedBusinessIdTable() throws Exception {
+        rejectUnprotectedTable("MSSQL");
     }
 
     @Test
@@ -173,6 +189,46 @@ public class JdbcBusinessIdLiveDialectIT {
             JdbcBusinessIdAllocator allocator = allocator(restarted, dialect);
             Assert.assertEquals(2L * ALLOCATIONS_PER_INSTANCE + 1,
                     allocator.allocate(plan).sequence());
+        }
+    }
+
+    private void rejectUnprotectedTable(String dialect) throws Exception {
+        String prefix = "TEAQL_TEST_" + dialect + "_";
+        String url = System.getenv(prefix + "URL");
+        String user = System.getenv(prefix + "USER");
+        String password = System.getenv(prefix + "PASSWORD");
+        if (url == null || user == null || password == null) {
+            if (Boolean.parseBoolean(System.getenv("TEAQL_REQUIRE_LIVE_DB"))) {
+                Assert.fail(dialect + " Business ID live gate requires URL, USER, and PASSWORD");
+            }
+            Assume.assumeTrue(dialect + " live database is not configured", false);
+        }
+        Assert.assertTrue("Use a dedicated teaql_live_* database for " + dialect,
+                url.contains("teaql_live_"));
+
+        String table = "bid_shape_" + UUID.randomUUID().toString().substring(0, 8);
+        try (Connection connection = DriverManager.getConnection(url, user, password)) {
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("CREATE TABLE " + table + " ("
+                        + "scope_key VARCHAR(512), current_value BIGINT NOT NULL, "
+                        + "version BIGINT NOT NULL, updated_at BIGINT NOT NULL)");
+            }
+            try {
+                JdbcBusinessIdAllocator allocator = new JdbcBusinessIdAllocator(
+                        BusinessIdRuntimeExampleTest.database(connection), table);
+                UserContext context = BusinessIdRuntimeExampleTest.context(
+                        BUSINESS_DATE, allocator);
+                context.putAttribute(SchemaExecutor.class.getName(),
+                        BusinessIdRuntimeExampleTest.noOpSchemaExecutor());
+                IllegalStateException failure = Assert.assertThrows(
+                        IllegalStateException.class, context::ensureSchema);
+                Assert.assertTrue(failure.getMessage(),
+                        failure.getMessage().contains("scope_key"));
+            } finally {
+                try (Statement statement = connection.createStatement()) {
+                    statement.execute("DROP TABLE " + table);
+                }
+            }
         }
     }
 

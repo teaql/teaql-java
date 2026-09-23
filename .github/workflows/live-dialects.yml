@@ -50,7 +50,7 @@ jobs:
       - name: Verify both live dialects (skips are forbidden)
         run: >-
           mvn -B -ntp -pl teaql-postgres,teaql-mysql,examples/business-id-runtime -am
-          -Dtest=PostgresIntegrationTest,MysqlIntegrationTest,JdbcBusinessIdLiveDialectIT#postgresAllocatesAcrossInstancesAndRestart+mysqlAllocatesAcrossInstancesAndRestart
+          -Dtest=PostgresIntegrationTest,MysqlIntegrationTest,JdbcBusinessIdLiveDialectIT#postgresAllocatesAcrossInstancesAndRestart+mysqlAllocatesAcrossInstancesAndRestart+postgresRejectsUnprotectedBusinessIdTable+mysqlRejectsUnprotectedBusinessIdTable
           -Dsurefire.failIfNoSpecifiedTests=false test
 
   business-id-sqlserver:
@@ -87,7 +87,7 @@ jobs:
       - name: Verify SQL Server Business ID schema and allocation (skips are forbidden)
         run: >-
           mvn -B -ntp -pl examples/business-id-runtime -am
-          '-Dtest=JdbcBusinessIdLiveDialectIT#sqlServerAllocatesAcrossInstancesAndRestart+sqlServerConcurrentSchemaStartupIsIdempotent'
+          '-Dtest=JdbcBusinessIdLiveDialectIT#sqlServerAllocatesAcrossInstancesAndRestart+sqlServerConcurrentSchemaStartupIsIdempotent+sqlServerRejectsUnprotectedBusinessIdTable'
           -Dsurefire.failIfNoSpecifiedTests=false test
 
   sqlserver:

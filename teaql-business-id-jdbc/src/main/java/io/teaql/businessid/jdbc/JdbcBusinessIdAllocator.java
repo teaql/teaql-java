@@ -5,12 +5,15 @@ import io.teaql.core.businessid.*;
 import io.teaql.core.sql.portable.TeaQLDatabase;
 import io.teaql.core.sql.dialect.PostgreSqlDialect;
 import io.teaql.core.sql.dialect.SqlDialect;
+import java.sql.DatabaseMetaData;
+import java.sql.Types;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.HashSet;
 import java.util.Locale;
+import java.util.Optional;
 
 /** Portable optimistic Business ID allocator backed by a TeaQLDatabase. */
 public final class JdbcBusinessIdAllocator
@@ -55,15 +58,20 @@ public final class JdbcBusinessIdAllocator
                     + "updated_at " + dialect.mapColumnType("BIGINT") + " NOT NULL)");
         } catch (RuntimeException createFailure) {
             // Another instance may have created the table after inspection.
-            // Only accept that race when the installed table can be inspected.
+            // Only accept that race when the installed table passes the same
+            // validation as a table that was already present at startup.
+            List<Map<String, Object>> concurrent;
             try {
-                List<Map<String, Object>> concurrent = inspectColumns();
-                if (!concurrent.isEmpty()) {
-                    requireColumns(concurrent);
-                    return;
-                }
+                concurrent = inspectColumns();
             } catch (RuntimeException inspectFailure) {
                 createFailure.addSuppressed(inspectFailure);
+                throw new IllegalStateException(
+                        "Cannot create or inspect Business ID table " + table,
+                        createFailure);
+            }
+            if (!concurrent.isEmpty()) {
+                requireColumns(concurrent);
+                return;
             }
             throw new IllegalStateException(
                     "Cannot create Business ID table " + table, createFailure);
@@ -87,21 +95,109 @@ public final class JdbcBusinessIdAllocator
     }
 
     private void requireColumns(List<Map<String, Object>> columns) {
-        Set<String> found = new HashSet<>();
+        Map<String, Map<String, Object>> found = new HashMap<>();
         for (Map<String, Object> column : columns) {
-            for (Map.Entry<String, Object> entry : column.entrySet()) {
-                if ("column_name".equalsIgnoreCase(entry.getKey()) && entry.getValue() != null) {
-                    found.add(String.valueOf(entry.getValue()).toLowerCase(Locale.ROOT));
-                }
+            Object name = value(column, "column_name");
+            if (name != null) {
+                found.put(String.valueOf(name).toLowerCase(Locale.ROOT), column);
             }
         }
         Set<String> missing = new java.util.TreeSet<>(Set.of(
                 "scope_key", "current_value", "version", "updated_at"));
-        missing.removeAll(found);
+        missing.removeAll(found.keySet());
         if (!missing.isEmpty()) {
             throw new IllegalStateException(
                     "Business ID table " + table + " is missing required columns " + missing);
         }
+
+        requireTextScope(found.get("scope_key"));
+        for (String name : List.of("current_value", "version", "updated_at")) {
+            requireIntegralNotNull(name, found.get(name));
+        }
+
+        Optional<List<String>> primaryKey;
+        try {
+            primaryKey = database.getTablePrimaryKeyColumns(table);
+        } catch (RuntimeException failure) {
+            throw new IllegalStateException(
+                    "Cannot inspect primary key of Business ID table " + table, failure);
+        }
+        if (primaryKey != null && primaryKey.isPresent()
+                && scopeKeyOnly(primaryKey.get())) {
+            return;
+        }
+        Optional<List<List<String>>> uniqueKeys;
+        try {
+            uniqueKeys = database.getTableUniqueKeys(table);
+        } catch (RuntimeException failure) {
+            throw new IllegalStateException(
+                    "Cannot inspect unique keys of Business ID table " + table, failure);
+        }
+        if (uniqueKeys != null && uniqueKeys.isPresent()
+                && uniqueKeys.get().stream().anyMatch(this::scopeKeyOnly)) {
+            return;
+        }
+        throw new IllegalStateException(
+                "Business ID table " + table
+                        + " requires a single-column scope_key primary or unique key"
+                        + "; inspected primary=" + primaryKey + ", unique=" + uniqueKeys);
+    }
+
+    private boolean scopeKeyOnly(List<String> names) {
+        return names.size() == 1 && "scope_key".equalsIgnoreCase(names.get(0));
+    }
+
+    private void requireTextScope(Map<String, Object> column) {
+        int type = metadataNumber(column, "data_type", "scope_key");
+        int size = metadataNumber(column, "column_size", "scope_key");
+        boolean unbounded = type == Types.LONGVARCHAR || type == Types.LONGNVARCHAR
+                || type == Types.CLOB || type == Types.NCLOB;
+        boolean text = unbounded || type == Types.VARCHAR || type == Types.NVARCHAR
+                || type == Types.CHAR || type == Types.NCHAR;
+        if (!text || (!unbounded && size < 512)) {
+            throw new IllegalStateException(
+                    "Business ID table " + table
+                            + ".scope_key must be text with capacity at least 512; found "
+                            + value(column, "type_name") + "(" + size + ")");
+        }
+    }
+
+    private void requireIntegralNotNull(String name, Map<String, Object> column) {
+        int type = metadataNumber(column, "data_type", name);
+        int nullable = metadataNumber(column, "nullable", name);
+        int precision = metadataNumber(column, "column_size", name);
+        int scale = metadataNumber(column, "decimal_digits", name);
+        String declaredType = String.valueOf(value(column, "type_name"))
+                .toUpperCase(Locale.ROOT);
+        boolean longInteger = type == Types.BIGINT
+                || declaredType.equals("BIGINT") || declaredType.equals("INT8")
+                || ((type == Types.NUMERIC || type == Types.DECIMAL)
+                        && precision >= 19 && scale == 0);
+        if (!longInteger) {
+            throw new IllegalStateException(
+                    "Business ID table " + table + "." + name
+                            + " must store signed 64-bit integral values; found "
+                            + declaredType + "(" + precision + "," + scale + ")");
+        }
+        if (nullable != DatabaseMetaData.columnNoNulls) {
+            throw new IllegalStateException(
+                    "Business ID table " + table + "." + name + " must be NOT NULL");
+        }
+    }
+
+    private int metadataNumber(Map<String, Object> column, String key, String name) {
+        Object result = value(column, key);
+        if (result instanceof Number number) return number.intValue();
+        throw new IllegalStateException(
+                "Business ID table " + table + "." + name
+                        + " is missing required " + key + " metadata");
+    }
+
+    private Object value(Map<String, Object> column, String key) {
+        for (Map.Entry<String, Object> entry : column.entrySet()) {
+            if (key.equalsIgnoreCase(entry.getKey())) return entry.getValue();
+        }
+        return null;
     }
 
     @Override
