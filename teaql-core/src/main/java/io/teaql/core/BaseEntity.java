@@ -236,6 +236,9 @@ public class BaseEntity implements Entity {
             throw new IllegalStateException("Global EntityMetaFactory is not initialized; "
                     + "use addRelation(context, relationName, value)");
         }
+        io.teaql.core.spi.InternalLogger.getLogger(BaseEntity.class).warn(
+                "Deprecated addRelation(name, value) uses process-global metadata and may "
+                        + "select another runtime's model; use addRelation(context, name, value)");
         addRelation(metadata.resolveEntityDescriptor(this.typeName()), relationName, value);
     }
 

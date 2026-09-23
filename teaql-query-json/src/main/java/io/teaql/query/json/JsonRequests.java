@@ -11,6 +11,9 @@ public final class JsonRequests {
 
     @Deprecated
     public static <T extends BaseRequest<?>> T findWithJson(T request, String jsonExpression) {
+        io.teaql.core.spi.InternalLogger.getLogger(JsonRequests.class).warn(
+                "Deprecated findWithJson(request, json) may use process-global metadata "
+                        + "and select another runtime's model; use findWithJson(context, request, json)");
         return applyJson(request, jsonExpression);
     }
 

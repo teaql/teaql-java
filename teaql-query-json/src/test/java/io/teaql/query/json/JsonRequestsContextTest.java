@@ -11,10 +11,35 @@ import io.teaql.core.UserContext;
 import io.teaql.core.meta.EntityDescriptor;
 import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.lang.reflect.Proxy;
+import java.nio.charset.StandardCharsets;
 import org.junit.Test;
 
 public class JsonRequestsContextTest {
+
+    @Test
+    public void deprecatedContextFreeJsonSearchWarnsAboutGlobalMetadata() {
+        SimpleEntityMetaFactory metadata = metadata(
+                AlphaOrder.class, AlphaCustomer.class, "alphaCode", "alphaName");
+        EntityMetaFactory previousGlobal = EntityMetaFactory.get();
+        PrintStream originalOut = System.out;
+        ByteArrayOutputStream warnings = new ByteArrayOutputStream();
+        try (PrintStream capture = new PrintStream(warnings, true, StandardCharsets.UTF_8)) {
+            System.setOut(capture);
+            EntityMetaFactory.registerGlobal(metadata);
+            OrderRequest parsed = JsonRequests.findWithJson(
+                    new OrderRequest(), "{\"alphaCode\":\"A\"}");
+            assertNotNull(parsed.getSearchCriteria());
+        } finally {
+            System.setOut(originalOut);
+            EntityMetaFactory.registerGlobal(previousGlobal);
+        }
+        String output = warnings.toString(StandardCharsets.UTF_8);
+        assertTrue(output, output.contains("process-global metadata"));
+        assertTrue(output, output.contains("findWithJson(context"));
+    }
 
     @Test
     public void alternatesRootOrderAndRelationParsingBetweenContextModels() {
