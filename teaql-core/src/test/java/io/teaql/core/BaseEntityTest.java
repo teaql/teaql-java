@@ -1,12 +1,50 @@
 package io.teaql.core;
 
 import org.junit.Test;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.lang.reflect.Proxy;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Set;
 
 import static org.junit.Assert.*;
 
 public class BaseEntityTest {
+
+    @Test
+    public void legacyNoContextRelationAttachmentWarnsWhenGlobalMetadataExists() {
+        io.teaql.core.meta.EntityDescriptor descriptor =
+                new io.teaql.core.meta.EntityDescriptor();
+        descriptor.setType("TestEntity");
+        io.teaql.core.meta.PropertyDescriptor relation =
+                new io.teaql.core.meta.PropertyDescriptor();
+        relation.setName("entityRel");
+        relation.setType(new io.teaql.core.meta.SimplePropertyType(Entity.class));
+        descriptor.setProperties(List.of(relation));
+        io.teaql.core.meta.SimpleEntityMetaFactory metadata =
+                new io.teaql.core.meta.SimpleEntityMetaFactory();
+        metadata.register(descriptor);
+
+        ByteArrayOutputStream warnings = new ByteArrayOutputStream();
+        PrintStream originalOut = System.out;
+        io.teaql.core.meta.EntityMetaFactory previous =
+                io.teaql.core.meta.EntityMetaFactory.get();
+        try (PrintStream capture = new PrintStream(warnings, true, StandardCharsets.UTF_8)) {
+            System.setOut(capture);
+            io.teaql.core.meta.EntityMetaFactory.registerGlobal(metadata);
+            TestEntity owner = new TestEntity();
+            TestEntity child = new TestEntity();
+            owner.addRelation("entityRel", child);
+            assertSame(child, owner.getProperty("entityRel"));
+        } finally {
+            System.setOut(originalOut);
+            io.teaql.core.meta.EntityMetaFactory.registerGlobal(previous);
+        }
+        String output = warnings.toString(StandardCharsets.UTF_8);
+        assertTrue(output, output.contains("process-global metadata"));
+        assertTrue(output, output.contains("addRelation(context"));
+    }
 
     static class TestEntity extends BaseEntity {
         private String name;

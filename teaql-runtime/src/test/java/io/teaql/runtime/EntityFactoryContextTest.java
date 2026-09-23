@@ -5,6 +5,9 @@ import io.teaql.core.meta.EntityDescriptor;
 import io.teaql.core.meta.EntityFactory;
 import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import org.junit.Test;
 
 import static org.junit.Assert.assertTrue;
@@ -37,6 +40,26 @@ public class EntityFactoryContextTest {
         } finally {
             EntityMetaFactory.registerGlobal(previousGlobal);
         }
+    }
+
+    @Test
+    public void legacyGlobalFactoryWarnsAndKeepsItsCompatibilityBehavior() {
+        SimpleEntityMetaFactory metadata = metadata(FirstEntity.class, FirstEntity::new);
+        ByteArrayOutputStream warnings = new ByteArrayOutputStream();
+        PrintStream originalOut = System.out;
+        EntityMetaFactory previousGlobal = EntityMetaFactory.get();
+        try (PrintStream capture = new PrintStream(warnings, true, StandardCharsets.UTF_8)) {
+            System.setOut(capture);
+            EntityMetaFactory.registerGlobal(metadata);
+            assertTrue(EntityFactory.defaultFactory().createEntity("Shared")
+                    instanceof FirstEntity);
+        } finally {
+            System.setOut(originalOut);
+            EntityMetaFactory.registerGlobal(previousGlobal);
+        }
+        String output = warnings.toString(StandardCharsets.UTF_8);
+        assertTrue(output, output.contains("process-global metadata"));
+        assertTrue(output, output.contains("forContext(context)"));
     }
 
     private static <T extends BaseEntity> SimpleEntityMetaFactory metadata(

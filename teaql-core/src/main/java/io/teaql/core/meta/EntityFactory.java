@@ -79,6 +79,9 @@ public interface EntityFactory {
             throw new IllegalStateException("Global EntityMetaFactory is not initialized; "
                     + "use EntityFactory.forContext(context)");
         }
+        io.teaql.core.spi.InternalLogger.getLogger(EntityFactory.class).warn(
+                "Deprecated EntityFactory.defaultFactory() uses process-global metadata "
+                        + "and may select another runtime's model; use forContext(context)");
         return forMetadata(metadata);
     }
 }
