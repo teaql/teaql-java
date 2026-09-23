@@ -52,3 +52,34 @@ jobs:
           mvn -B -ntp -pl teaql-postgres,teaql-mysql -am
           -Dtest=PostgresIntegrationTest,MysqlIntegrationTest
           -Dsurefire.failIfNoSpecifiedTests=false test
+
+  sqlserver:
+    runs-on: ubuntu-latest
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: TeaqlSchemaLiveTest123!
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P TeaqlSchemaLiveTest123! -C -Q 'SELECT 1' -b"
+          --health-interval 10s --health-timeout 5s --health-retries 20
+    env:
+      TEAQL_REQUIRE_LIVE_DB: "true"
+      TEAQL_TEST_MSSQL_URL: "jdbc:sqlserver://127.0.0.1:1433;databaseName=master;encrypt=false;trustServerCertificate=true"
+      TEAQL_TEST_MSSQL_USER: sa
+      TEAQL_TEST_MSSQL_PASSWORD: TeaqlSchemaLiveTest123!
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Verify live SQL Server schema dialect (skips are forbidden)
+        run: >-
+          mvn -B -ntp -pl teaql-mssql -am
+          -Dtest=MssqlSchemaIntegrationTest
+          -Dsurefire.failIfNoSpecifiedTests=false test
