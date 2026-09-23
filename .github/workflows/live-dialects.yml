@@ -42,7 +42,7 @@ jobs:
       TEAQL_TEST_MYSQL_PASSWORD: teaql_test_password
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "21"
@@ -73,7 +73,7 @@ jobs:
       TEAQL_TEST_MSSQL_PASSWORD: TeaqlBusinessLiveTest123!
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "21"
@@ -110,7 +110,7 @@ jobs:
       TEAQL_TEST_MSSQL_PASSWORD: TeaqlSchemaLiveTest123!
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "21"
