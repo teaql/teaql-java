@@ -1,7 +1,8 @@
 package io.teaql.core.meta;
 
-import io.teaql.core.BaseEntity;
 import io.teaql.core.Entity;
+import io.teaql.core.UserContext;
+import java.util.Objects;
 
 /**
  * Centralized factory for entity creation.
@@ -31,19 +32,19 @@ public interface EntityFactory {
      */
     <T extends Entity> T createEntity(EntityDescriptor descriptor);
     
-    /**
-     * Default implementation that delegates to EntityDescriptor.createEntity()
-     */
+    /** Creates an entity factory bound to the invoking runtime's metadata. */
+    static EntityFactory forContext(UserContext context) {
+        return forMetadata(EntityMetaFactory.requireFrom(context));
+    }
+
+    /** Creates an entity factory bound to an explicit metadata snapshot. */
     @SuppressWarnings("unchecked")
-    static EntityFactory defaultFactory() {
+    static EntityFactory forMetadata(EntityMetaFactory metadata) {
+        Objects.requireNonNull(metadata, "metadata must not be null");
         return new EntityFactory() {
             @Override
             public <T extends Entity> T createEntity(Class<T> entityType) {
-                EntityMetaFactory metaFactory = EntityMetaFactory.get();
-                if (metaFactory == null) {
-                    throw new IllegalStateException("EntityMetaFactory not initialized");
-                }
-                for (EntityDescriptor descriptor : metaFactory.allEntityDescriptors()) {
+                for (EntityDescriptor descriptor : metadata.allEntityDescriptors()) {
                     if (descriptor.getTargetType() == entityType) {
                         return (T) descriptor.createEntity();
                     }
@@ -53,7 +54,7 @@ public interface EntityFactory {
             
             @Override
             public Entity createEntity(String typeName) {
-                EntityDescriptor descriptor = EntityMetaFactory.get().resolveEntityDescriptor(typeName);
+                EntityDescriptor descriptor = metadata.resolveEntityDescriptor(typeName);
                 if (descriptor == null) {
                     throw new IllegalArgumentException("No entity descriptor registered for " + typeName);
                 }
@@ -65,5 +66,19 @@ public interface EntityFactory {
                 return (T) descriptor.createEntity();
             }
         };
+    }
+
+    /**
+     * Legacy process-global factory. Prefer {@link #forContext(UserContext)} so
+     * two runtimes in one process cannot silently share entity metadata.
+     */
+    @Deprecated
+    static EntityFactory defaultFactory() {
+        EntityMetaFactory metadata = EntityMetaFactory.get();
+        if (metadata == null) {
+            throw new IllegalStateException("Global EntityMetaFactory is not initialized; "
+                    + "use EntityFactory.forContext(context)");
+        }
+        return forMetadata(metadata);
     }
 }
