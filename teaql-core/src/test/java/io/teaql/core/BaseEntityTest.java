@@ -418,7 +418,11 @@ public class BaseEntityTest {
                 new io.teaql.core.meta.PropertyDescriptor();
         singleProperty.setName("entityRel");
         singleProperty.setType(new io.teaql.core.meta.SimplePropertyType(Entity.class));
-        single.setProperties(java.util.List.of(singleProperty));
+        io.teaql.core.meta.PropertyDescriptor scalarProperty =
+                new io.teaql.core.meta.PropertyDescriptor();
+        scalarProperty.setName("label");
+        scalarProperty.setType(new io.teaql.core.meta.SimplePropertyType(String.class));
+        single.setProperties(java.util.List.of(singleProperty, scalarProperty));
         io.teaql.core.meta.SimpleEntityMetaFactory singleMetadata =
                 new io.teaql.core.meta.SimpleEntityMetaFactory();
         singleMetadata.register(single);
@@ -451,6 +455,18 @@ public class BaseEntityTest {
             TestEntity singleChild = new TestEntity();
             ((Entity) singleEntity).addRelation(singleContext, "entityRel", singleChild);
             assertSame(singleChild, singleEntity.getProperty("entityRel"));
+
+            TeaQLRuntimeException missingEntity = assertThrows(TeaQLRuntimeException.class,
+                    () -> new TestEntity().addRelation(
+                            contextWithMetadata(new io.teaql.core.meta.SimpleEntityMetaFactory()),
+                            "entityRel", singleChild));
+            assertTrue(missingEntity.getMessage().contains("TestEntity"));
+            IllegalArgumentException missingRelation = assertThrows(IllegalArgumentException.class,
+                    () -> singleEntity.addRelation(singleContext, "missingRel", singleChild));
+            assertTrue(missingRelation.getMessage().contains("TestEntity.missingRel"));
+            IllegalArgumentException scalarRelation = assertThrows(IllegalArgumentException.class,
+                    () -> singleEntity.addRelation(singleContext, "label", singleChild));
+            assertTrue(scalarRelation.getMessage().contains("not a relation"));
 
             try {
                 singleEntity.addRelation("entityRel", singleChild);
