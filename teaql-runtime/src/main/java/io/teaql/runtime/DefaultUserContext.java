@@ -19,6 +19,7 @@ import io.teaql.core.businessid.BusinessIdSchemaContributor;
 import io.teaql.core.businessid.BusinessIdService;
 import io.teaql.runtime.businessid.DefaultBusinessIdProfileFactory;
 import io.teaql.runtime.businessid.SystemBusinessClock;
+import io.teaql.core.reference.RoundTripReferenceCodec;
 
 public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObjectGetter<String> {
 
@@ -178,6 +179,9 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
         }
         if (value == null && capabilityType == BusinessIdSchemaContributor.class) {
             value = runtime.getBusinessIdSchemaContributor();
+        }
+        if (value == null && capabilityType == RoundTripReferenceCodec.class) {
+            value = runtime.getRoundTripReferenceCodec();
         }
         if (value == null) {
             return null;

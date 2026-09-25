@@ -11,6 +11,11 @@ import io.teaql.core.i18n.Locale;
 import io.teaql.core.businessid.BusinessClock;
 import io.teaql.core.businessid.BusinessIdSchemaContributor;
 import io.teaql.core.businessid.BusinessIdService;
+import io.teaql.core.reference.ResolvedRoundTripReference;
+import io.teaql.core.reference.RoundTripReference;
+import io.teaql.core.reference.RoundTripReferenceCodec;
+import io.teaql.core.reference.RoundTripReferenceErrorCode;
+import io.teaql.core.reference.RoundTripReferenceException;
 
 public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
 
@@ -231,6 +236,25 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
             throw new TeaQLRuntimeException("BusinessClock capability is not registered");
         }
         return clock.businessDate(this);
+    }
+
+    default RoundTripReferenceCodec roundTripReferences() {
+        RoundTripReferenceCodec codec = capability(RoundTripReferenceCodec.class);
+        if (codec == null) {
+            throw new RoundTripReferenceException(
+                    RoundTripReferenceErrorCode.PROVIDER_NOT_CONFIGURED,
+                    "RoundTripReferenceCodec capability is not registered");
+        }
+        return codec;
+    }
+
+    default RoundTripReference referenceFor(Entity entity) {
+        return roundTripReferences().serialize(this, entity);
+    }
+
+    default ResolvedRoundTripReference resolveReference(
+            String reference, String expectedEntityType) {
+        return roundTripReferences().deserialize(this, reference, expectedEntityType);
     }
 
     /**
