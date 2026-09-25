@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.teaql</groupId>
         <artifactId>teaql-java-parent</artifactId>
-        <version>1.549-RELEASE</version>
+        <version>1.550-RELEASE</version>
     </parent>
     <artifactId>teaql-duckdb</artifactId>
     <name>teaql-duckdb</name>
