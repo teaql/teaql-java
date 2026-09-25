@@ -6,6 +6,7 @@ module io.teaql.runtime {
     exports io.teaql.runtime.memory;
     exports io.teaql.runtime.boot;
     exports io.teaql.runtime.businessid;
+    exports io.teaql.runtime.reference;
 
     provides io.teaql.core.spi.ContextAssembler with io.teaql.runtime.boot.CoreAssembler;
 }

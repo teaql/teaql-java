@@ -11,6 +11,8 @@ import io.teaql.core.businessid.BusinessIdAllocator;
 import io.teaql.core.businessid.BusinessIdSchemaContributor;
 import io.teaql.core.businessid.BusinessIdService;
 import io.teaql.runtime.businessid.DefaultBusinessIdService;
+import io.teaql.core.reference.RoundTripReferenceCodec;
+import io.teaql.core.reference.RoundTripReferenceProvider;
 import java.util.*;
 
 public class TeaQLRuntime {
@@ -25,6 +27,7 @@ public class TeaQLRuntime {
     private final SchemaExecutor schemaExecutor;
     private final BusinessIdService businessIdService;
     private final BusinessIdSchemaContributor businessIdSchemaContributor;
+    private final RoundTripReferenceCodec roundTripReferenceCodec;
     private final Map<String, Checker<?>> checkers = new java.util.concurrent.ConcurrentHashMap<>();
     private final List<GeneratedSchemaBootstrap> generatedBootstraps =
             new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -41,6 +44,9 @@ public class TeaQLRuntime {
         this.schemaExecutor = builder.schemaExecutor;
         this.businessIdService = builder.businessIdService;
         this.businessIdSchemaContributor = builder.businessIdSchemaContributor;
+        this.roundTripReferenceCodec = builder.roundTripReferenceProvider == null
+                ? null
+                : new RoundTripReferenceCodec(builder.roundTripReferenceProvider);
     }
 
     public static Builder builder() {
@@ -93,6 +99,10 @@ public class TeaQLRuntime {
 
     BusinessIdSchemaContributor getBusinessIdSchemaContributor() {
         return businessIdSchemaContributor;
+    }
+
+    RoundTripReferenceCodec getRoundTripReferenceCodec() {
+        return roundTripReferenceCodec;
     }
 
     /** Installs a passive generated manifest. Database schemas remain unchanged. */
@@ -921,6 +931,7 @@ public class TeaQLRuntime {
         private SchemaExecutor schemaExecutor;
         private BusinessIdService businessIdService;
         private BusinessIdSchemaContributor businessIdSchemaContributor;
+        private RoundTripReferenceProvider roundTripReferenceProvider;
 
         public Builder metadata(EntityMetaFactory metadata) {
             this.metadata = metadata;
@@ -968,6 +979,12 @@ public class TeaQLRuntime {
             java.util.Objects.requireNonNull(allocator, "allocator");
             this.businessIdService = new DefaultBusinessIdService(allocator);
             this.businessIdSchemaContributor = allocator;
+            return this;
+        }
+
+        /** Installs context-bound identity serialization without coupling it to a Web framework. */
+        public Builder roundTripReferenceProvider(RoundTripReferenceProvider provider) {
+            this.roundTripReferenceProvider = java.util.Objects.requireNonNull(provider, "provider");
             return this;
         }
 
