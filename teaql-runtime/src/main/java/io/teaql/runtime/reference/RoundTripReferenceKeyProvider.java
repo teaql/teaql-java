@@ -1,10 +1,8 @@
 package io.teaql.runtime.reference;
 
-import io.teaql.core.UserContext;
-
-/** Selects the runtime's current or decode-only key using the complete context. */
+/** Supplies one current encryption key and retained decode-only rotation keys. */
 public interface RoundTripReferenceKeyProvider {
-    RoundTripReferenceKey currentKey(UserContext context);
+    RoundTripReferenceKey currentKey();
 
-    RoundTripReferenceKey keyById(UserContext context, String keyId);
+    RoundTripReferenceKey keyById(String keyId);
 }

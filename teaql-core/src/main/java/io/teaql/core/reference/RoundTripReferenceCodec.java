@@ -2,6 +2,7 @@ package io.teaql.core.reference;
 
 import io.teaql.core.Entity;
 import io.teaql.core.UserContext;
+import java.time.Duration;
 
 /**
  * Framework-neutral serialization boundary. Spring, JAX-RS and other Web
@@ -15,22 +16,38 @@ public final class RoundTripReferenceCodec {
         this.provider = provider;
     }
 
-    public RoundTripReference serialize(UserContext context, Entity entity) {
+    public Object serialize(
+            UserContext context,
+            TrustedReferencePrincipal principal,
+            ReferenceDocumentScope scope,
+            Entity entity,
+            Duration lifetime) {
         if (entity == null || entity.getId() == null || entity.getVersion() == null) {
             throw new RoundTripReferenceException(
                     RoundTripReferenceErrorCode.INVALID_ENTITY_IDENTITY,
                     "A round-trip reference requires a persisted entity with id and version");
         }
-        return provider.issue(
+        return ReferenceWireCodec.serialize(provider.issue(
                 context,
-                new InternalEntityIdentity(entity.typeName(), entity.getId(), entity.getVersion()));
+                principal,
+                scope,
+                new InternalEntityIdentity(entity.typeName(), entity.getId(), entity.getVersion()),
+                lifetime));
     }
 
     public ResolvedRoundTripReference deserialize(
-            UserContext context, String reference, String expectedEntityType) {
+            UserContext context,
+            TrustedReferencePrincipal principal,
+            ReferenceDocumentScope scope,
+            Object reference,
+            String expectedEntityType) {
         return provider.resolve(
                 context,
-                new RoundTripReference(reference),
+                principal,
+                scope,
+                ReferenceWireCodec.deserialize(reference, provider.mode()),
                 expectedEntityType);
     }
+
+    public ReferenceMode mode() { return provider.mode(); }
 }

@@ -8,8 +8,8 @@ public final class RoundTripReferenceKey {
     private final byte[] keyBytes;
 
     public RoundTripReferenceKey(String keyId, byte[] keyBytes) {
-        if (keyId == null || !keyId.matches("[A-Za-z0-9_-]{1,32}")) {
-            throw new IllegalArgumentException("keyId must be 1-32 URL-safe characters");
+        if (keyId == null || !keyId.matches("[A-Za-z0-9_-]{1,64}")) {
+            throw new IllegalArgumentException("keyId must be 1-64 URL-safe characters");
         }
         if (keyBytes == null || keyBytes.length != 32) {
             throw new IllegalArgumentException("AES-256 key must contain exactly 32 bytes");
