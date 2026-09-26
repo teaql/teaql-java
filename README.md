@@ -115,6 +115,43 @@ Custom `UserContext` implementations must also explicitly delegate or override
 The optional file-backed `LogManager` requests value-bearing SQL only with
 `TEAQL_SQL_LOG=_full_with_payload`; restrict access and retention before enabling it.
 
+## Security Foundations
+
+TeaQL Java is a server-side security reference runtime:
+
+- ordinary Query and Mutation logs are enabled by default and retain intent,
+  trace, parameterized SQL, timing, and outcome without bind values;
+- copy/paste SQL and parameter values require an explicitly selected sensitive
+  diagnostic sink;
+- the TFP endpoint applies trusted server policy, bounded queries, writable-field
+  rules, tenant scope, and optimistic version in the provider operation;
+- boundary-facing entity references can be issued and verified through
+  `UserContext` without serializing raw internal ID/version pairs.
+
+Install an application-owned key provider at the runtime boundary:
+
+```java
+byte[] activeKey = loadThirtyTwoByteKeyFromSecretManager();
+EntityReferenceCodec codec = new AeadEntityReferenceCodec(
+    2, Map.of(2, activeKey));
+userContext.withEntityReferenceCodec(codec);
+
+String token = userContext.encodeEntityReference(
+    "OrderItem", 42L, 7L, "edit-order", Duration.ofMinutes(15));
+EntityReferenceClaims claims = userContext.decodeEntityReference(
+    token, "OrderItem", "edit-order");
+```
+
+The token uses AES-256-GCM, carries a key version for rotation, expires, and is
+bound to both entity type and purpose. Invalid, expired, substituted, or
+tampered tokens all fail with `ENTITY_REFERENCE_INVALID`; a missing codec fails
+with `ENTITY_REFERENCE_CODEC_REQUIRED`. Raw `tqr0.` references are available
+only after setting the deliberately long local-development acknowledgement
+documented in the canonical
+[opaque entity reference contract](https://github.com/teaql/teaql-conformance/blob/main/design/opaque-entity-references.md).
+Tokens complement authorization; they do not replace tenant, ownership, role,
+or optimistic-lock checks.
+
 ## Choose Modules
 
 Most applications need the core runtime, one data-access path, and one database
