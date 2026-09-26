@@ -132,25 +132,39 @@ Install an application-owned key provider at the runtime boundary:
 
 ```java
 byte[] activeKey = loadThirtyTwoByteKeyFromSecretManager();
-EntityReferenceCodec codec = new AeadEntityReferenceCodec(
-    2, Map.of(2, activeKey));
-userContext.withEntityReferenceCodec(codec);
+var provider = AeadRoundTripReferenceProvider.fromProcessEnvironment(
+    DeploymentProfile.PRODUCTION,
+    "order-service",
+    "production",
+    new StaticRoundTripReferenceKeyProvider(
+        new RoundTripReferenceKey("k2", activeKey)),
+    currentAuthorizationPolicy);
+var runtime = TeaQLRuntime.builder()
+    .roundTripReferenceProvider(provider)
+    .build();
+userContext.withTrustedReferencePrincipal(
+    new TrustedReferencePrincipal("oidc", "alice", "Platform", 7));
+var scope = new ReferenceDocumentScope(
+    "order-editor-100", "edit-order", "Order", 100, 9);
 
-String token = userContext.encodeEntityReference(
-    "OrderItem", 42L, 7L, "edit-order", Duration.ofMinutes(15));
-EntityReferenceClaims claims = userContext.decodeEntityReference(
-    token, "OrderItem", "edit-order");
+Object wire = userContext.referenceFor(orderItem, scope, Duration.ofMinutes(15));
+ResolvedRoundTripReference resolved = userContext.resolveReference(
+    wire, scope, "OrderItem");
 ```
 
-The token uses AES-256-GCM, carries a key version for rotation, expires, and is
-bound to both entity type and purpose. Invalid, expired, substituted, or
-tampered tokens all fail with `ENTITY_REFERENCE_INVALID`; a missing codec fails
-with `ENTITY_REFERENCE_CODEC_REQUIRED`. Raw `tqr0.` references are available
-only after setting the deliberately long local-development acknowledgement
-documented in the canonical
-[opaque entity reference contract](https://github.com/teaql/teaql-conformance/blob/main/design/opaque-entity-references.md).
-Tokens complement authorization; they do not replace tenant, ownership, role,
-or optimistic-lock checks.
+The `tqr1` token uses AES-256-GCM with HKDF-SHA-256, carries a key ID for
+rotation, expires, and binds Actor, Domain Root, service, environment, purpose,
+document, Aggregate identity/revision, entity type/ID/version. Current
+authorization runs both when issuing and consuming the reference. Java and
+Rust retain the same deterministic golden vector.
+
+For local diagnosis only, the exact
+`TEAQL_UNSAFE_EXPOSE_RAW_ENTITY_IDS=I_UNDERSTAND_THIS_EXPOSES_INTERNAL_ENTITY_IDS_FOR_LOCAL_DEBUGGING_ONLY`
+acknowledgement changes the startup-selected wire shape to `{id, version}` in
+development/test. Production fails closed; raw mode does not bypass current
+authorization, type, version, projection, Checker/Fix, audit, or Mutation
+Ledger enforcement. See the canonical
+[context-bound reference contract](https://github.com/teaql/teaql-conformance/blob/main/design/context-bound-round-trip-references.md).
 
 ## Choose Modules
 

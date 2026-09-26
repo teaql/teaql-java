@@ -11,8 +11,13 @@ import io.teaql.core.i18n.Locale;
 import io.teaql.core.businessid.BusinessClock;
 import io.teaql.core.businessid.BusinessIdSchemaContributor;
 import io.teaql.core.businessid.BusinessIdService;
+import io.teaql.core.reference.ResolvedRoundTripReference;
+import io.teaql.core.reference.ReferenceDocumentScope;
+import io.teaql.core.reference.RoundTripReferenceCodec;
+import io.teaql.core.reference.RoundTripReferenceErrorCode;
+import io.teaql.core.reference.RoundTripReferenceException;
+import io.teaql.core.reference.TrustedReferencePrincipal;
 import java.time.Duration;
-import java.time.Instant;
 
 public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
 
@@ -21,50 +26,7 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
     String TEAQL_ACTIVE_ROOT = "teaql.active.root";
     String TEAQL_FIX_EVIDENCE_CURRENT = "teaql.fix.evidence.current";
     String TEAQL_FIX_EVIDENCE_LAST = "teaql.fix.evidence.last";
-    String TEAQL_ENTITY_REFERENCE_CODEC = EntityReferenceCodec.class.getName();
-
-    default UserContext withEntityReferenceCodec(EntityReferenceCodec codec) {
-        if (codec == null) throw new IllegalArgumentException("codec must not be null");
-        putAttribute(TEAQL_ENTITY_REFERENCE_CODEC, codec);
-        return this;
-    }
-
-    default String encodeEntityReference(
-            String entityType, long id, long version, String purpose, Duration lifetime) {
-        EntityReferenceCodec codec = getAttribute(TEAQL_ENTITY_REFERENCE_CODEC, EntityReferenceCodec.class);
-        if (codec == null) codec = capability(EntityReferenceCodec.class);
-        if (codec != null) return codec.encode(entityType, id, version, purpose, lifetime);
-        if (!EntityReferenceWire.unsafeRawReferencesEnabled()) {
-            throw new EntityReferenceTokenException("ENTITY_REFERENCE_CODEC_REQUIRED");
-        }
-        if (entityType == null || entityType.isBlank() || id <= 0 || lifetime == null
-                || lifetime.isZero() || lifetime.isNegative()) throw EntityReferenceWire.invalid();
-        Instant now = Instant.now();
-        EntityReferenceClaims claims = new EntityReferenceClaims(
-                entityType, id, version, now, now.plus(lifetime), purpose == null ? "" : purpose, 0);
-        return EntityReferenceWire.RAW_PREFIX
-                + EntityReferenceWire.base64Url(EntityReferenceWire.encodeClaims(claims));
-    }
-
-    default EntityReferenceClaims decodeEntityReference(
-            String token, String expectedEntityType, String purpose) {
-        EntityReferenceCodec codec = getAttribute(TEAQL_ENTITY_REFERENCE_CODEC, EntityReferenceCodec.class);
-        if (codec == null) codec = capability(EntityReferenceCodec.class);
-        if (codec != null) return codec.decode(token, expectedEntityType, purpose);
-        if (!EntityReferenceWire.unsafeRawReferencesEnabled()) {
-            throw new EntityReferenceTokenException("ENTITY_REFERENCE_CODEC_REQUIRED");
-        }
-        if (token == null || !token.startsWith(EntityReferenceWire.RAW_PREFIX)) {
-            throw new EntityReferenceTokenException("ENTITY_REFERENCE_CODEC_REQUIRED");
-        }
-        EntityReferenceClaims claims = EntityReferenceWire.decodeClaims(EntityReferenceWire.base64UrlDecode(
-                token.substring(EntityReferenceWire.RAW_PREFIX.length())));
-        Instant now = Instant.now();
-        if (!claims.expiresAt().isAfter(now) || claims.issuedAt().isAfter(now.plusSeconds(60))
-                || !claims.entityType().equals(expectedEntityType)
-                || !claims.purpose().equals(purpose)) throw EntityReferenceWire.invalid();
-        return claims;
-    }
+    String TEAQL_TRUSTED_REFERENCE_PRINCIPAL = TrustedReferencePrincipal.class.getName();
 
     default void beginFixEvidence() {
         putAttribute(TEAQL_FIX_EVIDENCE_CURRENT, new java.util.ArrayList<FixEvidence>());
@@ -277,6 +239,45 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
             throw new TeaQLRuntimeException("BusinessClock capability is not registered");
         }
         return clock.businessDate(this);
+    }
+
+    default RoundTripReferenceCodec roundTripReferences() {
+        RoundTripReferenceCodec codec = capability(RoundTripReferenceCodec.class);
+        if (codec == null) {
+            throw new RoundTripReferenceException(
+                    RoundTripReferenceErrorCode.PROVIDER_NOT_CONFIGURED,
+                    "RoundTripReferenceCodec capability is not registered");
+        }
+        return codec;
+    }
+
+    default UserContext withTrustedReferencePrincipal(TrustedReferencePrincipal principal) {
+        if (principal == null) throw new IllegalArgumentException("principal must not be null");
+        putAttribute(TEAQL_TRUSTED_REFERENCE_PRINCIPAL, principal);
+        return this;
+    }
+
+    default TrustedReferencePrincipal trustedReferencePrincipal() {
+        TrustedReferencePrincipal principal = getAttribute(
+                TEAQL_TRUSTED_REFERENCE_PRINCIPAL, TrustedReferencePrincipal.class);
+        if (principal == null) {
+            throw new RoundTripReferenceException(
+                    RoundTripReferenceErrorCode.CONTEXT_BINDING_REQUIRED,
+                    "Trusted reference principal is not installed in this UserContext");
+        }
+        return principal;
+    }
+
+    default Object referenceFor(
+            Entity entity, ReferenceDocumentScope scope, Duration lifetime) {
+        return roundTripReferences().serialize(
+                this, trustedReferencePrincipal(), scope, entity, lifetime);
+    }
+
+    default ResolvedRoundTripReference resolveReference(
+            Object reference, ReferenceDocumentScope scope, String expectedEntityType) {
+        return roundTripReferences().deserialize(
+                this, trustedReferencePrincipal(), scope, reference, expectedEntityType);
     }
 
     /**
