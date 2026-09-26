@@ -11,6 +11,8 @@ import io.teaql.core.i18n.Locale;
 import io.teaql.core.businessid.BusinessClock;
 import io.teaql.core.businessid.BusinessIdSchemaContributor;
 import io.teaql.core.businessid.BusinessIdService;
+import java.time.Duration;
+import java.time.Instant;
 
 public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
 
@@ -19,6 +21,50 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
     String TEAQL_ACTIVE_ROOT = "teaql.active.root";
     String TEAQL_FIX_EVIDENCE_CURRENT = "teaql.fix.evidence.current";
     String TEAQL_FIX_EVIDENCE_LAST = "teaql.fix.evidence.last";
+    String TEAQL_ENTITY_REFERENCE_CODEC = EntityReferenceCodec.class.getName();
+
+    default UserContext withEntityReferenceCodec(EntityReferenceCodec codec) {
+        if (codec == null) throw new IllegalArgumentException("codec must not be null");
+        putAttribute(TEAQL_ENTITY_REFERENCE_CODEC, codec);
+        return this;
+    }
+
+    default String encodeEntityReference(
+            String entityType, long id, long version, String purpose, Duration lifetime) {
+        EntityReferenceCodec codec = getAttribute(TEAQL_ENTITY_REFERENCE_CODEC, EntityReferenceCodec.class);
+        if (codec == null) codec = capability(EntityReferenceCodec.class);
+        if (codec != null) return codec.encode(entityType, id, version, purpose, lifetime);
+        if (!EntityReferenceWire.unsafeRawReferencesEnabled()) {
+            throw new EntityReferenceTokenException("ENTITY_REFERENCE_CODEC_REQUIRED");
+        }
+        if (entityType == null || entityType.isBlank() || id <= 0 || lifetime == null
+                || lifetime.isZero() || lifetime.isNegative()) throw EntityReferenceWire.invalid();
+        Instant now = Instant.now();
+        EntityReferenceClaims claims = new EntityReferenceClaims(
+                entityType, id, version, now, now.plus(lifetime), purpose == null ? "" : purpose, 0);
+        return EntityReferenceWire.RAW_PREFIX
+                + EntityReferenceWire.base64Url(EntityReferenceWire.encodeClaims(claims));
+    }
+
+    default EntityReferenceClaims decodeEntityReference(
+            String token, String expectedEntityType, String purpose) {
+        EntityReferenceCodec codec = getAttribute(TEAQL_ENTITY_REFERENCE_CODEC, EntityReferenceCodec.class);
+        if (codec == null) codec = capability(EntityReferenceCodec.class);
+        if (codec != null) return codec.decode(token, expectedEntityType, purpose);
+        if (!EntityReferenceWire.unsafeRawReferencesEnabled()) {
+            throw new EntityReferenceTokenException("ENTITY_REFERENCE_CODEC_REQUIRED");
+        }
+        if (token == null || !token.startsWith(EntityReferenceWire.RAW_PREFIX)) {
+            throw new EntityReferenceTokenException("ENTITY_REFERENCE_CODEC_REQUIRED");
+        }
+        EntityReferenceClaims claims = EntityReferenceWire.decodeClaims(EntityReferenceWire.base64UrlDecode(
+                token.substring(EntityReferenceWire.RAW_PREFIX.length())));
+        Instant now = Instant.now();
+        if (!claims.expiresAt().isAfter(now) || claims.issuedAt().isAfter(now.plusSeconds(60))
+                || !claims.entityType().equals(expectedEntityType)
+                || !claims.purpose().equals(purpose)) throw EntityReferenceWire.invalid();
+        return claims;
+    }
 
     default void beginFixEvidence() {
         putAttribute(TEAQL_FIX_EVIDENCE_CURRENT, new java.util.ArrayList<FixEvidence>());

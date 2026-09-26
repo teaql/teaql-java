@@ -77,6 +77,7 @@
         <module>teaql-android</module>
         <module>teaql-business-id-jdbc</module>
         <module>examples/business-id-runtime</module>
+        <module>examples/security-foundations</module>
         <module>teaql-tfp-endpoint</module>
         <module>teaql-opentelemetry</module>
         <module>examples/conformance/lib</module>
