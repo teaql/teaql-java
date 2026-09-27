@@ -11,9 +11,10 @@ public record BusinessIdDefinition(
         String namespace,
         int policyVersion) {
 
-    public static final String DEFAULT_PROFILE = "daily-sequence";
+    public static final String DEFAULT_PROFILE = "daily-permuted-v1";
+    public static final String LEGACY_DAILY_SEQUENCE_PROFILE = "daily-sequence";
     public static final String DEFAULT_DATE_FORMAT = "yyyyMMdd";
-    public static final int DEFAULT_DIGITS = 8;
+    public static final int DEFAULT_DIGITS = 6;
 
     public BusinessIdDefinition {
         fieldName = requireText(fieldName, "fieldName");
@@ -23,6 +24,9 @@ public record BusinessIdDefinition(
         reset = requireText(reset, "reset");
         separator = requireText(separator, "separator");
         namespace = requireText(namespace, "namespace");
+        if (DEFAULT_PROFILE.equals(profile) && digits != DEFAULT_DIGITS) {
+            throw invalid("daily-permuted-v1 requires exactly 6 digits");
+        }
         if (digits < 1 || digits > 18) {
             throw invalid("digits must be between 1 and 18");
         }
@@ -46,11 +50,28 @@ public record BusinessIdDefinition(
     }
 
     public long maximumSequence() {
+        if (DEFAULT_PROFILE.equals(profile)) {
+            return 2_176_782_335L;
+        }
         long maximum = 1;
         for (int i = 0; i < digits; i++) {
             maximum = Math.multiplyExact(maximum, 10);
         }
         return maximum - 1;
+    }
+
+    public static BusinessIdDefinition legacyDailySequence(
+            String fieldName, String prefix, String namespace) {
+        return new BusinessIdDefinition(
+                fieldName,
+                LEGACY_DAILY_SEQUENCE_PROFILE,
+                prefix,
+                DEFAULT_DATE_FORMAT,
+                "daily",
+                8,
+                "-",
+                namespace,
+                1);
     }
 
     private static String requireText(String value, String field) {

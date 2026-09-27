@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.function.Supplier;
 import io.teaql.core.businessid.BusinessClock;
 import io.teaql.core.businessid.BusinessIdProfileFactory;
+import io.teaql.core.businessid.BusinessIdKeyProvider;
 import io.teaql.core.businessid.BusinessIdSchemaContributor;
 import io.teaql.core.businessid.BusinessIdService;
 import io.teaql.runtime.businessid.DefaultBusinessIdProfileFactory;
@@ -179,6 +180,9 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
         }
         if (value == null && capabilityType == BusinessIdSchemaContributor.class) {
             value = runtime.getBusinessIdSchemaContributor();
+        }
+        if (value == null && capabilityType == BusinessIdKeyProvider.class) {
+            value = runtime.getBusinessIdKeyProvider();
         }
         if (value == null && capabilityType == RoundTripReferenceCodec.class) {
             value = runtime.getRoundTripReferenceCodec();

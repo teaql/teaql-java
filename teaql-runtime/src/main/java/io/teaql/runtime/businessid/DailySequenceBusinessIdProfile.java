@@ -8,7 +8,7 @@ public final class DailySequenceBusinessIdProfile implements BusinessIdProfile {
     @Override
     public BusinessIdPlan plan(BusinessIdGenerationRequest request) {
         BusinessIdDefinition definition = request.definition();
-        if (!BusinessIdDefinition.DEFAULT_PROFILE.equals(definition.profile())
+        if (!BusinessIdDefinition.LEGACY_DAILY_SEQUENCE_PROFILE.equals(definition.profile())
                 || !"daily".equals(definition.reset())) {
             throw new BusinessIdException(
                     BusinessIdErrorCode.BUSINESS_ID_DEFINITION_INVALID,
@@ -33,6 +33,7 @@ public final class DailySequenceBusinessIdProfile implements BusinessIdProfile {
                 scope,
                 request.businessDate(),
                 dateText,
+                1,
                 definition.maximumSequence());
     }
 
