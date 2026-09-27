@@ -1,8 +1,9 @@
 # Business ID focused runtime example
 
-This example verifies the new Java runtime Business ID boundary without running
-the full multi-module regression suite. It covers the default eight-digit
-daily sequence, controlled Context date, root scoping, Mutation Ledger retry
+This example verifies the Java runtime Business ID boundary without running
+the full multi-module regression suite. It covers the default six-character
+volume-obscuring Base36 profile, controlled Context date, Domain Root scoping,
+the byte-identical Java/Rust golden vectors, Mutation Ledger retry
 stability, explicit SQLite schema setup, cross-instance allocation, restart,
 strong `OrderNumber` parsing, and immutable established aggregates.
 
@@ -13,6 +14,12 @@ call `context.ensureSchema()` before allocation. The business date comes from
 the context's `BusinessClock`; tests can replace that clock. The JDBC allocator
 uses root/aggregate/namespace/date scoping, optimistic allocation, bounded
 retry, and a range error when the configured digits are exhausted.
+
+The default `daily-permuted-v1` profile additionally requires a
+`BusinessIdKeyProvider` capability. The example installs a deterministic
+32-byte test key; production applications must obtain versioned key material
+from their own secret provider. The profile is volume-obscuring, not an
+authentication token or substitute for authorization.
 
 For an existing counter table, `context.ensureSchema()` verifies the four
 required columns, a single-column `scope_key` primary or unique key, a text

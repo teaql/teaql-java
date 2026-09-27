@@ -231,8 +231,8 @@ public final class JdbcBusinessIdAllocator
                     inserted = database.executeUpdate(
                             "INSERT INTO " + table
                                     + " (scope_key, current_value, version, updated_at)"
-                                    + " VALUES (?, 1, 1, ?)",
-                            new Object[]{scopeKey, updatedAt});
+                                    + " VALUES (?, ?, 1, ?)",
+                            new Object[]{scopeKey, plan.initialSequence(), updatedAt});
                 } catch (RuntimeException insertionFailure) {
                     lastConflict = insertionFailure;
                     // A competing instance may have inserted this key. Do not retry an
@@ -258,7 +258,8 @@ public final class JdbcBusinessIdAllocator
                 }
                 if (inserted != null) {
                     if (inserted == 1) {
-                        return new BusinessIdAllocation(plan.scope(), 1);
+                        return new BusinessIdAllocation(
+                                plan.scope(), plan.initialSequence());
                     }
                     throw new IllegalStateException(
                             "Expected one inserted Business ID row for " + scopeKey
@@ -268,7 +269,7 @@ public final class JdbcBusinessIdAllocator
                 Map<String, Object> row = rows.get(0);
                 long current = number(row, "current_value");
                 long version = number(row, "version");
-                if (current < 1 || version < 1) {
+                if (current < 0 || version < 1) {
                     throw new IllegalStateException(
                             "Invalid Business ID sequence row for " + scopeKey);
                 }

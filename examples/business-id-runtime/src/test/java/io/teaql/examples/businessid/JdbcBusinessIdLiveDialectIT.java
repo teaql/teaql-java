@@ -3,10 +3,7 @@ package io.teaql.examples.businessid;
 import io.teaql.businessid.jdbc.JdbcBusinessIdAllocator;
 import io.teaql.core.SchemaExecutor;
 import io.teaql.core.UserContext;
-import io.teaql.core.businessid.BusinessIdDefinition;
-import io.teaql.core.businessid.BusinessIdGenerationRequest;
 import io.teaql.core.businessid.BusinessIdPlan;
-import io.teaql.runtime.businessid.DailySequenceBusinessIdProfile;
 import io.teaql.core.sql.dialect.OracleDialect;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -137,12 +134,8 @@ public class JdbcBusinessIdLiveDialectIT {
                     url.contains("teaql_live_"));
         }
 
-        BusinessIdDefinition definition = BusinessIdDefinition.dailySequence(
-                "order_number", "CO", "commerce_order");
-        BusinessIdPlan plan = new DailySequenceBusinessIdProfile().plan(
-                new BusinessIdGenerationRequest(
-                        definition, "tenant-" + UUID.randomUUID(),
-                        "commerce_order", BUSINESS_DATE));
+        BusinessIdPlan plan = BusinessIdRuntimeExampleTest.plan(
+                BUSINESS_DATE, "tenant-" + UUID.randomUUID());
 
         try (Connection schemaConnection = DriverManager.getConnection(url, user, password)) {
             JdbcBusinessIdAllocator allocator = allocator(schemaConnection, dialect);
@@ -178,7 +171,7 @@ public class JdbcBusinessIdLiveDialectIT {
             }
             int total = 2 * ALLOCATIONS_PER_INSTANCE;
             Assert.assertEquals(total, allocated.size());
-            for (long sequence = 1; sequence <= total; sequence++) {
+            for (long sequence = 0; sequence < total; sequence++) {
                 Assert.assertTrue("Missing sequence " + sequence, allocated.contains(sequence));
             }
         } finally {
@@ -187,7 +180,7 @@ public class JdbcBusinessIdLiveDialectIT {
 
         try (Connection restarted = DriverManager.getConnection(url, user, password)) {
             JdbcBusinessIdAllocator allocator = allocator(restarted, dialect);
-            Assert.assertEquals(2L * ALLOCATIONS_PER_INSTANCE + 1,
+            Assert.assertEquals(2L * ALLOCATIONS_PER_INSTANCE,
                     allocator.allocate(plan).sequence());
         }
     }

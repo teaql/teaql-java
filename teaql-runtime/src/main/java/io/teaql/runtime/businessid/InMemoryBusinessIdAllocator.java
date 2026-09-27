@@ -13,17 +13,17 @@ public final class InMemoryBusinessIdAllocator implements BusinessIdAllocator {
     @Override
     public BusinessIdAllocation allocate(BusinessIdPlan plan) {
         AtomicLong counter = counters.computeIfAbsent(
-                plan.scope(), ignored -> new AtomicLong());
+                plan.scope(), ignored -> new AtomicLong(plan.initialSequence()));
         while (true) {
             long current = counter.get();
-            if (current >= plan.maximumSequence()) {
+            if (current > plan.maximumSequence()) {
                 throw new BusinessIdException(
                         BusinessIdErrorCode.BUSINESS_ID_RANGE_EXHAUSTED,
                         "Business ID range exhausted for " + plan.scope().canonicalKey());
             }
             long next = current + 1;
             if (counter.compareAndSet(current, next)) {
-                return new BusinessIdAllocation(plan.scope(), next);
+                return new BusinessIdAllocation(plan.scope(), current);
             }
         }
     }

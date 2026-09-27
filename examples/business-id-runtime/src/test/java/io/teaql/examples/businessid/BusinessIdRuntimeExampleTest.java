@@ -27,7 +27,7 @@ public class BusinessIdRuntimeExampleTest {
 
     public record OrderNumber(String value) {
         public OrderNumber {
-            if (value == null || !value.matches("CO-\\d{8}-\\d{8}")) {
+            if (value == null || !value.matches("CO-\\d{8}-[0-9A-Z]{6}")) {
                 throw new IllegalArgumentException("invalid OrderNumber: " + value);
             }
         }
@@ -82,7 +82,7 @@ public class BusinessIdRuntimeExampleTest {
         Order first = new Order(101);
         BusinessIdValue initial = context.businessIds().ensure(
                 context, ORDER_NUMBER, "tenant-a", "commerce_order", first);
-        Assert.assertEquals("CO-20260920-00000001", initial.value());
+        Assert.assertEquals("CO-20260920-KSHQ82", initial.value());
         Assert.assertEquals(new OrderNumber(initial.value()), first.orderNumber());
         Assert.assertEquals(
                 first.orderNumber(),
@@ -96,20 +96,20 @@ public class BusinessIdRuntimeExampleTest {
 
         Order second = new Order(102);
         Assert.assertEquals(
-                "CO-20260920-00000002",
+                "CO-20260920-B8S7XN",
                 context.businessIds().ensure(
                         context, ORDER_NUMBER, "tenant-a", "commerce_order", second).value());
 
         Order otherTenant = new Order(103);
         Assert.assertEquals(
-                "CO-20260920-00000001",
+                "CO-20260920-Y5Z052",
                 context.businessIds().ensure(
                         context, ORDER_NUMBER, "tenant-b", "commerce_order", otherTenant).value());
 
         UserContext nextDay = context(LocalDate.of(2026, 9, 21));
         nextDay.putAttribute(BusinessIdService.class.getName(), service);
         Assert.assertEquals(
-                "CO-20260921-00000001",
+                "CO-20260921-XAUWT0",
                 nextDay.businessIds().ensure(
                         nextDay, ORDER_NUMBER, "tenant-a", "commerce_order", new Order(104)).value());
 
@@ -124,18 +124,67 @@ public class BusinessIdRuntimeExampleTest {
                         "commerce_order",
                         establishedWithoutNumber));
         Assert.assertEquals(BusinessIdErrorCode.BUSINESS_ID_IMMUTABLE, immutable.getCode());
+
+        Order impossibleDate = new Order(109);
+        impossibleDate.orderNumber = new OrderNumber("CO-20260231-ABC123");
+        BusinessIdException invalidDate = Assert.assertThrows(
+                BusinessIdException.class,
+                () -> context.businessIds().ensure(
+                        context,
+                        ORDER_NUMBER,
+                        "tenant-a",
+                        "commerce_order",
+                        impossibleDate));
+        Assert.assertEquals(
+                BusinessIdErrorCode.BUSINESS_ID_FORMAT_INVALID, invalidDate.getCode());
+    }
+
+    @Test
+    public void defaultProfileFailsClosedWithoutKeyProvider() {
+        UserContext context = context(LocalDate.of(2026, 9, 20), null, false);
+        DefaultBusinessIdService service =
+                new DefaultBusinessIdService(new InMemoryBusinessIdAllocator());
+        context.putAttribute(BusinessIdService.class.getName(), service);
+
+        BusinessIdException failure = Assert.assertThrows(
+                BusinessIdException.class,
+                () -> context.businessIds().ensure(
+                        context,
+                        ORDER_NUMBER,
+                        "domain-root-a",
+                        "commerce_order",
+                        new Order(106)));
+        Assert.assertEquals(
+                BusinessIdErrorCode.BUSINESS_ID_KEY_NOT_FOUND, failure.getCode());
+    }
+
+    @Test
+    public void explicitLegacyProfileRetainsOneBasedDecimalSequence() {
+        BusinessIdDefinition legacy = BusinessIdDefinition.legacyDailySequence(
+                "legacy_order_number", "CO", "legacy_order_number");
+        DailySequenceBusinessIdProfile profile = new DailySequenceBusinessIdProfile();
+        BusinessIdPlan plan = profile.plan(new BusinessIdGenerationRequest(
+                legacy,
+                "domain-root-a",
+                "commerce_order",
+                LocalDate.of(2026, 9, 20)));
+        InMemoryBusinessIdAllocator allocator = new InMemoryBusinessIdAllocator();
+        Assert.assertEquals(
+                "CO-20260920-00000001",
+                profile.format(plan, allocator.allocate(plan)).value());
+        Assert.assertEquals(
+                "CO-20260920-00000002",
+                profile.format(plan, allocator.allocate(plan)).value());
+        Assert.assertEquals(
+                "CO-20260920-00000001",
+                profile.validate(legacy, "CO-20260920-00000001").value());
     }
 
     @Test
     public void sqliteAllocatorIsExplicitCrossInstanceAndRestartSafe() throws Exception {
         Path databasePath = Files.createTempFile("teaql-business-id", ".db");
         try {
-            BusinessIdPlan plan = new DailySequenceBusinessIdProfile().plan(
-                    new BusinessIdGenerationRequest(
-                            ORDER_NUMBER,
-                            "tenant-a",
-                            "commerce_order",
-                            LocalDate.of(2026, 9, 20)));
+            BusinessIdPlan plan = plan(LocalDate.of(2026, 9, 20));
 
             try (Connection schemaConnection = open(databasePath)) {
                 JdbcBusinessIdAllocator allocator =
@@ -179,7 +228,18 @@ public class BusinessIdRuntimeExampleTest {
             try (Connection restarted = open(databasePath)) {
                 JdbcBusinessIdAllocator allocator =
                         new JdbcBusinessIdAllocator(database(restarted));
-                Assert.assertEquals(51, allocator.allocate(plan).sequence());
+                Assert.assertEquals(50, allocator.allocate(plan).sequence());
+
+                BusinessIdDefinition legacy = BusinessIdDefinition.legacyDailySequence(
+                        "legacy_order_number", "CO", "legacy_order_number");
+                BusinessIdPlan legacyPlan = new DailySequenceBusinessIdProfile().plan(
+                        new BusinessIdGenerationRequest(
+                                legacy,
+                                "domain-root-a",
+                                "commerce_order",
+                                LocalDate.of(2026, 9, 20)));
+                Assert.assertEquals(1, allocator.allocate(legacyPlan).sequence());
+                Assert.assertEquals(2, allocator.allocate(legacyPlan).sequence());
             }
         } finally {
             Files.deleteIfExists(databasePath);
@@ -192,10 +252,7 @@ public class BusinessIdRuntimeExampleTest {
         try (Connection connection = open(databasePath)) {
             JdbcBusinessIdAllocator allocator =
                     new JdbcBusinessIdAllocator(database(connection));
-            BusinessIdPlan plan = new DailySequenceBusinessIdProfile().plan(
-                    new BusinessIdGenerationRequest(
-                            ORDER_NUMBER, "tenant-a", "commerce_order",
-                            LocalDate.of(2026, 9, 20)));
+            BusinessIdPlan plan = plan(LocalDate.of(2026, 9, 20));
 
             IllegalStateException failure = Assert.assertThrows(
                     IllegalStateException.class, () -> allocator.allocate(plan));
@@ -215,9 +272,7 @@ public class BusinessIdRuntimeExampleTest {
             JdbcBusinessIdAllocator allocator =
                     new JdbcBusinessIdAllocator(database(connection));
             LocalDate businessDate = LocalDate.of(2026, 9, 20);
-            BusinessIdPlan plan = new DailySequenceBusinessIdProfile().plan(
-                    new BusinessIdGenerationRequest(
-                            ORDER_NUMBER, "tenant-a", "commerce_order", businessDate));
+            BusinessIdPlan plan = plan(businessDate);
             UserContext context = context(businessDate, allocator);
             context.putAttribute(SchemaExecutor.class.getName(), noOpSchemaExecutor());
             context.ensureSchema();
@@ -319,11 +374,9 @@ public class BusinessIdRuntimeExampleTest {
             context.putAttribute(SchemaExecutor.class.getName(), noOpSchemaExecutor());
             context.ensureSchema();
             context.ensureSchema();
-            BusinessIdPlan plan = new DailySequenceBusinessIdProfile().plan(
-                    new BusinessIdGenerationRequest(ORDER_NUMBER, "tenant-a",
-                            "commerce_order", LocalDate.of(2026, 9, 20)));
+            BusinessIdPlan plan = plan(LocalDate.of(2026, 9, 20));
+            Assert.assertEquals(0L, allocator.allocate(plan).sequence());
             Assert.assertEquals(1L, allocator.allocate(plan).sequence());
-            Assert.assertEquals(2L, allocator.allocate(plan).sequence());
         } finally {
             Files.deleteIfExists(databasePath);
         }
@@ -355,9 +408,7 @@ public class BusinessIdRuntimeExampleTest {
         Path databasePath = Files.createTempFile("teaql-business-id-range", ".db");
         try {
             LocalDate businessDate = LocalDate.of(2026, 9, 20);
-            BusinessIdPlan plan = new DailySequenceBusinessIdProfile().plan(
-                    new BusinessIdGenerationRequest(
-                            ORDER_NUMBER, "tenant-a", "commerce_order", businessDate));
+            BusinessIdPlan plan = plan(businessDate);
             try (Connection connection = open(databasePath)) {
                 JdbcBusinessIdAllocator allocator =
                         new JdbcBusinessIdAllocator(database(connection));
@@ -411,6 +462,13 @@ public class BusinessIdRuntimeExampleTest {
 
     static UserContext context(
             LocalDate date, JdbcBusinessIdAllocator businessIdInfrastructure) {
+        return context(date, businessIdInfrastructure, true);
+    }
+
+    static UserContext context(
+            LocalDate date,
+            JdbcBusinessIdAllocator businessIdInfrastructure,
+            boolean registerKeyProvider) {
         TeaQLRuntime.Builder builder = TeaQLRuntime.builder()
                 .metadata(new EntityMetaFactory() {
                     @Override
@@ -427,6 +485,9 @@ public class BusinessIdRuntimeExampleTest {
                     }
                 })
                 .executionLogging(false);
+        if (registerKeyProvider) {
+            builder.businessIdKeyProvider(testKeyProvider());
+        }
         if (businessIdInfrastructure != null) {
             builder.businessIdInfrastructure(businessIdInfrastructure);
         }
@@ -437,6 +498,26 @@ public class BusinessIdRuntimeExampleTest {
         context.putAttribute(BusinessIdProfileFactory.class.getName(),
                 new DefaultBusinessIdProfileFactory());
         return context;
+    }
+
+    static BusinessIdPlan plan(LocalDate businessDate) {
+        return plan(businessDate, "tenant-a");
+    }
+
+    static BusinessIdPlan plan(LocalDate businessDate, String domainRootKey) {
+        UserContext context = context(businessDate);
+        return new PermutedDailyBusinessIdProfile(context, testKeyProvider()).plan(
+                new BusinessIdGenerationRequest(
+                        ORDER_NUMBER, domainRootKey, "commerce_order", businessDate));
+    }
+
+    static StaticBusinessIdKeyProvider testKeyProvider() {
+        return new StaticBusinessIdKeyProvider(new BusinessIdEncodingKey(1, new byte[] {
+                0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+                0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+                0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
+        }));
     }
 
     private static Connection open(Path path) throws SQLException {
