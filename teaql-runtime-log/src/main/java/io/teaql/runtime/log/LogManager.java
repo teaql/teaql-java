@@ -128,7 +128,7 @@ public class LogManager implements RuntimeLogSink {
                 this.currentSize.set(this.currentChannel.size());
                 calculateNextMidnight();
             } catch (Exception e) {
-                System.err.println("TeaQL LogManager Failed to initialize file channel: " + e.getMessage());
+                System.err.println("TeaQL LogManager Failed to initialize file channel: " + e.getClass().getSimpleName());
             }
         }
     }
@@ -142,7 +142,7 @@ public class LogManager implements RuntimeLogSink {
                 Thread.currentThread().interrupt();
                 break;
             } catch (Exception e) {
-                System.err.println("TeaQL LogManager Exception in worker thread: " + e.getMessage());
+                System.err.println("TeaQL LogManager Exception in worker thread: " + e.getClass().getSimpleName());
             }
         }
     }
@@ -170,7 +170,7 @@ public class LogManager implements RuntimeLogSink {
                     currentSize.addAndGet(bytes.length);
                 }
             } catch (Exception e) {
-                System.err.println("TeaQL LogManager Failed to write header: " + e.getMessage());
+                System.err.println("TeaQL LogManager Failed to write header: " + e.getClass().getSimpleName());
             } finally {
                 headerWritten = true;
             }
@@ -217,7 +217,7 @@ public class LogManager implements RuntimeLogSink {
                 currentChannel.write(ByteBuffer.wrap(bytes));
                 currentSize.addAndGet(bytes.length);
             } catch (Exception e) {
-                System.err.println("TeaQL LogManager Failed to write to log file: " + e.getMessage());
+                System.err.println("TeaQL LogManager Failed to write to log file: " + e.getClass().getSimpleName());
             }
         }
     }
@@ -244,7 +244,7 @@ public class LogManager implements RuntimeLogSink {
             }
 
         } catch (Exception e) {
-            System.err.println("TeaQL LogManager Failed to rotate log file: " + e.getMessage());
+            System.err.println("TeaQL LogManager Failed to rotate log file: " + e.getClass().getSimpleName());
         }
     }
 
@@ -263,7 +263,7 @@ public class LogManager implements RuntimeLogSink {
                 gos.finish();
                 source.delete();
             } catch (Exception e) {
-                System.err.println("TeaQL LogManager Failed to compress log file: " + e.getMessage());
+                System.err.println("TeaQL LogManager Failed to compress log file: " + e.getClass().getSimpleName());
             }
         });
     }
@@ -294,6 +294,7 @@ public class LogManager implements RuntimeLogSink {
         if (!LogConfig.getInstance().shouldLogSql(metadata.getParameterizedQuery())) {
             return;
         }
+        metadata = io.teaql.runtime.LogPrivacy.sql(metadata, io.teaql.runtime.LogPrivacy.plaintextEnabled());
         String content = LogFormatterFactory.getFormatter().formatExecutionLog(metadata);
         CustomLogSink customSink = resolveCustomSink(context);
         asyncWrite(content, customSink);
@@ -313,6 +314,19 @@ public class LogManager implements RuntimeLogSink {
         if (!LogConfig.getInstance().shouldLogAudit(event.getEntityType())) {
             return;
         }
+        boolean allow = io.teaql.runtime.LogPrivacy.plaintextEnabled();
+        java.util.List<Object> secrets = new java.util.ArrayList<>();
+        java.util.List<FieldChange> safeChanges = event.getChanges().stream().map(change -> {
+            if (allow && !io.teaql.runtime.LogPrivacy.credential(change.getField())
+                    && !io.teaql.runtime.LogPrivacy.hasCredentials(change.getOldValue())
+                    && !io.teaql.runtime.LogPrivacy.hasCredentials(change.getNewValue())) return change;
+            secrets.add(change.getOldValue()); secrets.add(change.getNewValue());
+            return new FieldChange(change.getField(),
+                    change.getOldValue() == null ? null : io.teaql.runtime.LogPrivacy.REDACTED,
+                    change.getNewValue() == null ? null : io.teaql.runtime.LogPrivacy.REDACTED);
+        }).toList();
+        event = new AuditEvent(event.getEntityType(), event.getEntityId(), event.getMutationKind(), safeChanges);
+        traceChain = io.teaql.runtime.LogPrivacy.trace(traceChain, secrets);
         String content = LogFormatterFactory.getFormatter().formatAuditLog(traceChain, event);
         CustomLogSink customSink = resolveCustomSink(context);
         asyncWrite(content, customSink);

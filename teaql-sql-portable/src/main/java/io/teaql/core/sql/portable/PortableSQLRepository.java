@@ -2024,8 +2024,10 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         return context.getBool("ensureTable", true);
     }
 
-    private void logInfo(String message) {
-        System.out.println("[SQL-PORTABLE] " + message);
+    static void logInfo(String message) {
+        // Legacy schema/bootstrap SQL may embed literal seed values. This layer
+        // has no field provenance and must not bypass the runtime log policy.
+        System.out.println("[SQL-PORTABLE] schema/bootstrap statement; SQL payload omitted");
     }
 
     protected int toIntOrZero(Object cnt) {

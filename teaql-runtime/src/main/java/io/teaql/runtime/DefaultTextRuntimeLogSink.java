@@ -26,6 +26,7 @@ public class DefaultTextRuntimeLogSink implements RuntimeLogSink {
 
     @Override
     public void writeExecutionLog(UserContext context, ExecutionMetadata metadata) {
+        metadata = LogPrivacy.sql(metadata, false);
         output.printf(
                 "[TeaQL SQL][%s][%dus] %s comment=%s purpose=%s auditReason=%s tracePath=%s%n"
                         + "Parameterized SQL: %s%n",

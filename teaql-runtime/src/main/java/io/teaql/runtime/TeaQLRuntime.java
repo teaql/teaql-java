@@ -85,7 +85,7 @@ public class TeaQLRuntime {
     public boolean isMutationExecutionLoggingEnabled() { return mutationExecutionLoggingEnabled; }
 
     public boolean requiresSensitiveSqlLogData() {
-        return logSink != null && logSink.requiresSensitiveSqlData();
+        return logSink != null && logSink.requiresSensitiveSqlData() && LogPrivacy.plaintextEnabled();
     }
 
     public RuntimeTelemetry getTelemetry() {
@@ -127,7 +127,7 @@ public class TeaQLRuntime {
 
     public void recordExecutionMetadata(UserContext context, ExecutionMetadata metadata) {
         if (logSink != null) {
-            logSink.writeExecutionLog(context, metadata);
+            logSink.writeExecutionLog(context, LogPrivacy.sql(metadata, requiresSensitiveSqlLogData()));
         }
     }
 
@@ -868,7 +868,7 @@ public class TeaQLRuntime {
         // The standard sink is server-owned by TeaQLRuntime and cannot be replaced by
         // dynamic input or an application capability registered on UserContext.
         if (logSink != null) {
-            logSink.writeAuditEvent(context, rawEvent);
+            logSink.writeAuditEvent(context, LogPrivacy.audit(rawEvent, LogPrivacy.plaintextEnabled()));
         }
 
         AppAuditEventSink appSink = context.capability(AppAuditEventSink.class);
@@ -889,11 +889,22 @@ public class TeaQLRuntime {
                 : new HashSet<>(descriptor.getAuditMaskFields());
         Integer maxLength = descriptor == null ? null : descriptor.getAuditValueMaxLength();
         List<SafeAuditField> fields = new ArrayList<>();
+        List<Object> sensitiveValues = new ArrayList<>();
+        boolean allowPlaintext = LogPrivacy.plaintextEnabled();
+        for (AuditFieldChange change : event.changes()) {
+            if ((!allowPlaintext && maskFields.contains(change.field())) || LogPrivacy.credential(change.field())
+                    || LogPrivacy.hasCredentials(change.oldValue()) || LogPrivacy.hasCredentials(change.newValue())) {
+                sensitiveValues.add(change.oldValue());
+                sensitiveValues.add(change.newValue());
+            }
+        }
         for (AuditFieldChange change : event.changes()) {
             Object value = change.newValue() != null ? change.newValue() : change.oldValue();
             String raw = value == null ? null : String.valueOf(value);
-            boolean masked = raw != null && maskFields.contains(change.field());
-            String safe = masked ? maskAuditValue(raw) : raw;
+            boolean masked = raw != null && ((!allowPlaintext && maskFields.contains(change.field()))
+                    || LogPrivacy.credential(change.field()) || LogPrivacy.hasCredentials(change.oldValue())
+                    || LogPrivacy.hasCredentials(change.newValue()));
+            String safe = masked ? LogPrivacy.REDACTED : LogPrivacy.scrub(raw, sensitiveValues);
             int rawLength = raw == null ? 0 : raw.length();
             boolean truncated = safe != null && maxLength != null && safe.length() > maxLength;
             if (truncated) safe = limitAuditValue(safe, maxLength);
@@ -903,7 +914,7 @@ public class TeaQLRuntime {
                     safe == null ? null : safe.length()));
         }
         return new SafeAuditEvent(
-                event.kind(), event.entityType(), event.entityId(), fields, event.traceChain());
+                event.kind(), event.entityType(), event.entityId(), fields, LogPrivacy.trace(event.traceChain(), sensitiveValues));
     }
 
     static String maskAuditValue(String value) {

@@ -195,7 +195,7 @@ public class TeaQLRuntimeTest {
         Assert.assertEquals(TraceKind.PROVIDER, recorded.getTraceChain().get(5).getKind());
         Assert.assertEquals(TraceKind.SQL, recorded.getTraceChain().get(6).getKind());
         Assert.assertEquals("SELECT name FROM school_data WHERE id = ?", recorded.getParameterizedQuery());
-        Assert.assertEquals("SELECT name FROM school_data WHERE id = 7", recorded.getDebugQuery());
+        Assert.assertNull(recorded.getDebugQuery());
     }
 
     public static class DummyMetaFactory implements EntityMetaFactory {
@@ -825,7 +825,7 @@ public class TeaQLRuntimeTest {
         RawAuditEvent raw = standardSink.auditEvents.get(0);
         Assert.assertEquals(MutationAuditKind.CREATED, raw.kind());
         Assert.assertEquals(Long.valueOf(700L), raw.entityId());
-        Assert.assertEquals("private-value", raw.changes().stream()
+        Assert.assertEquals("[REDACTED]", raw.changes().stream()
                 .filter(change -> "name".equals(change.field()))
                 .findFirst().orElseThrow().newValue());
         Assert.assertTrue(raw.traceChain().stream().anyMatch(node ->

@@ -23,6 +23,7 @@ public class HumanReaderFormatter implements LogFormatter {
 
     @Override
     public String formatExecutionLog(io.teaql.core.ExecutionMetadata metadata) {
+        metadata = io.teaql.runtime.LogPrivacy.sql(metadata, io.teaql.runtime.LogPrivacy.plaintextEnabled());
         String ts = LocalDateTime.now().format(TS_FORMATTER);
         String traceStr = formatTraceChain(metadata.getTraceChain());
         String traceDisplay = traceStr.isEmpty() ? "" : " - [" + traceStr + "]";
