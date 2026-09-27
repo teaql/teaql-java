@@ -33,7 +33,7 @@ public class ExecutionLogPrivacyTest {
     }
 
     @Test
-    public void explicitDiagnosticMetadataRetainsCopyPasteSql() {
+    public void diagnosticMetadataAloneDoesNotAuthorizePlaintext() {
         ExecutionMetadata metadata = metadata();
         metadata.setParameters(List.of(SECRET));
         metadata.setDebugQuery("SELECT id FROM customer_data WHERE name = '" + SECRET + "'");
@@ -41,11 +41,10 @@ public class ExecutionLogPrivacyTest {
         String human = new HumanReaderFormatter().formatExecutionLog(metadata);
         String json = new JsonReaderFormatter().formatExecutionLog(metadata);
 
-        assertTrue(human.contains("params=[" + SECRET + "]"));
-        assertTrue(human.contains("Debug SQL: SELECT id FROM customer_data WHERE name = '" + SECRET + "'"));
-        assertTrue(json.contains("\"parameters\""));
-        assertTrue(json.contains("\"debugSQL\""));
-        assertTrue(json.contains(SECRET));
+        assertFalse(human.contains(SECRET));
+        assertFalse(json.contains(SECRET));
+        assertFalse(json.contains("\"parameters\""));
+        assertFalse(json.contains("\"debugSQL\""));
     }
 
     @Test

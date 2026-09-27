@@ -59,14 +59,59 @@ public class SqliteIntegrationTest {
                 return true;
             }
         });
-        assertTrue(diagnosticLogs.stream().anyMatch(log ->
-                log.getOperation() == DataServiceOperation.QUERY
-                        && !log.getParameters().isEmpty()
-                        && log.getDebugQuery() != null));
-        assertTrue(diagnosticLogs.stream().anyMatch(log ->
-                log.getOperation() == DataServiceOperation.MUTATION
-                        && !log.getParameters().isEmpty()
-                        && log.getDebugQuery() != null));
+        // Requesting sensitive data is not authorization: the exact environment
+        // acknowledgement is also required (covered by LogPrivacyTest).
+        assertFalse(diagnosticLogs.isEmpty());
+        assertTrue(diagnosticLogs.stream().allMatch(log -> log.getParameters().isEmpty()));
+        assertTrue(diagnosticLogs.stream().allMatch(log -> log.getDebugQuery() == null));
+    }
+
+    @Test
+    public void realCrudPreservesValuesWithoutLoggingThem() throws Exception {
+        var path = java.nio.file.Files.createTempFile("teaql-privacy-crud-", ".log");
+        List<ExecutionMetadata> captured = new ArrayList<>();
+        try (var output = new java.io.PrintStream(path.toFile())) {
+            var text = new io.teaql.runtime.DefaultTextRuntimeLogSink(output);
+            RuntimeLogSink sink = new RuntimeLogSink() {
+                @Override public boolean requiresSensitiveSqlData() { return true; }
+                @Override public void writeExecutionLog(UserContext caller, ExecutionMetadata metadata) {
+                    captured.add(metadata);
+                    text.writeExecutionLog(caller, metadata);
+                }
+            };
+            var local = new DefaultUserContext(TeaQLRuntime.builder()
+                    .metadata(runtime.getMetadata())
+                    .dataService("sqlite", runtime.getRegistry().resolve("sqlite"))
+                    .idGenerationService(runtime.getIdGenerationService()).logSink(sink).build());
+            Task task = new Task();
+            task.updateTitle("PRIVATE-CREATE-CANARY");
+            task.updateStatus("PRIVACY-FIXTURE");
+            task.auditAs("create privacy fixture").save(local);
+            Task stale = new TaskRequest().filterByTitle("PRIVATE-CREATE-CANARY")
+                    .comment("read fixture").purpose("verify original values").executeForList(local).get(0);
+            assertEquals("PRIVATE-CREATE-CANARY", stale.getTitle());
+            task.updateTitle("PRIVATE-UPDATE-CANARY");
+            task.auditAs("update privacy fixture").save(local);
+            stale.updateTitle("PRIVATE-FAILURE-CANARY");
+            assertThrows(RuntimeException.class, () -> stale.auditAs("reject stale update").save(local));
+            var rows = new TaskRequest().filterByTitle("PRIVATE-UPDATE-CANARY")
+                    .comment("read updated fixture").purpose("verify failed write did not change data").executeForList(local);
+            assertEquals(1, rows.size());
+            assertEquals("PRIVATE-UPDATE-CANARY", rows.get(0).getTitle());
+            task.markForDeletion().auditAs("delete privacy fixture").save(local);
+            assertTrue(new TaskRequest().filterByTitle("PRIVATE-UPDATE-CANARY")
+                    .comment("read deleted fixture").purpose("verify deletion").executeForList(local).isEmpty());
+        }
+        assertFalse(captured.isEmpty());
+        String logs = java.nio.file.Files.readString(path);
+        assertFalse(logs.isEmpty());
+        for (var entry : captured) {
+            logs += entry.getParameterizedQuery() + " " + entry.getParameters() + " "
+                    + entry.getDebugQuery() + " " + entry.getTraceChain() + " "
+                    + entry.getComment() + " " + entry.getPurpose() + " " + entry.getAuditReason();
+        }
+        for (String marker : List.of("PRIVATE-CREATE-CANARY", "PRIVATE-UPDATE-CANARY", "PRIVATE-FAILURE-CANARY"))
+            assertFalse("sensitive marker reached log destination", logs.contains(marker));
     }
 
     private void executeLoggedQueryAndMutation(RuntimeLogSink sink) {

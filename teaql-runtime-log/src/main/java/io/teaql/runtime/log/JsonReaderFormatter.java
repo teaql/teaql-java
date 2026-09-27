@@ -23,6 +23,7 @@ public class JsonReaderFormatter implements LogFormatter {
 
     @Override
     public String formatExecutionLog(io.teaql.core.ExecutionMetadata metadata) {
+        metadata = io.teaql.runtime.LogPrivacy.sql(metadata, io.teaql.runtime.LogPrivacy.plaintextEnabled());
         String execution = String.format("{\"type\":\"EXEC_LOG\",\"tracePath\":%s,\"backend\":\"%s\",\"operation\":\"%s\",\"comment\":\"%s\",\"purpose\":\"%s\",\"auditReason\":\"%s\",\"elapsedUs\":%d,\"resultCount\":%s,\"affectedRows\":%s,\"summary\":\"%s\",\"parameterizedSQL\":\"%s\"",
                 formatTraceChain(metadata.getTraceChain()),
                 escapeJson(metadata.getBackend()),

@@ -27,12 +27,10 @@ public class TextRuntimeLogSinkTest {
     }
 
     @Test
-    public void sensitiveDiagnosticSinkExplicitlyEmitsValuesAndCopyPasteSql() {
+    public void sensitiveDiagnosticSinkWithoutAcknowledgementRemainsSafe() {
         String text = render(new SensitiveDiagnosticTextRuntimeLogSink(output()));
 
-        assertTrue(text.contains("params=[" + SECRET + "]"));
-        assertTrue(text.contains("Debug SQL: SELECT id FROM customer_data WHERE name = '"
-                + SECRET + "'"));
+        assertFalse(text.contains(SECRET));
     }
 
     @Test
@@ -56,7 +54,7 @@ public class TextRuntimeLogSinkTest {
         assertTrue(sensitive.getLogSink() instanceof SensitiveDiagnosticTextRuntimeLogSink);
         assertFalse(sensitive.isQueryExecutionLoggingEnabled());
         assertTrue(sensitive.isMutationExecutionLoggingEnabled());
-        assertTrue(sensitive.requiresSensitiveSqlLogData());
+        assertFalse(sensitive.requiresSensitiveSqlLogData());
         assertFalse(((RuntimeLogSink) (context, metadata) -> {}).requiresSensitiveSqlData());
         assertFalse(new DefaultUserContext(null).requiresSensitiveSqlLogData());
         assertFalse(new DefaultTextRuntimeLogSink(output()) {
