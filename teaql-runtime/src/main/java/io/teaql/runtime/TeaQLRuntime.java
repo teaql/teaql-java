@@ -127,7 +127,13 @@ public class TeaQLRuntime {
 
     public void recordExecutionMetadata(UserContext context, ExecutionMetadata metadata) {
         if (logSink != null) {
-            logSink.writeExecutionLog(context, LogPrivacy.sql(metadata, requiresSensitiveSqlLogData()));
+            try {
+                logSink.writeExecutionLog(context,
+                        LogPrivacy.sql(metadata, requiresSensitiveSqlLogData()));
+            } catch (RuntimeException ignored) {
+                // Diagnostics are fail-open. Never print the exception: a custom
+                // sink failure may itself contain the unmasked SQL or values.
+            }
         }
     }
 

@@ -13,9 +13,31 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Map;
 
 public class TeaQLRuntimeTest {
+
+    @Test
+    public void brokenSqlDiagnosticSinkDoesNotFailTheBusinessOperation() {
+        AtomicInteger attempts = new AtomicInteger();
+        RuntimeLogSink broken = (context, projected) -> {
+            attempts.incrementAndGet();
+            Assert.assertFalse(projected.getDebugQuery().contains("PASSWORD-CANARY"));
+            throw new IllegalStateException("LOG-SINK-FAILURE");
+        };
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new DummyMetaFactory()).logSink(broken).build();
+        DefaultUserContext context = new DefaultUserContext(runtime);
+        ExecutionMetadata metadata = new ExecutionMetadata();
+        metadata.setOperation(DataServiceOperation.QUERY);
+        metadata.setParameterizedQuery("SELECT id FROM customer WHERE password = ?");
+        metadata.setParameters(List.of("PASSWORD-CANARY"));
+
+        context.recordExecutionMetadata(metadata);
+
+        Assert.assertEquals(1, attempts.get());
+    }
 
     @Test
     public void executionLoggingDefaultsOnAndQueryMutationCanBeDisabledIndependently() {
