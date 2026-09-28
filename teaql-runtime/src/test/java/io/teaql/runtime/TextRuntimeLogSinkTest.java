@@ -15,12 +15,14 @@ public class TextRuntimeLogSinkTest {
     private static final String SECRET = "customer-secret";
 
     @Test
-    public void defaultSinkKeepsIntentAndParameterizedSqlButOmitsValues() {
+    public void defaultSinkKeepsIntentAndExpandedSqlButOmitsSensitiveValues() {
         String text = render(new DefaultTextRuntimeLogSink(output()));
 
         assertTrue(text.contains("comment=what: load customer"));
         assertTrue(text.contains("purpose=why: render profile"));
-        assertTrue(text.contains("WHERE name = ?"));
+        assertTrue(text.contains("WHERE name = '[REDACTED]' /* masked */"));
+        assertTrue(text.contains("NOT REPLAYABLE"));
+        assertFalse(text.contains("WHERE name = ?"));
         assertFalse(text.contains("params="));
         assertFalse(text.contains("Debug SQL:"));
         assertFalse(text.contains(SECRET));

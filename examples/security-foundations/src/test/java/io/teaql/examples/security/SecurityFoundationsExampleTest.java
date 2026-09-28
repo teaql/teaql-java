@@ -20,6 +20,10 @@ import java.util.Arrays;
 import org.junit.Test;
 
 public class SecurityFoundationsExampleTest {
+    @Test
+    public void sqliteMaskingLifecycle() throws Exception {
+        SqlMaskingLifecycleExample.verify();
+    }
     private static final class OrderItem extends BaseEntity {
         OrderItem(long id, long version) {
             __internalSet("id", id);

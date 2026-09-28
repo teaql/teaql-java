@@ -16,7 +16,7 @@ mvn -q -DskipTests install
 mvn -q -pl examples/business-id-runtime \
   -Dtest=BusinessIdRuntimeExampleTest test
 mvn -q -pl examples/security-foundations \
-  -Dtest=SecurityFoundationsExampleTest test
+  -Dtest=SecurityFoundationsExampleTest,SqlRelationMaskingTest test
 mvn -q -pl examples/round-trip-reference-runtime \
   -Dtest=RoundTripReferenceRuntimeExampleTest test
 mvn -q -f examples/conformance/lib/pom.xml install -DskipTests

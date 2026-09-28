@@ -904,7 +904,10 @@ public class TeaQLRuntime {
             boolean masked = raw != null && ((!allowPlaintext && maskFields.contains(change.field()))
                     || LogPrivacy.credential(change.field()) || LogPrivacy.hasCredentials(change.oldValue())
                     || LogPrivacy.hasCredentials(change.newValue()));
-            String safe = masked ? LogPrivacy.REDACTED : LogPrivacy.scrub(raw, sensitiveValues);
+            boolean credential = LogPrivacy.credential(change.field())
+                    || LogPrivacy.hasCredentials(change.oldValue()) || LogPrivacy.hasCredentials(change.newValue());
+            String safe = masked ? (credential ? LogPrivacy.REDACTED : maskAuditValue(raw))
+                    : LogPrivacy.scrub(raw, sensitiveValues);
             int rawLength = raw == null ? 0 : raw.length();
             boolean truncated = safe != null && maxLength != null && safe.length() > maxLength;
             if (truncated) safe = limitAuditValue(safe, maxLength);
@@ -919,11 +922,11 @@ public class TeaQLRuntime {
 
     static String maskAuditValue(String value) {
         if (value == null || value.isEmpty()) return value;
-        if (value.chars().allMatch(Character::isDigit)) return "*".repeat(value.length());
-        if (value.length() < 8) return "*".repeat(value.length());
-        return value.substring(0, 2)
-                + "*".repeat(value.length() - 4)
-                + value.substring(value.length() - 2);
+        int length = value.codePointCount(0, value.length());
+        if (length < 8 || value.codePoints().allMatch(c -> c >= '0' && c <= '9')) return "*".repeat(length);
+        return value.substring(0, value.offsetByCodePoints(0, 2))
+                + "*".repeat(length - 4)
+                + value.substring(value.offsetByCodePoints(0, length - 2));
     }
 
     static String limitAuditValue(String value, int maxLength) {

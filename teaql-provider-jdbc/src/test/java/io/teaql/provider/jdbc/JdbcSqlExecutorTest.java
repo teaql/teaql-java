@@ -179,6 +179,38 @@ public class JdbcSqlExecutorTest {
         assertEquals(5, total.intValue());
     }
 
+    @Test
+    public void streamingPrepareFailureClosesAcquiredConnection() throws Exception {
+        failedStreamClosesConnection("SELECT * FROM table_does_not_exist");
+    }
+
+    @Test
+    public void streamingExecuteFailureClosesAcquiredConnection() throws Exception {
+        failedStreamClosesConnection("SELECT id FROM test_user WHERE id = ?");
+    }
+
+    private void failedStreamClosesConnection(String sql) throws Exception {
+        var acquired = new ArrayList<Connection>();
+        var tracking = (DataSource) java.lang.reflect.Proxy.newProxyInstance(
+                DataSource.class.getClassLoader(), new Class<?>[]{DataSource.class}, (proxy, method, args) -> {
+                    try {
+                        var value = method.invoke(dataSource, args);
+                        if (value instanceof Connection connection) acquired.add(connection);
+                        return value;
+                    } catch (java.lang.reflect.InvocationTargetException failure) {
+                        throw failure.getCause();
+                    }
+                });
+        try {
+            org.junit.Assert.assertThrows(RuntimeException.class,
+                    () -> new JdbcSqlExecutor(tracking).queryForStream(sql, new Object[0]));
+            assertEquals(1, acquired.size());
+            assertTrue("failed stream leaked its connection", acquired.get(0).isClosed());
+        } finally {
+            for (var connection : acquired) connection.close();
+        }
+    }
+
     private static class SimpleDataSource implements DataSource {
         private final String url;
         private final String user;

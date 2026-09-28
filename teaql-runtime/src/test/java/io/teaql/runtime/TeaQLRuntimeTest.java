@@ -195,7 +195,8 @@ public class TeaQLRuntimeTest {
         Assert.assertEquals(TraceKind.PROVIDER, recorded.getTraceChain().get(5).getKind());
         Assert.assertEquals(TraceKind.SQL, recorded.getTraceChain().get(6).getKind());
         Assert.assertEquals("SELECT name FROM school_data WHERE id = ?", recorded.getParameterizedQuery());
-        Assert.assertNull(recorded.getDebugQuery());
+        Assert.assertTrue(recorded.getDebugQuery().contains("WHERE id = '[REDACTED]' /* masked */"));
+        Assert.assertFalse(recorded.getDebugQuery().contains("WHERE id = 7"));
     }
 
     public static class DummyMetaFactory implements EntityMetaFactory {
@@ -838,5 +839,6 @@ public class TeaQLRuntimeTest {
                 .findFirst().orElseThrow();
         Assert.assertTrue(safeName.masked());
         Assert.assertNotEquals("private-value", safeName.value());
+        Assert.assertEquals("pr*********ue", safeName.value());
     }
 }
