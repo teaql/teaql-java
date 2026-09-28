@@ -1046,7 +1046,6 @@ public class PortableSQLDatabaseTest {
 
         @Override
         public List<Map<String, Object>> query(String sql, Object[] args) {
-            System.out.println("[SQL-QUERY] " + sql + " | args: " + Arrays.toString(args));
             queryTrace.add(sql + " | args: " + Arrays.toString(args));
             List<Map<String, Object>> results = new ArrayList<>();
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -1094,7 +1093,6 @@ public class PortableSQLDatabaseTest {
 
         @Override
         public int executeUpdate(String sql, Object[] args) {
-            System.out.println("[SQL-UPDATE] " + sql + " | args: " + Arrays.toString(args));
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
                 for (int i = 0; i < args.length; i++) {
                     bindSqlite(stmt, i + 1, args[i]);
@@ -1107,7 +1105,6 @@ public class PortableSQLDatabaseTest {
 
         @Override
         public int[] batchUpdate(String sql, List<Object[]> batchArgs) {
-            System.out.println("[SQL-BATCH] " + sql + " | batch count: " + batchArgs.size());
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
                 for (Object[] args : batchArgs) {
                     for (int i = 0; i < args.length; i++) {
