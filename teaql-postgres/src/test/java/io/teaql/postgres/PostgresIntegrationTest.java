@@ -18,6 +18,9 @@ import org.junit.Test;
 
 import javax.sql.DataSource;
 import java.io.PrintWriter;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -25,6 +28,7 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Collections;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -348,6 +352,53 @@ public class PostgresIntegrationTest {
         version.setColumnName("version");
         version.setColumnType("BIGINT");
         return descriptor;
+    }
+
+    @Test
+    public void testLiveSqlMaskingThroughQueryAndMutation() throws Exception {
+        SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
+        SQLEntityDescriptor descriptor = new SQLEntityDescriptor();
+        descriptor.setType("Task");
+        descriptor.setTargetType(Task.class);
+        descriptor.setEntitySupplier(Task::new);
+        descriptor.setDataService("postgres");
+        descriptor.setAuditMaskFields(List.of("title"));
+        ((io.teaql.core.sql.GenericSQLProperty) descriptor.addSimpleProperty("id", Long.class)).setColumnType("BIGINT");
+        ((io.teaql.core.sql.GenericSQLProperty) descriptor.addSimpleProperty("version", Long.class)).setColumnType("BIGINT");
+        ((io.teaql.core.sql.GenericSQLProperty) descriptor.addSimpleProperty("title", String.class)).setColumnType("VARCHAR(200)");
+        ((io.teaql.core.sql.GenericSQLProperty) descriptor.addSimpleProperty("status", String.class)).setColumnType("VARCHAR(50)");
+        metadata.register(descriptor);
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (PrintStream output = new PrintStream(bytes, true, StandardCharsets.UTF_8)) {
+            TeaQLRuntime maskingRuntime = TeaQLRuntime.builder()
+                    .metadata(metadata)
+                    .dataService("postgres", new PostgresDataServiceExecutor("postgres", new JdbcSqlExecutor(dataSource)))
+                    .idGenerationService(new IdSpaceIdGenerator(new JdbcTeaQLDatabase(dataSource)))
+                    .logSink(new io.teaql.runtime.DefaultTextRuntimeLogSink(output))
+                    .build();
+            UserContext maskingContext = new DefaultUserContext(maskingRuntime);
+            maskingContext.ensureSchema();
+            String status = "1 Runtime Road " + UUID.randomUUID().toString().substring(0, 8);
+            Task task = new Task();
+            task.updateTitle("Riverside").updateStatus(status);
+            task.auditAs("what: create masked task").save(maskingContext);
+            SmartList<Task> rows = new TaskRequest().filterByTitle("Riverside")
+                    .filterByStatus(status)
+                    .comment("what: read masked task")
+                    .purpose("why: verify live-provider SQL masking")
+                    .executeForList(maskingContext);
+            assertEquals(1, rows.size());
+            assertEquals("Riverside", rows.get(0).getTitle());
+            assertEquals(status, rows.get(0).getStatus());
+        }
+        String logged = bytes.toString(StandardCharsets.UTF_8);
+        assertTrue(logged, logged.contains("INSERT"));
+        assertTrue(logged, logged.contains("SELECT"));
+        assertTrue(logged, logged.contains("Ri*****de"));
+        assertTrue(logged, logged.contains("1 Runtime Road"));
+        assertTrue(logged, logged.contains("what: read masked task"));
+        assertTrue(logged, logged.contains("why: verify live-provider SQL masking"));
+        assertFalse(logged, logged.contains("Riverside"));
     }
 
     @Test
