@@ -842,7 +842,7 @@ public class TeaQLRuntimeTest {
 
         DummyEntity entity = new DummyEntity();
         entity.updateProperty("name", "private-value");
-        entity.auditAs("create audited entity").save(context);
+        entity.auditAs("create audited entity 700").save(context);
 
         Assert.assertEquals(1, standardSink.auditEvents.size());
         RawAuditEvent raw = standardSink.auditEvents.get(0);
@@ -853,9 +853,13 @@ public class TeaQLRuntimeTest {
                 .findFirst().orElseThrow().newValue());
         Assert.assertTrue(raw.traceChain().stream().anyMatch(node ->
                 node.getKind() == TraceKind.AUDIT_REASON
-                        && "create audited entity".equals(node.getComment())));
+                        && "create audited entity [REDACTED]".equals(node.getComment())));
 
         Assert.assertEquals(1, appEvents.size());
+        Assert.assertEquals(Long.valueOf(700L), appEvents.get(0).entityId());
+        Assert.assertTrue(appEvents.get(0).traceChain().stream().anyMatch(node ->
+                node.getKind() == TraceKind.AUDIT_REASON
+                        && "create audited entity [REDACTED]".equals(node.getComment())));
         SafeAuditField safeName = appEvents.get(0).fields().stream()
                 .filter(field -> "name".equals(field.name()))
                 .findFirst().orElseThrow();

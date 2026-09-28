@@ -198,8 +198,10 @@ public final class LogPrivacy {
             return new AuditFieldChange(change.field(), change.oldValue() == null ? null : REDACTED,
                     change.newValue() == null ? null : REDACTED);
         }).toList();
+        List<Object> intentValues = new ArrayList<>(secrets);
+        if (source.entityId() != null) intentValues.add(source.entityId());
         return new RawAuditEvent(source.kind(), source.entityType(), source.entityId(), changes,
-                trace(source.traceChain(), secrets), scrub(source.actor(), secrets), source.category(),
-                scrub(source.reason(), secrets), source.resultingVersion(), source.occurredAt());
+                trace(source.traceChain(), intentValues), scrub(source.actor(), intentValues), source.category(),
+                scrub(source.reason(), intentValues), source.resultingVersion(), source.occurredAt());
     }
 }

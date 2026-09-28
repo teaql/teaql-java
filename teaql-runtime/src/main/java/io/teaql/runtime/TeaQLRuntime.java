@@ -922,8 +922,10 @@ public class TeaQLRuntime {
                     raw == null ? null : rawLength,
                     safe == null ? null : safe.length()));
         }
+        List<Object> intentValues = new ArrayList<>(sensitiveValues);
+        if (event.entityId() != null) intentValues.add(event.entityId());
         return new SafeAuditEvent(
-                event.kind(), event.entityType(), event.entityId(), fields, LogPrivacy.trace(event.traceChain(), sensitiveValues));
+                event.kind(), event.entityType(), event.entityId(), fields, LogPrivacy.trace(event.traceChain(), intentValues));
     }
 
     static String maskAuditValue(String value) {
