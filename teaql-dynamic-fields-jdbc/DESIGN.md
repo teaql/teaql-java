@@ -215,8 +215,10 @@ private void tryExecute(String ddl) {
     try {
         database.execute(ddl);
     } catch (Exception e) {
-        // 已存在，忽略
-        LOG.fine("Schema element may already exist: " + e.getMessage());
+        // best-effort：driver 异常原文可能含 SQL 字面量或连接细节，不写入日志。
+        LOG.log(Level.FINE,
+                "Dynamic field schema statement failed; continuing best-effort setup ({0})",
+                e.getClass().getSimpleName());
     }
 }
 ```
