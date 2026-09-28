@@ -28,6 +28,12 @@ public final class SqlIntentRedactions {
         }
     }
 
+    /** Keep a mutation's plain ID out of diagnostic prose without changing its SQL binding policy. */
+    @FrameworkInternal("Invocation-local SQL intent provenance only")
+    public void captureTargetId(Object id) {
+        collect(id, true);
+    }
+
     private static boolean hasCredentials(Object value) {
         if (value instanceof Map<?, ?> map) return map.entrySet().stream()
                 .anyMatch(e -> SensitiveLogNames.credential(String.valueOf(e.getKey())) || hasCredentials(e.getValue()));

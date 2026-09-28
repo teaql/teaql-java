@@ -240,10 +240,30 @@ public class SqlParameterPropagationTest {
             else f.repository.recoverInternal(f.context(), List.of(entity), intent);
             var secrets = new ArrayList<Object>();
             intent.appendTo(secrets, false);
+            assertTrue("ordinary mutation target ID must redact SQL intent", secrets.contains("77"));
             assertTrue(secrets.contains(Long.toString(version)));
             assertTrue(secrets.contains(Long.toString(version > 0 ? -4 : 4)));
+            var write = f.captured.get(f.captured.size() - 1);
+            assertNotNull("write SQL must carry invocation-local provenance", write.bindings.intentRedactions());
+            var writeSecrets = new ArrayList<Object>();
+            write.bindings.intentRedactions().appendTo(writeSecrets, false);
+            assertTrue(writeSecrets.contains("77"));
+            var metadata = new ExecutionMetadata();
+            write.bindings.applyTo(metadata);
+            metadata.setBackend("sqlite");
+            metadata.setParameterizedQuery(write.sql);
+            metadata.setParameters(Arrays.asList(write.args));
+            metadata.setAuditReason("what: mutate Customer 77");
+            metadata.setAffectedRows(1L);
+            for (boolean debug : new boolean[]{false, true}) {
+                var projected = io.teaql.runtime.LogPrivacy.sql(metadata, debug);
+                assertEquals("what: mutate Customer [REDACTED]", projected.getAuditReason());
+                assertEquals("1 rows affected", projected.getResultSummary());
+                assertTrue(projected.getDebugQuery().contains("77"));
+                assertNull(projected.getIntentRedactions());
+            }
             secrets.clear(); intent.appendTo(secrets, true);
-            assertTrue(secrets.isEmpty());
+            assertEquals(List.of("77"), secrets);
             assertThrows(TeaQLRuntimeException.class, () -> f.repository.loadPersistedById(f.context(), 77L));
             assertNull(f.captured.get(f.captured.size() - 1).bindings.intentRedactions());
         }

@@ -269,6 +269,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 sql.logBindings.generated(), sql.logBindings.diagnosticSql(), intent.copy()));
     }
 
+    private SqlLogBindings withMutationIntent(SqlLogBindings bindings, io.teaql.core.SqlIntentRedactions intent) {
+        if (intent == null) return bindings;
+        return new SqlLogBindings(bindings.policies(), bindings.generated(), bindings.diagnosticSql(), intent.copy());
+    }
+
     private PositionalSQL toPositional(String namedSql, Map<String, Object> params) {
         List<Object> args = new ArrayList<>();
         List<io.teaql.core.SqlParameterLogPolicy> policies = new ArrayList<>();
@@ -1213,6 +1218,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     void createInternal(UserContext userContext, Collection<T> createItems, io.teaql.core.SqlIntentRedactions intent) {
+        if (intent != null) createItems.forEach(item -> intent.captureTargetId(item.getId()));
         List<SQLEntity> sqlEntities = CollectionUtil.map(createItems,
                 i -> convertToSQLEntityForInsert(userContext, i), true);
         if (ObjectUtil.isEmpty(sqlEntities)) return;
@@ -1245,7 +1251,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             String sql = compiler.buildInsertSQL(this, k, columns, sqlEntity.getTraceChain());
             var bindings = logBindings(k, columns, sql, sqlEntity.getTraceChain());
             if (intent != null) for (Object[] args : v) intent.capture(bindings.policies(), args);
-            database.batchUpdate(userContext, sql, v, bindings);
+            database.batchUpdate(userContext, sql, v, withMutationIntent(bindings, intent));
         });
     }
 
@@ -1254,6 +1260,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     void updateInternal(UserContext userContext, Collection<T> updateItems, io.teaql.core.SqlIntentRedactions intent) {
+        if (intent != null) updateItems.forEach(item -> intent.captureTargetId(item.getId()));
         if (ObjectUtil.isEmpty(updateItems)) return;
         List<SQLEntity> sqlEntities = CollectionUtil.map(updateItems,
                 i -> convertToSQLEntityForUpdate(userContext, i), true);
@@ -1282,7 +1289,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 String updateSql = dialect.buildSubsidiaryInsertSql(k, columns);
                 var bindings = logBindings(k, columns);
                 if (intent != null) intent.capture(bindings.policies(), l.toArray());
-                database.executeUpdate(userContext, updateSql, l.toArray(), bindings);
+                database.executeUpdate(userContext, updateSql, l.toArray(), withMutationIntent(bindings, intent));
             });
 
             if (!versionTableUpdated.get()) {
@@ -1297,7 +1304,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         Object[] parameters = {sqlEntity.getVersion() + 1, sqlEntity.getId(), sqlEntity.getVersion()};
         var bindings = logBindings(this.versionTableName, List.of("version", "id", "version"));
         if (intent != null) intent.capture(bindings.policies(), parameters);
-        int update = database.executeUpdate(userContext, updateSql, parameters, bindings);
+        int update = database.executeUpdate(userContext, updateSql, parameters, withMutationIntent(bindings, intent));
         if (update != 1) throw new ConcurrentModifyException();
     }
 
@@ -1309,7 +1316,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         List<String> bindings = new ArrayList<>(columns); bindings.add("id");
         var policies = logBindings(k, bindings, updateSql, sqlEntity.getTraceChain());
         if (intent != null) intent.capture(policies.policies(), l.toArray());
-        int update = database.executeUpdate(userContext, updateSql, l.toArray(), policies);
+        int update = database.executeUpdate(userContext, updateSql, l.toArray(), withMutationIntent(policies, intent));
         if (update != 1) throw new TeaQLRuntimeException("primary table update failed");
     }
 
@@ -1326,7 +1333,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         List<String> bindings = new ArrayList<>(columns); bindings.add("id"); bindings.add("version");
         var policies = logBindings(k, bindings, updateSql, sqlEntity.getTraceChain());
         if (intent != null) intent.capture(policies.policies(), l.toArray());
-        int update = database.executeUpdate(userContext, updateSql, l.toArray(), policies);
+        int update = database.executeUpdate(userContext, updateSql, l.toArray(), withMutationIntent(policies, intent));
         if (update != 1) throw new ConcurrentModifyException();
     }
 
@@ -1335,6 +1342,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     void deleteInternal(UserContext userContext, Collection<T> entities, io.teaql.core.SqlIntentRedactions intent) {
+        if (intent != null) entities.forEach(item -> intent.captureTargetId(item.getId()));
         if (ObjectUtil.isEmpty(entities)) return;
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
         String updateSql = compiler.buildDeleteSQL(this, this.versionTableName);
@@ -1344,7 +1352,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 .collect(Collectors.toList());
         var bindings = logBindings(this.versionTableName, List.of("version", "id", "version"));
         if (intent != null) for (Object[] row : args) intent.capture(bindings.policies(), row);
-        int[] rets = database.batchUpdate(userContext, updateSql, args, bindings);
+        int[] rets = database.batchUpdate(userContext, updateSql, args, withMutationIntent(bindings, intent));
         for (int ret : rets) {
             if (ret != 1) throw new ConcurrentModifyException();
         }
@@ -1355,6 +1363,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     void recoverInternal(UserContext userContext, Collection<T> entities, io.teaql.core.SqlIntentRedactions intent) {
+        if (intent != null) entities.forEach(item -> intent.captureTargetId(item.getId()));
         if (ObjectUtil.isEmpty(entities)) return;
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
         String updateSql = compiler.buildDeleteSQL(this, this.versionTableName);
@@ -1364,7 +1373,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 .collect(Collectors.toList());
         var bindings = logBindings(this.versionTableName, List.of("version", "id", "version"));
         if (intent != null) for (Object[] row : args) intent.capture(bindings.policies(), row);
-        int[] rets = database.batchUpdate(userContext, updateSql, args, bindings);
+        int[] rets = database.batchUpdate(userContext, updateSql, args, withMutationIntent(bindings, intent));
         for (int ret : rets) {
             if (ret != 1) throw new ConcurrentModifyException();
         }
