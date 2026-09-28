@@ -9,6 +9,17 @@ import static org.junit.Assert.*;
 
 public class EntityDescriptorTest {
 
+    @Test
+    public void auditMaskMetadataDistinguishesMissingFromExplicitEmpty() {
+        EntityDescriptor descriptor = new EntityDescriptor();
+        assertFalse(descriptor.isAuditMaskFieldsDeclared());
+        descriptor.setAuditMaskFields(List.of());
+        assertTrue(descriptor.isAuditMaskFieldsDeclared());
+        assertTrue(descriptor.getAuditMaskFields().isEmpty());
+        descriptor.setAuditMaskFields(null);
+        assertFalse(descriptor.isAuditMaskFieldsDeclared());
+    }
+
 
     @Test
     public void testEntityDescriptorDefaultsAndLookups() {

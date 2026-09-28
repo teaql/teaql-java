@@ -59,6 +59,8 @@ public class EntityDescriptor {
 
     private List<String> auditMaskFields = new ArrayList<>();
 
+    private boolean auditMaskFieldsDeclared;
+
     private Integer auditValueMaxLength;
 
     public List<String> getAuditMaskFields() {
@@ -67,6 +69,11 @@ public class EntityDescriptor {
 
     public void setAuditMaskFields(List<String> auditMaskFields) {
         this.auditMaskFields = auditMaskFields == null ? new ArrayList<>() : new ArrayList<>(auditMaskFields);
+        this.auditMaskFieldsDeclared = auditMaskFields != null;
+    }
+
+    public boolean isAuditMaskFieldsDeclared() {
+        return auditMaskFieldsDeclared;
     }
 
     public EntityDescriptor auditMaskFields(List<String> auditMaskFields) {

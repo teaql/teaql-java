@@ -28,7 +28,8 @@ public class SqlParameterPropagationTest {
         final java.util.concurrent.atomic.AtomicInteger compilations = new java.util.concurrent.atomic.AtomicInteger();
         final java.util.concurrent.atomic.AtomicInteger loads = new java.util.concurrent.atomic.AtomicInteger();
         final java.util.concurrent.atomic.AtomicInteger aggregates = new java.util.concurrent.atomic.AtomicInteger();
-        Fixture() {
+        Fixture() { this(true); }
+        Fixture(boolean declared) {
             descriptor.setType("Customer"); descriptor.setTargetType(Customer.class);
             descriptor.setEntitySupplier(Customer::new); descriptor.setDataService("test");
             descriptor.with("table_name", "customer_data");
@@ -37,7 +38,7 @@ public class SqlParameterPropagationTest {
                         field.equals("id") || field.equals("version") ? Long.class : String.class);
                 property.setColumnType(field.equals("id") || field.equals("version") ? "BIGINT" : "VARCHAR(200)");
             }
-            descriptor.setAuditMaskFields(List.of("title"));
+            if (declared) descriptor.setAuditMaskFields(List.of("title"));
             var factory = new SimpleEntityMetaFactory(); factory.register(descriptor);
             runtime = TeaQLRuntime.builder().metadata(factory).build();
             TeaQLDatabase db = (TeaQLDatabase) Proxy.newProxyInstance(TeaQLDatabase.class.getClassLoader(),
@@ -73,6 +74,18 @@ public class SqlParameterPropagationTest {
             request.appendSearchCriteria(request.createBasicSearchCriteria(field, op, values));
             return request;
         }
+    }
+
+    @Test public void legacyMissingMaskMetadataFailsClosedUntilExplicitlyDeclared() {
+        var f = new Fixture(false);
+        assertEquals(SqlParameterLogPolicy.UNKNOWN, f.repository.parameterLogPolicy("status"));
+        assertEquals(SqlParameterLogPolicy.CREDENTIAL, f.repository.parameterLogPolicy("password"));
+        f.repository.loadInternal(f.context(), f.request("status", Operator.EQUAL, "PRIVATE-CANARY"));
+        var captured = f.captured.get(0);
+        assertEquals(SqlParameterLogPolicy.UNKNOWN,
+                captured.bindings.policies().get(Arrays.asList(captured.args).indexOf("PRIVATE-CANARY")));
+        f.descriptor.setAuditMaskFields(List.of());
+        assertEquals(SqlParameterLogPolicy.PLAIN, f.repository.parameterLogPolicy("status"));
     }
 
     @Test public void cachedAndUncachedQueriesCarryFieldPoliciesAndDerivedLikeValues() {

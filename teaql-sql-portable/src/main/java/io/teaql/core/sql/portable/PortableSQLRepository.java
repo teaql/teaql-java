@@ -2015,7 +2015,12 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 return io.teaql.core.SqlParameterLogPolicy.MASKED;
             if ("credential".equalsIgnoreCase(property.getAdditionalInfo().get("logPolicy")))
                 return io.teaql.core.SqlParameterLogPolicy.CREDENTIAL;
-            return io.teaql.core.SqlParameterLogPolicy.PLAIN;
+            if ("plain".equalsIgnoreCase(property.getAdditionalInfo().get("logPolicy")))
+                return io.teaql.core.SqlParameterLogPolicy.PLAIN;
+            EntityDescriptor owner = property.getOwner();
+            return (owner == null ? entityDescriptor : owner).isAuditMaskFieldsDeclared()
+                    ? io.teaql.core.SqlParameterLogPolicy.PLAIN
+                    : io.teaql.core.SqlParameterLogPolicy.UNKNOWN;
         }
         return io.teaql.core.SqlParameterLogPolicy.UNKNOWN;
     }
