@@ -62,6 +62,19 @@ public class LogPrivacyTest {
         assertEquals(newValue, source.changes().get(0).newValue());
     }
 
+    @Test public void allMutationKindsScrubTargetIdFromFreeTextOnly() {
+        for (MutationAuditKind kind : MutationAuditKind.values()) {
+            var source = new RawAuditEvent(kind, "Order", 1001L, List.of(),
+                    List.of(new TraceNode("change order 1001")), "operator", "mutation",
+                    "change order 1001", 2L, null);
+            var safe = LogPrivacy.audit(source, false);
+            assertEquals(kind.name(), 1001L, safe.entityId());
+            assertEquals(kind.name(), "change order [REDACTED]", safe.traceChain().get(0).getComment());
+            assertEquals(kind.name(), "change order [REDACTED]", safe.reason());
+            assertEquals(kind.name(), "change order 1001", source.reason());
+        }
+    }
+
     @Test public void projectionIsIndependentAndCredentialsStayHidden() {
         ExecutionMetadata source = entry("name", "PRIVATE-CUSTOMER-CANARY");
         ExecutionMetadata safe = LogPrivacy.sql(source, false);
