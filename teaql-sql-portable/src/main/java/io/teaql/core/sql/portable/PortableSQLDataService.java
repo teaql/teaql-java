@@ -236,6 +236,10 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
 
         io.teaql.core.internal.TempRequest parentTemp = new SqlDiagnosticRequest(parentRequest, intent);
         parentTemp.appendSearchCriteria(parentTemp.createBasicSearchCriteria(BaseEntity.ID_PROPERTY, io.teaql.core.criteria.Operator.IN, parents));
+        // This is a framework-owned lookup over the already materialized child page.
+        // A caller may project the parent without specifying a separate page size, but
+        // the distinct referenced IDs give this internal query an exact upper bound.
+        if (parentTemp.getSlice() == null) parentTemp.setSize(parents.size());
 
         SmartList<Entity> parentItems = userContext.internalExecuteForList(parentTemp);
 
