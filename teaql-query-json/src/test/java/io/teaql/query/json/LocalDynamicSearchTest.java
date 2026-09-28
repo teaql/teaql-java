@@ -96,12 +96,14 @@ public class LocalDynamicSearchTest {
     }
 
     @Test public void warningLoggingIsEnabledWithoutCallback() {
+        String fieldPath = "CLIENT_SECRET_FIELD_PATH_91";
         Logger logger = Logger.getLogger(LocalDynamicSearch.class.getName());
         AtomicInteger count = new AtomicInteger();
         Handler handler = new Handler() {
             public void publish(LogRecord record) {
                 assertFalse(record.getMessage().contains("SECRET"));
                 assertTrue(record.getMessage().contains("DYNAMIC_SEARCH_UNKNOWN_FIELD"));
+                assertTrue(record.getMessage().contains("fieldPath=<omitted>"));
                 count.incrementAndGet();
             }
             public void flush() {}
@@ -109,7 +111,9 @@ public class LocalDynamicSearchTest {
         };
         logger.addHandler(handler);
         try {
-            LocalDynamicSearch.normalize("{\"filter\":{\"removed\":\"SECRET\"}}", "School", MODELS, null);
+            var result = LocalDynamicSearch.normalize(
+                    "{\"filter\":{\"" + fieldPath + "\":\"SECRET\"}}", "School", MODELS, null);
+            assertEquals(fieldPath, result.warnings().get(0).fieldPath());
             assertEquals(1, count.get());
         } finally { logger.removeHandler(handler); }
     }

@@ -115,12 +115,11 @@ public class DynamicSearchHelper {
         warnings.add(warning);
         LOGGER.log(
                 Level.WARNING,
-                "Ignored unknown dynamic search field: code={0}, requestType={1}, clause={2}, fieldPath={3}",
+                "Ignored unknown dynamic search field: code={0}, requestType={1}, clause={2}, fieldPath=<omitted>",
                 new Object[] {
                     warning.getCode(),
                     warning.getRequestType(),
-                    warning.getClause(),
-                    warning.getFieldPath()
+                    warning.getClause()
                 });
     }
 

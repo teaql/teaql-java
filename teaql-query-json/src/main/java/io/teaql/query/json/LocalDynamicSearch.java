@@ -145,7 +145,7 @@ public final class LocalDynamicSearch {
         for (Warning warning : warnings) {
             if (warn != null) warn.accept(warning);
             else LOG.warning(() -> warning.code() + " entity=" + warning.entity()
-                    + " clause=" + warning.clause() + " fieldPath=" + warning.fieldPath());
+                    + " clause=" + warning.clause() + " fieldPath=<omitted>");
         }
     }
 
