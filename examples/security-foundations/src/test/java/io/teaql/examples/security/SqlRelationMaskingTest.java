@@ -22,7 +22,7 @@ public class SqlRelationMaskingTest {
     @Parameterized.Parameters(name = "{0}-failure={1}-transaction={2}-sensitiveSink={3}")
     public static Collection<Object[]> cases() {
         var cases = new ArrayList<Object[]>();
-        for (String shape : List.of("probe", "window", "forward", "nested", "idset", "aggregate"))
+        for (String shape : List.of("probe", "window", "forward", "nested", "idset", "aggregate", "facet"))
             for (boolean fail : List.of(false, true))
                 for (boolean tx : List.of(false, true))
                     for (boolean sensitive : List.of(false, true)) cases.add(new Object[]{shape, fail, tx, sensitive});
@@ -102,13 +102,14 @@ public class SqlRelationMaskingTest {
         c.updateProperty("parent", p); c.auditAs("seed relation child").save(context);
         var l = new Leaf(); l.updateProperty("name", "leaf payload"); l.updateProperty("child", c);
         l.auditAs("seed nested leaf").save(context);
-        boolean forward = shape.equals("forward");
+        boolean forward = shape.equals("forward") || shape.equals("facet");
         var root = forward ? new Request<>(Child.class, "MaskChild") : new Request<>(Parent.class, "MaskParent");
         root.equal("name", "Riverside").equal("password", "RELATION-PASSWORD-CANARY");
         var nested = forward ? new Request<>(Parent.class, "MaskParent") : new Request<>(Child.class, "MaskChild");
         nested.topNProbeParentThreshold(shape.equals("window") ? 0 : 32);
         if (shape.equals("nested")) nested.enhanceRelation("leaves", new Request<>(Leaf.class, "MaskLeaf"));
-        root.enhanceRelation(forward ? "parent" : "children", nested);
+        if (shape.equals("facet")) root.addFacet("parentFacet", "parent", nested, true);
+        else root.enhanceRelation(forward ? "parent" : "children", nested);
         if (shape.equals("aggregate")) {
             root.enhanceRelations().clear();
             nested.count("count"); nested.setPartitionProperty("parent");
@@ -131,6 +132,11 @@ public class SqlRelationMaskingTest {
             assertEquals(1, rows.size());
             assertEquals("Riverside", rows.get(0).getProperty("name"));
             if (shape.equals("aggregate")) assertEquals(1, ((Number) rows.get(0).getProperty("childCount")).intValue());
+            else if (shape.equals("facet")) {
+                SmartList<Entity> parents = rows.getFacet("parentFacet");
+                assertEquals(1, parents.size());
+                assertEquals("Riverside", parents.get(0).getProperty("name"));
+            }
             else if (forward) {
                 Entity loadedParent = rows.get(0).getProperty("parent");
                 assertEquals("Riverside", loadedParent.getProperty("name"));
@@ -147,7 +153,9 @@ public class SqlRelationMaskingTest {
         };
         Runnable run = transaction ? () -> provider.executeInTransaction(context, () -> { execute.run(); return null; }) : execute;
         if (fail) assertThrows(RuntimeException.class, run::run); else run.run();
-        assertEquals(shape.equals("nested") && !fail ? 3 : 2, logs.size());
+        // A facet first logs its grouped query, then loads the related rows. The injected
+        // failure is in that final related-row query, so all three attempts are visible.
+        assertEquals(shape.equals("facet") || (shape.equals("nested") && !fail) ? 3 : 2, logs.size());
         boolean debug = sensitiveSink && LogPrivacy.plaintextEnabled();
         String name = debug ? "Riverside" : "[REDACTED]";
         for (var entry : logs) {
