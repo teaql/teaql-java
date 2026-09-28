@@ -2160,9 +2160,9 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     static void logInfo(String message) {
-        // Legacy schema/bootstrap SQL may embed literal seed values. This layer
-        // has no field provenance and must not bypass the runtime log policy.
-        System.out.println("[SQL-PORTABLE] schema/bootstrap statement; SQL payload omitted");
+        // The runtime database adapter owns schema diagnostics and applies the
+        // mutation-family logging switch plus safe projection. This legacy hook
+        // must not write directly to stdout, even when its payload is omitted.
     }
 
     protected int toIntOrZero(Object cnt) {

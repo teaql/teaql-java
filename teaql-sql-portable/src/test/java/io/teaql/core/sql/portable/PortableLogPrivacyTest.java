@@ -6,7 +6,7 @@ import java.io.PrintStream;
 import org.junit.Test;
 
 public class PortableLogPrivacyTest {
-    @Test public void legacyBootstrapLoggerNeverPrintsLiteralSeedValues() {
+    @Test public void legacyBootstrapLoggerDoesNotBypassRuntimeLogSwitch() {
         var original = System.out;
         var bytes = new ByteArrayOutputStream();
         try (var output = new PrintStream(bytes)) {
@@ -16,8 +16,6 @@ public class PortableLogPrivacyTest {
             System.setOut(original);
         }
         String text = bytes.toString(java.nio.charset.StandardCharsets.UTF_8);
-        assertTrue(text.contains("SQL-PORTABLE"));
-        assertFalse(text.contains("PRIVATE-SEED-CANARY"));
-        assertFalse(text.contains("INSERT"));
+        assertEquals("Schema diagnostics belong to the governed runtime adapter", "", text);
     }
 }

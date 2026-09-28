@@ -86,6 +86,7 @@ public class SqlFailureMaskingTest {
     @Test public void typedFailure() throws Exception { failure("typed", true, false); }
     @Test public void updateFailure() throws Exception { failure("update", true, false); }
     @Test public void ddlFailure() throws Exception { failure("ddl", true, false); }
+    @Test public void ddlDisabled() throws Exception { failure("ddl", false, false); }
     @Test public void queryDisabled() throws Exception { failure("query", false, false); }
     @Test public void updateDisabled() throws Exception { failure("update", false, false); }
     @Test public void queryBrokenSink() throws Exception { failure("query", true, true); }
