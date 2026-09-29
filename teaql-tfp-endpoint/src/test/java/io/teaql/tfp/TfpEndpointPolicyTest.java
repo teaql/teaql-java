@@ -9,18 +9,26 @@ import io.teaql.core.BaseRequest;
 import io.teaql.core.DataServiceCapabilities;
 import io.teaql.core.FunctionApply;
 import io.teaql.core.MutationExecutor;
-import io.teaql.core.MutationRequest;
+import io.teaql.core.MutationDecision;
+import io.teaql.core.MutationPlan;
+import io.teaql.core.MutationPolicy;
+import io.teaql.core.MutationPolicyIdentity;
+import io.teaql.core.MutationPolicyRegistry;
+import io.teaql.core.PersistenceMutation;
 import io.teaql.core.MutationResult;
 import io.teaql.core.QueryExecutor;
 import io.teaql.core.QueryRequest;
 import io.teaql.core.QueryResult;
 import io.teaql.core.SmartList;
+import io.teaql.core.TeaQLRuntimeException;
 import io.teaql.core.UserContext;
 import io.teaql.core.meta.EntityDescriptor;
 import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
+import io.teaql.core.DefaultMutationResult;
 import io.teaql.runtime.DefaultQueryResult;
 import io.teaql.runtime.DefaultUserContext;
+import io.teaql.runtime.EntityPersistenceMutation;
 import io.teaql.runtime.TeaQLRuntime;
 import io.teaql.core.criteria.Operator;
 import java.util.Map;
@@ -30,12 +38,14 @@ import org.junit.Test;
 
 public class TfpEndpointPolicyTest {
     private QueryRequest capturedQuery;
-    private MutationRequest capturedMutation;
+    private PersistenceMutation capturedMutation;
     private UserContext context;
+    private DefaultUserContext mutationContext;
+    private SimpleEntityMetaFactory metadata;
 
     @Before
     public void metadata() {
-        SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
+        metadata = new SimpleEntityMetaFactory();
         EntityDescriptor descriptor = new EntityDescriptor();
         descriptor.setType("Probe"); descriptor.setTargetType(Probe.class);
         descriptor.addSimpleProperty("id", Long.class);
@@ -45,7 +55,8 @@ public class TfpEndpointPolicyTest {
         status.setType("ProbeStatus"); status.setTargetType(ProbeStatus.class);
         metadata.register(status);
         EntityMetaFactory.registerGlobal(null);
-        context = context(metadata);
+        context = context(metadata, MutationPolicyRegistry.empty());
+        mutationContext = (DefaultUserContext) context;
     }
 
     @Test
@@ -87,16 +98,41 @@ public class TfpEndpointPolicyTest {
     @Test
     public void updateLoadsIdentityAndExpectedVersionWithoutJacksonSetters() throws Exception {
         TfpEndpointHandler handler = handler();
-        handler.handleMutation(context, trusted(), ("{\"entity\":\"Probe\",\"action\":\"Update\","
+        handler.handleMutation(mutationContext, trusted(), ("{\"entity\":\"Probe\",\"action\":\"Update\"," 
                 + "\"id\":42,\"expectedVersion\":3,\"payload\":{\"status\":\"PAID\"},"
                 + "\"comment\":\"cross-language update\"}").getBytes());
 
-        io.teaql.runtime.DefaultMutationRequest request =
-                (io.teaql.runtime.DefaultMutationRequest) capturedMutation;
+        io.teaql.runtime.EntityPersistenceMutation request =
+                (io.teaql.runtime.EntityPersistenceMutation) capturedMutation;
         Probe entity = (Probe) request.getEntity();
         org.junit.Assert.assertEquals(Long.valueOf(42), entity.getId());
         org.junit.Assert.assertEquals(Long.valueOf(3), entity.getVersion());
         org.junit.Assert.assertEquals("PAID", entity.getStatus());
+    }
+
+    @Test
+    public void mutationCannotBypassRuntimeMutationPolicy() {
+        capturedMutation = null;
+        MutationPolicy denying = new MutationPolicy() {
+            @Override public MutationPolicyIdentity identity() {
+                return new MutationPolicyIdentity("tfp.probe", "1", "sha256:deny");
+            }
+            @Override public MutationDecision review(UserContext context, MutationPlan plan) {
+                return MutationDecision.deny(
+                        "TFP-POLICY-DENIED", "federated mutation denied", java.util.List.of());
+            }
+        };
+        TfpEndpointHandler handler = handler(key -> java.util.Optional.of(denying));
+
+        TeaQLRuntimeException error = assertThrows(TeaQLRuntimeException.class,
+                () -> handler.handleMutation(mutationContext, trusted(),
+                        ("{\"entity\":\"Probe\",\"action\":\"Update\","
+                                + "\"id\":42,\"expectedVersion\":3,"
+                                + "\"payload\":{\"status\":\"PAID\"},"
+                                + "\"comment\":\"must be governed\"}").getBytes()));
+
+        org.junit.Assert.assertTrue(error.getMessage().contains("TFP-POLICY-DENIED"));
+        org.junit.Assert.assertNull(capturedMutation);
     }
 
     @Test
@@ -202,12 +238,12 @@ public class TfpEndpointPolicyTest {
                 alternateRequest.getFacetRequests().get(0).getRequest().returnType());
 
         handler.handleMutation(alternateContext, trusted(),
-                "{\"entity\":\"Probe\",\"action\":\"Create\","
+                "{\"entity\":\"Probe\",\"action\":\"Create\"," 
                         .concat("\"payload\":{\"status\":\"NEW\"},\"comment\":\"create probe\"}")
                         .getBytes());
         org.junit.Assert.assertEquals(
                 AlternateProbe.class,
-                ((io.teaql.runtime.DefaultMutationRequest) capturedMutation)
+                ((io.teaql.runtime.EntityPersistenceMutation) capturedMutation)
                         .getEntity().getClass());
 
         handler.handleQuery(context, trusted(), query("id"));
@@ -217,6 +253,10 @@ public class TfpEndpointPolicyTest {
     }
 
     private TfpEndpointHandler handler() {
+        return handler(MutationPolicyRegistry.empty());
+    }
+
+    private TfpEndpointHandler handler(MutationPolicyRegistry mutationPolicies) {
         QueryExecutor query = new QueryExecutor() {
             public QueryResult query(io.teaql.core.UserContext c, QueryRequest request) {
                 capturedQuery = request; return new DefaultQueryResult(new SmartList<>());
@@ -224,18 +264,34 @@ public class TfpEndpointPolicyTest {
             public String name() { return "test"; }
             public DataServiceCapabilities capabilities() { return new DataServiceCapabilities(); }
         };
-        MutationExecutor mutation = new MutationExecutor() {
-            public MutationResult mutate(io.teaql.core.UserContext c, MutationRequest request) {
-                capturedMutation = request; return null;
+        mutationContext = (DefaultUserContext) context(metadata, mutationPolicies);
+        context = mutationContext;
+        return new TfpEndpointHandler(query, new ObjectMapper());
+    }
+
+    private MutationExecutor mutationExecutor() {
+        return new MutationExecutor() {
+            public MutationResult mutate(io.teaql.core.UserContext c, PersistenceMutation request) {
+                capturedMutation = request;
+                return new DefaultMutationResult(((EntityPersistenceMutation) request).getEntity());
             }
             public String name() { return "test"; }
             public DataServiceCapabilities capabilities() { return new DataServiceCapabilities(); }
         };
-        return new TfpEndpointHandler(query, mutation, new ObjectMapper());
     }
 
     private UserContext context(SimpleEntityMetaFactory metadata) {
-        return new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata).build());
+        return context(metadata, MutationPolicyRegistry.empty());
+    }
+
+    private UserContext context(
+            SimpleEntityMetaFactory metadata, MutationPolicyRegistry mutationPolicies) {
+        return new DefaultUserContext(TeaQLRuntime.builder()
+                .metadata(metadata)
+                .dataService("default", mutationExecutor())
+                .mutationPolicyRegistry(mutationPolicies)
+                .idGenerationService((userContext, entity) -> 1000L)
+                .build());
     }
 
     private byte[] query(String field) {
@@ -268,6 +324,13 @@ public class TfpEndpointPolicyTest {
         public String typeName() { return "Probe"; }
         public String getStatus() { return status; }
         public void setStatus(String value) { status = value; }
+        @Override public void __internalSet(String property, Object value) {
+            if ("status".equals(property)) status = (String) value;
+            else super.__internalSet(property, value);
+        }
+        @Override public Object __internalGet(String property) {
+            return "status".equals(property) ? status : super.__internalGet(property);
+        }
     }
     public static final class ProbeStatus extends BaseEntity {
         public String typeName() { return "ProbeStatus"; }

@@ -22,7 +22,9 @@ import java.util.stream.Stream;
 public class TeaQLRuntime {
     private final EntityMetaFactory metadata;
     private final DataServiceRegistry registry;
-    private final RequestPolicy requestPolicy;
+    private final QueryPolicy queryPolicy;
+    private final MutationPolicyRegistry mutationPolicyRegistry;
+    private final MutationPolicyApprovalProvider mutationPolicyApprovalProvider;
     private final InternalIdGenerationService idGenerationService;
     private final RuntimeLogSink logSink;
     private final boolean queryExecutionLoggingEnabled;
@@ -37,11 +39,15 @@ public class TeaQLRuntime {
     private final Map<String, Checker<?>> checkers = new java.util.concurrent.ConcurrentHashMap<>();
     private final List<GeneratedSchemaBootstrap> generatedBootstraps =
             new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final Set<String> emittedMutationGovernanceWarnings =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private TeaQLRuntime(Builder builder) {
         this.metadata = builder.metadata;
         this.registry = builder.registry != null ? builder.registry : new DefaultDataServiceRegistry();
-        this.requestPolicy = builder.requestPolicy;
+        this.queryPolicy = builder.queryPolicy;
+        this.mutationPolicyRegistry = builder.mutationPolicyRegistry;
+        this.mutationPolicyApprovalProvider = builder.mutationPolicyApprovalProvider;
         this.idGenerationService = builder.idGenerationService;
         this.logSink = builder.logSink;
         this.queryExecutionLoggingEnabled = builder.queryExecutionLoggingEnabled;
@@ -69,8 +75,16 @@ public class TeaQLRuntime {
         return registry;
     }
 
-    public RequestPolicy getRequestPolicy() {
-        return requestPolicy;
+    public QueryPolicy getQueryPolicy() {
+        return queryPolicy;
+    }
+
+    public MutationPolicyRegistry getMutationPolicyRegistry() {
+        return mutationPolicyRegistry;
+    }
+
+    public MutationPolicyApprovalProvider getMutationPolicyApprovalProvider() {
+        return mutationPolicyApprovalProvider;
     }
 
     public InternalIdGenerationService getIdGenerationService() {
@@ -156,8 +170,8 @@ public class TeaQLRuntime {
             throw new TeaQLRuntimeException("[PURPOSE REQUIRED] Missing .purpose() on query execution.");
         }
         enforceMaterializedLimit(request, request.hardLimit());
-        if (requestPolicy != null) {
-            requestPolicy.enforceSelect(context, request);
+        if (queryPolicy != null) {
+            queryPolicy.enforceSelect(context, request);
         }
         boolean pushedComment = false;
         boolean pushedPurpose = false;
@@ -297,8 +311,8 @@ public class TeaQLRuntime {
                     "[INTERNAL QUERY CONTEXT REQUIRED] Nested query has no authorized root trace.");
         }
         enforceMaterializedLimit(request, SearchRequest.DEFAULT_HARD_LIMIT);
-        if (requestPolicy != null) {
-            requestPolicy.enforceSelect(context, request);
+        if (queryPolicy != null) {
+            queryPolicy.enforceSelect(context, request);
         }
         context.pushTrace(TraceKind.RELATION, request.getTypeName(), request.getTypeName());
         try {
@@ -370,8 +384,8 @@ public class TeaQLRuntime {
         if (request.purpose() == null || request.purpose().trim().isEmpty()) {
             throw new TeaQLRuntimeException("[PURPOSE REQUIRED] Missing .purpose() on aggregation.");
         }
-        if (requestPolicy != null) {
-            requestPolicy.enforceSelect(context, request);
+        if (queryPolicy != null) {
+            queryPolicy.enforceSelect(context, request);
         }
         boolean pushedComment = false;
         boolean pushedPurpose = false;
@@ -487,14 +501,17 @@ public class TeaQLRuntime {
                     new PersistenceState(
                             value.getVersion(), value.get$status(),
                             value.isPropertyLoaded(BaseEntity.VERSION_PROPERTY))));
+            MutationPlan mutationPlan = buildMutationPlan(entity, entityMutationLedger, realEntities);
+            MutationGovernanceSnapshot governance = reviewMutationPlan(context, mutationPlan);
             List<PendingMutation> completed;
             try {
                 if (mutationExecutor instanceof TransactionExecutor transactionExecutor) {
                     completed = transactionExecutor.executeInTransaction(context, () ->
-                            executeLedgerPlan(context, entityMutationLedger, mutationExecutor, realEntities));
+                            executeLedgerPlan(context, entityMutationLedger, mutationExecutor,
+                                    realEntities, governance));
                 } else {
                     completed = executeLedgerPlan(
-                            context, entityMutationLedger, mutationExecutor, realEntities);
+                            context, entityMutationLedger, mutationExecutor, realEntities, governance);
                 }
             } catch (RuntimeException | Error failure) {
                 restoreGraphPersistenceState(
@@ -677,11 +694,121 @@ public class TeaQLRuntime {
         return existing;
     }
 
+    private MutationPlan buildMutationPlan(
+            Entity rootEntity,
+            EntityMutationLedger ledger,
+            Map<EntityKey, BaseEntity> realEntities) {
+        EntityChangeSet changeSet = ledger.currentChangeSet();
+        Set<EntityKey> deleted = ledger.deletedKeys();
+        Set<EntityKey> created = ledger.newKeys();
+        Set<EntityKey> keys = new TreeSet<>();
+        keys.addAll(changeSet.changes().keySet());
+        keys.addAll(deleted);
+
+        List<MutationOperation> operations = new ArrayList<>();
+        for (EntityKey key : keys) {
+            BaseEntity target = realEntities.get(key);
+            MutationOperationKind kind;
+            Map<String, Object> changes;
+            if (deleted.contains(key)) {
+                kind = MutationOperationKind.DELETE;
+                changes = Map.of();
+            } else {
+                changes = changeSet.changes().getOrDefault(key, Map.of());
+                if (created.contains(key) || key.id() == null) {
+                    kind = MutationOperationKind.CREATE;
+                } else if (target != null && target.recoverItem()) {
+                    kind = MutationOperationKind.RECOVER;
+                } else {
+                    kind = MutationOperationKind.UPDATE;
+                }
+            }
+            Long originalVersion = ledger.getOriginalVersion(key);
+            if (originalVersion == null && target != null) originalVersion = target.getVersion();
+            operations.add(new MutationOperation(kind, key, originalVersion, changes));
+        }
+        return new MutationPlan(
+                UUID.randomUUID().toString(),
+                rootEntity.typeName() + ".saveGraph",
+                rootEntity.typeName(),
+                rootEntity.getComment(),
+                operations);
+    }
+
+    private MutationGovernanceSnapshot reviewMutationPlan(
+            UserContext context, MutationPlan plan) {
+        Optional<MutationPolicy> resolved = mutationPolicyRegistry.resolve(plan.requestKey());
+        MutationPolicySource source;
+        MutationPolicyIdentity identity = null;
+        MutationPolicyApprovalStatus approvalStatus;
+        List<String> warnings = new ArrayList<>();
+
+        if (resolved.isEmpty()) {
+            source = MutationPolicySource.GENERATED_DEFAULT;
+            approvalStatus = MutationPolicyApprovalStatus.NOT_APPLICABLE;
+            warnings.add("MUTATION-POLICY-001");
+        } else {
+            source = MutationPolicySource.CUSTOMER;
+            MutationPolicy policy = resolved.get();
+            identity = Objects.requireNonNull(policy.identity(), "MutationPolicy.identity()");
+            MutationDecision decision = Objects.requireNonNull(
+                    policy.review(context, plan), "MutationPolicy.review()");
+            if (!decision.allowed()) {
+                throw new TeaQLRuntimeException(
+                        "[MUTATION POLICY DENIED] " + decision.code() + ": "
+                                + (decision.message() == null ? "mutation rejected" : decision.message()));
+            }
+            boolean approved = mutationPolicyApprovalProvider.findApproval(identity)
+                    .map(MutationPolicyApproval::policy)
+                    .filter(identity::equals)
+                    .isPresent();
+            approvalStatus = approved
+                    ? MutationPolicyApprovalStatus.APPROVED
+                    : MutationPolicyApprovalStatus.MISSING;
+            if (!approved) warnings.add("MUTATION-POLICY-002");
+        }
+
+        List<MutationOperationSummary> operationSummaries = plan.operations().stream()
+                .map(operation -> new MutationOperationSummary(
+                        operation.kind(),
+                        operation.entity(),
+                        new ArrayList<>(operation.changedValues().keySet())))
+                .toList();
+        MutationGovernanceSnapshot snapshot = new MutationGovernanceSnapshot(
+                plan.executionId(), plan.requestKey(), source, identity, approvalStatus,
+                warnings, operationSummaries);
+        for (String warning : warnings) {
+            emitMutationGovernanceWarning(context, snapshot, warning);
+        }
+        return snapshot;
+    }
+
+    private void emitMutationGovernanceWarning(
+            UserContext context,
+            MutationGovernanceSnapshot snapshot,
+            String warningCode) {
+        if (logSink == null) return;
+        String identity = snapshot.policy() == null
+                ? "none"
+                : snapshot.policy().id() + ":" + snapshot.policy().version()
+                        + ":" + snapshot.policy().fingerprint();
+        boolean first = emittedMutationGovernanceWarnings.add(
+                snapshot.requestKey() + "|" + identity + "|" + warningCode);
+        try {
+            logSink.writeMutationGovernanceEvent(
+                    context, new MutationGovernanceEvent(snapshot, warningCode, first));
+        } catch (RuntimeException | Error ignored) {
+            // Governance-warning delivery is fail-open. The retained audit
+            // event still contains the complete snapshot.
+        }
+    }
+
     private List<PendingMutation> executeLedgerPlan(
             UserContext context,
             EntityMutationLedger root,
             MutationExecutor mutationExecutor,
-            Map<EntityKey, BaseEntity> realEntities) {
+            Map<EntityKey, BaseEntity> realEntities,
+            MutationGovernanceSnapshot governance) {
         List<PendingMutation> completed = new ArrayList<>();
         EntityChangeSet changeSet = root.currentChangeSet();
         Set<EntityKey> deletedKeys = root.deletedKeys();
@@ -705,13 +832,13 @@ public class TeaQLRuntime {
             deleteEntity.markForDeletion();
             if (root.getComment() != null) deleteEntity.setComment(root.getComment());
 
-            DefaultMutationRequest mutationRequest = new DefaultMutationRequest(
-                deleteEntity, DefaultMutationRequest.Action.DELETE);
+            EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
+                deleteEntity, EntityPersistenceMutation.Action.DELETE);
             MutationResult result = mutateWithTelemetry(context, mutationExecutor, mutationRequest,
                     key.entity(), "delete");
             completed.add(new PendingMutation(
                     descriptor, target == null ? deleteEntity : target, result,
-                    MutationAuditKind.DELETED, Collections.emptyMap()));
+                    MutationAuditKind.DELETED, Collections.emptyMap(), governance));
         }
 
         // 2. Group changes
@@ -753,13 +880,13 @@ public class TeaQLRuntime {
                 }
                 if (root.getComment() != null) entity.setComment(root.getComment());
 
-                DefaultMutationRequest mutationRequest = new DefaultMutationRequest(
-                    entity, DefaultMutationRequest.Action.SAVE);
+                EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
+                    entity, EntityPersistenceMutation.Action.SAVE);
                 MutationResult result = mutateWithTelemetry(context, mutationExecutor, mutationRequest,
                         entityName, "save");
                 completed.add(new PendingMutation(
                         descriptor, target == null ? entity : target, result,
-                        MutationAuditKind.CREATED, snapshotChanges(changes)));
+                        MutationAuditKind.CREATED, snapshotChanges(changes), governance));
             }
         }
 
@@ -788,8 +915,8 @@ public class TeaQLRuntime {
                 entity.set$status(io.teaql.core.EntityStatus.UPDATED);
                 if (root.getComment() != null) entity.setComment(root.getComment());
 
-                DefaultMutationRequest mutationRequest = new DefaultMutationRequest(
-                    entity, DefaultMutationRequest.Action.SAVE);
+                EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
+                    entity, EntityPersistenceMutation.Action.SAVE);
                 MutationAuditKind auditKind = target != null && target.recoverItem()
                         ? MutationAuditKind.RECOVERED
                         : MutationAuditKind.UPDATED;
@@ -797,7 +924,7 @@ public class TeaQLRuntime {
                         entityName, auditKind.name().toLowerCase(Locale.ROOT));
                 completed.add(new PendingMutation(
                         descriptor, target == null ? entity : target, result,
-                        auditKind, snapshotChanges(changes)));
+                        auditKind, snapshotChanges(changes), governance));
             }
         }
         return completed;
@@ -807,7 +934,8 @@ public class TeaQLRuntime {
         for (PendingMutation mutation : completed) {
             applyPersistedEntity(mutation.descriptor(), mutation.target(), mutation.result());
             emitAuditEvent(
-                    context, mutation.target(), mutation.auditKind(), mutation.changedValues());
+                    context, mutation.target(), mutation.auditKind(), mutation.changedValues(),
+                    mutation.governance());
             mutation.target().clearUpdatedProperties();
         }
     }
@@ -830,7 +958,8 @@ public class TeaQLRuntime {
             BaseEntity target,
             MutationResult result,
             MutationAuditKind auditKind,
-            Map<String, Object> changedValues) {}
+            Map<String, Object> changedValues,
+            MutationGovernanceSnapshot governance) {}
 
     private record PersistenceState(
             Long version, io.teaql.core.EntityStatus status, boolean versionLoaded) {}
@@ -873,7 +1002,7 @@ public class TeaQLRuntime {
     private MutationResult mutateWithTelemetry(
             UserContext context,
             MutationExecutor executor,
-            MutationRequest request,
+            PersistenceMutation mutation,
             String entityType,
             String operation) {
         String provider = executor.getClass().getSimpleName();
@@ -883,7 +1012,7 @@ public class TeaQLRuntime {
                         "teaql.provider.operation", operation,
                         "teaql.entity.type", entityType)));
         try {
-            MutationResult result = executor.mutate(context, request);
+            MutationResult result = executor.mutate(context, mutation);
             scope.success();
             return result;
         } catch (RuntimeException | Error error) {
@@ -896,7 +1025,8 @@ public class TeaQLRuntime {
             UserContext context,
             Entity entity,
             MutationAuditKind kind,
-            Map<String, Object> changedValues) {
+            Map<String, Object> changedValues,
+            MutationGovernanceSnapshot governance) {
         List<AuditFieldChange> changes = new ArrayList<>();
         if (changedValues != null) {
             for (Map.Entry<String, Object> entry : changedValues.entrySet()) {
@@ -915,7 +1045,8 @@ public class TeaQLRuntime {
                 context.getAttribute(GeneratedSchemaBootstrap.AUDIT_CATEGORY_ATTRIBUTE, String.class),
                 entity.getComment(),
                 entity.getVersion(),
-                java.time.Instant.now());
+                java.time.Instant.now(),
+                governance);
 
         RuntimeTelemetry.Scope telemetryScope = RuntimeTelemetry.startSafely(telemetry,
                 new RuntimeTelemetry.Operation("audit", entity.typeName() + ".audit", Map.of(
@@ -978,7 +1109,8 @@ public class TeaQLRuntime {
         List<Object> intentValues = new ArrayList<>(sensitiveValues);
         if (event.entityId() != null) intentValues.add(event.entityId());
         return new SafeAuditEvent(
-                event.kind(), event.entityType(), event.entityId(), fields, LogPrivacy.trace(event.traceChain(), intentValues));
+                event.kind(), event.entityType(), event.entityId(), fields,
+                LogPrivacy.trace(event.traceChain(), intentValues), event.governance());
     }
 
     static String maskAuditValue(String value) {
@@ -1002,7 +1134,10 @@ public class TeaQLRuntime {
     public static class Builder {
         private EntityMetaFactory metadata;
         private DataServiceRegistry registry = new DefaultDataServiceRegistry();
-        private RequestPolicy requestPolicy;
+        private QueryPolicy queryPolicy;
+        private MutationPolicyRegistry mutationPolicyRegistry = MutationPolicyRegistry.empty();
+        private MutationPolicyApprovalProvider mutationPolicyApprovalProvider =
+                MutationPolicyApprovalProvider.none();
         private InternalIdGenerationService idGenerationService;
         private RuntimeLogSink logSink = new DefaultTextRuntimeLogSink();
         // Operation logging is default-on, while the default sink deliberately
@@ -1038,8 +1173,20 @@ public class TeaQLRuntime {
             return this;
         }
 
-        public Builder requestPolicy(RequestPolicy requestPolicy) {
-            this.requestPolicy = requestPolicy;
+        public Builder queryPolicy(QueryPolicy queryPolicy) {
+            this.queryPolicy = queryPolicy;
+            return this;
+        }
+
+        public Builder mutationPolicyRegistry(MutationPolicyRegistry mutationPolicyRegistry) {
+            this.mutationPolicyRegistry = Objects.requireNonNull(mutationPolicyRegistry);
+            return this;
+        }
+
+        public Builder mutationPolicyApprovalProvider(
+                MutationPolicyApprovalProvider mutationPolicyApprovalProvider) {
+            this.mutationPolicyApprovalProvider =
+                    Objects.requireNonNull(mutationPolicyApprovalProvider);
             return this;
         }
 

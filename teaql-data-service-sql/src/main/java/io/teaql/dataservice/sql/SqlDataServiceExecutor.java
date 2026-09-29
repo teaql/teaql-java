@@ -3,7 +3,7 @@ package io.teaql.dataservice.sql;
 import io.teaql.core.UserContext;
 import io.teaql.core.DataServiceCapabilities;
 import io.teaql.core.MutationExecutor;
-import io.teaql.core.MutationRequest;
+import io.teaql.core.PersistenceMutation;
 import io.teaql.core.MutationResult;
 import io.teaql.core.QueryExecutor;
 import io.teaql.core.QueryRequest;
@@ -71,7 +71,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
     }
 
     @Override
-    public MutationResult mutate(UserContext context, MutationRequest request) {
+    public MutationResult mutate(UserContext context, PersistenceMutation request) {
         return getPortableService(context).mutate(context, request);
     }
 

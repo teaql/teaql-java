@@ -16,4 +16,11 @@ public interface RuntimeLogSink {
     }
 
     default void writeAuditEvent(UserContext context, RawAuditEvent event) {}
+
+    /**
+     * Receives structured mutation-governance evidence. Implementations should
+     * print warnings only when {@code firstOccurrence} is true.
+     */
+    default void writeMutationGovernanceEvent(
+            UserContext context, MutationGovernanceEvent event) {}
 }

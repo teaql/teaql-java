@@ -14,7 +14,8 @@ public record RawAuditEvent(
         String category,
         String reason,
         Long resultingVersion,
-        Instant occurredAt) {
+        Instant occurredAt,
+        MutationGovernanceSnapshot governance) {
 
     public RawAuditEvent {
         changes = List.copyOf(changes == null ? List.of() : changes);

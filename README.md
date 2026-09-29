@@ -51,8 +51,8 @@ TeaQL applies five safeguards to application operations:
    which carries identity, trace, and runtime capabilities.
 2. **Declared intent** — reads require `.comment(...).purpose(...)`; writes use
    `.auditAs(...)` before an execution terminal becomes available.
-3. **Policy gates** — `RequestPolicy` can inspect or reject select, insert,
-   update, delete, and recover operations.
+3. **Policy gates** — `QueryPolicy` reviews reads; `MutationPolicy` reviews one
+   immutable graph-level `MutationPlan` before the first provider write.
 4. **Explicit capabilities** — optional operations such as HTTP tools, dynamic
    fields, and business ID generation are supplied through dedicated modules and
    registered runtime capabilities.
@@ -110,9 +110,10 @@ Mutations declare an audit action:
 task.auditAs("Move task to Done").save(userContext);
 ```
 
-Applications can replace runtime services such as `RequestPolicy`,
-`RuntimeLogSink`, `DataServiceRegistry`, `InternalIdGenerationService`, and
-`EntityMetaFactory` in their integration layer.
+Applications can replace runtime services such as `QueryPolicy`, the
+`MutationPolicyRegistry`, `MutationPolicyApprovalProvider`, `RuntimeLogSink`,
+`DataServiceRegistry`, `InternalIdGenerationService`, and `EntityMetaFactory`
+in their integration layer.
 
 Query and Mutation execution logs are enabled by default. The built-in default
 sink is safe for ordinary operator output: it includes intent, trace, elapsed

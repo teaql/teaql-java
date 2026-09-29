@@ -75,18 +75,18 @@ public class MemoryDataService implements DataServiceExecutor, QueryExecutor, Mu
     }
 
     @Override
-    public MutationResult mutate(UserContext context, MutationRequest request) {
-        if (!(request instanceof DefaultMutationRequest)) {
-            throw new TeaQLRuntimeException("Unsupported MutationRequest in MemoryDataService");
+    public MutationResult mutate(UserContext context, PersistenceMutation request) {
+        if (!(request instanceof EntityPersistenceMutation)) {
+            throw new TeaQLRuntimeException("Unsupported PersistenceMutation in MemoryDataService");
         }
-        DefaultMutationRequest mutation = (DefaultMutationRequest) request;
+        EntityPersistenceMutation mutation = (EntityPersistenceMutation) request;
         Entity entity = mutation.getEntity();
         String typeName = entity.typeName();
         TypeStorage storage = database.computeIfAbsent(typeName, k -> new TypeStorage(maxEntriesPerType));
 
         storage.lock.writeLock().lock();
         try {
-            if (mutation.getAction() == DefaultMutationRequest.Action.SAVE) {
+            if (mutation.getAction() == EntityPersistenceMutation.Action.SAVE) {
                 if (entity.getId() == null) {
                     throw new TeaQLRuntimeException("Entity ID must be allocated before save");
                 }
@@ -95,7 +95,7 @@ public class MemoryDataService implements DataServiceExecutor, QueryExecutor, Mu
                 if (entity instanceof BaseEntity) {
                     ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);
                 }
-            } else if (mutation.getAction() == DefaultMutationRequest.Action.DELETE) {
+            } else if (mutation.getAction() == EntityPersistenceMutation.Action.DELETE) {
                 storage.data.remove(entity.getId());
                 if (entity instanceof BaseEntity) {
                     ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);

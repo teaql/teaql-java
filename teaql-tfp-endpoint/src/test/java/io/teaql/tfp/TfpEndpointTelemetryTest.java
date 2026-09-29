@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.teaql.core.BaseEntity;
 import io.teaql.core.DataServiceCapabilities;
 import io.teaql.core.MutationExecutor;
-import io.teaql.core.MutationRequest;
+import io.teaql.core.PersistenceMutation;
 import io.teaql.core.MutationResult;
 import io.teaql.core.QueryExecutor;
 import io.teaql.core.QueryRequest;
@@ -18,8 +18,10 @@ import io.teaql.core.UserContext;
 import io.teaql.core.meta.EntityDescriptor;
 import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
+import io.teaql.core.DefaultMutationResult;
 import io.teaql.runtime.DefaultQueryResult;
 import io.teaql.runtime.DefaultUserContext;
+import io.teaql.runtime.EntityPersistenceMutation;
 import io.teaql.runtime.RuntimeTelemetry;
 import io.teaql.runtime.TeaQLRuntime;
 import java.util.ArrayList;
@@ -41,7 +43,11 @@ public class TfpEndpointTelemetryTest {
         descriptor.setTargetType(Probe.class);
         metadata.register(descriptor);
         EntityMetaFactory.registerGlobal(null);
-        context = new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata).build());
+        context = new DefaultUserContext(TeaQLRuntime.builder()
+                .metadata(metadata)
+                .dataService("default", mutationExecutor())
+                .idGenerationService((userContext, entity) -> 77L)
+                .build());
     }
 
     @Test
@@ -50,7 +56,7 @@ public class TfpEndpointTelemetryTest {
         rows.add(new Probe());
         TfpEndpointHandler handler = new TfpEndpointHandler(
                 queryExecutor(request -> new DefaultQueryResult(rows)),
-                mutationExecutor(), new ObjectMapper(), telemetry);
+                new ObjectMapper(), telemetry);
 
         Map<String, Object> response = handler.handleQuery(context, trusted(),
                 queryPayload().getBytes());
@@ -67,7 +73,7 @@ public class TfpEndpointTelemetryTest {
         IllegalStateException original = new IllegalStateException("provider failed");
         TfpEndpointHandler handler = new TfpEndpointHandler(
                 queryExecutor(request -> { throw original; }),
-                mutationExecutor(), new ObjectMapper(), telemetry);
+                new ObjectMapper(), telemetry);
 
         IllegalStateException thrown = assertThrows(IllegalStateException.class,
                 () -> handler.handleQuery(context, trusted(), queryPayload().getBytes()));
@@ -80,7 +86,7 @@ public class TfpEndpointTelemetryTest {
     public void recordsServerMutationLifecycle() throws Exception {
         TfpEndpointHandler handler = new TfpEndpointHandler(
                 queryExecutor(request -> new DefaultQueryResult(new SmartList<>())),
-                mutationExecutor(), new ObjectMapper(), telemetry);
+                new ObjectMapper(), telemetry);
 
         handler.handleMutation(context, trusted(),
                 "{\"entity\":\"Probe\",\"action\":\"Create\",\"payload\":{},\"comment\":\"create probe\"}".getBytes());
@@ -96,7 +102,7 @@ public class TfpEndpointTelemetryTest {
         telemetry.expectedCarrier = Map.of("TraceParent", "00-trace-span-01");
         TfpEndpointHandler handler = new TfpEndpointHandler(
                 queryExecutor(request -> new DefaultQueryResult(new SmartList<>())),
-                mutationExecutor(), new ObjectMapper(), telemetry);
+                new ObjectMapper(), telemetry);
 
         handler.handleQuery(context, trusted(), queryPayload().getBytes(),
                 telemetry.expectedCarrier);
@@ -140,8 +146,9 @@ public class TfpEndpointTelemetryTest {
     private static MutationExecutor mutationExecutor() {
         return new MutationExecutor() {
             @Override
-            public MutationResult mutate(io.teaql.core.UserContext context, MutationRequest request) {
-                return null;
+            public MutationResult mutate(io.teaql.core.UserContext context, PersistenceMutation request) {
+                return new DefaultMutationResult(
+                        ((EntityPersistenceMutation) request).getEntity());
             }
 
             @Override

@@ -91,7 +91,8 @@ Core request-model concepts:
 
 ```text
 SearchRequest
-MutationRequest
+MutationPlan
+PersistenceMutation
 AggregationRequest
 Criteria
 Expression
@@ -113,7 +114,8 @@ TransactionExecutor
 SchemaExecutor
 DataServiceCapabilities
 ExecutionMetadata
-RequestPolicy
+QueryPolicy
+MutationPolicy
 InternalIdGenerationService
 RuntimeLogSink
 TransactionCallback
@@ -310,7 +312,8 @@ These interfaces and contracts belong in `teaql-core`:
 
 ```text
 UserContext
-RequestPolicy
+QueryPolicy
+MutationPolicy
 InternalIdGenerationService
 DataServiceRegistry
 DataServiceExecutor
@@ -398,7 +401,7 @@ It accepts and returns TeaQL concepts:
 
 ```text
 QueryRequest
-MutationRequest
+PersistenceMutation
 AggregationRequest
 SchemaRequest
 TransactionCallback
@@ -532,7 +535,7 @@ public interface QueryExecutor extends DataServiceExecutor {
 
 ```java
 public interface MutationExecutor extends DataServiceExecutor {
-    MutationResult mutate(UserContext ctx, MutationRequest request);
+    MutationResult mutate(UserContext ctx, PersistenceMutation mutation);
 }
 ```
 
@@ -682,7 +685,7 @@ TeaQLRuntime runtime = TeaQLRuntime.builder()
     .metadata(entityMetaFactory)
     .dataService("sql", sqlDataService)
     .dataService("memory", memoryDataService)
-    .requestPolicy(new PurposeRequestPolicy())
+    .queryPolicy(new PurposeQueryPolicy())
     .logSink(LogManager.getInstance())
     .build();
 
@@ -832,7 +835,7 @@ Target module layout:
 teaql-core
   TeaQL world model and runtime contracts.
   Includes Bean, Entity, EntityProperty, Relation, metadata descriptors,
-  request models, UserContext, RequestPolicy, Data Service contracts,
+  request models, UserContext, QueryPolicy, MutationPolicy, Data Service contracts,
   InternalIdGenerationService, transaction contracts, and execution log contracts.
   No Spring, JDBC, SQL dialect, Android, GraphQL, web rendering, or concrete backend implementation.
 
