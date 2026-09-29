@@ -49,6 +49,11 @@ public class TfpEndpointPolicyTest {
         EntityDescriptor descriptor = new EntityDescriptor();
         descriptor.setType("Probe"); descriptor.setTargetType(Probe.class);
         descriptor.addSimpleProperty("id", Long.class);
+        descriptor.withEntitySupplier(() -> {
+            Probe probe = new Probe();
+            probe.factoryCreated = true;
+            return probe;
+        });
         descriptor.addSimpleProperty("status", String.class);
         metadata.register(descriptor);
         EntityDescriptor status = new EntityDescriptor();
@@ -105,6 +110,7 @@ public class TfpEndpointPolicyTest {
         io.teaql.runtime.EntityPersistenceMutation request =
                 (io.teaql.runtime.EntityPersistenceMutation) capturedMutation;
         Probe entity = (Probe) request.getEntity();
+        org.junit.Assert.assertTrue(entity.factoryCreated);
         org.junit.Assert.assertEquals(Long.valueOf(42), entity.getId());
         org.junit.Assert.assertEquals(Long.valueOf(3), entity.getVersion());
         org.junit.Assert.assertEquals("PAID", entity.getStatus());
@@ -321,6 +327,7 @@ public class TfpEndpointPolicyTest {
     private interface Throwing { void run() throws Exception; }
     public static final class Probe extends BaseEntity {
         private String status;
+        private boolean factoryCreated;
         public String typeName() { return "Probe"; }
         public String getStatus() { return status; }
         public void setStatus(String value) { status = value; }

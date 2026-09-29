@@ -318,7 +318,7 @@ public class TfpEndpointHandler {
             throw new IllegalArgumentException("Unknown entity: " + entityName);
         }
 
-        Entity entity = descriptor.getTargetType().getDeclaredConstructor().newInstance();
+        Entity entity = descriptor.createEntity();
         java.util.Iterator<Map.Entry<String, JsonNode>> mutationFields =
                 mappedPayload.fields();
         while (mutationFields.hasNext()) {
