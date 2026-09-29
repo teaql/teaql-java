@@ -7,7 +7,7 @@ import java.io.PrintStream;
 import java.util.List;
 import java.util.stream.IntStream;
 
-/** Default operator log. It deliberately excludes bind values and rendered Debug SQL. */
+/** Default operator log, showing safe expanded SQL rather than a separate bind array. */
 public class DefaultTextRuntimeLogSink implements RuntimeLogSink {
     protected final PrintStream output;
 
@@ -28,13 +28,14 @@ public class DefaultTextRuntimeLogSink implements RuntimeLogSink {
     public void writeExecutionLog(UserContext context, ExecutionMetadata metadata) {
         metadata = LogPrivacy.sql(metadata, false);
         output.printf(
-                "[TeaQL SQL][%s][%dus] %s comment=%s purpose=%s auditReason=%s tracePath=%s%n"
-                        + "Parameterized SQL: %s%n",
+                "[TeaQL SQL][%s][%dus] %s outcome=%s comment=%s purpose=%s auditReason=%s tracePath=%s%n"
+                        + "SQL: %s%n",
                 metadata.getOperation() == null ? "unknown" : metadata.getOperation().name().toLowerCase(),
                 metadata.getElapsedUs(), resultSummary(metadata),
+                metadata.getExecutionOutcome() == null ? "unknown" : metadata.getExecutionOutcome(),
                 nullToEmpty(metadata.getComment()), nullToEmpty(metadata.getPurpose()),
                 nullToEmpty(metadata.getAuditReason()), formatTrace(metadata.getTraceChain()),
-                nullToEmpty(metadata.getParameterizedQuery()));
+                nullToEmpty(metadata.getDebugQuery()));
     }
 
     protected static String formatTrace(List<TraceNode> nodes) {

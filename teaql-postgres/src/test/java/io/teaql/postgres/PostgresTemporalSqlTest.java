@@ -12,8 +12,13 @@ public class PostgresTemporalSqlTest {
     @Test
     public void preparedAndDiagnosticSqlAreEquivalent() throws Exception {
         String url = System.getenv("TEAQL_TEST_POSTGRES_URL");
-        Assume.assumeTrue(url != null && !url.isBlank());
-        try (Connection connection = DriverManager.getConnection(url)) {
+        String user = System.getenv("TEAQL_TEST_POSTGRES_USER");
+        String password = System.getenv("TEAQL_TEST_POSTGRES_PASSWORD");
+        boolean configured = url != null && !url.isBlank() && user != null && password != null;
+        if (!configured && Boolean.parseBoolean(System.getenv("TEAQL_REQUIRE_LIVE_DB")))
+            fail("PostgreSQL temporal live gate requires URL, USER, and PASSWORD environment variables");
+        Assume.assumeTrue(configured);
+        try (Connection connection = DriverManager.getConnection(url, user, password)) {
             run(connection, "DROP TABLE IF EXISTS teaql_temporal_java_fixture");
             run(connection, "CREATE TABLE teaql_temporal_java_fixture(id INTEGER, d DATE, local_time TIMESTAMP(3))");
             String sql = "INSERT INTO teaql_temporal_java_fixture VALUES (?, ?, ?) /* ignored ? */";

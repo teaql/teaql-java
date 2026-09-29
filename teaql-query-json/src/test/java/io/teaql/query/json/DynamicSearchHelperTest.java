@@ -9,9 +9,41 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.teaql.core.BaseRequest;
 import io.teaql.core.Entity;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import org.junit.Test;
 
 public class DynamicSearchHelperTest {
+
+    @Test
+    public void legacyWarningDefaultLogOmitsUntrustedPathButRetainsStructuredWarning() {
+        String fieldPath = "CLIENT_SECRET_FIELD_PATH_91";
+        Logger logger = Logger.getLogger(DynamicSearchHelper.class.getName());
+        AtomicInteger count = new AtomicInteger();
+        Handler handler = new Handler() {
+            @Override public void publish(LogRecord record) {
+                String message = java.text.MessageFormat.format(record.getMessage(), record.getParameters());
+                assertTrue(message.contains("DYNAMIC_SEARCH_UNKNOWN_FIELD"));
+                assertTrue(message.contains("fieldPath=<omitted>"));
+                assertTrue(!message.contains(fieldPath));
+                assertTrue(!message.contains("SECRET_VALUE_99"));
+                count.incrementAndGet();
+            }
+            @Override public void flush() {}
+            @Override public void close() {}
+        };
+        logger.addHandler(handler);
+        try {
+            StubRequest request = new StubRequest("Order");
+            new DynamicSearchHelper().mergeClauses(request,
+                    DynamicSearchHelper.jsonFromString(
+                            "{\"" + fieldPath + "\":\"SECRET_VALUE_99\"}"));
+            assertWarning(request, "FILTER", fieldPath);
+            assertEquals(1, count.get());
+        } finally { logger.removeHandler(handler); }
+    }
 
     @Test
     public void invalidPayloadPreservesExistingQueryAndWarnings() {

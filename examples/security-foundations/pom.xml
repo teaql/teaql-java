@@ -14,6 +14,11 @@
     <dependencies>
         <dependency>
             <groupId>io.teaql</groupId>
+            <artifactId>teaql-sqlite</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.teaql</groupId>
             <artifactId>teaql-runtime</artifactId>
         </dependency>
         <dependency>

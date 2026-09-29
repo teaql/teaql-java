@@ -37,15 +37,49 @@ import static org.junit.Assert.*;
 public class SqliteIntegrationTest {
 
     @Test
-    public void ordinarySqlLogsSkipSensitivePayloadConstruction() {
+    public void realSqliteFailureRetainsSafeIntentAndRecoversAfterSchemaInitialization() throws Exception {
+        var logs = new ArrayList<ExecutionMetadata>();
+        var ds = new SimpleDataSource("jdbc:sqlite:" + java.nio.file.Files.createTempFile("teaql-failed-query-", ".db"), "", "");
+        var provider = new SqliteDataServiceExecutor("sqlite", new JdbcSqlExecutor(ds), ds);
+        var local = new DefaultUserContext(TeaQLRuntime.builder().metadata(runtime.getMetadata())
+                .dataService("sqlite", provider).idGenerationService(runtime.getIdGenerationService())
+                .logSink((caller, metadata) -> logs.add(metadata)).build());
+        assertThrows(RuntimeException.class, () -> new TaskRequest().filterByTitle("PRIVATE-QUERY-CANARY")
+                .comment("read absent table").purpose("verify driver failure evidence").executeForList(local));
+        var failures = logs.stream().filter(log -> "failure".equals(log.getExecutionOutcome())).toList();
+        assertEquals(1, failures.size());
+        var failure = failures.get(0);
+        assertNull(failure.getResultCount());
+        assertNull(failure.getAffectedRows());
+        assertEquals("read absent table", failure.getComment());
+        assertEquals("verify driver failure evidence", failure.getPurpose());
+        assertTrue(failure.getDebugQuery().contains("NOT REPLAYABLE"));
+        assertFalse(failure.getDebugQuery().contains("PRIVATE-QUERY-CANARY"));
+        local.ensureSchema();
+        var task = new Task();
+        task.updateTitle("PRIVATE-QUERY-CANARY");
+        task.updateStatus("RECOVERED");
+        task.auditAs("verify same runtime can recover").save(local);
+        var rows = new TaskRequest().filterByTitle("PRIVATE-QUERY-CANARY")
+                .comment("read initialized table").purpose("verify original data retained").executeForList(local);
+        assertEquals(1, rows.size());
+        assertEquals("PRIVATE-QUERY-CANARY", rows.get(0).getTitle());
+        assertTrue(logs.stream().anyMatch(log -> "success".equals(log.getExecutionOutcome())));
+        assertTrue(logs.stream().noneMatch(log -> String.valueOf(log.getDebugQuery()).contains("PRIVATE-QUERY-CANARY")));
+    }
+
+    @Test
+    public void ordinarySqlLogsExpandSafeBindingsWithoutEarlyPlaintextSql() {
         List<ExecutionMetadata> safeLogs = new ArrayList<>();
         RuntimeLogSink safeSink = (context, metadata) -> safeLogs.add(metadata);
         executeLoggedQueryAndMutation(safeSink);
         assertTrue(safeLogs.stream().anyMatch(log -> log.getOperation() == DataServiceOperation.QUERY));
         assertTrue(safeLogs.stream().anyMatch(log -> log.getOperation() == DataServiceOperation.MUTATION));
         assertTrue(safeLogs.stream().allMatch(log -> log.getParameterizedQuery() != null));
-        assertTrue(safeLogs.stream().allMatch(log -> log.getParameters().isEmpty()));
-        assertTrue(safeLogs.stream().allMatch(log -> log.getDebugQuery() == null));
+        assertTrue(safeLogs.stream().allMatch(log -> !log.getParameters().isEmpty()));
+        assertTrue(safeLogs.stream().allMatch(log -> log.getDebugQuery() != null && log.getSqlOmissionReason() == null));
+        assertTrue(safeLogs.stream().allMatch(log -> !log.getDebugQuery().contains("diagnostic-payload-check")));
+        assertTrue(safeLogs.stream().anyMatch(log -> log.getDebugQuery().contains("'LOG-CHECK'")));
 
         List<ExecutionMetadata> diagnosticLogs = new ArrayList<>();
         executeLoggedQueryAndMutation(new RuntimeLogSink() {
@@ -62,8 +96,8 @@ public class SqliteIntegrationTest {
         // Requesting sensitive data is not authorization: the exact environment
         // acknowledgement is also required (covered by LogPrivacyTest).
         assertFalse(diagnosticLogs.isEmpty());
-        assertTrue(diagnosticLogs.stream().allMatch(log -> log.getParameters().isEmpty()));
-        assertTrue(diagnosticLogs.stream().allMatch(log -> log.getDebugQuery() == null));
+        assertTrue(diagnosticLogs.stream().allMatch(log -> log.getDebugQuery() != null));
+        assertTrue(diagnosticLogs.stream().allMatch(log -> !log.getDebugQuery().contains("diagnostic-payload-check")));
     }
 
     @Test
@@ -263,7 +297,7 @@ public class SqliteIntegrationTest {
     @BeforeClass
     public static void setup() throws Exception {
         // Use embedded sqlite
-        String url = "jdbc:sqlite:teaql_test.db";
+        String url = "jdbc:sqlite:" + java.nio.file.Files.createTempFile("teaql-sqlite-regression-", ".db");
         String user = "";
         String password = "";
 
@@ -274,6 +308,7 @@ public class SqliteIntegrationTest {
         taskDescriptor.setTargetType(Task.class);
         taskDescriptor.setEntitySupplier(Task::new);
         taskDescriptor.setDataService("sqlite");
+        taskDescriptor.setAuditMaskFields(List.of("title"));
 
         io.teaql.core.sql.GenericSQLProperty idProp = (io.teaql.core.sql.GenericSQLProperty) taskDescriptor.addSimpleProperty("id", Long.class);
         idProp.setColumnType("BIGINT");

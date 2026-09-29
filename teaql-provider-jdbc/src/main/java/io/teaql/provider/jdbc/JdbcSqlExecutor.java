@@ -54,16 +54,17 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
 
     @Override
     public Stream<Map<String, Object>> queryForStream(String sql, Object[] params) {
+        StreamResources resources = new StreamResources();
         try {
-            Connection connection = openConnection();
-            PreparedStatement ps = connection.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+            Connection connection = resources.connection = openConnection();
+            PreparedStatement ps = resources.statement = connection.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
             ps.setFetchSize(200);
             if (params != null) {
                 for (int i = 0; i < params.length; i++) {
                     bind(ps, i + 1, params[i]);
                 }
             }
-            ResultSet rs = ps.executeQuery();
+            ResultSet rs = resources.resultSet = ps.executeQuery();
             String[] columnLabels = columnLabels(rs);
             java.util.Iterator<Map<String, Object>> iterator = new java.util.Iterator<>() {
                 private boolean ready;
@@ -76,11 +77,11 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                             hasNext = rs.next();
                             ready = true;
                         } catch (SQLException e) {
-                            closeResources(rs, ps, connection);
+                            resources.close();
                             throw new RuntimeException(e);
                         }
                     }
-                    if (!hasNext) closeResources(rs, ps, connection);
+                    if (!hasNext) resources.close();
                     return hasNext;
                 }
 
@@ -95,22 +96,36 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                         }
                         return row;
                     } catch (SQLException e) {
-                        closeResources(rs, ps, connection);
+                        resources.close();
                         throw new RuntimeException(e);
                     }
                 }
             };
             return java.util.stream.StreamSupport.stream(java.util.Spliterators.spliteratorUnknownSize(iterator, java.util.Spliterator.ORDERED), false)
-                    .onClose(() -> closeResources(rs, ps, connection));
+                    .onClose(resources::close);
         } catch (SQLException e) {
+            resources.close();
             throw new RuntimeException("JDBC streaming query failed", e);
+        } catch (RuntimeException | Error failure) {
+            resources.close();
+            throw failure;
         }
     }
 
-    private static void closeResources(ResultSet resultSet, PreparedStatement statement, Connection connection) {
-        try { resultSet.close(); } catch (SQLException ignored) { }
-        try { statement.close(); } catch (SQLException ignored) { }
-        try { connection.close(); } catch (SQLException ignored) { }
+    private static final class StreamResources {
+        private Connection connection;
+        private PreparedStatement statement;
+        private ResultSet resultSet;
+        private boolean closed;
+
+        private void close() {
+            if (closed) return;
+            closed = true;
+            // Retain the adapter's existing best-effort cleanup policy, including partially acquired resources.
+            try { if (resultSet != null) resultSet.close(); } catch (SQLException ignored) { }
+            try { if (statement != null) statement.close(); } catch (SQLException ignored) { }
+            try { if (connection != null) connection.close(); } catch (SQLException ignored) { }
+        }
     }
 
     @Override

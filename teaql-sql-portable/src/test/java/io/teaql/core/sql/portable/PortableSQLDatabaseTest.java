@@ -242,6 +242,36 @@ public class PortableSQLDatabaseTest {
         }
     }
 
+    @Test
+    public void forwardRelationWithoutItsOwnSliceUsesReferencedIdBound() throws Exception {
+        RelationRuntime fixture = relationRuntime("parent", 31L);
+        TopNChildRequest child = new TopNChildRequest();
+        child.selectProperty("id");
+        child.selectProperty("version");
+        child.selectProperty("name");
+        child.selectProperty("parent");
+        child.top(10);
+        TopNParentRequest parent = new TopNParentRequest();
+        parent.selectProperty("id");
+        parent.selectProperty("version");
+        parent.selectProperty("name");
+        parent.unlimited(); // Generated forward helpers use this relation-local form.
+        assertNull("the relation request itself is deliberately unbounded", parent.getSlice());
+        child.enhanceRelation("parent", parent);
+
+        SmartList<TopNChild> rows = child
+                .comment("load a bounded child page and its referenced parent")
+                .purpose("verify internal forward lookup has a derived bound")
+                .executeForList(fixture.context());
+
+        assertEquals(1, rows.size());
+        TopNParent loadedParent = rows.get(0).getProperty("parent");
+        assertNotNull(loadedParent);
+        assertEquals(1L, loadedParent.getId().longValue());
+        assertEquals("parent", loadedParent.getProperty("name"));
+        assertNull("the caller's nested request must remain unchanged", parent.getSlice());
+    }
+
     private static RelationRuntime relationRuntime(String foreignKeyColumn, long childId)
             throws Exception {
         SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
@@ -1016,7 +1046,6 @@ public class PortableSQLDatabaseTest {
 
         @Override
         public List<Map<String, Object>> query(String sql, Object[] args) {
-            System.out.println("[SQL-QUERY] " + sql + " | args: " + Arrays.toString(args));
             queryTrace.add(sql + " | args: " + Arrays.toString(args));
             List<Map<String, Object>> results = new ArrayList<>();
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -1064,7 +1093,6 @@ public class PortableSQLDatabaseTest {
 
         @Override
         public int executeUpdate(String sql, Object[] args) {
-            System.out.println("[SQL-UPDATE] " + sql + " | args: " + Arrays.toString(args));
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
                 for (int i = 0; i < args.length; i++) {
                     bindSqlite(stmt, i + 1, args[i]);
@@ -1077,7 +1105,6 @@ public class PortableSQLDatabaseTest {
 
         @Override
         public int[] batchUpdate(String sql, List<Object[]> batchArgs) {
-            System.out.println("[SQL-BATCH] " + sql + " | batch count: " + batchArgs.size());
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
                 for (Object[] args : batchArgs) {
                     for (int i = 0; i < args.length; i++) {

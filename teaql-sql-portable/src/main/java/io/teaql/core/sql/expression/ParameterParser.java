@@ -30,7 +30,11 @@ public class ParameterParser implements SQLExpressionParser<Parameter> {
         if (operator != null) {
             value = fixValue(operator, parameter.getValue());
         }
-        parameters.put(key, value);
+        var policy = parameters instanceof io.teaql.core.sql.SqlParameters tracked
+                ? tracked.currentPolicy() : io.teaql.core.SqlParameterLogPolicy.UNKNOWN;
+        if (io.teaql.core.utils.SensitiveLogNames.credential(parameter.getName()))
+            policy = io.teaql.core.SqlParameterLogPolicy.CREDENTIAL;
+        io.teaql.core.sql.SqlParameters.bind(parameters, key, value, policy);
         return StrUtil.format(":{}", key);
     }
 

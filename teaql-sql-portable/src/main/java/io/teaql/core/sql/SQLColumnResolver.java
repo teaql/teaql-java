@@ -10,6 +10,10 @@ import io.teaql.core.sql.expression.SQLExpressionParser;
 
 public interface SQLColumnResolver {
 
+    default io.teaql.core.SqlParameterLogPolicy parameterLogPolicy(String property) {
+        return io.teaql.core.SqlParameterLogPolicy.UNKNOWN;
+    }
+
     default SQLColumn getPropertyColumn(String idTable, String property) {
         return CollUtil.getFirst(getPropertyColumns(idTable, property));
     }

@@ -9,6 +9,12 @@ import io.teaql.core.sql.SQLColumnResolver;
 
 
 public class ExpressionHelper {
+    private static final java.util.Set<Class<?>> BUILTIN = java.util.Set.of(
+            ANDExpressionParser.class, AggrExpressionParser.class, BetweenParser.class,
+            FunctionApplyParser.class, NOTExpressionParser.class, NamedExpressionParser.class,
+            ORExpressionParser.class, OneOperatorExpressionParser.class, OrderByExpressionParser.class,
+            OrderBysParser.class, ParameterParser.class, PropertyParser.class, SubQueryParser.class,
+            TwoOperatorExpressionParser.class, TypeCriteriaParser.class, VersionSearchCriteriaParser.class);
 
     public static String toSql(
             UserContext userContext,
@@ -41,6 +47,7 @@ public class ExpressionHelper {
             return null;
         }
         if (expression instanceof SQLExpressionParser) {
+            if (parameters instanceof io.teaql.core.sql.SqlParameters tracked) tracked.untrusted();
             return ((SQLExpressionParser) expression)
                     .toSql(userContext, expression, idTable, parameters, columnResolver);
         }
@@ -58,6 +65,27 @@ public class ExpressionHelper {
         if (parser == null) {
             throw new TeaQLRuntimeException("no parse for expression type:" + expression.getClass());
         }
-        return parser.toSql(userContext, expression, idTable, parameters, columnResolver);
+        if (!(parameters instanceof io.teaql.core.sql.SqlParameters tracked))
+            return parser.toSql(userContext, expression, idTable, parameters, columnResolver);
+        if (!BUILTIN.contains(parser.getClass())) tracked.untrusted();
+        var previous = tracked.currentPolicy();
+        try {
+            if (expression instanceof io.teaql.core.criteria.TwoOperatorCriteria
+                    || expression instanceof io.teaql.core.criteria.Between) {
+                var properties = expression.properties(userContext);
+                var policy = io.teaql.core.SqlParameterLogPolicy.PLAIN;
+                if (properties == null || properties.isEmpty()) policy = io.teaql.core.SqlParameterLogPolicy.UNKNOWN;
+                else for (String property : properties) {
+                    var candidate = columnResolver.parameterLogPolicy(property);
+                    if (rank(candidate) > rank(policy)) policy = candidate;
+                }
+                tracked.currentPolicy(policy);
+            }
+            return parser.toSql(userContext, expression, idTable, parameters, columnResolver);
+        } finally { tracked.currentPolicy(previous); }
+    }
+
+    private static int rank(io.teaql.core.SqlParameterLogPolicy policy) {
+        return switch (policy) { case PLAIN -> 0; case UNKNOWN -> 1; case MASKED -> 2; case CREDENTIAL -> 3; };
     }
 }

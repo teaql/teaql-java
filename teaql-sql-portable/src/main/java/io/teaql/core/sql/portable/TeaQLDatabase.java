@@ -12,6 +12,27 @@ import java.util.stream.Stream;
  */
 public interface TeaQLDatabase {
 
+    default List<Map<String, Object>> query(io.teaql.core.UserContext context, String sql,
+            Object[] args, SqlLogBindings bindings) {
+        return query(context, sql, args);
+    }
+    default <T extends io.teaql.core.Entity> List<T> query(io.teaql.core.UserContext context,
+            String sql, Object[] args, io.teaql.core.CompiledRowMapper<T> rowMapper, SqlLogBindings bindings) {
+        return query(context, sql, args, rowMapper);
+    }
+    default Stream<Map<String, Object>> queryForStream(io.teaql.core.UserContext context,
+            String sql, Object[] args, SqlLogBindings bindings) {
+        return queryForStream(context, sql, args);
+    }
+    default int executeUpdate(io.teaql.core.UserContext context, String sql, Object[] args,
+            SqlLogBindings bindings) {
+        return executeUpdate(context, sql, args);
+    }
+    default int[] batchUpdate(io.teaql.core.UserContext context, String sql, List<Object[]> batchArgs,
+            SqlLogBindings bindings) {
+        return batchUpdate(context, sql, batchArgs);
+    }
+
     default boolean supportsCompiledRowMapping() {
         return false;
     }

@@ -13,9 +13,31 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Map;
 
 public class TeaQLRuntimeTest {
+
+    @Test
+    public void brokenSqlDiagnosticSinkDoesNotFailTheBusinessOperation() {
+        AtomicInteger attempts = new AtomicInteger();
+        RuntimeLogSink broken = (context, projected) -> {
+            attempts.incrementAndGet();
+            Assert.assertFalse(projected.getDebugQuery().contains("PASSWORD-CANARY"));
+            throw new IllegalStateException("LOG-SINK-FAILURE");
+        };
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new DummyMetaFactory()).logSink(broken).build();
+        DefaultUserContext context = new DefaultUserContext(runtime);
+        ExecutionMetadata metadata = new ExecutionMetadata();
+        metadata.setOperation(DataServiceOperation.QUERY);
+        metadata.setParameterizedQuery("SELECT id FROM customer WHERE password = ?");
+        metadata.setParameters(List.of("PASSWORD-CANARY"));
+
+        context.recordExecutionMetadata(metadata);
+
+        Assert.assertEquals(1, attempts.get());
+    }
 
     @Test
     public void executionLoggingDefaultsOnAndQueryMutationCanBeDisabledIndependently() {
@@ -195,7 +217,8 @@ public class TeaQLRuntimeTest {
         Assert.assertEquals(TraceKind.PROVIDER, recorded.getTraceChain().get(5).getKind());
         Assert.assertEquals(TraceKind.SQL, recorded.getTraceChain().get(6).getKind());
         Assert.assertEquals("SELECT name FROM school_data WHERE id = ?", recorded.getParameterizedQuery());
-        Assert.assertNull(recorded.getDebugQuery());
+        Assert.assertTrue(recorded.getDebugQuery().contains("WHERE id = '[REDACTED]' /* masked */"));
+        Assert.assertFalse(recorded.getDebugQuery().contains("WHERE id = 7"));
     }
 
     public static class DummyMetaFactory implements EntityMetaFactory {
@@ -819,7 +842,7 @@ public class TeaQLRuntimeTest {
 
         DummyEntity entity = new DummyEntity();
         entity.updateProperty("name", "private-value");
-        entity.auditAs("create audited entity").save(context);
+        entity.auditAs("create audited entity 700").save(context);
 
         Assert.assertEquals(1, standardSink.auditEvents.size());
         RawAuditEvent raw = standardSink.auditEvents.get(0);
@@ -830,13 +853,18 @@ public class TeaQLRuntimeTest {
                 .findFirst().orElseThrow().newValue());
         Assert.assertTrue(raw.traceChain().stream().anyMatch(node ->
                 node.getKind() == TraceKind.AUDIT_REASON
-                        && "create audited entity".equals(node.getComment())));
+                        && "create audited entity [REDACTED]".equals(node.getComment())));
 
         Assert.assertEquals(1, appEvents.size());
+        Assert.assertEquals(Long.valueOf(700L), appEvents.get(0).entityId());
+        Assert.assertTrue(appEvents.get(0).traceChain().stream().anyMatch(node ->
+                node.getKind() == TraceKind.AUDIT_REASON
+                        && "create audited entity [REDACTED]".equals(node.getComment())));
         SafeAuditField safeName = appEvents.get(0).fields().stream()
                 .filter(field -> "name".equals(field.name()))
                 .findFirst().orElseThrow();
         Assert.assertTrue(safeName.masked());
         Assert.assertNotEquals("private-value", safeName.value());
+        Assert.assertEquals("pr*********ue", safeName.value());
     }
 }

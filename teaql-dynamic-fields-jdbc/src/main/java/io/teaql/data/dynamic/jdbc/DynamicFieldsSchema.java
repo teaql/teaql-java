@@ -84,7 +84,10 @@ public final class DynamicFieldsSchema {
         try {
             executor.execute(ddl);
         } catch (Exception e) {
-            LOG.log(Level.FINE, "Schema element may already exist: {0}", e.getMessage());
+            // Driver messages can contain connection details or SQL literals.
+            // Keep the existing best-effort behavior without copying them into logs.
+            LOG.log(Level.FINE, "Dynamic field schema statement failed; continuing best-effort setup ({0})",
+                    e.getClass().getSimpleName());
         }
     }
 }

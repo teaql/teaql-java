@@ -77,17 +77,18 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         SearchRequest<?> searchRequest = ((DefaultQueryRequest) request).getSearchRequest();
         String typeName = searchRequest.getTypeName();
         PortableSQLRepository<?> repository = getRepository(typeName);
+        SqlIntentRedactions intent = SqlDiagnosticRequest.source(context, searchRequest);
         if (searchRequest.hasSimpleAgg()) {
             AggregationResult aggregation =
-                    repository.doAggregateInternal(context, (SearchRequest) searchRequest);
+                    repository.doAggregateInternal(context, (SearchRequest) searchRequest, intent);
             return new DefaultQueryResult(new SmartList<>(), aggregation);
         }
-        SmartList<?> result = repository.loadInternal(context, (SearchRequest) searchRequest);
+        SmartList<?> result = repository.loadInternal(context, (SearchRequest) searchRequest, intent);
         
         if (searchRequest.enhanceRelations() != null && !searchRequest.enhanceRelations().isEmpty()) {
-            enhanceRelations(context, (SmartList<Entity>) result, searchRequest);
+            enhanceRelations(context, (SmartList<Entity>) result, searchRequest, intent);
         }
-        attachDynamicAggregations(context, (SmartList<Entity>) result, searchRequest);
+        attachDynamicAggregations(context, (SmartList<Entity>) result, searchRequest, intent);
         
         return new DefaultQueryResult((SmartList<Entity>) result);
     }
@@ -103,7 +104,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
     private void attachDynamicAggregations(
             UserContext userContext,
             SmartList<Entity> results,
-            SearchRequest<?> parentRequest) {
+            SearchRequest<?> parentRequest, SqlIntentRedactions intent) {
         List<SimpleAggregation> attributes = parentRequest.getDynamicAggregateAttributes();
         if (results == null || results.isEmpty() || attributes == null || attributes.isEmpty()) {
             return;
@@ -132,7 +133,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             PortableSQLRepository<?> aggregateRepository =
                     getRepository(aggregateRequest.getTypeName());
             AggregationResult aggregation =
-                    aggregateRepository.doAggregateInternal(userContext, request);
+                    aggregateRepository.doAggregateInternal(userContext, request, intent == null ? null : intent.copy());
             if (attribute.isSingleNumber()) {
                 for (Entity parent : parentsById.values()) {
                     parent.addDynamicProperty(attribute.getName(), 0);
@@ -172,7 +173,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
     }
     
     private void enhanceRelations(
-            UserContext userContext, SmartList<Entity> dataSet, SearchRequest<?> request) {
+            UserContext userContext, SmartList<Entity> dataSet, SearchRequest<?> request, SqlIntentRedactions intent) {
         if (dataSet == null || dataSet.isEmpty()) {
             return;
         }
@@ -188,10 +189,10 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                     if (!(property instanceof Relation)) return;
 
                     if (shouldHandle(entityDescriptor, (Relation) property)) {
-                        enhanceParent(userContext, dataSet, (Relation) property, r);
+                        enhanceParent(userContext, dataSet, (Relation) property, r, intent);
                         return;
                     }
-                    collectChildren(userContext, dataSet, (Relation) property, r);
+                    collectChildren(userContext, dataSet, (Relation) property, r, intent);
                 });
     }
 
@@ -223,7 +224,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             UserContext userContext,
             SmartList<Entity> results,
             Relation relation,
-            SearchRequest parentRequest) {
+            SearchRequest parentRequest, SqlIntentRedactions intent) {
         List<Entity> parents =
                 results.stream()
                         .map(e -> e.getProperty(relation.getName()))
@@ -233,8 +234,12 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                         .toList();
         if (io.teaql.core.utils.ObjectUtil.isEmpty(parents)) return;
 
-        io.teaql.core.internal.TempRequest parentTemp = new io.teaql.core.internal.TempRequest(parentRequest);
+        io.teaql.core.internal.TempRequest parentTemp = new SqlDiagnosticRequest(parentRequest, intent);
         parentTemp.appendSearchCriteria(parentTemp.createBasicSearchCriteria(BaseEntity.ID_PROPERTY, io.teaql.core.criteria.Operator.IN, parents));
+        // This is a framework-owned lookup over the already materialized child page.
+        // A caller may project the parent without specifying a separate page size, but
+        // the distinct referenced IDs give this internal query an exact upper bound.
+        if (parentTemp.getSlice() == null) parentTemp.setSize(parents.size());
 
         SmartList<Entity> parentItems = userContext.internalExecuteForList(parentTemp);
 
@@ -254,8 +259,8 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             UserContext userContext,
             SmartList<Entity> dataSet,
             Relation relation,
-            SearchRequest childRequest) {
-        io.teaql.core.internal.TempRequest childTempRequest = new io.teaql.core.internal.TempRequest(childRequest);
+            SearchRequest childRequest, SqlIntentRedactions intent) {
+        io.teaql.core.internal.TempRequest childTempRequest = new SqlDiagnosticRequest(childRequest, intent);
         PropertyDescriptor reverseProperty = relation.getReverseProperty();
         childTempRequest.selectProperty(reverseProperty.getName());
         Slice slice = childTempRequest.getSlice();
@@ -270,7 +275,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                     "probe", dataSet.size());
             for (Entity parent : dataSet) {
                 io.teaql.core.internal.TempRequest probeRequest =
-                        new io.teaql.core.internal.TempRequest(childRequest);
+                        new SqlDiagnosticRequest(childRequest, intent);
                 probeRequest.selectProperty(reverseProperty.getName());
                 probeRequest.setPartitionProperty(null);
                 ensureStableEntityIdOrder(probeRequest);
@@ -361,6 +366,9 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         Entity entity = mutation.getEntity();
         String typeName = entity.typeName();
         PortableSQLRepository repository = getRepository(typeName);
+        // Local to this mutation, never stored on context or a shared repository.
+        var readbackIntent = context.isQueryExecutionLoggingEnabled() || context.isMutationExecutionLoggingEnabled()
+                ? new io.teaql.core.SqlIntentRedactions() : null;
 
         if (mutation.getAction() == DefaultMutationRequest.Action.SAVE) {
             if (entity.getId() == null) {
@@ -369,19 +377,19 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             }
             if (entity.newItem()) {
                 ((BaseEntity) entity).__internalSet("version", 1L);
-                repository.createInternal(context, Collections.singletonList(entity));
+                repository.createInternal(context, Collections.singletonList(entity), readbackIntent);
             } else if (entity.updateItem()) {
-                repository.updateInternal(context, Collections.singletonList(entity));
+                repository.updateInternal(context, Collections.singletonList(entity), readbackIntent);
                 ((BaseEntity) entity).__internalSet("version", entity.getVersion() + 1);
             } else if (entity.recoverItem()) {
-                repository.recoverInternal(context, Collections.singletonList(entity));
+                repository.recoverInternal(context, Collections.singletonList(entity), readbackIntent);
                 ((BaseEntity) entity).__internalSet("version", -entity.getVersion() + 1);
             }
             if (entity instanceof BaseEntity) {
                 ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);
             }
         } else if (mutation.getAction() == DefaultMutationRequest.Action.DELETE) {
-            repository.deleteInternal(context, Collections.singletonList(entity));
+            repository.deleteInternal(context, Collections.singletonList(entity), readbackIntent);
             ((BaseEntity) entity).__internalSet("version", -(entity.getVersion() + 1));
             if (entity instanceof BaseEntity) {
                 ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);
@@ -392,7 +400,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         if (entity.getId() != null
                 && (mutation.getAction() == DefaultMutationRequest.Action.SAVE
                     || mutation.getAction() == DefaultMutationRequest.Action.DELETE)) {
-            persisted = repository.loadPersistedById(context, entity.getId());
+            persisted = repository.loadPersistedById(context, entity.getId(), readbackIntent);
         }
         return new io.teaql.core.DefaultMutationResult(persisted);
     }

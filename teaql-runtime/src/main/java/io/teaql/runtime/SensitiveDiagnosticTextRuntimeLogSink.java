@@ -29,13 +29,13 @@ public final class SensitiveDiagnosticTextRuntimeLogSink extends DefaultTextRunt
     public void writeExecutionLog(UserContext context, ExecutionMetadata metadata) {
         metadata = LogPrivacy.sql(metadata, LogPrivacy.plaintextEnabled());
         output.printf(
-                "[TeaQL SQL][%s][%dus] %s comment=%s purpose=%s auditReason=%s tracePath=%s%n"
-                        + "Parameterized SQL: %s params=%s%nDebug SQL: %s%n",
+                "[TeaQL SQL][%s][%dus] %s outcome=%s comment=%s purpose=%s auditReason=%s tracePath=%s%n"
+                        + "SQL: %s%n",
                 metadata.getOperation() == null ? "unknown" : metadata.getOperation().name().toLowerCase(),
                 metadata.getElapsedUs(), resultSummary(metadata),
+                metadata.getExecutionOutcome() == null ? "unknown" : metadata.getExecutionOutcome(),
                 nullToEmpty(metadata.getComment()), nullToEmpty(metadata.getPurpose()),
                 nullToEmpty(metadata.getAuditReason()), formatTrace(metadata.getTraceChain()),
-                nullToEmpty(metadata.getParameterizedQuery()), metadata.getParameters(),
                 nullToEmpty(metadata.getDebugQuery()));
     }
 }

@@ -28,17 +28,11 @@ public class HumanReaderFormatter implements LogFormatter {
         String traceStr = formatTraceChain(metadata.getTraceChain());
         String traceDisplay = traceStr.isEmpty() ? "" : " - [" + traceStr + "]";
         
-        String parameterized = metadata.getParameterizedQuery() == null ? "" : metadata.getParameterizedQuery().replace('\n', ' ');
-        String execution = String.format("[%s]-[%5dµs]-[DEBUG]-ExecutionLog%s - [%s] comment=%s purpose=%s auditReason=%s\n          Parameterized SQL: %s",
+        return String.format("[%s]-[%5dµs]-[SQL]-ExecutionLog%s - [%s] outcome=%s comment=%s purpose=%s auditReason=%s\n          SQL: %s",
                 ts, metadata.getElapsedUs(), traceDisplay, metadata.getResultSummary(),
+                metadata.getExecutionOutcome() == null ? "unknown" : metadata.getExecutionOutcome(),
                 metadata.getComment(), metadata.getPurpose(), metadata.getAuditReason(),
-                parameterized);
-        if (metadata.getDebugQuery() == null) {
-            return execution;
-        }
-        String debug = metadata.getDebugQuery().replace('\n', ' ');
-        return execution + String.format(" params=%s\n          Debug SQL: %s",
-                metadata.getParameters(), debug);
+                metadata.getDebugQuery() == null ? "" : metadata.getDebugQuery());
     }
 
     @Override

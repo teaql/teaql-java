@@ -20,6 +20,40 @@ public final class ExecutionMetadata {
     private String comment;
     private String purpose;
     private String auditReason;
+    private List<SqlParameterLogPolicy> parameterLogPolicies = List.of();
+    private List<Boolean> parameterMasked = List.of();
+    private boolean generatedSql;
+    private String logMode;
+    private String sqlOmissionReason;
+    private String executionOutcome;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private transient SqlIntentRedactions intentRedactions;
+
+    @FrameworkInternal("SQL diagnostic provenance; excluded from serialized metadata")
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public SqlIntentRedactions getIntentRedactions() { return intentRedactions; }
+    @FrameworkInternal("SQL diagnostic provenance only")
+    public void setIntentRedactions(SqlIntentRedactions value) { intentRedactions = value; }
+
+    /** Statement/cursor outcome, not transaction commit or business acceptance. Null means unknown. */
+    public String getExecutionOutcome() { return executionOutcome; }
+    public void setExecutionOutcome(String outcome) { executionOutcome = outcome; }
+
+    public List<SqlParameterLogPolicy> getParameterLogPolicies() { return parameterLogPolicies; }
+    public void setParameterLogPolicies(List<SqlParameterLogPolicy> policies) {
+        parameterLogPolicies = policies == null ? List.of() : List.copyOf(policies);
+    }
+    public List<Boolean> getParameterMasked() { return parameterMasked; }
+    public void setParameterMasked(List<Boolean> masked) {
+        parameterMasked = masked == null ? List.of() : List.copyOf(masked);
+    }
+    /** Set only by a compiler that can attest that inline text contains no user values. */
+    public boolean isGeneratedSql() { return generatedSql; }
+    public void setGeneratedSql(boolean generated) { generatedSql = generated; }
+    public String getLogMode() { return logMode; }
+    public void setLogMode(String mode) { logMode = mode; }
+    public String getSqlOmissionReason() { return sqlOmissionReason; }
+    public void setSqlOmissionReason(String reason) { sqlOmissionReason = reason; }
 
     public String getBackend() { return backend; }
     public void setBackend(String backend) { this.backend = backend; }
@@ -46,7 +80,7 @@ public final class ExecutionMetadata {
     public String getParameterizedQuery() { return parameterizedQuery; }
     public void setParameterizedQuery(String parameterizedQuery) { this.parameterizedQuery = parameterizedQuery; }
 
-    /** Structured bind values for trusted runtime sinks. Application-safe projections should expose only the count. */
+    /** Execution bindings before projection; only independently projected values may reach log sinks. */
     public List<Object> getParameters() { return parameters; }
     public void setParameters(List<Object> parameters) {
         this.parameters = parameters == null

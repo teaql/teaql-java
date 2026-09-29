@@ -18,30 +18,29 @@ public class JsonReaderFormatter implements LogFormatter {
 
     private String escapeJson(String text) {
         if (text == null) return "";
-        return text.replace("\"", "\\\"").replace("\n", "\\n");
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '\\' || c == '"') result.append('\\').append(c);
+            else if (c < 32) result.append(String.format("\\u%04x", (int) c));
+            else result.append(c);
+        }
+        return result.toString();
     }
 
     @Override
     public String formatExecutionLog(io.teaql.core.ExecutionMetadata metadata) {
         metadata = io.teaql.runtime.LogPrivacy.sql(metadata, io.teaql.runtime.LogPrivacy.plaintextEnabled());
-        String execution = String.format("{\"type\":\"EXEC_LOG\",\"tracePath\":%s,\"backend\":\"%s\",\"operation\":\"%s\",\"comment\":\"%s\",\"purpose\":\"%s\",\"auditReason\":\"%s\",\"elapsedUs\":%d,\"resultCount\":%s,\"affectedRows\":%s,\"summary\":\"%s\",\"parameterizedSQL\":\"%s\"",
+        return String.format("{\"type\":\"EXEC_LOG\",\"tracePath\":%s,\"backend\":\"%s\",\"operation\":\"%s\",\"comment\":\"%s\",\"purpose\":\"%s\",\"auditReason\":\"%s\",\"elapsedUs\":%d,\"resultCount\":%s,\"affectedRows\":%s,\"summary\":\"%s\",\"sql\":\"%s\",\"logMode\":\"%s\",\"maskedParameters\":%s,\"sqlOmissionReason\":\"%s\",\"executionOutcome\":\"%s\"}",
                 formatTraceChain(metadata.getTraceChain()),
-                escapeJson(metadata.getBackend()),
-                metadata.getOperation(),
-                escapeJson(metadata.getComment()),
-                escapeJson(metadata.getPurpose()),
-                escapeJson(metadata.getAuditReason()),
-                metadata.getElapsedUs(),
-                metadata.getResultCount(),
-                metadata.getAffectedRows(),
-                escapeJson(metadata.getResultSummary()),
-                escapeJson(metadata.getParameterizedQuery()));
-        if (metadata.getDebugQuery() == null) {
-            return execution + "}";
-        }
-        return execution + String.format(",\"parameters\":\"%s\",\"debugSQL\":\"%s\"}",
-                escapeJson(String.valueOf(metadata.getParameters())),
-                escapeJson(metadata.getDebugQuery()));
+                escapeJson(metadata.getBackend()), metadata.getOperation(),
+                escapeJson(metadata.getComment()), escapeJson(metadata.getPurpose()),
+                escapeJson(metadata.getAuditReason()), metadata.getElapsedUs(),
+                metadata.getResultCount(), metadata.getAffectedRows(),
+                escapeJson(metadata.getResultSummary()), escapeJson(metadata.getDebugQuery()),
+                escapeJson(metadata.getLogMode()), metadata.getParameterMasked(),
+                escapeJson(metadata.getSqlOmissionReason()),
+                escapeJson(metadata.getExecutionOutcome() == null ? "unknown" : metadata.getExecutionOutcome()));
     }
 
     @Override

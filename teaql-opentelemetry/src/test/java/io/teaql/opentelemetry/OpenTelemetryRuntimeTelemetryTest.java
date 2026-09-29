@@ -101,6 +101,46 @@ public class OpenTelemetryRuntimeTelemetryTest {
         loggerProvider.close();
     }
 
+    @Test
+    public void failureTelemetryDoesNotExportDriverErrorMessages() {
+        InMemorySpanExporter spans = InMemorySpanExporter.create();
+        SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
+                .addSpanProcessor(SimpleSpanProcessor.create(spans)).build();
+        SdkMeterProvider meterProvider = SdkMeterProvider.builder().build();
+        InMemoryLogRecordExporter logs = InMemoryLogRecordExporter.create();
+        SdkLoggerProvider loggerProvider = SdkLoggerProvider.builder()
+                .addLogRecordProcessor(SimpleLogRecordProcessor.create(logs)).build();
+        OpenTelemetryRuntimeTelemetry telemetry = new OpenTelemetryRuntimeTelemetry(
+                tracerProvider.get("io.teaql.runtime"),
+                meterProvider.get("io.teaql.runtime"),
+                loggerProvider.get("io.teaql.runtime"));
+
+        RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(telemetry,
+                new RuntimeTelemetry.Operation("provider", "sqlite.query", Map.of()));
+        scope.failure(new IllegalStateException(
+                "SQL failed for password=OTEL-FAILURE-CANARY"));
+
+        assertEquals(1, spans.getFinishedSpanItems().size());
+        assertEquals(1, logs.getFinishedLogRecordItems().size());
+        var span = spans.getFinishedSpanItems().get(0);
+        var log = logs.getFinishedLogRecordItems().get(0);
+        assertEquals("IllegalStateException", span.getAttributes().get(
+                AttributeKey.stringKey("teaql.error.type")));
+        assertEquals("internal", span.getAttributes().get(
+                AttributeKey.stringKey("teaql.error.category")));
+        assertEquals("failure", log.getAttributes().get(
+                AttributeKey.stringKey("teaql.operation.outcome")));
+        assertFalse(span.getAttributes().toString().contains("OTEL-FAILURE-CANARY"));
+        assertFalse(span.getStatus().toString().contains("OTEL-FAILURE-CANARY"));
+        assertFalse(span.getEvents().toString().contains("OTEL-FAILURE-CANARY"));
+        assertFalse(log.getAttributes().toString().contains("OTEL-FAILURE-CANARY"));
+        assertFalse(log.getBodyValue().asString().contains("OTEL-FAILURE-CANARY"));
+
+        tracerProvider.close();
+        meterProvider.close();
+        loggerProvider.close();
+    }
+
 
     @Test
     public void extractsCaseInsensitiveW3cCarrierAsServerParent() {
