@@ -6,7 +6,7 @@
 
   <groupId>com.teaql</groupId>
   <artifactId>runtime-example-conformance-service-core</artifactId>
-  <version>1.0.0</version>
+  <version>1.552-RELEASE</version>
   <packaging>jar</packaging>
 
   <properties>
