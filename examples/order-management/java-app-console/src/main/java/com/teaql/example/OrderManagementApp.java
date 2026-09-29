@@ -8,7 +8,9 @@ import com.teaql.ordermanagementservice.customerorder.CustomerOrder;
 import com.teaql.ordermanagementservice.ordersearchpreset.OrderSearchPreset;
 import io.teaql.core.DataServiceExecutor;
 import io.teaql.core.InternalIdGenerationService;
+import io.teaql.core.MutationPolicyApproval;
 import io.teaql.core.SmartList;
+import io.teaql.core.TeaQLRuntimeException;
 import io.teaql.core.UserContext;
 import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
@@ -24,7 +26,10 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
@@ -97,6 +102,8 @@ public final class OrderManagementApp {
             preset.auditAs("Save idempotent quick-start search preset").save(context);
             System.out.println("[mutation] saved preset #" + preset.getId());
         } else System.out.println("[mutation] preset #" + presets.get(0).getId() + " already exists");
+
+        demonstrateMutationPolicy(context, platform);
     }
 
     private static UserContext context(DataServiceExecutor executor) {
@@ -105,10 +112,61 @@ public final class OrderManagementApp {
         EntityMetaFactory.registerGlobal(metadata);
         AtomicLong ids = new AtomicLong(1000);
         InternalIdGenerationService idGeneration = (context, entity) -> ids.getAndIncrement();
+        OrderMutationPolicy orderPolicy = new OrderMutationPolicy();
         TeaQLRuntime runtime = TeaQLRuntime.builder().metadata(metadata)
                 .dataService("default", executor).dataService("sqlite", executor)
-                .idGenerationService(idGeneration).build();
-        return new DefaultUserContext(runtime);
+                .idGenerationService(idGeneration)
+                .mutationPolicyRegistry(requestKey -> "CustomerOrder.saveGraph".equals(requestKey)
+                        ? Optional.of(orderPolicy)
+                        : Optional.empty())
+                .mutationPolicyApprovalProvider(identity -> identity.equals(orderPolicy.identity())
+                        ? Optional.of(new MutationPolicyApproval(
+                                identity,
+                                "example-security-review",
+                                Instant.parse("2026-09-29T12:00:00Z")))
+                        : Optional.empty())
+                .build();
+        DefaultUserContext context = new DefaultUserContext(runtime);
+        context.putAttribute(
+                MutationAuthority.class.getName(), new MutationAuthority(Set.of()));
+        return context;
+    }
+
+    private static void demonstrateMutationPolicy(
+            UserContext context, CommercePlatform platform) {
+        String rejectedOrderNumber = "WEB-2026-HIGH-VALUE-DENIED";
+        Customer rejectedCustomer = new Customer()
+                .updateName("Rejected High Value Customer")
+                .updateEmail("not-persisted@example.invalid")
+                .updateCommercePlatform(platform);
+        CustomerOrder rejectedOrder = new CustomerOrder()
+                .updateOrderNumber(rejectedOrderNumber)
+                .updateOrderDate(LocalDate.of(2026, 9, 29))
+                .updateTotalAmount(new BigDecimal("25000.00"))
+                .updateStatusToPending()
+                .updateCustomer(rejectedCustomer)
+                .updateCommercePlatform(platform);
+
+        try {
+            rejectedOrder.auditAs("Demonstrate customer high-value order policy")
+                    .save(context);
+            throw new IllegalStateException("The high-value mutation should have been denied");
+        } catch (TeaQLRuntimeException expected) {
+            if (!expected.getMessage().contains("ORDER-HIGH-VALUE-AUTHORITY-REQUIRED")) {
+                throw expected;
+            }
+        }
+
+        SmartList<CustomerOrder> rejectedRows = Q.customerOrders()
+                .withOrderNumberIs(rejectedOrderNumber)
+                .comment("Verify the denied high-value graph wrote no order")
+                .purpose("Prove customer MutationPolicy denial is atomic")
+                .executeForList(context);
+        if (!rejectedRows.isEmpty()) {
+            throw new IllegalStateException("Denied high-value order was persisted");
+        }
+        System.out.println(
+                "[mutation-policy] denied high-value graph before persistence; verified 0 order rows");
     }
 
     private record DriverManagerDataSource(String url) implements DataSource {
