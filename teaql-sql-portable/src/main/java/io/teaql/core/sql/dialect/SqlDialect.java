@@ -2,6 +2,8 @@ package io.teaql.core.sql.dialect;
 
 import io.teaql.core.SearchRequest;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 public interface SqlDialect {
     /**
@@ -50,5 +52,41 @@ public interface SqlDialect {
      */
     default String mapColumnType(String type) {
         return type;
+    }
+
+    /**
+     * Compare the storage families reported by the provider with the type selected for the model.
+     * Providers may override this when their storage type system has wider compatibility rules.
+     */
+    default boolean isCompatibleColumnType(String expected, String actual) {
+        String expectedFamily = normalizedTypeFamily(expected);
+        String actualFamily = normalizedTypeFamily(actual);
+        return expectedFamily.isEmpty()
+                || actualFamily.isEmpty()
+                || expectedFamily.equals(actualFamily);
+    }
+
+    private static String normalizedTypeFamily(String type) {
+        if (type == null) return "";
+        String family = type.trim().toUpperCase(Locale.ROOT)
+                .replaceFirst("\\s*\\(.*", "")
+                .replaceAll("\\s+", " ");
+        return Map.ofEntries(
+                        Map.entry("CHARACTER VARYING", "VARCHAR"),
+                        Map.entry("VARCHAR2", "VARCHAR"),
+                        Map.entry("NVARCHAR2", "NVARCHAR"),
+                        Map.entry("CHARACTER", "CHAR"),
+                        Map.entry("INT", "INTEGER"),
+                        Map.entry("INT4", "INTEGER"),
+                        Map.entry("INT8", "BIGINT"),
+                        Map.entry("DEC", "DECIMAL"),
+                        Map.entry("NUMERIC", "DECIMAL"),
+                        Map.entry("DOUBLE PRECISION", "DOUBLE"),
+                        Map.entry("FLOAT8", "DOUBLE"),
+                        Map.entry("FLOAT4", "REAL"),
+                        Map.entry("BOOL", "BOOLEAN"),
+                        Map.entry("TIMESTAMP WITHOUT TIME ZONE", "TIMESTAMP"),
+                        Map.entry("TIMESTAMP WITH TIME ZONE", "TIMESTAMPTZ"))
+                .getOrDefault(family, family);
     }
 }

@@ -72,6 +72,14 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
                         "PRAGMA table_info(" + tableName + ")", new Object[0]);
                 for (Map<String, Object> col : columns) {
                     col.put("column_name", col.get("name"));
+                    col.put("data_type", col.get("type"));
+                    Object notNull = col.get("notnull");
+                    Object primaryKey = col.get("pk");
+                    boolean required = (notNull instanceof Number notNullValue
+                                    && notNullValue.intValue() != 0)
+                            || (primaryKey instanceof Number primaryKeyValue
+                                    && primaryKeyValue.intValue() != 0);
+                    col.put("nullable", required ? 0 : 1);
                 }
                 return columns;
             }

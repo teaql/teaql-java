@@ -359,6 +359,16 @@
         </plugins>
     </build>
 
+    <profiles>
+        <profile>
+            <id>runtime-examples</id>
+            <modules>
+                <module>examples/school-management/lib</module>
+                <module>examples/school-management</module>
+            </modules>
+        </profile>
+    </profiles>
+
     <repositories>
         <repository>
             <id>TEAQL</id>
