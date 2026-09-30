@@ -15,6 +15,7 @@ cleanup() {
 trap cleanup EXIT
 
 mvn -q -f "$repo_dir/pom.xml" \
+  -Pruntime-examples \
   -pl examples/conformance,examples/school-management \
   -am package -DskipTests
 
