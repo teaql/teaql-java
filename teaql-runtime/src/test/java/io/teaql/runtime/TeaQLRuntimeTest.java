@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Map;
+import java.util.stream.Stream;
 
 public class TeaQLRuntimeTest {
 
@@ -122,6 +123,21 @@ public class TeaQLRuntimeTest {
         public DataServiceCapabilities capabilities() {
             return null;
         }
+    }
+
+    public static class RecordingStreamingQueryExecutor implements StreamingQueryExecutor {
+        private SearchRequest<?> request;
+
+        @Override
+        public <T extends Entity> Stream<T> queryForStream(
+                UserContext context, SearchRequest<T> request) {
+            this.request = request;
+            return Stream.empty();
+        }
+
+        @Override public String name() { return "dummy"; }
+
+        @Override public DataServiceCapabilities capabilities() { return null; }
     }
 
     public static class RecordingMutationExecutor implements MutationExecutor {
@@ -390,6 +406,74 @@ public class TeaQLRuntimeTest {
         Assert.assertTrue(executor.requests.get(1).hasSimpleAgg());
         Assert.assertSame(executor.requests.get(0).getSearchCriteria(),
                 executor.requests.get(1).getSearchCriteria());
+    }
+
+    @Test
+    public void streamingExecutionAppliesRequestPolicyBeforeProvider() {
+        RecordingStreamingQueryExecutor executor = new RecordingStreamingQueryExecutor();
+        AtomicInteger policyCalls = new AtomicInteger();
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new DummyMetaFactory())
+                .dataService("dummy", executor)
+                .requestPolicy(new RequestPolicy() {
+                    @Override public void enforceSelect(
+                            UserContext context, SearchRequest<?> query) {
+                        policyCalls.incrementAndGet();
+                        BaseRequest<?> request = (BaseRequest<?>) query;
+                        request.appendSearchCriteria(request.createBasicSearchCriteria(
+                                "status", Operator.EQUAL, "ACTIVE"));
+                    }
+                })
+                .build();
+        BaseRequest<DummyEntity> request = new BaseRequest<>(DummyEntity.class) {
+            { internalComment("stream active entities"); }
+            @Override public String getTypeName() { return "Dummy"; }
+        };
+
+        try (Stream<DummyEntity> ignored = request
+                .purpose("prove policy cannot be bypassed by streaming")
+                .executeForStream(new DefaultUserContext(runtime))) {
+            Assert.assertEquals(0, ignored.count());
+        }
+
+        Assert.assertEquals(1, policyCalls.get());
+        Assert.assertSame(request, executor.request);
+        Assert.assertNotNull(executor.request.getSearchCriteria());
+    }
+
+    @Test
+    public void internalStreamingRequiresAuthorizedRootAndAppliesRequestPolicy() {
+        RecordingStreamingQueryExecutor executor = new RecordingStreamingQueryExecutor();
+        AtomicInteger policyCalls = new AtomicInteger();
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new DummyMetaFactory())
+                .dataService("dummy", executor)
+                .requestPolicy(new RequestPolicy() {
+                    @Override public void enforceSelect(
+                            UserContext context, SearchRequest<?> query) {
+                        policyCalls.incrementAndGet();
+                    }
+                })
+                .build();
+        DefaultUserContext context = new DefaultUserContext(runtime);
+        SearchRequest<DummyEntity> request = bareDummyRequest();
+
+        try {
+            context.internalExecuteForStream(request);
+            Assert.fail("internal stream without a trusted root trace must be rejected");
+        } catch (TeaQLRuntimeException expected) {
+            Assert.assertTrue(expected.getMessage().contains("INTERNAL QUERY CONTEXT REQUIRED"));
+        }
+        Assert.assertEquals(0, policyCalls.get());
+
+        context.pushTrace("authorized root query");
+        try (Stream<DummyEntity> ignored = context.internalExecuteForStream(request)) {
+            Assert.assertEquals(0, ignored.count());
+        } finally {
+            context.popTrace();
+        }
+        Assert.assertEquals(1, policyCalls.get());
+        Assert.assertSame(request, executor.request);
     }
 
     @Test
