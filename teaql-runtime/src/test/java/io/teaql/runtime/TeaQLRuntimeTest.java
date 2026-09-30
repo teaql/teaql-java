@@ -603,7 +603,7 @@ public class TeaQLRuntimeTest {
         TeaQLRuntime runtime = TeaQLRuntime.builder()
                 .metadata(new DummyMetaFactory())
                 .dataService("dummy", executor)
-                .requestPolicy(new RequestPolicy() {
+                .queryPolicy(new QueryPolicy() {
                     @Override public void enforceSelect(
                             UserContext context, SearchRequest<?> query) {
                         policyCalls.incrementAndGet();
@@ -636,7 +636,7 @@ public class TeaQLRuntimeTest {
         TeaQLRuntime runtime = TeaQLRuntime.builder()
                 .metadata(new DummyMetaFactory())
                 .dataService("dummy", executor)
-                .requestPolicy(new RequestPolicy() {
+                .queryPolicy(new QueryPolicy() {
                     @Override public void enforceSelect(
                             UserContext context, SearchRequest<?> query) {
                         policyCalls.incrementAndGet();

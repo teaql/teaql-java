@@ -216,6 +216,7 @@ public class TfpEndpointPolicyTest {
         EntityDescriptor probe = new EntityDescriptor();
         probe.setType("Probe");
         probe.setTargetType(AlternateProbe.class);
+        probe.withEntitySupplier(AlternateProbe::new);
         probe.addSimpleProperty("id", Long.class);
         probe.addSimpleProperty("status", String.class);
         alternate.register(probe);
@@ -347,6 +348,13 @@ public class TfpEndpointPolicyTest {
         public String typeName() { return "Probe"; }
         public String getStatus() { return status; }
         public void setStatus(String value) { status = value; }
+        @Override public void __internalSet(String property, Object value) {
+            if ("status".equals(property)) status = (String) value;
+            else super.__internalSet(property, value);
+        }
+        @Override public Object __internalGet(String property) {
+            return "status".equals(property) ? status : super.__internalGet(property);
+        }
     }
     public static final class AlternateProbeStatus extends BaseEntity {
         public String typeName() { return "ProbeStatus"; }

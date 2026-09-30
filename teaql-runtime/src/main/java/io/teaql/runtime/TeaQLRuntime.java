@@ -246,15 +246,15 @@ public class TeaQLRuntime {
             throw new TeaQLRuntimeException(
                     "[PURPOSE REQUIRED] Missing .purpose() on streaming query execution.");
         }
-        if (requestPolicy != null) {
-            requestPolicy.enforceSelect(context, request);
+        if (queryPolicy != null) {
+            queryPolicy.enforceSelect(context, request);
         }
         return executeForStreamResolved(context, request);
     }
 
     /**
      * Executes a framework-owned nested stream under an already-authorized root query. The
-     * nested request still passes through RequestPolicy before reaching the provider.
+     * nested request still passes through QueryPolicy before reaching the provider.
      */
     public <T extends Entity> Stream<T> internalExecuteForStream(
             UserContext context, SearchRequest<T> request) {
@@ -262,8 +262,8 @@ public class TeaQLRuntime {
             throw new TeaQLRuntimeException(
                     "[INTERNAL QUERY CONTEXT REQUIRED] Nested streaming query has no authorized root trace.");
         }
-        if (requestPolicy != null) {
-            requestPolicy.enforceSelect(context, request);
+        if (queryPolicy != null) {
+            queryPolicy.enforceSelect(context, request);
         }
         return executeForStreamResolved(context, request);
     }

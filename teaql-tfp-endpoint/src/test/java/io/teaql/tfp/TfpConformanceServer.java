@@ -87,6 +87,7 @@ public final class TfpConformanceServer {
     private static UserContext createContext() {
         EntityDescriptor descriptor = new EntityDescriptor();
         descriptor.setType("CustomerOrder"); descriptor.setTargetType(CustomerOrder.class);
+        descriptor.withEntitySupplier(CustomerOrder::new);
         descriptor.addSimpleProperty("status", String.class);
         descriptor.addSimpleProperty("orderNumber", String.class);
         descriptor.addSimpleProperty("tenantId", Long.class);

@@ -22,4 +22,19 @@ public record RawAuditEvent(
         traceChain = List.copyOf(traceChain == null ? List.of() : traceChain);
         occurredAt = occurredAt == null ? Instant.now() : occurredAt;
     }
+
+    public RawAuditEvent(
+            MutationAuditKind kind,
+            String entityType,
+            Object entityId,
+            List<AuditFieldChange> changes,
+            List<TraceNode> traceChain,
+            String actor,
+            String category,
+            String reason,
+            Long resultingVersion,
+            Instant occurredAt) {
+        this(kind, entityType, entityId, changes, traceChain, actor, category, reason,
+                resultingVersion, occurredAt, null);
+    }
 }

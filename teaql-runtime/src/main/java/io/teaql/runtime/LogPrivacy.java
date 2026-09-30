@@ -202,6 +202,7 @@ public final class LogPrivacy {
         if (source.entityId() != null) intentValues.add(source.entityId());
         return new RawAuditEvent(source.kind(), source.entityType(), source.entityId(), changes,
                 trace(source.traceChain(), intentValues), scrub(source.actor(), intentValues), source.category(),
-                scrub(source.reason(), intentValues), source.resultingVersion(), source.occurredAt());
+                scrub(source.reason(), intentValues), source.resultingVersion(), source.occurredAt(),
+                source.governance());
     }
 }

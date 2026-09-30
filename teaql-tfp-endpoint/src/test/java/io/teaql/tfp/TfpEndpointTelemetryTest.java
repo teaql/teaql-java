@@ -41,6 +41,7 @@ public class TfpEndpointTelemetryTest {
         EntityDescriptor descriptor = new EntityDescriptor();
         descriptor.setType("Probe");
         descriptor.setTargetType(Probe.class);
+        descriptor.withEntitySupplier(Probe::new);
         metadata.register(descriptor);
         EntityMetaFactory.registerGlobal(null);
         context = new DefaultUserContext(TeaQLRuntime.builder()
