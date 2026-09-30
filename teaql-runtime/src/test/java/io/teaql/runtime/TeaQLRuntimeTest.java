@@ -141,12 +141,12 @@ public class TeaQLRuntimeTest {
     }
 
     public static class RecordingMutationExecutor implements MutationExecutor {
-        public final List<DefaultMutationRequest> requests = new ArrayList<>();
+        public final List<EntityPersistenceMutation> requests = new ArrayList<>();
 
         @Override
-        public MutationResult mutate(UserContext context, MutationRequest request) {
-            if (request instanceof DefaultMutationRequest) {
-                DefaultMutationRequest mutationRequest = (DefaultMutationRequest) request;
+        public MutationResult mutate(UserContext context, PersistenceMutation request) {
+            if (request instanceof EntityPersistenceMutation) {
+                EntityPersistenceMutation mutationRequest = (EntityPersistenceMutation) request;
                 requests.add(mutationRequest);
                 return new DefaultMutationResult(mutationRequest.getEntity());
             }
@@ -191,6 +191,7 @@ public class TeaQLRuntimeTest {
     public static class RecordingRuntimeLogSink implements RuntimeLogSink {
         public final List<RawAuditEvent> auditEvents = new ArrayList<>();
         public final List<ExecutionMetadata> executions = new ArrayList<>();
+        public final List<MutationGovernanceEvent> governanceEvents = new ArrayList<>();
 
         @Override
         public void writeExecutionLog(UserContext context, ExecutionMetadata metadata) { executions.add(metadata); }
@@ -199,6 +200,193 @@ public class TeaQLRuntimeTest {
         public void writeAuditEvent(UserContext context, RawAuditEvent event) {
             auditEvents.add(event);
         }
+
+        @Override
+        public void writeMutationGovernanceEvent(
+                UserContext context, MutationGovernanceEvent event) {
+            governanceEvents.add(event);
+        }
+    }
+
+    private static MutationPolicy allowingPolicy(
+            MutationPolicyIdentity identity, java.util.concurrent.atomic.AtomicInteger calls) {
+        return new MutationPolicy() {
+            @Override public MutationPolicyIdentity identity() { return identity; }
+            @Override public MutationDecision review(UserContext context, MutationPlan plan) {
+                calls.incrementAndGet();
+                return MutationDecision.allow();
+            }
+        };
+    }
+
+    private static DummyEntity changedEntity(long id, String comment) {
+        DummyEntity entity = new DummyEntity();
+        entity.updateId(id);
+        entity.__internalSet("version", 1L);
+        entity.set$status(EntityStatus.PERSISTED);
+        entity.updateProperty("name", "private-value");
+        entity.setComment(comment);
+        return entity;
+    }
+
+    @Test
+    public void missingMutationPolicyWarnsButDoesNotBlockSave() {
+        RecordingMutationExecutor executor = new RecordingMutationExecutor();
+        RecordingRuntimeLogSink sink = new RecordingRuntimeLogSink();
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new DummyMetaFactory())
+                .dataService("dummy", executor)
+                .logSink(sink)
+                .build();
+
+        runtime.saveGraph(new DefaultUserContext(runtime), changedEntity(901L, "missing policy"));
+
+        Assert.assertEquals(1, executor.requests.size());
+        Assert.assertEquals(1, sink.governanceEvents.size());
+        Assert.assertEquals("MUTATION-POLICY-001", sink.governanceEvents.get(0).warningCode());
+        Assert.assertEquals(List.of("MUTATION-POLICY-001"),
+                sink.auditEvents.get(0).governance().warningCodes());
+    }
+
+    @Test
+    public void unapprovedPolicyRunsAndWarnsWhileMatchingApprovalIsQuiet() {
+        MutationPolicyIdentity identity =
+                new MutationPolicyIdentity("customer.dummy", "1", "sha256:abc");
+        java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+        MutationPolicy policy = allowingPolicy(identity, calls);
+        RecordingRuntimeLogSink unapprovedSink = new RecordingRuntimeLogSink();
+        TeaQLRuntime unapproved = TeaQLRuntime.builder()
+                .metadata(new DummyMetaFactory())
+                .dataService("dummy", new RecordingMutationExecutor())
+                .mutationPolicyRegistry(key -> java.util.Optional.of(policy))
+                .logSink(unapprovedSink)
+                .build();
+        unapproved.saveGraph(
+                new DefaultUserContext(unapproved), changedEntity(902L, "unapproved policy"));
+        Assert.assertEquals(1, calls.get());
+        Assert.assertEquals("MUTATION-POLICY-002",
+                unapprovedSink.governanceEvents.get(0).warningCode());
+
+        RecordingRuntimeLogSink approvedSink = new RecordingRuntimeLogSink();
+        TeaQLRuntime approved = TeaQLRuntime.builder()
+                .metadata(new DummyMetaFactory())
+                .dataService("dummy", new RecordingMutationExecutor())
+                .mutationPolicyRegistry(key -> java.util.Optional.of(policy))
+                .mutationPolicyApprovalProvider(key -> java.util.Optional.of(
+                        new MutationPolicyApproval(identity, "security", java.time.Instant.EPOCH)))
+                .logSink(approvedSink)
+                .build();
+        approved.saveGraph(new DefaultUserContext(approved), changedEntity(903L, "approved policy"));
+        Assert.assertEquals(2, calls.get());
+        Assert.assertTrue(approvedSink.governanceEvents.isEmpty());
+        Assert.assertEquals(MutationPolicyApprovalStatus.APPROVED,
+                approvedSink.auditEvents.get(0).governance().approvalStatus());
+    }
+
+    @Test
+    public void deniedMutationWritesNothingAndRetainsLedger() {
+        RecordingMutationExecutor executor = new RecordingMutationExecutor();
+        MutationPolicy denying = new MutationPolicy() {
+            @Override public MutationPolicyIdentity identity() {
+                return new MutationPolicyIdentity("customer.dummy", "1", "sha256:deny");
+            }
+            @Override public MutationDecision review(UserContext context, MutationPlan plan) {
+                return MutationDecision.deny(
+                        "DUMMY-NAME-DENIED", "name cannot be changed", List.of("name"));
+            }
+        };
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new DummyMetaFactory())
+                .dataService("dummy", executor)
+                .mutationPolicyRegistry(key -> java.util.Optional.of(denying))
+                .build();
+        DummyEntity entity = changedEntity(904L, "denied policy");
+
+        try {
+            runtime.saveGraph(new DefaultUserContext(runtime), entity);
+            Assert.fail("denied mutation was persisted");
+        } catch (TeaQLRuntimeException expected) {
+            Assert.assertTrue(expected.getMessage().contains("DUMMY-NAME-DENIED"));
+        }
+
+        Assert.assertTrue(executor.requests.isEmpty());
+        Assert.assertTrue(entity.getEntityMutationLedger()
+                .changedFieldNames(new EntityKey("Dummy", 904L)).contains("name"));
+    }
+
+    @Test
+    public void governanceAuditContainsFieldNamesButNotRawValues() {
+        RecordingRuntimeLogSink sink = new RecordingRuntimeLogSink();
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new DummyMetaFactory())
+                .dataService("dummy", new RecordingMutationExecutor())
+                .logSink(sink)
+                .build();
+        runtime.saveGraph(new DefaultUserContext(runtime), changedEntity(905L, "safe snapshot"));
+
+        MutationGovernanceSnapshot governance = sink.auditEvents.get(0).governance();
+        Assert.assertEquals(List.of("name"), governance.operations().get(0).changedFields());
+        Assert.assertFalse(governance.toString().contains("private-value"));
+    }
+
+    @Test
+    public void graphPolicyReviewsAllOperationsExactlyOnce() {
+        RecordingMutationExecutor executor = new RecordingMutationExecutor();
+        java.util.concurrent.atomic.AtomicInteger reviews = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.atomic.AtomicReference<MutationPlan> captured =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        MutationPolicy policy = new MutationPolicy() {
+            @Override public MutationPolicyIdentity identity() {
+                return new MutationPolicyIdentity("customer.graph", "1", "sha256:graph");
+            }
+            @Override public MutationDecision review(UserContext context, MutationPlan plan) {
+                reviews.incrementAndGet();
+                captured.set(plan);
+                return MutationDecision.allow();
+            }
+        };
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new AdvancedMetaFactory())
+                .dataService("dummy", executor)
+                .mutationPolicyRegistry(key -> java.util.Optional.of(policy))
+                .build();
+        ContainerEntity root = new ContainerEntity();
+        root.updateId(910L);
+        root.set$status(EntityStatus.PERSISTED);
+        DummyEntity child = changedEntity(911L, "child change");
+        root.updateProperty("rel1", child);
+        root.setComment("review complete graph");
+
+        runtime.saveGraph(new DefaultUserContext(runtime), root);
+
+        Assert.assertEquals(1, reviews.get());
+        Assert.assertNotNull(captured.get());
+        Assert.assertTrue(captured.get().operations().stream()
+                .anyMatch(operation -> operation.entity().equals(new EntityKey("Dummy", 911L))));
+        Assert.assertTrue(captured.get().operations().size() >= 2);
+    }
+
+    @Test
+    public void governanceWarningSinkFailureDoesNotBlockPersistence() {
+        RecordingMutationExecutor executor = new RecordingMutationExecutor();
+        RuntimeLogSink throwingSink = new RuntimeLogSink() {
+            @Override public void writeExecutionLog(
+                    UserContext context, ExecutionMetadata metadata) {}
+            @Override public void writeMutationGovernanceEvent(
+                    UserContext context, MutationGovernanceEvent event) {
+                throw new IllegalStateException("sink unavailable");
+            }
+        };
+        TeaQLRuntime runtime = TeaQLRuntime.builder()
+                .metadata(new DummyMetaFactory())
+                .dataService("dummy", executor)
+                .logSink(throwingSink)
+                .build();
+
+        runtime.saveGraph(
+                new DefaultUserContext(runtime), changedEntity(912L, "warning sink failure"));
+
+        Assert.assertEquals(1, executor.requests.size());
     }
 
     @Test
@@ -385,7 +573,7 @@ public class TeaQLRuntimeTest {
         PageQueryExecutor executor = new PageQueryExecutor();
         TeaQLRuntime runtime = TeaQLRuntime.builder()
                 .metadata(new DummyMetaFactory()).dataService("dummy", executor)
-                .requestPolicy(new RequestPolicy() {
+                .queryPolicy(new QueryPolicy() {
                     @Override public void enforceSelect(UserContext context, SearchRequest<?> query) {
                         BaseRequest<?> request = (BaseRequest<?>) query;
                         request.appendSearchCriteria(request.createBasicSearchCriteria(
@@ -415,7 +603,7 @@ public class TeaQLRuntimeTest {
         TeaQLRuntime runtime = TeaQLRuntime.builder()
                 .metadata(new DummyMetaFactory())
                 .dataService("dummy", executor)
-                .requestPolicy(new RequestPolicy() {
+                .queryPolicy(new QueryPolicy() {
                     @Override public void enforceSelect(
                             UserContext context, SearchRequest<?> query) {
                         policyCalls.incrementAndGet();
@@ -448,7 +636,7 @@ public class TeaQLRuntimeTest {
         TeaQLRuntime runtime = TeaQLRuntime.builder()
                 .metadata(new DummyMetaFactory())
                 .dataService("dummy", executor)
-                .requestPolicy(new RequestPolicy() {
+                .queryPolicy(new QueryPolicy() {
                     @Override public void enforceSelect(
                             UserContext context, SearchRequest<?> query) {
                         policyCalls.incrementAndGet();
@@ -693,17 +881,18 @@ public class TeaQLRuntimeTest {
         realEntities.put(new EntityKey("Dummy", 104L), e4);
 
         java.lang.reflect.Method method = TeaQLRuntime.class.getDeclaredMethod(
-            "executeLedgerPlan", UserContext.class, EntityMutationLedger.class, MutationExecutor.class, java.util.Map.class);
+            "executeLedgerPlan", UserContext.class, EntityMutationLedger.class,
+            MutationExecutor.class, java.util.Map.class, MutationGovernanceSnapshot.class);
         method.setAccessible(true);
-        method.invoke(runtime, new DefaultUserContext(runtime), root, executor, realEntities);
+        method.invoke(runtime, new DefaultUserContext(runtime), root, executor, realEntities, null);
 
-        List<DefaultMutationRequest> requests = executor.requests;
+        List<EntityPersistenceMutation> requests = executor.requests;
 
-        List<DefaultMutationRequest> deletes = new ArrayList<>();
-        List<DefaultMutationRequest> saves = new ArrayList<>();
+        List<EntityPersistenceMutation> deletes = new ArrayList<>();
+        List<EntityPersistenceMutation> saves = new ArrayList<>();
 
-        for (DefaultMutationRequest req : requests) {
-            if (req.getAction() == DefaultMutationRequest.Action.DELETE) {
+        for (EntityPersistenceMutation req : requests) {
+            if (req.getAction() == EntityPersistenceMutation.Action.DELETE) {
                 deletes.add(req);
             } else {
                 saves.add(req);
@@ -711,10 +900,10 @@ public class TeaQLRuntimeTest {
         }
 
         boolean seenSave = false;
-        for (DefaultMutationRequest req : requests) {
-            if (req.getAction() == DefaultMutationRequest.Action.SAVE) {
+        for (EntityPersistenceMutation req : requests) {
+            if (req.getAction() == EntityPersistenceMutation.Action.SAVE) {
                 seenSave = true;
-            } else if (req.getAction() == DefaultMutationRequest.Action.DELETE) {
+            } else if (req.getAction() == EntityPersistenceMutation.Action.DELETE) {
                 Assert.assertFalse("DELETE should execute before SAVE", seenSave);
             }
         }
@@ -769,7 +958,7 @@ public class TeaQLRuntimeTest {
         Assert.assertSame(rootEntity.getEntityMutationLedger(), listChild1.getEntityMutationLedger());
         Assert.assertSame(rootEntity.getEntityMutationLedger(), listChild2.getEntityMutationLedger());
         
-        List<DefaultMutationRequest> requests = executor.requests;
+        List<EntityPersistenceMutation> requests = executor.requests;
         Assert.assertTrue(requests.stream().anyMatch(r -> r.getEntity().getId().equals(2L)));
         Assert.assertTrue(requests.stream().anyMatch(r -> r.getEntity().getId().equals(3L)));
         Assert.assertTrue(requests.stream().anyMatch(r -> r.getEntity().getId().equals(4L)));
@@ -813,7 +1002,7 @@ public class TeaQLRuntimeTest {
     public void testFailedSaveRetainsOnlyItsOwnPendingLedger() {
         RecordingMutationExecutor executor = new RecordingMutationExecutor() {
             @Override
-            public MutationResult mutate(UserContext context, MutationRequest request) {
+            public MutationResult mutate(UserContext context, PersistenceMutation request) {
                 throw new TeaQLRuntimeException("expected mutation failure");
             }
         };
@@ -897,7 +1086,7 @@ public class TeaQLRuntimeTest {
                 .save(new DefaultUserContext(runtime));
 
         Assert.assertFalse(executor.requests.isEmpty());
-        Assert.assertEquals(DefaultMutationRequest.Action.DELETE, executor.requests.get(0).getAction());
+        Assert.assertEquals(EntityPersistenceMutation.Action.DELETE, executor.requests.get(0).getAction());
     }
 
     @Test

@@ -8,7 +8,12 @@ mvn -q install -DskipTests
 mvn -q exec:java -pl java-app-console
 ```
 
-The first run creates `.local/order.db`, ensures schema from generated metadata, seeds through generated entities, performs a governed query, and saves an audited preset. The second run demonstrates idempotency.
+The first run creates `.local/order.db`, ensures schema from generated metadata,
+seeds through generated entities, performs a governed query, and saves an
+audited preset. It also installs a customer-owned `OrderMutationPolicy`, denies
+an unauthorized high-value order as one complete graph, and queries SQLite to
+prove that zero order rows were written. The second run demonstrates
+idempotency and repeats the policy proof.
 
 Read `java-app-console/.../OrderManagementApp.java` first (handwritten), then `java-lib-core/lib/.../Q.java`, `CustomerOrderRequest.java`, and `CustomerOrder.java` (generated). Java is the naming and governance gold standard: `comment(...)` may appear anywhere before `purpose(...)`; only the purposed request exposes execute methods.
 
@@ -19,6 +24,25 @@ Expect one `WEB-2026-001` row dated `2026-08-12` with amount `129.95`. The first
 ## Customize it
 
 Change the `withOrderNumberContaining` filter, ordering, or projection in the app and rerun. Add business behavior only under `java-app-console`; regenerate everything under `java-lib-core`. This library was generated from the shared Order Management model used by the six-language example suite, but that model and the generator are not runtime prerequisites.
+
+### Customize whole-graph mutation policy
+
+`OrderMutationPolicy.java` is application-owned code. It reviews the immutable
+`MutationPlan` after Checker/Fix and graph assembly but before the first
+provider write. The example requires a trusted `MutationAuthority` capability
+for orders above `10000.00` and returns the stable denial code
+`ORDER-HIGH-VALUE-AUTHORITY-REQUIRED` when that authority is absent.
+
+`OrderManagementApp.context(...)` shows the three customer configuration
+points:
+
+1. register policy by the stable `CustomerOrder.saveGraph` request key;
+2. provide approval for the exact policy identity and fingerprint;
+3. install trusted request authority in `UserContext`, outside remote input.
+
+Change the installed permission set to
+`Set.of(OrderMutationPolicy.HIGH_VALUE_PERMISSION)` to exercise the allowed
+path. Do not place trusted authority in request JSON or generated entities.
 ### Materialized-list hard limit
 
 `executeForList` protects the service by applying a default hard limit of 10,000 rows. A requested page size above that ceiling fails explicitly. Trusted application code can call `hardLimit(...)` to override the outer-query ceiling. **Caution:** most applications should not override it; do so only for a reviewed, exceptional requirement. This setting does not describe streaming execution.

@@ -4,7 +4,7 @@ import io.teaql.core.*;
 import io.teaql.core.meta.EntityDescriptor;
 import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.PropertyDescriptor;
-import io.teaql.runtime.DefaultMutationRequest;
+import io.teaql.runtime.EntityPersistenceMutation;
 
 import java.util.*;
 
@@ -152,8 +152,8 @@ public class MutationPlanner {
             deleteEntity.markForDeletion();
             if (root.getComment() != null) deleteEntity.setComment(root.getComment());
 
-            DefaultMutationRequest mutationRequest = new DefaultMutationRequest(
-                deleteEntity, DefaultMutationRequest.Action.DELETE);
+            EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
+                deleteEntity, EntityPersistenceMutation.Action.DELETE);
             mutationExecutor.mutate(ctx, mutationRequest);
         }
 
@@ -175,17 +175,17 @@ public class MutationPlanner {
 
         // 3. Execute Inserts
         executeBatchMutations(ctx, insertBatches, changeSet, realEntities, root, mutationExecutor,
-                            DefaultMutationRequest.Action.SAVE, false);
+                            EntityPersistenceMutation.Action.SAVE, false);
 
         // 4. Execute Updates
         executeBatchMutations(ctx, updateBatches, changeSet, realEntities, root, mutationExecutor,
-                            DefaultMutationRequest.Action.SAVE, true);
+                            EntityPersistenceMutation.Action.SAVE, true);
     }
 
     private void executeBatchMutations(UserContext ctx, Map<String, List<EntityKey>> batches,
                                       EntityChangeSet changeSet, Map<EntityKey, BaseEntity> realEntities,
                                       EntityMutationLedger root, MutationExecutor mutationExecutor,
-                                      DefaultMutationRequest.Action action, boolean markAsUpdated) {
+                                      EntityPersistenceMutation.Action action, boolean markAsUpdated) {
         for (Map.Entry<String, List<EntityKey>> entry : batches.entrySet()) {
             String entityName = entry.getKey();
             List<EntityKey> keys = entry.getValue();
@@ -213,7 +213,7 @@ public class MutationPlanner {
                 }
                 if (root.getComment() != null) entity.setComment(root.getComment());
 
-                DefaultMutationRequest mutationRequest = new DefaultMutationRequest(entity, action);
+                EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(entity, action);
                 mutationExecutor.mutate(ctx, mutationRequest);
                 entity.clearUpdatedProperties();
             }

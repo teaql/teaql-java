@@ -358,11 +358,11 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
 
     @Override
     @SuppressWarnings("unchecked")
-    public MutationResult mutate(UserContext context, MutationRequest request) {
-        if (!(request instanceof DefaultMutationRequest)) {
-            throw new TeaQLRuntimeException("Unsupported MutationRequest in PortableSQLDataService");
+    public MutationResult mutate(UserContext context, PersistenceMutation request) {
+        if (!(request instanceof EntityPersistenceMutation)) {
+            throw new TeaQLRuntimeException("Unsupported PersistenceMutation in PortableSQLDataService");
         }
-        DefaultMutationRequest mutation = (DefaultMutationRequest) request;
+        EntityPersistenceMutation mutation = (EntityPersistenceMutation) request;
         Entity entity = mutation.getEntity();
         String typeName = entity.typeName();
         PortableSQLRepository repository = getRepository(typeName);
@@ -370,7 +370,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         var readbackIntent = context.isQueryExecutionLoggingEnabled() || context.isMutationExecutionLoggingEnabled()
                 ? new io.teaql.core.SqlIntentRedactions() : null;
 
-        if (mutation.getAction() == DefaultMutationRequest.Action.SAVE) {
+        if (mutation.getAction() == EntityPersistenceMutation.Action.SAVE) {
             if (entity.getId() == null) {
                 Long newId = repository.prepareId(context, entity);
                 ((BaseEntity) entity).__internalSet("id", newId);
@@ -388,7 +388,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             if (entity instanceof BaseEntity) {
                 ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);
             }
-        } else if (mutation.getAction() == DefaultMutationRequest.Action.DELETE) {
+        } else if (mutation.getAction() == EntityPersistenceMutation.Action.DELETE) {
             repository.deleteInternal(context, Collections.singletonList(entity), readbackIntent);
             ((BaseEntity) entity).__internalSet("version", -(entity.getVersion() + 1));
             if (entity instanceof BaseEntity) {
@@ -398,8 +398,8 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
 
         Entity persisted = null;
         if (entity.getId() != null
-                && (mutation.getAction() == DefaultMutationRequest.Action.SAVE
-                    || mutation.getAction() == DefaultMutationRequest.Action.DELETE)) {
+                && (mutation.getAction() == EntityPersistenceMutation.Action.SAVE
+                    || mutation.getAction() == EntityPersistenceMutation.Action.DELETE)) {
             persisted = repository.loadPersistedById(context, entity.getId(), readbackIntent);
         }
         return new io.teaql.core.DefaultMutationResult(persisted);

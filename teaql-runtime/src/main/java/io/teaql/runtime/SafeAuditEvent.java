@@ -8,7 +8,8 @@ public record SafeAuditEvent(
         String entityType,
         Object entityId,
         List<SafeAuditField> fields,
-        List<TraceNode> traceChain) {
+        List<TraceNode> traceChain,
+        MutationGovernanceSnapshot governance) {
 
     public SafeAuditEvent {
         fields = List.copyOf(fields == null ? List.of() : fields);

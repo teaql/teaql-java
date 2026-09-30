@@ -1,7 +1,7 @@
 package io.teaql.dataservice.sql;
 
 import io.teaql.core.UserContext;
-import io.teaql.core.MutationRequest;
+import io.teaql.core.PersistenceMutation;
 import io.teaql.core.QueryRequest;
 import io.teaql.core.BaseEntity;
 import io.teaql.core.BaseRequest;
@@ -58,7 +58,7 @@ public class SqlDataServiceExecutorTest {
     public void testMutatePlaceholder() {
         SqlDataServiceExecutor executor = new SqlDataServiceExecutor("sql", new MockSqlExecutionAdapter());
         Assert.assertThrows(io.teaql.core.TeaQLRuntimeException.class, () -> {
-            executor.mutate(null, new MutationRequest() {});
+            executor.mutate(null, new PersistenceMutation() {});
         });
     }
 

@@ -6,14 +6,13 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.teaql.core.BaseRequest;
 import io.teaql.core.AggrFunction;
 import io.teaql.core.Entity;
-import io.teaql.core.MutationExecutor;
+import io.teaql.core.EntityStatus;
 import io.teaql.core.QueryExecutor;
 import io.teaql.core.UserContext;
 import io.teaql.core.SearchCriteria;
 import io.teaql.core.criteria.Operator;
 import io.teaql.core.meta.EntityDescriptor;
 import io.teaql.core.meta.EntityMetaFactory;
-import io.teaql.runtime.DefaultMutationRequest;
 import io.teaql.runtime.DefaultQueryRequest;
 import io.teaql.runtime.DefaultQueryResult;
 import io.teaql.runtime.RuntimeTelemetry;
@@ -27,18 +26,16 @@ import java.util.Set;
 public class TfpEndpointHandler {
 
     private final QueryExecutor queryExecutor;
-    private final MutationExecutor mutationExecutor;
     private final ObjectMapper objectMapper;
     private final RuntimeTelemetry telemetry;
 
-    public TfpEndpointHandler(QueryExecutor queryExecutor, MutationExecutor mutationExecutor, ObjectMapper objectMapper) {
-        this(queryExecutor, mutationExecutor, objectMapper, RuntimeTelemetry.NOOP);
+    public TfpEndpointHandler(QueryExecutor queryExecutor, ObjectMapper objectMapper) {
+        this(queryExecutor, objectMapper, RuntimeTelemetry.NOOP);
     }
 
-    public TfpEndpointHandler(QueryExecutor queryExecutor, MutationExecutor mutationExecutor,
+    public TfpEndpointHandler(QueryExecutor queryExecutor,
             ObjectMapper objectMapper, RuntimeTelemetry telemetry) {
         this.queryExecutor = queryExecutor;
-        this.mutationExecutor = mutationExecutor;
         this.objectMapper = objectMapper;
         this.telemetry = telemetry == null ? RuntimeTelemetry.NOOP : telemetry;
     }
@@ -321,19 +318,35 @@ public class TfpEndpointHandler {
             throw new IllegalArgumentException("Unknown entity: " + entityName);
         }
 
-        Entity entity = (Entity) objectMapper.treeToValue(mappedPayload, descriptor.getTargetType());
+        Entity entity = descriptor.createEntity();
+        java.util.Iterator<Map.Entry<String, JsonNode>> mutationFields =
+                mappedPayload.fields();
+        while (mutationFields.hasNext()) {
+            Map.Entry<String, JsonNode> mutationField = mutationFields.next();
+            if ("id".equals(mutationField.getKey()) || "version".equals(mutationField.getKey())) {
+                continue;
+            }
+            io.teaql.core.meta.PropertyDescriptor property =
+                    descriptor.findProperty(mutationField.getKey());
+            Class<?> javaType = property == null || property.getType() == null
+                    ? Object.class
+                    : property.getType().javaType();
+            Object value = objectMapper.treeToValue(mutationField.getValue(), javaType);
+            entity.updateProperty(mutationField.getKey(), value);
+        }
         if (!"Create".equals(actionStr)) {
             entity.setProperty("id", root.get("id").longValue());
+            ((io.teaql.core.BaseEntity) entity).set$status(EntityStatus.PERSISTED);
         }
         if (root.hasNonNull("expectedVersion")) {
             entity.setProperty("version", root.get("expectedVersion").longValue());
         }
 
-        DefaultMutationRequest.Action action = "Delete".equalsIgnoreCase(actionStr) ? 
-                DefaultMutationRequest.Action.DELETE : DefaultMutationRequest.Action.SAVE;
-
-        DefaultMutationRequest mutationRequest = new DefaultMutationRequest(entity, action);
-        mutationExecutor.mutate(context, mutationRequest);
+        entity.setComment(root.path("comment").asText());
+        if ("Delete".equalsIgnoreCase(actionStr)) {
+            entity.markForDeletion();
+        }
+        context.saveGraph(entity);
 
         Map<String, Object> response = new HashMap<>();
         response.put("affectedRows", 1);
@@ -446,7 +459,7 @@ public class TfpEndpointHandler {
     private void rejectPrivilegedInput(JsonNode node, String path, boolean query) {
         if (!node.isObject()) throw new TfpEndpointException("TFP_INVALID_REQUEST", "TFP payload must be an object");
         java.util.Set<String> forbidden = java.util.Set.of("tenant", "tenantId", "merchant", "merchantId",
-                "user", "userId", "permissions", "requestPolicy", "purposePolicy", "trustedContext",
+                "user", "userId", "permissions", "queryPolicy", "purposePolicy", "trustedContext",
                 "hardLimit", "hard_limit", "hardLimitValue", "hard_limit_value",
                 "idSetPagination", "id_set_pagination", "paginationWithIdSet");
         java.util.Iterator<Map.Entry<String, JsonNode>> fields = node.fields();

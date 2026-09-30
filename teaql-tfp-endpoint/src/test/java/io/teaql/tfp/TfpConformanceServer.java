@@ -6,7 +6,7 @@ import com.sun.net.httpserver.HttpServer;
 import io.teaql.core.BaseEntity;
 import io.teaql.core.DataServiceCapabilities;
 import io.teaql.core.MutationExecutor;
-import io.teaql.core.MutationRequest;
+import io.teaql.core.PersistenceMutation;
 import io.teaql.core.MutationResult;
 import io.teaql.core.QueryExecutor;
 import io.teaql.core.QueryRequest;
@@ -16,8 +16,10 @@ import io.teaql.core.UserContext;
 import io.teaql.core.meta.EntityDescriptor;
 import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
+import io.teaql.core.DefaultMutationResult;
 import io.teaql.runtime.DefaultQueryResult;
 import io.teaql.runtime.DefaultUserContext;
+import io.teaql.runtime.EntityPersistenceMutation;
 import io.teaql.runtime.TeaQLRuntime;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
@@ -33,13 +35,14 @@ public final class TfpConformanceServer {
         int port = Integer.parseInt(System.getenv().getOrDefault("TEAQL_TFP_JAVA_PORT", "19092"));
         ObjectMapper mapper = new ObjectMapper();
         UserContext context = createContext();
-        TfpEndpointHandler endpoint = new TfpEndpointHandler(queryExecutor(), mutationExecutor(), mapper);
+        TfpEndpointHandler endpoint = new TfpEndpointHandler(queryExecutor(), mapper);
         TrustedFederalContext trusted = trusted();
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
         server.createContext("/query", exchange -> handle(exchange, mapper,
                 () -> endpoint.handleQuery(context, trusted, exchange.getRequestBody().readAllBytes(), headers(exchange))));
         server.createContext("/mutate", exchange -> handle(exchange, mapper,
-                () -> endpoint.handleMutation(context, trusted, exchange.getRequestBody().readAllBytes(), headers(exchange))));
+                () -> endpoint.handleMutation(context, trusted,
+                        exchange.getRequestBody().readAllBytes(), headers(exchange))));
         server.start();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> server.stop(0)));
         System.out.println("Java TFP conformance server listening on 127.0.0.1:" + port);
@@ -84,6 +87,11 @@ public final class TfpConformanceServer {
     private static UserContext createContext() {
         EntityDescriptor descriptor = new EntityDescriptor();
         descriptor.setType("CustomerOrder"); descriptor.setTargetType(CustomerOrder.class);
+        descriptor.withEntitySupplier(CustomerOrder::new);
+        descriptor.addSimpleProperty("status", String.class);
+        descriptor.addSimpleProperty("orderNumber", String.class);
+        descriptor.addSimpleProperty("tenantId", Long.class);
+        descriptor.addSimpleProperty("reviewed", Boolean.class);
         SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
         metadata.register(descriptor);
         EntityDescriptor statusDescriptor = new EntityDescriptor();
@@ -93,7 +101,11 @@ public final class TfpConformanceServer {
         statusDescriptor.addSimpleProperty("label", String.class);
         metadata.register(statusDescriptor);
         EntityMetaFactory.registerGlobal(null);
-        return new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata).build());
+        return new DefaultUserContext(TeaQLRuntime.builder()
+                .metadata(metadata)
+                .dataService("default", mutationExecutor())
+                .idGenerationService((context, entity) -> 9001L)
+                .build());
     }
 
     private static TrustedFederalContext trusted() {
@@ -136,8 +148,9 @@ public final class TfpConformanceServer {
 
     private static MutationExecutor mutationExecutor() {
         return new MutationExecutor() {
-            public MutationResult mutate(io.teaql.core.UserContext context, MutationRequest request) {
-                return null;
+            public MutationResult mutate(io.teaql.core.UserContext context, PersistenceMutation request) {
+                return new DefaultMutationResult(
+                        ((EntityPersistenceMutation) request).getEntity());
             }
             public String name() { return "tfp-conformance"; }
             public DataServiceCapabilities capabilities() { return new DataServiceCapabilities(); }
@@ -160,6 +173,24 @@ public final class TfpConformanceServer {
         public void setTenantId(Long value) { tenantId = value; }
         public Boolean getReviewed() { return reviewed; }
         public void setReviewed(Boolean value) { reviewed = value; }
+        @Override public void __internalSet(String property, Object value) {
+            switch (property) {
+                case "status" -> status = (String) value;
+                case "orderNumber" -> orderNumber = (String) value;
+                case "tenantId" -> tenantId = (Long) value;
+                case "reviewed" -> reviewed = (Boolean) value;
+                default -> super.__internalSet(property, value);
+            }
+        }
+        @Override public Object __internalGet(String property) {
+            return switch (property) {
+                case "status" -> status;
+                case "orderNumber" -> orderNumber;
+                case "tenantId" -> tenantId;
+                case "reviewed" -> reviewed;
+                default -> super.__internalGet(property);
+            };
+        }
     }
 
     public static final class OrderStatus extends BaseEntity {

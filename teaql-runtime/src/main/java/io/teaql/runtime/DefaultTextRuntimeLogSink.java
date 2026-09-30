@@ -38,6 +38,19 @@ public class DefaultTextRuntimeLogSink implements RuntimeLogSink {
                 nullToEmpty(metadata.getDebugQuery()));
     }
 
+    @Override
+    public void writeMutationGovernanceEvent(
+            UserContext context, MutationGovernanceEvent event) {
+        if (!event.firstOccurrence()) return;
+        output.printf(
+                "[TeaQL MUTATION GOVERNANCE][%s] request=%s execution=%s policy=%s approval=%s%n",
+                event.warningCode(),
+                event.snapshot().requestKey(),
+                event.snapshot().executionId(),
+                event.snapshot().policy() == null ? "none" : event.snapshot().policy().id(),
+                event.snapshot().approvalStatus());
+    }
+
     protected static String formatTrace(List<TraceNode> nodes) {
         if (nodes == null) return "[]";
         return "[" + IntStream.range(0, nodes.size())
