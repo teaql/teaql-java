@@ -158,7 +158,7 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
             value = runtime.getIdGenerationService();
         }
         if (value == null && capabilityType == BusinessClock.class) {
-            value = SystemBusinessClock.INSTANCE;
+            value = runtime.getBusinessClock();
         }
         if (value == null && capabilityType == BusinessIdProfileFactory.class) {
             value = new DefaultBusinessIdProfileFactory();
@@ -341,10 +341,10 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
     @SuppressWarnings("unchecked")
     @Override
     public final <T> T evaluate(String expression, Object... args) {
-        // Built-in: "now" returns the current local date-time.
+        // Built-in: "now" comes from the context-owned business clock.
         if ("now".equalsIgnoreCase(expression)) {
             Object captured = getAttribute(io.teaql.core.checker.Checker.TEAQL_FIX_TIME);
-            return (T) (captured != null ? captured : java.time.LocalDateTime.now());
+            return (T) (captured != null ? captured : businessTime());
         }
         // Delegate to subclass or extension for application-defined expressions.
         return evaluateExpression(expression, args);

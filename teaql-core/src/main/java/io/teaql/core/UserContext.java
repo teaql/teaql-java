@@ -281,6 +281,18 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
     }
 
     /**
+     * Returns the domain-visible time for this operation. Operational clocks
+     * used for timeouts, durations and logging are intentionally separate.
+     */
+    default java.time.LocalDateTime businessTime() {
+        BusinessClock clock = capability(BusinessClock.class);
+        if (clock == null) {
+            throw new TeaQLRuntimeException("BusinessClock capability is not registered");
+        }
+        return clock.businessDateTime(this);
+    }
+
+    /**
      * Returns the Dynamic Fields facade for reading/writing dynamic field values.
      * The facade is resolved via {@link #capability(Class)} and must be registered
      * by the runtime before use.

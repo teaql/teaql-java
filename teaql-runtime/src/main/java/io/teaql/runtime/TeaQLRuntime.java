@@ -11,9 +11,11 @@ import io.teaql.core.businessid.BusinessIdAllocator;
 import io.teaql.core.businessid.BusinessIdKeyProvider;
 import io.teaql.core.businessid.BusinessIdSchemaContributor;
 import io.teaql.core.businessid.BusinessIdService;
+import io.teaql.core.businessid.BusinessClock;
 import io.teaql.runtime.businessid.DefaultBusinessIdService;
 import io.teaql.core.reference.RoundTripReferenceCodec;
 import io.teaql.core.reference.RoundTripReferenceProvider;
+import io.teaql.runtime.businessid.SystemBusinessClock;
 import java.util.*;
 import java.util.stream.Stream;
 
@@ -31,6 +33,7 @@ public class TeaQLRuntime {
     private final BusinessIdSchemaContributor businessIdSchemaContributor;
     private final BusinessIdKeyProvider businessIdKeyProvider;
     private final RoundTripReferenceCodec roundTripReferenceCodec;
+    private final BusinessClock businessClock;
     private final Map<String, Checker<?>> checkers = new java.util.concurrent.ConcurrentHashMap<>();
     private final List<GeneratedSchemaBootstrap> generatedBootstraps =
             new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -51,6 +54,7 @@ public class TeaQLRuntime {
         this.roundTripReferenceCodec = builder.roundTripReferenceProvider == null
                 ? null
                 : new RoundTripReferenceCodec(builder.roundTripReferenceProvider);
+        this.businessClock = builder.businessClock;
     }
 
     public static Builder builder() {
@@ -99,6 +103,10 @@ public class TeaQLRuntime {
 
     BusinessIdService getBusinessIdService() {
         return businessIdService;
+    }
+
+    BusinessClock getBusinessClock() {
+        return businessClock;
     }
 
     BusinessIdSchemaContributor getBusinessIdSchemaContributor() {
@@ -524,7 +532,7 @@ public class TeaQLRuntime {
         context.beginFixEvidence();
         boolean ownsFixTime = context.getAttribute(Checker.TEAQL_FIX_TIME) == null;
         if (ownsFixTime) {
-            context.putAttribute(Checker.TEAQL_FIX_TIME, java.time.LocalDateTime.now());
+            context.putAttribute(Checker.TEAQL_FIX_TIME, context.businessTime());
         }
         try {
             checker.checkAndFix(context, (BaseEntity) entity);
@@ -1007,6 +1015,7 @@ public class TeaQLRuntime {
         private BusinessIdSchemaContributor businessIdSchemaContributor;
         private BusinessIdKeyProvider businessIdKeyProvider;
         private RoundTripReferenceProvider roundTripReferenceProvider;
+        private BusinessClock businessClock = SystemBusinessClock.INSTANCE;
 
         public Builder metadata(EntityMetaFactory metadata) {
             this.metadata = metadata;
@@ -1042,6 +1051,12 @@ public class TeaQLRuntime {
         /** Installs a Business ID service without an infrastructure schema contribution. */
         public Builder businessIdService(BusinessIdService businessIdService) {
             this.businessIdService = businessIdService;
+            return this;
+        }
+
+        /** Installs the time source visible to domain behavior in each context. */
+        public Builder businessClock(BusinessClock businessClock) {
+            this.businessClock = java.util.Objects.requireNonNull(businessClock, "businessClock");
             return this;
         }
 
