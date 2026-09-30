@@ -68,12 +68,44 @@ public class IdSpaceIdGeneratorTest {
         assertSame(providerFailure, failure.getCause());
     }
 
+    @Test
+    public void reportsBoundedAllocationContentionWithTypeAndAttemptCount() {
+        RecordingDatabase database = new RecordingDatabase();
+        database.levels.put("Order", 7L);
+        database.alwaysCompareAndSetConflict = true;
+
+        IllegalStateException failure = assertThrows(
+                IllegalStateException.class,
+                () -> new IdSpaceIdGenerator(database).nextId("Order"));
+
+        assertTrue(failure.getMessage().contains("Order"));
+        assertTrue(failure.getMessage().contains("100 optimistic-lock attempts"));
+        assertEquals(100, database.updates.size());
+    }
+
+    @Test
+    public void reportsBoundedFloorContentionWithoutMovingFloorBackwards() {
+        RecordingDatabase database = new RecordingDatabase();
+        database.levels.put("SchoolType", 1L);
+        database.alwaysCompareAndSetConflict = true;
+
+        IllegalStateException failure = assertThrows(
+                IllegalStateException.class,
+                () -> new IdSpaceIdGenerator(database).ensureFloor("SchoolType", 1002L));
+
+        assertTrue(failure.getMessage().contains("SchoolType"));
+        assertTrue(failure.getMessage().contains("100 optimistic-lock attempts"));
+        assertEquals(Long.valueOf(1L), database.levels.get("SchoolType"));
+        assertEquals(100, database.updates.size());
+    }
+
     private static final class RecordingDatabase implements TeaQLDatabase {
         private final Map<String, Long> levels = new HashMap<>();
         private final List<String> queries = new ArrayList<>();
         private final List<String> updates = new ArrayList<>();
         private boolean failFirstInsertAsRace;
         private boolean failFirstCompareAndSetAsRace;
+        private boolean alwaysCompareAndSetConflict;
         private RuntimeException executeFailure;
 
         @Override
@@ -100,6 +132,9 @@ public class IdSpaceIdGeneratorTest {
             updates.add(sql);
             String typeName = String.valueOf(args[1]);
             long expected = ((Number) args[2]).longValue();
+            if (alwaysCompareAndSetConflict) {
+                return 0;
+            }
             if (failFirstCompareAndSetAsRace) {
                 failFirstCompareAndSetAsRace = false;
                 levels.put(typeName, expected + 1); // Simulates a competing successful CAS.
