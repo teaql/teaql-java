@@ -83,6 +83,8 @@
         <module>teaql-opentelemetry</module>
         <module>examples/conformance/lib</module>
         <module>examples/conformance</module>
+        <module>examples/school-management/lib</module>
+        <module>examples/school-management</module>
     </modules>
 
     <dependencyManagement>

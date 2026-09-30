@@ -19,3 +19,8 @@ related entities as `NotLoaded`.
 Before publication, install the repository's local runtime and then run the
 generated workspace. The portable SQL runtime test separately changes a constant
 and verifies optimistic, single-version reconciliation.
+
+From the repository root, run `examples/verify-runtime-examples.sh`. The gate
+builds both retained examples against the current reactor sources, assigns each
+run an isolated temporary SQLite database, waits for its acceptance marker, and
+exits non-zero if either application fails or times out.

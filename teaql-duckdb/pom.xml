@@ -10,6 +10,10 @@
     </parent>
     <artifactId>teaql-duckdb</artifactId>
     <name>teaql-duckdb</name>
+    <properties>
+        <!-- Override with -Dduckdb.version=... for compatibility gates. -->
+        <duckdb.version>1.5.5.1</duckdb.version>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>io.teaql</groupId>
@@ -19,5 +23,44 @@
             <groupId>io.teaql</groupId>
             <artifactId>teaql-utils</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.duckdb</groupId>
+            <artifactId>duckdb_jdbc</artifactId>
+            <version>${duckdb.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.teaql</groupId>
+            <artifactId>teaql-provider-jdbc</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.teaql</groupId>
+            <artifactId>teaql-runtime</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>
+                        --add-reads io.teaql.duck=io.teaql.runtime
+                        --add-reads io.teaql.duck=java.sql
+                        --add-opens io.teaql.duck/io.teaql.duckdb=io.teaql.utils
+                        --add-opens io.teaql.core/io.teaql.core=io.teaql.utils
+                    </argLine>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>
