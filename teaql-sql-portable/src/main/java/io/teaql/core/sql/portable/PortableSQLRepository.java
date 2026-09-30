@@ -1537,8 +1537,168 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             String dbColumnName = column.getColumnName().toLowerCase();
             if (!fields.containsKey(dbColumnName)) {
                 addColumn(context, column);
+            } else {
+                ensureCompatibleColumn(table, column, fields.get(dbColumnName));
             }
         }
+    }
+
+    private void ensureCompatibleColumn(
+            String table, SQLColumn column, Map<String, Object> databaseColumn) {
+        Object actualTypeValue = metadataValue(databaseColumn, "type_name", "data_type");
+        if (actualTypeValue == null || actualTypeValue instanceof Number) return;
+
+        String expectedType = dialect.mapColumnType(column.getType());
+        String actualType = String.valueOf(actualTypeValue);
+        if (!dialect.isCompatibleColumnType(expectedType, actualType)) {
+            throw incompatibleColumn(table, column,
+                    "expected type " + expectedType + " but database reports " + actualType);
+        }
+
+        ensureCompatibleNullability(table, column, databaseColumn);
+        ensureCompatibleValueDomain(table, column, expectedType, actualType, databaseColumn);
+    }
+
+    private void ensureCompatibleNullability(
+            String table, SQLColumn column, Map<String, Object> databaseColumn) {
+        Object nullable = metadataValue(databaseColumn, "nullable", "is_nullable");
+        if (nullable == null) return;
+        boolean expectedNullable = !column.isIdColumn() && !column.isRequired();
+        boolean actualNullable = nullableMetadata(nullable);
+        if (expectedNullable != actualNullable) {
+            throw incompatibleColumn(table, column,
+                    "expected nullable=" + expectedNullable
+                            + " but database reports nullable=" + actualNullable);
+        }
+    }
+
+    private void ensureCompatibleValueDomain(
+            String table,
+            SQLColumn column,
+            String expectedType,
+            String actualType,
+            Map<String, Object> databaseColumn) {
+        List<Integer> expectedArguments = declaredTypeArguments(expectedType);
+        String expectedFamily = declaredTypeFamily(expectedType);
+        String actualFamily = declaredTypeFamily(actualType);
+
+        if (isTextFamily(expectedFamily) && !expectedArguments.isEmpty()
+                && !isUnboundedTextFamily(actualFamily)) {
+            Integer actualLength = integerMetadata(metadataValue(
+                    databaseColumn, "column_size", "character_maximum_length"));
+            if (actualLength == null) {
+                List<Integer> actualArguments = declaredTypeArguments(actualType);
+                actualLength = actualArguments.isEmpty() ? null : actualArguments.get(0);
+            }
+            int requiredLength = expectedArguments.get(0);
+            if (actualLength != null && actualLength < requiredLength) {
+                throw incompatibleColumn(table, column,
+                        "required max length=" + requiredLength
+                                + " but database reports max length=" + actualLength);
+            }
+        }
+
+        if (isDecimalFamily(expectedFamily) && expectedArguments.size() >= 2) {
+            int expectedPrecision = expectedArguments.get(0);
+            int expectedScale = expectedArguments.get(1);
+            Integer actualPrecision = integerMetadata(metadataValue(
+                    databaseColumn, "numeric_precision", "column_size"));
+            Integer actualScale = integerMetadata(metadataValue(
+                    databaseColumn, "numeric_scale", "decimal_digits"));
+            if (actualPrecision == null || actualScale == null) {
+                List<Integer> actualArguments = declaredTypeArguments(actualType);
+                if (actualArguments.size() >= 2) {
+                    actualPrecision = actualArguments.get(0);
+                    actualScale = actualArguments.get(1);
+                }
+            }
+            if (actualPrecision == null && actualScale == null) return;
+            boolean covers = actualPrecision != null
+                    && actualScale != null
+                    && actualScale >= expectedScale
+                    && actualPrecision - actualScale >= expectedPrecision - expectedScale;
+            if (!covers) {
+                throw incompatibleColumn(table, column,
+                        "required precision=" + expectedPrecision + ", scale=" + expectedScale
+                                + " but database reports precision=" + actualPrecision
+                                + ", scale=" + actualScale);
+            }
+        }
+    }
+
+    private IllegalStateException incompatibleColumn(
+            String table, SQLColumn column, String detail) {
+        return new IllegalStateException(
+                "Ensure Schema incompatible existing column for entity '"
+                        + entityDescriptor.getType() + "' on table '" + table
+                        + "', column '" + column.getColumnName() + "', dialect '"
+                        + dialect.getClass().getSimpleName() + "': " + detail);
+    }
+
+    private static Object metadataValue(Map<String, Object> metadata, String... names) {
+        for (String name : names) {
+            for (Map.Entry<String, Object> entry : metadata.entrySet()) {
+                if (name.equalsIgnoreCase(entry.getKey())) return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    private static boolean nullableMetadata(Object value) {
+        if (value instanceof Boolean bool) return bool;
+        if (value instanceof Number number) return number.intValue() != 0;
+        String text = String.valueOf(value).trim();
+        return "YES".equalsIgnoreCase(text)
+                || "Y".equalsIgnoreCase(text)
+                || "TRUE".equalsIgnoreCase(text)
+                || "1".equals(text);
+    }
+
+    private static Integer integerMetadata(Object value) {
+        if (value == null) return null;
+        if (value instanceof Number number) return number.intValue();
+        try {
+            return Integer.valueOf(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private static String declaredTypeFamily(String type) {
+        int argumentStart = type.indexOf('(');
+        return (argumentStart < 0 ? type : type.substring(0, argumentStart))
+                .trim().toUpperCase(java.util.Locale.ROOT);
+    }
+
+    private static List<Integer> declaredTypeArguments(String type) {
+        int start = type.indexOf('(');
+        int end = type.indexOf(')', start + 1);
+        if (start < 0 || end < 0) return List.of();
+        return Arrays.stream(type.substring(start + 1, end).split(","))
+                .map(String::trim)
+                .map(value -> {
+                    try {
+                        return Integer.valueOf(value);
+                    } catch (NumberFormatException ignored) {
+                        return null;
+                    }
+                })
+                .filter(ObjectUtil::isNotNull)
+                .collect(Collectors.toList());
+    }
+
+    private static boolean isTextFamily(String family) {
+        return family.contains("CHAR") || family.contains("TEXT") || family.contains("CLOB");
+    }
+
+    private static boolean isUnboundedTextFamily(String family) {
+        return family.contains("TEXT") || family.contains("CLOB");
+    }
+
+    private static boolean isDecimalFamily(String family) {
+        return "DECIMAL".equals(family)
+                || "NUMERIC".equals(family)
+                || "NUMBER".equals(family);
     }
 
     private String metadataColumnName(Map<String, Object> column, String table) {

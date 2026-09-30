@@ -50,7 +50,12 @@ public class PostgresDataServiceExecutor extends SqlDataServiceExecutor {
 
             @Override
             public List<Map<String, Object>> getTableColumns(String tableName) {
-                String sql = "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ? AND table_schema = 'public'";
+                String sql = "SELECT column_name, data_type, data_type AS type_name, "
+                        + "character_maximum_length AS column_size, "
+                        + "numeric_precision, numeric_scale AS decimal_digits, "
+                        + "CASE WHEN is_nullable = 'YES' THEN 1 ELSE 0 END AS nullable "
+                        + "FROM information_schema.columns "
+                        + "WHERE table_name = ? AND table_schema = 'public'";
                 return getExecutionAdapter().queryForList(sql, new Object[] {tableName.toLowerCase()});
             }
 

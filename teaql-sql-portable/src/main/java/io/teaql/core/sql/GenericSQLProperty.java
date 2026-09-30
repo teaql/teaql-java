@@ -40,6 +40,7 @@ public class GenericSQLProperty extends PropertyDescriptor implements SQLPropert
     public List<SQLColumn> columns() {
         SQLColumn sqlColumn = new SQLColumn(tableName, columnName);
         sqlColumn.setType(columnType);
+        sqlColumn.setRequired(getBoolean("required", false));
         return ListUtil.of(sqlColumn);
     }
 
