@@ -56,19 +56,7 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
     @Override
     @SuppressWarnings("unchecked")
     public <T extends Entity> Stream<T> internalExecuteForStream(SearchRequest searchRequest, int batchSize) {
-        // Check whether the backing executor declares streaming capability.
-        // If it does, delegate to a lazy batch-pull iterator.
-        // If not, fall back to a fully-materialized list (safe but not lazy).
-        EntityDescriptor descriptor = runtime.getMetadata().resolveEntityDescriptor(searchRequest.getTypeName());
-        String route = descriptor != null ? descriptor.getDataService() : null;
-        if (route == null || route.isEmpty()) {
-            route = "default";
-        }
-        DataServiceExecutor executor = runtime.getRegistry().resolve(route);
-        if (executor instanceof StreamingQueryExecutor) {
-            return ((StreamingQueryExecutor) executor).queryForStream(this, searchRequest);
-        }
-        throw new TeaQLRuntimeException("Streaming query is not supported for route: " + route);
+        return runtime.internalExecuteForStream(this, searchRequest);
     }
 
     @Override
@@ -95,12 +83,12 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
 
     @Override
     public <T extends Entity> Stream<T> executeForStream(ExecutableRequest<T> request) {
-        return internalExecuteForStream(request.request());
+        return runtime.executeForStream(this, request.request());
     }
 
     @Override
     public <T extends Entity> Stream<T> executeForStream(ExecutableRequest<T> request, int enhanceBatchSize) {
-        return internalExecuteForStream(request.request(), enhanceBatchSize);
+        return runtime.executeForStream(this, request.request());
     }
 
     @Override

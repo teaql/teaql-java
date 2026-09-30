@@ -15,6 +15,7 @@ import io.teaql.runtime.businessid.DefaultBusinessIdService;
 import io.teaql.core.reference.RoundTripReferenceCodec;
 import io.teaql.core.reference.RoundTripReferenceProvider;
 import java.util.*;
+import java.util.stream.Stream;
 
 public class TeaQLRuntime {
     private final EntityMetaFactory metadata;
@@ -214,6 +215,50 @@ public class TeaQLRuntime {
         }
         rows.addAggregationResult(context, result.getAggregationResult());
         return rows;
+    }
+
+    /** Executes a business-facing streaming query after the same policy gate as list queries. */
+    public <T extends Entity> Stream<T> executeForStream(
+            UserContext context, SearchRequest<T> request) {
+        if (request.purpose() == null || request.purpose().trim().isEmpty()) {
+            throw new TeaQLRuntimeException(
+                    "[PURPOSE REQUIRED] Missing .purpose() on streaming query execution.");
+        }
+        if (requestPolicy != null) {
+            requestPolicy.enforceSelect(context, request);
+        }
+        return executeForStreamResolved(context, request);
+    }
+
+    /**
+     * Executes a framework-owned nested stream under an already-authorized root query. The
+     * nested request still passes through RequestPolicy before reaching the provider.
+     */
+    public <T extends Entity> Stream<T> internalExecuteForStream(
+            UserContext context, SearchRequest<T> request) {
+        if (context.getTraceChain() == null || context.getTraceChain().isEmpty()) {
+            throw new TeaQLRuntimeException(
+                    "[INTERNAL QUERY CONTEXT REQUIRED] Nested streaming query has no authorized root trace.");
+        }
+        if (requestPolicy != null) {
+            requestPolicy.enforceSelect(context, request);
+        }
+        return executeForStreamResolved(context, request);
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T extends Entity> Stream<T> executeForStreamResolved(
+            UserContext context, SearchRequest<T> request) {
+        EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
+        String route = descriptor != null ? descriptor.getDataService() : null;
+        if (route == null || route.isEmpty()) {
+            route = "default";
+        }
+        DataServiceExecutor executor = registry.resolve(route);
+        if (executor instanceof StreamingQueryExecutor streamingQueryExecutor) {
+            return streamingQueryExecutor.queryForStream(context, request);
+        }
+        throw new TeaQLRuntimeException("Streaming query is not supported for route: " + route);
     }
 
     /**
