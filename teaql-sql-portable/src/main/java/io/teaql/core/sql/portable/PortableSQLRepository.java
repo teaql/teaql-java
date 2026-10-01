@@ -223,6 +223,13 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     // ==========================================
 
     public String buildDataSQL(UserContext userContext, SearchRequest request, Map<String, Object> parameters) {
+        if (parameters instanceof io.teaql.core.sql.SqlParameters tracked) {
+            var origin = request.inheritedQueryIntent();
+            if (origin == null && request.comment() != null && request.purpose() != null) {
+                origin = io.teaql.core.QueryIntent.of(request.comment(), request.purpose());
+            }
+            if (origin != null) tracked.captureQueryIntent(origin);
+        }
         String partitionProperty = request.getPartitionProperty();
         if (ObjectUtil.isNotEmpty(partitionProperty) && request.getSlice() != null) {
             ensureOrderByForPartition(request);
@@ -817,7 +824,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                                     idToCount.put(io.teaql.core.utils.Convert.convert(Long.class, relId), countVal);
                                 }
                             }
-                            io.teaql.core.internal.TempRequest fetchRelReq = new io.teaql.core.internal.TempRequest(relationReq);
+                            var rootIntent = request.inheritedQueryIntent() == null
+                                    ? io.teaql.core.QueryIntent.of(request.comment(), request.purpose())
+                                    : request.inheritedQueryIntent();
+                            io.teaql.core.internal.TempRequest fetchRelReq =
+                                    new SqlDiagnosticRequest(relationReq, facetIntent, rootIntent);
                             if (facetRequest.isMergeCriteria()) {
                                 fetchRelReq.appendSearchCriteria(request.getSearchCriteria());
                             }

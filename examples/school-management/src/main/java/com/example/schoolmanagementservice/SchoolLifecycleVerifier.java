@@ -18,6 +18,7 @@ final class SchoolLifecycleVerifier {
   private SchoolLifecycleVerifier() {}
 
   static void verify(TeaQLRuntime runtime) {
+    RequestIntentVerifier.verify(runtime);
     UserContext context = new CustomUserContext(runtime);
     Platform platform = Q.platforms()
         .withIdIs(1L)

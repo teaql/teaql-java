@@ -70,7 +70,10 @@ public class SqlParameterPropagationTest {
         }
         DefaultUserContext context() { return new DefaultUserContext(runtime); }
         Request request(String field, Operator op, Object... values) {
-            Request request = new Request(); request.selectSelf(); request.offset(0, 10);
+            Request request = new Request() {
+                { internalComment("verify SQL parameter provenance"); internalPurpose("test compiled plan privacy"); }
+            };
+            request.selectSelf(); request.offset(0, 10);
             request.appendSearchCriteria(request.createBasicSearchCriteria(field, op, values));
             return request;
         }

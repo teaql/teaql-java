@@ -23,7 +23,8 @@ run_example() {
   local name="$1"
   local jar="$2"
   local marker="$3"
-  local log="$run_dir/$name.log"
+  local repetition="$4"
+  local log="$run_dir/$name-run-$repetition.log"
   local database="$run_dir/$name.db"
 
   java -jar "$jar" \
@@ -36,7 +37,13 @@ run_example() {
       kill "$active_pid" 2>/dev/null || true
       wait "$active_pid" 2>/dev/null || true
       active_pid=""
-      printf 'PASS %s\n' "$name"
+      if [[ "$name" == "school-management" ]] && ! grep -Fq \
+        'PASS Java request-owned comment/purpose gates and generated relation inheritance' "$log"; then
+        printf 'FAIL school-management omitted request-intent verification\n' >&2
+        sed -n '1,240p' "$log" >&2
+        return 1
+      fi
+      printf 'PASS %s run %s (same database)\n' "$name" "$repetition"
       return 0
     fi
     if ! kill -0 "$active_pid" 2>/dev/null; then
@@ -54,14 +61,16 @@ run_example() {
   return 1
 }
 
-run_example \
-  "conformance" \
-  "$repo_dir/examples/conformance/target/deploy/runtime-example-conformance-service-0.0.1-SNAPSHOT.jar" \
-  "PASS Java minimum runtime conformance: 8/8"
+for repetition in 1 2; do
+  run_example \
+    "conformance" \
+    "$repo_dir/examples/conformance/target/deploy/runtime-example-conformance-service-0.0.1-SNAPSHOT.jar" \
+    "PASS Java minimum runtime conformance: 8/8" "$repetition"
 
-run_example \
-  "school-management" \
-  "$repo_dir/examples/school-management/target/deploy/school-management-service-0.0.1-SNAPSHOT.jar" \
-  "PASS Java School bootstrap, portable Query, and native SQLite Facet parity"
+  run_example \
+    "school-management" \
+    "$repo_dir/examples/school-management/target/deploy/school-management-service-0.0.1-SNAPSHOT.jar" \
+    "PASS Java School bootstrap, portable Query, and native SQLite Facet parity" "$repetition"
+done
 
 printf 'PASS Java runtime examples: 2/2\n'

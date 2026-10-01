@@ -1,0 +1,199 @@
+package io.teaql.runtime;
+
+import io.teaql.core.*;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+/** Request intent is a business gate, not an optional SQL logging annotation. */
+public class RequestIntentGateTest {
+    private static final class CountingProvider implements QueryExecutor, StreamingQueryExecutor, MutationExecutor {
+        private final AtomicInteger calls = new AtomicInteger();
+        @Override public QueryResult query(UserContext context, QueryRequest request) {
+            calls.incrementAndGet(); return new DefaultQueryResult(new SmartList<>());
+        }
+        @Override public <T extends Entity> java.util.stream.Stream<T> queryForStream(
+                UserContext context, SearchRequest<T> request) {
+            calls.incrementAndGet(); return java.util.stream.Stream.empty();
+        }
+        @Override public MutationResult mutate(UserContext context, PersistenceMutation request) {
+            calls.incrementAndGet(); return null;
+        }
+        @Override public String name() { return "dummy"; }
+        @Override public DataServiceCapabilities capabilities() { return new DataServiceCapabilities(); }
+    }
+    private static BaseRequest<TeaQLRuntimeTest.DummyEntity> request(String declaredComment, String declaredPurpose) {
+        return new BaseRequest<>(TeaQLRuntimeTest.DummyEntity.class) {
+            { internalComment(declaredComment); internalPurpose(declaredPurpose); }
+            @Override public String getTypeName() { return "Dummy"; }
+        };
+    }
+
+    private static void required(String code, Runnable action) {
+        try {
+            action.run();
+            fail("Expected " + code + " before execution");
+        } catch (TeaQLRuntimeException error) {
+            assertTrue(error.getMessage(), error.getMessage().contains(code));
+            assertFalse(error.getMessage().contains("SECRET-CANARY"));
+        }
+    }
+
+    @Test public void directQueryEnvelopeRequiresCommentEvenWithPurpose() {
+        for (String comment : new String[]{null, "", " \t\r\n", "\u2003", "\u00a0"}) {
+            required("REQUEST_COMMENT_REQUIRED", () ->
+                    new DefaultQueryRequest(request(comment, "render orders SECRET-CANARY")));
+        }
+    }
+
+    @Test public void directQueryEnvelopeRequiresPurpose() {
+        for (String purpose : new String[]{null, "", "\u2003"}) {
+            required("QUERY_PURPOSE_REQUIRED", () ->
+                    new DefaultQueryRequest(request("load orders SECRET-CANARY", purpose)));
+        }
+    }
+
+    @Test public void everyRootQueryGateRunsBeforePolicyAndWithLoggingDisabled() {
+        AtomicInteger policyCalls = new AtomicInteger();
+        var provider = new CountingProvider();
+        var runtime = TeaQLRuntime.builder().metadata(new TeaQLRuntimeTest.DummyMetaFactory())
+                .dataService("dummy", provider)
+                .queryExecutionLogging(false).mutationExecutionLogging(false)
+                .queryPolicy(new QueryPolicy() {
+                    @Override public void enforceSelect(UserContext context, SearchRequest<?> request) {
+                        policyCalls.incrementAndGet();
+                    }
+                }).build();
+        var context = new DefaultUserContext(runtime);
+        context.pushTrace(TraceKind.COMMENT, "Dummy", "unrelated old comment");
+        context.pushTrace(TraceKind.PURPOSE, "Dummy", "unrelated old purpose");
+        required("REQUEST_COMMENT_REQUIRED", () -> runtime.executeForList(context, request(null, "render orders")));
+        required("REQUEST_COMMENT_REQUIRED", () -> runtime.executeForStream(context, request(null, "render orders")));
+        required("REQUEST_COMMENT_REQUIRED", () -> runtime.aggregation(context, request(null, "render orders")));
+        required("REQUEST_COMMENT_REQUIRED", () -> runtime.executeForPage(context, request(null, "render orders"), 0, 10));
+        assertEquals(0, policyCalls.get());
+        assertEquals(0, provider.calls.get());
+    }
+
+    @Test public void mutationEnvelopeRequiresExplicitAuditComment() {
+        var entity = new TeaQLRuntimeTest.DummyEntity();
+        required("REQUEST_COMMENT_REQUIRED", () ->
+                new EntityPersistenceMutation(entity, EntityPersistenceMutation.Action.SAVE));
+        entity.setComment("\u2003");
+        required("REQUEST_COMMENT_REQUIRED", () ->
+                new EntityPersistenceMutation(entity, EntityPersistenceMutation.Action.DELETE));
+    }
+
+    @Test public void graphMutationGateRunsBeforePolicyAndProvider() {
+        AtomicInteger policyCalls = new AtomicInteger();
+        var provider = new CountingProvider();
+        var runtime = TeaQLRuntime.builder().metadata(new TeaQLRuntimeTest.DummyMetaFactory())
+                .dataService("dummy", provider)
+                .mutationPolicyRegistry(plan -> java.util.Optional.of(new MutationPolicy() {
+                    @Override public MutationPolicyIdentity identity() {
+                        return new MutationPolicyIdentity("test", "1", "test");
+                    }
+                    @Override public MutationDecision review(UserContext context, MutationPlan plan) {
+                        policyCalls.incrementAndGet(); return MutationDecision.allow();
+                    }
+                })).queryExecutionLogging(false).mutationExecutionLogging(false).build();
+        var entity = new TeaQLRuntimeTest.DummyEntity();
+        entity.setComment("\u2003");
+        var context = new DefaultUserContext(runtime);
+        context.pushTrace(TraceKind.AUDIT_REASON, "Dummy", "old unrelated reason");
+        required("REQUEST_COMMENT_REQUIRED", () -> runtime.saveGraph(context, entity));
+        assertEquals(0, policyCalls.get());
+        assertEquals(0, provider.calls.get());
+    }
+
+    @Test public void ambientTraceCannotAuthorizeAnUnscopedNestedQuery() {
+        AtomicInteger policyCalls = new AtomicInteger();
+        var runtime = TeaQLRuntime.builder().metadata(new TeaQLRuntimeTest.DummyMetaFactory())
+                .queryPolicy(new QueryPolicy() {
+                    @Override public void enforceSelect(UserContext context, SearchRequest<?> request) {
+                        policyCalls.incrementAndGet();
+                    }
+                }).build();
+        var context = new DefaultUserContext(runtime);
+        context.pushTrace("forged root trace");
+        required("INTERNAL QUERY CONTEXT REQUIRED", () -> context.internalExecuteForList(request(null, null)));
+        required("INTERNAL QUERY CONTEXT REQUIRED", () -> context.internalExecuteForStream(request(null, null)));
+        assertEquals(0, policyCalls.get());
+    }
+
+    @Test public void mutationPlanCannotExposeAnUnvalidatedReasonToPolicy() {
+        required("REQUEST_COMMENT_REQUIRED", () ->
+                new MutationPlan("exec", "request", "Dummy", null, List.of()));
+    }
+
+    @Test public void queryAndMutationEnvelopesKeepTheirValidatedSnapshot() {
+        class MutableRequest extends BaseRequest<TeaQLRuntimeTest.DummyEntity> {
+            MutableRequest() { super(TeaQLRuntimeTest.DummyEntity.class); }
+            void changeIntent(String comment, String purpose) { internalComment(comment); internalPurpose(purpose); }
+        }
+        var builder = new MutableRequest();
+        builder.changeIntent(" load original ", "render original");
+        var query = new DefaultQueryRequest(builder);
+        builder.changeIntent("another operation", "another purpose");
+        assertEquals(" load original ", query.comment());
+        assertEquals("render original", query.purpose());
+        var entity = new TeaQLRuntimeTest.DummyEntity(); entity.setComment("submit original");
+        var mutation = new EntityPersistenceMutation(entity, EntityPersistenceMutation.Action.SAVE);
+        entity.setComment("another operation");
+        assertEquals("submit original", mutation.comment());
+        assertEquals("submit original", mutation.intent().readbackIntent().comment());
+        assertFalse(query.intent().toString().contains("original"));
+        assertFalse(mutation.intent().toString().contains("original"));
+    }
+
+    @Test public void nestedQueryCarriesExplicitIntentWithoutAmbientContextOrLogging() {
+        var captured = new java.util.ArrayList<QueryRequest>();
+        var runtime = TeaQLRuntime.builder().metadata(new TeaQLRuntimeTest.DummyMetaFactory())
+                .queryExecutionLogging(false).mutationExecutionLogging(false)
+                .dataService("dummy", new TeaQLRuntimeTest.DummyQueryExecutor() {
+                    @Override public QueryResult query(UserContext context, QueryRequest request) {
+                        captured.add(request); return super.query(context, request);
+                    }
+                }).build();
+        var root = QueryIntent.of("load order graph", "render order details");
+        var child = new BaseRequest<TeaQLRuntimeTest.DummyEntity>(TeaQLRuntimeTest.DummyEntity.class) {
+            @Override public String getTypeName() { return "Dummy"; }
+            @Override public QueryIntent inheritedQueryIntent() { return root; }
+        };
+        var context = new DefaultUserContext(runtime);
+        assertTrue(context.getTraceChain().isEmpty());
+        assertNull(child.comment()); assertNull(child.purpose());
+        assertEquals(1, context.internalExecuteForList(child).size());
+        assertSame(root, captured.get(0).intent());
+        assertEquals(root.comment(), captured.get(0).comment());
+        assertEquals(root.purpose(), captured.get(0).purpose());
+        assertTrue(context.getTraceChain().isEmpty());
+    }
+
+    @Test public void policyAndCommittedAuditUseTheCapturedMutationRequestReason() {
+        var provider = new TeaQLRuntimeTest.RecordingMutationExecutor();
+        var sink = new TeaQLRuntimeTest.RecordingRuntimeLogSink();
+        var entity = new TeaQLRuntimeTest.DummyEntity();
+        entity.__internalSet("id", 701L); entity.__internalSet("version", 1L);
+        entity.set$status(EntityStatus.PERSISTED);
+        entity.updateProperty("name", "changed field"); entity.setComment("root operation reason");
+        var runtime = TeaQLRuntime.builder().metadata(new TeaQLRuntimeTest.DummyMetaFactory())
+                .dataService("dummy", provider).logSink(sink)
+                .mutationPolicyRegistry(key -> java.util.Optional.of(new MutationPolicy() {
+                    @Override public MutationPolicyIdentity identity() {
+                        return new MutationPolicyIdentity("test", "1", "test");
+                    }
+                    @Override public MutationDecision review(UserContext context, MutationPlan plan) {
+                        assertEquals("root operation reason", plan.auditReason());
+                        entity.setComment("a different later comment");
+                        return MutationDecision.allow();
+                    }
+                })).build();
+        runtime.saveGraph(new DefaultUserContext(runtime), entity);
+        assertEquals(1, provider.requests.size());
+        assertEquals("root operation reason", provider.requests.get(0).comment());
+        assertEquals(1, sink.auditEvents.size());
+        assertEquals("root operation reason", sink.auditEvents.get(0).reason());
+    }
+}

@@ -53,6 +53,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
 
     @Override
     public <T extends io.teaql.core.Entity> java.util.stream.Stream<T> queryForStream(UserContext context, io.teaql.core.SearchRequest<T> request) {
+        io.teaql.core.QueryIntent.of(request.comment(), request.purpose());
         // Unlike list execution, this path does not enter TeaQLRuntime.executeForList's trace scope.
         int pushed = 0;
         try {

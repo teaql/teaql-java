@@ -9,6 +9,13 @@ public final class SqlParameters extends HashMap<String, Object> {
     private final Map<String, SqlParameterLogPolicy> policies = new HashMap<>();
     private SqlParameterLogPolicy currentPolicy = SqlParameterLogPolicy.UNKNOWN;
     private boolean generated = true;
+    private io.teaql.core.QueryIntent queryIntent;
+
+    /** Immutable originating intent for cross-provider relation predicates during this compilation. */
+    public io.teaql.core.QueryIntent queryIntent() { return queryIntent; }
+    public void captureQueryIntent(io.teaql.core.QueryIntent intent) {
+        if (queryIntent == null) queryIntent = java.util.Objects.requireNonNull(intent, "intent");
+    }
 
     public SqlParameterLogPolicy policy(String name) {
         return policies.getOrDefault(name, SqlParameterLogPolicy.UNKNOWN);

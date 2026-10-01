@@ -11,6 +11,11 @@ loaded E traversal, full-field update, mark-for-deletion plus save, and normal-q
 absence. The example gate runs with a fresh SQLite database; running it a
 second time against the same database is supported.
 
+`RequestIntentVerifier` proves generated Q requests and graph saves reject
+missing comment/purpose before policy or SQL. It covers Unicode whitespace,
+fabricated ambient intent and root intent inheritance through both forward
+relations. Unit tests separately prove the gate is independent of logging.
+
 For updates, load the complete scalar entity. A read projection that includes
 only selected fields of related entities is useful for E/display, but should
 not be reused as the mutation graph: Checker correctly rejects those partial
@@ -22,5 +27,6 @@ and verifies optimistic, single-version reconciliation.
 
 From the repository root, run `examples/verify-runtime-examples.sh`. The gate
 builds both retained examples against the current reactor sources, assigns each
-run an isolated temporary SQLite database, waits for its acceptance marker, and
-exits non-zero if either application fails or times out.
+example an isolated temporary SQLite database, runs each twice without cleanup
+between repetitions, and requires both the lifecycle and request-intent markers.
+It exits non-zero if either application fails or times out.

@@ -6,11 +6,10 @@ package io.teaql.core;
  */
 public class Audited<T extends Entity> {
     private final T inner;
+    private final MutationIntent intent;
 
     public Audited(T entity, String comment) {
-        if (comment == null || comment.trim().isEmpty()) {
-            throw new IllegalArgumentException("Audit comment must not be empty");
-        }
+        this.intent = MutationIntent.of(comment);
         this.inner = entity;
         this.inner.setComment(comment);
     }
@@ -21,6 +20,7 @@ public class Audited<T extends Entity> {
 
     @SuppressWarnings("unchecked")
     public <R extends T> R save(UserContext context) {
+        this.inner.setComment(intent.comment());
         context.saveGraph(this.inner);
         return (R) this.inner;
     }
@@ -28,6 +28,7 @@ public class Audited<T extends Entity> {
     @SuppressWarnings("unchecked")
     public <R extends T> R recover(UserContext context) {
         this.inner.markAsRecover();
+        this.inner.setComment(intent.comment());
         context.saveGraph(this.inner);
         return (R) this.inner;
     }

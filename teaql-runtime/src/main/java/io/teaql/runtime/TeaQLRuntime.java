@@ -166,9 +166,7 @@ public class TeaQLRuntime {
                 new RuntimeTelemetry.Operation("query", request.getTypeName() + ".list",
                         Map.of("teaql.entity.type", request.getTypeName())));
         try {
-        if (request.purpose() == null || request.purpose().trim().isEmpty()) {
-            throw new TeaQLRuntimeException("[PURPOSE REQUIRED] Missing .purpose() on query execution.");
-        }
+        QueryIntent intent = QueryIntent.of(request.comment(), request.purpose());
         enforceMaterializedLimit(request, request.hardLimit());
         if (queryPolicy != null) {
             queryPolicy.enforceSelect(context, request);
@@ -177,16 +175,16 @@ public class TeaQLRuntime {
         boolean pushedPurpose = false;
         context.pushTrace(TraceKind.OPERATION, request.getTypeName(), "query");
         context.pushTrace(TraceKind.REQUEST, request.getTypeName(), request.getTypeName());
-        if (request.comment() != null && !request.comment().trim().isEmpty()) {
-            context.pushTrace(TraceKind.COMMENT, request.getTypeName(), request.comment());
+        if (intent.comment() != null) {
+            context.pushTrace(TraceKind.COMMENT, request.getTypeName(), intent.comment());
             pushedComment = true;
         }
-        if (request.purpose() != null && !request.purpose().trim().isEmpty()) {
-            context.pushTrace(TraceKind.PURPOSE, request.getTypeName(), request.purpose());
+        if (intent.purpose() != null) {
+            context.pushTrace(TraceKind.PURPOSE, request.getTypeName(), intent.purpose());
             pushedPurpose = true;
         }
         try {
-            SmartList<T> result = executeForListResolved(context, request);
+            SmartList<T> result = executeForListResolved(context, request, intent);
             telemetryScope.success(Map.of("teaql.result.cardinality", result.size()));
             return result;
         } finally {
@@ -204,6 +202,7 @@ public class TeaQLRuntime {
     @SuppressWarnings("unchecked")
     public <T extends Entity> SmartList<T> executeForPage(
             UserContext context, SearchRequest<T> request, int offset, int limit) {
+        QueryIntent intent = QueryIntent.of(request.comment(), request.purpose());
         if (!(request instanceof BaseRequest<?> baseRequest)) {
             throw new TeaQLRuntimeException("Paged execution requires a generated BaseRequest");
         }
@@ -227,7 +226,7 @@ public class TeaQLRuntime {
         String route = descriptor.getDataService();
         if (route == null || route.isEmpty()) route = "default";
         QueryExecutor executor = registry.resolveQueryExecutor(route);
-        QueryResult countResult = executor.query(context, new DefaultQueryRequest(countRequest));
+        QueryResult countResult = executor.query(context, new DefaultQueryRequest(countRequest, intent));
         if (!(countResult instanceof DefaultQueryResult result)
                 || result.getAggregationResult() == null) {
             throw new TeaQLRuntimeException("Exact page count is not supported for route: " + route);
@@ -242,10 +241,7 @@ public class TeaQLRuntime {
     /** Executes a business-facing streaming query after the same policy gate as list queries. */
     public <T extends Entity> Stream<T> executeForStream(
             UserContext context, SearchRequest<T> request) {
-        if (request.purpose() == null || request.purpose().trim().isEmpty()) {
-            throw new TeaQLRuntimeException(
-                    "[PURPOSE REQUIRED] Missing .purpose() on streaming query execution.");
-        }
+        QueryIntent.of(request.comment(), request.purpose());
         if (queryPolicy != null) {
             queryPolicy.enforceSelect(context, request);
         }
@@ -258,10 +254,7 @@ public class TeaQLRuntime {
      */
     public <T extends Entity> Stream<T> internalExecuteForStream(
             UserContext context, SearchRequest<T> request) {
-        if (context.getTraceChain() == null || context.getTraceChain().isEmpty()) {
-            throw new TeaQLRuntimeException(
-                    "[INTERNAL QUERY CONTEXT REQUIRED] Nested streaming query has no authorized root trace.");
-        }
+        requireInheritedQueryIntent(request);
         if (queryPolicy != null) {
             queryPolicy.enforceSelect(context, request);
         }
@@ -306,17 +299,14 @@ public class TeaQLRuntime {
                 new RuntimeTelemetry.Operation("relation_load", request.getTypeName() + ".relation",
                         relationAttributes));
         try {
-        if (context.getTraceChain() == null || context.getTraceChain().isEmpty()) {
-            throw new TeaQLRuntimeException(
-                    "[INTERNAL QUERY CONTEXT REQUIRED] Nested query has no authorized root trace.");
-        }
+        QueryIntent intent = requireInheritedQueryIntent(request);
         enforceMaterializedLimit(request, SearchRequest.DEFAULT_HARD_LIMIT);
         if (queryPolicy != null) {
             queryPolicy.enforceSelect(context, request);
         }
         context.pushTrace(TraceKind.RELATION, request.getTypeName(), request.getTypeName());
         try {
-            SmartList<T> result = executeForListResolved(context, request);
+            SmartList<T> result = executeForListResolved(context, request, intent);
             relationScope.success(Map.of("teaql.result.cardinality", result.size()));
             return result;
         } finally {
@@ -332,6 +322,15 @@ public class TeaQLRuntime {
             SearchRequest<?> request, Map<String, Object> attributes, String extension, String attribute) {
         Object value = request.getExtension(extension);
         if (value != null) attributes.put(attribute, value);
+    }
+
+    private static QueryIntent requireInheritedQueryIntent(SearchRequest<?> request) {
+        QueryIntent intent = request.inheritedQueryIntent();
+        if (intent == null) {
+            throw new TeaQLRuntimeException(
+                    "[INTERNAL QUERY CONTEXT REQUIRED] Nested query requires an explicit validated root request intent.");
+        }
+        return intent;
     }
 
     private static void enforceMaterializedLimit(SearchRequest<?> request, int hardLimit) {
@@ -350,7 +349,7 @@ public class TeaQLRuntime {
 
     @SuppressWarnings("unchecked")
     private <T extends Entity> SmartList<T> executeForListResolved(
-            UserContext context, SearchRequest<T> request) {
+            UserContext context, SearchRequest<T> request, QueryIntent intent) {
         EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
         String route = descriptor.getDataService();
         if (route == null || route.isEmpty()) {
@@ -360,7 +359,7 @@ public class TeaQLRuntime {
         if (queryExecutor == null) {
             throw new TeaQLRuntimeException("No QueryExecutor registered for route: " + route);
         }
-        QueryRequest queryRequest = new DefaultQueryRequest(request);
+        QueryRequest queryRequest = new DefaultQueryRequest(request, intent);
         RuntimeTelemetry.Scope providerScope = RuntimeTelemetry.startSafely(telemetry,
                 new RuntimeTelemetry.Operation("provider", route + ".query", Map.of(
                         "teaql.provider.kind", route,
@@ -381,20 +380,20 @@ public class TeaQLRuntime {
     }
 
     public <T extends Entity> AggregationResult aggregation(UserContext context, SearchRequest<T> request) {
-        if (request.purpose() == null || request.purpose().trim().isEmpty()) {
-            throw new TeaQLRuntimeException("[PURPOSE REQUIRED] Missing .purpose() on aggregation.");
-        }
+        QueryIntent intent = QueryIntent.of(request.comment(), request.purpose());
         if (queryPolicy != null) {
             queryPolicy.enforceSelect(context, request);
         }
         boolean pushedComment = false;
         boolean pushedPurpose = false;
-        if (request.comment() != null && !request.comment().trim().isEmpty()) {
-            context.pushTrace(TraceKind.COMMENT, request.getTypeName(), request.comment());
+        context.pushTrace(TraceKind.OPERATION, request.getTypeName(), "query");
+        context.pushTrace(TraceKind.REQUEST, request.getTypeName(), request.getTypeName());
+        if (intent.comment() != null) {
+            context.pushTrace(TraceKind.COMMENT, request.getTypeName(), intent.comment());
             pushedComment = true;
         }
-        if (request.purpose() != null && !request.purpose().trim().isEmpty()) {
-            context.pushTrace(TraceKind.PURPOSE, request.getTypeName(), request.purpose());
+        if (intent.purpose() != null) {
+            context.pushTrace(TraceKind.PURPOSE, request.getTypeName(), intent.purpose());
             pushedPurpose = true;
         }
         try {
@@ -407,7 +406,7 @@ public class TeaQLRuntime {
             if (queryExecutor == null) {
                 throw new TeaQLRuntimeException("No QueryExecutor registered for route: " + route);
             }
-            QueryRequest queryRequest = new DefaultQueryRequest(request);
+            QueryRequest queryRequest = new DefaultQueryRequest(request, intent);
             QueryResult queryResult = queryExecutor.query(context, queryRequest);
             if (queryResult instanceof DefaultQueryResult) {
                 return ((DefaultQueryResult) queryResult).getAggregationResult();
@@ -416,6 +415,8 @@ public class TeaQLRuntime {
         } finally {
             if (pushedPurpose) context.popTrace();
             if (pushedComment) context.popTrace();
+            context.popTrace();
+            context.popTrace();
         }
     }
 
@@ -437,14 +438,12 @@ public class TeaQLRuntime {
                         "teaql.entity.type", entity.typeName(),
                         "teaql.mutation.kind", "save")));
         try {
-        if (entity.getComment() == null || entity.getComment().trim().isEmpty()) {
-            throw new TeaQLRuntimeException("[AUDIT REQUIRED] Missing .auditAs() or .setComment() before saveGraph().");
-        }
+        MutationIntent intent = MutationIntent.of(entity.getComment());
         boolean pushed = false;
         context.pushTrace(TraceKind.OPERATION, entity.typeName(), "mutation");
         context.pushTrace(TraceKind.ENTITY, entity.typeName(), entity.typeName());
-        if (entity.getComment() != null && !entity.getComment().trim().isEmpty()) {
-            context.pushTrace(TraceKind.AUDIT_REASON, entity.typeName(), entity.getComment());
+        if (intent.comment() != null) {
+            context.pushTrace(TraceKind.AUDIT_REASON, entity.typeName(), intent.comment());
             pushed = true;
         }
         try {
@@ -501,17 +500,17 @@ public class TeaQLRuntime {
                     new PersistenceState(
                             value.getVersion(), value.get$status(),
                             value.isPropertyLoaded(BaseEntity.VERSION_PROPERTY))));
-            MutationPlan mutationPlan = buildMutationPlan(entity, entityMutationLedger, realEntities);
+            MutationPlan mutationPlan = buildMutationPlan(entity, entityMutationLedger, realEntities, intent);
             MutationGovernanceSnapshot governance = reviewMutationPlan(context, mutationPlan);
             List<PendingMutation> completed;
             try {
                 if (mutationExecutor instanceof TransactionExecutor transactionExecutor) {
                     completed = transactionExecutor.executeInTransaction(context, () ->
                             executeLedgerPlan(context, entityMutationLedger, mutationExecutor,
-                                    realEntities, governance));
+                                    realEntities, governance, intent));
                 } else {
                     completed = executeLedgerPlan(
-                            context, entityMutationLedger, mutationExecutor, realEntities, governance);
+                            context, entityMutationLedger, mutationExecutor, realEntities, governance, intent);
                 }
             } catch (RuntimeException | Error failure) {
                 restoreGraphPersistenceState(
@@ -697,7 +696,7 @@ public class TeaQLRuntime {
     private MutationPlan buildMutationPlan(
             Entity rootEntity,
             EntityMutationLedger ledger,
-            Map<EntityKey, BaseEntity> realEntities) {
+            Map<EntityKey, BaseEntity> realEntities, MutationIntent intent) {
         EntityChangeSet changeSet = ledger.currentChangeSet();
         Set<EntityKey> deleted = ledger.deletedKeys();
         Set<EntityKey> created = ledger.newKeys();
@@ -731,7 +730,7 @@ public class TeaQLRuntime {
                 UUID.randomUUID().toString(),
                 rootEntity.typeName() + ".saveGraph",
                 rootEntity.typeName(),
-                rootEntity.getComment(),
+                intent.auditReason(),
                 operations);
     }
 
@@ -808,7 +807,8 @@ public class TeaQLRuntime {
             EntityMutationLedger root,
             MutationExecutor mutationExecutor,
             Map<EntityKey, BaseEntity> realEntities,
-            MutationGovernanceSnapshot governance) {
+            MutationGovernanceSnapshot governance,
+            MutationIntent intent) {
         List<PendingMutation> completed = new ArrayList<>();
         EntityChangeSet changeSet = root.currentChangeSet();
         Set<EntityKey> deletedKeys = root.deletedKeys();
@@ -833,12 +833,12 @@ public class TeaQLRuntime {
             if (root.getComment() != null) deleteEntity.setComment(root.getComment());
 
             EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
-                deleteEntity, EntityPersistenceMutation.Action.DELETE);
+                deleteEntity, EntityPersistenceMutation.Action.DELETE, intent);
             MutationResult result = mutateWithTelemetry(context, mutationExecutor, mutationRequest,
                     key.entity(), "delete");
             completed.add(new PendingMutation(
                     descriptor, target == null ? deleteEntity : target, result,
-                    MutationAuditKind.DELETED, Collections.emptyMap(), governance));
+                    MutationAuditKind.DELETED, Collections.emptyMap(), governance, intent));
         }
 
         // 2. Group changes
@@ -881,12 +881,12 @@ public class TeaQLRuntime {
                 if (root.getComment() != null) entity.setComment(root.getComment());
 
                 EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
-                    entity, EntityPersistenceMutation.Action.SAVE);
+                    entity, EntityPersistenceMutation.Action.SAVE, intent);
                 MutationResult result = mutateWithTelemetry(context, mutationExecutor, mutationRequest,
                         entityName, "save");
                 completed.add(new PendingMutation(
                         descriptor, target == null ? entity : target, result,
-                        MutationAuditKind.CREATED, snapshotChanges(changes), governance));
+                        MutationAuditKind.CREATED, snapshotChanges(changes), governance, intent));
             }
         }
 
@@ -916,7 +916,7 @@ public class TeaQLRuntime {
                 if (root.getComment() != null) entity.setComment(root.getComment());
 
                 EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
-                    entity, EntityPersistenceMutation.Action.SAVE);
+                    entity, EntityPersistenceMutation.Action.SAVE, intent);
                 MutationAuditKind auditKind = target != null && target.recoverItem()
                         ? MutationAuditKind.RECOVERED
                         : MutationAuditKind.UPDATED;
@@ -924,7 +924,7 @@ public class TeaQLRuntime {
                         entityName, auditKind.name().toLowerCase(Locale.ROOT));
                 completed.add(new PendingMutation(
                         descriptor, target == null ? entity : target, result,
-                        auditKind, snapshotChanges(changes), governance));
+                        auditKind, snapshotChanges(changes), governance, intent));
             }
         }
         return completed;
@@ -935,7 +935,7 @@ public class TeaQLRuntime {
             applyPersistedEntity(mutation.descriptor(), mutation.target(), mutation.result());
             emitAuditEvent(
                     context, mutation.target(), mutation.auditKind(), mutation.changedValues(),
-                    mutation.governance());
+                    mutation.governance(), mutation.intent());
             mutation.target().clearUpdatedProperties();
         }
     }
@@ -959,7 +959,7 @@ public class TeaQLRuntime {
             MutationResult result,
             MutationAuditKind auditKind,
             Map<String, Object> changedValues,
-            MutationGovernanceSnapshot governance) {}
+            MutationGovernanceSnapshot governance, MutationIntent intent) {}
 
     private record PersistenceState(
             Long version, io.teaql.core.EntityStatus status, boolean versionLoaded) {}
@@ -1026,7 +1026,7 @@ public class TeaQLRuntime {
             Entity entity,
             MutationAuditKind kind,
             Map<String, Object> changedValues,
-            MutationGovernanceSnapshot governance) {
+            MutationGovernanceSnapshot governance, MutationIntent intent) {
         List<AuditFieldChange> changes = new ArrayList<>();
         if (changedValues != null) {
             for (Map.Entry<String, Object> entry : changedValues.entrySet()) {
@@ -1043,7 +1043,7 @@ public class TeaQLRuntime {
                 context.getTraceChain(),
                 context.getAttribute(GeneratedSchemaBootstrap.AUDIT_ACTOR_ATTRIBUTE, String.class),
                 context.getAttribute(GeneratedSchemaBootstrap.AUDIT_CATEGORY_ATTRIBUTE, String.class),
-                entity.getComment(),
+                intent.auditReason(),
                 entity.getVersion(),
                 java.time.Instant.now(),
                 governance);

@@ -83,7 +83,13 @@ public class SubQueryParser implements SQLExpressionParser<SubQuerySearchCriteri
         }
 
         // fall back
-        SmartList<Entity> referred = userContext.internalExecuteForList(dependsOn);
+        var rootIntent = parameters instanceof io.teaql.core.sql.SqlParameters tracked
+                ? tracked.queryIntent() : null;
+        if (rootIntent == null) {
+            throw new io.teaql.core.TeaQLRuntimeException(
+                    "[INTERNAL QUERY CONTEXT REQUIRED] Materialized relation predicate requires originating query intent.");
+        }
+        SmartList<Entity> referred = userContext.internalExecuteForList(new TempRequest(dependsOn, rootIntent));
         Set dependsOnValues = new HashSet<>();
         for (Entity entity : referred) {
             Object propertyValue = entity.getProperty(dependsOnPropertyName);

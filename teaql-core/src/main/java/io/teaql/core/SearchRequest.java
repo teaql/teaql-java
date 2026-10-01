@@ -50,6 +50,10 @@ public interface SearchRequest<T extends Entity> {
 
     String comment();
 
+    /** Explicit originating intent carried only by framework-owned derived queries. */
+    @FrameworkInternal("Nested query provenance; never inferred from UserContext trace state")
+    default QueryIntent inheritedQueryIntent() { return null; }
+
     /**
      * Returns the declared purpose of this query.
      * Purpose describes WHY this query is being executed (business intent).

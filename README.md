@@ -110,6 +110,27 @@ Mutations declare an audit action:
 task.auditAs("Move task to Done").save(userContext);
 ```
 
+### Request owned intent on the development branch
+
+The `feature/request-trace-chain` branch makes non-blank `comment` part of both
+`QueryRequest` and `MutationRequest`. Query also requires non-blank `purpose`.
+Existing generated `.comment(...).purpose(...)` and `.auditAs(...)` spelling
+does not change. Low-level provider requests now expose an immutable validated
+`QueryIntent` or `MutationIntent`; custom SPI implementations must adopt this
+contract. These changes are not a claim about published Maven artifacts.
+
+Missing or Unicode-whitespace-only comment fails with
+`REQUEST_COMMENT_REQUIRED` at `comment`; missing Query purpose fails with
+`QUERY_PURPOSE_REQUIRED` at `purpose`. Validation happens before policy and
+provider execution, including direct runtime calls and disabled logging.
+Neither a Context default nor a fabricated trace supplies missing intent.
+
+Derived relation, Facet and materialized relation-predicate queries carry their
+validated originating intent instead of asking callers to repeat it. Mutation
+reason is captured before policy and retained in provider requests and committed
+audit facts. The complete hierarchical Trace Chain and concurrent-context
+isolation remain separate, unfinished gates on this branch.
+
 Applications can replace runtime services such as `QueryPolicy`, the
 `MutationPolicyRegistry`, `MutationPolicyApprovalProvider`, `RuntimeLogSink`,
 `DataServiceRegistry`, `InternalIdGenerationService`, and `EntityMetaFactory`
