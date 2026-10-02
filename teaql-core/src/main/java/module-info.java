@@ -6,6 +6,8 @@ module io.teaql.core {
     // === Public API needed by generated code ===
     exports io.teaql.core;
     exports io.teaql.core.checker;
+    // Runtime implementation only, not generated or application-facing API.
+    exports io.teaql.core.checker.internal to io.teaql.runtime;
     exports io.teaql.core.i18n;
     exports io.teaql.core.criteria;
     exports io.teaql.core.meta;

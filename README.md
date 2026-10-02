@@ -150,10 +150,22 @@ Providers without the capability retain individual command execution.
 
 The generated [Trace Chain example](examples/trace-chain/README.md) proves the
 normative graph, three-level Q/E queries, prepared insert grouping and complete
-ledger replacement. Prepared update/delete/recover batches, complete
-entry-point/privacy coverage, query scope migration and immutable internal
-Registry replay remain separate open gates. This is local source evidence, not
-a merge or release claim.
+ledger replacement, plus prepared update/delete/recover batches with independent
+optimistic versions. It now also runs real overlapping generated Checkers and
+independent graph saves with one Context, observing per-item SQL and committed
+audit lineage. Temporary check results, visited objects, Fix evidence and the
+captured graph clock belong to each synchronous Checker invocation. Nested saves
+restore the outer invocation while preserving the original custom Context and
+its service hooks. `lastFixEvidence()` is the last completed check's diagnostic
+receipt on the calling execution thread; it is not an async propagation API.
+Read-only loaded relations retain their private ledger when reused by independent
+graphs. Graph composition imports only pending mutations of explicitly visited
+related entity keys, not every pending key from a foreign reference's ledger.
+
+Complete entry-point/privacy coverage, query scope migration, asynchronous
+handoff/cancellation and immutable internal Registry replay remain separate open
+gates. The tested SQLite writer transactions serialize while the generated
+Checkers overlap. This is local source evidence, not a merge or release claim.
 
 Applications can replace runtime services such as `QueryPolicy`, the
 `MutationPolicyRegistry`, `MutationPolicyApprovalProvider`, `RuntimeLogSink`,

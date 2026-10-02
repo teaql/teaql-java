@@ -131,6 +131,27 @@ public class EntityMutationLedger {
     }
 
     /**
+     * Imports only the explicitly visited entity's pending mutation. A loaded
+     * reference may be shared by otherwise independent graphs; importing its
+     * entire ledger could pull in an unrelated root's changes. Returns false
+     * for a read-only entity, which must retain its private ledger ownership.
+     */
+    public boolean mergeEntityFrom(EntityMutationLedger other, EntityKey key) {
+        if (other == null || other == this) return false;
+        Map<String, Object> fields = other.currentChangeSet().changes().get(key);
+        boolean pending = (fields != null && !fields.isEmpty()) || other.newKeys.contains(key)
+                || other.deletedKeys.contains(key) || other.recoveredKeys.contains(key);
+        if (!pending) return false;
+        if (fields != null) fields.forEach((field, value) -> set(key, field, value));
+        if (other.deletedKeys.contains(key)) markAsDelete(key);
+        if (other.recoveredKeys.contains(key)) markAsRecover(key);
+        if (other.newKeys.contains(key)) markAsNew(key);
+        if (other.traceChains.containsKey(key)) setTraceChain(key, other.traceChains.get(key));
+        if (other.originalVersions.containsKey(key)) setOriginalVersion(key, other.originalVersions.get(key));
+        return true;
+    }
+
+    /**
      * Merge another EntityMutationLedger's changes into this one.
      * Used when saving an entity graph (e.g., Order + OrderItems).
      */

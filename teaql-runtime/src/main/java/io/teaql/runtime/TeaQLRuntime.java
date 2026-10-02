@@ -557,26 +557,16 @@ public class TeaQLRuntime {
         if (checker == null) {
             return;
         }
-        context.putAttribute(Checker.TEAQL_DATA_CHECK_RESULT, new ArrayList<CheckResult>());
-        context.putAttribute(Checker.TEAQL_DATA_CHECKED_ITEMS, new ArrayList<>());
-        context.beginFixEvidence();
-        boolean ownsFixTime = context.getAttribute(Checker.TEAQL_FIX_TIME) == null;
-        if (ownsFixTime) {
-            context.putAttribute(Checker.TEAQL_FIX_TIME, context.businessTime());
-        }
-        try {
-            checker.checkAndFix(context, (BaseEntity) entity);
-            List<CheckResult> violations = (List<CheckResult>)
-                    context.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT);
-            if (violations != null && !violations.isEmpty()) {
-                throw new CheckException(new ArrayList<>(violations));
-            }
-        } finally {
-            context.finishFixEvidence();
-            context.putAttribute(Checker.TEAQL_DATA_CHECK_RESULT, null);
-            context.putAttribute(Checker.TEAQL_DATA_CHECKED_ITEMS, null);
-            if (ownsFixTime) {
-                context.putAttribute(Checker.TEAQL_FIX_TIME, null);
+        try (var invocation = io.teaql.core.checker.internal.CheckerInvocation.open(context)) {
+            context.beginFixEvidence();
+            try {
+                checker.checkAndFix(context, (BaseEntity) entity);
+                List<CheckResult> violations = (List<CheckResult>) invocation.attribute(Checker.TEAQL_DATA_CHECK_RESULT);
+                if (violations != null && !violations.isEmpty()) {
+                    throw new CheckException(new ArrayList<>(violations));
+                }
+            } finally {
+                context.finishFixEvidence();
             }
         }
     }
@@ -608,10 +598,12 @@ public class TeaQLRuntime {
         }
 
         visitRelatedEntities(entity, related -> {
+            if (visited.contains(related)) return;
             BaseEntity relatedBase = (BaseEntity) related;
             EntityMutationLedger relatedRoot = relatedBase.getEntityMutationLedger();
-            if (relatedRoot != null && relatedRoot != targetRoot) {
-                targetRoot.mergeFrom(relatedRoot);
+            EntityKey relatedKey = new EntityKey(related.typeName(), related.getId());
+            if (relatedBase.get$status() != EntityStatus.REFER
+                    && targetRoot.mergeEntityFrom(relatedRoot, relatedKey)) {
                 relatedBase.setEntityMutationLedger(targetRoot);
             }
             mergeRelatedEntityMutationLedgers(related, targetRoot, visited);

@@ -186,4 +186,56 @@ public class EntityMutationLedgerTest {
         assertTrue(ledger.recoveredKeys().isEmpty());
         assertEquals(java.util.Set.of(ORDER, payment), ledger.deletedKeys());
     }
+
+    @Test public void entityMergeDoesNotImportUnrelatedKeysWithTheSameId() {
+        EntityKey payment = new EntityKey("Payment", ORDER.id());
+        var source = new EntityMutationLedger();
+        source.set(ORDER, "status", "PAID");
+        source.markAsNew(ORDER);
+        source.setOriginalVersion(ORDER, 7L);
+        var trace = java.util.List.of(new TraceNode(TraceKind.AUDIT_REASON, "Order", 1L, "submit order"));
+        source.setTraceChain(ORDER, trace);
+        source.markAsDelete(payment);
+        source.setOriginalVersion(payment, 90L);
+        var target = new EntityMutationLedger();
+        assertTrue(target.mergeEntityFrom(source, ORDER));
+        assertEquals("PAID", target.get(ORDER, "status"));
+        assertEquals(Long.valueOf(7), target.getOriginalVersion(ORDER));
+        assertEquals(trace, target.getTraceChain(ORDER));
+        assertTrue(target.isNew(ORDER));
+        assertFalse(target.isMarkedAsDelete(payment));
+        assertNull(target.getOriginalVersion(payment));
+        assertTrue(source.isMarkedAsDelete(payment));
+        target.set(ORDER, "status", "APPROVED");
+        assertEquals("PAID", source.get(ORDER, "status"));
+    }
+
+    @Test public void readOnlyEntityMergeDoesNotImportAnotherGraphsPendingChanges() {
+        var source = new EntityMutationLedger();
+        source.setOriginalVersion(ORDER, 1L); // Loaded snapshot, no mutation.
+        source.set(OTHER_ORDER, "status", "SUBMITTED");
+        source.markAsNew(OTHER_ORDER);
+        var target = new EntityMutationLedger();
+        assertFalse(target.mergeEntityFrom(source, ORDER));
+        assertTrue(target.currentChangeSet().changes().isEmpty());
+        assertTrue(target.newKeys().isEmpty());
+        assertNull(target.getOriginalVersion(ORDER));
+        assertFalse(target.mergeEntityFrom(null, ORDER));
+    }
+
+    @Test public void entityMergePreservesFieldlessDeletionAndRecovery() {
+        var source = new EntityMutationLedger();
+        source.markAsDelete(ORDER);
+        source.setOriginalVersion(ORDER, 4L);
+        source.markAsRecover(OTHER_ORDER);
+        source.setOriginalVersion(OTHER_ORDER, -5L);
+        var target = new EntityMutationLedger();
+        assertTrue(target.mergeEntityFrom(source, ORDER));
+        assertTrue(target.isMarkedAsDelete(ORDER));
+        assertEquals(Long.valueOf(4), target.getOriginalVersion(ORDER));
+        assertTrue(target.mergeEntityFrom(source, OTHER_ORDER));
+        assertTrue(target.recoveredKeys().contains(OTHER_ORDER));
+        assertEquals(Long.valueOf(-5), target.getOriginalVersion(OTHER_ORDER));
+        assertTrue(target.currentChangeSet().changes().isEmpty());
+    }
 }

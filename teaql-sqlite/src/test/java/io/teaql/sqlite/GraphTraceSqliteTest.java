@@ -10,7 +10,14 @@ import io.teaql.runtime.*;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import io.teaql.core.checker.Checker;
+import io.teaql.core.checker.CheckException;
+import io.teaql.core.checker.FixEvidence;
+import io.teaql.core.checker.ObjectLocation;
 import org.junit.Test;
 import org.sqlite.SQLiteDataSource;
 import static org.junit.Assert.*;
@@ -129,6 +136,143 @@ public class GraphTraceSqliteTest {
             entity.updateProperty("name", name);
             return entity;
         }
+    }
+
+    private static void await(CountDownLatch latch) {
+        try {
+            assertTrue("overlapping execution must reach its checkpoint", latch.await(10, TimeUnit.SECONDS));
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("concurrency checkpoint interrupted", interrupted);
+        }
+    }
+
+    record CheckedSave(Throwable failure, List<FixEvidence> evidence) {}
+
+    @Test public void savingAnotherGraphDoesNotRebindAReadOnlyRelatedEntityLedger() throws Exception {
+        var fixture = new Fixture();
+        var shared = fixture.create("CustomerOrder", 6500, "Shared read-only parent");
+        shared.auditAs("seed shared parent").save(fixture.context);
+        var sharedLedger = shared.getEntityMutationLedger();
+        fixture.clear();
+        var root = fixture.create("Payment", 6600, "Independent graph");
+        root.__internalSet("children", List.of(shared));
+        root.auditAs("save independent graph").save(fixture.context);
+        assertSame("an unmodified loaded relation must not adopt another graph's mutable ledger",
+                sharedLedger, shared.getEntityMutationLedger());
+        assertEquals(1, fixture.commands.size());
+        assertEquals(1, fixture.audit.size());
+        assertLineage(fixture.audit, "Payment", 6600, List.of("save independent graph"));
+    }
+
+    private static CheckedSave checkedSave(Fixture fixture, GraphEntity entity, String reason) {
+        Throwable failure = null;
+        try { entity.auditAs(reason).save(fixture.context); }
+        catch (Throwable thrown) { failure = thrown; }
+        return new CheckedSave(failure, fixture.context.lastFixEvidence());
+    }
+
+    @Test public void overlappingCheckerRunsDoNotRejectTheValidGraphOrAdmitTheInvalidGraph() throws Exception {
+        var fixture = new Fixture();
+        var valid = fixture.create("CustomerOrder", 6100, "Valid overlapping graph");
+        var invalid = fixture.create("CustomerOrder", 6200, null);
+        var validEntered = new CountDownLatch(1);
+        var invalidChecked = new CountDownLatch(1);
+        var validFinished = new CountDownLatch(1);
+        var dates = new AtomicLong(0);
+        fixture.context.putAttribute(io.teaql.core.businessid.BusinessClock.class.getName(),
+                (io.teaql.core.businessid.BusinessClock) caller -> {
+                    assertSame("application hooks retain the original custom Context", fixture.context, caller);
+                    return java.time.LocalDate.of(2026, 10, 2).plusDays(dates.getAndIncrement());
+                });
+        fixture.context.getRuntime().install(RuntimeModule.of().withCheckers(new Checker<GraphEntity>() {
+            @Override public String type() { return "CustomerOrder"; }
+            @Override public void checkAndFix(UserContext caller, GraphEntity entity, ObjectLocation location) {
+                assertSame(fixture.context, caller);
+                if (entity == invalid) await(validEntered);
+                assertTrue(needCheck(caller, entity));
+                markAsChecked(caller, entity);
+                java.time.LocalDateTime captured = caller.evaluate("now");
+                entity.updateProperty("memo", captured.toString());
+                caller.recordFixEvidence(new FixEvidence("CustomerOrder", entity == valid ? "valid_clock" : "invalid_clock",
+                        FixEvidence.Source.CLOCK, "graphClock"));
+                requiredCheck(caller, newLocation(location, "name"), entity.getProperty("name"));
+                if (entity == valid) {
+                    validEntered.countDown();
+                    await(invalidChecked);
+                } else {
+                    invalidChecked.countDown();
+                    await(validFinished);
+                }
+            }
+        }));
+        var workers = Executors.newFixedThreadPool(2);
+        try {
+            var first = workers.submit(() -> {
+                try { return checkedSave(fixture, valid, "save valid overlapping graph"); }
+                finally { validFinished.countDown(); }
+            });
+            var second = workers.submit(() -> checkedSave(fixture, invalid, "reject invalid overlapping graph"));
+            var accepted = first.get(20, TimeUnit.SECONDS);
+            var rejected = second.get(20, TimeUnit.SECONDS);
+            assertNull("another graph's required-field failure must not reject this valid graph: " + accepted.failure(), accepted.failure());
+            assertTrue("invalid graph must fail before provider", rejected.failure() instanceof CheckException);
+            assertEquals("name", ((CheckException) rejected.failure()).getViolates().get(0).getLocation().modelPath());
+            assertEquals(List.of("valid_clock"), accepted.evidence().stream().map(FixEvidence::modelPath).toList());
+            assertEquals(List.of("invalid_clock"), rejected.evidence().stream().map(FixEvidence::modelPath).toList());
+            assertEquals("2026-10-02T00:00", valid.getProperty("memo"));
+            assertEquals("2026-10-03T00:00", invalid.getProperty("memo"));
+            assertEquals(2, dates.get());
+            assertEquals(1, fixture.commands.size());
+            assertEquals(1, fixture.audit.size());
+            assertLineage(fixture.audit, "CustomerOrder", 6100, List.of("save valid overlapping graph"));
+            assertTrue(fixture.sql.stream().allMatch(entry -> !entry.getMutationLineage().isEmpty()
+                    && reasons(entry.getMutationLineage()).equals(List.of("save valid overlapping graph"))));
+            assertTrue(fixture.driver.queryForList("SELECT id FROM customer_order_data WHERE id = ?", new Object[]{6200L}).isEmpty());
+            assertNull(fixture.context.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT));
+            assertNull(fixture.context.getAttribute(Checker.TEAQL_FIX_TIME));
+            assertTrue(fixture.context.getTraceChain().isEmpty());
+        } finally {
+            validEntered.countDown(); invalidChecked.countDown(); validFinished.countDown();
+            workers.shutdownNow();
+            assertTrue(workers.awaitTermination(10, TimeUnit.SECONDS));
+        }
+    }
+
+    @Test public void reentrantCheckerSaveRestoresOuterViolationsTimeAndEvidence() throws Exception {
+        var fixture = new Fixture();
+        var outer = fixture.create("CustomerOrder", 6300, null);
+        var inner = fixture.create("CustomerOrder", 6400, "Nested independent graph");
+        var dates = new AtomicLong();
+        fixture.context.putAttribute(io.teaql.core.businessid.BusinessClock.class.getName(),
+                (io.teaql.core.businessid.BusinessClock) caller -> java.time.LocalDate.of(2026, 10, 2).plusDays(dates.getAndIncrement()));
+        fixture.context.getRuntime().install(RuntimeModule.of().withCheckers(new Checker<GraphEntity>() {
+            @Override public String type() { return "CustomerOrder"; }
+            @Override public void checkAndFix(UserContext caller, GraphEntity entity, ObjectLocation location) {
+                if (!needCheck(caller, entity)) return;
+                markAsChecked(caller, entity);
+                var now = caller.<java.time.LocalDateTime>evaluate("now");
+                caller.recordFixEvidence(new FixEvidence("CustomerOrder", entity == outer ? "outer_clock" : "inner_clock",
+                        FixEvidence.Source.CLOCK, "graphClock"));
+                requiredCheck(caller, newLocation(location, "name"), entity.getProperty("name"));
+                if (entity == outer) {
+                    inner.auditAs("save independent nested graph").save(caller);
+                    assertEquals("nested execution must restore the outer captured clock", now, caller.evaluate("now"));
+                    assertFalse("outer entity must remain checked", needCheck(caller, outer));
+                    assertTrue("inner visited identities must not leak into the outer graph", needCheck(caller, inner));
+                }
+                entity.updateProperty("memo", now.toString());
+            }
+        }));
+        var result = checkedSave(fixture, outer, "reject outer graph");
+        assertTrue("nested save must not clear an outer violation: " + result.failure(), result.failure() instanceof CheckException);
+        assertEquals(List.of("outer_clock"), result.evidence().stream().map(FixEvidence::modelPath).toList());
+        assertEquals(2, dates.get());
+        assertEquals(1, fixture.commands.size());
+        assertLineage(fixture.audit, "CustomerOrder", 6400, List.of("save independent nested graph"));
+        assertTrue(fixture.driver.queryForList("SELECT id FROM customer_order_data WHERE id = ?", new Object[]{6300L}).isEmpty());
+        assertNull(fixture.context.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT));
+        assertTrue(fixture.context.getTraceChain().isEmpty());
     }
 
     @Test public void normativeGraphRetainsCommandSqlReadbackAndCommittedAuditLineage() throws Exception {

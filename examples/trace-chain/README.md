@@ -14,7 +14,7 @@ Use Java 21 or newer, Maven, Bash and the normal repository dependencies:
 bash examples/trace-chain/verify.sh
 ```
 
-The script installs local source dependencies, runs all seven scenarios twice
+The script installs local source dependencies, runs all nine scenarios twice
 against one database without intermediate cleanup, and compares every generated
 library file's SHA256 before and after execution. It prints the retained
 directory containing the database, Maven logs and checksum manifests. Set
@@ -33,6 +33,8 @@ and the `runtime-examples` Maven profile.
 | Readback failure | A real SQLite failure after a successful update retains separate write/readback outcomes; retry succeeds with the restored optimistic version |
 | Prepared insert and ledger replacement | Two generated OrderItems execute in one real two-row JDBC prepared insert with independent command/write/readback/audit lineages; a subsequent update uses a complete ledger chain instead of appending graph fallback |
 | Prepared update, delete and recovery | Two identified children with different optimistic versions execute each stage as a real two-row prepared batch, preserving separate command/write/readback/committed-audit lineages; deletion hides them and pure recovery restores both through generated Q/E |
+| Overlapping real generated Checkers | With one Context, a valid order commits while an incomplete order fails for `order_number` before allocation/provider access; SQL and committed audit contain only the accepted request's lineage |
+| Concurrent independent graphs | Two real threads overlap generated Checker invocations for separate root/child ledgers on one Context and share one unmodified loaded Platform without rebinding its ledger; physical SQLite writer transactions serialize, while each command/write/readback/audit retains only its graph's root and child reason; Q/E reload both commits |
 
 The first run begins with CustomerOrder and Payment both numbered 100, items
 201/202, attempt 401 and shipment 501. IDs come from `IdSpaceIdGenerator`, not
@@ -65,7 +67,19 @@ inventing a pre-save identity. Current Delete Assist documents `markToRecover()`
 followed by audited save; recovery does not need a fabricated scalar-field change.
 Native SQLite tests additionally cover stale batch members, multiple update
 layouts, detached ledger recovery and rollback when JDBC cannot report exact
-per-item optimistic row counts. These focused probes do not prove every
-auxiliary-table layout, concurrent saves with all checkers/providers, complete privacy and
-entry-point coverage, or immutable internal Registry replay. The development
-dependency version is not a new public release.
+per-item optimistic row counts. Native reentrant/concurrent Checker tests also
+verify isolated violations, visited identities, Fix evidence and per-graph clock
+capture while retaining the original Context for application hooks.
+The shared read-only Platform remains in the fixture: its independent ledger
+must not be rebound or import another order's pending keys. Related mutation
+import uses the explicitly visited type-qualified key. Receiver-owned detached
+ledger mutations remain supported; no source ledger is cleared during import.
+
+The synchronous Checker compatibility binding is runtime-internal and carries
+no trace or ledger. Nested invocation close restores the parent; the diagnostic
+`lastFixEvidence()` receipt belongs to the calling execution thread, not the
+shared Context. It is not propagated to another thread or async task. These
+focused probes do not prove every auxiliary-table layout, async handoff or
+cancellation, all provider/entry-point combinations, complete privacy coverage,
+or immutable internal Registry replay. The development dependency version is
+not a new public release.

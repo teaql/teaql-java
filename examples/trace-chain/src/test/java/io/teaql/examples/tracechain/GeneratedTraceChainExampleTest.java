@@ -19,6 +19,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import org.junit.Test;
 import org.sqlite.SQLiteDataSource;
 import static org.junit.Assert.*;
@@ -36,6 +42,9 @@ public class GeneratedTraceChainExampleTest {
         final DefaultUserContext context;
         final JdbcSqlExecutor driver;
         volatile boolean failReadback;
+        volatile boolean serializeTransactions;
+        volatile Consumer<UserContext> checkerBegin;
+        volatile Consumer<UserContext> checkerFinish;
         final long base;
 
         Fixture() throws Exception {
@@ -45,6 +54,13 @@ public class GeneratedTraceChainExampleTest {
             var source = new SQLiteDataSource();
             source.setUrl("jdbc:sqlite:" + database);
             driver = new JdbcSqlExecutor(source) {
+                @Override public void executeInTransaction(Runnable action) {
+                    // SQLite has one writer. Only physical transactions serialize;
+                    // the tests still overlap the real generated Checker invocations.
+                    if (serializeTransactions) {
+                        synchronized (this) { super.executeInTransaction(action); }
+                    } else super.executeInTransaction(action);
+                }
                 @Override public int[] batchUpdate(String text, List<Object[]> rows) {
                     if (text.startsWith("INSERT INTO order_item_data")) itemInsertBatchSizes.add(rows.size());
                     if (text.startsWith("UPDATE order_item_data") && !rows.isEmpty()) {
@@ -79,7 +95,16 @@ public class GeneratedTraceChainExampleTest {
                     .idGenerationService(ids).logSink((caller, entry) -> sql.add(entry)).build()
                     .install(GeneratedRuntimeModule.module()); // Real generated checkers, no bypass.
             EntityMetaFactory.registerGlobal(metadata);
-            context = new DefaultUserContext(runtime);
+            context = new DefaultUserContext(runtime) {
+                @Override public void beginFixEvidence() {
+                    super.beginFixEvidence();
+                    if (checkerBegin != null) checkerBegin.accept(this);
+                }
+                @Override public void finishFixEvidence() {
+                    if (checkerFinish != null) checkerFinish.accept(this);
+                    super.finishFixEvidence();
+                }
+            };
             context.putAttribute(AppAuditEventSink.class.getName(), (AppAuditEventSink) (caller, event) -> audit.add(event));
             context.ensureSchema();
             context.ensureSchema();
@@ -147,6 +172,164 @@ public class GeneratedTraceChainExampleTest {
 
     record Graph(CustomerOrder order, OrderItem kept, OrderItem removed, Payment payment,
                  PaymentAttempt attempt, Shipment shipment) {}
+
+    private static void await(CountDownLatch latch) {
+        try { assertTrue("generated execution must reach checkpoint", latch.await(10, TimeUnit.SECONDS)); }
+        catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError(interrupted);
+        }
+    }
+
+    private static Throwable saveFailure(CustomerOrder order, UserContext context, String reason) {
+        try { order.auditAs(reason).save(context); return null; }
+        catch (Throwable failure) { return failure; }
+    }
+
+    @Test public void overlappingGeneratedCheckersKeepValidAndInvalidRequestsIndependent() throws Exception {
+        var fixture = new Fixture();
+        var platform = Q.platforms().withIdIs(1L).limit(1).comment("what: reuse root")
+                .purpose("why: prepare independent generated graph saves").executeForOne(fixture.context);
+        var valid = Q.customerOrders().comment("what: prepare valid order")
+                .purpose("why: exercise the actual generated Checker").newEntity(fixture.context);
+        valid.updatePlatform(platform);
+        valid.updateOrderNumber("TRACE-CONCURRENT-" + fixture.base);
+        valid.updateDescription("Valid overlapping request");
+        var invalid = Q.customerOrders().comment("what: prepare incomplete order")
+                .purpose("why: require an independent Checker rejection").newEntity(fixture.context);
+        invalid.updatePlatform(platform);
+        invalid.updateDescription("Invalid overlapping request");
+        assertNotSame(valid.getEntityMutationLedger(), invalid.getEntityMutationLedger());
+        var validThread = new AtomicReference<Thread>();
+        var validEntered = new CountDownLatch(1);
+        var invalidFinishing = new CountDownLatch(1);
+        var validFinished = new CountDownLatch(1);
+        fixture.checkerBegin = caller -> {
+            assertSame(fixture.context, caller);
+            if (Thread.currentThread() == validThread.get()) {
+                validEntered.countDown();
+                await(invalidFinishing);
+            } else await(validEntered);
+        };
+        fixture.checkerFinish = caller -> {
+            if (Thread.currentThread() != validThread.get()) {
+                invalidFinishing.countDown();
+                await(validFinished);
+            }
+        };
+        fixture.clear();
+        var workers = Executors.newFixedThreadPool(2);
+        try {
+            var first = workers.submit(() -> {
+                validThread.set(Thread.currentThread());
+                try { return saveFailure(valid, fixture.context, "accept overlapping valid order"); }
+                finally { validFinished.countDown(); }
+            });
+            // The first run must enter its initialized Checker before the second
+            // can initialize its own state. No timing sleeps or fake checkers.
+            await(validEntered);
+            var second = workers.submit(() -> saveFailure(invalid, fixture.context, "reject overlapping incomplete order"));
+            Throwable accepted = first.get(20, TimeUnit.SECONDS);
+            Throwable rejected = second.get(20, TimeUnit.SECONDS);
+            assertNull("valid request must not inherit another check's violations: " + accepted, accepted);
+            assertTrue(rejected instanceof io.teaql.core.checker.CheckException);
+            assertTrue(((io.teaql.core.checker.CheckException) rejected).getViolates().stream()
+                    .anyMatch(value -> value.getLocation().modelPath().endsWith("order_number")));
+            assertEquals(1, fixture.commands.size());
+            assertEquals(1, fixture.audit.size());
+            var lineage = List.of(new TraceNode(TraceKind.AUDIT_REASON, "CustomerOrder", valid.getId(), "accept overlapping valid order"));
+            assertEquals(lineage, fixture.commands.get(0).getTraceChain());
+            assertEquals(lineage, fixture.audit.get(0).traceChain());
+            assertTrue(fixture.sql.stream().allMatch(entry -> entry.getMutationLineage().equals(lineage)));
+            assertNull("Checker rejects before allocation", invalid.getId());
+        } finally {
+            validEntered.countDown(); invalidFinishing.countDown(); validFinished.countDown();
+            workers.shutdownNow();
+            assertTrue(workers.awaitTermination(10, TimeUnit.SECONDS));
+            fixture.checkerBegin = null; fixture.checkerFinish = null;
+        }
+        var loaded = Q.customerOrders().withIdIs(valid.getId()).limit(1)
+                .comment("what: reload accepted concurrent request")
+                .purpose("why: prove generated Q/E observe its committed row").executeForOne(fixture.context);
+        assertEquals("TRACE-CONCURRENT-" + fixture.base, E.customerOrder(loaded).getOrderNumber().eval());
+        assertTrue(fixture.context.getTraceChain().isEmpty());
+        System.out.println("PASS Java generated overlapping Checker: valid commits, invalid rejected before provider");
+    }
+
+    @Test public void independentGeneratedGraphsShareOneContextWithoutTraceOrAuditCrossTalk() throws Exception {
+        var fixture = new Fixture();
+        var platform = Q.platforms().withIdIs(1L).limit(1).comment("what: reuse root")
+                .purpose("why: prepare two independent graphs").executeForOne(fixture.context);
+        var platformLedger = platform.getEntityMutationLedger();
+        var orders = new java.util.ArrayList<CustomerOrder>();
+        for (String suffix : List.of("alpha", "beta")) {
+            var order = Q.customerOrders().comment("what: prepare " + suffix)
+                    .purpose("why: exercise concurrent graph ownership").newEntity(fixture.context);
+            order.updatePlatform(platform);
+            order.updateOrderNumber("TRACE-PARALLEL-" + fixture.base + "-" + suffix);
+            order.updateDescription("Parallel graph " + suffix);
+            var item = Q.orderItems().comment("what: prepare " + suffix + " item")
+                    .purpose("why: exercise local child responsibility").newEntity(fixture.context);
+            item.updateName("Parallel entry " + suffix);
+            item.comment("append " + suffix);
+            order.addOrderItem(item);
+            orders.add(order);
+        }
+        assertNotSame(orders.get(0).getEntityMutationLedger(), orders.get(1).getEntityMutationLedger());
+        var checkpoint = new CyclicBarrier(2);
+        fixture.checkerBegin = caller -> {
+            assertSame(fixture.context, caller);
+            try { checkpoint.await(10, TimeUnit.SECONDS); }
+            catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); throw new AssertionError(interrupted); }
+            catch (Exception failure) { throw new AssertionError(failure); }
+        };
+        fixture.serializeTransactions = true;
+        fixture.clear();
+        var workers = Executors.newFixedThreadPool(2);
+        try {
+            var first = workers.submit(() -> saveFailure(orders.get(0), fixture.context, "save alpha graph"));
+            var second = workers.submit(() -> saveFailure(orders.get(1), fixture.context, "save beta graph"));
+            Throwable alpha = first.get(20, TimeUnit.SECONDS);
+            Throwable beta = second.get(20, TimeUnit.SECONDS);
+            if (alpha != null) throw new AssertionError("alpha graph failed", alpha);
+            if (beta != null) throw new AssertionError("beta graph failed", beta);
+        } finally {
+            workers.shutdownNow();
+            assertTrue(workers.awaitTermination(10, TimeUnit.SECONDS));
+            fixture.checkerBegin = null;
+        }
+        assertEquals(4, fixture.commands.size());
+        assertEquals(4, fixture.audit.size());
+        assertSame("shared read-only relation retains its independent ledger", platformLedger, platform.getEntityMutationLedger());
+        for (int index = 0; index < orders.size(); index++) {
+            var order = orders.get(index);
+            String suffix = index == 0 ? "alpha" : "beta";
+            var graphCommands = fixture.commands.stream().filter(value ->
+                    value.getTraceChain().get(0).getEntityId().equals(order.getId())).toList();
+            assertEquals(2, graphCommands.size());
+            for (var command : graphCommands) {
+                var expected = command.getEntity().typeName().equals("CustomerOrder")
+                        ? List.of("save " + suffix + " graph")
+                        : List.of("save " + suffix + " graph", "append " + suffix);
+                assertEquals(expected, command.getTraceChain().stream().map(TraceNode::getComment).toList());
+                var event = fixture.audit.stream().filter(value -> value.entityType().equals(command.getEntity().typeName())
+                        && value.entityId().equals(command.getEntity().getId())).findFirst().orElseThrow();
+                assertEquals(command.getTraceChain(), event.traceChain());
+                assertTrue(fixture.sql.stream().anyMatch(value -> value.getOperation() == DataServiceOperation.MUTATION
+                        && value.getMutationLineage().equals(command.getTraceChain())));
+                assertTrue(fixture.sql.stream().anyMatch(value -> value.getOperation() == DataServiceOperation.QUERY
+                        && value.getMutationLineage().equals(command.getTraceChain())));
+            }
+            var loaded = Q.customerOrders().withIdIs(order.getId()).limit(1)
+                    .selectOrderItemListWith(Q.orderItems().limit(10))
+                    .comment("what: reload " + suffix + " graph")
+                    .purpose("why: verify independent commits through generated Q/E").executeForOne(fixture.context);
+            assertEquals(Integer.valueOf(1), E.customerOrder(loaded).getOrderItemList().size().eval());
+            assertEquals("TRACE-PARALLEL-" + fixture.base + "-" + suffix, E.customerOrder(loaded).getOrderNumber().eval());
+        }
+        assertTrue(fixture.context.getTraceChain().isEmpty());
+        System.out.println("PASS Java generated concurrent graphs: same Context, independent ledgers and per-item SQL/audit lineage");
+    }
 
     @Test public void generatedSameTypePreparedBatchKeepsItemReasonsAndCompleteLedgerReplacement() throws Exception {
         var fixture = new Fixture();

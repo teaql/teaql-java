@@ -108,6 +108,11 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
 
     @Override
     public void putAttribute(String key, Object value) {
+        var checker = io.teaql.core.checker.internal.CheckerInvocation.current(this);
+        if (checker != null && io.teaql.core.checker.internal.CheckerInvocation.isScopedAttribute(key)) {
+            checker.attribute(key, value);
+            return;
+        }
         if (value == null) {
             storage.remove(key);
         } else {
@@ -117,13 +122,17 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
 
     @Override
     public Object getAttribute(String key) {
+        var checker = io.teaql.core.checker.internal.CheckerInvocation.current(this);
+        if (checker != null && io.teaql.core.checker.internal.CheckerInvocation.isScopedAttribute(key)) {
+            return checker.attribute(key);
+        }
         return storage.get(key);
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getAttribute(String key, Class<T> clazz) {
-        Object val = storage.get(key);
+        Object val = getAttribute(key);
         if (clazz != null && clazz.isInstance(val)) {
             return (T) val;
         }
@@ -328,7 +337,8 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
     public final <T> T evaluate(String expression, Object... args) {
         // Built-in: "now" comes from the context-owned business clock.
         if ("now".equalsIgnoreCase(expression)) {
-            Object captured = getAttribute(io.teaql.core.checker.Checker.TEAQL_FIX_TIME);
+            Object captured = io.teaql.core.checker.internal.CheckerInvocation.attribute(
+                    this, io.teaql.core.checker.Checker.TEAQL_FIX_TIME);
             return (T) (captured != null ? captured : businessTime());
         }
         // Delegate to subclass or extension for application-defined expressions.
