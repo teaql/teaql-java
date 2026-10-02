@@ -2,7 +2,7 @@
 
 This focused example uses the six-entity KSML model in [model.xml](model.xml),
 an unchanged generated domain library, and the runtime from this checkout.
-Business creation, graph attachment, deletion, query and expression access use
+Business creation, graph attachment, deletion, recovery, query and expression access use
 generated public APIs. SQLite and the runtime's SQL and committed-audit sinks
 provide the acceptance evidence; tests do not inject expected trace frames.
 
@@ -14,7 +14,7 @@ Use Java 21 or newer, Maven, Bash and the normal repository dependencies:
 bash examples/trace-chain/verify.sh
 ```
 
-The script installs local source dependencies, runs all six scenarios twice
+The script installs local source dependencies, runs all seven scenarios twice
 against one database without intermediate cleanup, and compares every generated
 library file's SHA256 before and after execution. It prints the retained
 directory containing the database, Maven logs and checksum manifests. Set
@@ -32,6 +32,7 @@ and the `runtime-examples` Maven profile.
 | Provider failure | A real SQLite UNIQUE violation rolls back the earlier root insert, retains attempted branch lineage and emits no committed audit |
 | Readback failure | A real SQLite failure after a successful update retains separate write/readback outcomes; retry succeeds with the restored optimistic version |
 | Prepared insert and ledger replacement | Two generated OrderItems execute in one real two-row JDBC prepared insert with independent command/write/readback/audit lineages; a subsequent update uses a complete ledger chain instead of appending graph fallback |
+| Prepared update, delete and recovery | Two identified children with different optimistic versions execute each stage as a real two-row prepared batch, preserving separate command/write/readback/committed-audit lineages; deletion hides them and pure recovery restores both through generated Q/E |
 
 The first run begins with CustomerOrder and Payment both numbered 100, items
 201/202, attempt 401 and shipment 501. IDs come from `IdSpaceIdGenerator`, not
@@ -57,10 +58,14 @@ allocator. It is not a business DAO. Its SQL and failure-injection DDL are
 infrastructure; all order/payment data is operated on through generated APIs.
 
 This closes the generated normative graph and three-level SQL path checks for
-local Java source, including same-type prepared insert batches and a generated
+local Java source, including same-type prepared insert/update/delete/recover batches and a generated
 complete-ledger override on an identified existing child. Java assigns IDs at
 first graph save; the override probe runs after that insert/readback rather than
-inventing a pre-save identity. It does not prove prepared update/delete/recover
-batches, concurrent saves with all checkers/providers, complete privacy and
+inventing a pre-save identity. Current Delete Assist documents `markToRecover()`
+followed by audited save; recovery does not need a fabricated scalar-field change.
+Native SQLite tests additionally cover stale batch members, multiple update
+layouts, detached ledger recovery and rollback when JDBC cannot report exact
+per-item optimistic row counts. These focused probes do not prove every
+auxiliary-table layout, concurrent saves with all checkers/providers, complete privacy and
 entry-point coverage, or immutable internal Registry replay. The development
 dependency version is not a new public release.

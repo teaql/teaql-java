@@ -29,6 +29,24 @@ public final class OrderItemDeleteService {
                 .save(context);
         return true;
     }
+
+    public static boolean restore(Long id, UserContext context) {
+        var entity = Q.orderItems()
+                .withIdIs(id)
+
+                .deletedRowsOnly()
+                .limit(1)
+                .comment("what: load deleted Order Item for recovery")
+                .purpose("why: preserve the deleted optimistic version")
+                .executeForOne(context);
+        if (entity == null) {
+            return false;
+        }
+        entity.markToRecover()
+                .auditAs("Restore Order Item for the requested business operation")
+                .save(context);
+        return true;
+    }
 }
 ```
 
@@ -36,6 +54,12 @@ Compile the source unchanged. Prove that the row remains stored with a negative
 version, normal requests hide it, `deletedRowsOnly()` can retrieve it, a stale
 independently loaded copy conflicts, a missing ID returns false, blank/missing
 audit fails, and invented physical-delete methods do not compile.
+
+Recovery needs no scalar-field update. `markToRecover()` records a pending recovery;
+audited `save(context)` restores visibility and advances the negative version to
+a positive one. A graph can recover several children with independent local comments
+using one audited root save. Test committed SQL/readback/audit lineage as well as Q/E
+visibility; a status flag alone is not evidence that the row was recovered.
 
 
 ---
@@ -70,7 +94,7 @@ model-aware Assist. Do not inspect generated domain-library source.
 
 Capability: `delete`.
 
-- Load the tenant-scoped current entity and use the generated hard-delete or
-  domain-specific soft-delete API; do not invent a deletion method.
+- Load the policy-scoped current entity, mark it for deletion, then use audited
+  save with the same UserContext. Do not invent a physical-delete API.
 - Require an audit reason and optimistic version. Test missing audit and stale
   version as explicit failures.

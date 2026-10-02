@@ -1298,7 +1298,128 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         }
     }
 
-        public void updateInternal(UserContext userContext, Collection<T> updateItems) {
+    private record PreparedWriteShape(String table, String sql, List<String> bindingColumns,
+            boolean optimistic, boolean exactlyOne) {
+        private PreparedWriteShape { bindingColumns = List.copyOf(bindingColumns); }
+    }
+
+    private record PreparedWriteRow(Object[] values, io.teaql.core.SqlExecutionTrace trace) {}
+
+    void updateBatchInternal(UserContext context, List<T> entities, io.teaql.core.SqlIntentRedactions intent,
+            List<io.teaql.core.SqlExecutionTrace> traces) {
+        requireMemberTraces(entities, traces);
+        Map<PreparedWriteShape, List<PreparedWriteRow>> rows = new java.util.LinkedHashMap<>();
+        var compiler = new io.teaql.core.sql.SqlAstCompiler();
+        for (int index = 0; index < entities.size(); index++) {
+            T entity = entities.get(index);
+            if (intent != null) intent.captureTargetId(entity.getId());
+            SQLEntity converted = convertToSQLEntityForUpdate(context, entity);
+            boolean versionUpdated = false;
+            if (converted != null) {
+                for (var entry : converted.getTableColumnValues().entrySet()) {
+                    String table = entry.getKey();
+                    List<String> columns = new ArrayList<>(converted.getTableColumnNames().get(table));
+                    List<Object> values = new ArrayList<>(entry.getValue());
+                    List<String> bindings = new ArrayList<>(columns);
+                    String sql;
+                    boolean optimistic = table.equals(versionTableName);
+                    boolean primary = primaryTableNames.contains(table);
+                    if (optimistic) {
+                        versionUpdated = true;
+                        columns.add("version");
+                        bindings.add("version"); bindings.add("id"); bindings.add("version");
+                        values.add(entity.getVersion() + 1); values.add(entity.getId()); values.add(entity.getVersion());
+                        sql = compiler.buildUpdateVersionSQL(this, table, columns, null);
+                    } else if (primary) {
+                        bindings.add("id"); values.add(entity.getId());
+                        sql = compiler.buildUpdatePrimarySQL(this, table, columns, null);
+                    } else {
+                        sql = dialect.buildSubsidiaryInsertSql(table, columns);
+                    }
+                    var shape = new PreparedWriteShape(table, sql, bindings, optimistic, optimistic || primary);
+                    rows.computeIfAbsent(shape, ignored -> new ArrayList<>()).add(
+                            new PreparedWriteRow(values.toArray(), traces.get(index)));
+                }
+            }
+            if (!versionUpdated) {
+                var shape = new PreparedWriteShape(versionTableName,
+                        compiler.buildUpdateVersionTableVersionSQL(this, versionTableName),
+                        List.of("version", "id", "version"), true, true);
+                rows.computeIfAbsent(shape, ignored -> new ArrayList<>()).add(new PreparedWriteRow(
+                        new Object[]{entity.getVersion() + 1, entity.getId(), entity.getVersion()}, traces.get(index)));
+            }
+        }
+        executePreparedWrites(context, rows, intent);
+    }
+
+    void deleteBatchInternal(UserContext context, List<T> entities, io.teaql.core.SqlIntentRedactions intent,
+            List<io.teaql.core.SqlExecutionTrace> traces) {
+        versionBatchInternal(context, entities, intent, traces, false);
+    }
+
+    void recoverBatchInternal(UserContext context, List<T> entities, io.teaql.core.SqlIntentRedactions intent,
+            List<io.teaql.core.SqlExecutionTrace> traces) {
+        versionBatchInternal(context, entities, intent, traces, true);
+    }
+
+    private void versionBatchInternal(UserContext context, List<T> entities, io.teaql.core.SqlIntentRedactions intent,
+            List<io.teaql.core.SqlExecutionTrace> traces, boolean recover) {
+        requireMemberTraces(entities, traces);
+        var compiler = new io.teaql.core.sql.SqlAstCompiler();
+        var shape = new PreparedWriteShape(versionTableName,
+                recover ? compiler.buildRecoverSQL(this, versionTableName) : compiler.buildDeleteSQL(this, versionTableName),
+                List.of("version", "id", "version"), true, true);
+        List<PreparedWriteRow> members = new ArrayList<>();
+        for (int index = 0; index < entities.size(); index++) {
+            T entity = entities.get(index);
+            Long version = entity.getVersion();
+            if (version == null || (recover ? version >= 0 : version <= 0)) {
+                throw new IllegalArgumentException("Delete/recover batch requires the matching persisted version sign");
+            }
+            if (intent != null) intent.captureTargetId(entity.getId());
+            members.add(new PreparedWriteRow(new Object[]{recover ? -version + 1 : -(version + 1),
+                    entity.getId(), version}, traces.get(index)));
+        }
+        executePreparedWrites(context, Map.of(shape, members), intent);
+    }
+
+    private void requireMemberTraces(List<T> entities, List<io.teaql.core.SqlExecutionTrace> traces) {
+        if (entities.size() != traces.size()) throw new IllegalArgumentException("Write batch requires one trace per entity");
+        if (traces.stream().anyMatch(java.util.Objects::isNull)) throw new IllegalArgumentException("Write batch trace must not be null");
+    }
+
+    private void executePreparedWrites(UserContext context,
+            Map<PreparedWriteShape, List<PreparedWriteRow>> rows, io.teaql.core.SqlIntentRedactions intent) {
+        // Capture the complete planned batch before emitting any table's statement.
+        if (intent != null) rows.forEach((shape, members) -> {
+            var policies = logBindings(shape.table(), shape.bindingColumns()).policies();
+            members.forEach(member -> intent.capture(policies, member.values()));
+        });
+        var shapes = new ArrayList<>(rows.keySet());
+        shapes.sort(java.util.Comparator.comparingInt((PreparedWriteShape shape) -> shape.optimistic() ? 0 : 1)
+                .thenComparing(PreparedWriteShape::table).thenComparing(PreparedWriteShape::sql));
+        for (var shape : shapes) {
+            var members = rows.get(shape);
+            if (members.isEmpty()) continue;
+            var bindings = logBindings(shape.table(), shape.bindingColumns())
+                    .withBatchTraces(members.stream().map(PreparedWriteRow::trace).toList());
+            int[] counts = database.batchUpdate(context, shape.sql(), members.stream().map(PreparedWriteRow::values).toList(),
+                    withMutationIntent(bindings, intent));
+            if (counts.length != members.size()) throw new TeaQLRuntimeException("Prepared mutation returned an incomplete row-count array");
+            if (shape.exactlyOne()) {
+                for (int count : counts) {
+                    if (count == 1) continue;
+                    if (count == java.sql.Statement.SUCCESS_NO_INFO) {
+                        throw new TeaQLRuntimeException("Prepared mutation requires an exact per-item affected-row count");
+                    }
+                    if (shape.optimistic()) throw new ConcurrentModifyException();
+                    throw new TeaQLRuntimeException("primary table update failed");
+                }
+            }
+        }
+    }
+
+    public void updateInternal(UserContext userContext, Collection<T> updateItems) {
         updateInternal(userContext, updateItems, null);
     }
 

@@ -154,4 +154,36 @@ public class EntityMutationLedgerTest {
         assertNull(ledger.getOriginalVersion(ORDER));
         assertTrue(ledger.currentChangeSet().changes().isEmpty());
     }
+
+    @Test
+    public void recoveryWithoutFieldsSurvivesMergeAndClearsAfterSave() {
+        EntityMutationLedger source = new EntityMutationLedger();
+        source.markAsRecover(ORDER);
+        source.markAsRecover(ORDER);
+        source.setOriginalVersion(ORDER, -2L);
+        EntityMutationLedger target = new EntityMutationLedger();
+        target.mergeFrom(source);
+
+        assertEquals(java.util.Set.of(ORDER), target.recoveredKeys());
+        assertEquals(Long.valueOf(-2), target.getOriginalVersion(ORDER));
+        assertTrue(target.currentChangeSet().changes().isEmpty());
+        assertThrows(UnsupportedOperationException.class, () -> target.recoveredKeys().add(OTHER_ORDER));
+        target.clearCurrentChangeSet();
+        assertTrue(target.recoveredKeys().isEmpty());
+        assertEquals(java.util.Set.of(ORDER), source.recoveredKeys());
+    }
+
+    @Test
+    public void deleteAndRecoverKeysAreMutuallyExclusiveAndTypeQualified() {
+        EntityMutationLedger ledger = new EntityMutationLedger();
+        EntityKey payment = new EntityKey("Payment", ORDER.id());
+        ledger.markAsDelete(ORDER);
+        ledger.markAsDelete(payment);
+        ledger.markAsRecover(ORDER);
+        assertEquals(java.util.Set.of(payment), ledger.deletedKeys());
+        assertEquals(java.util.Set.of(ORDER), ledger.recoveredKeys());
+        ledger.markAsDelete(ORDER);
+        assertTrue(ledger.recoveredKeys().isEmpty());
+        assertEquals(java.util.Set.of(ORDER, payment), ledger.deletedKeys());
+    }
 }

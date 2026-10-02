@@ -30,6 +30,9 @@ public class GeneratedTraceChainExampleTest {
         final List<SafeAuditEvent> audit = new CopyOnWriteArrayList<>();
         final List<EntityPersistenceMutation> commands = new CopyOnWriteArrayList<>();
         final List<Integer> itemInsertBatchSizes = new CopyOnWriteArrayList<>();
+        final List<Integer> itemUpdateBatchSizes = new CopyOnWriteArrayList<>();
+        final List<Integer> itemDeleteBatchSizes = new CopyOnWriteArrayList<>();
+        final List<Integer> itemRecoverBatchSizes = new CopyOnWriteArrayList<>();
         final DefaultUserContext context;
         final JdbcSqlExecutor driver;
         volatile boolean failReadback;
@@ -44,6 +47,13 @@ public class GeneratedTraceChainExampleTest {
             driver = new JdbcSqlExecutor(source) {
                 @Override public int[] batchUpdate(String text, List<Object[]> rows) {
                     if (text.startsWith("INSERT INTO order_item_data")) itemInsertBatchSizes.add(rows.size());
+                    if (text.startsWith("UPDATE order_item_data") && !rows.isEmpty()) {
+                        assertTrue("committed audit must wait for all member writes", audit.isEmpty());
+                        Object[] first = rows.get(0);
+                        if (first.length != 3) itemUpdateBatchSizes.add(rows.size());
+                        else if (((Number) first[0]).longValue() < 0) itemDeleteBatchSizes.add(rows.size());
+                        else itemRecoverBatchSizes.add(rows.size());
+                    }
                     return super.batchUpdate(text, rows);
                 }
                 @Override public List<java.util.Map<String, Object>> queryForList(String sql, Object[] args) {
@@ -85,7 +95,10 @@ public class GeneratedTraceChainExampleTest {
             clear();
         }
 
-        void clear() { sql.clear(); audit.clear(); commands.clear(); itemInsertBatchSizes.clear(); }
+        void clear() {
+            sql.clear(); audit.clear(); commands.clear(); itemInsertBatchSizes.clear();
+            itemUpdateBatchSizes.clear(); itemDeleteBatchSizes.clear(); itemRecoverBatchSizes.clear();
+        }
 
         Graph saveNormativeGraph() {
             var platform = Q.platforms().withIdIs(1L).limit(1)
@@ -265,6 +278,88 @@ public class GeneratedTraceChainExampleTest {
                 .purpose("why: prove version-aware deletion, not physical removal").executeForOne(fixture.context);
         assertEquals(Long.valueOf(-2), E.orderItem(deleted).getVersion().eval());
         System.out.println("PASS Java generated normative Trace Chain graph: six physical writes and committed audits");
+    }
+
+    @Test public void generatedPreparedUpdateDeleteRecoveryCycleKeepsUnequalVersionsAndItemTraces() throws Exception {
+        var fixture = new Fixture();
+        Graph graph = fixture.saveNormativeGraph();
+        fixture.clear();
+        // Discovered through current Java Delete Assist; no generated-source lookup.
+        graph.removed.markToRecover();
+        graph.removed.comment("prepare previously removed item");
+        graph.order.auditAs("prepare active cycle fixtures").save(fixture.context);
+        assertEquals(Long.valueOf(3), E.orderItem(graph.removed).getVersion().eval());
+
+        fixture.clear();
+        graph.kept.updateName("Cycle entry alpha");
+        graph.kept.comment("revise alpha");
+        graph.removed.updateName("Cycle entry beta");
+        graph.removed.comment("revise beta");
+        graph.order.auditAs("revise generated entries").save(fixture.context);
+        assertEquals(List.of(2), fixture.itemUpdateBatchSizes);
+        assertCycleBoundaries(fixture, graph, "update", MutationAuditKind.UPDATED, "revise generated entries", "revise alpha", "revise beta");
+        assertEquals(Long.valueOf(3), E.orderItem(graph.kept).getVersion().eval());
+        assertEquals(Long.valueOf(4), E.orderItem(graph.removed).getVersion().eval());
+
+        fixture.clear();
+        graph.kept.markForDeletion();
+        graph.kept.comment("remove alpha");
+        graph.removed.markForDeletion();
+        graph.removed.comment("remove beta");
+        graph.order.auditAs("remove generated entries").save(fixture.context);
+        assertEquals(List.of(2), fixture.itemDeleteBatchSizes);
+        assertCycleBoundaries(fixture, graph, "delete", MutationAuditKind.DELETED, "remove generated entries", "remove alpha", "remove beta");
+        assertEquals(Long.valueOf(-4), E.orderItem(graph.kept).getVersion().eval());
+        assertEquals(Long.valueOf(-5), E.orderItem(graph.removed).getVersion().eval());
+        assertNull(Q.orderItems().withIdIs(graph.kept.getId()).limit(1)
+                .comment("what: inspect normal visibility after graph deletion")
+                .purpose("why: prove pending deletion was actually saved").executeForOne(fixture.context));
+        var deleted = Q.orderItems().withIdIs(graph.removed.getId()).deletedRowsOnly().limit(1)
+                .comment("what: inspect retained deleted item")
+                .purpose("why: verify its independent negative version").executeForOne(fixture.context);
+        assertEquals(Long.valueOf(-5), E.orderItem(deleted).getVersion().eval());
+
+        fixture.clear();
+        graph.kept.markToRecover();
+        graph.kept.comment("restore alpha");
+        graph.removed.markToRecover();
+        graph.removed.comment("restore beta");
+        graph.order.auditAs("restore generated entries").save(fixture.context);
+        assertEquals(List.of(2), fixture.itemRecoverBatchSizes);
+        assertCycleBoundaries(fixture, graph, "recover", MutationAuditKind.RECOVERED, "restore generated entries", "restore alpha", "restore beta");
+        assertEquals(Long.valueOf(5), E.orderItem(graph.kept).getVersion().eval());
+        assertEquals(Long.valueOf(6), E.orderItem(graph.removed).getVersion().eval());
+        var restored = Q.customerOrders().withIdIs(graph.order.getId()).limit(1)
+                .selectOrderItemListWith(Q.orderItems().orderByIdAscending().limit(10))
+                .comment("what: reload the restored order graph")
+                .purpose("why: verify two visible children through generated Q and E").executeForOne(fixture.context);
+        assertEquals(Integer.valueOf(2), E.customerOrder(restored).getOrderItemList().size().eval());
+        assertEquals("Cycle entry alpha", E.orderItem(graph.kept).getName().eval());
+        assertEquals("Cycle entry beta", E.orderItem(graph.removed).getName().eval());
+        System.out.println("PASS Java generated prepared update/delete/recover: unequal versions and per-item lineage");
+    }
+
+    private static void assertCycleBoundaries(Fixture fixture, Graph graph, String operation, MutationAuditKind kind,
+            String rootReason, String firstReason, String secondReason) {
+        assertEquals(2, fixture.commands.size());
+        assertEquals(2, fixture.audit.size());
+        for (var item : List.of(graph.kept, graph.removed)) {
+            long id = E.orderItem(item).getId().eval();
+            var expected = List.of(new TraceNode(TraceKind.AUDIT_REASON, "CustomerOrder", graph.order.getId(), rootReason),
+                    new TraceNode(TraceKind.AUDIT_REASON, "OrderItem", id, item == graph.kept ? firstReason : secondReason));
+            var command = fixture.commands.stream().filter(value -> value.getEntity().getId().equals(id)).findFirst().orElseThrow();
+            var audit = fixture.audit.stream().filter(value -> value.entityId().equals(id)).findFirst().orElseThrow();
+            assertEquals(expected, command.getTraceChain());
+            assertEquals(expected, audit.traceChain());
+            assertEquals(kind, audit.kind());
+            var writes = fixture.sql.stream().filter(value -> value.getOperation() == DataServiceOperation.MUTATION
+                    && value.getMutationLineage().equals(expected)).toList();
+            assertEquals(1, writes.size());
+            assertEquals(operation, writes.get(0).getStatementOperation());
+            assertEquals(Long.valueOf(1), writes.get(0).getAffectedRows());
+            assertTrue(fixture.sql.stream().anyMatch(value -> value.getOperation() == DataServiceOperation.QUERY
+                    && value.getMutationLineage().equals(expected)));
+        }
     }
 
     @Test public void generatedThreeLevelQueryProducesAllRelationFramesAndRootIntent() throws Exception {

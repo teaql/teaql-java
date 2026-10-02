@@ -630,6 +630,7 @@ public class TeaQLRuntime {
         if (baseEntity.getId() != null
                 && baseEntity.get$status() != io.teaql.core.EntityStatus.REFER) {
             EntityKey key = new EntityKey(baseEntity.typeName(), baseEntity.getId());
+            if (baseEntity.recoverItem()) targetRoot.markAsRecover(key);
             for (String property : baseEntity.getUpdatedProperties()) {
                 targetRoot.set(key, property, baseEntity.__internalGet(property));
             }
@@ -717,6 +718,7 @@ public class TeaQLRuntime {
         Set<EntityKey> keys = new TreeSet<>();
         keys.addAll(changeSet.changes().keySet());
         keys.addAll(deleted);
+        keys.addAll(ledger.recoveredKeys());
 
         List<MutationOperation> operations = new ArrayList<>();
         for (EntityKey key : keys) {
@@ -730,7 +732,7 @@ public class TeaQLRuntime {
                 changes = changeSet.changes().getOrDefault(key, Map.of());
                 if (created.contains(key) || key.id() == null) {
                     kind = MutationOperationKind.CREATE;
-                } else if (target != null && target.recoverItem()) {
+                } else if (ledger.recoveredKeys().contains(key)) {
                     kind = MutationOperationKind.RECOVER;
                 } else {
                     kind = MutationOperationKind.UPDATE;
@@ -831,36 +833,46 @@ public class TeaQLRuntime {
         // 1. Execute Deletes
         List<EntityKey> sortedDeletedKeys = new ArrayList<>(deletedKeys);
         Collections.sort(sortedDeletedKeys);
+        Map<String, List<EntityKey>> deleteBatches = new TreeMap<>();
         for (EntityKey key : sortedDeletedKeys) {
-            EntityDescriptor descriptor = metadata.resolveEntityDescriptor(key.entity());
-            if (descriptor == null) {
-                throw new TeaQLRuntimeException("No entity descriptor for: " + key.entity());
-            }
-            BaseEntity target = realEntities.get(key);
-            BaseEntity deleteEntity = mutationEntity(descriptor, target);
-            deleteEntity.__internalSet("id", key.id());
-            Long originalVersion = root.getOriginalVersion(key);
-            if (originalVersion == null && target != null) originalVersion = target.getVersion();
-            if (originalVersion != null) deleteEntity.__internalSet("version", originalVersion);
-            deleteEntity.set$status(io.teaql.core.EntityStatus.PERSISTED);
-            deleteEntity.markForDeletion();
-            if (root.getComment() != null) deleteEntity.setComment(root.getComment());
+            deleteBatches.computeIfAbsent(key.entity(), ignored -> new ArrayList<>()).add(key);
+        }
+        for (var batch : deleteBatches.entrySet()) {
+            List<EntityPersistenceMutation> requests = new ArrayList<>();
+            List<BaseEntity> targets = new ArrayList<>();
+            EntityDescriptor descriptor = metadata.resolveEntityDescriptor(batch.getKey());
+            if (descriptor == null) throw new TeaQLRuntimeException("No entity descriptor for: " + batch.getKey());
+            for (EntityKey key : batch.getValue()) {
+                BaseEntity target = realEntities.get(key);
+                BaseEntity deleteEntity = mutationEntity(descriptor, target);
+                deleteEntity.__internalSet("id", key.id());
+                Long originalVersion = root.getOriginalVersion(key);
+                if (originalVersion == null && target != null) originalVersion = target.getVersion();
+                if (originalVersion != null) deleteEntity.__internalSet("version", originalVersion);
+                deleteEntity.set$status(io.teaql.core.EntityStatus.PERSISTED);
+                deleteEntity.markForDeletion();
+                if (root.getComment() != null) deleteEntity.setComment(root.getComment());
 
-            EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
-                deleteEntity, EntityPersistenceMutation.Action.DELETE, intent, mutationTrace(root, key, traceScopes, graphScope));
-            MutationResult result = mutateWithTelemetry(context, mutationExecutor, mutationRequest,
-                    key.entity(), "delete");
-            completed.add(new PendingMutation(
-                    descriptor, target == null ? deleteEntity : target, result,
-                    MutationAuditKind.DELETED, Collections.emptyMap(), governance, intent, mutationRequest.getTraceChain()));
+                EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
+                    deleteEntity, EntityPersistenceMutation.Action.DELETE, intent, mutationTrace(root, key, traceScopes, graphScope));
+                requests.add(mutationRequest);
+                targets.add(target == null ? deleteEntity : target);
+            }
+            List<MutationResult> results = mutateBatchWithTelemetry(
+                    context, mutationExecutor, intent, requests, batch.getKey(), "delete");
+            for (int index = 0; index < requests.size(); index++) {
+                completed.add(new PendingMutation(descriptor, targets.get(index), results.get(index),
+                        MutationAuditKind.DELETED, Collections.emptyMap(), governance, intent, requests.get(index).getTraceChain()));
+            }
         }
 
         // 2. Group changes
         Map<String, List<EntityKey>> insertBatches = new TreeMap<>();
         Map<String, List<EntityKey>> updateBatches = new TreeMap<>();
 
-        for (Map.Entry<EntityKey, Map<String, Object>> entry : changeSet.changes().entrySet()) {
-            EntityKey key = entry.getKey();
+        Set<EntityKey> changedKeys = new TreeSet<>(changeSet.changes().keySet());
+        changedKeys.addAll(root.recoveredKeys());
+        for (EntityKey key : changedKeys) {
             if (deletedKeys.contains(key)) continue;
 
             boolean isNew = newKeys.contains(key) || key.id() == null;
@@ -913,7 +925,7 @@ public class TeaQLRuntime {
             }
         }
 
-        // 4. Execute Updates
+        // 4. Execute Updates and Recoveries
         for (Map.Entry<String, List<EntityKey>> entry : updateBatches.entrySet()) {
             String entityName = entry.getKey();
             List<EntityKey> keys = entry.getValue();
@@ -921,33 +933,42 @@ public class TeaQLRuntime {
             if (descriptor == null) {
                 throw new TeaQLRuntimeException("No entity descriptor for: " + entityName);
             }
-            for (EntityKey key : keys) {
-                Map<String, Object> changes = changeSet.changes().get(key);
-                if (changes == null) continue;
-                BaseEntity target = realEntities.get(key);
-                BaseEntity entity = mutationEntity(descriptor, target);
-                entity.__internalSet("id", key.id());
-                Long version = root.getOriginalVersion(key);
-                if (version == null && target != null) version = target.getVersion();
-                if (version != null) {
-                    entity.__internalSet("version", version);
-                }
-                for (Map.Entry<String, Object> change : changes.entrySet()) {
-                    entity.updateProperty(change.getKey(), change.getValue());
-                }
-                entity.set$status(io.teaql.core.EntityStatus.UPDATED);
-                if (root.getComment() != null) entity.setComment(root.getComment());
+            // Separate recover from update: they use different version transitions.
+            Collections.sort(keys);
+            for (boolean recovering : List.of(false, true)) {
+                List<EntityPersistenceMutation> requests = new ArrayList<>();
+                List<BaseEntity> targets = new ArrayList<>();
+                List<Map<String, Object>> snapshots = new ArrayList<>();
+                for (EntityKey key : keys) {
+                    if (root.recoveredKeys().contains(key) != recovering) continue;
+                    BaseEntity target = realEntities.get(key);
+                    Map<String, Object> changes = changeSet.changes().getOrDefault(key, Map.of());
+                    BaseEntity entity = mutationEntity(descriptor, target);
+                    entity.__internalSet("id", key.id());
+                    Long version = root.getOriginalVersion(key);
+                    if (version == null && target != null) version = target.getVersion();
+                    if (version != null) {
+                        entity.__internalSet("version", version);
+                    }
+                    for (Map.Entry<String, Object> change : changes.entrySet()) {
+                        entity.updateProperty(change.getKey(), change.getValue());
+                    }
+                    entity.set$status(recovering ? io.teaql.core.EntityStatus.UPDATED_RECOVER : io.teaql.core.EntityStatus.UPDATED);
+                    if (root.getComment() != null) entity.setComment(root.getComment());
 
-                EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
-                    entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(root, key, traceScopes, graphScope));
-                MutationAuditKind auditKind = target != null && target.recoverItem()
-                        ? MutationAuditKind.RECOVERED
-                        : MutationAuditKind.UPDATED;
-                MutationResult result = mutateWithTelemetry(context, mutationExecutor, mutationRequest,
-                        entityName, auditKind.name().toLowerCase(Locale.ROOT));
-                completed.add(new PendingMutation(
-                        descriptor, target == null ? entity : target, result,
-                        auditKind, snapshotChanges(changes), governance, intent, mutationRequest.getTraceChain()));
+                    EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
+                        entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(root, key, traceScopes, graphScope));
+                    requests.add(mutationRequest);
+                    targets.add(target == null ? entity : target);
+                    snapshots.add(snapshotChanges(changes));
+                }
+                MutationAuditKind auditKind = recovering ? MutationAuditKind.RECOVERED : MutationAuditKind.UPDATED;
+                List<MutationResult> results = mutateBatchWithTelemetry(
+                        context, mutationExecutor, intent, requests, entityName, auditKind.name().toLowerCase(Locale.ROOT));
+                for (int index = 0; index < requests.size(); index++) {
+                    completed.add(new PendingMutation(descriptor, targets.get(index), results.get(index),
+                            auditKind, snapshots.get(index), governance, intent, requests.get(index).getTraceChain()));
+                }
             }
         }
         return completed;

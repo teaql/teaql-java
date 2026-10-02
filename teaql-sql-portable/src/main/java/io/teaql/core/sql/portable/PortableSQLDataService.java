@@ -427,9 +427,10 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         }
         if (items.isEmpty()) return List.of();
         String type = items.get(0).getEntity().typeName();
-        if (items.stream().anyMatch(item -> item.getAction() != EntityPersistenceMutation.Action.SAVE
-                || !item.getEntity().newItem() || !item.getEntity().typeName().equals(type))) {
-            throw new TeaQLRuntimeException("Portable SQL prepared batch currently requires same-type new entities");
+        String operation = batchOperation(items.get(0));
+        if (items.stream().anyMatch(item -> !item.getEntity().typeName().equals(type)
+                || !batchOperation(item).equals(operation))) {
+            throw new TeaQLRuntimeException("Portable SQL prepared batch requires one entity type and mutation operation");
         }
         return executeInTransaction(context, () -> {
             PortableSQLRepository repository = getRepository(type);
@@ -439,16 +440,31 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             List<SqlExecutionTrace> traces = new ArrayList<>();
             for (EntityPersistenceMutation item : items) {
                 var entity = (BaseEntity) item.getEntity();
-                if (entity.getId() == null) entity.__internalSet("id", repository.prepareId(context, entity));
-                entity.__internalSet("version", 1L);
+                if (operation.equals("insert")) {
+                    if (entity.getId() == null) entity.__internalSet("id", repository.prepareId(context, entity));
+                    entity.__internalSet("version", 1L);
+                } else if (entity.getId() == null || entity.getVersion() == null) {
+                    throw new TeaQLRuntimeException("Prepared persisted mutation requires identity and optimistic version");
+                }
                 entities.add(entity);
-                traces.add(SqlExecutionTrace.mutation(entity, item.getTraceChain(), "insert"));
+                traces.add(SqlExecutionTrace.mutation(entity, item.getTraceChain(), operation));
             }
-            repository.createBatchInternal(context, entities, redactions, traces);
+            switch (operation) {
+                case "insert" -> repository.createBatchInternal(context, entities, redactions, traces);
+                case "update" -> repository.updateBatchInternal(context, entities, redactions, traces);
+                case "delete" -> repository.deleteBatchInternal(context, entities, redactions, traces);
+                case "recover" -> repository.recoverBatchInternal(context, entities, redactions, traces);
+                default -> throw new TeaQLRuntimeException("Unsupported prepared mutation operation");
+            }
             List<MutationResult> results = new ArrayList<>();
             for (int index = 0; index < items.size(); index++) {
                 var item = items.get(index);
                 var entity = (BaseEntity) item.getEntity();
+                if (!operation.equals("insert")) {
+                    long version = entity.getVersion();
+                    entity.__internalSet("version", operation.equals("delete") ? -(version + 1)
+                            : operation.equals("recover") ? -version + 1 : version + 1);
+                }
                 entity.gotoNextStatus(EntityAction.PERSIST);
                 Entity persisted = repository.loadPersistedById(context, entity.getId(), redactions,
                         traces.get(index).readback(item.intent()));
@@ -457,6 +473,17 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             }
             return List.copyOf(results);
         });
+    }
+
+    private String batchOperation(EntityPersistenceMutation item) {
+        Entity entity = item.getEntity();
+        if (item.getAction() == EntityPersistenceMutation.Action.DELETE && entity.deleteItem()) return "delete";
+        if (item.getAction() == EntityPersistenceMutation.Action.SAVE) {
+            if (entity.newItem()) return "insert";
+            if (entity.updateItem()) return "update";
+            if (entity.recoverItem()) return "recover";
+        }
+        throw new TeaQLRuntimeException("Prepared mutation member has no executable persistence state");
     }
 
     @Override

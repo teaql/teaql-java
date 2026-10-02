@@ -4,7 +4,7 @@ import java.util.*;
 
 /**
  * Central change tracking context shared across all entities in a save graph.
- * Holds the change set stack, deleted keys, new keys, trace chains, and original versions.
+ * Holds the change set stack, deleted/recovered/new keys, trace chains, and original versions.
  *
  * This is the Java equivalent of Rust's {@code EntityMutationLedger}.
  */
@@ -12,6 +12,7 @@ public class EntityMutationLedger {
     private final ChangeSetStack changeSets = new ChangeSetStack();
     private String comment;
     private final Set<EntityKey> deletedKeys = new TreeSet<>();
+    private final Set<EntityKey> recoveredKeys = new TreeSet<>();
     private final Set<EntityKey> newKeys = new TreeSet<>();
     private final Map<EntityKey, List<TraceNode>> traceChains = new TreeMap<>();
     private final Map<EntityKey, Long> originalVersions = new TreeMap<>();
@@ -30,6 +31,7 @@ public class EntityMutationLedger {
         changeSets.clearCurrent();
         newKeys.clear();
         deletedKeys.clear();
+        recoveredKeys.clear();
         // A successful save establishes a new persistence baseline. Keeping the
         // pre-save version here makes a later mutation on the same entity use a
         // stale optimistic-lock value (for example update -> save -> delete ->
@@ -80,6 +82,7 @@ public class EntityMutationLedger {
 
     public void markAsDelete(EntityKey key) {
         changeSets.clearEntity(key);
+        recoveredKeys.remove(key);
         deletedKeys.add(key);
     }
 
@@ -89,6 +92,16 @@ public class EntityMutationLedger {
 
     public Set<EntityKey> deletedKeys() {
         return Collections.unmodifiableSet(deletedKeys);
+    }
+
+    // Recovery is a mutation even when no scalar property has changed.
+    public void markAsRecover(EntityKey key) {
+        deletedKeys.remove(key);
+        recoveredKeys.add(key);
+    }
+
+    public Set<EntityKey> recoveredKeys() {
+        return Collections.unmodifiableSet(recoveredKeys);
     }
 
     // --- Changed Fields ---
@@ -136,6 +149,10 @@ public class EntityMutationLedger {
         // Merge deleted keys
         for (EntityKey key : other.deletedKeys()) {
             this.markAsDelete(key);
+        }
+
+        for (EntityKey key : other.recoveredKeys()) {
+            this.markAsRecover(key);
         }
         
         // Merge new keys

@@ -329,6 +329,9 @@ public class BaseEntity implements Entity {
     @Override
     public void markAsRecover() {
         gotoNextStatus(EntityAction.RECOVER);
+        if (entityMutationLedger != null && id != null) {
+            entityMutationLedger.markAsRecover(new EntityKey(typeName(), id));
+        }
     }
 
     @Override
@@ -580,7 +583,7 @@ public class BaseEntity implements Entity {
     }
 
     public BaseEntity markToRecover() {
-        gotoNextStatus(EntityAction.RECOVER);
+        markAsRecover();
         return this;
     }
 

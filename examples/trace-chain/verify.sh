@@ -25,6 +25,7 @@ markers=(
   'PASS Java generated provider failure: attempted lineage, rollback, no committed audit'
   'PASS Java generated readback failure: separate outcomes and successful retry'
   'PASS Java generated prepared batch: per-item lineage and complete ledger replacement'
+  'PASS Java generated prepared update/delete/recover: unequal versions and per-item lineage'
 )
 for repetition in 1 2; do
   log="$run_dir/run-$repetition.log"
@@ -39,7 +40,7 @@ for repetition in 1 2; do
       exit 1
     fi
   done
-  grep -Fq 'Tests run: 6, Failures: 0, Errors: 0, Skipped: 0' "$log"
+  grep -Fq 'Tests run: 7, Failures: 0, Errors: 0, Skipped: 0' "$log"
   printf 'PASS Java generated Trace Chain run %s on the same database\n' "$repetition"
 done
 library_manifest > "$run_dir/library-after.sha256"
