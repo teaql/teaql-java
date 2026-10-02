@@ -18,7 +18,8 @@ public class SqlInheritedIntentTest {
         m.setIntentRedactions(source);
         m.setComment("what: Riverside PublicAddress PASSWORD-CANARY UNKNOWN-CANARY");
         m.setPurpose(m.getComment()); m.setAuditReason(m.getComment());
-        m.setTraceChain(List.of(new TraceNode(TraceKind.AUDIT_REASON, "Customer", m.getComment())));
+        m.setTraceChain(List.of(new TraceNode(TraceKind.AUDIT_REASON, "Customer", 1L, m.getComment())));
+        m.setMutationLineage(m.getTraceChain());
         m.setResultCount(1);
         return m;
     }
@@ -31,6 +32,9 @@ public class SqlInheritedIntentTest {
             assertEquals(debug, safe.getAuditReason().contains("Riverside"));
             assertTrue(safe.getAuditReason().contains("PublicAddress"));
             assertFalse(safe.getTraceChain().toString().contains("CANARY"));
+            assertFalse(safe.getMutationLineage().toString().contains("CANARY"));
+            assertEquals(debug, safe.getMutationLineage().get(0).getComment().contains("Riverside"));
+            assertEquals(Long.valueOf(1), safe.getMutationLineage().get(0).getEntityId());
             assertTrue(safe.getDebugQuery().contains("id = 1 LIMIT 10000"));
             assertEquals(Integer.valueOf(1), safe.getResultCount());
         }
@@ -43,7 +47,18 @@ public class SqlInheritedIntentTest {
         var safe = LogPrivacy.sql(debug, false);
         assertEquals("what: [REDACTED] PublicAddress [REDACTED] [REDACTED]", safe.getAuditReason());
         assertNull(safe.getIntentRedactions());
+        assertEquals(safe.getAuditReason(), safe.getMutationLineage().get(0).getComment());
         assertEquals(safe.getAuditReason(), LogPrivacy.sql(LogPrivacy.sql(debug, true), false).getAuditReason());
+    }
+
+    @Test public void changingTypedIdentityInvalidatesTheRememberedDebugProjection() {
+        var debug = LogPrivacy.sql(readback(), true);
+        var old = debug.getMutationLineage().get(0);
+        debug.setMutationLineage(List.of(new TraceNode(old.getKind(), old.getName(), 2L, old.getComment())));
+        var safe = LogPrivacy.sql(debug, false);
+        assertEquals(Long.valueOf(2), safe.getMutationLineage().get(0).getEntityId());
+        assertFalse(safe.getMutationLineage().toString().contains("Riverside"));
+        assertFalse(safe.getMutationLineage().toString().contains("CANARY"));
     }
 
     @Test public void nestedCredentialsAndMismatchedPoliciesStayHiddenInDebug() {

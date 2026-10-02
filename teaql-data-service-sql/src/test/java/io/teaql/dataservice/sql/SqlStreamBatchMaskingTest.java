@@ -176,6 +176,7 @@ public class SqlStreamBatchMaskingTest {
     @Test public void batchSuccessAndSuccessNoInfo() throws Exception {
         batch(new int[]{1, 0, -2}, null);
         assertEquals(List.of("success", "success", "success"), logs.stream().map(ExecutionMetadata::getExecutionOutcome).toList());
+        assertTrue(logs.stream().allMatch(log -> "success".equals(log.getBatchOutcome())));
         assertEquals(Long.valueOf(1), logs.get(0).getAffectedRows());
         assertEquals(Long.valueOf(0), logs.get(1).getAffectedRows());
         assertNull(logs.get(2).getAffectedRows());
@@ -183,6 +184,7 @@ public class SqlStreamBatchMaskingTest {
     @Test public void partialBatchDoesNotInventUnexecutedOutcomes() throws Exception {
         batch(null, new RuntimeException(new BatchUpdateException("PASSWORD-CANARY", new int[]{1, -3})));
         assertEquals(List.of("success", "failure", "unknown"), logs.stream().map(ExecutionMetadata::getExecutionOutcome).toList());
+        assertTrue(logs.stream().allMatch(log -> "failure".equals(log.getBatchOutcome())));
         assertEquals(Long.valueOf(1), logs.get(0).getAffectedRows());
         assertNull(logs.get(1).getAffectedRows()); assertNull(logs.get(2).getAffectedRows());
     }
@@ -190,6 +192,7 @@ public class SqlStreamBatchMaskingTest {
         batch(null, error);
         assertTrue(logs.stream().allMatch(log -> "unknown".equals(log.getExecutionOutcome()) && log.getAffectedRows() == null));
         assertTrue(logs.stream().allMatch(log -> log.getResultSummary().contains("Batch failure")));
+        assertTrue(logs.stream().allMatch(log -> "failure".equals(log.getBatchOutcome())));
     }
     @Test public void brokenSinkDoesNotReplaceBatchFailure() throws Exception {
         brokenSink = true; batch(null, error);

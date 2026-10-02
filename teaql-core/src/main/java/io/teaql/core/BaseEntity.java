@@ -66,16 +66,19 @@ public class BaseEntity implements Entity {
         }
     }
 
-    private String _traceChain;
+    private List<TraceNode> _traceChain = List.of();
 
     @Override
-    public String getTraceChain() {
+    public List<TraceNode> getTraceChain() {
         return _traceChain;
     }
 
     @Override
-    public void setTraceChain(String traceChain) {
-        this._traceChain = traceChain;
+    public void setTraceChain(List<TraceNode> traceChain) {
+        this._traceChain = traceChain == null ? List.of() : List.copyOf(traceChain);
+        if (entityMutationLedger != null && id != null) {
+            entityMutationLedger.setTraceChain(new EntityKey(typeName(), id), this._traceChain);
+        }
     }
 
     public EntityStatus get$status() {
@@ -547,7 +550,7 @@ public class BaseEntity implements Entity {
         if (entityMutationLedger != null && id != null) {
             EntityKey key = new EntityKey(typeName(), id);
             entityMutationLedger.set(key, propertyName, newValue);
-            if (_traceChain != null) {
+            if (!_traceChain.isEmpty()) {
                 entityMutationLedger.setTraceChain(key, _traceChain);
             }
         }

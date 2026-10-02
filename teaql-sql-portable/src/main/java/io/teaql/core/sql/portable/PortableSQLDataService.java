@@ -372,6 +372,10 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         var readbackIntent = context.isQueryExecutionLoggingEnabled() || context.isMutationExecutionLoggingEnabled()
                 ? new io.teaql.core.SqlIntentRedactions() : null;
 
+        String operation = mutation.getAction() == EntityPersistenceMutation.Action.DELETE ? "delete"
+                : entity.newItem() ? "insert" : entity.recoverItem() ? "recover" : "update";
+        var trace = io.teaql.core.SqlExecutionTrace.mutation(entity, mutation.getTraceChain(), operation);
+
         if (mutation.getAction() == EntityPersistenceMutation.Action.SAVE) {
             if (entity.getId() == null) {
                 Long newId = repository.prepareId(context, entity);
@@ -379,19 +383,19 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             }
             if (entity.newItem()) {
                 ((BaseEntity) entity).__internalSet("version", 1L);
-                repository.createInternal(context, Collections.singletonList(entity), readbackIntent);
+                repository.createInternal(context, Collections.singletonList(entity), readbackIntent, trace);
             } else if (entity.updateItem()) {
-                repository.updateInternal(context, Collections.singletonList(entity), readbackIntent);
+                repository.updateInternal(context, Collections.singletonList(entity), readbackIntent, trace);
                 ((BaseEntity) entity).__internalSet("version", entity.getVersion() + 1);
             } else if (entity.recoverItem()) {
-                repository.recoverInternal(context, Collections.singletonList(entity), readbackIntent);
+                repository.recoverInternal(context, Collections.singletonList(entity), readbackIntent, trace);
                 ((BaseEntity) entity).__internalSet("version", -entity.getVersion() + 1);
             }
             if (entity instanceof BaseEntity) {
                 ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);
             }
         } else if (mutation.getAction() == EntityPersistenceMutation.Action.DELETE) {
-            repository.deleteInternal(context, Collections.singletonList(entity), readbackIntent);
+            repository.deleteInternal(context, Collections.singletonList(entity), readbackIntent, trace);
             ((BaseEntity) entity).__internalSet("version", -(entity.getVersion() + 1));
             if (entity instanceof BaseEntity) {
                 ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);
@@ -402,7 +406,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         if (entity.getId() != null
                 && (mutation.getAction() == EntityPersistenceMutation.Action.SAVE
                     || mutation.getAction() == EntityPersistenceMutation.Action.DELETE)) {
-            persisted = repository.loadPersistedById(context, entity.getId(), readbackIntent);
+            persisted = repository.loadPersistedById(context, entity.getId(), readbackIntent, trace.readback(mutation.intent()));
         }
         return new io.teaql.core.DefaultMutationResult(persisted);
     }

@@ -67,6 +67,24 @@ public class ExecutionLogPrivacyTest {
         return metadata;
     }
 
+    @Test public void bothFormattersPreserveTypedMutationIdentityAndSeparateBatchFailure() {
+        var metadata = metadata();
+        metadata.setParameters(List.of(SECRET));
+        metadata.setMutationLineage(List.of(new io.teaql.core.TraceNode(
+                io.teaql.core.TraceKind.AUDIT_REASON, "CustomerOrder", 1001L, "persist " + SECRET)));
+        metadata.setExecutionOutcome("unknown");
+        metadata.setBatchOutcome("failure");
+        String human = new HumanReaderFormatter().formatExecutionLog(metadata);
+        String json = new JsonReaderFormatter().formatExecutionLog(metadata);
+        assertTrue(human, human.contains("CustomerOrder#1001"));
+        assertTrue(human, human.contains("outcome=unknown batchOutcome=failure"));
+        assertTrue(json, json.contains("\"mutationLineage\":["));
+        assertTrue(json, json.contains("\"entityId\":1001"));
+        assertTrue(json, json.contains("\"executionOutcome\":\"unknown\",\"batchOutcome\":\"failure\""));
+        assertFalse(human, human.contains(SECRET));
+        assertFalse(json, json.contains(SECRET));
+    }
+
     @Test
     public void failureOutcomeAndUnknownCountsSurviveBothFormatters() {
         var metadata = metadata();

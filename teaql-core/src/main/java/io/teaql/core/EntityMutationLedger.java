@@ -13,7 +13,7 @@ public class EntityMutationLedger {
     private String comment;
     private final Set<EntityKey> deletedKeys = new TreeSet<>();
     private final Set<EntityKey> newKeys = new TreeSet<>();
-    private final Map<EntityKey, String> traceChains = new TreeMap<>();
+    private final Map<EntityKey, List<TraceNode>> traceChains = new TreeMap<>();
     private final Map<EntityKey, Long> originalVersions = new TreeMap<>();
 
     // --- Change Set Stack ---
@@ -36,6 +36,7 @@ public class EntityMutationLedger {
         // save). The materialized entity now carries the authoritative version
         // returned by the provider, so the next mutation must capture that value.
         originalVersions.clear();
+        traceChains.clear();
     }
 
     public void set(EntityKey key, String field, Object value) {
@@ -98,11 +99,11 @@ public class EntityMutationLedger {
 
     // --- Trace Chains ---
 
-    public void setTraceChain(EntityKey key, String traceChain) {
-        traceChains.put(key, traceChain);
+    public void setTraceChain(EntityKey key, List<TraceNode> traceChain) {
+        traceChains.put(key, traceChain == null ? List.of() : List.copyOf(traceChain));
     }
 
-    public String getTraceChain(EntityKey key) {
+    public List<TraceNode> getTraceChain(EntityKey key) {
         return traceChains.get(key);
     }
 
@@ -143,7 +144,7 @@ public class EntityMutationLedger {
         }
         
         // Merge trace chains
-        for (Map.Entry<EntityKey, String> entry : other.traceChains.entrySet()) {
+        for (Map.Entry<EntityKey, List<TraceNode>> entry : other.traceChains.entrySet()) {
             this.setTraceChain(entry.getKey(), entry.getValue());
         }
         

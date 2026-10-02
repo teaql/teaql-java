@@ -17,6 +17,8 @@ public final class ExecutionMetadata {
     private List<Object> parameters = List.of();
     private String debugQuery;
     private List<TraceNode> traceChain;
+    private List<TraceNode> mutationLineage = List.of();
+    private String statementOperation;
     private String comment;
     private String purpose;
     private String auditReason;
@@ -26,6 +28,7 @@ public final class ExecutionMetadata {
     private String logMode;
     private String sqlOmissionReason;
     private String executionOutcome;
+    private String batchOutcome;
     @com.fasterxml.jackson.annotation.JsonIgnore
     private transient SqlIntentRedactions intentRedactions;
 
@@ -38,6 +41,10 @@ public final class ExecutionMetadata {
     /** Statement/cursor outcome, not transaction commit or business acceptance. Null means unknown. */
     public String getExecutionOutcome() { return executionOutcome; }
     public void setExecutionOutcome(String outcome) { executionOutcome = outcome; }
+
+    /** Batch call outcome, independent of an individual member's possibly unknown outcome. */
+    public String getBatchOutcome() { return batchOutcome; }
+    public void setBatchOutcome(String outcome) { batchOutcome = outcome; }
 
     public List<SqlParameterLogPolicy> getParameterLogPolicies() { return parameterLogPolicies; }
     public void setParameterLogPolicies(List<SqlParameterLogPolicy> policies) {
@@ -93,7 +100,14 @@ public final class ExecutionMetadata {
     public void setDebugQuery(String debugQuery) { this.debugQuery = debugQuery; }
 
     public List<TraceNode> getTraceChain() { return traceChain; }
-    public void setTraceChain(List<TraceNode> traceChain) { this.traceChain = traceChain; }
+    public void setTraceChain(List<TraceNode> traceChain) { this.traceChain = traceChain == null ? List.of() : List.copyOf(traceChain); }
+
+    public List<TraceNode> getMutationLineage() { return mutationLineage; }
+    public void setMutationLineage(List<TraceNode> lineage) {
+        mutationLineage = lineage == null ? List.of() : List.copyOf(lineage);
+    }
+    public String getStatementOperation() { return statementOperation; }
+    public void setStatementOperation(String operation) { statementOperation = operation; }
 
     public String getComment() { return comment; }
     public void setComment(String comment) { this.comment = comment; }

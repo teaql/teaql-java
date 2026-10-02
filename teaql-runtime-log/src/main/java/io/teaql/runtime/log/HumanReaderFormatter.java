@@ -16,7 +16,7 @@ public class HumanReaderFormatter implements LogFormatter {
         return java.util.stream.IntStream.range(0, traceChain.size())
                 .mapToObj(i -> {
                     TraceNode t = traceChain.get(i);
-                    return i + ":" + t.getKind() + ":" + t.getName() + "=" + t.getComment();
+                    return i + ":" + t;
                 })
                 .collect(Collectors.joining(" -> "));
     }
@@ -28,10 +28,12 @@ public class HumanReaderFormatter implements LogFormatter {
         String traceStr = formatTraceChain(metadata.getTraceChain());
         String traceDisplay = traceStr.isEmpty() ? "" : " - [" + traceStr + "]";
         
-        return String.format("[%s]-[%5dµs]-[SQL]-ExecutionLog%s - [%s] outcome=%s comment=%s purpose=%s auditReason=%s\n          SQL: %s",
+        return String.format("[%s]-[%5dµs]-[SQL]-ExecutionLog%s - [%s] outcome=%s batchOutcome=%s comment=%s purpose=%s auditReason=%s mutationLineage=[%s]\n          SQL: %s",
                 ts, metadata.getElapsedUs(), traceDisplay, metadata.getResultSummary(),
                 metadata.getExecutionOutcome() == null ? "unknown" : metadata.getExecutionOutcome(),
+                metadata.getBatchOutcome() == null ? "not_applicable" : metadata.getBatchOutcome(),
                 metadata.getComment(), metadata.getPurpose(), metadata.getAuditReason(),
+                formatTraceChain(metadata.getMutationLineage()),
                 metadata.getDebugQuery() == null ? "" : metadata.getDebugQuery());
     }
 

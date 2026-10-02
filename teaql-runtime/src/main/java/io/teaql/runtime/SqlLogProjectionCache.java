@@ -33,14 +33,20 @@ final class SqlLogProjectionCache {
             add(digest, m.getAffectedRows()); add(digest, m.getResultCount()); add(digest, m.getResultSummary());
             add(digest, m.getBackendRequestId()); add(digest, m.getParameterizedQuery()); add(digest, m.getDebugQuery());
             add(digest, m.getComment()); add(digest, m.getPurpose()); add(digest, m.getAuditReason());
+            add(digest, m.getStatementOperation());
+            add(digest, m.getMutationLineage().size());
+            for (var node : m.getMutationLineage()) {
+                add(digest, node.getKind()); add(digest, node.getName()); add(digest, node.getEntityId()); add(digest, node.getComment());
+            }
             add(digest, m.getParameterLogPolicies()); add(digest, m.getParameterMasked());
             add(digest, m.isGeneratedSql()); add(digest, m.getLogMode());
             add(digest, m.getSqlOmissionReason()); add(digest, m.getExecutionOutcome());
+            add(digest, m.getBatchOutcome());
             add(digest, m.getParameterCount());
             for (Object value : m.getParameters()) add(digest, SqlLogRenderer.literal(value, m.getBackend()));
             add(digest, m.getTraceChain() == null ? -1 : m.getTraceChain().size());
             if (m.getTraceChain() != null) for (var node : m.getTraceChain()) {
-                add(digest, node.getKind()); add(digest, node.getName()); add(digest, node.getComment());
+                add(digest, node.getKind()); add(digest, node.getName()); add(digest, node.getEntityId()); add(digest, node.getComment());
             }
             return HexFormat.of().formatHex(digest.digest());
         } catch (IllegalArgumentException unsupported) {
@@ -72,8 +78,10 @@ final class SqlLogProjectionCache {
         c.setParameterLogPolicies(m.getParameterLogPolicies()); c.setParameterMasked(m.getParameterMasked());
         c.setGeneratedSql(m.isGeneratedSql()); c.setLogMode(m.getLogMode());
         c.setSqlOmissionReason(m.getSqlOmissionReason()); c.setExecutionOutcome(m.getExecutionOutcome());
+        c.setBatchOutcome(m.getBatchOutcome());
         c.setComment(m.getComment()); c.setPurpose(m.getPurpose()); c.setAuditReason(m.getAuditReason());
         c.setTraceChain(m.getTraceChain() == null ? null : java.util.List.copyOf(m.getTraceChain()));
+        c.setMutationLineage(m.getMutationLineage()); c.setStatementOperation(m.getStatementOperation());
         return c;
     }
 }

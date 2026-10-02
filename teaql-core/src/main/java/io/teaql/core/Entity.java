@@ -115,10 +115,10 @@ public interface Entity {
     }
 
 
-    default String getTraceChain() {
-        return null;
+    default java.util.List<TraceNode> getTraceChain() {
+        return java.util.List.of();
     }
 
-    default void setTraceChain(String traceChain) {
+    default void setTraceChain(java.util.List<TraceNode> traceChain) {
     }
 }

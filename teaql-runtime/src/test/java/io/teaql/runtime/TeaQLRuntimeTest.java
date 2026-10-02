@@ -892,10 +892,12 @@ public class TeaQLRuntimeTest {
 
         java.lang.reflect.Method method = TeaQLRuntime.class.getDeclaredMethod(
             "executeLedgerPlan", UserContext.class, EntityMutationLedger.class,
-            MutationExecutor.class, java.util.Map.class, MutationGovernanceSnapshot.class, MutationIntent.class);
+            MutationExecutor.class, java.util.Map.class, MutationGovernanceSnapshot.class, MutationIntent.class,
+            java.util.Map.class, MutationTraceScope.class);
         method.setAccessible(true);
         method.invoke(runtime, new DefaultUserContext(runtime), root, executor, realEntities, null,
-                MutationIntent.of("root comment"));
+                MutationIntent.of("root comment"), java.util.Map.of(),
+                MutationTraceScope.append(null, "Dummy", null, "root comment"));
 
         List<EntityPersistenceMutation> requests = executor.requests;
 

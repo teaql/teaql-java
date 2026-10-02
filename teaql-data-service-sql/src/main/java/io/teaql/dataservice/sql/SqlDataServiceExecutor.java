@@ -365,6 +365,8 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
             var meta = statementMetadata(context, sql, row < size ? batchArgs.get(row) : null,
                     bindings, io.teaql.core.DataServiceOperation.MUTATION);
             meta.setElapsedUs(row == 0 ? elapsed : 0);
+            meta.setBatchOutcome(failure == null ? "success"
+                    : failure instanceof java.util.concurrent.CancellationException ? "cancelled" : "failure");
             long count = counts != null && row < counts.length ? counts[row] : Long.MIN_VALUE;
             meta.setExecutionOutcome(count >= 0 || count == java.sql.Statement.SUCCESS_NO_INFO ? "success"
                     : count == java.sql.Statement.EXECUTE_FAILED ? "failure" : "unknown");

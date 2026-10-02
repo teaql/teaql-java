@@ -438,15 +438,7 @@ public class TeaQLRuntime {
                         "teaql.entity.type", entity.typeName(),
                         "teaql.mutation.kind", "save")));
         try {
-        MutationIntent intent = MutationIntent.of(entity.getComment());
-        boolean pushed = false;
-        context.pushTrace(TraceKind.OPERATION, entity.typeName(), "mutation");
-        context.pushTrace(TraceKind.ENTITY, entity.typeName(), entity.typeName());
-        if (intent.comment() != null) {
-            context.pushTrace(TraceKind.AUDIT_REASON, entity.typeName(), intent.comment());
-            pushed = true;
-        }
-        try {
+            MutationIntent intent = MutationIntent.of(entity.getComment());
             checkAndFix(context, entity);
             // Get entity's own EntityMutationLedger
             EntityMutationLedger entityMutationLedger = ((BaseEntity) entity).getEntityMutationLedger();
@@ -466,6 +458,14 @@ public class TeaQLRuntime {
                     entity,
                     entityMutationLedger,
                     Collections.newSetFromMap(new IdentityHashMap<>()));
+
+            Map<EntityKey, MutationTraceScope> traceScopes = new HashMap<>();
+            MutationTraceScope graphScope = MutationTraceScope.append(
+                    null, entity.typeName(), entity.getId(), intent.comment());
+            traceScopes.put(new EntityKey(entity.typeName(), entity.getId()), graphScope);
+            Set<Entity> traceVisited = Collections.newSetFromMap(new IdentityHashMap<>());
+            traceVisited.add(entity);
+            visitRelatedEntities(entity, child -> collectMutationTraceScopes(child, graphScope, traceScopes, traceVisited));
 
             EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());
             String route = descriptor.getDataService();
@@ -507,10 +507,10 @@ public class TeaQLRuntime {
                 if (mutationExecutor instanceof TransactionExecutor transactionExecutor) {
                     completed = transactionExecutor.executeInTransaction(context, () ->
                             executeLedgerPlan(context, entityMutationLedger, mutationExecutor,
-                                    realEntities, governance, intent));
+                                    realEntities, governance, intent, traceScopes, graphScope));
                 } else {
                     completed = executeLedgerPlan(
-                            context, entityMutationLedger, mutationExecutor, realEntities, governance, intent);
+                            context, entityMutationLedger, mutationExecutor, realEntities, governance, intent, traceScopes, graphScope);
                 }
             } catch (RuntimeException | Error failure) {
                 restoreGraphPersistenceState(
@@ -523,15 +523,29 @@ public class TeaQLRuntime {
             completeLedgerPlan(context, completed);
             entityMutationLedger.clearCurrentChangeSet();
             telemetryScope.success();
-        } finally {
-            if (pushed) context.popTrace();
-            context.popTrace();
-            context.popTrace();
-        }
         } catch (RuntimeException | Error error) {
             telemetryScope.failure(error);
             throw error;
         }
+    }
+
+    private void collectMutationTraceScopes(Entity entity, MutationTraceScope parent,
+            Map<EntityKey, MutationTraceScope> scopes, Set<Entity> visited) {
+        if (!(entity instanceof BaseEntity baseEntity) || !visited.add(entity)) return;
+        MutationTraceScope active = MutationTraceScope.append(
+                parent, entity.typeName(), entity.getId(), entity.getComment());
+        EntityKey key = new EntityKey(entity.typeName(), entity.getId());
+        // A reference cannot replace the lineage of its materialized counterpart.
+        if (baseEntity.get$status() != io.teaql.core.EntityStatus.REFER) scopes.put(key, active);
+        visitRelatedEntities(entity, child -> collectMutationTraceScopes(child, active, scopes, visited));
+    }
+
+    private List<TraceNode> mutationTrace(EntityMutationLedger ledger, EntityKey key,
+            Map<EntityKey, MutationTraceScope> scopes, MutationTraceScope graphScope) {
+        List<TraceNode> specific = ledger.getTraceChain(key);
+        if (specific != null && !specific.isEmpty()) return specific;
+        MutationTraceScope scope = scopes.getOrDefault(key, graphScope);
+        return scope.recover();
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -808,7 +822,7 @@ public class TeaQLRuntime {
             MutationExecutor mutationExecutor,
             Map<EntityKey, BaseEntity> realEntities,
             MutationGovernanceSnapshot governance,
-            MutationIntent intent) {
+            MutationIntent intent, Map<EntityKey, MutationTraceScope> traceScopes, MutationTraceScope graphScope) {
         List<PendingMutation> completed = new ArrayList<>();
         EntityChangeSet changeSet = root.currentChangeSet();
         Set<EntityKey> deletedKeys = root.deletedKeys();
@@ -833,12 +847,12 @@ public class TeaQLRuntime {
             if (root.getComment() != null) deleteEntity.setComment(root.getComment());
 
             EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
-                deleteEntity, EntityPersistenceMutation.Action.DELETE, intent);
+                deleteEntity, EntityPersistenceMutation.Action.DELETE, intent, mutationTrace(root, key, traceScopes, graphScope));
             MutationResult result = mutateWithTelemetry(context, mutationExecutor, mutationRequest,
                     key.entity(), "delete");
             completed.add(new PendingMutation(
                     descriptor, target == null ? deleteEntity : target, result,
-                    MutationAuditKind.DELETED, Collections.emptyMap(), governance, intent));
+                    MutationAuditKind.DELETED, Collections.emptyMap(), governance, intent, mutationRequest.getTraceChain()));
         }
 
         // 2. Group changes
@@ -881,12 +895,12 @@ public class TeaQLRuntime {
                 if (root.getComment() != null) entity.setComment(root.getComment());
 
                 EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
-                    entity, EntityPersistenceMutation.Action.SAVE, intent);
+                    entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(root, key, traceScopes, graphScope));
                 MutationResult result = mutateWithTelemetry(context, mutationExecutor, mutationRequest,
                         entityName, "save");
                 completed.add(new PendingMutation(
                         descriptor, target == null ? entity : target, result,
-                        MutationAuditKind.CREATED, snapshotChanges(changes), governance, intent));
+                        MutationAuditKind.CREATED, snapshotChanges(changes), governance, intent, mutationRequest.getTraceChain()));
             }
         }
 
@@ -916,7 +930,7 @@ public class TeaQLRuntime {
                 if (root.getComment() != null) entity.setComment(root.getComment());
 
                 EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
-                    entity, EntityPersistenceMutation.Action.SAVE, intent);
+                    entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(root, key, traceScopes, graphScope));
                 MutationAuditKind auditKind = target != null && target.recoverItem()
                         ? MutationAuditKind.RECOVERED
                         : MutationAuditKind.UPDATED;
@@ -924,7 +938,7 @@ public class TeaQLRuntime {
                         entityName, auditKind.name().toLowerCase(Locale.ROOT));
                 completed.add(new PendingMutation(
                         descriptor, target == null ? entity : target, result,
-                        auditKind, snapshotChanges(changes), governance, intent));
+                        auditKind, snapshotChanges(changes), governance, intent, mutationRequest.getTraceChain()));
             }
         }
         return completed;
@@ -935,7 +949,7 @@ public class TeaQLRuntime {
             applyPersistedEntity(mutation.descriptor(), mutation.target(), mutation.result());
             emitAuditEvent(
                     context, mutation.target(), mutation.auditKind(), mutation.changedValues(),
-                    mutation.governance(), mutation.intent());
+                    mutation.governance(), mutation.intent(), mutation.traceChain());
             mutation.target().clearUpdatedProperties();
         }
     }
@@ -959,7 +973,7 @@ public class TeaQLRuntime {
             MutationResult result,
             MutationAuditKind auditKind,
             Map<String, Object> changedValues,
-            MutationGovernanceSnapshot governance, MutationIntent intent) {}
+            MutationGovernanceSnapshot governance, MutationIntent intent, List<TraceNode> traceChain) {}
 
     private record PersistenceState(
             Long version, io.teaql.core.EntityStatus status, boolean versionLoaded) {}
@@ -1026,7 +1040,7 @@ public class TeaQLRuntime {
             Entity entity,
             MutationAuditKind kind,
             Map<String, Object> changedValues,
-            MutationGovernanceSnapshot governance, MutationIntent intent) {
+            MutationGovernanceSnapshot governance, MutationIntent intent, List<TraceNode> traceChain) {
         List<AuditFieldChange> changes = new ArrayList<>();
         if (changedValues != null) {
             for (Map.Entry<String, Object> entry : changedValues.entrySet()) {
@@ -1040,7 +1054,7 @@ public class TeaQLRuntime {
                 entity.typeName(),
                 entity.getId(),
                 changes,
-                context.getTraceChain(),
+                traceChain,
                 context.getAttribute(GeneratedSchemaBootstrap.AUDIT_ACTOR_ATTRIBUTE, String.class),
                 context.getAttribute(GeneratedSchemaBootstrap.AUDIT_CATEGORY_ATTRIBUTE, String.class),
                 intent.auditReason(),

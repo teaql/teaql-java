@@ -116,12 +116,13 @@ public class EntityMutationLedgerTest {
     public void mergeFromCopiesTraceChainsAndOriginalVersions() {
         EntityMutationLedger target = new EntityMutationLedger();
         EntityMutationLedger source = new EntityMutationLedger();
-        source.setTraceChain(ORDER, "checkout > submit");
+        var trace = java.util.List.of(new TraceNode(TraceKind.AUDIT_REASON, "Order", 1L, "checkout > submit"));
+        source.setTraceChain(ORDER, trace);
         source.setOriginalVersion(ORDER, 7L);
 
         target.mergeFrom(source);
 
-        assertEquals("checkout > submit", target.getTraceChain(ORDER));
+        assertEquals(trace, target.getTraceChain(ORDER));
         assertEquals(Long.valueOf(7L), target.getOriginalVersion(ORDER));
     }
 

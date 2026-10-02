@@ -128,8 +128,21 @@ Neither a Context default nor a fabricated trace supplies missing intent.
 Derived relation, Facet and materialized relation-predicate queries carry their
 validated originating intent instead of asking callers to repeat it. Mutation
 reason is captured before policy and retained in provider requests and committed
-audit facts. The complete hierarchical Trace Chain and concurrent-context
-isolation remain separate, unfinished gates on this branch.
+audit facts. Graph saves now use immutable parent-linked mutation scopes, rather
+than a Context push/pop stack. Each persistence request carries its own typed
+lineage through SQL writes, authoritative readback and committed safe audit.
+`TraceNode` includes entity type and assigned ID; Entity and Ledger trace setters
+now accept immutable `List<TraceNode>`, not flattened strings. Custom callers
+using the old string API must migrate; this is a local source change, not a
+released API. SQL `tracePath` remains separate from `mutationLineage`.
+
+The local runtime tests cover branch reasons, deleted children, same numeric ID
+across types, assigned IDs, complete ledger overrides and concurrent saves sharing
+one Context. Actual SQLite tests cover SQL/audit propagation, provider rollback,
+readback failure/retry and masking. Native batch diagnostics distinguish the
+batch call's `batchOutcome` from an individual member's possibly unknown
+`executionOutcome`. These do not close generated normative-graph acceptance,
+same-type prepared-batch parity, query scope migration or internal Registry replay.
 
 Applications can replace runtime services such as `QueryPolicy`, the
 `MutationPolicyRegistry`, `MutationPolicyApprovalProvider`, `RuntimeLogSink`,
@@ -138,22 +151,26 @@ in their integration layer.
 
 Query and Mutation execution logs are enabled by default. The built-in default
 sink is safe for ordinary operator output: it includes intent, trace, elapsed
-time, outcome, and parameterized SQL, but excludes bind values and rendered
-Debug SQL. Enable copy/paste SQL only for a controlled troubleshooting surface:
+time, outcome, and SQL with safely rendered parameters. Sensitive values follow
+the field's masking policy; an unsafe statement is omitted with a reason rather
+than printed as plaintext. Select an additional diagnostic destination only for
+controlled troubleshooting:
 
 ```java
 TeaQLRuntime runtime = TeaQLRuntime.builder()
     .metadata(metadata)
     .queryExecutionLogging(true)
     .mutationExecutionLogging(true)
-    .diagnosticSqlLogging(true) // values and Debug SQL; apply restricted retention
+    .diagnosticSqlLogging(true) // selecting a destination alone does not authorize plaintext
     .build();
 ```
 
 The Query and Mutation switches remain independent. Selecting diagnostic SQL
 changes the built-in destination; it does not enable or disable either family.
-Custom `RuntimeLogSink` implementations receive only parameterized SQL unless
-they explicitly override `requiresSensitiveSqlData()` to return `true`.
+Custom `RuntimeLogSink` implementations receive safe SQL projections too.
+Plaintext requires both an explicitly sensitive destination and the exact
+`TEAQL_ALLOW_SENSITIVE_PLAINTEXT_LOGS=I_UNDERSTAND_SENSITIVE_DATA_MAY_BE_WRITTEN_TO_DISK`
+acknowledgement. Debug records are individually labeled; credentials remain protected.
 Custom `UserContext` implementations must also explicitly delegate or override
 `requiresSensitiveSqlLogData()` when they enable a diagnostic sink.
 The optional file-backed `LogManager` requests value-bearing SQL only with
@@ -164,9 +181,9 @@ The optional file-backed `LogManager` requests value-bearing SQL only with
 TeaQL Java is a server-side security reference runtime:
 
 - ordinary Query and Mutation logs are enabled by default and retain intent,
-  trace, parameterized SQL, timing, and outcome without bind values;
-- copy/paste SQL and parameter values require an explicitly selected sensitive
-  diagnostic sink;
+  typed trace, safely expanded SQL, timing, and outcome;
+- ordinary SQL remains copy/paste-readable with masked values; plaintext requires
+  a sensitive diagnostic sink and the exact environment acknowledgement;
 - the TFP endpoint applies trusted server policy, bounded queries, writable-field
   rules, tenant scope, and optimistic version in the provider operation;
 - boundary-facing entity references can be issued and verified through

@@ -292,34 +292,19 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
         if (metadata.getTraceChain() == null || metadata.getTraceChain().isEmpty()) {
             metadata.setTraceChain(getTraceChain());
         }
-        if (metadata.getTraceChain() != null) {
-            for (TraceNode node : metadata.getTraceChain()) {
-                if (node.getKind() == TraceKind.COMMENT) metadata.setComment(node.getComment());
-                if (node.getKind() == TraceKind.PURPOSE) metadata.setPurpose(node.getComment());
-                if (node.getKind() == TraceKind.AUDIT_REASON) metadata.setAuditReason(node.getComment());
-            }
-        }
-        java.util.List<TraceNode> canonical = new java.util.ArrayList<>();
-        if (metadata.getTraceChain() != null) {
-            metadata.getTraceChain().stream()
-                    .filter(node -> node.getKind() != TraceKind.COMMENT
-                            && node.getKind() != TraceKind.PURPOSE
-                            && node.getKind() != TraceKind.AUDIT_REASON
-                            && node.getKind() != TraceKind.PROVIDER
-                            && node.getKind() != TraceKind.SQL)
-                    .forEach(canonical::add);
-        }
-        String backend = metadata.getBackend() == null ? "unknown" : metadata.getBackend();
-        canonical.add(new TraceNode(TraceKind.PROVIDER, backend, backend));
-        String sqlOperation = sqlOperation(metadata);
-        canonical.add(new TraceNode(TraceKind.SQL, sqlOperation, sqlOperation));
-        metadata.setTraceChain(canonical);
+        var canonical = io.teaql.core.SqlTracePath.canonical(
+                metadata.getTraceChain(), metadata.getBackend(), sqlOperation(metadata));
+        if (canonical.comment() != null) metadata.setComment(canonical.comment());
+        if (canonical.purpose() != null) metadata.setPurpose(canonical.purpose());
+        if (canonical.auditReason() != null) metadata.setAuditReason(canonical.auditReason());
+        metadata.setTraceChain(canonical.path());
         if (runtime != null) {
             runtime.recordExecutionMetadata(this, metadata);
         }
     }
 
     private static String sqlOperation(io.teaql.core.ExecutionMetadata metadata) {
+        if (metadata.getStatementOperation() != null) return metadata.getStatementOperation();
         String sql = metadata.getParameterizedQuery();
         if (sql != null) {
             String normalized = sql.stripLeading();
