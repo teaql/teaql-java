@@ -6,7 +6,7 @@ import io.teaql.runtime.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class PortableSQLDataService implements DataServiceExecutor, QueryExecutor, StreamingQueryExecutor, MutationExecutor, TransactionExecutor {
+public class PortableSQLDataService implements DataServiceExecutor, QueryExecutor, StreamingQueryExecutor, BatchMutationExecutor, TransactionExecutor {
 
     private final String name;
     private final DataServiceCapabilities capabilities;
@@ -30,6 +30,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         this.capabilities = new DataServiceCapabilities();
         this.capabilities.setQuery(true);
         this.capabilities.setMutation(true);
+        this.capabilities.setBatchMutation(true);
         this.capabilities.setTransaction(true);
         this.capabilities.setStreamingQuery(true);
     }
@@ -411,6 +412,51 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             persisted = repository.loadPersistedById(context, entity.getId(), readbackIntent, trace.readback(mutation.intent()));
         }
         return new io.teaql.core.DefaultMutationResult(persisted);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<MutationResult> mutateBatch(UserContext context, MutationBatchRequest request) {
+        Objects.requireNonNull(request, "request");
+        List<EntityPersistenceMutation> items = new ArrayList<>();
+        for (PersistenceMutation item : request.items()) {
+            if (!(item instanceof EntityPersistenceMutation mutation)) {
+                throw new TeaQLRuntimeException("Unsupported batch member in PortableSQLDataService");
+            }
+            items.add(mutation);
+        }
+        if (items.isEmpty()) return List.of();
+        String type = items.get(0).getEntity().typeName();
+        if (items.stream().anyMatch(item -> item.getAction() != EntityPersistenceMutation.Action.SAVE
+                || !item.getEntity().newItem() || !item.getEntity().typeName().equals(type))) {
+            throw new TeaQLRuntimeException("Portable SQL prepared batch currently requires same-type new entities");
+        }
+        return executeInTransaction(context, () -> {
+            PortableSQLRepository repository = getRepository(type);
+            var redactions = context.isQueryExecutionLoggingEnabled() || context.isMutationExecutionLoggingEnabled()
+                    ? new SqlIntentRedactions() : null;
+            List<Entity> entities = new ArrayList<>();
+            List<SqlExecutionTrace> traces = new ArrayList<>();
+            for (EntityPersistenceMutation item : items) {
+                var entity = (BaseEntity) item.getEntity();
+                if (entity.getId() == null) entity.__internalSet("id", repository.prepareId(context, entity));
+                entity.__internalSet("version", 1L);
+                entities.add(entity);
+                traces.add(SqlExecutionTrace.mutation(entity, item.getTraceChain(), "insert"));
+            }
+            repository.createBatchInternal(context, entities, redactions, traces);
+            List<MutationResult> results = new ArrayList<>();
+            for (int index = 0; index < items.size(); index++) {
+                var item = items.get(index);
+                var entity = (BaseEntity) item.getEntity();
+                entity.gotoNextStatus(EntityAction.PERSIST);
+                Entity persisted = repository.loadPersistedById(context, entity.getId(), redactions,
+                        traces.get(index).readback(item.intent()));
+                if (persisted == null) throw new TeaQLRuntimeException("Batch mutation readback returned no entity");
+                results.add(new DefaultMutationResult(persisted));
+            }
+            return List.copyOf(results);
+        });
     }
 
     @Override

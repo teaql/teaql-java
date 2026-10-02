@@ -879,6 +879,10 @@ public class TeaQLRuntime {
             if (descriptor == null) {
                 throw new TeaQLRuntimeException("No entity descriptor for: " + entityName);
             }
+            List<EntityPersistenceMutation> requests = new ArrayList<>();
+            List<BaseEntity> targets = new ArrayList<>();
+            List<Map<String, Object>> snapshots = new ArrayList<>();
+            Collections.sort(keys);
             for (EntityKey key : keys) {
                 Map<String, Object> changes = changeSet.changes().get(key);
                 if (changes == null) continue;
@@ -896,11 +900,16 @@ public class TeaQLRuntime {
 
                 EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
                     entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(root, key, traceScopes, graphScope));
-                MutationResult result = mutateWithTelemetry(context, mutationExecutor, mutationRequest,
-                        entityName, "save");
+                requests.add(mutationRequest);
+                targets.add(target == null ? entity : target);
+                snapshots.add(snapshotChanges(changes));
+            }
+            List<MutationResult> results = mutateBatchWithTelemetry(
+                    context, mutationExecutor, intent, requests, entityName, "save");
+            for (int index = 0; index < requests.size(); index++) {
                 completed.add(new PendingMutation(
-                        descriptor, target == null ? entity : target, result,
-                        MutationAuditKind.CREATED, snapshotChanges(changes), governance, intent, mutationRequest.getTraceChain()));
+                        descriptor, targets.get(index), results.get(index),
+                        MutationAuditKind.CREATED, snapshots.get(index), governance, intent, requests.get(index).getTraceChain()));
             }
         }
 
@@ -1029,6 +1038,49 @@ public class TeaQLRuntime {
             MutationResult result = executor.mutate(context, mutation);
             scope.success();
             return result;
+        } catch (RuntimeException | Error error) {
+            scope.failure(error);
+            throw error;
+        }
+    }
+
+    private List<MutationResult> mutateBatchWithTelemetry(
+            UserContext context, MutationExecutor executor, MutationIntent intent,
+            List<EntityPersistenceMutation> requests, String entityType, String operation) {
+        if (requests.size() < 2 || !(executor instanceof io.teaql.core.BatchMutationExecutor batchExecutor)) {
+            List<MutationResult> results = new ArrayList<>();
+            for (EntityPersistenceMutation request : requests) {
+                results.add(mutateWithTelemetry(context, executor, request, entityType, operation));
+            }
+            return results;
+        }
+        var request = new io.teaql.core.MutationBatchRequest(intent, requests);
+        String provider = executor.getClass().getSimpleName();
+        RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(telemetry,
+                new RuntimeTelemetry.Operation("provider", provider + ".mutation.batch", Map.of(
+                        "teaql.provider.kind", provider,
+                        "teaql.provider.operation", operation,
+                        "teaql.entity.type", entityType,
+                        "teaql.batch.size", requests.size())));
+        try {
+            List<MutationResult> results = batchExecutor.mutateBatch(context, request);
+            if (results == null || results.size() != requests.size()) {
+                throw new TeaQLRuntimeException("Batch mutation must return one ordered result per item");
+            }
+            for (int index = 0; index < results.size(); index++) {
+                MutationResult result = results.get(index);
+                if (result == null || result.persistedEntity() == null) {
+                    throw new TeaQLRuntimeException("Batch mutation did not return an authoritative persisted entity");
+                }
+                Entity expected = requests.get(index).getEntity();
+                Entity persisted = result.persistedEntity();
+                if (!expected.typeName().equals(persisted.typeName())
+                        || !Objects.equals(expected.getId(), persisted.getId())) {
+                    throw new TeaQLRuntimeException("Batch mutation result identity does not match its ordered command");
+                }
+            }
+            scope.success();
+            return results;
         } catch (RuntimeException | Error error) {
             scope.failure(error);
             throw error;

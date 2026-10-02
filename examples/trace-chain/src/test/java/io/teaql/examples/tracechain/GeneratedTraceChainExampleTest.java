@@ -29,6 +29,7 @@ public class GeneratedTraceChainExampleTest {
         final List<ExecutionMetadata> sql = new CopyOnWriteArrayList<>();
         final List<SafeAuditEvent> audit = new CopyOnWriteArrayList<>();
         final List<EntityPersistenceMutation> commands = new CopyOnWriteArrayList<>();
+        final List<Integer> itemInsertBatchSizes = new CopyOnWriteArrayList<>();
         final DefaultUserContext context;
         final JdbcSqlExecutor driver;
         volatile boolean failReadback;
@@ -41,6 +42,10 @@ public class GeneratedTraceChainExampleTest {
             var source = new SQLiteDataSource();
             source.setUrl("jdbc:sqlite:" + database);
             driver = new JdbcSqlExecutor(source) {
+                @Override public int[] batchUpdate(String text, List<Object[]> rows) {
+                    if (text.startsWith("INSERT INTO order_item_data")) itemInsertBatchSizes.add(rows.size());
+                    return super.batchUpdate(text, rows);
+                }
                 @Override public List<java.util.Map<String, Object>> queryForList(String sql, Object[] args) {
                     if (failReadback && sql.startsWith("SELECT * FROM") && sql.contains("customer_order_data"))
                         execute("DROP TABLE customer_order_data");
@@ -53,6 +58,10 @@ public class GeneratedTraceChainExampleTest {
                 @Override public MutationResult mutate(UserContext caller, PersistenceMutation mutation) {
                     commands.add((EntityPersistenceMutation) mutation);
                     return super.mutate(caller, mutation);
+                }
+                @Override public List<MutationResult> mutateBatch(UserContext caller, MutationBatchRequest request) {
+                    request.items().forEach(item -> commands.add((EntityPersistenceMutation) item));
+                    return super.mutateBatch(caller, request);
                 }
             };
             var runtime = TeaQLRuntime.builder().metadata(metadata)
@@ -76,7 +85,7 @@ public class GeneratedTraceChainExampleTest {
             clear();
         }
 
-        void clear() { sql.clear(); audit.clear(); commands.clear(); }
+        void clear() { sql.clear(); audit.clear(); commands.clear(); itemInsertBatchSizes.clear(); }
 
         Graph saveNormativeGraph() {
             var platform = Q.platforms().withIdIs(1L).limit(1)
@@ -125,6 +134,87 @@ public class GeneratedTraceChainExampleTest {
 
     record Graph(CustomerOrder order, OrderItem kept, OrderItem removed, Payment payment,
                  PaymentAttempt attempt, Shipment shipment) {}
+
+    @Test public void generatedSameTypePreparedBatchKeepsItemReasonsAndCompleteLedgerReplacement() throws Exception {
+        var fixture = new Fixture();
+        var platform = Q.platforms().withIdIs(1L).limit(1)
+                .comment("what: reuse the bootstrap root for batch acceptance")
+                .purpose("why: keep fixture writes inside generated APIs").executeForOne(fixture.context);
+        var order = Q.customerOrders().comment("what: initialize the batch order")
+                .purpose("why: verify generated prepared graph persistence").newEntity(fixture.context);
+        order.updatePlatform(platform);
+        order.updateOrderNumber("TRACE-BATCH-" + fixture.base);
+        order.updateDescription("Prepared batch fixture");
+        var first = Q.orderItems().comment("what: initialize entry alpha")
+                .purpose("why: verify per-item responsibility").newEntity(fixture.context);
+        first.updateName("Batch entry alpha");
+        first.comment("append alpha");
+        var second = Q.orderItems().comment("what: initialize entry beta")
+                .purpose("why: verify independent item responsibility").newEntity(fixture.context);
+        second.updateName("Batch entry beta");
+        second.comment("append beta");
+        order.addOrderItem(first).addOrderItem(second);
+        fixture.clear();
+        order.auditAs("compose generated batch").save(fixture.context);
+        long orderId = E.customerOrder(order).getId().eval();
+        long firstId = E.orderItem(first).getId().eval();
+        long secondId = E.orderItem(second).getId().eval();
+
+        assertEquals("one actual two-row prepared JDBC insert", List.of(2), fixture.itemInsertBatchSizes);
+        assertEquals(3, fixture.commands.size());
+        assertEquals(3, fixture.audit.size());
+        var expectedFirst = List.of(new TraceNode(TraceKind.AUDIT_REASON, "CustomerOrder", orderId, "compose generated batch"),
+                new TraceNode(TraceKind.AUDIT_REASON, "OrderItem", firstId, "append alpha"));
+        var expectedSecond = List.of(new TraceNode(TraceKind.AUDIT_REASON, "CustomerOrder", orderId, "compose generated batch"),
+                new TraceNode(TraceKind.AUDIT_REASON, "OrderItem", secondId, "append beta"));
+        for (long id : List.of(firstId, secondId)) {
+            var expected = id == firstId ? expectedFirst : expectedSecond;
+            var command = fixture.commands.stream().filter(value -> value.getEntity().typeName().equals("OrderItem")
+                    && value.getEntity().getId().equals(id)).findFirst().orElseThrow();
+            assertEquals(expected, command.getTraceChain());
+            var event = fixture.audit.stream().filter(value -> value.entityType().equals("OrderItem")
+                    && value.entityId().equals(id)).findFirst().orElseThrow();
+            assertEquals(expected, event.traceChain());
+            var writes = fixture.sql.stream().filter(value -> value.getOperation() == DataServiceOperation.MUTATION
+                    && value.getMutationLineage().equals(expected)).toList();
+            assertEquals(1, writes.size());
+            assertEquals("success", writes.get(0).getExecutionOutcome());
+            assertEquals(Long.valueOf(1), writes.get(0).getAffectedRows());
+            assertTrue(fixture.sql.stream().anyMatch(value -> value.getOperation() == DataServiceOperation.QUERY
+                    && value.getMutationLineage().equals(expected)));
+        }
+        var loaded = Q.customerOrders().withIdIs(orderId).limit(1)
+                .selectOrderItemListWith(Q.orderItems().orderByIdAscending().limit(10))
+                .comment("what: reload the batch through generated relations")
+                .purpose("why: independently validate FK association and scalar readback").executeForOne(fixture.context);
+        assertEquals(Integer.valueOf(2), E.customerOrder(loaded).getOrderItemList().size().eval());
+        assertEquals("Batch entry alpha", E.orderItem(first).getName().eval());
+        assertEquals("Batch entry beta", E.orderItem(second).getName().eval());
+        assertEquals(Long.valueOf(1), E.orderItem(first).getVersion().eval());
+        assertEquals(Long.valueOf(1), E.orderItem(second).getVersion().eval());
+
+        // Java assigns IDs at graph-save time. After the generated insert/readback,
+        // prove complete-ledger replacement on an identified existing child.
+        order.updateDescription("Ledger override fixture");
+        second.updateName("Updated beta entry");
+        second.comment("local fallback must not be appended");
+        var complete = List.of(new TraceNode(TraceKind.AUDIT_REASON, "CustomerOrder", orderId, "delegated batch root"),
+                new TraceNode(TraceKind.AUDIT_REASON, "OrderItem", secondId, "delegated beta"));
+        second.setTraceChain(complete);
+        fixture.clear();
+        order.auditAs("replacement graph fallback").save(fixture.context);
+        var overrideCommand = fixture.commands.stream().filter(value -> value.getEntity().typeName().equals("OrderItem")
+                && value.getEntity().getId().equals(secondId)).findFirst().orElseThrow();
+        assertEquals(complete, overrideCommand.getTraceChain());
+        var overrideAudit = fixture.audit.stream().filter(value -> value.entityType().equals("OrderItem")
+                && value.entityId().equals(secondId)).findFirst().orElseThrow();
+        assertEquals(complete, overrideAudit.traceChain());
+        assertTrue(fixture.sql.stream().anyMatch(value -> value.getOperation() == DataServiceOperation.MUTATION
+                && value.getMutationLineage().equals(complete)));
+        assertTrue(fixture.sql.stream().anyMatch(value -> value.getOperation() == DataServiceOperation.QUERY
+                && value.getMutationLineage().equals(complete)));
+        System.out.println("PASS Java generated prepared batch: per-item lineage and complete ledger replacement");
+    }
 
     @Test public void generatedNormativeGraphHasPerItemPhysicalSqlAndCommittedAudit() throws Exception {
         var fixture = new Fixture();

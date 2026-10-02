@@ -14,7 +14,7 @@ Use Java 21 or newer, Maven, Bash and the normal repository dependencies:
 bash examples/trace-chain/verify.sh
 ```
 
-The script installs local source dependencies, runs all five scenarios twice
+The script installs local source dependencies, runs all six scenarios twice
 against one database without intermediate cleanup, and compares every generated
 library file's SHA256 before and after execution. It prints the retained
 directory containing the database, Maven logs and checksum manifests. Set
@@ -31,6 +31,7 @@ and the `runtime-examples` Maven profile.
 | Checker rejection | Missing `order_number` fails with its KSML location before provider execution, SQL or committed audit |
 | Provider failure | A real SQLite UNIQUE violation rolls back the earlier root insert, retains attempted branch lineage and emits no committed audit |
 | Readback failure | A real SQLite failure after a successful update retains separate write/readback outcomes; retry succeeds with the restored optimistic version |
+| Prepared insert and ledger replacement | Two generated OrderItems execute in one real two-row JDBC prepared insert with independent command/write/readback/audit lineages; a subsequent update uses a complete ledger chain instead of appending graph fallback |
 
 The first run begins with CustomerOrder and Payment both numbered 100, items
 201/202, attempt 401 and shipment 501. IDs come from `IdSpaceIdGenerator`, not
@@ -56,6 +57,10 @@ allocator. It is not a business DAO. Its SQL and failure-injection DDL are
 infrastructure; all order/payment data is operated on through generated APIs.
 
 This closes the generated normative graph and three-level SQL path checks for
-local Java source. It does not prove same-type prepared batches, complete ledger
-override, concurrent saves with all checkers/providers, or immutable internal
-Registry replay. The development dependency version is not a new public release.
+local Java source, including same-type prepared insert batches and a generated
+complete-ledger override on an identified existing child. Java assigns IDs at
+first graph save; the override probe runs after that insert/readback rather than
+inventing a pre-save identity. It does not prove prepared update/delete/recover
+batches, concurrent saves with all checkers/providers, complete privacy and
+entry-point coverage, or immutable internal Registry replay. The development
+dependency version is not a new public release.

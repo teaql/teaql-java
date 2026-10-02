@@ -12,7 +12,7 @@ import io.teaql.core.SchemaExecutor;
 import io.teaql.core.TransactionCallback;
 import io.teaql.core.TransactionExecutor;
 
-public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.StreamingQueryExecutor, MutationExecutor, TransactionExecutor, SchemaExecutor {
+public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.StreamingQueryExecutor, io.teaql.core.BatchMutationExecutor, TransactionExecutor, SchemaExecutor {
     private final String name;
     private final SqlExecutionAdapter executionAdapter;
     private final DataServiceCapabilities capabilities;
@@ -74,6 +74,11 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
     @Override
     public MutationResult mutate(UserContext context, PersistenceMutation request) {
         return getPortableService(context).mutate(context, request);
+    }
+
+    @Override
+    public java.util.List<MutationResult> mutateBatch(UserContext context, io.teaql.core.MutationBatchRequest request) {
+        return getPortableService(context).mutateBatch(context, request);
     }
 
     @Override
@@ -296,6 +301,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                 @Override
                 public int[] batchUpdate(io.teaql.core.UserContext context, String sql, java.util.List<Object[]> batchArgs,
                         io.teaql.core.sql.portable.SqlLogBindings bindings) {
+                    bindings.validateBatchSize(batchArgs == null ? 0 : batchArgs.size());
                     boolean logging = context.isMutationExecutionLoggingEnabled();
                     long start = logging ? System.nanoTime() : 0L;
                     int[] res;
@@ -365,7 +371,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
         int size = batchArgs == null ? 0 : batchArgs.size();
         for (int row = 0; row < Math.max(size, failure == null ? 0 : 1); row++) {
             var meta = statementMetadata(context, sql, row < size ? batchArgs.get(row) : null,
-                    bindings, io.teaql.core.DataServiceOperation.MUTATION);
+                    row < size ? bindings.forBatchRow(row) : bindings, io.teaql.core.DataServiceOperation.MUTATION);
             meta.setElapsedUs(row == 0 ? elapsed : 0);
             meta.setBatchOutcome(failure == null ? "success"
                     : failure instanceof java.util.concurrent.CancellationException ? "cancelled" : "failure");

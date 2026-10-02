@@ -35,6 +35,64 @@ public class GraphTraceChainTest {
         @Override public DataServiceCapabilities capabilities() { return new DataServiceCapabilities(); }
     }
 
+    static class BatchProvider extends Provider implements BatchMutationExecutor {
+        int batchCalls;
+        boolean reverseResults;
+        @Override public List<MutationResult> mutateBatch(UserContext context, MutationBatchRequest request) {
+            batchCalls++;
+            assertEquals("runtime owns the batch root intent", "save grouped graph", request.comment());
+            var results = new ArrayList<MutationResult>();
+            for (var item : request.items()) results.add(super.mutate(context, item));
+            if (reverseResults) Collections.reverse(results);
+            return results;
+        }
+    }
+
+    @Test public void sameTypeGraphUsesOptionalBatchCapabilityAndKeepsItemCommands() {
+        var provider = new BatchProvider();
+        var events = new ArrayList<SafeAuditEvent>();
+        var runtime = TeaQLRuntime.builder().metadata(metadata()).dataService("fixture", provider).build();
+        var context = new DefaultUserContext(runtime);
+        context.putAttribute(AppAuditEventSink.class.getName(), (AppAuditEventSink) (caller, event) -> events.add(event));
+        var root = existing("CustomerOrder", 100L);
+        var first = new GraphEntity("OrderItem");
+        first.__internalInitializeNewEntityId(201L);
+        first.updateProperty("name", "alpha item");
+        first.setComment("alpha branch");
+        var second = new GraphEntity("OrderItem");
+        second.__internalInitializeNewEntityId(202L);
+        second.updateProperty("name", "beta item");
+        second.setComment("beta branch");
+        root.updateProperty("children", List.of(second, first));
+        root.auditAs("save grouped graph").save(context);
+        assertEquals(1, provider.batchCalls);
+        assertReasons(events, "OrderItem", 201L, List.of("save grouped graph", "alpha branch"));
+        assertReasons(events, "OrderItem", 202L, List.of("save grouped graph", "beta branch"));
+        assertEquals("keys are planned in deterministic ID order", Long.valueOf(201), provider.requests.get(0).getEntity().getId());
+    }
+
+    @Test public void reversedProviderBatchResultsCannotBeAppliedToDifferentEntities() {
+        var provider = new BatchProvider();
+        provider.reverseResults = true;
+        var events = new ArrayList<SafeAuditEvent>();
+        var runtime = TeaQLRuntime.builder().metadata(metadata()).dataService("fixture", provider).build();
+        var context = new DefaultUserContext(runtime);
+        context.putAttribute(AppAuditEventSink.class.getName(), (AppAuditEventSink) (caller, event) -> events.add(event));
+        var root = existing("CustomerOrder", 100L);
+        var first = new GraphEntity("OrderItem");
+        first.__internalInitializeNewEntityId(201L);
+        first.updateProperty("name", "alpha item");
+        var second = new GraphEntity("OrderItem");
+        second.__internalInitializeNewEntityId(202L);
+        second.updateProperty("name", "beta item");
+        root.updateProperty("children", List.of(first, second));
+        var error = assertThrows(TeaQLRuntimeException.class, () -> root.auditAs("save grouped graph").save(context));
+        assertEquals("Batch mutation result identity does not match its ordered command", error.getMessage());
+        assertTrue(events.isEmpty());
+        assertEquals("alpha item", first.getProperty("name"));
+        assertEquals("beta item", second.getProperty("name"));
+    }
+
     static SimpleEntityMetaFactory metadata() {
         var metadata = new SimpleEntityMetaFactory();
         for (String type : List.of("CustomerOrder", "OrderItem", "Payment", "PaymentAttempt", "Shipment")) {

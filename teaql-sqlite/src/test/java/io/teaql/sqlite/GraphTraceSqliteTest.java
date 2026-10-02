@@ -35,6 +35,7 @@ public class GraphTraceSqliteTest {
         final List<ExecutionMetadata> sql = new CopyOnWriteArrayList<>();
         final List<SafeAuditEvent> audit = new CopyOnWriteArrayList<>();
         final List<EntityPersistenceMutation> commands = new CopyOnWriteArrayList<>();
+        final List<Integer> itemInsertBatchSizes = new CopyOnWriteArrayList<>();
         final JdbcSqlExecutor driver;
         final DefaultUserContext context;
         volatile boolean failReadback;
@@ -43,6 +44,13 @@ public class GraphTraceSqliteTest {
             var ds = new SQLiteDataSource();
             ds.setUrl("jdbc:sqlite:" + Files.createTempFile("teaql-graph-trace-", ".db"));
             driver = new JdbcSqlExecutor(ds) {
+                @Override public int[] batchUpdate(String text, List<Object[]> rows) {
+                    if (text.startsWith("INSERT INTO order_item_data")) {
+                        itemInsertBatchSizes.add(rows.size());
+                        assertTrue("audit may be emitted only after the transaction commits", audit.isEmpty());
+                    }
+                    return super.batchUpdate(text, rows);
+                }
                 @Override public List<Map<String, Object>> queryForList(String text, Object[] args) {
                     if (failReadback && text.startsWith("SELECT * FROM") && text.contains("customer_order_data")) {
                         // A real driver failure after a successful write, inside the same transaction.
@@ -78,6 +86,10 @@ public class GraphTraceSqliteTest {
                     commands.add((EntityPersistenceMutation) mutation);
                     return super.mutate(caller, mutation);
                 }
+                @Override public List<MutationResult> mutateBatch(UserContext caller, MutationBatchRequest request) {
+                    request.items().forEach(item -> commands.add((EntityPersistenceMutation) item));
+                    return super.mutateBatch(caller, request);
+                }
             };
             var ids = new AtomicLong(1000);
             var runtime = TeaQLRuntime.builder().metadata(metadata).dataService("sqlite", provider)
@@ -89,7 +101,7 @@ public class GraphTraceSqliteTest {
             clear();
         }
 
-        void clear() { sql.clear(); audit.clear(); commands.clear(); }
+        void clear() { sql.clear(); audit.clear(); commands.clear(); itemInsertBatchSizes.clear(); }
 
         GraphEntity create(String type, long id, String name) {
             var entity = new GraphEntity(type);
@@ -224,6 +236,95 @@ public class GraphTraceSqliteTest {
         assertEquals(List.of("create allocated child", "authorize newly assigned object"), reasons(event.traceChain()));
         assertTrue(fixture.sql.stream().anyMatch(entry -> entry.getOperation() == DataServiceOperation.MUTATION
                 && entry.getMutationLineage().equals(event.traceChain())));
+    }
+
+    @Test public void sameTypePreparedInsertBatchKeepsEachItemLineage() throws Exception {
+        var fixture = new Fixture();
+        var root = fixture.create("CustomerOrder", 100, "batch owner");
+        var first = fixture.create("OrderItem", 201, "alpha value");
+        first.setComment("add first entry");
+        var second = fixture.create("OrderItem", 202, "beta value");
+        second.setComment("add second entry");
+        root.__internalSet("children", List.of(first, second));
+
+        root.auditAs("compose item batch").save(fixture.context);
+
+        assertEquals("observe a real two-row JDBC prepared batch, not two singleton calls",
+                List.of(2), fixture.itemInsertBatchSizes);
+        assertEquals(3, fixture.audit.size());
+        for (long id : List.of(201L, 202L)) {
+            var event = fixture.audit.stream().filter(value -> value.entityType().equals("OrderItem")
+                    && value.entityId().equals(id)).findFirst().orElseThrow();
+            var write = fixture.sql.stream().filter(value -> value.getOperation() == DataServiceOperation.MUTATION
+                    && value.getTraceChain().get(1).getName().equals("OrderItem")
+                    && Objects.equals(value.getMutationLineage().get(value.getMutationLineage().size() - 1).getEntityId(), id))
+                    .findFirst().orElseThrow();
+            assertEquals(event.traceChain(), write.getMutationLineage());
+            assertEquals(List.of("compose item batch", id == 201L ? "add first entry" : "add second entry"),
+                    reasons(write.getMutationLineage()));
+            assertEquals("success", write.getExecutionOutcome());
+            assertEquals(Long.valueOf(1), write.getAffectedRows());
+            assertTrue(fixture.sql.stream().anyMatch(value -> value.getOperation() == DataServiceOperation.QUERY
+                    && value.getMutationLineage().equals(event.traceChain())));
+        }
+        assertEquals("alpha value", first.getProperty("name"));
+        assertEquals("beta value", second.getProperty("name"));
+    }
+
+    @Test public void realSameTypeBatchFailureKeepsBothAttemptedLineagesAndRollsBack() throws Exception {
+        var fixture = new Fixture();
+        fixture.driver.execute("CREATE UNIQUE INDEX item_name_unique ON order_item_data(name)");
+        var root = fixture.create("CustomerOrder", 100, "failure owner");
+        var first = fixture.create("OrderItem", 201, "duplicate batch name");
+        first.setComment("attempt entry alpha");
+        var second = fixture.create("OrderItem", 202, "duplicate batch name");
+        second.setComment("attempt entry beta");
+        root.__internalSet("children", List.of(first, second));
+
+        assertThrows(RuntimeException.class, () -> root.auditAs("attempt prepared graph").save(fixture.context));
+
+        assertEquals(List.of(2), fixture.itemInsertBatchSizes);
+        assertTrue(fixture.audit.isEmpty());
+        var members = fixture.sql.stream().filter(value -> "failure".equals(value.getBatchOutcome())
+                && value.getTraceChain().get(1).getName().equals("OrderItem")).toList();
+        assertEquals(2, members.size());
+        for (int index = 0; index < members.size(); index++) {
+            var member = members.get(index);
+            assertEquals(List.of("attempt prepared graph", index == 0 ? "attempt entry alpha" : "attempt entry beta"),
+                    reasons(member.getMutationLineage()));
+            assertEquals(Long.valueOf(201L + index), member.getMutationLineage().get(1).getEntityId());
+            assertEquals("SQLite JDBC reports no per-member counts here", "unknown", member.getExecutionOutcome());
+            assertNull(member.getAffectedRows());
+        }
+        assertTrue(fixture.driver.queryForList("SELECT id FROM order_item_data", new Object[]{}).isEmpty());
+        assertTrue(fixture.driver.queryForList("SELECT id FROM customer_order_data", new Object[]{}).isEmpty());
+        assertTrue(first.newItem());
+        assertTrue(second.newItem());
+        assertNull(first.getVersion());
+        assertNull(second.getVersion());
+    }
+
+    @Test public void siblingSecretIsScrubbedFromEveryPreparedMemberAndReadback() throws Exception {
+        var fixture = new Fixture();
+        var root = fixture.create("CustomerOrder", 100, "privacy owner");
+        var first = fixture.create("OrderItem", 201, "PUBLIC-LOOKING-ALPHA");
+        first.setComment("first member refers to PRIVATE-FUTURE-BETA");
+        var second = fixture.create("OrderItem", 202, "PRIVATE-FUTURE-BETA");
+        second.setComment("second member request");
+        root.__internalSet("children", List.of(first, second));
+
+        root.auditAs("compose privacy batch").save(fixture.context);
+
+        assertEquals(List.of(2), fixture.itemInsertBatchSizes);
+        var statements = fixture.sql.stream().filter(value -> !value.getMutationLineage().isEmpty()
+                && value.getMutationLineage().get(value.getMutationLineage().size() - 1).getName().equals("OrderItem")).toList();
+        assertEquals("two writes and two readbacks", 4, statements.size());
+        for (var statement : statements) {
+            assertFalse(statement.getDebugQuery() + " " + statement.getAuditReason() + " " + statement.getComment()
+                    + " " + statement.getMutationLineage(), statement.getMutationLineage().toString().contains("PRIVATE-FUTURE-BETA"));
+        }
+        assertEquals("private values still reach the database unchanged", "PRIVATE-FUTURE-BETA", second.getProperty("name"));
+        assertEquals("caller-owned reason is not modified", "first member refers to PRIVATE-FUTURE-BETA", first.getComment());
     }
 
     static List<String> reasons(List<TraceNode> nodes) { return nodes.stream().map(TraceNode::getComment).toList(); }

@@ -200,4 +200,38 @@ public class SqlStreamBatchMaskingTest {
     @Test public void disabledBatchLogsPreserveOriginalError() throws Exception {
         enabled = false; batch(null, error);
     }
+
+    private SqlExecutionTrace itemTrace(long id, String reason) {
+        var entity = new BaseEntity();
+        entity.__internalSet("id", id);
+        return SqlExecutionTrace.mutation(entity,
+                List.of(new TraceNode(TraceKind.AUDIT_REASON, "OrderItem", id, reason)), "insert");
+    }
+
+    @Test public void partialPreparedBatchKeepsPerRowTraceForSuccessFailureAndUnknown() throws Exception {
+        var traces = List.of(itemTrace(201, "entry alpha"), itemTrace(202, "entry beta"), itemTrace(203, "entry gamma"));
+        var supplied = new ArrayList<>(traces);
+        var bindings = BINDINGS.withBatchTraces(supplied);
+        supplied.clear();
+        var failure = new RuntimeException(new BatchUpdateException("PASSWORD-CANARY", new int[]{1, -3}));
+        var db = database((proxy, method, args) -> { throw failure; });
+        assertSame(failure, assertThrows(RuntimeException.class,
+                () -> db.batchUpdate(context, SQL, List.of(ARGS, ARGS.clone(), ARGS.clone()), bindings)));
+        assertEquals(List.of("success", "failure", "unknown"), logs.stream().map(ExecutionMetadata::getExecutionOutcome).toList());
+        for (int index = 0; index < logs.size(); index++) {
+            assertEquals(traces.get(index).mutationLineage(), logs.get(index).getMutationLineage());
+            safe(logs.get(index));
+        }
+        assertThrows(UnsupportedOperationException.class, () -> bindings.batchTraces().clear());
+    }
+
+    @Test public void malformedTraceRowCountRejectsBeforeDriverEvenWithLoggingDisabled() throws Exception {
+        enabled = false;
+        var driverCalls = new AtomicInteger();
+        var db = database((proxy, method, args) -> { driverCalls.incrementAndGet(); return new int[]{1, 1}; });
+        assertThrows(IllegalArgumentException.class, () -> db.batchUpdate(context, SQL, List.of(ARGS, ARGS.clone()),
+                BINDINGS.withBatchTraces(List.of(itemTrace(201, "only one trace")))));
+        assertEquals(0, driverCalls.get());
+        assertTrue(logs.isEmpty());
+    }
 }

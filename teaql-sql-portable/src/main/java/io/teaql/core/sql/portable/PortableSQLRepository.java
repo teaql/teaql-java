@@ -280,7 +280,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     private SqlLogBindings withMutationIntent(SqlLogBindings bindings, io.teaql.core.SqlIntentRedactions intent) {
         if (intent == null) return bindings;
-        return new SqlLogBindings(bindings.policies(), bindings.generated(), bindings.diagnosticSql(), intent.copy(), bindings.executionTrace());
+        return new SqlLogBindings(bindings.policies(), bindings.generated(), bindings.diagnosticSql(), intent.copy(), bindings.executionTrace(), bindings.batchTraces());
     }
 
     private PositionalSQL toPositional(String namedSql, Map<String, Object> params) {
@@ -1243,41 +1243,59 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     void createInternal(UserContext userContext, Collection<T> createItems, io.teaql.core.SqlIntentRedactions intent,
             io.teaql.core.SqlExecutionTrace trace) {
+        createRows(userContext, new ArrayList<>(createItems), intent, trace, List.of());
+    }
+
+    void createBatchInternal(UserContext userContext, List<T> createItems, io.teaql.core.SqlIntentRedactions intent,
+            List<io.teaql.core.SqlExecutionTrace> traces) {
+        if (createItems.size() != traces.size()) {
+            throw new IllegalArgumentException("Insert batch requires one trace per entity");
+        }
+        createRows(userContext, createItems, intent, null, List.copyOf(traces));
+    }
+
+    private record InsertShape(String table, List<String> columns) {
+        private InsertShape { columns = List.copyOf(columns); }
+    }
+
+    private record InsertRow(Object[] values, SQLEntity entity, io.teaql.core.SqlExecutionTrace trace) {}
+
+    private void createRows(UserContext userContext, List<T> createItems, io.teaql.core.SqlIntentRedactions intent,
+            io.teaql.core.SqlExecutionTrace fallback, List<io.teaql.core.SqlExecutionTrace> traces) {
         if (intent != null) createItems.forEach(item -> intent.captureTargetId(item.getId()));
-        List<SQLEntity> sqlEntities = CollectionUtil.map(createItems,
-                i -> convertToSQLEntityForInsert(userContext, i), true);
-        if (ObjectUtil.isEmpty(sqlEntities)) return;
-
-        SQLEntity sqlEntity = sqlEntities.get(0);
-        Map<String, List<String>> tableColumns = sqlEntity.getTableColumnNames();
-
-        Map<String, List<Object[]>> rows = new HashMap<>();
-        for (SQLEntity entity : sqlEntities) {
+        Map<InsertShape, List<InsertRow>> rows = new java.util.LinkedHashMap<>();
+        for (int index = 0; index < createItems.size(); index++) {
+            SQLEntity entity = convertToSQLEntityForInsert(userContext, createItems.get(index));
             Map<String, List> tableColumnValues = entity.getTableColumnValues();
             for (Map.Entry<String, List> entry : tableColumnValues.entrySet()) {
                 String k = entry.getKey();
                 List v = entry.getValue();
-                List<Object[]> values = rows.computeIfAbsent(k, key -> new ArrayList<>());
                 if (auxiliaryTableNames.contains(k) && entity.allNullExceptID(v)) continue;
-                values.add(v.toArray());
+                var shape = new InsertShape(k, entity.getTableColumnNames().get(k));
+                rows.computeIfAbsent(shape, key -> new ArrayList<>()).add(
+                        new InsertRow(v.toArray(), entity, traces.isEmpty() ? fallback : traces.get(index)));
             }
         }
-
-        TreeMap<String, List<Object[]>> sorted = MapUtil.sort(rows, (t1, t2) -> {
-            if (t1.equals(versionTableName)) return -1;
-            if (t2.equals(versionTableName)) return 1;
-            return 0;
+        // Capture every sibling/table before any statement is emitted. A root reason
+        // can mention a masked value belonging to a later member of this batch.
+        if (intent != null) rows.forEach((shape, members) -> {
+            var policies = logBindings(shape.table(), shape.columns()).policies();
+            members.forEach(member -> intent.capture(policies, member.values()));
         });
-
-        sorted.forEach((k, v) -> {
-            if (v.isEmpty()) return;
-            List<String> columns = tableColumns.get(k);
+        var shapes = new ArrayList<>(rows.keySet());
+        shapes.sort(java.util.Comparator.comparingInt((InsertShape shape) -> shape.table().equals(versionTableName) ? 0 : 1)
+                .thenComparing(InsertShape::table).thenComparing(shape -> String.join(",", shape.columns())));
+        for (InsertShape shape : shapes) {
+            List<InsertRow> members = rows.get(shape);
+            SQLEntity first = members.get(0).entity();
             io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
-            String sql = compiler.buildInsertSQL(this, k, columns, sqlEntity.getTraceChain());
-            var bindings = logBindings(k, columns, sql, sqlEntity.getTraceChain()).withTrace(trace);
-            if (intent != null) for (Object[] args : v) intent.capture(bindings.policies(), args);
-            database.batchUpdate(userContext, sql, v, withMutationIntent(bindings, intent));
-        });
+            String sql = compiler.buildInsertSQL(this, shape.table(), shape.columns(), first.getTraceChain());
+            var bindings = logBindings(shape.table(), shape.columns(), sql, first.getTraceChain());
+            bindings = traces.isEmpty() ? bindings.withTrace(fallback)
+                    : bindings.withBatchTraces(members.stream().map(InsertRow::trace).toList());
+            database.batchUpdate(userContext, sql, members.stream().map(InsertRow::values).toList(),
+                    withMutationIntent(bindings, intent));
+        }
     }
 
         public void updateInternal(UserContext userContext, Collection<T> updateItems) {

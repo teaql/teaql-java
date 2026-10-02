@@ -141,8 +141,19 @@ across types, assigned IDs, complete ledger overrides and concurrent saves shari
 one Context. Actual SQLite tests cover SQL/audit propagation, provider rollback,
 readback failure/retry and masking. Native batch diagnostics distinguish the
 batch call's `batchOutcome` from an individual member's possibly unknown
-`executionOutcome`. These do not close generated normative-graph acceptance,
-same-type prepared-batch parity, query scope migration or internal Registry replay.
+`executionOutcome`. Same-type graph inserts now use a validated
+`MutationBatchRequest` and the optional `BatchMutationExecutor` capability.
+Physical JDBC rows retain separate immutable trace bindings, including failure
+and readback diagnostics; incompatible insert column layouts are grouped separately.
+Root intent remains required even if children are annotated or logs are disabled.
+Providers without the capability retain individual command execution.
+
+The generated [Trace Chain example](examples/trace-chain/README.md) proves the
+normative graph, three-level Q/E queries, prepared insert grouping and complete
+ledger replacement. Prepared update/delete/recover batches, complete
+entry-point/privacy coverage, query scope migration and immutable internal
+Registry replay remain separate open gates. This is local source evidence, not
+a merge or release claim.
 
 Applications can replace runtime services such as `QueryPolicy`, the
 `MutationPolicyRegistry`, `MutationPolicyApprovalProvider`, `RuntimeLogSink`,

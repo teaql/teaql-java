@@ -6,10 +6,11 @@ import java.util.List;
 
 /** Immutable compiler-owned parameter provenance, separate from execution values. */
 public record SqlLogBindings(List<SqlParameterLogPolicy> policies, boolean generated, String diagnosticSql,
-        io.teaql.core.SqlIntentRedactions intentRedactions, io.teaql.core.SqlExecutionTrace executionTrace) {
+        io.teaql.core.SqlIntentRedactions intentRedactions, io.teaql.core.SqlExecutionTrace executionTrace,
+        List<io.teaql.core.SqlExecutionTrace> batchTraces) {
     public static final SqlLogBindings UNKNOWN = new SqlLogBindings(List.of(), false);
 
-    public SqlLogBindings { policies = List.copyOf(policies); }
+    public SqlLogBindings { policies = List.copyOf(policies); batchTraces = List.copyOf(batchTraces); }
     public SqlLogBindings(List<SqlParameterLogPolicy> policies, boolean generated) { this(policies, generated, null); }
     public SqlLogBindings(List<SqlParameterLogPolicy> policies, boolean generated, String diagnosticSql) {
         this(policies, generated, diagnosticSql, null);
@@ -18,8 +19,27 @@ public record SqlLogBindings(List<SqlParameterLogPolicy> policies, boolean gener
             io.teaql.core.SqlIntentRedactions intentRedactions) {
         this(policies, generated, diagnosticSql, intentRedactions, null);
     }
+    public SqlLogBindings(List<SqlParameterLogPolicy> policies, boolean generated, String diagnosticSql,
+            io.teaql.core.SqlIntentRedactions intentRedactions, io.teaql.core.SqlExecutionTrace executionTrace) {
+        this(policies, generated, diagnosticSql, intentRedactions, executionTrace, List.of());
+    }
     public SqlLogBindings withTrace(io.teaql.core.SqlExecutionTrace trace) {
         return new SqlLogBindings(policies, generated, diagnosticSql, intentRedactions, trace);
+    }
+
+    public SqlLogBindings withBatchTraces(List<io.teaql.core.SqlExecutionTrace> traces) {
+        return new SqlLogBindings(policies, generated, diagnosticSql, intentRedactions, null, traces);
+    }
+
+    public void validateBatchSize(int rowCount) {
+        if (!batchTraces.isEmpty() && batchTraces.size() != rowCount) {
+            throw new IllegalArgumentException("SQL batch trace count must match physical row count");
+        }
+    }
+
+    public SqlLogBindings forBatchRow(int index) {
+        return batchTraces.isEmpty() ? this
+                : new SqlLogBindings(policies, generated, diagnosticSql, intentRedactions, batchTraces.get(index));
     }
 
     public void applyTo(ExecutionMetadata metadata) {

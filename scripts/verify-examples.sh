@@ -26,6 +26,8 @@ mvn -q -f examples/school-management/lib/pom.xml install -DskipTests
 mvn -q -f examples/school-management/pom.xml spring-boot:run \
   -Dspring-boot.run.arguments="--spring.main.web-application-type=none --spring.datasource.url=jdbc:sqlite:$verification_dir/school-management.db"
 mvn -q -f examples/order-management/pom.xml install -DskipTests
-mvn -q -f examples/order-management/pom.xml exec:java -pl java-app-console
+# The console resolves .local/order.db from its process directory. Never mutate
+# the developer's retained database while verifying the runtime checkout.
+(cd "$verification_dir" && mvn -q -f "$repo/examples/order-management/pom.xml" exec:java -pl java-app-console)
 bash examples/trace-chain/verify.sh
 echo "PASS: all Java examples"
