@@ -161,6 +161,11 @@ receipt on the calling execution thread; it is not an async propagation API.
 Read-only loaded relations retain their private ledger when reused by independent
 graphs. Graph composition imports only pending mutations of explicitly visited
 related entity keys, not every pending key from a foreign reference's ledger.
+The provider-route guard also belongs to each mutation plan, not a retained
+Context attribute. Independent graphs may use different providers on one
+Context. A single atomic graph with writes to different routes is rejected
+before mutation execution; read-only references do not count as writes.
+Native tests cover separate SQLite databases and actual overlapping threads.
 
 Complete entry-point/privacy coverage, query scope migration, asynchronous
 handoff/cancellation and immutable internal Registry replay remain separate open

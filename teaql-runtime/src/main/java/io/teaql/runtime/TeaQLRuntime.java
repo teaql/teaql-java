@@ -430,8 +430,6 @@ public class TeaQLRuntime {
         }
     }
 
-    private static final String SAVE_GRAPH_ACTIVE_ROUTE_KEY = "__teaql_save_graph_route__";
-
     public void saveGraph(UserContext context, Entity entity) {
         RuntimeTelemetry.Scope telemetryScope = RuntimeTelemetry.startSafely(telemetry,
                 new RuntimeTelemetry.Operation("mutation", entity.typeName() + ".save", Map.of(
@@ -473,17 +471,6 @@ public class TeaQLRuntime {
                 route = "default";
             }
 
-            Object activeRoute = context.extension(SAVE_GRAPH_ACTIVE_ROUTE_KEY);
-            if (activeRoute == null) {
-                context.putAttribute(SAVE_GRAPH_ACTIVE_ROUTE_KEY, route);
-            } else if (!activeRoute.equals(route)) {
-                throw new TeaQLRuntimeException(
-                    "[CROSS-PROVIDER MUTATION] saveGraph attempted to write entity '"
-                    + entity.typeName() + "' to route '" + route
-                    + "' while the current saveGraph chain is already writing to route '"
-                    + activeRoute + "'.");
-            }
-
             MutationExecutor mutationExecutor = registry.resolveMutationExecutor(route);
             if (mutationExecutor == null) {
                 throw new TeaQLRuntimeException("No MutationExecutor registered for route: " + route);
@@ -501,6 +488,7 @@ public class TeaQLRuntime {
                             value.getVersion(), value.get$status(),
                             value.isPropertyLoaded(BaseEntity.VERSION_PROPERTY))));
             MutationPlan mutationPlan = buildMutationPlan(entity, entityMutationLedger, realEntities, intent);
+            requireSingleMutationRoute(mutationPlan, route);
             MutationGovernanceSnapshot governance = reviewMutationPlan(context, mutationPlan);
             List<PendingMutation> completed;
             try {
@@ -526,6 +514,23 @@ public class TeaQLRuntime {
         } catch (RuntimeException | Error error) {
             telemetryScope.failure(error);
             throw error;
+        }
+    }
+
+    /** One atomic plan cannot borrow a root provider for a different entity route. */
+    private void requireSingleMutationRoute(MutationPlan plan, String rootRoute) {
+        for (MutationOperation operation : plan.operations()) {
+            String type = operation.entity().entity();
+            EntityDescriptor descriptor = metadata.resolveEntityDescriptor(type);
+            String route = descriptor.getDataService();
+            if (route == null || route.isEmpty()) route = "default";
+            if (!rootRoute.equals(route)) {
+                throw new TeaQLRuntimeException(
+                        "[CROSS-PROVIDER MUTATION] Atomic mutation plan contains entity '"
+                                + type + "' on route '" + route
+                                + "' outside its root route '" + rootRoute
+                                + "'. Use independently audited saves or explicit orchestration.");
+            }
         }
     }
 
