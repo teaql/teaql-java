@@ -16,6 +16,17 @@ public record SqlExecutionTrace(List<TraceNode> source, List<TraceNode> mutation
         return new SqlExecutionTrace(source, lineage, operation);
     }
 
+    public static SqlExecutionTrace query(SearchRequest<?> request) {
+        List<TraceNode> source = request.sqlTraceSource();
+        if (source.isEmpty()) {
+            QueryIntent intent = request.inheritedQueryIntent() == null
+                    ? QueryIntent.of(request.comment(), request.purpose()) : request.inheritedQueryIntent();
+            source = List.of(new TraceNode(TraceKind.COMMENT, request.getTypeName(), intent.comment()),
+                    new TraceNode(TraceKind.PURPOSE, request.getTypeName(), intent.purpose()));
+        }
+        return new SqlExecutionTrace(source, List.of(), "select");
+    }
+
     public SqlExecutionTrace readback(MutationIntent intent) {
         var frames = new ArrayList<>(source);
         String root = frames.isEmpty() ? "unknown" : frames.get(0).getName();

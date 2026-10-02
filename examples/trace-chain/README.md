@@ -1,0 +1,61 @@
+# Java generated API Trace Chain example
+
+This focused example uses the six-entity KSML model in [model.xml](model.xml),
+an unchanged generated domain library, and the runtime from this checkout.
+Business creation, graph attachment, deletion, query and expression access use
+generated public APIs. SQLite and the runtime's SQL and committed-audit sinks
+provide the acceptance evidence; tests do not inject expected trace frames.
+
+## Run the example
+
+Use Java 21 or newer, Maven, Bash and the normal repository dependencies:
+
+```bash
+bash examples/trace-chain/verify.sh
+```
+
+The script installs local source dependencies, runs all five scenarios twice
+against one database without intermediate cleanup, and compares every generated
+library file's SHA256 before and after execution. It prints the retained
+directory containing the database, Maven logs and checksum manifests. Set
+`TEAQL_TRACE_CHAIN_VERIFY_DIR` to retain subsequent replays in a chosen directory.
+The example is also included in both repository example verification scripts
+and the `runtime-examples` Maven profile.
+
+## Acceptance scenarios
+
+| Scenario | Observed boundary |
+| --- | --- |
+| Six-item normative graph | Root update, item update, item deletion, payment insert, attempt insert and shipment insert each retain their own typed lineage in provider commands, actual write/readback SQL and committed audit |
+| Three-level query | PaymentAttempt → Payment → CustomerOrder → Platform produces four real SQL queries with ordered field-level relation nodes and the originating comment/purpose |
+| Checker rejection | Missing `order_number` fails with its KSML location before provider execution, SQL or committed audit |
+| Provider failure | A real SQLite UNIQUE violation rolls back the earlier root insert, retains attempted branch lineage and emits no committed audit |
+| Readback failure | A real SQLite failure after a successful update retains separate write/readback outcomes; retry succeeds with the restored optimistic version |
+
+The first run begins with CustomerOrder and Payment both numbered 100, items
+201/202, attempt 401 and shipment 501. IDs come from `IdSpaceIdGenerator`, not
+direct entity setters. Replays advance a type-specific floor rather than deleting
+rows. The generated bootstrap Platform is reused. Generated checkers are
+installed normally and are never replaced with permissive stubs.
+
+Root reason is `submit order`. Payment adds `authorize payment`; its attempt
+inherits both. Shipment adds only `dispatch shipment`. The deleted item adds
+`remove unavailable item`; the other item inherits only the root reason.
+The same numeric ID on two entity types never identifies the same ledger entry.
+
+## Model and API provenance
+
+[AGENTS.md](AGENTS.md) and [retained Assist](evidence/assist/) come from local
+model-aware services after [evaluation](evidence/evaluation.md). The generation
+fixture is `JavaTraceChainExampleGenerationTest` in the paired generator checkout;
+run it with `-Dteaql.java.dir=/absolute/path/to/teaql-java`. Domain-library files
+must be regenerated from the model rather than patched by hand.
+
+The test-only `IdDatabase` is a JDBC bridge for the runtime's persistent ID
+allocator. It is not a business DAO. Its SQL and failure-injection DDL are
+infrastructure; all order/payment data is operated on through generated APIs.
+
+This closes the generated normative graph and three-level SQL path checks for
+local Java source. It does not prove same-type prepared batches, complete ledger
+override, concurrent saves with all checkers/providers, or immutable internal
+Registry replay. The development dependency version is not a new public release.

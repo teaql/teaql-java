@@ -269,11 +269,13 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     private record QueryShape(String key, Object[] arguments) {}
 
-    private PositionalSQL withQueryIntent(PositionalSQL sql, io.teaql.core.SqlIntentRedactions intent) {
+    private PositionalSQL withQueryIntent(PositionalSQL sql, io.teaql.core.SqlIntentRedactions intent,
+                                          SearchRequest<?> request) {
         if (intent == null) return sql;
         intent.capture(sql.logBindings.policies(), sql.args);
         return new PositionalSQL(sql.sql, sql.args, new SqlLogBindings(sql.logBindings.policies(),
-                sql.logBindings.generated(), sql.logBindings.diagnosticSql(), intent.copy()));
+                sql.logBindings.generated(), sql.logBindings.diagnosticSql(), intent.copy(),
+                io.teaql.core.SqlExecutionTrace.query(request)));
     }
 
     private SqlLogBindings withMutationIntent(SqlLogBindings bindings, io.teaql.core.SqlIntentRedactions intent) {
@@ -596,7 +598,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         }
         String key = idSetQueryKey(context, working, options, idSql, idParams);
         // Capture current bindings even when retained IDs avoid executing the discovery query.
-        PositionalSQL idStatement = withQueryIntent(toPositional(idSql, idParams), intent);
+        PositionalSQL idStatement = withQueryIntent(toPositional(idSql, idParams), intent, idRequest);
         IdSetStore store = idSetStore(context);
         RetainedIdSet retained;
         try {
@@ -751,7 +753,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             }
         }
         // Attach only after inserting the reusable plan: no original values enter the plan cache.
-        psql = withQueryIntent(psql, intent);
+        psql = withQueryIntent(psql, intent, request);
         SmartList<T> smartList;
         Object mapperExtension = request.getExtension(COMPILED_ROW_MAPPER);
         io.teaql.core.CompiledRowMapper<?> selectedMapper =
@@ -804,7 +806,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 String facetSql = compiler.buildAggregationSQL(this.sqlMetadata, this, userContext, tr, facetParams, facetTables);
                 if (!io.teaql.core.utils.ObjectUtil.isEmpty(facetSql)) {
                     var facetIntent = intent == null ? null : intent.copy();
-                    PositionalSQL psqlFacet = withQueryIntent(toPositional(facetSql, facetParams), facetIntent);
+                    PositionalSQL psqlFacet = withQueryIntent(toPositional(facetSql, facetParams), facetIntent, request);
                     List<Map<String, Object>> facetRows = database.query(userContext, psqlFacet.sql, psqlFacet.args, psqlFacet.logBindings);
                     
                     SmartList<io.teaql.core.Entity> facetEntities = new SmartList<>();
@@ -1095,7 +1097,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         Map<String, Object> params = new io.teaql.core.sql.SqlParameters();
         String sql = buildDataSQL(userContext, request, params);
         if (ObjectUtil.isEmpty(sql)) return Stream.empty();
-        PositionalSQL psql = toPositional(sql, params);
+        PositionalSQL psql = withQueryIntent(toPositional(sql, params),
+                SqlDiagnosticRequest.source(userContext, request), request);
         return database.queryForStream(userContext, psql.sql, psql.args, psql.logBindings)
                 .map(row -> mapRowToEntity(userContext, request, row));
     }
@@ -2323,7 +2326,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             String sql = compiler.buildAggregationSQL(sqlMetadata, this, userContext, request, parameters, tables);
             if (sql == null) return null;
 
-            PositionalSQL psql = withQueryIntent(toPositional(sql, parameters), intent);
+            PositionalSQL psql = withQueryIntent(toPositional(sql, parameters), intent, request);
             List<Map<String, Object>> rows = database.query(userContext, psql.sql, psql.args, psql.logBindings);
 
             AggregationResult result = new AggregationResult();

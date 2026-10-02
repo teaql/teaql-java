@@ -191,10 +191,10 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                     if (!(property instanceof Relation)) return;
 
                     if (shouldHandle(entityDescriptor, (Relation) property)) {
-                        enhanceParent(userContext, dataSet, (Relation) property, r, intent, request.inheritedQueryIntent());
+                        enhanceParent(userContext, dataSet, (Relation) property, r, intent, request);
                         return;
                     }
-                    collectChildren(userContext, dataSet, (Relation) property, r, intent, request.inheritedQueryIntent());
+                    collectChildren(userContext, dataSet, (Relation) property, r, intent, request);
                 });
     }
 
@@ -226,7 +226,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             UserContext userContext,
             SmartList<Entity> results,
             Relation relation,
-            SearchRequest parentRequest, SqlIntentRedactions intent, QueryIntent rootIntent) {
+            SearchRequest parentRequest, SqlIntentRedactions intent, SearchRequest<?> origin) {
         List<Entity> parents =
                 results.stream()
                         .map(e -> e.getProperty(relation.getName()))
@@ -236,7 +236,8 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                         .toList();
         if (io.teaql.core.utils.ObjectUtil.isEmpty(parents)) return;
 
-        io.teaql.core.internal.TempRequest parentTemp = new SqlDiagnosticRequest(parentRequest, intent, rootIntent);
+        io.teaql.core.internal.TempRequest parentTemp = SqlDiagnosticRequest.forRelation(
+                parentRequest, intent, origin, relation.getName());
         parentTemp.appendSearchCriteria(parentTemp.createBasicSearchCriteria(BaseEntity.ID_PROPERTY, io.teaql.core.criteria.Operator.IN, parents));
         // This is a framework-owned lookup over the already materialized child page.
         // A caller may project the parent without specifying a separate page size, but
@@ -261,8 +262,9 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             UserContext userContext,
             SmartList<Entity> dataSet,
             Relation relation,
-            SearchRequest childRequest, SqlIntentRedactions intent, QueryIntent rootIntent) {
-        io.teaql.core.internal.TempRequest childTempRequest = new SqlDiagnosticRequest(childRequest, intent, rootIntent);
+            SearchRequest childRequest, SqlIntentRedactions intent, SearchRequest<?> origin) {
+        io.teaql.core.internal.TempRequest childTempRequest = SqlDiagnosticRequest.forRelation(
+                childRequest, intent, origin, relation.getName());
         PropertyDescriptor reverseProperty = relation.getReverseProperty();
         childTempRequest.selectProperty(reverseProperty.getName());
         Slice slice = childTempRequest.getSlice();
@@ -277,7 +279,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                     "probe", dataSet.size());
             for (Entity parent : dataSet) {
                 io.teaql.core.internal.TempRequest probeRequest =
-                        new SqlDiagnosticRequest(childRequest, intent, rootIntent);
+                        SqlDiagnosticRequest.forRelation(childRequest, intent, origin, relation.getName());
                 probeRequest.selectProperty(reverseProperty.getName());
                 probeRequest.setPartitionProperty(null);
                 ensureStableEntityIdOrder(probeRequest);

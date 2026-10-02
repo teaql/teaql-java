@@ -12,6 +12,7 @@ final class SqlDiagnosticRequest extends TempRequest {
     private final transient boolean executionScope;
     private final transient SearchRequest<?> original;
     private final transient QueryIntent rootIntent;
+    private final transient java.util.List<io.teaql.core.TraceNode> traceSource;
 
     SqlDiagnosticRequest(SearchRequest<?> request, SqlIntentRedactions source) {
         this(request, source, request.inheritedQueryIntent() == null
@@ -24,6 +25,12 @@ final class SqlDiagnosticRequest extends TempRequest {
 
     private SqlDiagnosticRequest(SearchRequest<?> request, SqlIntentRedactions source,
                                  QueryIntent rootIntent, boolean executionScope) {
+        this(request, source, rootIntent, executionScope, request.sqlTraceSource());
+    }
+
+    private SqlDiagnosticRequest(SearchRequest<?> request, SqlIntentRedactions source,
+                                 QueryIntent rootIntent, boolean executionScope,
+                                 java.util.List<io.teaql.core.TraceNode> traceSource) {
         super(request);
         this.original = request;
         // TempRequest's relation-oriented copy omits these root-query semantics.
@@ -35,6 +42,11 @@ final class SqlDiagnosticRequest extends TempRequest {
         this.hardLimit = request.hardLimit();
         this.source = source == null || executionScope ? source : source.copy();
         this.executionScope = executionScope;
+        this.traceSource = traceSource.isEmpty()
+                ? java.util.List.of(
+                    new io.teaql.core.TraceNode(io.teaql.core.TraceKind.COMMENT, request.getTypeName(), rootIntent.comment()),
+                    new io.teaql.core.TraceNode(io.teaql.core.TraceKind.PURPOSE, request.getTypeName(), rootIntent.purpose()))
+                : java.util.List.copyOf(traceSource);
     }
 
     static SqlDiagnosticRequest forExecution(SearchRequest<?> request, SqlIntentRedactions source) {
@@ -48,6 +60,15 @@ final class SqlDiagnosticRequest extends TempRequest {
     }
 
     @Override public QueryIntent inheritedQueryIntent() { return rootIntent; }
+    @Override public java.util.List<io.teaql.core.TraceNode> sqlTraceSource() { return traceSource; }
+
+    static SqlDiagnosticRequest forRelation(SearchRequest<?> child, SqlIntentRedactions source,
+                                            SearchRequest<?> parent, String relationName) {
+        var trace = new java.util.ArrayList<>(parent.sqlTraceSource());
+        trace.add(new io.teaql.core.TraceNode(io.teaql.core.TraceKind.RELATION, relationName,
+                parent.getTypeName() + "." + relationName));
+        return new SqlDiagnosticRequest(child, source, parent.inheritedQueryIntent(), false, trace);
+    }
 
     @Override public io.teaql.core.Entity internalNewEntity() { return original.internalNewEntity(); }
     @Override public boolean tryUseSubQuery() { return original.tryUseSubQuery(); }

@@ -26,6 +26,9 @@ public class TempRequest extends BaseRequest {
     }
 
     @Override public QueryIntent inheritedQueryIntent() { return rootIntent; }
+    @Override public java.util.List<io.teaql.core.TraceNode> sqlTraceSource() {
+        return original == null ? java.util.List.of() : original.sqlTraceSource();
+    }
     @Override public io.teaql.core.Entity internalNewEntity() {
         return original == null ? super.internalNewEntity() : original.internalNewEntity();
     }

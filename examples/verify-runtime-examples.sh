@@ -73,4 +73,5 @@ for repetition in 1 2; do
     "PASS Java School bootstrap, portable Query, and native SQLite Facet parity" "$repetition"
 done
 
-printf 'PASS Java runtime examples: 2/2\n'
+bash "$repo_dir/examples/trace-chain/verify.sh"
+printf 'PASS Java runtime examples: 3/3\n'

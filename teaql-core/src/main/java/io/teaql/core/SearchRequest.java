@@ -54,6 +54,10 @@ public interface SearchRequest<T extends Entity> {
     @FrameworkInternal("Nested query provenance; never inferred from UserContext trace state")
     default QueryIntent inheritedQueryIntent() { return null; }
 
+    /** Immutable execution-local provenance; not an extension or wire-input field. */
+    @FrameworkInternal("SQL query provenance belongs to the request, not the Context")
+    default List<TraceNode> sqlTraceSource() { return List.of(); }
+
     /**
      * Returns the declared purpose of this query.
      * Purpose describes WHY this query is being executed (business intent).

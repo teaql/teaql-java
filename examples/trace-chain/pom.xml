@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.teaql</groupId>
+    <artifactId>teaql-java-parent</artifactId>
+    <version>1.553-RELEASE</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+  <artifactId>teaql-trace-chain-example</artifactId>
+  <name>Generated API Trace Chain SQLite acceptance</name>
+  <properties><maven.compiler.release>21</maven.compiler.release><teaql.trace.database></teaql.trace.database></properties>
+  <dependencies>
+    <dependency><groupId>com.teaql</groupId><artifactId>trace-chain-service-core</artifactId><version>0.0.1-SNAPSHOT</version></dependency>
+    <dependency><groupId>io.teaql</groupId><artifactId>teaql-runtime</artifactId></dependency>
+    <dependency><groupId>io.teaql</groupId><artifactId>teaql-sqlite</artifactId></dependency>
+    <dependency><groupId>io.teaql</groupId><artifactId>teaql-provider-jdbc</artifactId></dependency>
+    <dependency><groupId>junit</groupId><artifactId>junit</artifactId><scope>test</scope></dependency>
+  </dependencies>
+  <build><plugins><plugin>
+    <groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><version>3.2.5</version>
+    <configuration><systemPropertyVariables><teaql.trace.database>${teaql.trace.database}</teaql.trace.database></systemPropertyVariables></configuration>
+  </plugin></plugins></build>
+</project>

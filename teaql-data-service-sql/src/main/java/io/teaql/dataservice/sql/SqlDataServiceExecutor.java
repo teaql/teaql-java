@@ -166,10 +166,12 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     if (logging) {
                         meta = statementMetadata(context, sql, args, bindings, io.teaql.core.DataServiceOperation.QUERY);
                         // Snapshot before request trace scopes are popped; lazy consumption may happen later.
-                        var trace = context.getTraceChain();
-                        meta.setTraceChain(trace == null || trace.isEmpty()
-                                ? java.util.List.of(new io.teaql.core.TraceNode(io.teaql.core.TraceKind.OPERATION, "stream", "query"))
-                                : java.util.List.copyOf(trace));
+                        if (bindings.executionTrace() == null) {
+                            var trace = context.getTraceChain();
+                            meta.setTraceChain(trace == null || trace.isEmpty()
+                                    ? java.util.List.of(new io.teaql.core.TraceNode(io.teaql.core.TraceKind.OPERATION, "stream", "query"))
+                                    : java.util.List.copyOf(trace));
+                        }
                     }
                     var stream = diagnosed(context, sql, args, bindings, io.teaql.core.DataServiceOperation.QUERY,
                             logging, start, () -> executionAdapter.queryForStream(sql, args));
