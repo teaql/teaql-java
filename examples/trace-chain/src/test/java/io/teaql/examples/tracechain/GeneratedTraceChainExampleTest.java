@@ -672,6 +672,60 @@ public class GeneratedTraceChainExampleTest {
         System.out.println("PASS Java generated stream: request-owned SQL path and delayed consumption intent");
     }
 
+    private static void assertQueryPaths(Fixture fixture, String comment, String purpose,
+                                         List<List<String>> expectedRelations) {
+        assertEquals(expectedRelations.size(), fixture.sql.size());
+        for (int index = 0; index < fixture.sql.size(); index++) {
+            var entry = fixture.sql.get(index);
+            assertEquals(comment, entry.getComment()); assertEquals(purpose, entry.getPurpose());
+            var kinds = new java.util.ArrayList<>(List.of(TraceKind.OPERATION, TraceKind.REQUEST));
+            expectedRelations.get(index).forEach(relation -> kinds.add(TraceKind.RELATION));
+            kinds.add(TraceKind.PROVIDER); kinds.add(TraceKind.SQL);
+            assertEquals(kinds, entry.getTraceChain().stream().map(TraceNode::getKind).toList());
+            assertEquals("PaymentAttempt", entry.getTraceChain().get(0).getName());
+            assertEquals("PaymentAttempt", entry.getTraceChain().get(1).getName());
+            assertEquals("sqlite", entry.getTraceChain().get(entry.getTraceChain().size() - 2).getName());
+            assertEquals("select", entry.getTraceChain().get(entry.getTraceChain().size() - 1).getName());
+            assertEquals(expectedRelations.get(index), entry.getTraceChain().stream()
+                    .filter(node -> node.getKind() == TraceKind.RELATION).map(TraceNode::getName).toList());
+        }
+        assertTrue(fixture.context.getTraceChain().isEmpty());
+    }
+
+    @Test public void generatedNestedFacetsKeepTheOriginalRootAndLogicalRoute() throws Exception {
+        var fixture = new Fixture(); Graph graph = fixture.saveNormativeGraph(); fixture.clear();
+        String comment = "what: inspect payment ownership facets";
+        String purpose = "why: retain the request route through nested facet materialization";
+        var rows = Q.paymentAttempts().withIdIs(graph.attempt.getId()).limit(1)
+                .facetByPaymentAs("payments", Q.payments().withIdIs(graph.payment.getId()).limit(1)
+                        .facetByCustomerOrderAs("orders", Q.customerOrders().withIdIs(graph.order.getId()).limit(1)))
+                .comment(comment).purpose(purpose).executeForList(fixture.context);
+        assertEquals(1, rows.size());
+        assertEquals(graph.attempt.getId(), E.paymentAttempt(rows.get(0)).getId().eval());
+        var payments = rows.getFacet("payments"); assertNotNull(payments); assertEquals(1, payments.size());
+        var payment = (Payment) payments.get(0);
+        assertEquals(graph.payment.getId(), E.payment(payment).getId().eval());
+        assertEquals(1, ((Number) payment.getDynamicProperty("count")).intValue());
+        assertQueryPaths(fixture, comment, purpose, List.of(List.of(), List.of(),
+                List.of("payment"), List.of("payment"), List.of("payment", "customerOrder")));
+        System.out.println("PASS Java generated nested facets: filtered counts and original root/relation SQL paths");
+    }
+
+    @Test public void generatedFacetInsideALoadedRelationKeepsItsAncestorPath() throws Exception {
+        var fixture = new Fixture(); Graph graph = fixture.saveNormativeGraph(); fixture.clear();
+        String comment = "what: inspect related order facets";
+        String purpose = "why: retain already loaded relation ancestry";
+        var row = Q.paymentAttempts().withIdIs(graph.attempt.getId()).limit(1)
+                .selectPaymentWith(Q.payments().limit(1)
+                        .facetByCustomerOrderAs("orders", Q.customerOrders().withIdIs(graph.order.getId()).limit(1)))
+                .comment(comment).purpose(purpose).executeForOne(fixture.context);
+        assertEquals(graph.attempt.getId(), E.paymentAttempt(row).getId().eval());
+        assertEquals(graph.payment.getId(), E.payment(E.paymentAttempt(row).getPayment().eval()).getId().eval());
+        assertQueryPaths(fixture, comment, purpose, List.of(List.of(), List.of("payment"),
+                List.of("payment"), List.of("payment", "customerOrder")));
+        System.out.println("PASS Java generated relation facet: original root and complete inherited SQL route");
+    }
+
     @Test public void generatedCheckerRejectsInvalidBusinessStateBeforeProvider() throws Exception {
         var fixture = new Fixture();
         var platform = Q.platforms().withIdIs(1L).limit(1).comment("what: reuse root")

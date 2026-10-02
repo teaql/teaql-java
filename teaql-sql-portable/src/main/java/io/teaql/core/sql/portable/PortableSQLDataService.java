@@ -133,7 +133,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             }
 
             io.teaql.core.internal.TempRequest request =
-                    new SqlDiagnosticRequest(aggregateRequest, intent, parentRequest.inheritedQueryIntent());
+                    dynamicAggregateRequest(aggregateRequest, partitionProperty, intent, parentRequest);
             request.groupBy(partitionProperty);
             request.appendSearchCriteria(
                     request.createBasicSearchCriteria(
@@ -167,6 +167,25 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                 }
             }
         }
+    }
+
+    private SqlDiagnosticRequest dynamicAggregateRequest(SearchRequest<?> aggregateRequest,
+            String partitionProperty, SqlIntentRedactions intent, SearchRequest<?> parentRequest) {
+        EntityDescriptor aggregateDescriptor = metadata.resolveEntityDescriptor(aggregateRequest.getTypeName());
+        PropertyDescriptor partition = findProperty(aggregateDescriptor, partitionProperty);
+        if (partition instanceof Relation relation && shouldHandle(aggregateDescriptor, relation)) {
+            PropertyDescriptor reverse = relation.getReverseProperty();
+            EntityDescriptor parentDescriptor = metadata.resolveEntityDescriptor(parentRequest.getTypeName());
+            while (reverse != null && parentDescriptor != null) {
+                if (reverse.getOwner() == parentDescriptor) {
+                    return SqlDiagnosticRequest.forRelation(
+                            aggregateRequest, intent, parentRequest, reverse.getName());
+                }
+                parentDescriptor = parentDescriptor.getParent();
+            }
+        }
+        // Arbitrary partitions still inherit their request origin, but cannot claim a model edge.
+        return SqlDiagnosticRequest.forDerived(aggregateRequest, intent, parentRequest);
     }
 
     private Entity parentByAggregationKey(Map<Long, Entity> parentsById, Object parentId) {

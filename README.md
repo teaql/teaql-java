@@ -161,6 +161,7 @@ Providers without the capability retain individual command execution.
 
 The generated [Trace Chain example](examples/trace-chain/README.md) proves the
 normative graph, overlapping three-level Q/E queries, late-consumed streams,
+nested Facets with the original root and complete relation paths,
 prepared insert grouping and complete ledger replacement, plus prepared
 update/delete/recover batches with independent
 optimistic versions. It now also runs real overlapping generated Checkers and
@@ -179,7 +180,11 @@ Context. A single atomic graph with writes to different routes is rejected
 before mutation execution; read-only references do not count as writes.
 Native tests cover separate SQLite databases and actual overlapping threads.
 
-Complete entry-point/privacy coverage, query scope migration, asynchronous
+Native dynamic-aggregation tests also retain the original root through nested
+relations, preserve inherited masking provenance and avoid fabricated relation
+nodes for numeric partitions. They are separate from generated Facet acceptance.
+
+Complete entry-point/privacy coverage, legacy unbound SQL diagnostic migration, asynchronous
 handoff/cancellation and immutable internal Registry replay remain separate open
 gates. The tested SQLite writer transactions serialize while the generated
 Checkers overlap. This is local source evidence, not a merge or release claim.

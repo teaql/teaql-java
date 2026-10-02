@@ -14,7 +14,7 @@ Use Java 21 or newer, Maven, Bash and the normal repository dependencies:
 bash examples/trace-chain/verify.sh
 ```
 
-The script installs local source dependencies, runs all eleven scenarios twice
+The script installs local source dependencies, runs all thirteen scenarios twice
 against one database without intermediate cleanup, and compares every generated
 library file's SHA256 before and after execution. It prints the retained
 directory containing the database, Maven logs and checksum manifests. Set
@@ -37,6 +37,8 @@ and the `runtime-examples` Maven profile.
 | Concurrent independent graphs | Two real threads overlap generated Checker invocations for separate root/child ledgers on one Context and share one unmodified loaded Platform without rebinding its ledger; physical SQLite writer transactions serialize, while each command/write/readback/audit retains only its graph's root and child reason; Q/E reload both commits |
 | Concurrent three-level queries | Two live generated queries share one Context without adding ambient frames; each returns its own hydrated objects and four SQL records with only its root intent and logical relation path |
 | Late-consumed stream | The real JDBC cursor opens without Context frames; consuming after an unrelated query retains the stream's original comment, purpose, root type and generated E result |
+| Nested Facets | PaymentAttempt facets load Payment and its CustomerOrder facet; all five physical queries keep PaymentAttempt as the root, preserve the logical relation route and return the selected payment with count 1 |
+| Facet inside a loaded relation | A PaymentAttempt loads Payment and its CustomerOrder facet; all four physical queries keep the original root, including the already-loaded `payment` ancestor |
 
 The first run begins with CustomerOrder and Payment both numbered 100, items
 201/202, attempt 401 and shipment 501. IDs come from `IdSpaceIdGenerator`, not
@@ -77,7 +79,7 @@ must not be rebound or import another order's pending keys. Related mutation
 import uses the explicitly visited type-qualified key. Receiver-owned detached
 ledger mutations remain supported; no source ledger is cleared during import.
 
-The verifier now requires eleven scenario markers. Query provenance is carried
+The verifier now requires thirteen scenario markers. Query provenance is carried
 by the validated request and statement, not by a Context push/pop stack or a
 ThreadLocal trace. The generated fluent stream API is unchanged; custom provider
 implementations must migrate `StreamingQueryExecutor` from a bare SearchRequest
@@ -86,6 +88,16 @@ captured stream intent and that internal streams inherit intent without repeatin
 it on their child builder. Legacy direct SQL diagnostics without statement
 bindings retain a separate compatibility path; these tests do not establish
 its concurrency safety or complete advanced-query/cancellation coverage.
+
+Derived Facet requests inherit both the root intent and the parent's complete
+immutable path, rather than rebuilding the origin from the facet entity.
+Native `DerivedQueryTraceSqliteTest` separately exercises dynamic aggregates:
+filtered counts, an aggregate inside a loaded relation, safe parent-value
+redaction, logging disabled, and a numeric partition without a model relation.
+Verified relation metadata supplies the reverse-list edge; an arbitrary numeric
+partition keeps its parent's path without inventing an edge from the output
+metric's name. These are native runtime tests, not generated dynamic-aggregate
+acceptance: the retained field Assist does not document that operation.
 
 The synchronous Checker compatibility binding is runtime-internal and carries
 no trace or ledger. Nested invocation close restores the parent; the diagnostic
