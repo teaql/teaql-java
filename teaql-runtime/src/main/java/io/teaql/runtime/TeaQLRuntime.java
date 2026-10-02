@@ -171,28 +171,9 @@ public class TeaQLRuntime {
         if (queryPolicy != null) {
             queryPolicy.enforceSelect(context, request);
         }
-        boolean pushedComment = false;
-        boolean pushedPurpose = false;
-        context.pushTrace(TraceKind.OPERATION, request.getTypeName(), "query");
-        context.pushTrace(TraceKind.REQUEST, request.getTypeName(), request.getTypeName());
-        if (intent.comment() != null) {
-            context.pushTrace(TraceKind.COMMENT, request.getTypeName(), intent.comment());
-            pushedComment = true;
-        }
-        if (intent.purpose() != null) {
-            context.pushTrace(TraceKind.PURPOSE, request.getTypeName(), intent.purpose());
-            pushedPurpose = true;
-        }
-        try {
-            SmartList<T> result = executeForListResolved(context, request, intent);
-            telemetryScope.success(Map.of("teaql.result.cardinality", result.size()));
-            return result;
-        } finally {
-            if (pushedPurpose) context.popTrace();
-            if (pushedComment) context.popTrace();
-            context.popTrace();
-            context.popTrace();
-        }
+        SmartList<T> result = executeForListResolved(context, request, intent);
+        telemetryScope.success(Map.of("teaql.result.cardinality", result.size()));
+        return result;
         } catch (RuntimeException | Error error) {
             telemetryScope.failure(error);
             throw error;
@@ -241,11 +222,11 @@ public class TeaQLRuntime {
     /** Executes a business-facing streaming query after the same policy gate as list queries. */
     public <T extends Entity> Stream<T> executeForStream(
             UserContext context, SearchRequest<T> request) {
-        QueryIntent.of(request.comment(), request.purpose());
+        QueryIntent intent = QueryIntent.of(request.comment(), request.purpose());
         if (queryPolicy != null) {
             queryPolicy.enforceSelect(context, request);
         }
-        return executeForStreamResolved(context, request);
+        return executeForStreamResolved(context, request, intent);
     }
 
     /**
@@ -254,16 +235,16 @@ public class TeaQLRuntime {
      */
     public <T extends Entity> Stream<T> internalExecuteForStream(
             UserContext context, SearchRequest<T> request) {
-        requireInheritedQueryIntent(request);
+        QueryIntent intent = requireInheritedQueryIntent(request);
         if (queryPolicy != null) {
             queryPolicy.enforceSelect(context, request);
         }
-        return executeForStreamResolved(context, request);
+        return executeForStreamResolved(context, request, intent);
     }
 
     @SuppressWarnings("unchecked")
     private <T extends Entity> Stream<T> executeForStreamResolved(
-            UserContext context, SearchRequest<T> request) {
+            UserContext context, SearchRequest<T> request, QueryIntent intent) {
         EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
         String route = descriptor != null ? descriptor.getDataService() : null;
         if (route == null || route.isEmpty()) {
@@ -271,15 +252,15 @@ public class TeaQLRuntime {
         }
         DataServiceExecutor executor = registry.resolve(route);
         if (executor instanceof StreamingQueryExecutor streamingQueryExecutor) {
-            return streamingQueryExecutor.queryForStream(context, request);
+            return streamingQueryExecutor.queryForStream(context, new DefaultQueryRequest(request, intent));
         }
         throw new TeaQLRuntimeException("Streaming query is not supported for route: " + route);
     }
 
     /**
-     * Executes a framework-owned nested query under the trace established by its
-     * already-authorized root request. Nested relation requests are generated as
-     * query expressions and deliberately do not carry a second business purpose.
+     * Executes a framework-owned nested query with the explicit provenance of its
+     * already-authorized root request, never a Context trace stack. Nested relation
+     * requests do not require a second caller-supplied business purpose.
      */
     public <T extends Entity> SmartList<T> internalExecuteForList(
             UserContext context, SearchRequest<T> request) {
@@ -304,14 +285,9 @@ public class TeaQLRuntime {
         if (queryPolicy != null) {
             queryPolicy.enforceSelect(context, request);
         }
-        context.pushTrace(TraceKind.RELATION, request.getTypeName(), request.getTypeName());
-        try {
-            SmartList<T> result = executeForListResolved(context, request, intent);
-            relationScope.success(Map.of("teaql.result.cardinality", result.size()));
-            return result;
-        } finally {
-            context.popTrace();
-        }
+        SmartList<T> result = executeForListResolved(context, request, intent);
+        relationScope.success(Map.of("teaql.result.cardinality", result.size()));
+        return result;
         } catch (RuntimeException | Error error) {
             relationScope.failure(error);
             throw error;
@@ -384,40 +360,21 @@ public class TeaQLRuntime {
         if (queryPolicy != null) {
             queryPolicy.enforceSelect(context, request);
         }
-        boolean pushedComment = false;
-        boolean pushedPurpose = false;
-        context.pushTrace(TraceKind.OPERATION, request.getTypeName(), "query");
-        context.pushTrace(TraceKind.REQUEST, request.getTypeName(), request.getTypeName());
-        if (intent.comment() != null) {
-            context.pushTrace(TraceKind.COMMENT, request.getTypeName(), intent.comment());
-            pushedComment = true;
+        EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
+        String route = descriptor.getDataService();
+        if (route == null || route.isEmpty()) {
+            route = "default";
         }
-        if (intent.purpose() != null) {
-            context.pushTrace(TraceKind.PURPOSE, request.getTypeName(), intent.purpose());
-            pushedPurpose = true;
+        QueryExecutor queryExecutor = registry.resolveQueryExecutor(route);
+        if (queryExecutor == null) {
+            throw new TeaQLRuntimeException("No QueryExecutor registered for route: " + route);
         }
-        try {
-            EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
-            String route = descriptor.getDataService();
-            if (route == null || route.isEmpty()) {
-                route = "default";
-            }
-            QueryExecutor queryExecutor = registry.resolveQueryExecutor(route);
-            if (queryExecutor == null) {
-                throw new TeaQLRuntimeException("No QueryExecutor registered for route: " + route);
-            }
-            QueryRequest queryRequest = new DefaultQueryRequest(request, intent);
-            QueryResult queryResult = queryExecutor.query(context, queryRequest);
-            if (queryResult instanceof DefaultQueryResult) {
-                return ((DefaultQueryResult) queryResult).getAggregationResult();
-            }
-            throw new TeaQLRuntimeException("Unsupported QueryResult type: " + queryResult.getClass().getName());
-        } finally {
-            if (pushedPurpose) context.popTrace();
-            if (pushedComment) context.popTrace();
-            context.popTrace();
-            context.popTrace();
+        QueryRequest queryRequest = new DefaultQueryRequest(request, intent);
+        QueryResult queryResult = queryExecutor.query(context, queryRequest);
+        if (queryResult instanceof DefaultQueryResult) {
+            return ((DefaultQueryResult) queryResult).getAggregationResult();
         }
+        throw new TeaQLRuntimeException("Unsupported QueryResult type: " + queryResult.getClass().getName());
     }
 
     public void saveGraph(UserContext context, Object items) {

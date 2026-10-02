@@ -130,8 +130,8 @@ public class TeaQLRuntimeTest {
 
         @Override
         public <T extends Entity> Stream<T> queryForStream(
-                UserContext context, SearchRequest<T> request) {
-            this.request = request;
+                UserContext context, QueryRequest request) {
+            this.request = ((DefaultQueryRequest) request).getSearchRequest();
             return Stream.empty();
         }
 

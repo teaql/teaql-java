@@ -14,7 +14,7 @@ Use Java 21 or newer, Maven, Bash and the normal repository dependencies:
 bash examples/trace-chain/verify.sh
 ```
 
-The script installs local source dependencies, runs all nine scenarios twice
+The script installs local source dependencies, runs all eleven scenarios twice
 against one database without intermediate cleanup, and compares every generated
 library file's SHA256 before and after execution. It prints the retained
 directory containing the database, Maven logs and checksum manifests. Set
@@ -35,6 +35,8 @@ and the `runtime-examples` Maven profile.
 | Prepared update, delete and recovery | Two identified children with different optimistic versions execute each stage as a real two-row prepared batch, preserving separate command/write/readback/committed-audit lineages; deletion hides them and pure recovery restores both through generated Q/E |
 | Overlapping real generated Checkers | With one Context, a valid order commits while an incomplete order fails for `order_number` before allocation/provider access; SQL and committed audit contain only the accepted request's lineage |
 | Concurrent independent graphs | Two real threads overlap generated Checker invocations for separate root/child ledgers on one Context and share one unmodified loaded Platform without rebinding its ledger; physical SQLite writer transactions serialize, while each command/write/readback/audit retains only its graph's root and child reason; Q/E reload both commits |
+| Concurrent three-level queries | Two live generated queries share one Context without adding ambient frames; each returns its own hydrated objects and four SQL records with only its root intent and logical relation path |
+| Late-consumed stream | The real JDBC cursor opens without Context frames; consuming after an unrelated query retains the stream's original comment, purpose, root type and generated E result |
 
 The first run begins with CustomerOrder and Payment both numbered 100, items
 201/202, attempt 401 and shipment 501. IDs come from `IdSpaceIdGenerator`, not
@@ -74,6 +76,16 @@ The shared read-only Platform remains in the fixture: its independent ledger
 must not be rebound or import another order's pending keys. Related mutation
 import uses the explicitly visited type-qualified key. Receiver-owned detached
 ledger mutations remain supported; no source ledger is cleared during import.
+
+The verifier now requires eleven scenario markers. Query provenance is carried
+by the validated request and statement, not by a Context push/pop stack or a
+ThreadLocal trace. The generated fluent stream API is unchanged; custom provider
+implementations must migrate `StreamingQueryExecutor` from a bare SearchRequest
+to QueryRequest. Runtime regressions also verify that Policy cannot replace the
+captured stream intent and that internal streams inherit intent without repeating
+it on their child builder. Legacy direct SQL diagnostics without statement
+bindings retain a separate compatibility path; these tests do not establish
+its concurrency safety or complete advanced-query/cancellation coverage.
 
 The synchronous Checker compatibility binding is runtime-internal and carries
 no trace or ledger. Nested invocation close restores the parent; the diagnostic

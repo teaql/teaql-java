@@ -14,7 +14,7 @@ public class RequestIntentGateTest {
             calls.incrementAndGet(); return new DefaultQueryResult(new SmartList<>());
         }
         @Override public <T extends Entity> java.util.stream.Stream<T> queryForStream(
-                UserContext context, SearchRequest<T> request) {
+                UserContext context, QueryRequest request) {
             calls.incrementAndGet(); return java.util.stream.Stream.empty();
         }
         @Override public MutationResult mutate(UserContext context, PersistenceMutation request) {

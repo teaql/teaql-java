@@ -96,12 +96,18 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
     }
 
     @Override
-    public <T extends Entity> java.util.stream.Stream<T> queryForStream(UserContext context, SearchRequest<T> request) {
-        QueryIntent.of(request.comment(), request.purpose());
-        if (request.hasSimpleAgg() || !request.enhanceRelations().isEmpty() || !request.enhanceChildren().isEmpty()) {
+    @SuppressWarnings("unchecked")
+    public <T extends Entity> java.util.stream.Stream<T> queryForStream(UserContext context, QueryRequest request) {
+        if (!(request instanceof DefaultQueryRequest query)) {
+            throw new TeaQLRuntimeException("Unsupported QueryRequest in PortableSQLDataService");
+        }
+        SearchRequest<T> searchRequest = (SearchRequest<T>) query.getSearchRequest();
+        SqlIntentRedactions source = SqlDiagnosticRequest.source(context, searchRequest);
+        SearchRequest<T> scoped = SqlDiagnosticRequest.forExecution(searchRequest, source, request.intent());
+        if (scoped.hasSimpleAgg() || !scoped.enhanceRelations().isEmpty() || !scoped.enhanceChildren().isEmpty()) {
             throw new TeaQLRuntimeException("Streaming aggregation/relation enhancement is not supported; stream root rows only");
         }
-        return this.<T>getRepository(request.getTypeName()).streamInternal(context, request);
+        return this.<T>getRepository(scoped.getTypeName()).streamInternal(context, scoped);
     }
 
     private void attachDynamicAggregations(

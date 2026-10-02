@@ -28,6 +28,8 @@ markers=(
   'PASS Java generated prepared update/delete/recover: unequal versions and per-item lineage'
   'PASS Java generated overlapping Checker: valid commits, invalid rejected before provider'
   'PASS Java generated concurrent graphs: same Context, independent ledgers and per-item SQL/audit lineage'
+  'PASS Java generated overlapping queries: request-owned three-level SQL paths, Context unchanged'
+  'PASS Java generated stream: request-owned SQL path and delayed consumption intent'
 )
 for repetition in 1 2; do
   log="$run_dir/run-$repetition.log"
@@ -42,7 +44,7 @@ for repetition in 1 2; do
       exit 1
     fi
   done
-  grep -Fq 'Tests run: 9, Failures: 0, Errors: 0, Skipped: 0' "$log"
+  grep -Fq 'Tests run: 11, Failures: 0, Errors: 0, Skipped: 0' "$log"
   printf 'PASS Java generated Trace Chain run %s on the same database\n' "$repetition"
 done
 library_manifest > "$run_dir/library-after.sha256"

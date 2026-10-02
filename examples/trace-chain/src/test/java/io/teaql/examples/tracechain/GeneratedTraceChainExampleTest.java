@@ -45,6 +45,8 @@ public class GeneratedTraceChainExampleTest {
         volatile boolean serializeTransactions;
         volatile Consumer<UserContext> checkerBegin;
         volatile Consumer<UserContext> checkerFinish;
+        volatile java.util.function.BiConsumer<UserContext, QueryRequest> queryBegin;
+        volatile Consumer<UserContext> streamOpen;
         final long base;
 
         Fixture() throws Exception {
@@ -77,10 +79,18 @@ public class GeneratedTraceChainExampleTest {
                         execute("DROP TABLE customer_order_data");
                     return super.queryForList(sql, args);
                 }
+                @Override public java.util.stream.Stream<java.util.Map<String, Object>> queryForStream(String sql, Object[] args) {
+                    if (streamOpen != null) streamOpen.accept(Fixture.this.context);
+                    return super.queryForStream(sql, args);
+                }
             };
             var ids = new IdSpaceIdGenerator(new IdDatabase(driver));
             var metadata = new SimpleEntityMetaFactory();
             var provider = new SqliteDataServiceExecutor("sqlite", driver, source) {
+                @Override public QueryResult query(UserContext caller, QueryRequest request) {
+                    if (queryBegin != null) queryBegin.accept(caller, request);
+                    return super.query(caller, request);
+                }
                 @Override public MutationResult mutate(UserContext caller, PersistenceMutation mutation) {
                     commands.add((EntityPersistenceMutation) mutation);
                     return super.mutate(caller, mutation);
@@ -577,6 +587,89 @@ public class GeneratedTraceChainExampleTest {
                     .subList(0, depth), details);
         }
         System.out.println("PASS Java generated three-level SQL Trace Path and inherited request intent");
+    }
+
+    private static PaymentAttempt loadPaymentContext(Fixture fixture, Graph graph, String comment, String purpose) {
+        var row = Q.paymentAttempts().withIdIs(graph.attempt.getId()).limit(1)
+                .selectPaymentWith(Q.payments().limit(1)
+                        .selectCustomerOrderWith(Q.customerOrders().limit(1)
+                                .selectPlatformWith(Q.platforms().limit(1))))
+                .comment(comment).purpose(purpose).executeForOne(fixture.context);
+        assertEquals(graph.attempt.getId(), E.paymentAttempt(row).getId().eval());
+        var payment = E.paymentAttempt(row).getPayment().eval();
+        var order = E.payment(payment).getCustomerOrder().eval();
+        var platform = E.customerOrder(order).getPlatform().eval();
+        assertEquals("Trace Chain Verification", E.platform(platform).getName().eval());
+        return row;
+    }
+
+    @Test public void overlappingGeneratedQueriesKeepThreeLevelRoutesOffContext() throws Exception {
+        var fixture = new Fixture();
+        Graph graph = fixture.saveNormativeGraph(); fixture.clear();
+        var firstEntered = new CountDownLatch(1);
+        var bothEntered = new CountDownLatch(2);
+        var release = new CountDownLatch(1);
+        fixture.queryBegin = (caller, request) -> {
+            assertSame(fixture.context, caller);
+            firstEntered.countDown(); bothEntered.countDown(); await(release);
+            assertTrue("root and relation queries must never write a Context trace stack", caller.getTraceChain().isEmpty());
+        };
+        var workers = Executors.newFixedThreadPool(2);
+        try {
+            var first = workers.submit(() -> loadPaymentContext(fixture, graph,
+                    "what: inspect payment ownership", "why: render the first view"));
+            await(firstEntered);
+            var second = workers.submit(() -> loadPaymentContext(fixture, graph,
+                    "what: inspect payment trace", "why: render the second view"));
+            await(bothEntered);
+            assertTrue("both real generated Q executions are live", fixture.context.getTraceChain().isEmpty());
+            release.countDown();
+            var left = first.get(20, TimeUnit.SECONDS); var right = second.get(20, TimeUnit.SECONDS);
+            assertNotSame("hydrated root objects belong to independent queries", left, right);
+            for (String comment : List.of("what: inspect payment ownership", "what: inspect payment trace")) {
+                var statements = fixture.sql.stream().filter(entry -> comment.equals(entry.getComment())).toList();
+                assertEquals("each query emits its own root plus three relation statements", 4, statements.size());
+                String purpose = comment.endsWith("ownership") ? "why: render the first view" : "why: render the second view";
+                for (int depth = 0; depth < statements.size(); depth++) {
+                    var entry = statements.get(depth);
+                    assertEquals(purpose, entry.getPurpose());
+                    assertEquals("PaymentAttempt", entry.getTraceChain().get(0).getName());
+                    assertEquals(List.of("payment", "customerOrder", "platform").subList(0, depth),
+                            entry.getTraceChain().stream().filter(node -> node.getKind() == TraceKind.RELATION)
+                                    .map(TraceNode::getName).toList());
+                }
+            }
+            assertEquals(8, fixture.sql.size());
+            assertTrue(fixture.context.getTraceChain().isEmpty());
+        } finally {
+            release.countDown(); workers.shutdownNow();
+            assertTrue(workers.awaitTermination(10, TimeUnit.SECONDS));
+        }
+        System.out.println("PASS Java generated overlapping queries: request-owned three-level SQL paths, Context unchanged");
+    }
+
+    @Test public void generatedStreamKeepsItsIntentAcrossLateConsumption() throws Exception {
+        var fixture = new Fixture(); Graph graph = fixture.saveNormativeGraph(); fixture.clear();
+        fixture.streamOpen = caller -> {
+            assertSame(fixture.context, caller);
+            assertTrue("the actual JDBC cursor open must not depend on Context frames", caller.getTraceChain().isEmpty());
+        };
+        try (var stream = Q.customerOrders().withIdIs(graph.order.getId()).limit(1)
+                .comment("what: stream the selected order").purpose("why: consume after another query")
+                .executeForStream(fixture.context)) {
+            Q.platforms().withIdIs(1L).limit(1).comment("what: inspect an unrelated platform")
+                    .purpose("why: prove delayed cursors keep their own intent").executeForOne(fixture.context);
+            var rows = stream.toList();
+            assertEquals(1, rows.size());
+            assertEquals(graph.order.getId(), E.customerOrder(rows.get(0)).getId().eval());
+        }
+        assertEquals(2, fixture.sql.size());
+        var cursor = fixture.sql.stream().filter(entry -> "what: stream the selected order".equals(entry.getComment()))
+                .findFirst().orElseThrow();
+        assertEquals("why: consume after another query", cursor.getPurpose());
+        assertEquals("CustomerOrder", cursor.getTraceChain().get(0).getName());
+        assertTrue(fixture.context.getTraceChain().isEmpty());
+        System.out.println("PASS Java generated stream: request-owned SQL path and delayed consumption intent");
     }
 
     @Test public void generatedCheckerRejectsInvalidBusinessStateBeforeProvider() throws Exception {

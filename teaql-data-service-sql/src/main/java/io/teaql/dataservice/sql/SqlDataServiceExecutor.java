@@ -52,23 +52,8 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
     }
 
     @Override
-    public <T extends io.teaql.core.Entity> java.util.stream.Stream<T> queryForStream(UserContext context, io.teaql.core.SearchRequest<T> request) {
-        io.teaql.core.QueryIntent.of(request.comment(), request.purpose());
-        // Unlike list execution, this path does not enter TeaQLRuntime.executeForList's trace scope.
-        int pushed = 0;
-        try {
-            context.pushTrace(io.teaql.core.TraceKind.OPERATION, request.getTypeName(), "query"); pushed++;
-            context.pushTrace(io.teaql.core.TraceKind.REQUEST, request.getTypeName(), request.getTypeName()); pushed++;
-            if (request.comment() != null) {
-                context.pushTrace(io.teaql.core.TraceKind.COMMENT, request.getTypeName(), request.comment()); pushed++;
-            }
-            if (request.purpose() != null) {
-                context.pushTrace(io.teaql.core.TraceKind.PURPOSE, request.getTypeName(), request.purpose()); pushed++;
-            }
-            return getPortableService(context).queryForStream(context, request);
-        } finally {
-            for (int i = 0; i < pushed; i++) context.popTrace();
-        }
+    public <T extends io.teaql.core.Entity> java.util.stream.Stream<T> queryForStream(UserContext context, QueryRequest request) {
+        return getPortableService(context).queryForStream(context, request);
     }
 
     @Override

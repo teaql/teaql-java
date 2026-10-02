@@ -125,6 +125,17 @@ Missing or Unicode-whitespace-only comment fails with
 provider execution, including direct runtime calls and disabled logging.
 Neither a Context default nor a fabricated trace supplies missing intent.
 
+List, aggregate, relation and streaming execution no longer push or pop query
+frames on Context. Streaming providers now accept the same validated
+`QueryRequest` envelope as materialized providers instead of a bare
+`SearchRequest`. A custom `StreamingQueryExecutor` must migrate that SPI
+signature; generated `.executeForStream(context)` calls remain unchanged.
+The captured intent survives Policy changes to a builder and delayed cursor
+consumption. SQL providers snapshot source paths and redaction provenance for
+the invocation, including inherited internal streams. Legacy unbound direct SQL
+diagnostics can still use explicitly supplied Context frames; those compatibility
+calls are not the runtime query ownership contract.
+
 Derived relation, Facet and materialized relation-predicate queries carry their
 validated originating intent instead of asking callers to repeat it. Mutation
 reason is captured before policy and retained in provider requests and committed
@@ -149,8 +160,9 @@ Root intent remains required even if children are annotated or logs are disabled
 Providers without the capability retain individual command execution.
 
 The generated [Trace Chain example](examples/trace-chain/README.md) proves the
-normative graph, three-level Q/E queries, prepared insert grouping and complete
-ledger replacement, plus prepared update/delete/recover batches with independent
+normative graph, overlapping three-level Q/E queries, late-consumed streams,
+prepared insert grouping and complete ledger replacement, plus prepared
+update/delete/recover batches with independent
 optimistic versions. It now also runs real overlapping generated Checkers and
 independent graph saves with one Context, observing per-item SQL and committed
 audit lineage. Temporary check results, visited objects, Fix evidence and the

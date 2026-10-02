@@ -2,7 +2,8 @@ package io.teaql.core;
 
 import java.util.stream.Stream;
 
-/** Executes a query with resources owned by the returned closeable Stream. */
+/** Executes a validated query with resources owned by the returned closeable Stream. */
 public interface StreamingQueryExecutor extends DataServiceExecutor {
-    <T extends Entity> Stream<T> queryForStream(UserContext context, SearchRequest<T> request);
+    /** The envelope owns the captured root intent, just as for materialized queries. */
+    <T extends Entity> Stream<T> queryForStream(UserContext context, QueryRequest request);
 }
