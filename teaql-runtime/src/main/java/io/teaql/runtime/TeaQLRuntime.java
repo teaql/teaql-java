@@ -808,7 +808,7 @@ public class TeaQLRuntime {
                 if (root.getComment() != null) deleteEntity.setComment(root.getComment());
 
                 EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
-                    deleteEntity, EntityPersistenceMutation.Action.DELETE, intent, mutationTrace(root, key, traceScopes, graphScope));
+                    deleteEntity, EntityPersistenceMutation.Action.DELETE, intent, mutationTrace(root, key, traceScopes, graphScope), target);
                 requests.add(mutationRequest);
                 targets.add(target == null ? deleteEntity : target);
             }
@@ -865,7 +865,7 @@ public class TeaQLRuntime {
                 if (root.getComment() != null) entity.setComment(root.getComment());
 
                 EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
-                    entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(root, key, traceScopes, graphScope));
+                    entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(root, key, traceScopes, graphScope), target);
                 requests.add(mutationRequest);
                 targets.add(target == null ? entity : target);
                 snapshots.add(snapshotChanges(changes));
@@ -911,7 +911,7 @@ public class TeaQLRuntime {
                     if (root.getComment() != null) entity.setComment(root.getComment());
 
                     EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
-                        entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(root, key, traceScopes, graphScope));
+                        entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(root, key, traceScopes, graphScope), target);
                     requests.add(mutationRequest);
                     targets.add(target == null ? entity : target);
                     snapshots.add(snapshotChanges(changes));

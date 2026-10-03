@@ -42,6 +42,9 @@ public class GraphTraceSqliteTest {
         final List<ExecutionMetadata> sql = new CopyOnWriteArrayList<>();
         final List<SafeAuditEvent> audit = new CopyOnWriteArrayList<>();
         final List<EntityPersistenceMutation> commands = new CopyOnWriteArrayList<>();
+        final List<MutationResult> results = new CopyOnWriteArrayList<>();
+        boolean queryLogging = true;
+        boolean mutationLogging = true;
         final List<Integer> itemInsertBatchSizes = new CopyOnWriteArrayList<>();
         final List<Integer> itemUpdateBatchSizes = new CopyOnWriteArrayList<>();
         final List<Integer> itemDeleteBatchSizes = new CopyOnWriteArrayList<>();
@@ -107,25 +110,32 @@ public class GraphTraceSqliteTest {
             var provider = new SqliteDataServiceExecutor("sqlite", driver, ds) {
                 @Override public MutationResult mutate(UserContext caller, PersistenceMutation mutation) {
                     commands.add((EntityPersistenceMutation) mutation);
-                    return super.mutate(caller, mutation);
+                    var result = super.mutate(caller, mutation);
+                    results.add(result);
+                    return result;
                 }
                 @Override public List<MutationResult> mutateBatch(UserContext caller, MutationBatchRequest request) {
                     request.items().forEach(item -> commands.add((EntityPersistenceMutation) item));
-                    return super.mutateBatch(caller, request);
+                    var result = super.mutateBatch(caller, request);
+                    results.addAll(result);
+                    return result;
                 }
             };
             var ids = new AtomicLong(1000);
             var runtime = TeaQLRuntime.builder().metadata(metadata).dataService("sqlite", provider)
                     .idGenerationService((caller, entity) -> ids.getAndIncrement())
                     .logSink((caller, entry) -> sql.add(entry)).build();
-            context = new DefaultUserContext(runtime);
+            context = new DefaultUserContext(runtime) {
+                @Override public boolean isQueryExecutionLoggingEnabled() { return queryLogging; }
+                @Override public boolean isMutationExecutionLoggingEnabled() { return mutationLogging; }
+            };
             context.putAttribute(AppAuditEventSink.class.getName(), (AppAuditEventSink) (caller, event) -> audit.add(event));
             context.ensureSchema();
             clear();
         }
 
         void clear() {
-            sql.clear(); audit.clear(); commands.clear(); itemInsertBatchSizes.clear();
+            sql.clear(); audit.clear(); commands.clear(); results.clear(); itemInsertBatchSizes.clear();
             itemUpdateBatchSizes.clear(); itemDeleteBatchSizes.clear(); itemRecoverBatchSizes.clear();
         }
 
@@ -273,6 +283,100 @@ public class GraphTraceSqliteTest {
         assertTrue(fixture.driver.queryForList("SELECT id FROM customer_order_data WHERE id = ?", new Object[]{6300L}).isEmpty());
         assertNull(fixture.context.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT));
         assertTrue(fixture.context.getTraceChain().isEmpty());
+    }
+
+    @Test public void mutationResultsRetainPhysicalReadbacksInEveryLoggingMode() throws Exception {
+        for (boolean queryLogging : List.of(false, true)) {
+            for (boolean mutationLogging : List.of(false, true)) {
+                var fixture = new Fixture();
+                fixture.queryLogging = queryLogging;
+                fixture.mutationLogging = mutationLogging;
+                var root = fixture.create("CustomerOrder", 100, "PRIVATE-READBACK-CANARY");
+                for (String operation : List.of("insert", "update", "delete", "recover")) {
+                    fixture.clear();
+                    if (operation.equals("update")) root.updateProperty("memo", "updated memo");
+                    if (operation.equals("delete")) root.markForDeletion();
+                    if (operation.equals("recover")) root.markToRecover();
+                    root.auditAs("save PRIVATE-READBACK-CANARY").save(fixture.context);
+                    assertEquals(1, fixture.results.size());
+                    var statements = fixture.results.get(0).statements();
+                    assertEquals(operation + " query=" + queryLogging + " mutation=" + mutationLogging, 2, statements.size());
+                    var write = statements.get(0);
+                    var read = statements.get(1);
+                    assertEquals(operation, write.getStatementOperation());
+                    assertEquals("select", read.getStatementOperation());
+                    assertEquals(Long.valueOf(1), write.getAffectedRows());
+                    assertEquals(Integer.valueOf(1), read.getResultCount());
+                    assertEquals(write.getMutationLineage(), read.getMutationLineage());
+                    assertEquals("CustomerOrder", read.getTraceChain().get(0).getName());
+                    assertEquals(TraceKind.REQUEST, read.getTraceChain().get(1).getKind());
+                    assertEquals(MutationIntent.of("save PRIVATE-READBACK-CANARY").readbackIntent().purpose(), read.getPurpose());
+                    assertEquals("success", read.getExecutionOutcome());
+                    assertEquals((queryLogging ? 1 : 0) + (mutationLogging ? 1 : 0), fixture.sql.size());
+                    assertEquals(1, fixture.audit.size());
+                    for (var log : fixture.sql) {
+                        assertFalse(log.getTraceChain().toString().contains("PRIVATE-READBACK-CANARY"));
+                        assertFalse(operation + " leaked loaded private value", String.valueOf(log.getComment()).contains("PRIVATE-READBACK-CANARY"));
+                    }
+                    assertThrows(UnsupportedOperationException.class, () -> statements.add(write));
+                }
+            }
+        }
+    }
+
+    @Test public void retainedReadbackCanBeSafelyProjectedAfterLoggingWasDisabled() throws Exception {
+        var fixture = new Fixture();
+        var root = fixture.create("CustomerOrder", 100, "PRIVATE-OLD-VALUE");
+        root.auditAs("seed privacy fixture").save(fixture.context);
+        fixture.clear();
+        fixture.queryLogging = false;
+        fixture.mutationLogging = false;
+        root.updateProperty("name", "PRIVATE-NEW-VALUE");
+        root.auditAs("replace PRIVATE-OLD-VALUE with PRIVATE-NEW-VALUE").save(fixture.context);
+        assertTrue(fixture.sql.isEmpty());
+        var statements = fixture.results.get(0).statements();
+        assertEquals(2, statements.size());
+        for (var raw : statements) {
+            assertFalse(raw.getParameters().contains("PRIVATE-OLD-VALUE"));
+            var safe = LogPrivacy.sql(raw, false);
+            var debug = LogPrivacy.sql(raw, true);
+            var revoked = LogPrivacy.sql(debug, false);
+            for (var projection : List.of(safe, revoked)) {
+                String text = projection.getComment() + " " + projection.getAuditReason()
+                        + projection.getDebugQuery() + projection.getMutationLineage();
+                assertFalse(text, text.contains("PRIVATE-OLD-VALUE"));
+                assertFalse(text, text.contains("PRIVATE-NEW-VALUE"));
+            }
+            assertTrue(String.valueOf(debug.getAuditReason()).contains("PRIVATE-OLD-VALUE"));
+        }
+        assertTrue(statements.get(0).getParameters().contains("PRIVATE-NEW-VALUE"));
+        assertEquals("PRIVATE-NEW-VALUE", root.getProperty("name"));
+    }
+
+    @Test public void preparedMembersKeepSeparateReturnedFactsWhenLogsAreDisabled() throws Exception {
+        var fixture = new Fixture();
+        fixture.queryLogging = false;
+        fixture.mutationLogging = false;
+        var root = fixture.create("CustomerOrder", 100, "batch root");
+        var first = fixture.create("OrderItem", 201, "first item");
+        var second = fixture.create("OrderItem", 202, "second item");
+        first.setComment("first member intent");
+        second.setComment("second member intent");
+        root.__internalSet("children", List.of(first, second));
+        root.auditAs("save batch graph").save(fixture.context);
+        assertEquals(List.of(2), fixture.itemInsertBatchSizes);
+        assertEquals(3, fixture.results.size());
+        assertEquals(3, fixture.audit.size());
+        assertTrue(fixture.sql.isEmpty());
+        for (var result : fixture.results) {
+            var entity = result.persistedEntity();
+            var command = fixture.commands.stream().filter(value -> value.getEntity().typeName().equals(entity.typeName())
+                    && value.getEntity().getId().equals(entity.getId())).findFirst().orElseThrow();
+            assertEquals(2, result.statements().size());
+            assertEquals("insert", result.statements().get(0).getStatementOperation());
+            assertEquals("select", result.statements().get(1).getStatementOperation());
+            for (var statement : result.statements()) assertEquals(command.getTraceChain(), statement.getMutationLineage());
+        }
     }
 
     @Test public void normativeGraphRetainsCommandSqlReadbackAndCommittedAuditLineage() throws Exception {

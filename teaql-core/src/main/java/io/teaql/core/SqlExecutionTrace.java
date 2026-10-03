@@ -4,7 +4,26 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Immutable statement-owned source path and separate graph mutation lineage. */
-public record SqlExecutionTrace(List<TraceNode> source, List<TraceNode> mutationLineage, String operation) {
+public record SqlExecutionTrace(List<TraceNode> source, List<TraceNode> mutationLineage, String operation,
+        @com.fasterxml.jackson.annotation.JsonIgnore java.util.function.Consumer<ExecutionMetadata> statementObserver) {
+    public SqlExecutionTrace(List<TraceNode> source, List<TraceNode> mutationLineage, String operation) {
+        this(source, mutationLineage, operation, null);
+    }
+
+    /** Invocation-owned collection; never installed on Context or a cached repository. */
+    public SqlExecutionTrace collecting(java.util.function.Consumer<ExecutionMetadata> observer) {
+        return new SqlExecutionTrace(source, mutationLineage, operation, observer);
+    }
+
+    public void recordStatement(ExecutionMetadata metadata) {
+        if (statementObserver == null) return;
+        var path = SqlTracePath.canonical(metadata.getTraceChain(), metadata.getBackend(), operation);
+        metadata.setTraceChain(path.path());
+        metadata.setComment(path.comment());
+        metadata.setPurpose(path.purpose());
+        metadata.setAuditReason(path.auditReason());
+        statementObserver.accept(metadata);
+    }
     public SqlExecutionTrace {
         source = List.copyOf(source);
         mutationLineage = List.copyOf(mutationLineage);
@@ -32,7 +51,7 @@ public record SqlExecutionTrace(List<TraceNode> source, List<TraceNode> mutation
         String root = frames.isEmpty() ? "unknown" : frames.get(0).getName();
         frames.add(new TraceNode(TraceKind.COMMENT, root, intent.comment()));
         frames.add(new TraceNode(TraceKind.PURPOSE, root, intent.readbackIntent().purpose()));
-        return new SqlExecutionTrace(frames, mutationLineage, "select");
+        return new SqlExecutionTrace(frames, mutationLineage, "select", statementObserver);
     }
 
     public void applyTo(ExecutionMetadata metadata) {

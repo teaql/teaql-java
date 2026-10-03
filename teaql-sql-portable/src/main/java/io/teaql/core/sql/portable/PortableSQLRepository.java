@@ -1040,6 +1040,19 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         return number.longValue() == 0L && number.doubleValue() == 0D;
     }
 
+    /** Loaded private values may appear in intent even when absent from this write's bindings. */
+    void captureMutationIntent(Entity entity, io.teaql.core.SqlIntentRedactions intent) {
+        if (!(entity instanceof BaseEntity base)) return;
+        for (PropertyDescriptor property : allProperties) {
+            if (property instanceof Relation || !shouldHandle(property)) continue;
+            String name = property.getName();
+            var policy = List.of(parameterLogPolicy(name));
+            if (base.isPropertyLoaded(name)) intent.capture(policy, new Object[] {base.getProperty(name)});
+            if (base.getUpdatedProperties().contains(name))
+                intent.capture(policy, new Object[] {base.getOldValue(name)});
+        }
+    }
+
     @SuppressWarnings("unchecked")
     public T loadPersistedById(UserContext userContext, Long id) {
         return loadPersistedById(userContext, id, null);

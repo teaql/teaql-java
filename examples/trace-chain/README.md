@@ -6,6 +6,17 @@ Business creation, graph attachment, deletion, recovery, query and expression ac
 generated public APIs. SQLite and the runtime's SQL and committed-audit sinks
 provide the acceptance evidence; tests do not inject expected trace frames.
 
+Every successful provider mutation additionally checks `MutationResult.statements()`:
+one physical write followed by its actual authoritative SELECT, with the same
+typed branch lineage and the originating root's query/request path. Prepared
+batches keep a separate statement list per member; concurrent saves do not share
+a collection. This checks returned evidence independently of the log sink.
+Native SQLite tests exercise all four query/mutation logging combinations.
+Disabling diagnostic text does not remove the returned physical facts or change
+the number of committed audits. These raw facts are trusted internal diagnostics;
+apply `LogPrivacy.sql` before exporting one to a diagnostic sink, never serialize
+raw SQL parameters into an application response.
+
 ## Run the example
 
 Use Java 21 or newer, Maven, Bash and the normal repository dependencies:

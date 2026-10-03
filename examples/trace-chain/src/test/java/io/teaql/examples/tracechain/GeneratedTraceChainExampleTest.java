@@ -31,6 +31,23 @@ import static org.junit.Assert.*;
 
 /** #202: generated public APIs -> real SQLite -> physical SQL and committed safe audit. */
 public class GeneratedTraceChainExampleTest {
+    private static void verifyReturnedStatements(MutationResult result, EntityPersistenceMutation request) {
+        var statements = result.statements();
+        assertEquals("actual write and authoritative readback retained independently of sinks", 2, statements.size());
+        var write = statements.get(0);
+        var read = statements.get(1);
+        assertEquals(DataServiceOperation.MUTATION, write.getOperation());
+        assertEquals(DataServiceOperation.QUERY, read.getOperation());
+        assertEquals(request.getTraceChain(), write.getMutationLineage());
+        assertEquals(write.getMutationLineage(), read.getMutationLineage());
+        assertEquals(TraceKind.REQUEST, read.getTraceChain().get(1).getKind());
+        assertEquals(request.getTraceChain().get(0).getName(), read.getTraceChain().get(0).getName());
+        assertEquals("select", read.getStatementOperation());
+        assertEquals(Long.valueOf(1), write.getAffectedRows());
+        assertEquals(Integer.valueOf(1), read.getResultCount());
+        assertEquals(request.intent().readbackIntent().purpose(), read.getPurpose());
+    }
+
     static final class Fixture {
         final List<ExecutionMetadata> sql = new CopyOnWriteArrayList<>();
         final List<SafeAuditEvent> audit = new CopyOnWriteArrayList<>();
@@ -93,11 +110,16 @@ public class GeneratedTraceChainExampleTest {
                 }
                 @Override public MutationResult mutate(UserContext caller, PersistenceMutation mutation) {
                     commands.add((EntityPersistenceMutation) mutation);
-                    return super.mutate(caller, mutation);
+                    var result = super.mutate(caller, mutation);
+                    verifyReturnedStatements(result, (EntityPersistenceMutation) mutation);
+                    return result;
                 }
                 @Override public List<MutationResult> mutateBatch(UserContext caller, MutationBatchRequest request) {
                     request.items().forEach(item -> commands.add((EntityPersistenceMutation) item));
-                    return super.mutateBatch(caller, request);
+                    var results = super.mutateBatch(caller, request);
+                    for (int i = 0; i < results.size(); i++)
+                        verifyReturnedStatements(results.get(i), (EntityPersistenceMutation) request.items().get(i));
+                    return results;
                 }
             };
             var runtime = TeaQLRuntime.builder().metadata(metadata)

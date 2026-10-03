@@ -42,6 +42,15 @@ public record SqlLogBindings(List<SqlParameterLogPolicy> policies, boolean gener
                 : new SqlLogBindings(policies, generated, diagnosticSql, intentRedactions, batchTraces.get(index));
     }
 
+    public boolean collectsStatements() {
+        return executionTrace != null && executionTrace.statementObserver() != null
+                || batchTraces.stream().anyMatch(trace -> trace.statementObserver() != null);
+    }
+
+    public void recordStatement(ExecutionMetadata metadata) {
+        if (executionTrace != null) executionTrace.recordStatement(metadata);
+    }
+
     public void applyTo(ExecutionMetadata metadata) {
         metadata.setParameterLogPolicies(policies);
         metadata.setGeneratedSql(generated);

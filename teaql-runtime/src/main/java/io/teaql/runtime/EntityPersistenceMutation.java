@@ -15,6 +15,7 @@ public final class EntityPersistenceMutation implements PersistenceMutation {
     private final Action action;
     private final MutationIntent intent;
     private final List<TraceNode> traceChain;
+    private final transient Entity diagnosticSource;
 
     public EntityPersistenceMutation(Entity entity, Action action) {
         this(entity, action, MutationIntent.of(entity.getComment()));
@@ -26,11 +27,21 @@ public final class EntityPersistenceMutation implements PersistenceMutation {
     }
 
     public EntityPersistenceMutation(Entity entity, Action action, MutationIntent intent, List<TraceNode> traceChain) {
+        this(entity, action, intent, traceChain, entity);
+    }
+
+    public EntityPersistenceMutation(Entity entity, Action action, MutationIntent intent, List<TraceNode> traceChain,
+            Entity diagnosticSource) {
         this.entity = Objects.requireNonNull(entity, "entity");
         this.action = Objects.requireNonNull(action, "action");
         this.intent = Objects.requireNonNull(intent, "intent");
         this.traceChain = List.copyOf(Objects.requireNonNull(traceChain, "traceChain"));
+        this.diagnosticSource = diagnosticSource == null ? entity : diagnosticSource;
     }
+
+    /** Original loaded values for invocation-local redaction; never used as the write payload. */
+    @io.teaql.core.FrameworkInternal("Mutation diagnostic provenance only")
+    public Entity diagnosticSource() { return diagnosticSource; }
 
     @Override public MutationIntent intent() { return intent; }
 

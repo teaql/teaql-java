@@ -397,12 +397,16 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         String typeName = entity.typeName();
         PortableSQLRepository repository = getRepository(typeName);
         // Local to this mutation, never stored on context or a shared repository.
-        var readbackIntent = context.isQueryExecutionLoggingEnabled() || context.isMutationExecutionLoggingEnabled()
-                ? new io.teaql.core.SqlIntentRedactions() : null;
+        var readbackIntent = new io.teaql.core.SqlIntentRedactions();
+        repository.captureMutationIntent(entity, readbackIntent);
+        if (mutation.diagnosticSource() != entity)
+            repository.captureMutationIntent(mutation.diagnosticSource(), readbackIntent);
+        var statements = new ArrayList<io.teaql.core.ExecutionMetadata>();
 
         String operation = mutation.getAction() == EntityPersistenceMutation.Action.DELETE ? "delete"
                 : entity.newItem() ? "insert" : entity.recoverItem() ? "recover" : "update";
-        var trace = io.teaql.core.SqlExecutionTrace.mutation(entity, mutation.getTraceChain(), operation);
+        var trace = io.teaql.core.SqlExecutionTrace.mutation(entity, mutation.getTraceChain(), operation)
+                .collecting(statements::add);
 
         if (mutation.getAction() == EntityPersistenceMutation.Action.SAVE) {
             if (entity.getId() == null) {
@@ -436,7 +440,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                     || mutation.getAction() == EntityPersistenceMutation.Action.DELETE)) {
             persisted = repository.loadPersistedById(context, entity.getId(), readbackIntent, trace.readback(mutation.intent()));
         }
-        return new io.teaql.core.DefaultMutationResult(persisted);
+        return new io.teaql.core.DefaultMutationResult(persisted, statements);
     }
 
     @Override
@@ -459,10 +463,15 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         }
         return executeInTransaction(context, () -> {
             PortableSQLRepository repository = getRepository(type);
-            var redactions = context.isQueryExecutionLoggingEnabled() || context.isMutationExecutionLoggingEnabled()
-                    ? new SqlIntentRedactions() : null;
+            var redactions = new SqlIntentRedactions();
+            for (var item : items) {
+                repository.captureMutationIntent(item.getEntity(), redactions);
+                if (item.diagnosticSource() != item.getEntity())
+                    repository.captureMutationIntent(item.diagnosticSource(), redactions);
+            }
             List<Entity> entities = new ArrayList<>();
             List<SqlExecutionTrace> traces = new ArrayList<>();
+            List<List<io.teaql.core.ExecutionMetadata>> statements = new ArrayList<>();
             for (EntityPersistenceMutation item : items) {
                 var entity = (BaseEntity) item.getEntity();
                 if (operation.equals("insert")) {
@@ -472,7 +481,10 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                     throw new TeaQLRuntimeException("Prepared persisted mutation requires identity and optimistic version");
                 }
                 entities.add(entity);
-                traces.add(SqlExecutionTrace.mutation(entity, item.getTraceChain(), operation));
+                var memberStatements = new ArrayList<io.teaql.core.ExecutionMetadata>();
+                statements.add(memberStatements);
+                traces.add(SqlExecutionTrace.mutation(entity, item.getTraceChain(), operation)
+                        .collecting(memberStatements::add));
             }
             switch (operation) {
                 case "insert" -> repository.createBatchInternal(context, entities, redactions, traces);
@@ -494,7 +506,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                 Entity persisted = repository.loadPersistedById(context, entity.getId(), redactions,
                         traces.get(index).readback(item.intent()));
                 if (persisted == null) throw new TeaQLRuntimeException("Batch mutation readback returned no entity");
-                results.add(new DefaultMutationResult(persisted));
+                results.add(new DefaultMutationResult(persisted, statements.get(index)));
             }
             return List.copyOf(results);
         });
