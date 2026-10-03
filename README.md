@@ -168,6 +168,15 @@ non-loaded fields remain guarded by `TeaQLNotLoadedException`, while list
 membership and independent counts survive. This is not a claim of null-valued
 reference parity with other runtimes.
 
+Bootstrap follows the same request and audit boundary. Call
+`context.ensureSchema()` with the generated Runtime Module installed: providers
+perform physical DDL, then generated Q and audited Mutation reconcile roots and
+constants. The legacy Portable `ensureSchema(context, type)` and repository
+`ensureInitData(context)` data-write APIs have been removed. The
+[School example](examples/school-management/README.md) verifies real bootstrap
+SQL intent, committed lineage, fixed IDs, no-op reseeding and versioned constant
+reconciliation on two starts of the same database.
+
 The generated [Trace Chain example](examples/trace-chain/README.md) proves the
 normative graph, overlapping three-level Q/E queries, late-consumed streams,
 nested Facets with the original root and complete relation paths,

@@ -565,8 +565,4 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         return (T) resultHolder[0];
     }
 
-    public void ensureSchema(UserContext context, String typeName) {
-        PortableSQLRepository<?> repository = getRepository(typeName);
-        repository.ensureSchema(context);
-    }
 }

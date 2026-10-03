@@ -43,6 +43,17 @@ run_example() {
         sed -n '1,240p' "$log" >&2
         return 1
       fi
+      if [[ "$name" == "school-management" ]]; then
+        local bootstrap_marker='PASS Java generated bootstrap request intent, committed trace and reconciliation'
+        local bootstrap_state='fresh=true originalVersion=1'
+        if [[ "$repetition" == 2 ]]; then bootstrap_state='fresh=false originalVersion=3'; fi
+        if ! grep -Fq "$bootstrap_marker $bootstrap_state" "$log"; then
+          printf 'FAIL school-management omitted fresh/warm bootstrap trace verification\n' >&2
+          sed -n '1,240p' "$log" >&2
+          return 1
+        fi
+        printf '%s %s\n' "$bootstrap_marker" "$bootstrap_state"
+      fi
       printf 'PASS %s run %s (same database)\n' "$name" "$repetition"
       return 0
     fi

@@ -304,8 +304,8 @@ public class PortableSQLDatabaseTest {
                 .build();
         UserContext runtimeContext = new DefaultUserContext(runtime);
         runtimeContext.putAttribute("ensureTable", true);
-        service.ensureSchema(runtimeContext, "TopNParent");
-        service.ensureSchema(runtimeContext, "TopNChild");
+        service.getRepository("TopNParent").ensurePhysicalSchema(runtimeContext);
+        service.getRepository("TopNChild").ensurePhysicalSchema(runtimeContext);
         database.execute("DELETE FROM top_n_parent_data");
         database.execute("INSERT INTO top_n_parent_data (id, version, name)"
                 + " VALUES (1, 1, 'parent')");
@@ -341,8 +341,8 @@ public class PortableSQLDatabaseTest {
         registerTopNFixture();
         sqliteDb.execute("DROP INDEX idx_top_n_child_data_parent_id");
         sqliteDb.clearExecuteTrace();
-        sqlDataService.ensureSchema(context, "TopNChild");
-        sqlDataService.ensureSchema(context, "TopNChild");
+        sqlDataService.getRepository("TopNChild").ensurePhysicalSchema(context);
+        sqlDataService.getRepository("TopNChild").ensurePhysicalSchema(context);
 
         List<Map<String, Object>> indexes = sqliteDb.query(
                 "SELECT name, sql FROM sqlite_master WHERE type='index' "
@@ -472,8 +472,8 @@ public class PortableSQLDatabaseTest {
         relation.setColumnName("parent");
         relation.setColumnType("INTEGER");
         metaFactory.register(child);
-        sqlDataService.ensureSchema(context, "TopNParent");
-        sqlDataService.ensureSchema(context, "TopNChild");
+        sqlDataService.getRepository("TopNParent").ensurePhysicalSchema(context);
+        sqlDataService.getRepository("TopNChild").ensurePhysicalSchema(context);
         sqliteDb.execute("DELETE FROM top_n_child_data");
         sqliteDb.execute("DELETE FROM top_n_parent_data");
         seedTopNFixture();
@@ -544,47 +544,6 @@ public class PortableSQLDatabaseTest {
         }
     }
 
-    @Test
-    public void testConstantBootstrapIsIdempotentAndReconcilesModelChanges() throws Exception {
-        SQLiteTeaQLDatabase database = new SQLiteTeaQLDatabase();
-        EntityDescriptor descriptor = new EntityDescriptor();
-        descriptor.setType("SchoolType");
-        descriptor.setTargetType(Task.class);
-        descriptor.setEntitySupplier(Task::new);
-        descriptor.setParent(new EntityDescriptor());
-        descriptor.with("constant", "true");
-
-        GenericSQLProperty id = bootstrapProperty(descriptor, "id", "INTEGER", Long.class);
-        id.with("candidates", "1001,1002");
-        GenericSQLProperty version = bootstrapProperty(descriptor, "version", "INTEGER", Long.class);
-        GenericSQLProperty code = bootstrapProperty(descriptor, "code", "VARCHAR(100)", String.class);
-        code.with("identifier", "true").with("candidates", "PRIMARY,SECONDARY");
-        GenericSQLProperty name = bootstrapProperty(descriptor, "name", "VARCHAR(100)", String.class);
-        name.with("candidates", "Primary,Secondary");
-        descriptor.setProperties(List.of(id, version, code, name));
-
-        PortableSQLRepository<Task> repository = new PortableSQLRepository<>(descriptor, database, null);
-        repository.ensurePhysicalSchema(context);
-        List<Map<String, Object>> physicalOnly = database.query(
-                "SELECT id FROM school_type_data", new Object[0]);
-        assertTrue("Physical schema reconciliation must not write bootstrap data", physicalOnly.isEmpty());
-        repository.ensureSchema(context);
-        repository.ensureSchema(context);
-        List<Map<String, Object>> unchanged = database.query(
-                "SELECT id, version, name FROM school_type_data ORDER BY id", new Object[0]);
-        assertEquals(2, unchanged.size());
-        assertEquals(1L, ((Number) unchanged.get(0).get("version")).longValue());
-        assertEquals(1L, ((Number) unchanged.get(1).get("version")).longValue());
-        assertEquals(1003L, new IdSpaceIdGenerator(database).nextId("SchoolType"));
-
-        name.with("candidates", "Primary School,Secondary");
-        repository.ensureSchema(context);
-        List<Map<String, Object>> reconciled = database.query(
-                "SELECT id, version, name FROM school_type_data ORDER BY id", new Object[0]);
-        assertEquals("Primary School", reconciled.get(0).get("name"));
-        assertEquals(2L, ((Number) reconciled.get(0).get("version")).longValue());
-        assertEquals(1L, ((Number) reconciled.get(1).get("version")).longValue());
-    }
 
     @Test
     public void postSaveReloadUsesTheMappedPrimaryTable() throws Exception {
@@ -636,15 +595,6 @@ public class PortableSQLDatabaseTest {
                 repository.loadPersistedById(isolatedContext, 78L).getTitle());
     }
 
-    private static GenericSQLProperty bootstrapProperty(
-            EntityDescriptor owner, String name, String sqlType, Class<?> javaType) {
-        GenericSQLProperty property =
-                new GenericSQLProperty("school_type_data", name, sqlType);
-        property.setName(name);
-        property.setOwner(owner);
-        property.setType(new SimplePropertyType(javaType));
-        return property;
-    }
 
     @Test
     public void testSingleDynamicAggregateIsAttachedToEachReturnedParent() {
@@ -878,8 +828,8 @@ public class PortableSQLDatabaseTest {
                         new Object[] {"version", "INTEGER", Long.class}));
         metaFactory.register(group);
         metaFactory.register(record);
-        sqlDataService.ensureSchema(context, "QueryGroup");
-        sqlDataService.ensureSchema(context, "QueryRecord");
+        sqlDataService.getRepository("QueryGroup").ensurePhysicalSchema(context);
+        sqlDataService.getRepository("QueryRecord").ensurePhysicalSchema(context);
         sqliteDb.execute("DELETE FROM query_group_data");
         sqliteDb.execute("DELETE FROM query_record_data");
         sqliteDb.execute("INSERT INTO query_group_data VALUES "
@@ -985,7 +935,7 @@ public class PortableSQLDatabaseTest {
         properties.add(scalarProperty(descriptor, "version", "INTEGER", Long.class));
         descriptor.setProperties(properties);
         metaFactory.register(descriptor);
-        sqlDataService.ensureSchema(context, "QueryScalar");
+        sqlDataService.getRepository("QueryScalar").ensurePhysicalSchema(context);
         sqliteDb.execute("DELETE FROM query_scalar_data");
         sqliteDb.execute(
                 "INSERT INTO query_scalar_data VALUES "
@@ -1254,7 +1204,7 @@ public class PortableSQLDatabaseTest {
         context.putAttribute("ensureTable", true); // enable schema generation
 
         // Generate schema
-        sqlDataService.ensureSchema(context, "Task");
+        sqlDataService.getRepository("Task").ensurePhysicalSchema(context);
     }
 
     @Test

@@ -10,7 +10,7 @@ TeaQL 的架构分为两层：
 - **`teaql-data-service-sql` (JDBC 适配层)**：基于 `SqlExecutionAdapter` 实现的与数据库真实通信的通道。
 
 ## 2. 如何实现 `ensureSchema` (表结构同步)
-你**不需要**去手工遍历所有列、对比类型、拼接 CREATE/ALTER 语句，这些在 `PortableSQLRepository.ensureSchema()` 中已经完美实现。
+你**不需要**去手工遍历所有列、对比类型、拼接 CREATE/ALTER 语句，这些由 `PortableSQLRepository.ensurePhysicalSchema()` 统一实现。
 
 在具体的数据库方言执行器（例如 `PostgresDataServiceExecutor`）中，只需执行以下 3 步：
 
@@ -50,7 +50,7 @@ TeaQLDatabase dbAdapter = new TeaQLDatabase() {
 ```
 
 ### Step 3: 交给 Portable 引擎执行 DDL
-针对每个 `EntityDescriptor`，实例化一个带有该伪装 Adapter 的 PortableRepository，并调用其 `ensureSchema` 方法：
+针对每个 `EntityDescriptor`，实例化一个带有该伪装 Adapter 的 PortableRepository，并调用其 `ensurePhysicalSchema` 方法：
 ```java
 for (EntityDescriptor descriptor : descriptors) {
     // 实例化方言的 PortableSQLRepository（例如 PostgresPortableSQLRepository，如果没有则用基类）
@@ -62,6 +62,12 @@ for (EntityDescriptor descriptor : descriptors) {
 应用侧必须显式调用 `context.ensureSchema()`；安装 Runtime Module 只注册能力和元数据，
 不能顺带修改生产数据库。新方言的最小验证应包含两个独立 context/metadata 实例，
 证明它们只处理自己的实体，再对目标数据库执行 live schema、查询和审计写入测试。
+
+`ensurePhysicalSchema` 只处理数据库结构，不解释根对象或常量的候选值。
+数据播种由 context 调用已安装的 `GeneratedSchemaBootstrap`，使用带有
+comment/purpose 的 Q API 和 audited save，经过 Checker、Mutation Policy、
+乐观锁及提交后的审计链。旧的 Portable `ensureSchema` / `ensureInitData`
+直写数据入口已移除；不要在方言中重建这条绕过路径。
 
 ## 3. 核心纪律
 1. **彻底解耦 Spring**：在方言模块中，严禁直接使用 `JdbcTemplate` 或任何 `org.springframework` 包。全部通过 `SqlExecutionAdapter` 委托。

@@ -266,5 +266,5 @@ Android's `SQLiteDatabase` handles multi-threaded accesses internally using lock
 * Ensure you reuse a single, shared `SQLiteOpenHelper` instance across the entire application to avoid thread conflict and database locking exceptions.
 
 ### Schema Generation and Upgrades
-* Use `dataService.ensureSchema(userContext, "Task")` during application startup or within `SQLiteOpenHelper.onCreate()` to automatically compile and create tables for all registered repositories if they do not exist.
-* For schema migrations, either leverage `dataService.ensureSchema(userContext, "Task")` (which automatically detects missing tables/columns) or manage migrations using Android's native `onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion)` override.
+* Install the generated Runtime Module and an `AndroidSqliteDataServiceExecutor` in the runtime registry, then explicitly call `userContext.ensureSchema()`. The selected provider reconciles physical tables/columns; the generated bootstrap creates roots and constants using validated, audited Mutation APIs.
+* For schema migrations, use the same context-owned lifecycle or manage physical migrations using Android's native `onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion)`. Do not recreate the removed Portable `ensureSchema(context, type)` / `ensureInitData(context)` data-seeding shortcuts.

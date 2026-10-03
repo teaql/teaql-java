@@ -2,7 +2,15 @@
 
 This generated example retains `models/school-model.xml`. It explicitly calls
 SQLite `ensureSchema` twice and verifies Platform `id=1` plus SchoolType constants
-`1001`/`1002` are present exactly once with version 1.
+`1001`/`1002` are present exactly once. Fresh rows start at version 1.
+
+The application-owned `BootstrapTraceVerifier` observes the generated bootstrap's
+real SQL intent and committed audit lineage, without injecting trace frames.
+It changes PRIMARY's name through audited Mutation, then calls ensureSchema to
+restore the model-defined name. Each edit/repair advances the version once;
+SECONDARY remains unchanged. Repeated ensureSchema performs lookups only, emits
+no mutation audit, and restores the caller's bootstrap audit attributes. Both
+fresh and already-seeded databases are exercised by the two-start verifier.
 
 The application-owned `SchoolLifecycleVerifier` also checks a missing required
 name is rejected by Checker before mutation or schema SQL during `save`,
@@ -22,8 +30,10 @@ not be reused as the mutation graph: Checker correctly rejects those partial
 related entities as `NotLoaded`.
 
 Before publication, install the repository's local runtime and then run the
-generated workspace. The portable SQL runtime test separately changes a constant
-and verifies optimistic, single-version reconciliation.
+generated workspace. Portable provider tests forbid the removed raw seed APIs
+and prove physical DDL never inserts/reconciles root or constant data. Typed
+constant reconciliation is verified here, through the same generated API as an
+application, rather than through a lower-level raw SQL shortcut.
 
 From the repository root, run `examples/verify-runtime-examples.sh`. The gate
 builds both retained examples against the current reactor sources, assigns each
