@@ -230,11 +230,12 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                         io.teaql.core.UserContext context, String sql, Object[] args,
                         io.teaql.core.CompiledRowMapper<T> rowMapper, io.teaql.core.sql.portable.SqlLogBindings bindings) {
                     boolean logging = context.isQueryExecutionLoggingEnabled();
-                    long start = logging ? System.nanoTime() : 0L;
+                    boolean collecting = logging || bindings.collectsStatements();
+                    long start = collecting ? System.nanoTime() : 0L;
                     java.util.List<T> res = diagnosed(context, sql, args, bindings,
                             io.teaql.core.DataServiceOperation.QUERY, logging, start,
                             () -> executionAdapter.query(sql, args, rowMapper));
-                    if (!logging) return res;
+                    if (!collecting) return res;
                     long elapsed = (System.nanoTime() - start) / 1000;
                     io.teaql.core.ExecutionMetadata meta = new io.teaql.core.ExecutionMetadata();
                     meta.setBackend(debugDatabaseKind.toLowerCase(java.util.Locale.ROOT));
@@ -246,7 +247,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     meta.setParameterizedQuery(sql);
                     meta.setParameters(parameters(args));
                     bindings.applyTo(meta);
-                    context.recordExecutionMetadata(meta);
+                    recordStatement(context, bindings, meta, logging);
                     return res;
                 }
 

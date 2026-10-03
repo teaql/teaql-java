@@ -17,6 +17,14 @@ the number of committed audits. These raw facts are trusted internal diagnostics
 apply `LogPrivacy.sql` before exporting one to a diagnostic sink, never serialize
 raw SQL parameters into an application response.
 
+Ordinary materialized queries likewise return `QueryResult.statements()`,
+including nested relation and aggregate statements, even when both logging
+switches are off. The provider result owns an unmodifiable list, not Context.
+The generated three-level query scenario observes those real returned facts
+through a test-owned provider decorator while its SQL sink remains empty.
+This does not yet qualify returned stream lifecycle evidence or failed-query
+results: those require their own cursor/error contracts.
+
 ## Run the example
 
 Use Java 21 or newer, Maven, Bash and the normal repository dependencies:
@@ -25,7 +33,7 @@ Use Java 21 or newer, Maven, Bash and the normal repository dependencies:
 bash examples/trace-chain/verify.sh
 ```
 
-The script installs local source dependencies, runs all thirteen scenarios twice
+The script installs local source dependencies, runs all fifteen scenarios twice
 against one database without intermediate cleanup, and compares every generated
 library file's SHA256 before and after execution. It prints the retained
 directory containing the database, Maven logs and checksum manifests. Set

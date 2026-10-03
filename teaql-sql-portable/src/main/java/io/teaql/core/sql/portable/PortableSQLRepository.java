@@ -275,7 +275,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         intent.capture(sql.logBindings.policies(), sql.args);
         return new PositionalSQL(sql.sql, sql.args, new SqlLogBindings(sql.logBindings.policies(),
                 sql.logBindings.generated(), sql.logBindings.diagnosticSql(), intent.copy(),
-                io.teaql.core.SqlExecutionTrace.query(request)));
+                SqlDiagnosticRequest.statementTrace(request)));
     }
 
     private SqlLogBindings withMutationIntent(SqlLogBindings bindings, io.teaql.core.SqlIntentRedactions intent) {

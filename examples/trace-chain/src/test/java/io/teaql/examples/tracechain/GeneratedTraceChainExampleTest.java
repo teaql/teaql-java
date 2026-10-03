@@ -111,6 +111,7 @@ public class GeneratedTraceChainExampleTest {
 
     static final class Fixture {
         final List<ExecutionMetadata> sql = new CopyOnWriteArrayList<>();
+        final List<QueryResult> queryResults = new CopyOnWriteArrayList<>();
         final List<SafeAuditEvent> audit = new CopyOnWriteArrayList<>();
         final List<EntityPersistenceMutation> commands = new CopyOnWriteArrayList<>();
         final List<Integer> itemInsertBatchSizes = new CopyOnWriteArrayList<>();
@@ -128,6 +129,10 @@ public class GeneratedTraceChainExampleTest {
         final long base;
 
         Fixture() throws Exception {
+            this(true);
+        }
+
+        Fixture(boolean logging) throws Exception {
             String configured = System.getProperty("teaql.trace.database", "");
             Path database = configured.isBlank() ? Files.createTempFile("teaql-generated-trace-", ".db")
                     : Path.of(configured).toAbsolutePath();
@@ -167,7 +172,9 @@ public class GeneratedTraceChainExampleTest {
             var provider = new SqliteDataServiceExecutor("sqlite", driver, source) {
                 @Override public QueryResult query(UserContext caller, QueryRequest request) {
                     if (queryBegin != null) queryBegin.accept(caller, request);
-                    return super.query(caller, request);
+                    var result = super.query(caller, request);
+                    queryResults.add(result);
+                    return result;
                 }
                 @Override public MutationResult mutate(UserContext caller, PersistenceMutation mutation) {
                     commands.add((EntityPersistenceMutation) mutation);
@@ -185,6 +192,7 @@ public class GeneratedTraceChainExampleTest {
             };
             var runtime = TeaQLRuntime.builder().metadata(metadata)
                     .dataService("default", provider).dataService("sqlite", provider)
+                    .queryExecutionLogging(logging).mutationExecutionLogging(logging)
                     .idGenerationService(ids).logSink((caller, entry) -> sql.add(entry)).build()
                     .install(GeneratedRuntimeModule.module()); // Real generated checkers, no bypass.
             EntityMetaFactory.registerGlobal(metadata);
@@ -672,6 +680,30 @@ public class GeneratedTraceChainExampleTest {
         System.out.println("PASS Java generated three-level SQL Trace Path and inherited request intent");
     }
 
+    @Test public void generatedQueriesReturnStatementEvidenceWithoutLogging() throws Exception {
+        var fixture = new Fixture(false);
+        Graph graph = fixture.saveNormativeGraph();
+        fixture.clear(); fixture.queryResults.clear();
+        var comment = "what: inspect payment without SQL logging";
+        var row = loadPaymentContext(fixture, graph, comment, "why: retain execution evidence independently");
+        assertEquals(graph.attempt.getId(), E.paymentAttempt(row).getId().eval());
+        var result = fixture.queryResults.get(fixture.queryResults.size() - 1);
+        assertEquals(4, result.statements().size());
+        var names = List.of("payment", "customerOrder", "platform");
+        for (int depth = 0; depth < 4; depth++) {
+            var entry = result.statements().get(depth);
+            assertEquals(comment, entry.getComment());
+            assertEquals("success", entry.getExecutionOutcome());
+            assertEquals("PaymentAttempt", entry.getTraceChain().get(0).getName());
+            assertEquals(names.subList(0, depth), entry.getTraceChain().stream()
+                    .filter(node -> node.getKind() == TraceKind.RELATION).map(TraceNode::getName).toList());
+        }
+        assertThrows(UnsupportedOperationException.class, () -> result.statements().clear());
+        assertTrue(fixture.sql.isEmpty());
+        assertTrue(fixture.context.getTraceChain().isEmpty());
+        System.out.println("PASS Java generated query evidence: logging disabled, three relation levels, immutable result list");
+    }
+
     private static PaymentAttempt loadPaymentContext(Fixture fixture, Graph graph, String comment, String purpose) {
         var row = Q.paymentAttempts().withIdIs(graph.attempt.getId()).limit(1)
                 .selectPaymentWith(Q.payments().limit(1)
@@ -712,6 +744,11 @@ public class GeneratedTraceChainExampleTest {
             for (String comment : List.of("what: inspect payment ownership", "what: inspect payment trace")) {
                 var statements = fixture.sql.stream().filter(entry -> comment.equals(entry.getComment())).toList();
                 assertEquals("each query emits its own root plus three relation statements", 4, statements.size());
+                var returned = fixture.queryResults.stream()
+                        .filter(result -> result.statements().size() == 4
+                                && comment.equals(result.statements().get(0).getComment())).toList();
+                assertEquals("one request-owned full result per concurrent query", 1, returned.size());
+                assertTrue(returned.get(0).statements().stream().allMatch(entry -> comment.equals(entry.getComment())));
                 String purpose = comment.endsWith("ownership") ? "why: render the first view" : "why: render the second view";
                 for (int depth = 0; depth < statements.size(); depth++) {
                     var entry = statements.get(depth);

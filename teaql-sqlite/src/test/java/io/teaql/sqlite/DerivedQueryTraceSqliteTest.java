@@ -55,6 +55,7 @@ public class DerivedQueryTraceSqliteTest {
         final List<ExecutionMetadata> sql = new CopyOnWriteArrayList<>();
         final SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
         final DefaultUserContext context;
+        final SqliteDataServiceExecutor provider;
         final TraceDocument document;
         final TraceLine open;
         Fixture(boolean logging) throws Exception {
@@ -69,7 +70,7 @@ public class DerivedQueryTraceSqliteTest {
             var relation = (GenericSQLRelation) lines.addObjectProperty(metadata,"document", "TraceDocument", "lines",TraceDocument.class);
             relation.setColumnType("BIGINT");
             var driver = new JdbcSqlExecutor(source);
-            var provider = new SqliteDataServiceExecutor("sqlite",driver,source);
+            provider = new SqliteDataServiceExecutor("sqlite",driver,source);
             var runtime = TeaQLRuntime.builder().metadata(metadata).dataService("sqlite",provider)
                     .queryExecutionLogging(logging).logSink((caller,entry)->sql.add(entry)).build();
             context = new DefaultUserContext(runtime); context.ensureSchema();
@@ -200,5 +201,48 @@ public class DerivedQueryTraceSqliteTest {
             assertEquals(request.comment(),entry.getComment()); assertEquals(request.purpose(),entry.getPurpose());
         }
         assertTrue(fixture.context.getTraceChain().isEmpty());
+    }
+
+    @Test public void returnedStatementsRetainNestedPathsAndPrivacyInBothLoggingModes() throws Exception {
+        for (boolean logging : List.of(false, true)) {
+            var fixture = new Fixture(logging);
+            var request = fixture.lines().where("id", Operator.EQUAL, fixture.open.getId())
+                    .intent("inspect " + PRIVATE_NAME, "render nested counts");
+            request.enhanceRelation("document", fixture.withOpenCount().where("name", Operator.EQUAL, PRIVATE_NAME));
+            var result = fixture.provider.query(fixture.context, new DefaultQueryRequest(request));
+            assertEquals(3, result.statements().size());
+            assertPath(result.statements().get(0), "TraceLine", List.of());
+            assertPath(result.statements().get(1), "TraceLine", List.of("document"));
+            assertPath(result.statements().get(2), "TraceLine", List.of("document", "lines"));
+            assertEquals(logging ? 3 : 0, fixture.sql.size());
+            for (var entry : result.statements()) {
+                assertEquals("success", entry.getExecutionOutcome());
+                assertEquals(request.comment(), entry.getComment());
+            }
+            // The parent predicate has reached the collector before its derived aggregate.
+            var safe = io.teaql.runtime.LogPrivacy.sql(result.statements().get(2), false);
+            assertFalse(safe.getComment().contains(PRIVATE_NAME));
+            assertThrows(UnsupportedOperationException.class, () -> result.statements().clear());
+            var later = fixture.provider.query(fixture.context, new DefaultQueryRequest(
+                    fixture.documents().where("id", Operator.EQUAL, 200L).intent("independent", "verify request ownership")));
+            assertEquals(1, later.statements().size());
+            assertEquals("independent", later.statements().get(0).getComment());
+            assertEquals(3, result.statements().size());
+            assertTrue(fixture.context.getTraceChain().isEmpty());
+        }
+    }
+
+    @Test public void returnedAggregateAndEmptyResultStillCarryPhysicalEvidence() throws Exception {
+        var fixture = new Fixture(false);
+        var aggregate = fixture.lines().intent("count lines", "render totals");
+        aggregate.count("count");
+        var count = fixture.provider.query(fixture.context, new DefaultQueryRequest(aggregate));
+        assertEquals(1, count.statements().size());
+        assertPath(count.statements().get(0), "TraceLine", List.of());
+        var empty = fixture.provider.query(fixture.context, new DefaultQueryRequest(
+                fixture.documents().where("id", Operator.EQUAL, -1L).intent("find absent row", "verify empty evidence")));
+        assertEquals(1, empty.statements().size());
+        assertEquals(Integer.valueOf(0), empty.statements().get(0).getResultCount());
+        assertTrue(fixture.sql.isEmpty());
     }
 }

@@ -77,13 +77,15 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         }
         SearchRequest<?> searchRequest = ((DefaultQueryRequest) request).getSearchRequest();
         SqlIntentRedactions intent = SqlDiagnosticRequest.source(context, searchRequest);
-        searchRequest = SqlDiagnosticRequest.forExecution(searchRequest, intent, request.intent());
+        if (intent == null) intent = new SqlIntentRedactions();
+        var statements = new ArrayList<ExecutionMetadata>();
+        searchRequest = SqlDiagnosticRequest.collecting(searchRequest, intent, request.intent(), statements::add);
         String typeName = searchRequest.getTypeName();
         PortableSQLRepository<?> repository = getRepository(typeName);
         if (searchRequest.hasSimpleAgg()) {
             AggregationResult aggregation =
                     repository.doAggregateInternal(context, (SearchRequest) searchRequest, intent);
-            return new DefaultQueryResult(new SmartList<>(), aggregation);
+            return new DefaultQueryResult(new SmartList<>(), aggregation, statements);
         }
         SmartList<?> result = repository.loadInternal(context, (SearchRequest) searchRequest, intent);
         
@@ -92,7 +94,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         }
         attachDynamicAggregations(context, (SmartList<Entity>) result, searchRequest, intent);
         
-        return new DefaultQueryResult((SmartList<Entity>) result);
+        return new DefaultQueryResult((SmartList<Entity>) result, null, statements);
     }
 
     @Override

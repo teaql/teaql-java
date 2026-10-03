@@ -13,6 +13,7 @@ final class SqlDiagnosticRequest extends TempRequest {
     private final transient SearchRequest<?> original;
     private final transient QueryIntent rootIntent;
     private final transient java.util.List<io.teaql.core.TraceNode> traceSource;
+    private final transient java.util.function.Consumer<io.teaql.core.ExecutionMetadata> statementObserver;
 
     SqlDiagnosticRequest(SearchRequest<?> request, SqlIntentRedactions source) {
         this(request, source, request.inheritedQueryIntent() == null
@@ -27,7 +28,15 @@ final class SqlDiagnosticRequest extends TempRequest {
     private SqlDiagnosticRequest(SearchRequest<?> request, SqlIntentRedactions source,
                                  QueryIntent rootIntent, boolean executionScope,
                                  java.util.List<io.teaql.core.TraceNode> traceSource) {
+        this(request, source, rootIntent, executionScope, traceSource, observer(request));
+    }
+
+    private SqlDiagnosticRequest(SearchRequest<?> request, SqlIntentRedactions source,
+                                 QueryIntent rootIntent, boolean executionScope,
+                                 java.util.List<io.teaql.core.TraceNode> traceSource,
+                                 java.util.function.Consumer<io.teaql.core.ExecutionMetadata> observer) {
         super(request);
+        this.statementObserver = observer;
         this.original = request;
         // TempRequest's relation-oriented copy omits these root-query semantics.
         this.rootIntent = java.util.Objects.requireNonNull(rootIntent, "rootIntent");
@@ -55,6 +64,23 @@ final class SqlDiagnosticRequest extends TempRequest {
         return new SqlDiagnosticRequest(request, source, intent, true);
     }
 
+    static SqlDiagnosticRequest collecting(SearchRequest<?> request, SqlIntentRedactions source,
+            QueryIntent intent, java.util.function.Consumer<io.teaql.core.ExecutionMetadata> observer) {
+        // A relation lookup can re-enter the provider. Its result has its own
+        // collection while the root invocation still owns all descendant facts.
+        var parentObserver = observer(request);
+        var combined = parentObserver == null ? observer : parentObserver.andThen(observer);
+        return new SqlDiagnosticRequest(request, source, intent, true, request.sqlTraceSource(), combined);
+    }
+
+    private static java.util.function.Consumer<io.teaql.core.ExecutionMetadata> observer(SearchRequest<?> request) {
+        return request instanceof SqlDiagnosticRequest scoped ? scoped.statementObserver : null;
+    }
+
+    static io.teaql.core.SqlExecutionTrace statementTrace(SearchRequest<?> request) {
+        return io.teaql.core.SqlExecutionTrace.query(request).collecting(observer(request));
+    }
+
     @Override public QueryIntent inheritedQueryIntent() { return rootIntent; }
     @Override public java.util.List<io.teaql.core.TraceNode> sqlTraceSource() { return traceSource; }
 
@@ -62,7 +88,7 @@ final class SqlDiagnosticRequest extends TempRequest {
     static SqlDiagnosticRequest forDerived(SearchRequest<?> child, SqlIntentRedactions source,
                                            SearchRequest<?> parent) {
         QueryIntent intent = parentIntent(parent);
-        return new SqlDiagnosticRequest(child, source, intent, false, parentTrace(parent, intent));
+        return new SqlDiagnosticRequest(child, source, intent, false, parentTrace(parent, intent), observer(parent));
     }
 
     static SqlDiagnosticRequest forRelation(SearchRequest<?> child, SqlIntentRedactions source,
@@ -71,7 +97,7 @@ final class SqlDiagnosticRequest extends TempRequest {
         var trace = new java.util.ArrayList<>(parentTrace(parent, intent));
         trace.add(new io.teaql.core.TraceNode(io.teaql.core.TraceKind.RELATION, relationName,
                 parent.getTypeName() + "." + relationName));
-        return new SqlDiagnosticRequest(child, source, intent, false, trace);
+        return new SqlDiagnosticRequest(child, source, intent, false, trace, observer(parent));
     }
 
     private static QueryIntent parentIntent(SearchRequest<?> parent) {
@@ -91,7 +117,7 @@ final class SqlDiagnosticRequest extends TempRequest {
     @Override public boolean tryUseSubQuery() { return original.tryUseSubQuery(); }
 
     static SqlIntentRedactions source(UserContext context, SearchRequest<?> request) {
-        if (!context.isQueryExecutionLoggingEnabled()) return null;
+        if (!context.isQueryExecutionLoggingEnabled() && observer(request) == null) return null;
         if (request instanceof SqlDiagnosticRequest scoped && scoped.source != null)
             return scoped.executionScope ? scoped.source : scoped.source.copy();
         return new SqlIntentRedactions();
