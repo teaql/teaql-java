@@ -36,7 +36,70 @@ public class RequestIntentGateTest {
             fail("Expected " + code + " before execution");
         } catch (TeaQLRuntimeException error) {
             assertTrue(error.getMessage(), error.getMessage().contains(code));
+            if (code.equals("REQUEST_COMMENT_REQUIRED") || code.equals("QUERY_PURPOSE_REQUIRED")) {
+                assertTrue("Intent failures must expose structured diagnostics", error instanceof RequestIntentException);
+                var intentError = (RequestIntentException) error;
+                assertEquals(code, intentError.getCode());
+                assertEquals(code.equals("QUERY_PURPOSE_REQUIRED") ? "purpose" : "comment", intentError.getField());
+            }
             assertFalse(error.getMessage().contains("SECRET-CANARY"));
+        }
+    }
+
+    private static void requiredIntent(String code, String kind, Runnable action) {
+        required(code, () -> {
+            try {
+                action.run();
+            } catch (RequestIntentException error) {
+                assertEquals(kind, error.getRequestKind());
+                throw error;
+            }
+        });
+    }
+
+    @Test public void rootIntentMatrixRejectsBeforeAnyPolicyProviderOrSink() {
+        for (boolean logging : new boolean[]{false, true}) {
+            var provider = new CountingProvider();
+            var sink = new TeaQLRuntimeTest.RecordingRuntimeLogSink();
+            AtomicInteger queryPolicies = new AtomicInteger();
+            AtomicInteger mutationRegistrations = new AtomicInteger();
+            var runtime = TeaQLRuntime.builder().metadata(new TeaQLRuntimeTest.DummyMetaFactory())
+                    .dataService("dummy", provider).logSink(sink)
+                    .queryExecutionLogging(logging).mutationExecutionLogging(logging)
+                    .queryPolicy(new QueryPolicy() {
+                        @Override public void enforceSelect(UserContext context, SearchRequest<?> request) {
+                            queryPolicies.incrementAndGet();
+                        }
+                    })
+                    .mutationPolicyRegistry(plan -> {
+                        mutationRegistrations.incrementAndGet();
+                        return java.util.Optional.empty();
+                    }).build();
+            var context = new DefaultUserContext(runtime);
+            // Ambient intent must never fill a missing request-owned slot.
+            context.pushTrace(TraceKind.COMMENT, "Dummy", "unrelated old comment");
+            context.pushTrace(TraceKind.PURPOSE, "Dummy", "unrelated old purpose");
+            context.pushTrace(TraceKind.AUDIT_REASON, "Dummy", "unrelated old reason");
+            for (String blank : new String[]{null, "", " \t\r\n", "\u0085", "\u00a0", "\u2003"}) {
+                for (boolean missingComment : new boolean[]{true, false}) {
+                    String code = missingComment ? "REQUEST_COMMENT_REQUIRED" : "QUERY_PURPOSE_REQUIRED";
+                    var query = request(missingComment ? blank : "load SECRET-CANARY",
+                            missingComment ? "render SECRET-CANARY" : blank);
+                    requiredIntent(code, "query", () -> runtime.executeForList(context, query));
+                    requiredIntent(code, "query", () -> runtime.executeForStream(context, query));
+                    requiredIntent(code, "query", () -> runtime.aggregation(context, query));
+                    requiredIntent(code, "query", () -> runtime.executeForPage(context, query, 0, 10));
+                }
+                var entity = new TeaQLRuntimeTest.DummyEntity();
+                entity.setComment(blank);
+                requiredIntent("REQUEST_COMMENT_REQUIRED", "mutation", () -> runtime.saveGraph(context, entity));
+            }
+            assertEquals(0, queryPolicies.get());
+            assertEquals(0, mutationRegistrations.get());
+            assertEquals(0, provider.calls.get());
+            assertTrue(sink.executions.isEmpty());
+            assertTrue(sink.auditEvents.isEmpty());
+            assertTrue(sink.governanceEvents.isEmpty());
         }
     }
 
