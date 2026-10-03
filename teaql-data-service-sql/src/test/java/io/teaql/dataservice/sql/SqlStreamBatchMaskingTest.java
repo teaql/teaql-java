@@ -22,6 +22,7 @@ public class SqlStreamBatchMaskingTest {
     private final AtomicInteger closed = new AtomicInteger();
     private final RuntimeException error = new IllegalStateException("PASSWORD-CANARY Riverside");
     private boolean enabled = true;
+    private SqlLogBindings streamBindings = BINDINGS;
     private boolean brokenSink;
     private final DefaultUserContext context = new DefaultUserContext(TeaQLRuntime.builder()
             .metadata(new SimpleEntityMetaFactory()).logSink((caller, metadata) -> {
@@ -60,7 +61,7 @@ public class SqlStreamBatchMaskingTest {
             });
         });
         try {
-            return db.queryForStream(context, SQL, ARGS, BINDINGS);
+            return db.queryForStream(context, SQL, ARGS, streamBindings);
         } finally {
             context.popTrace(); context.popTrace();
         }
@@ -160,6 +161,50 @@ public class SqlStreamBatchMaskingTest {
         enabled = false;
         try (var rows = stream("ok")) { rows.limit(1).toList(); }
         assertEquals(0, logs.size()); assertEquals(1, closed.get());
+    }
+
+    @Test public void cursorCollectsTerminalEvidenceIndependentlyOfLogging() throws Exception {
+        for (boolean logging : List.of(false, true)) {
+            for (String mode : List.of("ok", "empty", "early", "unused", "read", "cancel", "close", "consumer")) {
+                var fixture = new SqlStreamBatchMaskingTest();
+                fixture.enabled = logging;
+                var facts = new ArrayList<ExecutionMetadata>();
+                var request = new BaseRequest<>(BaseEntity.class, BaseEntity::new) {
+                    { internalComment("read Riverside"); internalPurpose("verify cursor lifecycle"); }
+                    @Override public String getTypeName() { return "Customer"; }
+                };
+                fixture.streamBindings = BINDINGS.withTrace(SqlExecutionTrace.query(request).collecting(facts::add));
+                var rows = fixture.stream(mode);
+                assertTrue("open is not completion", facts.isEmpty());
+                try (rows) {
+                    switch (mode) {
+                        case "early" -> assertEquals(1, rows.limit(1).toList().size());
+                        case "unused" -> { }
+                        case "read", "close" -> assertSame(fixture.error, assertThrows(RuntimeException.class, rows::toList));
+                        case "cancel" -> assertThrows(CancellationException.class, rows::toList);
+                        case "consumer" -> assertSame(fixture.error, assertThrows(RuntimeException.class,
+                                () -> rows.forEach(row -> { throw fixture.error; })));
+                        default -> rows.toList();
+                    }
+                }
+                rows.close();
+                assertEquals(mode + " logging=" + logging, 1, facts.size());
+                assertEquals(1, fixture.closed.get());
+                var fact = facts.get(0);
+                String outcome = switch (mode) {
+                    case "early", "unused", "cancel" -> "cancelled";
+                    case "read", "close", "consumer" -> "failure";
+                    default -> "success";
+                };
+                int count = switch (mode) { case "empty", "unused" -> 0; case "ok", "close" -> 3; default -> 1; };
+                assertEquals(outcome, fact.getExecutionOutcome());
+                assertEquals(Integer.valueOf(count), fact.getResultCount());
+                assertEquals("read Riverside", fact.getComment());
+                assertEquals("select", fact.getTraceChain().get(fact.getTraceChain().size() - 1).getName());
+                assertEquals(logging ? 1 : 0, fixture.logs.size());
+                fixture.safe(LogPrivacy.sql(fact, false));
+            }
+        }
     }
 
     private void batch(int[] result, RuntimeException failure) throws Exception {

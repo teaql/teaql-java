@@ -112,6 +112,7 @@ public class GeneratedTraceChainExampleTest {
     static final class Fixture {
         final List<ExecutionMetadata> sql = new CopyOnWriteArrayList<>();
         final List<QueryResult> queryResults = new CopyOnWriteArrayList<>();
+        final List<QueryCursor<?>> cursors = new CopyOnWriteArrayList<>();
         final List<SafeAuditEvent> audit = new CopyOnWriteArrayList<>();
         final List<EntityPersistenceMutation> commands = new CopyOnWriteArrayList<>();
         final List<Integer> itemInsertBatchSizes = new CopyOnWriteArrayList<>();
@@ -170,6 +171,11 @@ public class GeneratedTraceChainExampleTest {
             var ids = new IdSpaceIdGenerator(new IdDatabase(driver));
             var metadata = new SimpleEntityMetaFactory();
             var provider = new SqliteDataServiceExecutor("sqlite", driver, source) {
+                @Override public <T extends Entity> QueryCursor<T> queryForCursor(UserContext caller, QueryRequest request) {
+                    var cursor = super.<T>queryForCursor(caller, request);
+                    cursors.add(cursor);
+                    return cursor;
+                }
                 @Override public QueryResult query(UserContext caller, QueryRequest request) {
                     if (queryBegin != null) queryBegin.accept(caller, request);
                     var result = super.query(caller, request);
@@ -790,6 +796,35 @@ public class GeneratedTraceChainExampleTest {
         assertEquals("CustomerOrder", cursor.getTraceChain().get(0).getName());
         assertTrue(fixture.context.getTraceChain().isEmpty());
         System.out.println("PASS Java generated stream: request-owned SQL path and delayed consumption intent");
+    }
+
+    @Test public void generatedStreamsReturnLifecycleEvidenceWithLoggingDisabled() throws Exception {
+        var fixture = new Fixture(false); Graph graph = fixture.saveNormativeGraph(); fixture.clear();
+        for (String mode : List.of("success", "cancelled", "failure")) {
+            try (var stream = Q.customerOrders().withIdIs(graph.order.getId()).limit(1)
+                    .comment("stream " + mode).purpose("verify generated terminal evidence").executeForStream(fixture.context)) {
+                var cursor = fixture.cursors.get(fixture.cursors.size() - 1);
+                assertTrue("no terminal fact at open", cursor.statements().isEmpty());
+                Q.platforms().withIdIs(1L).limit(1).comment("independent query during cursor")
+                        .purpose("verify invocation ownership").executeForOne(fixture.context);
+                if (mode.equals("failure")) {
+                    var failure = new IllegalStateException("consumer failed");
+                    assertSame(failure, assertThrows(IllegalStateException.class,
+                            () -> stream.forEach(row -> { throw failure; })));
+                } else {
+                    var rows = mode.equals("cancelled") ? stream.limit(1).toList() : stream.toList();
+                    assertEquals(graph.order.getId(), E.customerOrder(rows.get(0)).getId().eval());
+                }
+            }
+            var facts = fixture.cursors.get(fixture.cursors.size() - 1).statements();
+            assertEquals(1, facts.size());
+            assertEquals(mode, facts.get(0).getExecutionOutcome());
+            assertEquals("stream " + mode, facts.get(0).getComment());
+            assertEquals("CustomerOrder", facts.get(0).getTraceChain().get(0).getName());
+            assertEquals(Integer.valueOf(1), facts.get(0).getResultCount());
+        }
+        assertTrue(fixture.sql.isEmpty()); assertTrue(fixture.context.getTraceChain().isEmpty());
+        System.out.println("PASS Java generated cursor evidence: logging disabled, completion, cancellation and failure");
     }
 
     private static void assertQueryPaths(Fixture fixture, String comment, String purpose,

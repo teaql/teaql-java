@@ -245,4 +245,42 @@ public class DerivedQueryTraceSqliteTest {
         assertEquals(Integer.valueOf(0), empty.statements().get(0).getResultCount());
         assertTrue(fixture.sql.isEmpty());
     }
+
+    @Test public void returnedCursorsOwnTerminalEvidenceAcrossInterleavedConsumption() throws Exception {
+        for (boolean logging : List.of(false, true)) {
+            var fixture = new Fixture(logging);
+            var request = fixture.documents().where("name", Operator.EQUAL, PRIVATE_NAME)
+                    .intent("inspect " + PRIVATE_NAME, "retain cursor evidence");
+            try (var first = fixture.provider.<TraceDocument>queryForCursor(fixture.context, new DefaultQueryRequest(request));
+                 var second = fixture.provider.<TraceDocument>queryForCursor(fixture.context, new DefaultQueryRequest(
+                         fixture.documents().intent("independent stream", "verify early close")))) {
+                var before = first.statements();
+                assertTrue(before.isEmpty()); assertTrue(second.statements().isEmpty());
+                assertEquals(1, second.stream().limit(1).toList().size());
+                assertTrue("short circuit is not closed yet", second.statements().isEmpty());
+                second.close();
+                assertEquals("cancelled", second.statements().get(0).getExecutionOutcome());
+                assertEquals("independent stream", second.statements().get(0).getComment());
+                assertEquals(1, first.stream().toList().size());
+                assertTrue("prior snapshots stay immutable", before.isEmpty());
+                assertEquals(1, first.statements().size());
+                var fact = first.statements().get(0);
+                assertPath(fact, "TraceDocument", List.of());
+                assertEquals("success", fact.getExecutionOutcome());
+                assertEquals(Integer.valueOf(1), fact.getResultCount());
+                assertFalse(LogPrivacy.sql(fact, false).getComment().contains(PRIVATE_NAME));
+                assertThrows(UnsupportedOperationException.class, () -> first.statements().clear());
+            }
+            try (var failed = fixture.provider.<TraceDocument>queryForCursor(fixture.context, new DefaultQueryRequest(
+                    fixture.documents().intent("failed consumer", "retain failure outcome")))) {
+                var expected = new IllegalStateException("consumer failure");
+                assertSame(expected, assertThrows(IllegalStateException.class,
+                        () -> failed.stream().forEach(row -> { throw expected; })));
+                assertEquals("failure", failed.statements().get(0).getExecutionOutcome());
+                assertEquals(Integer.valueOf(1), failed.statements().get(0).getResultCount());
+            }
+            assertEquals(logging ? 3 : 0, fixture.sql.size());
+            assertTrue(fixture.context.getTraceChain().isEmpty());
+        }
+    }
 }

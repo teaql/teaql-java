@@ -14,19 +14,25 @@ final class SqlDiagnosticStream<T> implements Spliterator<T> {
     private final Stream<T> source;
     private final ExecutionMetadata metadata;
     private final long start;
+    private final io.teaql.core.sql.portable.SqlLogBindings bindings;
+    private final boolean logging;
     private Spliterator<T> rows;
     private boolean done;
     private long delivered;
 
-    private SqlDiagnosticStream(UserContext context, Stream<T> source, ExecutionMetadata metadata, long start) {
+    private SqlDiagnosticStream(UserContext context, Stream<T> source, ExecutionMetadata metadata, long start,
+            io.teaql.core.sql.portable.SqlLogBindings bindings, boolean logging) {
         this.context = context;
         this.source = source;
         this.metadata = metadata;
         this.start = start;
+        this.bindings = bindings;
+        this.logging = logging;
     }
 
-    static <T> Stream<T> wrap(UserContext context, Stream<T> source, ExecutionMetadata metadata, long start) {
-        var cursor = new SqlDiagnosticStream<>(context, source, metadata, start);
+    static <T> Stream<T> wrap(UserContext context, Stream<T> source, ExecutionMetadata metadata, long start,
+            io.teaql.core.sql.portable.SqlLogBindings bindings, boolean logging) {
+        var cursor = new SqlDiagnosticStream<>(context, source, metadata, start, bindings, logging);
         try {
             cursor.rows = source.spliterator();
         } catch (RuntimeException | Error failure) {
@@ -68,7 +74,8 @@ final class SqlDiagnosticStream<T> implements Spliterator<T> {
             metadata.setResultCount(delivered <= Integer.MAX_VALUE ? (int) delivered : null);
             metadata.setResultSummary("Cursor " + outcome + "; delivered " + delivered + " rows");
             try {
-                context.recordExecutionMetadata(metadata);
+                bindings.recordStatement(metadata);
+                if (logging) context.recordExecutionMetadata(metadata);
             } catch (RuntimeException | Error sinkFailure) {
                 if (failure == null) failure = sinkFailure;
             }

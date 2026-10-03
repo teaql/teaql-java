@@ -53,7 +53,12 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
 
     @Override
     public <T extends io.teaql.core.Entity> java.util.stream.Stream<T> queryForStream(UserContext context, QueryRequest request) {
-        return getPortableService(context).queryForStream(context, request);
+        return this.<T>queryForCursor(context, request).stream();
+    }
+
+    @Override
+    public <T extends io.teaql.core.Entity> io.teaql.core.QueryCursor<T> queryForCursor(UserContext context, QueryRequest request) {
+        return getPortableService(context).queryForCursor(context, request);
     }
 
     @Override
@@ -151,9 +156,10 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                 public java.util.stream.Stream<java.util.Map<String, Object>> queryForStream(io.teaql.core.UserContext context,
                         String sql, Object[] args, io.teaql.core.sql.portable.SqlLogBindings bindings) {
                     boolean logging = context.isQueryExecutionLoggingEnabled();
-                    long start = logging ? System.nanoTime() : 0L;
+                    boolean collecting = logging || bindings.collectsStatements();
+                    long start = collecting ? System.nanoTime() : 0L;
                     io.teaql.core.ExecutionMetadata meta = null;
-                    if (logging) {
+                    if (collecting) {
                         meta = statementMetadata(context, sql, args, bindings, io.teaql.core.DataServiceOperation.QUERY);
                         // Snapshot before request trace scopes are popped; lazy consumption may happen later.
                         if (bindings.executionTrace() == null) {
@@ -165,7 +171,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     }
                     var stream = diagnosed(context, sql, args, bindings, io.teaql.core.DataServiceOperation.QUERY,
                             logging, start, () -> executionAdapter.queryForStream(sql, args));
-                    return SqlDiagnosticStream.wrap(context, stream, meta, start);
+                    return SqlDiagnosticStream.wrap(context, stream, meta, start, bindings, logging);
                 }
                 @Override
                 public int executeUpdate(String sql, Object[] args) {

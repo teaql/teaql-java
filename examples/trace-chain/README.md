@@ -22,8 +22,17 @@ including nested relation and aggregate statements, even when both logging
 switches are off. The provider result owns an unmodifiable list, not Context.
 The generated three-level query scenario observes those real returned facts
 through a test-owned provider decorator while its SQL sink remains empty.
-This does not yet qualify returned stream lifecycle evidence or failed-query
-results: those require their own cursor/error contracts.
+For streams, the SQL provider also exposes `queryForCursor(context, request)`
+returning `QueryCursor<T>` with `stream()`, `statements()` and `close()`. The
+existing generated `executeForStream(context)` still returns a Java Stream and
+uses this same implementation. Evidence is empty at open and finalized once on
+exhaustion, cancellation or failure. Short-circuit operations must be closed.
+Each `statements()` call returns an immutable list snapshot, not a live view;
+metadata still requires safe projection. Generated tests verify completion,
+early close and consumer failure with logging off and an unrelated query in
+between. Unsupported custom providers reject the optional cursor-evidence
+contract explicitly. Open failures throw before returning a cursor; this is not
+a durable failure journal or a failed-query result-envelope contract.
 
 ## Run the example
 
@@ -33,7 +42,7 @@ Use Java 21 or newer, Maven, Bash and the normal repository dependencies:
 bash examples/trace-chain/verify.sh
 ```
 
-The script installs local source dependencies, runs all fifteen scenarios twice
+The script installs local source dependencies, runs all sixteen scenarios twice
 against one database without intermediate cleanup, and compares every generated
 library file's SHA256 before and after execution. It prints the retained
 directory containing the database, Maven logs and checksum manifests. Set

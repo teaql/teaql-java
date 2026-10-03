@@ -6,4 +6,9 @@ import java.util.stream.Stream;
 public interface StreamingQueryExecutor extends DataServiceExecutor {
     /** The envelope owns the captured root intent, just as for materialized queries. */
     <T extends Entity> Stream<T> queryForStream(UserContext context, QueryRequest request);
+
+    /** Optional provider contract for returned lifecycle evidence, without changing the Stream API. */
+    default <T extends Entity> QueryCursor<T> queryForCursor(UserContext context, QueryRequest request) {
+        throw new UnsupportedOperationException("This provider does not support returned query cursor evidence");
+    }
 }
