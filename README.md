@@ -159,6 +159,15 @@ and readback diagnostics; incompatible insert column layouts are grouped separat
 Root intent remains required even if children are annotated or logs are disabled.
 Providers without the capability retain individual command execution.
 
+Internal reverse-list attachment-key projection preserves an explicitly requested
+nested forward load. It must not use the public scalar selection operation that
+removes a same-named relation load. Native SQLite tests cover root/nested graphs,
+window/probe plans and logging on/off; the example gate runs these tests too.
+Java retains an ID-only reference when its forward query has no matching target:
+non-loaded fields remain guarded by `TeaQLNotLoadedException`, while list
+membership and independent counts survive. This is not a claim of null-valued
+reference parity with other runtimes.
+
 The generated [Trace Chain example](examples/trace-chain/README.md) proves the
 normative graph, overlapping three-level Q/E queries, late-consumed streams,
 nested Facets with the original root and complete relation paths,

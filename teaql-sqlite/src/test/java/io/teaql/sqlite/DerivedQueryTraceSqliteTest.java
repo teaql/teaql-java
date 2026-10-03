@@ -135,6 +135,90 @@ public class DerivedQueryTraceSqliteTest {
                 .map(TraceNode::getName).toList());
     }
 
+    @Test public void childMembershipSurvivesFilteredForwardIdentityReferences() throws Exception {
+        verifyFilteredReferenceMembership(false);
+    }
+
+    @Test public void nestedChildMembershipSurvivesFilteredForwardIdentityReferences() throws Exception {
+        verifyFilteredReferenceMembership(true);
+    }
+
+    private void verifyFilteredReferenceMembership(boolean nested) throws Exception {
+        for (boolean logging : List.of(false, true)) {
+            for (boolean filtered : List.of(false, true)) {
+                for (int threshold : List.of(0, 32)) {
+                    verifyFilteredReferenceMembership(nested, logging, filtered, threshold);
+                }
+            }
+        }
+    }
+
+    private void verifyFilteredReferenceMembership(boolean nested, boolean logging, boolean filtered, int threshold) throws Exception {
+                var fixture = new Fixture(logging);
+                var selectedParent = fixture.documents().where("name", Operator.EQUAL,
+                        filtered ? "ABSENT-DOCUMENT" : PRIVATE_NAME);
+                var children = fixture.lines();
+                children.setSize(10);
+                children.topNProbeParentThreshold(threshold);
+                children.enhanceRelation("document", selectedParent);
+                var documents = fixture.withOpenCount().where("id", Operator.EQUAL, 100L);
+                documents.setSize(1);
+                documents.enhanceRelation("lines", children);
+                Request<?> request = documents;
+                if (nested) {
+                    var outer = fixture.lines().where("id", Operator.EQUAL, 101L);
+                    outer.setSize(1);
+                    outer.enhanceRelation("document", documents);
+                    request = outer;
+                }
+                request.intent("load selected document graph", "verify filtered membership and safe E access");
+                var result = (DefaultQueryResult) fixture.provider.query(fixture.context, new DefaultQueryRequest(request));
+                assertSame("internal projection must preserve the caller's nested load",
+                        selectedParent, children.enhanceRelations().get("document"));
+                assertEquals(1, result.getResult().size());
+                TraceDocument owner = nested
+                        ? (TraceDocument) result.getResult().get(0).getProperty("document")
+                        : (TraceDocument) result.getResult().get(0);
+                SmartList<?> loaded = owner.getProperty("lines");
+                assertNotNull(loaded);
+                assertEquals(2, loaded.size());
+                assertEquals(1, ((Number) owner.getDynamicProperty("openLineCount")).intValue());
+                for (Entity child : loaded) {
+                    var reference = (TraceDocument) child.getProperty("document");
+                    assertNotNull("Java retains the FK identity stub, not null", reference);
+                    assertEquals(Long.valueOf(100), reference.getId());
+                    assertEquals(!filtered, reference.isPropertyLoaded("name"));
+                    var expression = new io.teaql.core.value.BaseEntityExpression<TraceDocument, TraceDocument>() {
+                        @Override public TraceDocument eval(TraceDocument value) { return value; }
+                        @Override public TraceDocument $getRoot() { return reference; }
+                    };
+                    if (filtered) {
+                        assertThrows(io.teaql.core.value.TeaQLNotLoadedException.class,
+                                () -> expression.loaded("name", e -> e.getProperty("name")).eval());
+                    } else {
+                        assertEquals(PRIVATE_NAME, expression.loaded("name", e -> e.getProperty("name")).eval());
+                    }
+                    assertTrue(child.getUpdatedProperties().isEmpty());
+                }
+                int expected = nested ? 5 : 4;
+                assertEquals(expected, result.statements().size());
+                assertEquals(threshold == 0, result.statements().get(nested ? 2 : 1)
+                        .getParameterizedQuery().toUpperCase(Locale.ROOT).contains("ROW_NUMBER"));
+                assertEquals(logging ? expected : 0, fixture.sql.size());
+                var relations = nested ? List.of("document", "lines", "document") : List.of("lines", "document");
+                assertPath(result.statements().get(expected - 2), nested ? "TraceLine" : "TraceDocument", relations);
+                assertPath(result.statements().get(expected - 1), nested ? "TraceLine" : "TraceDocument",
+                        nested ? List.of("document", "lines") : List.of("lines"));
+                assertTrue(fixture.context.getTraceChain().isEmpty());
+                var independent = (DefaultQueryResult) fixture.provider.query(fixture.context, new DefaultQueryRequest(
+                        fixture.lines().where("id", Operator.EQUAL, 101L).intent("independent line", "verify original FK")));
+                assertEquals(Long.valueOf(100), ((TraceDocument) independent.getResult().get(0).getProperty("document")).getId());
+                assertEquals(1, independent.statements().size());
+                assertPath(independent.statements().get(0), "TraceLine", List.of());
+                System.out.printf("PASS Java relation membership: nested=%s logging=%s filtered=%s threshold=%s; identity stub retained, E guarded%n",
+                        nested, logging, filtered, threshold);
+    }
+
     @Test public void dynamicCountRetainsItsRootRelationAndPrivateIntentProvenance() throws Exception {
         var fixture = new Fixture(true);
         var request = fixture.withOpenCount().where("name",Operator.EQUAL,PRIVATE_NAME)

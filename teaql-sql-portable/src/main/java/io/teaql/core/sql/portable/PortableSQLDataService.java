@@ -303,7 +303,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         io.teaql.core.internal.TempRequest childTempRequest = SqlDiagnosticRequest.forRelation(
                 childRequest, intent, origin, relation.getName());
         PropertyDescriptor reverseProperty = relation.getReverseProperty();
-        childTempRequest.selectProperty(reverseProperty.getName());
+        selectRelationAttachmentKey(childTempRequest, reverseProperty.getName());
         Slice slice = childTempRequest.getSlice();
         boolean boundedTopN = slice != null && slice.getSize() > 0;
         if (boundedTopN) ensureStableEntityIdOrder(childTempRequest);
@@ -317,7 +317,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             for (Entity parent : dataSet) {
                 io.teaql.core.internal.TempRequest probeRequest =
                         SqlDiagnosticRequest.forRelation(childRequest, intent, origin, relation.getName());
-                probeRequest.selectProperty(reverseProperty.getName());
+                selectRelationAttachmentKey(probeRequest, reverseProperty.getName());
                 probeRequest.setPartitionProperty(null);
                 ensureStableEntityIdOrder(probeRequest);
                 probeRequest.appendSearchCriteria(
@@ -367,6 +367,14 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         if (Entity.class.isAssignableFrom(relationType)) {
             target.setProperty(relation.getName(), value);
         }
+    }
+
+    private void selectRelationAttachmentKey(BaseRequest<?> request, String property) {
+        // Public selectProperty intentionally unselects a same-named relation.
+        // Internal key projection must preserve that requested hydration (and
+        // must not mutate TempRequest's shared source relation map).
+        request.getProjections().removeIf(projection -> projection.name().equals(property));
+        request.getProjections().add(new SimpleNamedExpression(property));
     }
 
     private void ensureStableEntityIdOrder(BaseRequest<?> request) {
