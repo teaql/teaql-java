@@ -110,6 +110,117 @@ public class RequestIntentGateTest {
         }
     }
 
+    @Test public void requestOwnedTraceCannotFillMissingCommentBeforePolicyOrProvider() {
+        for (boolean logging : new boolean[]{false, true}) {
+            var provider = new CountingProvider();
+            var sink = new TeaQLRuntimeTest.RecordingRuntimeLogSink();
+            var queryPolicies = new AtomicInteger();
+            var mutationRegistrations = new AtomicInteger();
+            var runtime = TeaQLRuntime.builder().metadata(new TeaQLRuntimeTest.DummyMetaFactory())
+                    .dataService("dummy", provider).logSink(sink)
+                    .queryExecutionLogging(logging).mutationExecutionLogging(logging)
+                    .queryPolicy(new QueryPolicy() {
+                        @Override public void enforceSelect(UserContext context, SearchRequest<?> request) {
+                            queryPolicies.incrementAndGet();
+                        }
+                    })
+                    .mutationPolicyRegistry(plan -> {
+                        mutationRegistrations.incrementAndGet();
+                        return java.util.Optional.empty();
+                    }).build();
+            var context = new DefaultUserContext(runtime);
+            var querySource = List.of(
+                    new TraceNode(TraceKind.COMMENT, "Dummy", null, "SECRET-CANARY trace-only comment"),
+                    new TraceNode(TraceKind.PURPOSE, "Dummy", null, "SECRET-CANARY trace-only purpose"));
+            var query = new BaseRequest<TeaQLRuntimeTest.DummyEntity>(TeaQLRuntimeTest.DummyEntity.class) {
+                { internalPurpose("declared query purpose"); }
+                @Override public String getTypeName() { return "Dummy"; }
+                @Override public List<TraceNode> sqlTraceSource() { return querySource; }
+            };
+            assertNull("the required property is actually omitted", query.comment());
+            assertEquals(querySource, query.sqlTraceSource());
+            requiredIntent("REQUEST_COMMENT_REQUIRED", "query", () -> new DefaultQueryRequest(query));
+            requiredIntent("REQUEST_COMMENT_REQUIRED", "query", () -> runtime.executeForList(context, query));
+            requiredIntent("REQUEST_COMMENT_REQUIRED", "query", () -> runtime.executeForStream(context, query));
+            requiredIntent("REQUEST_COMMENT_REQUIRED", "query", () -> runtime.aggregation(context, query));
+            requiredIntent("REQUEST_COMMENT_REQUIRED", "query", () -> runtime.executeForPage(context, query, 0, 10));
+
+            var entity = new TeaQLRuntimeTest.DummyEntity();
+            entity.__internalSet("id", 801L); entity.__internalSet("version", 1L);
+            entity.set$status(EntityStatus.PERSISTED);
+            entity.updateProperty("name", "pending mutation payload");
+            var mutationSource = List.of(new TraceNode(
+                    TraceKind.AUDIT_REASON, "Dummy", 801L, "SECRET-CANARY trace-only audit reason"));
+            entity.setTraceChain(mutationSource);
+            assertNull(entity.getComment());
+            assertEquals(mutationSource, entity.getTraceChain());
+            for (var action : EntityPersistenceMutation.Action.values())
+                requiredIntent("REQUEST_COMMENT_REQUIRED", "mutation", () -> new EntityPersistenceMutation(entity, action));
+            requiredIntent("REQUEST_COMMENT_REQUIRED", "mutation", () -> runtime.saveGraph(context, entity));
+
+            assertEquals(0, queryPolicies.get());
+            assertEquals(0, mutationRegistrations.get());
+            assertEquals(0, provider.calls.get());
+            assertTrue(sink.executions.isEmpty());
+            assertTrue(sink.auditEvents.isEmpty());
+            assertTrue(sink.governanceEvents.isEmpty());
+            assertTrue("no ambient trace was supplied or created", context.getTraceChain().isEmpty());
+        }
+    }
+
+    @Test public void explicitMutationCommentSurvivesEachBlankTypedRouteTail() {
+        for (boolean logging : new boolean[]{false, true}) {
+            for (var kind : List.of(TraceKind.ENTITY, TraceKind.PROVIDER, TraceKind.SQL)) {
+                var provider = new TeaQLRuntimeTest.RecordingMutationExecutor();
+                var sink = new TeaQLRuntimeTest.RecordingRuntimeLogSink();
+                var policies = new AtomicInteger();
+                var entity = new TeaQLRuntimeTest.DummyEntity();
+                entity.__internalSet("id", 802L); entity.__internalSet("version", 1L);
+                entity.set$status(EntityStatus.PERSISTED);
+                entity.updateProperty("name", "changed field");
+                String comment = "  explicit mutation request reason  ";
+                entity.setComment(comment);
+                var tail = new TraceNode(kind, kind == TraceKind.PROVIDER ? "dummy"
+                        : kind == TraceKind.SQL ? "update" : "Dummy", null, "");
+                // Deliberately supplied diagnostic input for TC-REQ-13, not
+                // evidence that a generated graph constructs these route nodes.
+                var source = List.of(new TraceNode(TraceKind.AUDIT_REASON, "Dummy", 802L, comment), tail);
+                entity.setTraceChain(source);
+                var request = new EntityPersistenceMutation(entity, EntityPersistenceMutation.Action.SAVE,
+                        MutationIntent.of(comment), source);
+                assertEquals(tail, request.getTraceChain().get(request.getTraceChain().size() - 1));
+                assertEquals("", tail.getComment());
+                assertEquals(comment, request.comment());
+                assertEquals(comment, request.intent().readbackIntent().comment());
+
+                var runtime = TeaQLRuntime.builder().metadata(new TeaQLRuntimeTest.DummyMetaFactory())
+                        .dataService("dummy", provider).logSink(sink)
+                        .queryExecutionLogging(logging).mutationExecutionLogging(logging)
+                        .mutationPolicyRegistry(plan -> java.util.Optional.of(new MutationPolicy() {
+                            @Override public MutationPolicyIdentity identity() {
+                                return new MutationPolicyIdentity("route-tail", "1", "test");
+                            }
+                            @Override public MutationDecision review(UserContext context, MutationPlan plan) {
+                                policies.incrementAndGet();
+                                assertEquals(comment, plan.auditReason());
+                                return MutationDecision.allow();
+                            }
+                        })).build();
+                var context = new DefaultUserContext(runtime);
+                runtime.saveGraph(context, entity);
+                assertEquals(1, policies.get());
+                assertEquals(1, provider.requests.size());
+                var emitted = provider.requests.get(0);
+                assertEquals(source, emitted.getTraceChain());
+                assertEquals(comment, emitted.comment());
+                assertEquals(comment, emitted.intent().readbackIntent().comment());
+                assertEquals(1, sink.auditEvents.size());
+                assertEquals(comment, sink.auditEvents.get(0).reason());
+                assertTrue(context.getTraceChain().isEmpty());
+            }
+        }
+    }
+
     @Test public void directQueryEnvelopeRequiresPurpose() {
         for (String purpose : new String[]{null, "", "\u2003"}) {
             required("QUERY_PURPOSE_REQUIRED", () ->
