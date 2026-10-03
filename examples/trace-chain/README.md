@@ -90,7 +90,16 @@ must not be rebound or import another order's pending keys. Related mutation
 import uses the explicitly visited type-qualified key. Receiver-owned detached
 ledger mutations remain supported; no source ledger is cleared during import.
 
-The verifier now requires thirteen scenario markers. Query provenance is carried
+The verifier now requires fourteen scenario markers. The additional privacy
+scenario reloads a root and its child through generated Q, then saves the same
+graph repeatedly. Old and new private child values mentioned in the root reason
+must stay out of both SQL diagnostics and committed audit, across entity types.
+It also checks a failed readback, database rollback, retry, marked deletion, and
+an independent query that must not inherit earlier redaction state. The runtime
+captures loaded/changed scalar provenance before the first graph write; that
+request-local snapshot is neither a write payload nor Context state.
+
+Query provenance is carried
 by the validated request and statement, not by a Context push/pop stack or a
 ThreadLocal trace. The generated fluent stream API is unchanged; custom provider
 implementations must migrate `StreamingQueryExecutor` from a bare SearchRequest

@@ -783,6 +783,14 @@ public class TeaQLRuntime {
         EntityChangeSet changeSet = root.currentChangeSet();
         Set<EntityKey> deletedKeys = root.deletedKeys();
         Set<EntityKey> newKeys = root.newKeys();
+        var graphRedactions = new SqlIntentRedactions();
+        realEntities.values().forEach(value -> graphRedactions.captureEntity(
+                value, metadata.resolveEntityDescriptor(value.typeName())));
+        changeSet.changes().forEach((key, values) -> {
+            var descriptor = metadata.resolveEntityDescriptor(key.entity());
+            values.forEach((field, value) -> graphRedactions.capture(
+                    List.of(SqlFieldLogPolicy.resolve(descriptor, field)), new Object[]{value}));
+        });
 
         // 1. Execute Deletes
         List<EntityKey> sortedDeletedKeys = new ArrayList<>(deletedKeys);
@@ -808,7 +816,7 @@ public class TeaQLRuntime {
                 if (root.getComment() != null) deleteEntity.setComment(root.getComment());
 
                 EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
-                    deleteEntity, EntityPersistenceMutation.Action.DELETE, intent, mutationTrace(root, key, traceScopes, graphScope), target);
+                    deleteEntity, EntityPersistenceMutation.Action.DELETE, intent, mutationTrace(root, key, traceScopes, graphScope), target, graphRedactions);
                 requests.add(mutationRequest);
                 targets.add(target == null ? deleteEntity : target);
             }
@@ -816,7 +824,7 @@ public class TeaQLRuntime {
                     context, mutationExecutor, intent, requests, batch.getKey(), "delete");
             for (int index = 0; index < requests.size(); index++) {
                 completed.add(new PendingMutation(descriptor, targets.get(index), results.get(index),
-                        MutationAuditKind.DELETED, Collections.emptyMap(), governance, intent, requests.get(index).getTraceChain()));
+                        MutationAuditKind.DELETED, Collections.emptyMap(), governance, intent, requests.get(index).getTraceChain(), graphRedactions));
             }
         }
 
@@ -865,7 +873,7 @@ public class TeaQLRuntime {
                 if (root.getComment() != null) entity.setComment(root.getComment());
 
                 EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
-                    entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(root, key, traceScopes, graphScope), target);
+                    entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(root, key, traceScopes, graphScope), target, graphRedactions);
                 requests.add(mutationRequest);
                 targets.add(target == null ? entity : target);
                 snapshots.add(snapshotChanges(changes));
@@ -875,7 +883,7 @@ public class TeaQLRuntime {
             for (int index = 0; index < requests.size(); index++) {
                 completed.add(new PendingMutation(
                         descriptor, targets.get(index), results.get(index),
-                        MutationAuditKind.CREATED, snapshots.get(index), governance, intent, requests.get(index).getTraceChain()));
+                        MutationAuditKind.CREATED, snapshots.get(index), governance, intent, requests.get(index).getTraceChain(), graphRedactions));
             }
         }
 
@@ -911,7 +919,7 @@ public class TeaQLRuntime {
                     if (root.getComment() != null) entity.setComment(root.getComment());
 
                     EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
-                        entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(root, key, traceScopes, graphScope), target);
+                        entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(root, key, traceScopes, graphScope), target, graphRedactions);
                     requests.add(mutationRequest);
                     targets.add(target == null ? entity : target);
                     snapshots.add(snapshotChanges(changes));
@@ -921,7 +929,7 @@ public class TeaQLRuntime {
                         context, mutationExecutor, intent, requests, entityName, auditKind.name().toLowerCase(Locale.ROOT));
                 for (int index = 0; index < requests.size(); index++) {
                     completed.add(new PendingMutation(descriptor, targets.get(index), results.get(index),
-                            auditKind, snapshots.get(index), governance, intent, requests.get(index).getTraceChain()));
+                            auditKind, snapshots.get(index), governance, intent, requests.get(index).getTraceChain(), graphRedactions));
                 }
             }
         }
@@ -933,7 +941,7 @@ public class TeaQLRuntime {
             applyPersistedEntity(mutation.descriptor(), mutation.target(), mutation.result());
             emitAuditEvent(
                     context, mutation.target(), mutation.auditKind(), mutation.changedValues(),
-                    mutation.governance(), mutation.intent(), mutation.traceChain());
+                    mutation.governance(), mutation.intent(), mutation.traceChain(), mutation.redactions());
             mutation.target().clearUpdatedProperties();
         }
     }
@@ -957,7 +965,8 @@ public class TeaQLRuntime {
             MutationResult result,
             MutationAuditKind auditKind,
             Map<String, Object> changedValues,
-            MutationGovernanceSnapshot governance, MutationIntent intent, List<TraceNode> traceChain) {}
+            MutationGovernanceSnapshot governance, MutationIntent intent, List<TraceNode> traceChain,
+            SqlIntentRedactions redactions) {}
 
     private record PersistenceState(
             Long version, io.teaql.core.EntityStatus status, boolean versionLoaded) {}
@@ -1067,7 +1076,8 @@ public class TeaQLRuntime {
             Entity entity,
             MutationAuditKind kind,
             Map<String, Object> changedValues,
-            MutationGovernanceSnapshot governance, MutationIntent intent, List<TraceNode> traceChain) {
+            MutationGovernanceSnapshot governance, MutationIntent intent, List<TraceNode> traceChain,
+            SqlIntentRedactions redactions) {
         List<AuditFieldChange> changes = new ArrayList<>();
         if (changedValues != null) {
             for (Map.Entry<String, Object> entry : changedValues.entrySet()) {
@@ -1099,12 +1109,12 @@ public class TeaQLRuntime {
         // The standard sink is server-owned by TeaQLRuntime and cannot be replaced by
         // dynamic input or an application capability registered on UserContext.
         if (logSink != null) {
-            logSink.writeAuditEvent(context, LogPrivacy.audit(rawEvent, LogPrivacy.plaintextEnabled()));
+            logSink.writeAuditEvent(context, LogPrivacy.audit(rawEvent, LogPrivacy.plaintextEnabled(), redactions));
         }
 
         AppAuditEventSink appSink = context.capability(AppAuditEventSink.class);
         if (appSink != null) {
-            appSink.onAuditEvent(context, buildSafeAuditEvent(rawEvent));
+            appSink.onAuditEvent(context, buildSafeAuditEvent(rawEvent, redactions));
         }
         telemetryScope.success();
         } catch (RuntimeException | Error error) {
@@ -1113,7 +1123,7 @@ public class TeaQLRuntime {
         }
     }
 
-    private SafeAuditEvent buildSafeAuditEvent(RawAuditEvent event) {
+    private SafeAuditEvent buildSafeAuditEvent(RawAuditEvent event, SqlIntentRedactions redactions) {
         EntityDescriptor descriptor = metadata.resolveEntityDescriptor(event.entityType());
         Set<String> maskFields = descriptor == null
                 ? Collections.emptySet()
@@ -1122,6 +1132,7 @@ public class TeaQLRuntime {
         List<SafeAuditField> fields = new ArrayList<>();
         List<Object> sensitiveValues = new ArrayList<>();
         boolean allowPlaintext = LogPrivacy.plaintextEnabled();
+        redactions.appendTo(sensitiveValues, allowPlaintext);
         for (AuditFieldChange change : event.changes()) {
             if ((!allowPlaintext && maskFields.contains(change.field())) || LogPrivacy.credential(change.field())
                     || LogPrivacy.hasCredentials(change.oldValue()) || LogPrivacy.hasCredentials(change.newValue())) {

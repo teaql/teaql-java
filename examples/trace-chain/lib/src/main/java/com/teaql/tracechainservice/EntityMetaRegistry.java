@@ -193,9 +193,10 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       entityDescriptor.setEntitySupplier(com.teaql.tracechainservice.orderitem.OrderItem::new);
       entityDescriptor.with("name", "Order Item")
       .with("module", "Trace Chain")
-      .with("module_key", "trace-chain");
+      .with("module_key", "trace-chain")
+      .with("audit_mask_fields", "name");
 
-      entityDescriptor.setAuditMaskFields(java.util.List.of());
+      entityDescriptor.setAuditMaskFields(java.util.List.of(com.teaql.tracechainservice.orderitem.OrderItem.NAME_PROPERTY));
       PropertyDescriptor id = 
       entityDescriptor.addSimpleProperty(com.teaql.tracechainservice.orderitem.OrderItem.ID_PROPERTY, Long.class)
       ;

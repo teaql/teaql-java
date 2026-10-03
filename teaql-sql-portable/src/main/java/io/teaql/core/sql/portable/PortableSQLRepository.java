@@ -2369,18 +2369,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             return io.teaql.core.SqlParameterLogPolicy.CREDENTIAL;
         for (PropertyDescriptor property : allProperties) {
             if (!property.getName().equals(name)) continue;
-            if (entityDescriptor.getAuditMaskFields().contains(name)
-                    || property.getOwner() != null && property.getOwner().getAuditMaskFields().contains(name)
-                    || "masked".equalsIgnoreCase(property.getAdditionalInfo().get("logPolicy")))
-                return io.teaql.core.SqlParameterLogPolicy.MASKED;
-            if ("credential".equalsIgnoreCase(property.getAdditionalInfo().get("logPolicy")))
-                return io.teaql.core.SqlParameterLogPolicy.CREDENTIAL;
-            if ("plain".equalsIgnoreCase(property.getAdditionalInfo().get("logPolicy")))
-                return io.teaql.core.SqlParameterLogPolicy.PLAIN;
-            EntityDescriptor owner = property.getOwner();
-            return (owner == null ? entityDescriptor : owner).isAuditMaskFieldsDeclared()
-                    ? io.teaql.core.SqlParameterLogPolicy.PLAIN
-                    : io.teaql.core.SqlParameterLogPolicy.UNKNOWN;
+            return io.teaql.core.SqlFieldLogPolicy.resolve(entityDescriptor, property);
         }
         return io.teaql.core.SqlParameterLogPolicy.UNKNOWN;
     }

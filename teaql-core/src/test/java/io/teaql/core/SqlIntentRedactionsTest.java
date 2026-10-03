@@ -5,6 +5,40 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class SqlIntentRedactionsTest {
+    @Test public void inheritedPolicyAndCredentialsMatchBindingPolicy() {
+        var parent = new io.teaql.core.meta.EntityDescriptor();
+        var field = new io.teaql.core.meta.PropertyDescriptor();
+        field.setName("name"); field.setOwner(parent);
+        parent.setProperties(List.of(field));
+        var child = new io.teaql.core.meta.EntityDescriptor(); child.setParent(parent);
+        assertEquals(SqlParameterLogPolicy.UNKNOWN, SqlFieldLogPolicy.resolve(child, "name"));
+        parent.setAuditMaskFields(List.of());
+        assertEquals(SqlParameterLogPolicy.PLAIN, SqlFieldLogPolicy.resolve(child, "name"));
+        child.setAuditMaskFields(List.of("name"));
+        assertEquals(SqlParameterLogPolicy.MASKED, SqlFieldLogPolicy.resolve(child, "name"));
+        field.with("logPolicy", "plain");
+        assertEquals(SqlParameterLogPolicy.MASKED, SqlFieldLogPolicy.resolve(child, field));
+        assertEquals(SqlParameterLogPolicy.CREDENTIAL, SqlFieldLogPolicy.resolve(child, "access_token"));
+        assertEquals(SqlParameterLogPolicy.UNKNOWN, SqlFieldLogPolicy.resolve(child, "missing"));
+    }
+
+    @Test public void capturedEntityOldAndNewValuesSurviveLaterMutationWithoutSharingState() {
+        var descriptor = new io.teaql.core.meta.EntityDescriptor();
+        var field = new io.teaql.core.meta.PropertyDescriptor();
+        field.setName("name"); field.setOwner(descriptor);
+        descriptor.setProperties(List.of(field)); descriptor.setAuditMaskFields(List.of("name"));
+        var entity = new BaseEntityTest.TestEntity();
+        entity.setProperty("name", "PRIVATE-OLD"); entity.updateName("PRIVATE-NEW");
+        var captured = new SqlIntentRedactions(); captured.captureEntity(entity, descriptor);
+        var merged = new SqlIntentRedactions(); merged.include(captured);
+        entity.updateName("PRIVATE-LATER"); entity.clearUpdatedProperties();
+        captured.capture(List.of(SqlParameterLogPolicy.MASKED), new Object[]{"SOURCE-LATER"});
+        var values = new java.util.ArrayList<Object>(); merged.appendTo(values, false);
+        assertEquals(List.of("PRIVATE-NEW", "PRIVATE-OLD"), values);
+        var debugValues = new java.util.ArrayList<Object>(); merged.appendTo(debugValues, true);
+        assertTrue(debugValues.isEmpty());
+    }
+
     @Test public void snapshotDoesNotAccumulateDescendantOrSiblingValues() {
         var root = new SqlIntentRedactions();
         root.capture(List.of(SqlParameterLogPolicy.MASKED), new Object[]{"Riverside"});

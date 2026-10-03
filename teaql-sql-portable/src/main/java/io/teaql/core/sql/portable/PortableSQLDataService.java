@@ -397,7 +397,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         String typeName = entity.typeName();
         PortableSQLRepository repository = getRepository(typeName);
         // Local to this mutation, never stored on context or a shared repository.
-        var readbackIntent = new io.teaql.core.SqlIntentRedactions();
+        var readbackIntent = mutation.diagnosticRedactions();
         repository.captureMutationIntent(entity, readbackIntent);
         if (mutation.diagnosticSource() != entity)
             repository.captureMutationIntent(mutation.diagnosticSource(), readbackIntent);
@@ -465,6 +465,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             PortableSQLRepository repository = getRepository(type);
             var redactions = new SqlIntentRedactions();
             for (var item : items) {
+                redactions.include(item.diagnosticRedactions());
                 repository.captureMutationIntent(item.getEntity(), redactions);
                 if (item.diagnosticSource() != item.getEntity())
                     repository.captureMutationIntent(item.diagnosticSource(), redactions);

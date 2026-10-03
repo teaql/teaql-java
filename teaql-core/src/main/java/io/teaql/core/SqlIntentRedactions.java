@@ -17,6 +17,24 @@ public final class SqlIntentRedactions {
         return result;
     }
 
+    @FrameworkInternal("Merge captured strings, never shared mutable entity state")
+    public void include(SqlIntentRedactions source) {
+        if (source != null) secrets.addAll(source.secrets);
+    }
+
+    @FrameworkInternal("Capture loaded and changed prior scalar values before graph writes")
+    public void captureEntity(BaseEntity entity, io.teaql.core.meta.EntityDescriptor descriptor) {
+        for (var current = descriptor; current != null; current = current.getParent()) {
+            for (var property : current.getOwnProperties()) {
+                if (property instanceof io.teaql.core.meta.Relation) continue;
+                String name = property.getName();
+                var policy = List.of(SqlFieldLogPolicy.resolve(descriptor, property));
+                if (entity.isPropertyLoaded(name)) capture(policy, new Object[]{entity.getProperty(name)});
+                if (entity.getUpdatedProperties().contains(name)) capture(policy, new Object[]{entity.getOldValue(name)});
+            }
+        }
+    }
+
     @FrameworkInternal("SQL diagnostic provenance only; not an application policy")
     public void capture(List<SqlParameterLogPolicy> policies, Object[] values) {
         boolean invalid = policies.size() != values.length;

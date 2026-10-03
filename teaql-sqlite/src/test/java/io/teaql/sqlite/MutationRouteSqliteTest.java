@@ -147,10 +147,9 @@ public class MutationRouteSqliteTest {
         assertEquals(1, fixture.count(fixture.payments, "payment_data"));
         assertEquals(2, fixture.audit.size());
         for (var event : fixture.audit) {
-            String reason = event.entityType().equals("CustomerOrder") ? "parallel order request" : "parallel payment request";
-            assertEquals(List.of(reason), event.traceChain().stream().map(TraceNode::getComment).toList());
+            assertEquals(List.of("[REDACTED] request"), event.traceChain().stream().map(TraceNode::getComment).toList());
             // The SQL parameter value ("parallel order/payment") occurs in the
-            // request prose, so the safe SQL sink must redact that substring.
+            // request prose, so BOTH safe SQL and committed audit redact it.
             var safeLineage = List.of(new TraceNode(TraceKind.AUDIT_REASON,
                     event.entityType(), 100L, "[REDACTED] request"));
             var statements = fixture.sql.stream().filter(entry -> entry.getMutationLineage().equals(safeLineage)).toList();

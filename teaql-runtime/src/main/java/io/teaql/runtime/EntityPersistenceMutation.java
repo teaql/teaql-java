@@ -16,6 +16,7 @@ public final class EntityPersistenceMutation implements PersistenceMutation {
     private final MutationIntent intent;
     private final List<TraceNode> traceChain;
     private final transient Entity diagnosticSource;
+    private final transient io.teaql.core.SqlIntentRedactions graphRedactions;
 
     public EntityPersistenceMutation(Entity entity, Action action) {
         this(entity, action, MutationIntent.of(entity.getComment()));
@@ -32,12 +33,21 @@ public final class EntityPersistenceMutation implements PersistenceMutation {
 
     public EntityPersistenceMutation(Entity entity, Action action, MutationIntent intent, List<TraceNode> traceChain,
             Entity diagnosticSource) {
+        this(entity, action, intent, traceChain, diagnosticSource, null);
+    }
+
+    public EntityPersistenceMutation(Entity entity, Action action, MutationIntent intent, List<TraceNode> traceChain,
+            Entity diagnosticSource, io.teaql.core.SqlIntentRedactions graphRedactions) {
         this.entity = Objects.requireNonNull(entity, "entity");
         this.action = Objects.requireNonNull(action, "action");
         this.intent = Objects.requireNonNull(intent, "intent");
         this.traceChain = List.copyOf(Objects.requireNonNull(traceChain, "traceChain"));
         this.diagnosticSource = diagnosticSource == null ? entity : diagnosticSource;
+        this.graphRedactions = graphRedactions == null ? new io.teaql.core.SqlIntentRedactions() : graphRedactions.copy();
     }
+
+    @io.teaql.core.FrameworkInternal("Invocation-local graph privacy source; never a write payload")
+    public io.teaql.core.SqlIntentRedactions diagnosticRedactions() { return graphRedactions.copy(); }
 
     /** Original loaded values for invocation-local redaction; never used as the write payload. */
     @io.teaql.core.FrameworkInternal("Mutation diagnostic provenance only")

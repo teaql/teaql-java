@@ -195,7 +195,12 @@ public final class LogPrivacy {
     }
 
     public static RawAuditEvent audit(RawAuditEvent source, boolean allow) {
+        return audit(source, allow, null);
+    }
+
+    public static RawAuditEvent audit(RawAuditEvent source, boolean allow, io.teaql.core.SqlIntentRedactions redactions) {
         List<Object> secrets = new ArrayList<>();
+        if (redactions != null) redactions.appendTo(secrets, allow);
         List<AuditFieldChange> changes = source.changes().stream().map(change -> {
             boolean mask = !allow || credential(change.field()) || hasCredentials(change.oldValue()) || hasCredentials(change.newValue());
             if (!mask) return change;

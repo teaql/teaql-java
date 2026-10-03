@@ -31,6 +31,67 @@ import static org.junit.Assert.*;
 
 /** #202: generated public APIs -> real SQLite -> physical SQL and committed safe audit. */
 public class GeneratedTraceChainExampleTest {
+    @Test public void loadedSiblingPrivacyAcrossTypesAndRepeatedSaves() throws Exception {
+        var fixture = new Fixture();
+        var graph = fixture.saveNormativeGraph();
+        var oldValue = "JAVA-PRIVATE-OLD-" + fixture.base;
+        graph.kept.updateName(oldValue);
+        graph.order.auditAs("seed private loaded value").save(fixture.context);
+        var root = Q.customerOrders().withIdIs(E.customerOrder(graph.order).getId().eval())
+                .selectOrderItemListWith(Q.orderItems().limit(2)).limit(1)
+                .comment("load private graph").purpose("verify complete entity mutation provenance").executeForOne(fixture.context);
+        var child = root.getOrderItemList().get(0);
+        assertEquals(oldValue, E.orderItem(child).getName().eval());
+        for (int round = 0; round < 3; round++) {
+            var next = "JAVA-PRIVATE-NEW-" + fixture.base + "-" + round;
+            root.updateDescription("privacy revision " + round);
+            child.updateName(next);
+            if (round == 2) {
+                fixture.clear(); fixture.failReadback = true;
+                assertThrows(RuntimeException.class, () -> root.auditAs("failed save " + next).save(fixture.context));
+                fixture.failReadback = false;
+                assertTrue(fixture.audit.isEmpty());
+                for (var fact : fixture.sql) assertPrivateIntent(fact, next);
+                var unchanged = Q.orderItems().withIdIs(E.orderItem(child).getId().eval()).limit(1)
+                        .comment("verify failed transaction").purpose("rollback retains persisted old value").executeForOne(fixture.context);
+                assertEquals(oldValue, E.orderItem(unchanged).getName().eval());
+            }
+            fixture.clear();
+            root.auditAs("page 1 replace " + oldValue + " with " + next).save(fixture.context);
+            assertEquals(2, fixture.commands.size());
+            assertEquals(4, fixture.sql.size());
+            assertEquals(2, fixture.audit.size());
+            for (var secret : List.of(oldValue, next)) {
+                for (var fact : fixture.sql) {
+                    assertPrivateIntent(fact, secret);
+                    assertTrue("public intent must remain", (String.valueOf(fact.getComment()) + fact.getAuditReason()).contains("page 1"));
+                }
+                for (var fact : fixture.audit)
+                    assertFalse("cross-type committed audit leaked old/new sibling", fact.traceChain().stream().anyMatch(node -> String.valueOf(node.getComment()).contains(secret)));
+            }
+            var persisted = Q.orderItems().withIdIs(E.orderItem(child).getId().eval()).limit(1)
+                    .comment("reload private value").purpose("verify privacy does not change stored state").executeForOne(fixture.context);
+            assertEquals(next, E.orderItem(persisted).getName().eval());
+            oldValue = next;
+        }
+        root.updateDescription("remove private child"); child.markForDeletion();
+        fixture.clear(); root.auditAs("remove " + oldValue).save(fixture.context);
+        for (var fact : fixture.sql) assertPrivateIntent(fact, oldValue);
+        for (var fact : fixture.audit) for (var node : fact.traceChain()) assertFalse(String.valueOf(node.getComment()).contains(oldValue));
+        assertNull(Q.orderItems().withIdIs(E.orderItem(child).getId().eval()).limit(1)
+                .comment("verify deletion").purpose("normal query excludes deleted child").executeForOne(fixture.context));
+        fixture.clear();
+        Q.customerOrders().withIdIs(E.customerOrder(root).getId().eval()).limit(1).comment(oldValue)
+                .purpose("independent query must not inherit mutation secrets").executeForOne(fixture.context);
+        assertEquals(oldValue, fixture.sql.get(0).getComment());
+        System.out.println("PASS Java generated cross-type loaded privacy: repeated saves, rollback retry, delete and independent intent");
+    }
+    private static void assertPrivateIntent(ExecutionMetadata fact, String secret) {
+        for (var text : List.of(String.valueOf(fact.getComment()), String.valueOf(fact.getPurpose()),
+                String.valueOf(fact.getAuditReason()), String.valueOf(fact.getMutationLineage()),
+                String.valueOf(fact.getTraceChain())))
+            assertFalse("cross-type SQL intent leaked sibling value", text.contains(secret));
+    }
     private static void verifyReturnedStatements(MutationResult result, EntityPersistenceMutation request) {
         var statements = result.statements();
         assertEquals("actual write and authoritative readback retained independently of sinks", 2, statements.size());
