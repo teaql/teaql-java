@@ -708,6 +708,9 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     private SmartList<T> loadWithIntent(UserContext userContext, SearchRequest<T> request,
             io.teaql.core.SqlIntentRedactions intent) {
+        // Inspect the current typed request, including future child predicates, before
+        // any SQL. Cached plans never own these values and binds are never rewritten.
+        SqlLikeIntent.capture(userContext, request, this, intent);
         IdSetExecution<T> idSetExecution = prepareIdSetPage(userContext, request, intent);
         if (idSetExecution.optimized() && idSetExecution.pageIds().length == 0) {
             return SmartList.empty(request.returnType());
@@ -1104,11 +1107,13 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     public Stream<T> streamInternal(UserContext userContext, SearchRequest<T> request) {
+        var intent = SqlDiagnosticRequest.source(userContext, request);
+        SqlLikeIntent.capture(userContext, request, this, intent);
         Map<String, Object> params = new io.teaql.core.sql.SqlParameters();
         String sql = buildDataSQL(userContext, request, params);
         if (ObjectUtil.isEmpty(sql)) return Stream.empty();
         PositionalSQL psql = withQueryIntent(toPositional(sql, params),
-                SqlDiagnosticRequest.source(userContext, request), request);
+                intent, request);
         return database.queryForStream(userContext, psql.sql, psql.args, psql.logBindings)
                 .map(row -> mapRowToEntity(userContext, request, row));
     }
@@ -2187,6 +2192,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     private AggregationResult aggregateWithIntent(UserContext userContext, SearchRequest<T> request,
             io.teaql.core.SqlIntentRedactions intent) {
         if (!request.hasSimpleAgg()) return null;
+        SqlLikeIntent.capture(userContext, request, this, intent);
 
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
         List<String> tables = compiler.collectAggregationTables(sqlMetadata, this, userContext, request);

@@ -109,6 +109,12 @@ public class SqlParameterPropagationTest {
             assertEquals(SqlParameterLogPolicy.MASKED, c.bindings.policies().get(title));
             assertEquals(SqlParameterLogPolicy.PLAIN, c.bindings.policies().get(Arrays.asList(c.args).indexOf("ACTIVE")));
             assertEquals(SqlParameterLogPolicy.PLAIN, c.bindings.policies().get(c.args.length - 1));
+            var secrets = new ArrayList<Object>();
+            c.bindings.intentRedactions().appendTo(secrets, false);
+            assertTrue("cached typed LIKE must retain the current original operand",
+                    secrets.contains(i == 0 ? "Riverside" : "Lakeside"));
+            assertFalse("the cached plan must not retain another invocation's operand",
+                    secrets.contains(i == 0 ? "Lakeside" : "Riverside"));
         }
     }
 
