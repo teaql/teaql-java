@@ -19,6 +19,7 @@ mvn -B -f "$repo_dir/pom.xml" -Pruntime-examples -pl examples/trace-chain -am \
   install -DskipTests > "$run_dir/local-source-install.log" 2>&1
 
 markers=(
+  'PASS FORWARD_NOTLOADED: Java generated Q/E retains FK and hidden detail guard'
   'PASS Java generated cursor evidence: logging disabled, completion, cancellation and failure'
   'PASS Java generated query evidence: logging disabled, three relation levels, immutable result list'
   'PASS Java generated cross-type loaded privacy: repeated saves, rollback retry, delete and independent intent'

@@ -684,6 +684,27 @@ public class GeneratedTraceChainExampleTest {
                     .subList(0, depth), details);
         }
         System.out.println("PASS Java generated three-level SQL Trace Path and inherited request intent");
+        assertFilteredForwardReference(fixture, graph);
+    }
+
+    private static void assertFilteredForwardReference(Fixture fixture, Graph graph) {
+        var hidden = Q.payments().withIdIs(graph.payment.getId()).limit(1)
+                .selectCustomerOrderWith(Q.customerOrders().withIdIs(0L).limit(1))
+                .comment("load filtered forward reference").purpose("preserve real FK identity")
+                .executeForOne(fixture.context);
+        var identity = E.payment(hidden).getCustomerOrder().eval();
+        assertNotNull("filtered detail must not erase the FK", identity);
+        assertEquals(graph.order.getId(), E.customerOrder(identity).getId().eval());
+        assertThrows(io.teaql.core.value.TeaQLNotLoadedException.class,
+                () -> E.customerOrder(identity).getDescription().eval());
+        var visible = Q.payments().withIdIs(graph.payment.getId()).limit(1)
+                .selectCustomerOrderWith(Q.customerOrders().limit(1))
+                .comment("load independent full reference").purpose("verify edge-owned detail boundaries")
+                .executeForOne(fixture.context);
+        assertEquals(graph.order.getDescription(), E.customerOrder(E.payment(visible).getCustomerOrder().eval()).getDescription().eval());
+        assertThrows(io.teaql.core.value.TeaQLNotLoadedException.class,
+                () -> E.customerOrder(identity).getDescription().eval());
+        System.out.println("PASS FORWARD_NOTLOADED: Java generated Q/E retains FK and hidden detail guard");
     }
 
     @Test public void generatedQueriesReturnStatementEvidenceWithoutLogging() throws Exception {
@@ -708,6 +729,7 @@ public class GeneratedTraceChainExampleTest {
         assertTrue(fixture.sql.isEmpty());
         assertTrue(fixture.context.getTraceChain().isEmpty());
         System.out.println("PASS Java generated query evidence: logging disabled, three relation levels, immutable result list");
+        assertFilteredForwardReference(fixture, graph);
     }
 
     private static PaymentAttempt loadPaymentContext(Fixture fixture, Graph graph, String comment, String purpose) {
