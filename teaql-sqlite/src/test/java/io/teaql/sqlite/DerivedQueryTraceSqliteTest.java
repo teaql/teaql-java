@@ -10,6 +10,12 @@ import io.teaql.runtime.*;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.junit.Test;
 import org.sqlite.SQLiteDataSource;
@@ -53,12 +59,16 @@ public class DerivedQueryTraceSqliteTest {
 
     private static final class Fixture {
         final List<ExecutionMetadata> sql = new CopyOnWriteArrayList<>();
+        final List<DefaultQueryResult> returnedQueries = new CopyOnWriteArrayList<>();
         final SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
         final DefaultUserContext context;
         final SqliteDataServiceExecutor provider;
         final TraceDocument document;
         final TraceLine open;
         Fixture(boolean logging) throws Exception {
+            this(logging, JdbcSqlExecutor::new);
+        }
+        Fixture(boolean logging, Function<SQLiteDataSource, JdbcSqlExecutor> driverFactory) throws Exception {
             var source = new SQLiteDataSource();
             source.setUrl("jdbc:sqlite:" + Files.createTempFile("teaql-derived-trace-", ".db"));
             var documents = descriptor(TraceDocument.class,TraceDocument::new);
@@ -69,8 +79,14 @@ public class DerivedQueryTraceSqliteTest {
             documentNumber.setColumnType("BIGINT");
             var relation = (GenericSQLRelation) lines.addObjectProperty(metadata,"document", "TraceDocument", "lines",TraceDocument.class);
             relation.setColumnType("BIGINT");
-            var driver = new JdbcSqlExecutor(source);
-            provider = new SqliteDataServiceExecutor("sqlite",driver,source);
+            var driver = driverFactory.apply(source);
+            provider = new SqliteDataServiceExecutor("sqlite",driver,source) {
+                @Override public QueryResult query(UserContext caller, QueryRequest request) {
+                    var result = super.query(caller, request);
+                    returnedQueries.add((DefaultQueryResult) result);
+                    return result;
+                }
+            };
             var runtime = TeaQLRuntime.builder().metadata(metadata).dataService("sqlite",provider)
                     .queryExecutionLogging(logging).logSink((caller,entry)->sql.add(entry)).build();
             context = new DefaultUserContext(runtime); context.ensureSchema();
@@ -119,6 +135,105 @@ public class DerivedQueryTraceSqliteTest {
             var count = lines().where("state",Operator.EQUAL,"OPEN");
             count.setPartitionProperty("document"); count.count("count");
             var root = documents(); root.addSingleAggregateDynamicProperty("openLineCount",count); return root;
+        }
+    }
+
+    /** Hold completed physical root reads, not merely two starts at a barrier. */
+    private static final class PausedRoots extends JdbcSqlExecutor {
+        final CountDownLatch bothReturned = new CountDownLatch(2);
+        final CountDownLatch release = new CountDownLatch(1);
+        final AtomicInteger roots = new AtomicInteger();
+        volatile boolean armed;
+        PausedRoots(SQLiteDataSource source) { super(source); }
+        private void hold(String sql) {
+            if (!armed || !sql.toLowerCase(Locale.ROOT).contains("trace_document_data")) return;
+            roots.incrementAndGet(); bothReturned.countDown();
+            try {
+                assertTrue("completed SQLite roots must be released", release.await(10, TimeUnit.SECONDS));
+            } catch (InterruptedException failure) {
+                Thread.currentThread().interrupt(); throw new AssertionError(failure);
+            }
+        }
+        @Override public <T extends Entity> List<T> query(String sql, Object[] args, CompiledRowMapper<T> mapper) {
+            var rows = super.query(sql, args, mapper); hold(sql); return rows;
+        }
+        @Override public List<Map<String, Object>> queryForList(String sql, Object[] args) {
+            var rows = super.queryForList(sql, args); hold(sql); return rows;
+        }
+    }
+
+    @Test public void twoLiveSqliteQueriesOnOneContextKeepPhysicalIntentAndRelationsIsolated() throws Exception {
+        for (boolean logging : List.of(false, true)) {
+            var driver = new AtomicReference<PausedRoots>();
+            var fixture = new Fixture(logging, source -> {
+                var value = new PausedRoots(source); driver.set(value); return value;
+            });
+            var gate = driver.get(); gate.armed = true;
+            fixture.context.pushTrace("unrelated application diagnostic");
+            var baseline = fixture.context.getTraceChain();
+            var workers = Executors.newFixedThreadPool(2);
+            try {
+                var alpha = fixture.documents().where("id", Operator.EQUAL, 100L)
+                        .intent("load alpha graph", "render alpha graph");
+                var beta = fixture.documents().where("id", Operator.EQUAL, 200L)
+                        .intent("load beta graph", "render beta graph");
+                alpha.setSize(1); beta.setSize(1);
+                var alphaLines = fixture.lines(); alphaLines.setSize(10);
+                var betaLines = fixture.lines(); betaLines.setSize(10);
+                alpha.enhanceRelation("lines", alphaLines); beta.enhanceRelation("lines", betaLines);
+                var first = workers.submit(() -> fixture.context.getRuntime().executeForList(fixture.context, alpha));
+                var second = workers.submit(() -> fixture.context.getRuntime().executeForList(fixture.context, beta));
+                assertTrue("two physical roots must return before either query completes",
+                        gate.bothReturned.await(10, TimeUnit.SECONDS));
+                assertFalse(first.isDone()); assertFalse(second.isDone());
+                assertEquals(2, gate.roots.get()); assertTrue(fixture.sql.isEmpty());
+                assertTrue(fixture.returnedQueries.isEmpty());
+                assertEquals("live requests must not put their frames on Context", baseline, fixture.context.getTraceChain());
+                System.out.printf("LIVE_SQLITE_BARRIER logging=%s physicalRoots=2 unfinishedQueries=2 contextUnchanged=true logs=0%n", logging);
+                gate.release.countDown();
+                var results = List.of(first.get(10, TimeUnit.SECONDS), second.get(10, TimeUnit.SECONDS));
+                assertEquals("two roots and two real derived provider requests", 4, fixture.returnedQueries.size());
+                for (int i = 0; i < results.size(); i++) {
+                    var rows = results.get(i); var label = i == 0 ? "alpha" : "beta";
+                    assertEquals(1, rows.size());
+                    assertEquals(Long.valueOf(i == 0 ? 100 : 200), rows.get(0).getId());
+                    SmartList<?> children = rows.get(0).getProperty("lines");
+                    assertEquals(i == 0 ? 2 : 1, children.size());
+                    assertEquals(i == 0 ? List.of(101L, 102L) : List.of(201L),
+                            children.stream().map(Entity::getId).sorted().toList());
+                    var ownResults = fixture.returnedQueries.stream()
+                            .filter(r -> r.getResult().get(0).typeName().equals("TraceDocument"))
+                            .filter(r -> r.statements().get(0).getComment().equals("load " + label + " graph")).toList();
+                    assertEquals(1, ownResults.size());
+                    var result = ownResults.get(0); assertEquals(2, result.statements().size());
+                    for (int depth = 0; depth < 2; depth++) {
+                        var statement = result.statements().get(depth);
+                        assertEquals("load " + label + " graph", statement.getComment());
+                        assertEquals("render " + label + " graph", statement.getPurpose());
+                        assertPath(statement, "TraceDocument", depth == 0 ? List.of() : List.of("lines"));
+                        assertEquals(depth == 0 ? List.of() : List.of("TraceDocument.lines"),
+                                statement.getTraceChain().stream().filter(n -> n.getKind() == TraceKind.RELATION)
+                                        .map(TraceNode::getComment).toList());
+                        assertEquals("query", statement.getTraceChain().get(0).getComment());
+                        assertEquals("", statement.getTraceChain().get(1).getComment());
+                    }
+                }
+                assertEquals(logging ? 4 : 0, fixture.sql.size());
+                if (logging) {
+                    for (String label : List.of("alpha", "beta")) {
+                        var own = fixture.sql.stream().filter(e -> e.getComment().equals("load " + label + " graph")).toList();
+                        assertEquals(2, own.size());
+                        assertTrue(own.stream().allMatch(e -> e.getPurpose().equals("render " + label + " graph")));
+                        assertPath(own.get(0), "TraceDocument", List.of());
+                        assertPath(own.get(1), "TraceDocument", List.of("lines"));
+                    }
+                }
+                assertEquals(baseline, fixture.context.getTraceChain());
+                System.out.printf("LIVE_SQLITE_RESULT logging=%s physicalStatements=4 inheritedRelations=2 safeLogs=%d contextUnchanged=true%n", logging, fixture.sql.size());
+            } finally {
+                gate.release.countDown(); workers.shutdownNow();
+                assertTrue(workers.awaitTermination(10, TimeUnit.SECONDS));
+            }
         }
     }
 
