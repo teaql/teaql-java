@@ -43,4 +43,52 @@ public class SqlExecutionTraceTest {
         assertEquals("payment", canonical.path().get(2).getName());
         assertEquals("customerOrder", canonical.path().get(3).getName());
     }
+
+    @Test public void mutationStatementOwnsRootIntentWithAndWithoutAnObserver() {
+        var entity = new BaseEntity();
+        entity.__internalSet("id", 201L);
+        var lineage = List.of(new TraceNode(TraceKind.AUDIT_REASON, "CustomerOrder", 100L, "submit order"),
+                new TraceNode(TraceKind.AUDIT_REASON, "Payment", 201L, "authorize payment"));
+        var intent = MutationIntent.of("submit order");
+        // Standalone canonical vectors remain last-intent-wins. An executed
+        // mutation gets its root reason from its validated request, not this fold.
+        assertEquals("authorize payment", SqlTracePath.canonical(lineage, "sqlite", "insert").auditReason());
+        for (String operation : List.of("insert", "update", "delete", "recover")) {
+            for (boolean observing : List.of(false, true)) {
+                var captured = new ArrayList<ExecutionMetadata>();
+                var trace = SqlExecutionTrace.mutation(entity, lineage, operation, intent);
+                if (observing) trace = trace.collecting(captured::add);
+                assertSame(intent, trace.mutationIntent());
+                var metadata = new ExecutionMetadata();
+                metadata.setBackend("sqlite");
+                trace.applyTo(metadata);
+                trace.recordStatement(metadata);
+                assertEquals("submit order", metadata.getAuditReason());
+                assertNull(metadata.getComment());
+                assertEquals(lineage, metadata.getMutationLineage());
+                assertEquals(observing ? 1 : 0, captured.size());
+                assertTrue(metadata.getTraceChain().stream().noneMatch(node -> node.getKind() == TraceKind.AUDIT_REASON));
+            }
+        }
+        assertThrows(NullPointerException.class, () -> SqlExecutionTrace.mutation(entity, lineage, "insert", null));
+    }
+
+    @Test public void mutationReadbackRetainsIndependentRootReasonAndQueryIntent() {
+        var entity = new BaseEntity();
+        var intent = MutationIntent.of("submit order");
+        var lineage = List.of(new TraceNode(TraceKind.AUDIT_REASON, "CustomerOrder", 100L, "submit order"),
+                new TraceNode(TraceKind.AUDIT_REASON, "Shipment", 301L, "prepare shipment"));
+        var collected = new ArrayList<ExecutionMetadata>();
+        var trace = SqlExecutionTrace.mutation(entity, lineage, "insert", intent).collecting(collected::add).readback(intent);
+        var metadata = new ExecutionMetadata();
+        metadata.setBackend("sqlite");
+        trace.applyTo(metadata);
+        trace.recordStatement(metadata);
+        assertSame(intent, trace.mutationIntent());
+        assertEquals("submit order", metadata.getAuditReason());
+        assertEquals("submit order", metadata.getComment());
+        assertEquals(intent.readbackIntent().purpose(), metadata.getPurpose());
+        assertEquals(lineage, metadata.getMutationLineage());
+        assertEquals(List.of(metadata), collected);
+    }
 }

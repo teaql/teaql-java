@@ -424,7 +424,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
 
         String operation = mutation.getAction() == EntityPersistenceMutation.Action.DELETE ? "delete"
                 : entity.newItem() ? "insert" : entity.recoverItem() ? "recover" : "update";
-        var trace = io.teaql.core.SqlExecutionTrace.mutation(entity, mutation.getTraceChain(), operation)
+        var trace = io.teaql.core.SqlExecutionTrace.mutation(entity, mutation.getTraceChain(), operation, mutation.intent())
                 .collecting(statements::add);
 
         if (mutation.getAction() == EntityPersistenceMutation.Action.SAVE) {
@@ -503,7 +503,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                 entities.add(entity);
                 var memberStatements = new ArrayList<io.teaql.core.ExecutionMetadata>();
                 statements.add(memberStatements);
-                traces.add(SqlExecutionTrace.mutation(entity, item.getTraceChain(), operation)
+                traces.add(SqlExecutionTrace.mutation(entity, item.getTraceChain(), operation, item.intent())
                         .collecting(memberStatements::add));
             }
             switch (operation) {

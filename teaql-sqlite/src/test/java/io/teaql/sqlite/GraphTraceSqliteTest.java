@@ -50,12 +50,14 @@ public class GraphTraceSqliteTest {
         final List<Integer> itemDeleteBatchSizes = new CopyOnWriteArrayList<>();
         final List<Integer> itemRecoverBatchSizes = new CopyOnWriteArrayList<>();
         final JdbcSqlExecutor driver;
+        final SQLiteDataSource dataSource;
         final DefaultUserContext context;
         volatile boolean failReadback;
         volatile boolean unknownUpdateCounts;
 
         Fixture() throws Exception {
             var ds = new SQLiteDataSource();
+            dataSource = ds;
             ds.setUrl("jdbc:sqlite:" + Files.createTempFile("teaql-graph-trace-", ".db"));
             driver = new JdbcSqlExecutor(ds) {
                 @Override public int[] batchUpdate(String text, List<Object[]> rows) {

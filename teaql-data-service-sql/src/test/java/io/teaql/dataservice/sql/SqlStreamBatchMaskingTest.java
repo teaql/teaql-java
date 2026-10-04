@@ -250,7 +250,8 @@ public class SqlStreamBatchMaskingTest {
         var entity = new BaseEntity();
         entity.__internalSet("id", id);
         return SqlExecutionTrace.mutation(entity,
-                List.of(new TraceNode(TraceKind.AUDIT_REASON, "OrderItem", id, reason)), "insert");
+                List.of(new TraceNode(TraceKind.AUDIT_REASON, "OrderItem", id, reason)), "insert",
+                io.teaql.core.MutationIntent.of(reason));
     }
 
     @Test public void partialPreparedBatchKeepsPerRowTraceForSuccessFailureAndUnknown() throws Exception {
