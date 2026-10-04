@@ -1,5 +1,7 @@
 package io.teaql.examples.tracechain;
 
+import java.util.ArrayList;
+
 import com.teaql.tracechainservice.E;
 import com.teaql.tracechainservice.Q;
 import com.teaql.tracechainservice.GeneratedRuntimeModule;
@@ -682,6 +684,18 @@ public class GeneratedTraceChainExampleTest {
                     .map(TraceNode::getComment).toList();
             assertEquals(List.of("PaymentAttempt.payment", "Payment.customerOrder", "CustomerOrder.platform")
                     .subList(0, depth), details);
+            var kinds = new ArrayList<>(List.of(TraceKind.OPERATION, TraceKind.REQUEST));
+            for (int relation = 0; relation < depth; relation++) kinds.add(TraceKind.RELATION);
+            kinds.add(TraceKind.PROVIDER); kinds.add(TraceKind.SQL);
+            assertEquals("canonical generated path at every physical boundary", kinds,
+                    entry.getTraceChain().stream().map(TraceNode::getKind).toList());
+            assertEquals("query", entry.getTraceChain().get(0).getComment());
+            assertEquals("", entry.getTraceChain().get(1).getComment());
+            assertEquals("sqlite", entry.getTraceChain().get(depth + 2).getName());
+            assertEquals("", entry.getTraceChain().get(depth + 2).getComment());
+            assertEquals("select", entry.getTraceChain().get(depth + 3).getName());
+            assertEquals("", entry.getTraceChain().get(depth + 3).getComment());
+            assertTrue(entry.getTraceChain().stream().allMatch(node -> node.getEntityId() == null));
         }
         System.out.println("PASS Java generated three-level SQL Trace Path and inherited request intent");
         assertFilteredForwardReference(fixture, graph);
