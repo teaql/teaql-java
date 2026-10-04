@@ -20,6 +20,8 @@ import io.teaql.runtime.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
@@ -521,6 +523,39 @@ public class GeneratedTraceChainExampleTest {
         System.out.println("PASS Java generated prepared batch: per-item lineage and complete ledger replacement");
     }
 
+    private record GraphIdentity(String entity, Long id) {}
+
+    private static String identityJson(List<GraphIdentity> identities) {
+        return identities.stream().map(value -> "{\"entity\":\"" + value.entity() + "\",\"id\":" + value.id() + "}")
+                .collect(java.util.stream.Collectors.joining(",", "[", "]"));
+    }
+
+    private static void assertExactGraphIdentities(String boundary, Set<GraphIdentity> expected,
+            List<GraphIdentity> actual) {
+        assertEquals(boundary + " count", expected.size(), actual.size());
+        var distinct = new HashSet<>(actual);
+        assertEquals(boundary + " must not repeat an entity", actual.size(), distinct.size());
+        assertEquals(boundary + " exact typed identities", expected, distinct);
+    }
+
+    @Test public void graphIdentityGuardRejectsDuplicatesMissingEntitiesAndTypeCollapse() {
+        var expected = Set.of(new GraphIdentity("CustomerOrder", 100L), new GraphIdentity("OrderItem", 201L),
+                new GraphIdentity("OrderItem", 202L), new GraphIdentity("Payment", 100L),
+                new GraphIdentity("PaymentAttempt", 401L), new GraphIdentity("Shipment", 501L));
+        var correct = new ArrayList<>(expected);
+        assertExactGraphIdentities("control", expected, correct);
+        var duplicate = new ArrayList<>(correct);
+        duplicate.set(duplicate.indexOf(new GraphIdentity("OrderItem", 202L)), new GraphIdentity("OrderItem", 201L));
+        assertThrows(AssertionError.class, () -> assertExactGraphIdentities("duplicate control", expected, duplicate));
+        var unknown = new ArrayList<>(correct);
+        unknown.set(unknown.indexOf(new GraphIdentity("Shipment", 501L)), new GraphIdentity("Shipment", 999L));
+        assertThrows(AssertionError.class, () -> assertExactGraphIdentities("missing control", expected, unknown));
+        var collapsed = new ArrayList<>(correct);
+        collapsed.set(collapsed.indexOf(new GraphIdentity("Payment", 100L)), new GraphIdentity("CustomerOrder", 100L));
+        assertThrows(AssertionError.class, () -> assertExactGraphIdentities("type collapse control", expected, collapsed));
+        System.out.println("PASS Java graph identity controls: duplicate, missing and equal-ID type collapse rejected");
+    }
+
     @Test public void generatedNormativeGraphHasPerItemPhysicalSqlAndCommittedAudit() throws Exception {
         var fixture = new Fixture();
         Graph graph = fixture.saveNormativeGraph();
@@ -528,6 +563,17 @@ public class GeneratedTraceChainExampleTest {
         assertEquals("six committed entity events", 6, fixture.audit.size());
         assertEquals("same numeric ID must not collapse different types", graph.order.getId(), graph.payment.getId());
         assertTrue("mutation planning must not leave an ambient trace", fixture.context.getTraceChain().isEmpty());
+        var identities = Set.of(new GraphIdentity("CustomerOrder", graph.order.getId()),
+                new GraphIdentity("OrderItem", graph.kept.getId()), new GraphIdentity("OrderItem", graph.removed.getId()),
+                new GraphIdentity("Payment", graph.payment.getId()), new GraphIdentity("PaymentAttempt", graph.attempt.getId()),
+                new GraphIdentity("Shipment", graph.shipment.getId()));
+        assertExactGraphIdentities("actual commands", identities, fixture.commands.stream()
+                .map(value -> new GraphIdentity(value.getEntity().typeName(), value.getEntity().getId())).toList());
+        assertExactGraphIdentities("committed audit", identities, fixture.audit.stream()
+                .map(value -> new GraphIdentity(value.entityType(), ((Number)value.entityId()).longValue())).toList());
+        assertEquals("six actual physical writes", 6L,
+                fixture.sql.stream().filter(value -> value.getOperation() == DataServiceOperation.MUTATION).count());
+        var physicalIdentities = new ArrayList<GraphIdentity>();
         for (var command : fixture.commands) {
             Entity entity = command.getEntity();
             var expected = expected(fixture.base, entity.typeName(), entity.getId());
@@ -540,7 +586,10 @@ public class GeneratedTraceChainExampleTest {
             var writes = fixture.sql.stream().filter(value -> value.getOperation() == DataServiceOperation.MUTATION
                     && value.getTraceChain().get(1).getName().equals(entity.typeName())
                     && value.getMutationLineage().equals(expected)).toList();
-            assertFalse("missing actual SQL for " + entity.typeName(), writes.isEmpty());
+            assertEquals("one actual SQL write for " + entity.typeName() + "#" + entity.getId(), 1, writes.size());
+            // Physical paths deliberately do not carry IDs. Bind the unique
+            // observed SQL fact to its real provider command, not a fabricated path ID.
+            physicalIdentities.add(new GraphIdentity(entity.typeName(), entity.getId()));
             for (var entry : writes) {
                 assertEquals("success", entry.getExecutionOutcome());
                 assertEquals("CustomerOrder", entry.getTraceChain().get(0).getName());
@@ -550,6 +599,13 @@ public class GeneratedTraceChainExampleTest {
             assertTrue("readback retains entity responsibility", fixture.sql.stream().anyMatch(value ->
                     value.getOperation() == DataServiceOperation.QUERY && value.getMutationLineage().equals(expected)));
         }
+        assertExactGraphIdentities("command-bound physical SQL", identities, physicalIdentities);
+        System.out.println("GRAPH IDENTITY EVIDENCE " + "{\"expected\":" + identityJson(new ArrayList<>(identities))
+                + ",\"commands\":" + identityJson(fixture.commands.stream()
+                        .map(value -> new GraphIdentity(value.getEntity().typeName(), value.getEntity().getId())).toList())
+                + ",\"physical\":" + identityJson(physicalIdentities)
+                + ",\"audit\":" + identityJson(fixture.audit.stream()
+                        .map(value -> new GraphIdentity(value.entityType(), ((Number)value.entityId()).longValue())).toList()) + "}");
         assertEquals(Long.valueOf(2), E.customerOrder(graph.order).getVersion().eval());
         assertEquals(Long.valueOf(-2), E.orderItem(graph.removed).getVersion().eval());
         assertEquals(Long.valueOf(1), E.payment(graph.payment).getVersion().eval());

@@ -42,7 +42,7 @@ Use Java 21 or newer, Maven, Bash and the normal repository dependencies:
 bash examples/trace-chain/verify.sh
 ```
 
-The script installs local source dependencies, runs all sixteen scenarios twice
+The script installs local source dependencies, runs all seventeen scenarios twice
 against one database without intermediate cleanup, and compares every generated
 library file's SHA256 before and after execution. It prints the retained
 directory containing the database, Maven logs and checksum manifests. Set
@@ -54,7 +54,8 @@ and the `runtime-examples` Maven profile.
 
 | Scenario | Observed boundary |
 | --- | --- |
-| Six-item normative graph | Root update, item update, item deletion, payment insert, attempt insert and shipment insert each retain their own typed lineage in provider commands, actual write/readback SQL and committed audit |
+| Six-item normative graph | Root update, item update, item deletion, payment insert, attempt insert and shipment insert each retain their own typed lineage in provider commands, actual write/readback SQL and committed audit. Commands and committed events must contain exactly the six `(type, ID)` identities, without duplicates. Every command binds one unique physical write; paths do not invent entity IDs |
+| Identity guard controls | Six records alone are insufficient: duplicated identity, replacement by an unknown ID and collapsing equal numeric IDs across types must each fail |
 | Three-level query | PaymentAttempt → Payment → CustomerOrder → Platform produces four real SQL queries with ordered field-level relation nodes and the originating comment/purpose |
 | Checker rejection | Missing `order_number` fails with its KSML location before provider execution, SQL or committed audit |
 | Provider failure | A real SQLite UNIQUE violation rolls back the earlier root insert, retains attempted branch lineage and emits no committed audit |

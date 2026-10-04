@@ -24,6 +24,7 @@ markers=(
   'PASS Java generated query evidence: logging disabled, three relation levels, immutable result list'
   'PASS Java generated cross-type loaded privacy: repeated saves, rollback retry, delete and independent intent'
   'PASS Java generated normative Trace Chain graph: six physical writes and committed audits'
+  'PASS Java graph identity controls: duplicate, missing and equal-ID type collapse rejected'
   'PASS Java generated three-level SQL Trace Path and inherited request intent'
   'PASS Java generated Checker rejection before provider access'
   'PASS Java generated provider failure: attempted lineage, rollback, no committed audit'
@@ -50,7 +51,7 @@ for repetition in 1 2; do
       exit 1
     fi
   done
-  grep -Fq 'Tests run: 16, Failures: 0, Errors: 0, Skipped: 0' "$log"
+  grep -Fq 'Tests run: 17, Failures: 0, Errors: 0, Skipped: 0' "$log"
   printf 'PASS Java generated Trace Chain run %s on the same database\n' "$repetition"
 done
 library_manifest > "$run_dir/library-after.sha256"
