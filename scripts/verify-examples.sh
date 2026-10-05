@@ -13,7 +13,8 @@ fi
 
 cd "$repo"
 mvn -q -DskipTests install
-mvn -q -pl teaql-sqlite -Dtest=DerivedQueryTraceSqliteTest test
+mvn -q -pl teaql-sqlite \
+  -Dtest=DerivedQueryTraceSqliteTest,LikeIntentPrivacySqliteTest,TypedIntentPrivacySqliteTest test
 mvn -q -pl examples/business-id-runtime \
   -Dtest=BusinessIdRuntimeExampleTest test
 mvn -q -pl examples/security-foundations \

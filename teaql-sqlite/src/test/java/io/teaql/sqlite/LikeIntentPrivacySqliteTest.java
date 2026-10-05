@@ -43,7 +43,7 @@ public class LikeIntentPrivacySqliteTest {
             default -> "%" + operand;
         };
     }
-    private static final class Request<T extends Entity> extends BaseRequest<T> {
+    static final class Request<T extends Entity> extends BaseRequest<T> {
         private final String type;
         Request(Class<T> type, Supplier<T> factory) { super(type, factory); this.type = type.getSimpleName(); }
         @Override public String getTypeName() { return type; }
@@ -52,8 +52,8 @@ public class LikeIntentPrivacySqliteTest {
         }
         Request<T> intent(String text) { internalComment("inspect " + text); internalPurpose("render " + text); return this; }
     }
-    private record Bind(String sql, List<Object> values) {}
-    private static final class Fixture {
+    record Bind(String sql, List<Object> values) {}
+    static final class Fixture {
         final List<Bind> binds = new ArrayList<>();
         final List<ExecutionMetadata> safe = new ArrayList<>();
         final List<QueryIntent> policies = new ArrayList<>();

@@ -52,18 +52,44 @@ final class SqlLikeIntent {
         } else if (expression instanceof SubQuerySearchCriteria subquery) {
             child(subquery.getDependsOn(), repository);
         } else if (expression instanceof FunctionApply function) {
-            if (function instanceof TwoOperatorCriteria && function.getExpressions().size() == 2
-                    && function.getOperator() instanceof Operator operator
-                    && function.second() instanceof Parameter parameter
-                    && ExpressionHelper.hasBuiltinParser(parameter, repository)
-                    && parameter.getOperator() == operator) {
-                var policy = ExpressionHelper.parameterPolicy(context, function, repository);
-                if (io.teaql.core.utils.SensitiveLogNames.credential(parameter.getName()))
-                    policy = SqlParameterLogPolicy.CREDENTIAL;
-                output.capture(List.of(policy), new Object[]{parameter.getValue()});
+            if (function instanceof Between && function.getOperator() == Operator.BETWEEN
+                    && function.getExpressions().size() == 3
+                    && ExpressionHelper.hasBuiltinParser(function.first(), repository)) {
+                // Each bound may have been rewritten independently; trust only matching typed operands.
+                capture(function, function.second(), Operator.BETWEEN, repository);
+                capture(function, function.third(), Operator.BETWEEN, repository);
+            } else if (function instanceof TwoOperatorCriteria && function.getExpressions().size() == 2
+                    && function.getOperator() instanceof Operator operator) {
+                capture(function, function.second(), operator, repository);
+                if (operator == Operator.EQUAL
+                        && phonetic(function.first(), repository) instanceof PropertyReference
+                        && phonetic(function.second(), repository) instanceof Parameter parameter) {
+                    // BaseRequest emits EQ(SOUNDEX(property), SOUNDEX(parameter)). Inherit
+                    // the enclosing field's policy, not the parameter's caller-supplied name.
+                    capture(function, parameter, Operator.SOUNDS_LIKE, repository);
+                }
             }
             for (var child : function.getExpressions()) expression(child, repository);
         }
+    }
+
+    private Expression phonetic(Expression expression, PortableSQLRepository<?> repository) {
+        if (expression instanceof FunctionApply function
+                && ExpressionHelper.hasBuiltinParser(function, repository)
+                && function.getOperator() == Operator.SOUNDS_LIKE && function.getExpressions().size() == 1
+                && ExpressionHelper.hasBuiltinParser(function.first(), repository)) return function.first();
+        return null;
+    }
+
+    private void capture(Expression scope, Expression operand, Operator operator,
+            PortableSQLRepository<?> repository) {
+        if (!(operand instanceof Parameter parameter)
+                || !ExpressionHelper.hasBuiltinParser(parameter, repository)
+                || parameter.getOperator() != operator) return;
+        var policy = ExpressionHelper.parameterPolicy(context, scope, repository);
+        if (io.teaql.core.utils.SensitiveLogNames.credential(parameter.getName()))
+            policy = SqlParameterLogPolicy.CREDENTIAL;
+        output.capture(List.of(policy), new Object[]{parameter.getValue()});
     }
 
 }
