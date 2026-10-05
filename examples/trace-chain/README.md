@@ -140,7 +140,7 @@ not invisible compiler work: its physical statement retains that root and the
 verified relation edge. Matching Facet targets are restricted by the counted
 FK identities, never by applying source-table predicates to the target table.
 Facet materialization preserves nested collection metadata without sharing its
-mutable map. The all-examples gate includes both generated test classes
+mutable map. The all-examples gate includes all three generated test classes
 (22 JUnit methods), twice against the same retained SQLite database.
 Facets loaded with a forward entity live in a runtime-owned `getQueryFacets()`
 sidecar, not a KSML field, dynamic field, JSON property or mutation-ledger key.
