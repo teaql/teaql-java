@@ -124,6 +124,9 @@ public class GeneratedTraceChainExampleTest {
         var read = statements.get(1);
         assertEquals(DataServiceOperation.MUTATION, write.getOperation());
         assertEquals(DataServiceOperation.QUERY, read.getOperation());
+        assertEquals("derived readback retains captured request comment", request.intent().comment(), read.getComment());
+        assertEquals("physical write retains captured root audit reason", request.intent().comment(), write.getAuditReason());
+        assertEquals("derived readback retains captured root audit reason", request.intent().comment(), read.getAuditReason());
         assertEquals(request.getTraceChain(), write.getMutationLineage());
         assertEquals(write.getMutationLineage(), read.getMutationLineage());
         assertEquals(TraceKind.REQUEST, read.getTraceChain().get(1).getKind());
