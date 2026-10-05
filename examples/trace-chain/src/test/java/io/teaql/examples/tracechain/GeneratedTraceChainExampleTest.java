@@ -61,10 +61,12 @@ public class GeneratedTraceChainExampleTest {
                 assertEquals(oldValue, E.orderItem(unchanged).getName().eval());
             }
             fixture.clear();
-            root.auditAs("page 1 replace " + oldValue + " with " + next).save(fixture.context);
+            var reason = "page 1 replace " + oldValue + " with " + next;
+            root.auditAs(reason).save(fixture.context);
             assertEquals(2, fixture.commands.size());
             assertEquals(4, fixture.sql.size());
             assertEquals(2, fixture.audit.size());
+            assertPrivateChain(fixture, root.getId(), reason, "page 1 replace [REDACTED] with [REDACTED]");
             for (var secret : List.of(oldValue, next)) {
                 for (var fact : fixture.sql) {
                     assertPrivateIntent(fact, secret);
@@ -80,6 +82,7 @@ public class GeneratedTraceChainExampleTest {
         }
         root.updateDescription("remove private child"); child.markForDeletion();
         fixture.clear(); root.auditAs("remove " + oldValue).save(fixture.context);
+        assertPrivateChain(fixture, root.getId(), "remove " + oldValue, "remove [REDACTED]");
         for (var fact : fixture.sql) assertPrivateIntent(fact, oldValue);
         for (var fact : fixture.audit) for (var node : fact.traceChain()) assertFalse(String.valueOf(node.getComment()).contains(oldValue));
         assertNull(Q.orderItems().withIdIs(E.orderItem(child).getId().eval()).limit(1)
@@ -89,6 +92,24 @@ public class GeneratedTraceChainExampleTest {
                 .purpose("independent query must not inherit mutation secrets").executeForOne(fixture.context);
         assertEquals(oldValue, fixture.sql.get(0).getComment());
         System.out.println("PASS Java generated cross-type loaded privacy: repeated saves, rollback retry, delete and independent intent");
+        System.out.println("PASS Java generated privacy retains complete raw command and safe SQL/audit root lineage");
+    }
+    private static void assertPrivateChain(Fixture fixture, long rootId, String reason, String safeReason) {
+        var raw = List.of(new TraceNode(TraceKind.AUDIT_REASON, "CustomerOrder", rootId, reason));
+        var safe = List.of(new TraceNode(TraceKind.AUDIT_REASON, "CustomerOrder", rootId, safeReason));
+        assertEquals(2, fixture.commands.size());
+        assertEquals(4, fixture.sql.size());
+        assertEquals(2, fixture.audit.size());
+        for (var command : fixture.commands) {
+            assertEquals("trusted command keeps complete root intent", raw, command.getTraceChain());
+            assertEquals(reason, command.intent().comment());
+        }
+        for (var statement : fixture.sql) {
+            assertEquals("safe SQL keeps complete typed root lineage", safe, statement.getMutationLineage());
+            assertEquals("safe SQL keeps masked root intent", safeReason, statement.getAuditReason());
+        }
+        for (var event : fixture.audit)
+            assertEquals("safe committed audit keeps complete typed root lineage", safe, event.traceChain());
     }
     private static void assertPrivateIntent(ExecutionMetadata fact, String secret) {
         for (var text : List.of(String.valueOf(fact.getComment()), String.valueOf(fact.getPurpose()),
