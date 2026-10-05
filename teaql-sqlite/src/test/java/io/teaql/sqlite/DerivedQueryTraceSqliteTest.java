@@ -138,6 +138,56 @@ public class DerivedQueryTraceSqliteTest {
         }
     }
 
+    @Test public void loadedCollectionFacetsRetainPerParentMembershipCountsAndRequestedEmpty() throws Exception {
+        for (boolean logging : List.of(false, true)) {
+            for (boolean includeAll : List.of(false, true)) {
+                var fixture = new Fixture(logging);
+                var empty = fixture.create(new TraceDocument(), 300, "Document without lines");
+                empty.auditAs("seed a parent with no child membership").save(fixture.context);
+                fixture.sql.clear(); fixture.returnedQueries.clear();
+                var children = fixture.lines(); children.setSize(1);
+                var targets = fixture.documents().where("id", Operator.IN, List.of(100L, 200L, 300L)); targets.setSize(3);
+                children.addFacet("documents", "document", targets, includeAll);
+                var root = fixture.documents().where("id", Operator.IN, List.of(100L, 200L, 300L))
+                        .intent("load scoped child facets", "verify collection metadata and full membership");
+                root.setSize(3); root.enhanceRelation("lines", children);
+                SmartList<TraceDocument> rows = fixture.context.getRuntime().executeForList(fixture.context, root);
+                assertEquals(3, rows.size());
+                for (var parent : rows) {
+                    SmartList<TraceLine> lines = parent.getProperty("lines");
+                    assertNotNull("requested empty reverse relation must be loaded", lines);
+                    assertEquals(parent.getId() == 300L ? 0 : 1, lines.size());
+                    var facets = lines.getFacet("documents");
+                    assertNotNull("loaded collection must retain its Facet metadata", facets);
+                    int expectedSize = includeAll ? 3 : parent.getId() == 300L ? 0 : 1;
+                    assertEquals("Facet membership must be independently scoped to each parent", expectedSize, facets.size());
+                    for (Object value : facets) {
+                        var target = (Entity) value;
+                        int expected = target.getId().equals(parent.getId()) ? parent.getId() == 100L ? 2 : parent.getId() == 200L ? 1 : 0 : 0;
+                        assertEquals("counts cover the whole source, not the one-row child page", expected,
+                                ((Number) target.getDynamicProperty("count")).intValue());
+                    }
+                }
+                var raw = fixture.returnedQueries.get(fixture.returnedQueries.size() - 1).statements();
+                assertEquals(10, raw.size());
+                for (int i = 0; i < raw.size(); i++) {
+                    var expected = new ArrayList<>(List.of(new TraceNode(TraceKind.OPERATION,"TraceDocument",null,"query"),
+                            new TraceNode(TraceKind.REQUEST,"TraceDocument",null,"")));
+                    if (i > 0) expected.add(new TraceNode(TraceKind.RELATION,"lines",null,"TraceDocument.lines"));
+                    if (i > 0 && i % 3 == 0) expected.add(new TraceNode(TraceKind.RELATION,"document",null,"TraceLine.document"));
+                    expected.add(new TraceNode(TraceKind.PROVIDER,"sqlite",null,""));
+                    expected.add(new TraceNode(TraceKind.SQL,"select",null,""));
+                    assertEquals(expected, raw.get(i).getTraceChain());
+                    assertEquals("load scoped child facets",raw.get(i).getComment());
+                    assertEquals("verify collection metadata and full membership",raw.get(i).getPurpose());
+                }
+                assertEquals(logging ? 10 : 0,fixture.sql.size());
+                assertTrue(fixture.context.getTraceChain().isEmpty());
+                System.out.printf("JAVA_COLLECTION_FACET logging=%s includeAll=%s parents=3 fullCounts=true requestedEmpty=true physicalStatements=10%n",logging,includeAll);
+            }
+        }
+    }
+
     /** Hold completed physical root reads, not merely two starts at a barrier. */
     private static final class PausedRoots extends JdbcSqlExecutor {
         final CountDownLatch bothReturned = new CountDownLatch(2);

@@ -273,6 +273,35 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                         .toList();
         if (io.teaql.core.utils.ObjectUtil.isEmpty(parents)) return;
 
+        // Facets belong to the referenced entity's query, not the union of
+        // every parent's membership. Keep them in a nonpersistent sidecar.
+        // Ordinary relation hydration continues to use the bulk lookup below.
+        if (parentRequest.getFacetRequests() != null && !parentRequest.getFacetRequests().isEmpty()) {
+            Map<Long, Entity> loadedById = new HashMap<>();
+            for (Entity parent : parents) {
+                var scoped = SqlDiagnosticRequest.forRelation(parentRequest, intent, origin, relation.getName());
+                scoped.appendSearchCriteria(scoped.createBasicSearchCriteria(
+                        BaseEntity.ID_PROPERTY, io.teaql.core.criteria.Operator.EQUAL, parent.getId()));
+                if (scoped.getSlice() == null) scoped.setSize(1);
+                SmartList<Entity> loaded = userContext.internalExecuteForList(scoped);
+                Map<String, SmartList<?>> facets = new HashMap<>();
+                loaded.getFacets().forEach(facets::put);
+                for (Entity entity : loaded) {
+                    if (entity instanceof BaseEntity base) base.__internalSetQueryFacets(facets);
+                    loadedById.put(entity.getId(), entity);
+                }
+            }
+            for (Entity result : results) {
+                Object old = result.getProperty(relation.getName());
+                if (old instanceof Entity reference) {
+                    Entity loaded = loadedById.get(reference.getId());
+                    // A target filter cannot erase the source's known FK.
+                    if (loaded != null) attachRelation(result, relation, loaded);
+                }
+            }
+            return;
+        }
+
         io.teaql.core.internal.TempRequest parentTemp = SqlDiagnosticRequest.forRelation(
                 parentRequest, intent, origin, relation.getName());
         parentTemp.appendSearchCriteria(parentTemp.createBasicSearchCriteria(BaseEntity.ID_PROPERTY, io.teaql.core.criteria.Operator.IN, parents));
@@ -309,6 +338,28 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         if (boundedTopN) ensureStableEntityIdOrder(childTempRequest);
         Integer configuredThreshold = childTempRequest.topNProbeParentThreshold();
         boolean probe = boundedTopN && shouldProbe(dataSet.size(), configuredThreshold);
+
+        // A collection Facet is scoped to one parent's entire filtered child
+        // set, even when the visible child page is smaller. A union query's
+        // Facets cannot be copied to every parent. Keep each returned SmartList
+        // intact, including its explicitly loaded empty Facets.
+        if (childRequest.getFacetRequests() != null && !childRequest.getFacetRequests().isEmpty()) {
+            for (Entity parent : dataSet) {
+                var scoped = SqlDiagnosticRequest.forRelation(childRequest, intent, origin, relation.getName());
+                selectRelationAttachmentKey(scoped, reverseProperty.getName());
+                scoped.setPartitionProperty(null);
+                if (boundedTopN) {
+                    ensureStableEntityIdOrder(scoped);
+                    addTopNTelemetry(scoped, dataSet.size(), slice.getSize(), configuredThreshold,
+                            "facet-scope", dataSet.size());
+                }
+                scoped.appendSearchCriteria(scoped.createBasicSearchCriteria(
+                        reverseProperty.getName(), io.teaql.core.criteria.Operator.EQUAL, parent));
+                SmartList<Entity> loaded = userContext.internalExecuteForList(scoped);
+                parent.setProperty(relation.getName(), loaded);
+            }
+            return;
+        }
         SmartList<Entity> children = new SmartList<>();
 
         if (probe) {

@@ -55,13 +55,21 @@ for repetition in 1 2; do
       exit 1
     fi
   done
-  grep -Fq 'Tests run: 19, Failures: 0, Errors: 0, Skipped: 0' "$log"
+  grep -Fq 'Tests run: 21, Failures: 0, Errors: 0, Skipped: 0' "$log"
   grep -Fq 'JAVA_NESTED_FACET_CARRIER returned nested metadata and count verified' "$log"
   for logging in false true; do
+    sink_count=0
+    if [[ $logging == true ]]; then sink_count=7; fi
+    grep -Fq "JAVA_LOADED_FACET logging=$logging parents=2 independentMembership=true physicalStatements=7 safeSinkStatements=$sink_count" "$log"
     for all in false true; do
       sink_count=0
       if [[ $logging == true ]]; then sink_count=7; fi
       grep -Fq "JAVA_NESTED_FACET {\"logging\":$logging,\"includeAll\":$all,\"visible\":1,\"paymentCount\":2,\"orderCount\":2,\"physicalStatements\":7,\"safeSinkStatements\":$sink_count}" "$log"
+      for exists in false true; do
+        facet_rows=0
+        if [[ $exists == true ]]; then facet_rows=1; fi
+        grep -Fq "JAVA_LOADED_EMPTY_FACET logging=$logging includeAll=$all targetExists=$exists facetRows=$facet_rows physicalStatements=4 mutationCommands=1" "$log"
+      done
     done
   done
   printf 'PASS Java generated Trace Chain run %s on the same database\n' "$repetition"

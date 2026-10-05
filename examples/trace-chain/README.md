@@ -70,6 +70,8 @@ and the `runtime-examples` Maven profile.
 | Facet inside a loaded relation | A PaymentAttempt loads Payment and its CustomerOrder facet; all four physical queries keep the original root, including the already-loaded `payment` ancestor |
 | Returned nested Facet metadata | `GeneratedFacetTraceExampleTest` checks that the returned payments Facet retains its orders Facet; executing nested SQL alone does not prove result carriage |
 | Full nested membership counts | A one-row page over three attempts / two payments returns both payment and order counts of 2; matching/all Facets and logging off/on execute seven real SELECTs, including materialized predicate lookups, on one originating collector |
+| Loaded forward Facet results | Two loaded payments each retain their own orders Facet through runtime-owned `getQueryFacet("orders")`; seven physical SELECTs keep the complete root/ancestor path in both logging modes |
+| Loaded empty and nonpersistent metadata | Eight matching/all × existing/absent target × logging combinations retain requested empty Facets and stable FK identity; subsequent audited payment save emits exactly one business mutation |
 
 The first run begins with CustomerOrder and Payment both numbered 100, items
 201/202, attempt 401 and shipment 501. IDs come from `IdSpaceIdGenerator`, not
@@ -138,7 +140,18 @@ verified relation edge. Matching Facet targets are restricted by the counted
 FK identities, never by applying source-table predicates to the target table.
 Facet materialization preserves nested collection metadata without sharing its
 mutable map. The all-examples gate includes both generated test classes
-(19 JUnit methods), twice against the same retained SQLite database.
+(21 JUnit methods), twice against the same retained SQLite database.
+Facets loaded with a forward entity live in a runtime-owned `getQueryFacets()`
+sidecar, not a KSML field, dynamic field, JSON property or mutation-ledger key.
+`getQueryFacet(name) == null` means that Facet was not requested; a non-null
+empty `SmartList` is a loaded empty result. The map is a copied, unmodifiable
+snapshot. Loading a reverse collection preserves that collection's existing
+`SmartList.getFacet(name)` metadata, independently for every parent, including
+parents without children. Facet scopes currently use per-referenced-entity or
+per-parent reads for correctness; there is no batched-Facet performance claim.
+Ordinary relation loads without Facets retain their existing bulk/window/probe
+policy. For a bounded reverse collection with Facets, selected-plan telemetry
+reports `facet-scope`, not a fabricated window/probe selection.
 Native `DerivedQueryTraceSqliteTest` separately exercises dynamic aggregates:
 filtered counts, an aggregate inside a loaded relation, safe parent-value
 redaction, logging disabled, and a numeric partition without a model relation.

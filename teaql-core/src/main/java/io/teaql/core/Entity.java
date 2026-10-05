@@ -80,6 +80,16 @@ public interface Entity {
 
     <T> T getDynamicProperty(String propertyName);
 
+    /** Nonpersistent results of Facets requested while loading this entity. */
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    default java.util.Map<String, SmartList<?>> getQueryFacets() {
+        return java.util.Map.of();
+    }
+
+    default SmartList<?> getQueryFacet(String name) {
+        return getQueryFacets().get(name);
+    }
+
     /**
      * Returns the dynamic field values wrapper for this entity.
      * Dynamic fields use the '#' prefix namespace in additionalInfo.

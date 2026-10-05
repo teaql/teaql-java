@@ -16,6 +16,55 @@ import static org.junit.Assert.*;
 
 /** TC-SQL-09: check returned nested metadata, not just successful facet SQL. */
 public class GeneratedFacetTraceExampleTest {
+    @Test public void loadedForwardRelationFacetsBelongToEachReferencedEntity() throws Exception {
+        for (boolean logging : List.of(false, true)) {
+            var fixture = new GeneratedTraceChainExampleTest.Fixture(logging);
+            var first = fixture.saveNormativeGraph();
+            var second = Q.customerOrders().comment("prepare a distinct facet owner")
+                    .purpose("verify per-parent metadata").newEntity(fixture.context);
+            second.updatePlatform(E.customerOrder(first.order()).getPlatform().eval());
+            second.updateOrderNumber("LOADED-FACET-ORDER-" + fixture.base);
+            second.updateDescription("Distinct loaded facet owner");
+            var payment = Q.payments().comment("prepare a distinct loaded payment")
+                    .purpose("verify per-parent metadata").newEntity(fixture.context);
+            payment.updateReferenceCode("LOADED-FACET-PAYMENT-" + fixture.base);
+            var attempt = Q.paymentAttempts().comment("prepare a distinct related attempt")
+                    .purpose("verify per-parent metadata").newEntity(fixture.context);
+            attempt.updateReferenceCode("LOADED-FACET-ATTEMPT-" + fixture.base);
+            payment.addPaymentAttempt(attempt);
+            second.addPayment(payment);
+            second.auditAs("seed independent loaded facet owners").save(fixture.context);
+            fixture.clear(); fixture.queryResults.clear();
+            String comment = "load independently scoped related facets";
+            String purpose = "verify returned metadata belongs to each loaded payment";
+            var rows = Q.paymentAttempts().withIdIn(first.attempt().getId(), attempt.getId())
+                    .orderByIdDescending().limit(2)
+                    .selectPaymentWith(Q.payments().limit(2)
+                            .facetByCustomerOrderAs("orders", Q.customerOrders().limit(2), false))
+                    .comment(comment).purpose(purpose).executeForList(fixture.context);
+            assertEquals(2, rows.size());
+            for (var row : rows) {
+                var expected = row.getId().equals(first.attempt().getId()) ? first.order().getId() : second.getId();
+                var loadedPayment = E.paymentAttempt(row).getPayment().eval();
+                var orders = loadedPayment.getQueryFacet("orders");
+                assertNotNull("loaded forward relation must retain requested Facet metadata", orders);
+                assertEquals("Facets must not leak membership from a different loaded parent", 1, orders.size());
+                assertEquals(expected, E.customerOrder((CustomerOrder) orders.get(0)).getId().eval());
+                assertEquals(1, count((Entity) orders.get(0)));
+            }
+            var raw = fixture.queryResults.get(fixture.queryResults.size() - 1).statements();
+            var routes = List.of(List.<String>of(), List.of("payment"), List.of("payment"),
+                    List.of("payment", "customerOrder"), List.of("payment"), List.of("payment"),
+                    List.of("payment", "customerOrder"));
+            assertEquals(routes.size(), raw.size());
+            for (int i = 0; i < raw.size(); i++) assertPath(raw.get(i), routes.get(i), comment, purpose);
+            assertEquals(logging ? raw.size() : 0, fixture.sql.size());
+            assertTrue(fixture.context.getTraceChain().isEmpty());
+            System.out.printf("JAVA_LOADED_FACET logging=%s parents=2 independentMembership=true physicalStatements=7 safeSinkStatements=%d%n",
+                    logging, fixture.sql.size());
+        }
+    }
+
     @Test public void nestedFacetMetadataRemainsAttachedToTheReturnedFacetCollection() throws Exception {
         var fixture = new GeneratedTraceChainExampleTest.Fixture();
         var graph = fixture.saveNormativeGraph();
@@ -33,6 +82,45 @@ public class GeneratedFacetTraceExampleTest {
         assertEquals(graph.order().getId(), E.customerOrder((CustomerOrder) orders.get(0)).getId().eval());
         assertEquals(1, count((CustomerOrder) orders.get(0)));
         System.out.println("JAVA_NESTED_FACET_CARRIER returned nested metadata and count verified");
+    }
+
+    @Test public void loadedForwardFacetsPreserveRequestedEmptyAndNeverBecomeWrites() throws Exception {
+        for (boolean logging : List.of(false, true)) {
+            for (boolean includeAll : List.of(false, true)) {
+                for (boolean targetExists : List.of(false, true)) {
+                    var fixture = new GeneratedTraceChainExampleTest.Fixture(logging);
+                    var graph = fixture.saveNormativeGraph();
+                    fixture.clear(); fixture.queryResults.clear();
+                    String comment = "load explicitly bounded related facet";
+                    String purpose = "verify empty results and query-only metadata";
+                    var row = Q.paymentAttempts().withIdIs(graph.attempt().getId()).limit(1)
+                            .selectPaymentWith(Q.payments().limit(1)
+                                    .facetByCustomerOrderAs("orders", Q.customerOrders()
+                                            .withIdIs(targetExists ? graph.order().getId() : -1L).limit(1), includeAll))
+                            .comment(comment).purpose(purpose).executeForOne(fixture.context);
+                    var payment = E.paymentAttempt(row).getPayment().eval();
+                    var orders = payment.getQueryFacet("orders");
+                    assertNotNull("a requested empty Facet is loaded, not missing", orders);
+                    assertEquals(targetExists ? 1 : 0, orders.size());
+                    assertEquals("unfetched related detail cannot erase FK identity", graph.order().getId(),
+                            E.customerOrder(E.payment(payment).getCustomerOrder().eval()).getId().eval());
+                    var raw = fixture.queryResults.get(fixture.queryResults.size() - 1).statements();
+                    var routes = List.of(List.<String>of(), List.of("payment"), List.of("payment"),
+                            List.of("payment", "customerOrder"));
+                    assertEquals(routes.size(), raw.size());
+                    for (int i = 0; i < raw.size(); i++) assertPath(raw.get(i), routes.get(i), comment, purpose);
+                    assertEquals(logging ? raw.size() : 0, fixture.sql.size());
+                    fixture.clear();
+                    payment.updateReferenceCode("LOADED-FACET-SAVE-" + fixture.base);
+                    payment.auditAs("update one payment without persisting query metadata").save(fixture.context);
+                    assertEquals("Facet sidecar cannot become a graph write", 1, fixture.commands.size());
+                    assertEquals("Payment", fixture.commands.get(0).getEntity().typeName());
+                    assertTrue(fixture.context.getTraceChain().isEmpty());
+                    System.out.printf("JAVA_LOADED_EMPTY_FACET logging=%s includeAll=%s targetExists=%s facetRows=%d physicalStatements=4 mutationCommands=1%n",
+                            logging, includeAll, targetExists, orders.size());
+                }
+            }
+        }
     }
 
     @Test public void nestedFacetCountsSurviveMaterializationBeyondTheVisiblePage() throws Exception {

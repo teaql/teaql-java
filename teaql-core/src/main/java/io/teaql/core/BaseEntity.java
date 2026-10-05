@@ -42,6 +42,20 @@ public class BaseEntity implements Entity {
 
     private DynamicFieldValues dynamicFieldValues;
 
+    // Query-only sidecar. Never a model property or mutation-ledger entry.
+    private transient Map<String, SmartList<?>> queryFacets = Map.of();
+
+    @Override
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public Map<String, SmartList<?>> getQueryFacets() {
+        return queryFacets;
+    }
+
+    @FrameworkInternal
+    public void __internalSetQueryFacets(Map<String, ? extends SmartList<?>> facets) {
+        queryFacets = facets == null || facets.isEmpty() ? Map.of() : Map.copyOf(facets);
+    }
+
     private Map<String, Entity> relationCache = new HashMap<>();
 
     private List<Object> actionList;
