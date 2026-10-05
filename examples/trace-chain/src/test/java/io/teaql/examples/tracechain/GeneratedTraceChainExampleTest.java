@@ -508,6 +508,10 @@ public class GeneratedTraceChainExampleTest {
         var complete = List.of(new TraceNode(TraceKind.AUDIT_REASON, "CustomerOrder", orderId, "delegated batch root"),
                 new TraceNode(TraceKind.AUDIT_REASON, "OrderItem", secondId, "delegated beta"));
         second.setTraceChain(complete);
+        var sibling = Q.orderItems().comment("what: initialize an unannotated sibling")
+                .purpose("why: prove complete ledger replacement is scoped to one typed key").newEntity(fixture.context);
+        sibling.updateName("Unannotated ledger sibling");
+        order.addOrderItem(sibling);
         fixture.clear();
         order.auditAs("replacement graph fallback").save(fixture.context);
         var overrideCommand = fixture.commands.stream().filter(value -> value.getEntity().typeName().equals("OrderItem")
@@ -520,6 +524,37 @@ public class GeneratedTraceChainExampleTest {
                 && value.getMutationLineage().equals(complete)));
         assertTrue(fixture.sql.stream().anyMatch(value -> value.getOperation() == DataServiceOperation.QUERY
                 && value.getMutationLineage().equals(complete)));
+        assertNotNull("new fallback sibling receives its assigned ID", sibling.getId());
+        assertTrue(sibling.getId() > 0);
+        var fallback = List.of(new TraceNode(TraceKind.AUDIT_REASON, "CustomerOrder", orderId, "replacement graph fallback"));
+        var expectedByIdentity = java.util.Map.of(
+                new GraphIdentity("CustomerOrder", orderId), fallback,
+                new GraphIdentity("OrderItem", secondId), complete,
+                new GraphIdentity("OrderItem", sibling.getId()), fallback);
+        assertEquals(3, fixture.commands.size());
+        assertEquals(3, fixture.audit.size());
+        assertExactGraphIdentities("ledger override commands", expectedByIdentity.keySet(), fixture.commands.stream()
+                .map(value -> new GraphIdentity(value.getEntity().typeName(), value.getEntity().getId())).toList());
+        assertExactGraphIdentities("ledger override committed audit", expectedByIdentity.keySet(), fixture.audit.stream()
+                .map(value -> new GraphIdentity(value.entityType(), ((Number)value.entityId()).longValue())).toList());
+        for (var command : fixture.commands) {
+            var identity = new GraphIdentity(command.getEntity().typeName(), command.getEntity().getId());
+            var expected = expectedByIdentity.get(identity);
+            assertEquals("complete ledger replaces only its own key: " + identity, expected, command.getTraceChain());
+            var event = fixture.audit.stream().filter(value -> value.entityType().equals(identity.entity())
+                    && value.entityId().equals(identity.id())).findFirst().orElseThrow();
+            assertEquals("sibling fallback at committed audit: " + identity, expected, event.traceChain());
+            var writes = fixture.sql.stream().filter(value -> value.getOperation() == DataServiceOperation.MUTATION
+                    && value.getMutationLineage().equals(expected)
+                    && value.getTraceChain().stream().anyMatch(node -> node.getKind() == TraceKind.ENTITY
+                            && node.getName().equals(identity.entity()))).toList();
+            assertEquals("one physical write for ledger key " + identity, 1, writes.size());
+            assertEquals("success", writes.get(0).getExecutionOutcome());
+            assertTrue("readback retains this key's lineage: " + identity, fixture.sql.stream().anyMatch(value ->
+                    value.getOperation() == DataServiceOperation.QUERY && value.getMutationLineage().equals(expected)));
+        }
+        assertEquals(3, fixture.sql.stream().filter(value -> value.getOperation() == DataServiceOperation.MUTATION).count());
+        System.out.println("PASS Java generated ledger override: one typed key replaces fallback; new sibling inherits only graph root at command/SQL/audit");
         System.out.println("PASS Java generated prepared batch: per-item lineage and complete ledger replacement");
     }
 

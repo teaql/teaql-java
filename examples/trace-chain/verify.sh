@@ -30,6 +30,7 @@ markers=(
   'PASS Java generated provider failure: attempted lineage, rollback, no committed audit'
   'PASS Java generated readback failure: separate outcomes and successful retry'
   'PASS Java generated prepared batch: per-item lineage and complete ledger replacement'
+  'PASS Java generated ledger override: one typed key replaces fallback; new sibling inherits only graph root at command/SQL/audit'
   'PASS Java generated prepared update/delete/recover: unequal versions and per-item lineage'
   'PASS Java generated overlapping Checker: valid commits, invalid rejected before provider'
   'PASS Java generated concurrent graphs: same Context, independent ledgers and per-item SQL/audit lineage'
