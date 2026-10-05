@@ -5,7 +5,7 @@ import io.teaql.core.criteria.*;
 import io.teaql.core.sql.expression.ExpressionHelper;
 import java.util.*;
 
-/** Read-only, invocation-local provenance from typed operands before SQL wildcard decoration. */
+/** Read-only provenance from typed operands before any root or derived SQL executes. */
 final class SqlLikeIntent {
     private final UserContext context;
     private final SqlIntentRedactions output;
@@ -53,7 +53,7 @@ final class SqlLikeIntent {
             child(subquery.getDependsOn(), repository);
         } else if (expression instanceof FunctionApply function) {
             if (function instanceof TwoOperatorCriteria && function.getExpressions().size() == 2
-                    && function.getOperator() instanceof Operator operator && decorated(operator)
+                    && function.getOperator() instanceof Operator operator
                     && function.second() instanceof Parameter parameter
                     && ExpressionHelper.hasBuiltinParser(parameter, repository)
                     && parameter.getOperator() == operator) {
@@ -66,10 +66,4 @@ final class SqlLikeIntent {
         }
     }
 
-    private static boolean decorated(Operator operator) {
-        return switch (operator) {
-            case CONTAIN, NOT_CONTAIN, BEGIN_WITH, NOT_BEGIN_WITH, END_WITH, NOT_END_WITH -> true;
-            default -> false;
-        };
-    }
 }

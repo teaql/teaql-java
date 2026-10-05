@@ -135,6 +135,10 @@ public class LikeIntentPrivacySqliteTest {
         for (var raw : f.last.statements()) {
             assertEquals(request.comment(), raw.getComment());
             assertEquals(request.purpose(), raw.getPurpose());
+            var projected = LogPrivacy.sql(raw, false);
+            String expected = privateOperand ? "[REDACTED]" : operand;
+            assertEquals("inspect " + expected, projected.getComment());
+            assertEquals("render " + expected, projected.getPurpose());
         }
         for (var entry : f.safe) {
             String expected = privateOperand ? "[REDACTED]" : operand;
@@ -216,5 +220,49 @@ public class LikeIntentPrivacySqliteTest {
         assertProjection(f, rewritten, "FIRST-SECRET", false, 1);
         assertEquals("FIRST-SECRET", parameter.getValue());
         assertEquals(op, parameter.getOperator());
+    }
+
+    @Test public void futureEqualityAndSetOperandsArePrivateBeforeRootSql() throws Exception {
+        var f = new Fixture(logging);
+        for (Operator predicate : List.of(Operator.EQUAL, Operator.IN)) {
+            f.clear();
+            var child = f.lines().where(field(), predicate, "FIRST-SECRET");
+            child.topNProbeParentThreshold(0);
+            var root = f.documents().intent("FIRST-SECRET");
+            root.enhanceRelation("lines", child);
+            var rows = f.run(root);
+            assertEquals(2, rows.size());
+            assertEquals(1, ((SmartList<?>) rows.get(0).getProperty("lines")).size());
+            // This native Row fixture has no generated reverse-list empty initializer.
+            var absent = (SmartList<?>) rows.get(1).getProperty("lines");
+            assertTrue(absent == null || absent.isEmpty());
+            assertFalse(f.binds.get(0).values().contains("FIRST-SECRET"));
+            assertTrue(f.binds.get(1).values().contains("FIRST-SECRET"));
+            assertProjection(f, root, "FIRST-SECRET", marked, 2);
+            f.clear();
+            var independent = f.documents().intent("FIRST-SECRET");
+            assertEquals(2, f.run(independent).size());
+            assertProjection(f, independent, "FIRST-SECRET", false, 1);
+        }
+    }
+
+    @Test public void futureAggregateEqualityAndSetOperandsArePrivateBeforeRootSql() throws Exception {
+        var f = new Fixture(logging);
+        for (Operator predicate : List.of(Operator.EQUAL, Operator.IN)) {
+            f.clear();
+            var count = f.lines().where(field(), predicate, "FIRST-SECRET");
+            count.setPartitionProperty("document"); count.count("count");
+            var root = f.documents().intent("FIRST-SECRET");
+            root.addSingleAggregateDynamicProperty("selectedLineCount", count);
+            var rows = f.run(root);
+            assertEquals(2, rows.size());
+            assertEquals(1, ((Number) rows.get(0).getDynamicProperty("selectedLineCount")).intValue());
+            assertEquals(0, ((Number) rows.get(1).getDynamicProperty("selectedLineCount")).intValue());
+            assertFalse(f.binds.get(0).values().contains("FIRST-SECRET"));
+            assertTrue(f.binds.get(1).values().contains("FIRST-SECRET"));
+            assertEquals(List.of("lines"), f.last.statements().get(1).getTraceChain().stream()
+                    .filter(n -> n.getKind() == TraceKind.RELATION).map(TraceNode::getName).toList());
+            assertProjection(f, root, "FIRST-SECRET", marked, 2);
+        }
     }
 }

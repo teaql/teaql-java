@@ -12,6 +12,17 @@ typed branch lineage and the originating root's query/request path. Prepared
 batches keep a separate statement list per member; concurrent saves do not share
 a collection. This checks returned evidence independently of the log sink.
 Native SQLite tests exercise all four query/mutation logging combinations.
+`GeneratedAggregateTraceExampleTest` adds root/nested × logging-off/on dynamic
+counts and numeric ID partitions, plus eight visible/filtered forward-detail
+membership cases. Every physical raw path is asserted, and safe projections
+redact private equal/set operands before the first root statement. Numeric
+partitions add no invented relation. Two-child membership and scoped count remain
+intact; a filtered parent keeps its actual ID while generated E rejects unfetched
+description. Loading a separate full view cannot fill in that first view.
+The aggregate helpers use the public inherited `BaseRequest` operations
+`setPartitionProperty`, `count`, and `addSingleAggregateDynamicProperty`, as
+exercised by `DerivedQueryTraceSqliteTest`; generated selectors and E access use
+retained field Assist. No application SQL, injected trace frames or library edits.
 Disabling diagnostic text does not remove the returned physical facts or change
 the number of committed audits. These raw facts are trusted internal diagnostics;
 apply `LogPrivacy.sql` before exporting one to a diagnostic sink, never serialize
@@ -42,7 +53,7 @@ Use Java 21 or newer, Maven, Bash and the normal repository dependencies:
 bash examples/trace-chain/verify.sh
 ```
 
-The script installs local source dependencies, runs all seventeen scenarios twice
+The script installs local source dependencies, runs all twenty-four test methods twice
 against one database without intermediate cleanup, and compares every generated
 library file's SHA256 before and after execution. It prints the retained
 directory containing the database, Maven logs and checksum manifests. Set
@@ -140,8 +151,8 @@ not invisible compiler work: its physical statement retains that root and the
 verified relation edge. Matching Facet targets are restricted by the counted
 FK identities, never by applying source-table predicates to the target table.
 Facet materialization preserves nested collection metadata without sharing its
-mutable map. The all-examples gate includes all three generated test classes
-(22 JUnit methods), twice against the same retained SQLite database.
+mutable map. The all-examples gate includes all four generated test classes
+(24 JUnit methods), twice against the same retained SQLite database.
 Facets loaded with a forward entity live in a runtime-owned `getQueryFacets()`
 sidecar, not a KSML field, dynamic field, JSON property or mutation-ledger key.
 `getQueryFacet(name) == null` means that Facet was not requested; a non-null

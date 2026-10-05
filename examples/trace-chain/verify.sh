@@ -44,7 +44,7 @@ markers=(
 )
 for repetition in 1 2; do
   log="$run_dir/run-$repetition.log"
-  if ! mvn -B -f "$example_dir/pom.xml" -Dtest=GeneratedTraceChainExampleTest,GeneratedFacetTraceExampleTest,GeneratedReverseFacetTraceExampleTest \
+  if ! mvn -B -f "$example_dir/pom.xml" -Dtest=GeneratedTraceChainExampleTest,GeneratedFacetTraceExampleTest,GeneratedReverseFacetTraceExampleTest,GeneratedAggregateTraceExampleTest \
     "-Dteaql.trace.database=$database" test > "$log" 2>&1; then
     tail -n 100 "$log" >&2
     exit 1
@@ -55,7 +55,12 @@ for repetition in 1 2; do
       exit 1
     fi
   done
-  grep -Fq 'Tests run: 22, Failures: 0, Errors: 0, Skipped: 0' "$log"
+  grep -Fq 'Tests run: 24, Failures: 0, Errors: 0, Skipped: 0' "$log"
+  for aggregate_marker in JAVA_AGGREGATE_OBSERVED JAVA_AGGREGATE_NUMERIC JAVA_AGGREGATE_MEMBERSHIP JAVA_AGGREGATE_FORWARD; do
+    expected_count=4
+    if [[ $aggregate_marker == JAVA_AGGREGATE_MEMBERSHIP ]]; then expected_count=8; fi
+    [[ $(grep -c "^$aggregate_marker " "$log") == "$expected_count" ]]
+  done
   grep -Fq 'JAVA_NESTED_FACET_CARRIER returned nested metadata and count verified' "$log"
   for logging in false true; do
     sink_count=0

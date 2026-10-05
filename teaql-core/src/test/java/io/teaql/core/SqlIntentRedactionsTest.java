@@ -5,6 +5,19 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class SqlIntentRedactionsTest {
+    @Test public void repeatedTypedAndPhysicalCaptureIsIdempotentWithoutLosingForcedSecrets() {
+        var source = new SqlIntentRedactions();
+        for (int i = 0; i < 3; i++) source.capture(List.of(SqlParameterLogPolicy.MASKED), new Object[]{"SECRET"});
+        var safe = new java.util.ArrayList<Object>(); source.appendTo(safe, false);
+        assertEquals(List.of("SECRET"), safe);
+        var child = source.copy(); child.include(source);
+        child.capture(List.of(SqlParameterLogPolicy.CREDENTIAL), new Object[]{"SECRET"});
+        child.capture(List.of(SqlParameterLogPolicy.MASKED), new Object[]{"NEXT"});
+        var debug = new java.util.ArrayList<Object>(); child.appendTo(debug, true);
+        assertEquals("forced classification must survive masked duplicates", List.of("SECRET"), debug);
+        safe.clear(); source.appendTo(safe, false);
+        assertEquals("descendant capture cannot mutate parent provenance", List.of("SECRET"), safe);
+    }
     @Test public void inheritedPolicyAndCredentialsMatchBindingPolicy() {
         var parent = new io.teaql.core.meta.EntityDescriptor();
         var field = new io.teaql.core.meta.PropertyDescriptor();

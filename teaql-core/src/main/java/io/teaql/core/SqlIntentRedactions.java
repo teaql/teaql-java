@@ -8,7 +8,9 @@ import java.util.*;
 @JsonIgnoreType
 public final class SqlIntentRedactions {
     private record Secret(String value, boolean forced) {}
-    private final List<Secret> secrets = new ArrayList<>();
+    // Preclassification and physical binding capture may see the same operand.
+    // Retain first-seen order without repeated work; forced provenance remains distinct.
+    private final Set<Secret> secrets = new LinkedHashSet<>();
 
     @FrameworkInternal("Independent nested-query provenance snapshot")
     public SqlIntentRedactions copy() {
