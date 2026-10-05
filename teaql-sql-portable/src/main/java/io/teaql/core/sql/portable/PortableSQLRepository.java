@@ -223,11 +223,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     public String buildDataSQL(UserContext userContext, SearchRequest request, Map<String, Object> parameters) {
         if (parameters instanceof io.teaql.core.sql.SqlParameters tracked) {
-            var origin = request.inheritedQueryIntent();
-            if (origin == null && request.comment() != null && request.purpose() != null) {
-                origin = io.teaql.core.QueryIntent.of(request.comment(), request.purpose());
-            }
-            if (origin != null) tracked.captureQueryIntent(origin);
+            tracked.captureQueryContext(request);
         }
         String partitionProperty = request.getPartitionProperty();
         if (ObjectUtil.isNotEmpty(partitionProperty) && request.getSlice() != null) {
@@ -236,6 +232,17 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
         return compiler.buildDataSQL(sqlMetadata, this, userContext, request, parameters);
+    }
+
+    /** Framework-owned predicate lookup; keep all physical work on its request's collector. */
+    public SmartList<Entity> materializeRelationPredicate(UserContext context, SearchRequest<?> child,
+            SearchRequest<?> origin, String propertyName) {
+        var source = SqlDiagnosticRequest.source(context, origin);
+        var property = findProperty(propertyName);
+        var lookup = property instanceof Relation
+                ? SqlDiagnosticRequest.forRelation(child, source, origin, propertyName)
+                : SqlDiagnosticRequest.forDerived(child, source, origin);
+        return context.internalExecuteForList(lookup);
     }
 
     // ==========================================
@@ -798,7 +805,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         if (facetRequests != null && !facetRequests.isEmpty()) {
             io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
             for (io.teaql.core.FacetRequest facetRequest : facetRequests) {
-                io.teaql.core.internal.TempRequest tr = new io.teaql.core.internal.TempRequest(request);
+                io.teaql.core.internal.TempRequest tr =
+                        SqlDiagnosticRequest.forDerived(request, intent, request);
                 tr.setAggregations(new io.teaql.core.Aggregations());
                 tr.groupBy(facetRequest.getRelationName());
                 tr.count("count");
@@ -832,7 +840,12 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                                     SqlDiagnosticRequest.forRelation(
                                             relationReq, facetIntent, request, facetRequest.getRelationName());
                             if (facetRequest.isMergeCriteria()) {
-                                fetchRelReq.appendSearchCriteria(request.getSearchCriteria());
+                                // The count query already applied the source's
+                                // filters. Its FK membership is the only valid
+                                // restriction on the target: source predicates
+                                // belong to another table/type (even "id").
+                                fetchRelReq.appendSearchCriteria(fetchRelReq.createBasicSearchCriteria(
+                                        BaseEntity.ID_PROPERTY, io.teaql.core.criteria.Operator.IN, relIds));
                             }
                             SmartList<?> loadedRels = relationRepo.loadInternal(userContext, fetchRelReq, facetIntent);
                             java.util.List<String> countAliases = relationReq.getAggregations().getAggregates()
@@ -849,6 +862,10 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                                 }
                                 facetEntities.add(rel);
                             }
+                            // Materialization changes the row carrier, not the
+                            // nested facet result. Preserve its collection-owned
+                            // metadata without sharing the mutable map itself.
+                            loadedRels.getFacets().forEach(facetEntities::addFacet);
                         }
                     }
                     smartList.addFacet(facetRequest.getFacetName(), facetEntities);

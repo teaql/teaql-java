@@ -89,7 +89,12 @@ public class SqlAstCompiler {
             SearchRequest<?> request, 
             Map<String, Object> parameters, 
             List<String> tables) {
-            
+        // A facet/count compilation can materialize a relation predicate just
+        // like a data SELECT. Carry the captured intent in this compilation's
+        // bindings, never in the shared Context.
+        if (parameters instanceof SqlParameters tracked) {
+            tracked.captureQueryContext(request);
+        }
         String idTable = tables.get(0);
         String whereSql = prepareCondition(metadata, repository, userContext, idTable, request.getSearchCriteria(), parameters);
 

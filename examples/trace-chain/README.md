@@ -68,6 +68,8 @@ and the `runtime-examples` Maven profile.
 | Late-consumed stream | The real JDBC cursor opens without Context frames; consuming after an unrelated query retains the stream's original comment, purpose, root type and generated E result |
 | Nested Facets | PaymentAttempt facets load Payment and its CustomerOrder facet; all five physical queries keep PaymentAttempt as the root, preserve the logical relation route and return the selected payment with count 1 |
 | Facet inside a loaded relation | A PaymentAttempt loads Payment and its CustomerOrder facet; all four physical queries keep the original root, including the already-loaded `payment` ancestor |
+| Returned nested Facet metadata | `GeneratedFacetTraceExampleTest` checks that the returned payments Facet retains its orders Facet; executing nested SQL alone does not prove result carriage |
+| Full nested membership counts | A one-row page over three attempts / two payments returns both payment and order counts of 2; matching/all Facets and logging off/on execute seven real SELECTs, including materialized predicate lookups, on one originating collector |
 
 The first run begins with CustomerOrder and Payment both numbered 100, items
 201/202, attempt 401 and shipment 501. IDs come from `IdSpaceIdGenerator`, not
@@ -129,6 +131,14 @@ its concurrency safety or complete advanced-query/cancellation coverage.
 
 Derived Facet requests inherit both the root intent and the parent's complete
 immutable path, rather than rebuilding the origin from the facet entity.
+Membership COUNT compilation also carries the originating request, including
+its statement observer. A materialized relation predicate is an actual query,
+not invisible compiler work: its physical statement retains that root and the
+verified relation edge. Matching Facet targets are restricted by the counted
+FK identities, never by applying source-table predicates to the target table.
+Facet materialization preserves nested collection metadata without sharing its
+mutable map. The all-examples gate includes both generated test classes
+(19 JUnit methods), twice against the same retained SQLite database.
 Native `DerivedQueryTraceSqliteTest` separately exercises dynamic aggregates:
 filtered counts, an aggregate inside a loaded relation, safe parent-value
 redaction, logging disabled, and a numeric partition without a model relation.

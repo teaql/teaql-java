@@ -57,4 +57,28 @@ public class SqlDiagnosticRequestTest {
             assertThrows(RequestIntentException.class, () -> SqlDiagnosticRequest.forRelation(child, null, parent, "lines"));
         }
     }
+
+    @Test public void compilationKeepsItsFirstScopedOriginWithoutSharingAnotherInvocationsContext() {
+        var parent = new Request("SourceDocument", "inspect document A", "render A");
+        var scoped = SqlDiagnosticRequest.collecting(parent, new SqlIntentRedactions(),
+                QueryIntent.of(parent.comment(), parent.purpose()), statement -> {});
+        var child = SqlDiagnosticRequest.forRelation(new Request("SourceLine", "local", "local"),
+                null, scoped, "lines");
+        var first = new io.teaql.core.sql.SqlParameters();
+        first.captureQueryContext(scoped);
+        first.captureQueryContext(child);
+        parent.replaceComment("later changed builder");
+        assertSame(scoped, first.originatingQuery());
+        assertEquals("inspect document A", first.queryIntent().comment());
+        assertEquals("render A", first.queryIntent().purpose());
+        assertEquals(scoped.sqlTraceSource(), first.originatingQuery().sqlTraceSource());
+        var second = new io.teaql.core.sql.SqlParameters();
+        assertNull(second.originatingQuery()); assertNull(second.queryIntent());
+        var independent = new Request("Independent", "inspect B", "render B");
+        second.captureQueryContext(independent);
+        assertSame(independent, second.originatingQuery());
+        assertEquals("inspect B", second.queryIntent().comment());
+        assertEquals("inspect document A", first.queryIntent().comment());
+        assertTrue("compilation scope is not a SQL bind or wire extension", first.isEmpty());
+    }
 }

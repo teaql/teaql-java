@@ -44,7 +44,7 @@ markers=(
 )
 for repetition in 1 2; do
   log="$run_dir/run-$repetition.log"
-  if ! mvn -B -f "$example_dir/pom.xml" -Dtest=GeneratedTraceChainExampleTest \
+  if ! mvn -B -f "$example_dir/pom.xml" -Dtest=GeneratedTraceChainExampleTest,GeneratedFacetTraceExampleTest \
     "-Dteaql.trace.database=$database" test > "$log" 2>&1; then
     tail -n 100 "$log" >&2
     exit 1
@@ -55,7 +55,15 @@ for repetition in 1 2; do
       exit 1
     fi
   done
-  grep -Fq 'Tests run: 17, Failures: 0, Errors: 0, Skipped: 0' "$log"
+  grep -Fq 'Tests run: 19, Failures: 0, Errors: 0, Skipped: 0' "$log"
+  grep -Fq 'JAVA_NESTED_FACET_CARRIER returned nested metadata and count verified' "$log"
+  for logging in false true; do
+    for all in false true; do
+      sink_count=0
+      if [[ $logging == true ]]; then sink_count=7; fi
+      grep -Fq "JAVA_NESTED_FACET {\"logging\":$logging,\"includeAll\":$all,\"visible\":1,\"paymentCount\":2,\"orderCount\":2,\"physicalStatements\":7,\"safeSinkStatements\":$sink_count}" "$log"
+    done
+  done
   printf 'PASS Java generated Trace Chain run %s on the same database\n' "$repetition"
 done
 library_manifest > "$run_dir/library-after.sha256"
