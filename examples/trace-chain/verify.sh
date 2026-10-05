@@ -19,6 +19,9 @@ mvn -B -f "$repo_dir/pom.xml" -Pruntime-examples -pl examples/trace-chain -am \
   install -DskipTests > "$run_dir/local-source-install.log" 2>&1
 
 markers=(
+  'TC-REQ-09 JAVA GENERATED BOOTSTRAP PASSED logging=true'
+  'TC-REQ-09 JAVA GENERATED BOOTSTRAP PASSED logging=false'
+  'PASS Java generated privacy retains complete raw command and safe SQL/audit root lineage'
   'PASS FORWARD_NOTLOADED: Java generated Q/E retains FK and hidden detail guard'
   'PASS Java generated cursor evidence: logging disabled, completion, cancellation and failure'
   'PASS Java generated query evidence: logging disabled, three relation levels, immutable result list'

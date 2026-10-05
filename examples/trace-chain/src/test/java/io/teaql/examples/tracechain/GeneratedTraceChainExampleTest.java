@@ -239,7 +239,12 @@ public class GeneratedTraceChainExampleTest {
             };
             context.putAttribute(AppAuditEventSink.class.getName(), (AppAuditEventSink) (caller, event) -> audit.add(event));
             context.ensureSchema();
+            var initialBootstrapQueries = List.copyOf(queryResults);
+            var initialBootstrapCommands = List.copyOf(commands);
+            var initialBootstrapAudit = List.copyOf(audit);
+            clear(); queryResults.clear();
             context.ensureSchema();
+            assertBootstrapIntent(initialBootstrapQueries, initialBootstrapCommands, initialBootstrapAudit, logging);
             var previous = Q.customerOrders().orderByIdDescending().limit(1)
                     .comment("what: select the previous fixture identity")
                     .purpose("why: replay without deleting the database").executeForOne(context);
@@ -250,6 +255,38 @@ public class GeneratedTraceChainExampleTest {
             ids.ensureFloor("PaymentAttempt", base + 300);
             ids.ensureFloor("Shipment", base + 400);
             clear();
+        }
+
+        void assertBootstrapIntent(List<QueryResult> initialQueries, List<EntityPersistenceMutation> initialCommands,
+                List<SafeAuditEvent> initialAudit, boolean logging) {
+            assertFalse("generated bootstrap must issue an observed lookup", initialQueries.isEmpty());
+            assertFalse("repeated bootstrap must issue an observed lookup", queryResults.isEmpty());
+            assertTrue("repeated schema initialization must not repeat seed writes", commands.isEmpty());
+            assertTrue("repeated schema initialization must not repeat committed audit", audit.isEmpty());
+            var firstIntent = initialQueries.get(0).statements().get(0).getComment();
+            var firstPurpose = initialQueries.get(0).statements().get(0).getPurpose();
+            assertNotNull(firstIntent); assertFalse(firstIntent.isBlank());
+            assertNotNull(firstPurpose); assertFalse(firstPurpose.isBlank());
+            for (var result : queryResults) {
+                assertEquals(1, result.statements().size());
+                var fact = result.statements().get(0);
+                assertEquals("generated bootstrap owns a stable lookup comment", firstIntent, fact.getComment());
+                assertEquals("generated bootstrap owns a stable lookup purpose", firstPurpose, fact.getPurpose());
+                assertEquals(List.of(TraceKind.OPERATION, TraceKind.REQUEST, TraceKind.PROVIDER, TraceKind.SQL),
+                        fact.getTraceChain().stream().map(TraceNode::getKind).toList());
+                assertEquals("Platform", fact.getTraceChain().get(0).getName());
+            }
+            assertEquals(initialCommands.size(), initialAudit.size());
+            for (var command : initialCommands) {
+                assertFalse(command.intent().comment().isBlank());
+                assertEquals(1, command.getTraceChain().size());
+                assertEquals(TraceKind.AUDIT_REASON, command.getTraceChain().get(0).getKind());
+                assertEquals(command.intent().comment(), command.getTraceChain().get(0).getComment());
+            }
+            if (logging) assertEquals(queryResults.size(), sql.size());
+            else assertTrue(sql.isEmpty());
+            System.out.println("TC-REQ-09 JAVA GENERATED BOOTSTRAP PASSED logging=" + logging
+                    + " first_writes=" + initialCommands.size() + " repeat_writes=0 comment=" + firstIntent);
         }
 
         void clear() {
