@@ -44,7 +44,7 @@ markers=(
 )
 for repetition in 1 2; do
   log="$run_dir/run-$repetition.log"
-  if ! mvn -B -f "$example_dir/pom.xml" -Dtest=GeneratedTraceChainExampleTest,GeneratedFacetTraceExampleTest \
+  if ! mvn -B -f "$example_dir/pom.xml" -Dtest=GeneratedTraceChainExampleTest,GeneratedFacetTraceExampleTest,GeneratedReverseFacetTraceExampleTest \
     "-Dteaql.trace.database=$database" test > "$log" 2>&1; then
     tail -n 100 "$log" >&2
     exit 1
@@ -55,13 +55,16 @@ for repetition in 1 2; do
       exit 1
     fi
   done
-  grep -Fq 'Tests run: 21, Failures: 0, Errors: 0, Skipped: 0' "$log"
+  grep -Fq 'Tests run: 22, Failures: 0, Errors: 0, Skipped: 0' "$log"
   grep -Fq 'JAVA_NESTED_FACET_CARRIER returned nested metadata and count verified' "$log"
   for logging in false true; do
     sink_count=0
     if [[ $logging == true ]]; then sink_count=7; fi
     grep -Fq "JAVA_LOADED_FACET logging=$logging parents=2 independentMembership=true physicalStatements=7 safeSinkStatements=$sink_count" "$log"
     for all in false true; do
+      reverse_sink_count=0
+      if [[ $logging == true ]]; then reverse_sink_count=10; fi
+      grep -Fq "JAVA_GENERATED_REVERSE_FACET logging=$logging includeAll=$all parents=3 fullCounts=true requestedEmpty=true physicalStatements=10 safeSinkStatements=$reverse_sink_count mutationCommands=0" "$log"
       sink_count=0
       if [[ $logging == true ]]; then sink_count=7; fi
       grep -Fq "JAVA_NESTED_FACET {\"logging\":$logging,\"includeAll\":$all,\"visible\":1,\"paymentCount\":2,\"orderCount\":2,\"physicalStatements\":7,\"safeSinkStatements\":$sink_count}" "$log"

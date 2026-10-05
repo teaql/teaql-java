@@ -72,6 +72,7 @@ and the `runtime-examples` Maven profile.
 | Full nested membership counts | A one-row page over three attempts / two payments returns both payment and order counts of 2; matching/all Facets and logging off/on execute seven real SELECTs, including materialized predicate lookups, on one originating collector |
 | Loaded forward Facet results | Two loaded payments each retain their own orders Facet through runtime-owned `getQueryFacet("orders")`; seven physical SELECTs keep the complete root/ancestor path in both logging modes |
 | Loaded empty and nonpersistent metadata | Eight matching/all × existing/absent target × logging combinations retain requested empty Facets and stable FK identity; subsequent audited payment save emits exactly one business mutation |
+| Generated reverse collection Facets | Three orders have two, one and zero payments; each bounded child collection retains independent Facets, full counts and requested-empty metadata. All ten actual SELECT paths inherit the root intent in matching/all × logging off/on modes; query metadata schedules no mutations |
 
 The first run begins with CustomerOrder and Payment both numbered 100, items
 201/202, attempt 401 and shipment 501. IDs come from `IdSpaceIdGenerator`, not
@@ -140,7 +141,7 @@ verified relation edge. Matching Facet targets are restricted by the counted
 FK identities, never by applying source-table predicates to the target table.
 Facet materialization preserves nested collection metadata without sharing its
 mutable map. The all-examples gate includes both generated test classes
-(21 JUnit methods), twice against the same retained SQLite database.
+(22 JUnit methods), twice against the same retained SQLite database.
 Facets loaded with a forward entity live in a runtime-owned `getQueryFacets()`
 sidecar, not a KSML field, dynamic field, JSON property or mutation-ledger key.
 `getQueryFacet(name) == null` means that Facet was not requested; a non-null
