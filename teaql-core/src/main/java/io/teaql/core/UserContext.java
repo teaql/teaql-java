@@ -6,6 +6,7 @@ import java.util.List;
 import io.teaql.data.dynamic.DynamicFieldsFacade;
 import io.teaql.core.checker.CheckResult;
 import io.teaql.core.checker.FixEvidence;
+import io.teaql.core.checker.internal.CheckerInvocation;
 import io.teaql.core.i18n.I18nCatalog;
 import io.teaql.core.i18n.Locale;
 import io.teaql.core.businessid.BusinessClock;
@@ -29,28 +30,36 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
     String TEAQL_TRUSTED_REFERENCE_PRINCIPAL = TrustedReferencePrincipal.class.getName();
 
     default void beginFixEvidence() {
-        putAttribute(TEAQL_FIX_EVIDENCE_CURRENT, new java.util.ArrayList<FixEvidence>());
+        if (CheckerInvocation.current(this) == null) CheckerInvocation.forgetLastEvidence(this);
+        CheckerInvocation.attribute(this, TEAQL_FIX_EVIDENCE_CURRENT, new java.util.ArrayList<FixEvidence>());
     }
 
     @SuppressWarnings("unchecked")
     default void recordFixEvidence(FixEvidence evidence) {
-        List<FixEvidence> current = (List<FixEvidence>) getAttribute(TEAQL_FIX_EVIDENCE_CURRENT);
+        List<FixEvidence> current = (List<FixEvidence>) CheckerInvocation.attribute(this, TEAQL_FIX_EVIDENCE_CURRENT);
         if (current == null) {
             current = new java.util.ArrayList<>();
-            putAttribute(TEAQL_FIX_EVIDENCE_CURRENT, current);
+            CheckerInvocation.attribute(this, TEAQL_FIX_EVIDENCE_CURRENT, current);
         }
         current.add(evidence);
     }
 
     @SuppressWarnings("unchecked")
     default void finishFixEvidence() {
-        List<FixEvidence> current = (List<FixEvidence>) getAttribute(TEAQL_FIX_EVIDENCE_CURRENT);
-        putAttribute(TEAQL_FIX_EVIDENCE_LAST, current == null ? List.of() : List.copyOf(current));
-        putAttribute(TEAQL_FIX_EVIDENCE_CURRENT, null);
+        List<FixEvidence> current = (List<FixEvidence>) CheckerInvocation.attribute(this, TEAQL_FIX_EVIDENCE_CURRENT);
+        CheckerInvocation.attribute(this, TEAQL_FIX_EVIDENCE_LAST, current == null ? List.of() : List.copyOf(current));
+        CheckerInvocation.attribute(this, TEAQL_FIX_EVIDENCE_CURRENT, null);
     }
 
+    /**
+     * Diagnostic receipt of the last completed synchronous check on this
+     * execution thread. It is not shared across threads or asynchronous tasks.
+     * Explicit begin/finish sessions retain their existing Context contract.
+     */
     @SuppressWarnings("unchecked")
     default List<FixEvidence> lastFixEvidence() {
+        List<FixEvidence> completed = CheckerInvocation.lastEvidence(this);
+        if (completed != null) return completed;
         List<FixEvidence> evidence = (List<FixEvidence>) getAttribute(TEAQL_FIX_EVIDENCE_LAST);
         return evidence == null ? List.of() : evidence;
     }

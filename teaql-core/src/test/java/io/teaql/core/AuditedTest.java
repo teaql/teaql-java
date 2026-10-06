@@ -67,12 +67,12 @@ public class AuditedTest {
         assertEquals(entity, context.savedGraph);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = RequestIntentException.class)
     public void testNullComment() {
         new Audited<>(new DummyEntity(), null);
     }
     
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = RequestIntentException.class)
     public void testEmptyComment() {
         new Audited<>(new DummyEntity(), "   ");
     }

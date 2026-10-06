@@ -50,7 +50,11 @@ public class SqlDataServiceExecutorTest {
     public void testQueryPlaceholder() {
         SqlDataServiceExecutor executor = new SqlDataServiceExecutor("sql", new MockSqlExecutionAdapter());
         Assert.assertThrows(io.teaql.core.TeaQLRuntimeException.class, () -> {
-            executor.query(null, new QueryRequest() {});
+            executor.query(null, new QueryRequest() {
+                @Override public io.teaql.core.QueryIntent intent() {
+                    return io.teaql.core.QueryIntent.of("test unsupported request", "verify provider rejects unknown envelope");
+                }
+            });
         });
     }
 
@@ -58,7 +62,11 @@ public class SqlDataServiceExecutorTest {
     public void testMutatePlaceholder() {
         SqlDataServiceExecutor executor = new SqlDataServiceExecutor("sql", new MockSqlExecutionAdapter());
         Assert.assertThrows(io.teaql.core.TeaQLRuntimeException.class, () -> {
-            executor.mutate(null, new PersistenceMutation() {});
+            executor.mutate(null, new PersistenceMutation() {
+                @Override public io.teaql.core.MutationIntent intent() {
+                    return io.teaql.core.MutationIntent.of("test unsupported mutation");
+                }
+            });
         });
     }
 
@@ -113,7 +121,11 @@ public class SqlDataServiceExecutorTest {
     }
 
     public static class ScopedTaskRequest extends BaseRequest<ScopedTask> {
-        public ScopedTaskRequest() { super(ScopedTask.class); }
+        public ScopedTaskRequest() {
+            super(ScopedTask.class);
+            internalComment("load scoped metadata fixture");
+            internalPurpose("verify each runtime uses its own table metadata");
+        }
         @Override public String getTypeName() { return "ScopedTask"; }
     }
 

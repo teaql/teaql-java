@@ -125,7 +125,8 @@ public class TfpEndpointHandler {
         requireNonBlank(root, "commentText", "TFP_INVALID_REQUEST");
         requireNonBlank(root, "purposeText", "TFP_POLICY_VIOLATION");
         
-        DefaultQueryRequest queryRequest = new DefaultQueryRequest(request);
+        DefaultQueryRequest queryRequest = new DefaultQueryRequest(request,
+                io.teaql.core.QueryIntent.of(root.path("commentText").asText(), root.path("purposeText").asText()));
         var result = queryExecutor.query(context, queryRequest);
 
         Map<String, Object> response = new HashMap<>();

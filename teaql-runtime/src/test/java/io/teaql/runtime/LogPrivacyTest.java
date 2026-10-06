@@ -9,6 +9,36 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class LogPrivacyTest {
+    @Test public void graphSnapshotProtectsSiblingAuditAndKeepsDebugPolicy() {
+        var privacy = new io.teaql.core.SqlIntentRedactions();
+        privacy.capture(List.of(io.teaql.core.SqlParameterLogPolicy.MASKED,
+                io.teaql.core.SqlParameterLogPolicy.CREDENTIAL), new Object[]{"SIBLING-OLD", "SECRET-TOKEN"});
+        var raw = new RawAuditEvent(MutationAuditKind.UPDATED, "Customer", 17L,
+                List.of(new AuditFieldChange("description", "before", "after")),
+                List.of(new TraceNode("page 1 replace SIBLING-OLD SECRET-TOKEN")),
+                "operator", "mutation", "page 1 replace SIBLING-OLD SECRET-TOKEN", 2L, null);
+        var safe = LogPrivacy.audit(raw, false, privacy);
+        assertFalse(safe.toString().contains("SIBLING-OLD"));
+        assertFalse(safe.toString().contains("SECRET-TOKEN"));
+        assertTrue(safe.toString().contains("page 1"));
+        var debug = LogPrivacy.audit(raw, true, privacy);
+        assertTrue(debug.toString().contains("SIBLING-OLD"));
+        assertFalse(debug.toString().contains("SECRET-TOKEN"));
+        assertTrue(raw.toString().contains("SECRET-TOKEN"));
+    }
+
+    @Test public void mutationPrivacySnapshotCannotBeChangedBySourceOrConsumer() {
+        var privacy = new io.teaql.core.SqlIntentRedactions();
+        privacy.capture(List.of(io.teaql.core.SqlParameterLogPolicy.MASKED), new Object[]{"PRIVATE-OLD"});
+        var entity = new io.teaql.core.BaseEntity();
+        var request = new EntityPersistenceMutation(entity, EntityPersistenceMutation.Action.SAVE,
+                io.teaql.core.MutationIntent.of("save graph"), List.of(), entity, privacy);
+        privacy.capture(List.of(io.teaql.core.SqlParameterLogPolicy.MASKED), new Object[]{"LATER-SOURCE"});
+        request.diagnosticRedactions().capture(List.of(io.teaql.core.SqlParameterLogPolicy.MASKED), new Object[]{"LATER-CONSUMER"});
+        var values = new java.util.ArrayList<Object>(); request.diagnosticRedactions().appendTo(values, false);
+        assertEquals(List.of("PRIVATE-OLD"), values);
+    }
+
     @Test public void realProcessEnvironmentControlsFileOutput() throws Exception {
         for (String setting : new String[] { "", "true", LogPrivacy.ACKNOWLEDGEMENT + " ", LogPrivacy.ACKNOWLEDGEMENT }) {
             var output = Files.createTempFile("teaql-log-process-", ".log");

@@ -130,8 +130,8 @@ public class TeaQLRuntimeTest {
 
         @Override
         public <T extends Entity> Stream<T> queryForStream(
-                UserContext context, SearchRequest<T> request) {
-            this.request = request;
+                UserContext context, QueryRequest request) {
+            this.request = ((DefaultQueryRequest) request).getSearchRequest();
             return Stream.empty();
         }
 
@@ -655,13 +655,14 @@ public class TeaQLRuntimeTest {
         Assert.assertEquals(0, policyCalls.get());
 
         context.pushTrace("authorized root query");
-        try (Stream<DummyEntity> ignored = context.internalExecuteForStream(request)) {
+        SearchRequest<DummyEntity> scoped = inheritedDummyRequest();
+        try (Stream<DummyEntity> ignored = context.internalExecuteForStream(scoped)) {
             Assert.assertEquals(0, ignored.count());
         } finally {
             context.popTrace();
         }
         Assert.assertEquals(1, policyCalls.get());
-        Assert.assertSame(request, executor.request);
+        Assert.assertSame(scoped, executor.request);
     }
 
     @Test
@@ -700,7 +701,7 @@ public class TeaQLRuntimeTest {
                 })
                 .build();
         DefaultUserContext context = new DefaultUserContext(runtime);
-        SearchRequest<DummyEntity> nested = bareDummyRequest();
+        SearchRequest<DummyEntity> nested = inheritedDummyRequest();
 
         context.pushTrace("authorized root query");
         try {
@@ -723,7 +724,7 @@ public class TeaQLRuntimeTest {
                 })
                 .build();
         DefaultUserContext context = new DefaultUserContext(runtime);
-        BaseRequest<DummyEntity> nested = (BaseRequest<DummyEntity>) bareDummyRequest();
+        BaseRequest<DummyEntity> nested = (BaseRequest<DummyEntity>) inheritedDummyRequest();
         nested.putExtension("teaql.internal.top_n.parent_count", 3);
         nested.putExtension("teaql.internal.top_n.per_parent_limit", 2);
         nested.putExtension("teaql.internal.top_n.probe_threshold", 3);
@@ -765,6 +766,15 @@ public class TeaQLRuntimeTest {
             public String getTypeName() {
                 return "Dummy";
             }
+        };
+    }
+
+    private static SearchRequest<DummyEntity> inheritedDummyRequest() {
+        return new BaseRequest<DummyEntity>(DummyEntity.class) {
+            private final QueryIntent rootIntent = QueryIntent.of("load dummy graph", "verify relation loading");
+            { internalComment(rootIntent.comment()); internalPurpose(rootIntent.purpose()); }
+            @Override public String getTypeName() { return "Dummy"; }
+            @Override public QueryIntent inheritedQueryIntent() { return rootIntent; }
         };
     }
 
@@ -882,9 +892,12 @@ public class TeaQLRuntimeTest {
 
         java.lang.reflect.Method method = TeaQLRuntime.class.getDeclaredMethod(
             "executeLedgerPlan", UserContext.class, EntityMutationLedger.class,
-            MutationExecutor.class, java.util.Map.class, MutationGovernanceSnapshot.class);
+            MutationExecutor.class, java.util.Map.class, MutationGovernanceSnapshot.class, MutationIntent.class,
+            java.util.Map.class, MutationTraceScope.class);
         method.setAccessible(true);
-        method.invoke(runtime, new DefaultUserContext(runtime), root, executor, realEntities, null);
+        method.invoke(runtime, new DefaultUserContext(runtime), root, executor, realEntities, null,
+                MutationIntent.of("root comment"), java.util.Map.of(),
+                MutationTraceScope.append(null, "Dummy", null, "root comment"));
 
         List<EntityPersistenceMutation> requests = executor.requests;
 

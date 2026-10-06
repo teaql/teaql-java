@@ -144,11 +144,12 @@ public class BaseEntityTest {
         EntityMutationLedger root = new EntityMutationLedger();
         entity.setEntityMutationLedger(root);
 
-        entity.setTraceChain("trace-123");
+        var trace = java.util.List.of(new TraceNode(TraceKind.AUDIT_REASON, entity.typeName(), entity.getId(), "trace-123"));
+        entity.setTraceChain(trace);
         entity.updateName("Bob");
 
         EntityKey key = new EntityKey("TestEntity", 101L);
-        assertEquals("trace-123", root.getTraceChain(key));
+        assertEquals(trace, root.getTraceChain(key));
     }
 
     @Test

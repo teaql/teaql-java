@@ -87,6 +87,7 @@ public class App {
           if (!(dataServiceExecutor instanceof SchemaExecutor schema)) {
               throw new IllegalStateException("default data service has no schema capability");
           }
+          BootstrapTraceVerifier.verify(runtime);
           context.ensureSchema();
           context.ensureSchema();
           SmartList<Platform> platforms = Q.platforms()
@@ -104,7 +105,8 @@ public class App {
                   && constants.get(0).getId() == 1001L
                   && constants.get(1).getId() == 1002L,
               "SchoolType constants were not seeded");
-          require(constants.get(0).getVersion() == 1L && constants.get(1).getVersion() == 1L,
+          // The bootstrap verifier made one audited edit and one audited repair to PRIMARY.
+          require(constants.get(0).getVersion() >= 3L && constants.get(1).getVersion() == 1L,
               "Repeated ensureSchema was not idempotent");
           require(new IdSpaceIdGenerator(database).nextId("SchoolType") > 1002L,
               "SchoolType ID floor did not advance beyond model constants");

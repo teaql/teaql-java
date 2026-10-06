@@ -13,6 +13,7 @@ public record MutationPlan(
         Objects.requireNonNull(executionId, "executionId");
         Objects.requireNonNull(requestKey, "requestKey");
         Objects.requireNonNull(rootEntityType, "rootEntityType");
+        MutationIntent.of(auditReason);
         operations = List.copyOf(operations == null ? List.of() : operations);
     }
 }

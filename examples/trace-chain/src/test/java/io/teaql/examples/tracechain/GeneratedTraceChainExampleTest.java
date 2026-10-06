@@ -1,0 +1,1156 @@
+package io.teaql.examples.tracechain;
+
+import java.util.ArrayList;
+
+import com.teaql.tracechainservice.E;
+import com.teaql.tracechainservice.Q;
+import com.teaql.tracechainservice.GeneratedRuntimeModule;
+import com.teaql.tracechainservice.customerorder.CustomerOrder;
+import com.teaql.tracechainservice.orderitem.OrderItem;
+import com.teaql.tracechainservice.payment.Payment;
+import com.teaql.tracechainservice.paymentattempt.PaymentAttempt;
+import com.teaql.tracechainservice.shipment.Shipment;
+import io.teaql.core.*;
+import io.teaql.core.meta.EntityMetaFactory;
+import io.teaql.core.meta.SimpleEntityMetaFactory;
+import io.teaql.core.sql.portable.IdSpaceIdGenerator;
+import io.teaql.core.sqlite.SqliteDataServiceExecutor;
+import io.teaql.provider.jdbc.JdbcSqlExecutor;
+import io.teaql.runtime.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+import org.junit.Test;
+import org.sqlite.SQLiteDataSource;
+import static org.junit.Assert.*;
+
+/** #202: generated public APIs -> real SQLite -> physical SQL and committed safe audit. */
+public class GeneratedTraceChainExampleTest {
+    @Test public void loadedSiblingPrivacyAcrossTypesAndRepeatedSaves() throws Exception {
+        var fixture = new Fixture();
+        var graph = fixture.saveNormativeGraph();
+        var oldValue = "JAVA-PRIVATE-OLD-" + fixture.base;
+        graph.kept.updateName(oldValue);
+        graph.order.auditAs("seed private loaded value").save(fixture.context);
+        var root = Q.customerOrders().withIdIs(E.customerOrder(graph.order).getId().eval())
+                .selectOrderItemListWith(Q.orderItems().limit(2)).limit(1)
+                .comment("load private graph").purpose("verify complete entity mutation provenance").executeForOne(fixture.context);
+        var child = root.getOrderItemList().get(0);
+        assertEquals(oldValue, E.orderItem(child).getName().eval());
+        for (int round = 0; round < 3; round++) {
+            var next = "JAVA-PRIVATE-NEW-" + fixture.base + "-" + round;
+            root.updateDescription("privacy revision " + round);
+            child.updateName(next);
+            if (round == 2) {
+                fixture.clear(); fixture.failReadback = true;
+                assertThrows(RuntimeException.class, () -> root.auditAs("failed save " + next).save(fixture.context));
+                fixture.failReadback = false;
+                assertTrue(fixture.audit.isEmpty());
+                for (var fact : fixture.sql) assertPrivateIntent(fact, next);
+                var unchanged = Q.orderItems().withIdIs(E.orderItem(child).getId().eval()).limit(1)
+                        .comment("verify failed transaction").purpose("rollback retains persisted old value").executeForOne(fixture.context);
+                assertEquals(oldValue, E.orderItem(unchanged).getName().eval());
+            }
+            fixture.clear();
+            var reason = "page 1 replace " + oldValue + " with " + next;
+            root.auditAs(reason).save(fixture.context);
+            assertEquals(2, fixture.commands.size());
+            assertEquals(4, fixture.sql.size());
+            assertEquals(2, fixture.audit.size());
+            assertPrivateChain(fixture, root.getId(), reason, "page 1 replace [REDACTED] with [REDACTED]");
+            for (var secret : List.of(oldValue, next)) {
+                for (var fact : fixture.sql) {
+                    assertPrivateIntent(fact, secret);
+                    assertTrue("public intent must remain", (String.valueOf(fact.getComment()) + fact.getAuditReason()).contains("page 1"));
+                }
+                for (var fact : fixture.audit)
+                    assertFalse("cross-type committed audit leaked old/new sibling", fact.traceChain().stream().anyMatch(node -> String.valueOf(node.getComment()).contains(secret)));
+            }
+            var persisted = Q.orderItems().withIdIs(E.orderItem(child).getId().eval()).limit(1)
+                    .comment("reload private value").purpose("verify privacy does not change stored state").executeForOne(fixture.context);
+            assertEquals(next, E.orderItem(persisted).getName().eval());
+            oldValue = next;
+        }
+        root.updateDescription("remove private child"); child.markForDeletion();
+        fixture.clear(); root.auditAs("remove " + oldValue).save(fixture.context);
+        assertPrivateChain(fixture, root.getId(), "remove " + oldValue, "remove [REDACTED]");
+        for (var fact : fixture.sql) assertPrivateIntent(fact, oldValue);
+        for (var fact : fixture.audit) for (var node : fact.traceChain()) assertFalse(String.valueOf(node.getComment()).contains(oldValue));
+        assertNull(Q.orderItems().withIdIs(E.orderItem(child).getId().eval()).limit(1)
+                .comment("verify deletion").purpose("normal query excludes deleted child").executeForOne(fixture.context));
+        fixture.clear();
+        Q.customerOrders().withIdIs(E.customerOrder(root).getId().eval()).limit(1).comment(oldValue)
+                .purpose("independent query must not inherit mutation secrets").executeForOne(fixture.context);
+        assertEquals(oldValue, fixture.sql.get(0).getComment());
+        System.out.println("PASS Java generated cross-type loaded privacy: repeated saves, rollback retry, delete and independent intent");
+        System.out.println("PASS Java generated privacy retains complete raw command and safe SQL/audit root lineage");
+    }
+    private static void assertPrivateChain(Fixture fixture, long rootId, String reason, String safeReason) {
+        var raw = List.of(new TraceNode(TraceKind.AUDIT_REASON, "CustomerOrder", rootId, reason));
+        var safe = List.of(new TraceNode(TraceKind.AUDIT_REASON, "CustomerOrder", rootId, safeReason));
+        assertEquals(2, fixture.commands.size());
+        assertEquals(4, fixture.sql.size());
+        assertEquals(2, fixture.audit.size());
+        for (var command : fixture.commands) {
+            assertEquals("trusted command keeps complete root intent", raw, command.getTraceChain());
+            assertEquals(reason, command.intent().comment());
+        }
+        for (var statement : fixture.sql) {
+            assertEquals("safe SQL keeps complete typed root lineage", safe, statement.getMutationLineage());
+            assertEquals("safe SQL keeps masked root intent", safeReason, statement.getAuditReason());
+        }
+        for (var event : fixture.audit)
+            assertEquals("safe committed audit keeps complete typed root lineage", safe, event.traceChain());
+    }
+    private static void assertPrivateIntent(ExecutionMetadata fact, String secret) {
+        for (var text : List.of(String.valueOf(fact.getComment()), String.valueOf(fact.getPurpose()),
+                String.valueOf(fact.getAuditReason()), String.valueOf(fact.getMutationLineage()),
+                String.valueOf(fact.getTraceChain())))
+            assertFalse("cross-type SQL intent leaked sibling value", text.contains(secret));
+    }
+    private static void verifyReturnedStatements(MutationResult result, EntityPersistenceMutation request) {
+        var statements = result.statements();
+        assertEquals("actual write and authoritative readback retained independently of sinks", 2, statements.size());
+        var write = statements.get(0);
+        var read = statements.get(1);
+        assertEquals(DataServiceOperation.MUTATION, write.getOperation());
+        assertEquals(DataServiceOperation.QUERY, read.getOperation());
+        assertEquals("derived readback retains captured request comment", request.intent().comment(), read.getComment());
+        assertEquals("physical write retains captured root audit reason", request.intent().comment(), write.getAuditReason());
+        assertEquals("derived readback retains captured root audit reason", request.intent().comment(), read.getAuditReason());
+        assertEquals(request.getTraceChain(), write.getMutationLineage());
+        assertEquals(write.getMutationLineage(), read.getMutationLineage());
+        assertEquals(TraceKind.REQUEST, read.getTraceChain().get(1).getKind());
+        assertEquals(request.getTraceChain().get(0).getName(), read.getTraceChain().get(0).getName());
+        assertEquals("select", read.getStatementOperation());
+        assertEquals(Long.valueOf(1), write.getAffectedRows());
+        assertEquals(Integer.valueOf(1), read.getResultCount());
+        assertEquals(request.intent().readbackIntent().purpose(), read.getPurpose());
+    }
+
+    static final class Fixture {
+        final List<ExecutionMetadata> sql = new CopyOnWriteArrayList<>();
+        final List<QueryResult> queryResults = new CopyOnWriteArrayList<>();
+        final List<QueryCursor<?>> cursors = new CopyOnWriteArrayList<>();
+        final List<SafeAuditEvent> audit = new CopyOnWriteArrayList<>();
+        final List<EntityPersistenceMutation> commands = new CopyOnWriteArrayList<>();
+        final List<Integer> itemInsertBatchSizes = new CopyOnWriteArrayList<>();
+        final List<Integer> itemUpdateBatchSizes = new CopyOnWriteArrayList<>();
+        final List<Integer> itemDeleteBatchSizes = new CopyOnWriteArrayList<>();
+        final List<Integer> itemRecoverBatchSizes = new CopyOnWriteArrayList<>();
+        final DefaultUserContext context;
+        final JdbcSqlExecutor driver;
+        volatile boolean failReadback;
+        volatile boolean serializeTransactions;
+        volatile Consumer<UserContext> checkerBegin;
+        volatile Consumer<UserContext> checkerFinish;
+        volatile java.util.function.BiConsumer<UserContext, QueryRequest> queryBegin;
+        volatile Consumer<UserContext> streamOpen;
+        final long base;
+
+        Fixture() throws Exception {
+            this(true);
+        }
+
+        Fixture(boolean logging) throws Exception {
+            String configured = System.getProperty("teaql.trace.database", "");
+            Path database = configured.isBlank() ? Files.createTempFile("teaql-generated-trace-", ".db")
+                    : Path.of(configured).toAbsolutePath();
+            var source = new SQLiteDataSource();
+            source.setUrl("jdbc:sqlite:" + database);
+            driver = new JdbcSqlExecutor(source) {
+                @Override public void executeInTransaction(Runnable action) {
+                    // SQLite has one writer. Only physical transactions serialize;
+                    // the tests still overlap the real generated Checker invocations.
+                    if (serializeTransactions) {
+                        synchronized (this) { super.executeInTransaction(action); }
+                    } else super.executeInTransaction(action);
+                }
+                @Override public int[] batchUpdate(String text, List<Object[]> rows) {
+                    if (text.startsWith("INSERT INTO order_item_data")) itemInsertBatchSizes.add(rows.size());
+                    if (text.startsWith("UPDATE order_item_data") && !rows.isEmpty()) {
+                        assertTrue("committed audit must wait for all member writes", audit.isEmpty());
+                        Object[] first = rows.get(0);
+                        if (first.length != 3) itemUpdateBatchSizes.add(rows.size());
+                        else if (((Number) first[0]).longValue() < 0) itemDeleteBatchSizes.add(rows.size());
+                        else itemRecoverBatchSizes.add(rows.size());
+                    }
+                    return super.batchUpdate(text, rows);
+                }
+                @Override public List<java.util.Map<String, Object>> queryForList(String sql, Object[] args) {
+                    if (failReadback && sql.startsWith("SELECT * FROM") && sql.contains("customer_order_data"))
+                        execute("DROP TABLE customer_order_data");
+                    return super.queryForList(sql, args);
+                }
+                @Override public java.util.stream.Stream<java.util.Map<String, Object>> queryForStream(String sql, Object[] args) {
+                    if (streamOpen != null) streamOpen.accept(Fixture.this.context);
+                    return super.queryForStream(sql, args);
+                }
+            };
+            var ids = new IdSpaceIdGenerator(new IdDatabase(driver));
+            var metadata = new SimpleEntityMetaFactory();
+            var provider = new SqliteDataServiceExecutor("sqlite", driver, source) {
+                @Override public <T extends Entity> QueryCursor<T> queryForCursor(UserContext caller, QueryRequest request) {
+                    var cursor = super.<T>queryForCursor(caller, request);
+                    cursors.add(cursor);
+                    return cursor;
+                }
+                @Override public QueryResult query(UserContext caller, QueryRequest request) {
+                    if (queryBegin != null) queryBegin.accept(caller, request);
+                    var result = super.query(caller, request);
+                    queryResults.add(result);
+                    return result;
+                }
+                @Override public MutationResult mutate(UserContext caller, PersistenceMutation mutation) {
+                    commands.add((EntityPersistenceMutation) mutation);
+                    var result = super.mutate(caller, mutation);
+                    verifyReturnedStatements(result, (EntityPersistenceMutation) mutation);
+                    return result;
+                }
+                @Override public List<MutationResult> mutateBatch(UserContext caller, MutationBatchRequest request) {
+                    request.items().forEach(item -> commands.add((EntityPersistenceMutation) item));
+                    var results = super.mutateBatch(caller, request);
+                    for (int i = 0; i < results.size(); i++)
+                        verifyReturnedStatements(results.get(i), (EntityPersistenceMutation) request.items().get(i));
+                    return results;
+                }
+            };
+            var runtime = TeaQLRuntime.builder().metadata(metadata)
+                    .dataService("default", provider).dataService("sqlite", provider)
+                    .queryExecutionLogging(logging).mutationExecutionLogging(logging)
+                    .idGenerationService(ids).logSink((caller, entry) -> sql.add(entry)).build()
+                    .install(GeneratedRuntimeModule.module()); // Real generated checkers, no bypass.
+            EntityMetaFactory.registerGlobal(metadata);
+            context = new DefaultUserContext(runtime) {
+                @Override public void beginFixEvidence() {
+                    super.beginFixEvidence();
+                    if (checkerBegin != null) checkerBegin.accept(this);
+                }
+                @Override public void finishFixEvidence() {
+                    if (checkerFinish != null) checkerFinish.accept(this);
+                    super.finishFixEvidence();
+                }
+            };
+            context.putAttribute(AppAuditEventSink.class.getName(), (AppAuditEventSink) (caller, event) -> audit.add(event));
+            context.ensureSchema();
+            var initialBootstrapQueries = List.copyOf(queryResults);
+            var initialBootstrapCommands = List.copyOf(commands);
+            var initialBootstrapAudit = List.copyOf(audit);
+            clear(); queryResults.clear();
+            context.ensureSchema();
+            assertBootstrapIntent(initialBootstrapQueries, initialBootstrapCommands, initialBootstrapAudit, logging);
+            var previous = Q.customerOrders().orderByIdDescending().limit(1)
+                    .comment("what: select the previous fixture identity")
+                    .purpose("why: replay without deleting the database").executeForOne(context);
+            base = previous == null ? 100 : E.customerOrder(previous).getId().eval() + 1000;
+            ids.ensureFloor("CustomerOrder", base - 1);
+            ids.ensureFloor("Payment", base - 1);
+            ids.ensureFloor("OrderItem", base + 100);
+            ids.ensureFloor("PaymentAttempt", base + 300);
+            ids.ensureFloor("Shipment", base + 400);
+            clear();
+        }
+
+        void assertBootstrapIntent(List<QueryResult> initialQueries, List<EntityPersistenceMutation> initialCommands,
+                List<SafeAuditEvent> initialAudit, boolean logging) {
+            assertFalse("generated bootstrap must issue an observed lookup", initialQueries.isEmpty());
+            assertFalse("repeated bootstrap must issue an observed lookup", queryResults.isEmpty());
+            assertTrue("repeated schema initialization must not repeat seed writes", commands.isEmpty());
+            assertTrue("repeated schema initialization must not repeat committed audit", audit.isEmpty());
+            var firstIntent = initialQueries.get(0).statements().get(0).getComment();
+            var firstPurpose = initialQueries.get(0).statements().get(0).getPurpose();
+            assertNotNull(firstIntent); assertFalse(firstIntent.isBlank());
+            assertNotNull(firstPurpose); assertFalse(firstPurpose.isBlank());
+            for (var result : queryResults) {
+                assertEquals(1, result.statements().size());
+                var fact = result.statements().get(0);
+                assertEquals("generated bootstrap owns a stable lookup comment", firstIntent, fact.getComment());
+                assertEquals("generated bootstrap owns a stable lookup purpose", firstPurpose, fact.getPurpose());
+                assertEquals(List.of(TraceKind.OPERATION, TraceKind.REQUEST, TraceKind.PROVIDER, TraceKind.SQL),
+                        fact.getTraceChain().stream().map(TraceNode::getKind).toList());
+                assertEquals("Platform", fact.getTraceChain().get(0).getName());
+            }
+            assertEquals(initialCommands.size(), initialAudit.size());
+            for (var command : initialCommands) {
+                assertFalse(command.intent().comment().isBlank());
+                assertEquals(1, command.getTraceChain().size());
+                assertEquals(TraceKind.AUDIT_REASON, command.getTraceChain().get(0).getKind());
+                assertEquals(command.intent().comment(), command.getTraceChain().get(0).getComment());
+            }
+            if (logging) assertEquals(queryResults.size(), sql.size());
+            else assertTrue(sql.isEmpty());
+            System.out.println("TC-REQ-09 JAVA GENERATED BOOTSTRAP PASSED logging=" + logging
+                    + " first_writes=" + initialCommands.size() + " repeat_writes=0 comment=" + firstIntent);
+        }
+
+        void clear() {
+            sql.clear(); audit.clear(); commands.clear(); itemInsertBatchSizes.clear();
+            itemUpdateBatchSizes.clear(); itemDeleteBatchSizes.clear(); itemRecoverBatchSizes.clear();
+        }
+
+        Graph saveNormativeGraph() {
+            var platform = Q.platforms().withIdIs(1L).limit(1)
+                    .comment("what: reuse the seeded root")
+                    .purpose("why: do not recreate the bootstrap Platform").executeForOne(context);
+            assertNotNull(platform);
+            CustomerOrder order = Q.customerOrders().comment("what: prepare the fixture order")
+                    .purpose("why: verify generated graph persistence").newEntity(context);
+            order.updatePlatform(platform);
+            order.updateOrderNumber("TRACE-ORDER-" + base);
+            order.updateDescription("Draft fixture");
+            OrderItem kept = Q.orderItems().comment("what: prepare the available item")
+                    .purpose("why: verify generated graph persistence").newEntity(context);
+            kept.updateName("Available item");
+            OrderItem removed = Q.orderItems().comment("what: prepare the unavailable item")
+                    .purpose("why: seed an existing deletion target").newEntity(context);
+            removed.updateName("Unavailable item");
+            order.addOrderItem(kept).addOrderItem(removed);
+            order.auditAs("seed existing order items").save(context);
+            assertEquals(Long.valueOf(base), E.customerOrder(order).getId().eval());
+            assertEquals(Long.valueOf(base + 101), E.orderItem(kept).getId().eval());
+            assertEquals(Long.valueOf(base + 102), E.orderItem(removed).getId().eval());
+
+            Payment payment = Q.payments().comment("what: prepare payment")
+                    .purpose("why: persist payment in the order transaction").newEntity(context);
+            payment.updateReferenceCode("TRACE-PAYMENT-" + base);
+            payment.comment("authorize payment");
+            PaymentAttempt attempt = Q.paymentAttempts().comment("what: prepare a payment attempt")
+                    .purpose("why: verify inherited grandchild responsibility").newEntity(context);
+            attempt.updateReferenceCode("TRACE-ATTEMPT-" + base);
+            payment.addPaymentAttempt(attempt);
+            Shipment shipment = Q.shipments().comment("what: prepare shipment")
+                    .purpose("why: verify isolated sibling responsibility").newEntity(context);
+            shipment.updateReferenceCode("TRACE-SHIPMENT-" + base);
+            shipment.comment("dispatch shipment");
+            order.addPayment(payment).addShipment(shipment);
+            order.updateDescription("Submitted fixture");
+            kept.updateName("Confirmed item");
+            removed.markForDeletion();
+            removed.comment("remove unavailable item");
+            clear();
+            order.auditAs("submit order").save(context);
+            return new Graph(order, kept, removed, payment, attempt, shipment);
+        }
+    }
+
+    record Graph(CustomerOrder order, OrderItem kept, OrderItem removed, Payment payment,
+                 PaymentAttempt attempt, Shipment shipment) {}
+
+    private static void await(CountDownLatch latch) {
+        try { assertTrue("generated execution must reach checkpoint", latch.await(10, TimeUnit.SECONDS)); }
+        catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError(interrupted);
+        }
+    }
+
+    private static Throwable saveFailure(CustomerOrder order, UserContext context, String reason) {
+        try { order.auditAs(reason).save(context); return null; }
+        catch (Throwable failure) { return failure; }
+    }
+
+    @Test public void overlappingGeneratedCheckersKeepValidAndInvalidRequestsIndependent() throws Exception {
+        var fixture = new Fixture();
+        var platform = Q.platforms().withIdIs(1L).limit(1).comment("what: reuse root")
+                .purpose("why: prepare independent generated graph saves").executeForOne(fixture.context);
+        var valid = Q.customerOrders().comment("what: prepare valid order")
+                .purpose("why: exercise the actual generated Checker").newEntity(fixture.context);
+        valid.updatePlatform(platform);
+        valid.updateOrderNumber("TRACE-CONCURRENT-" + fixture.base);
+        valid.updateDescription("Valid overlapping request");
+        var invalid = Q.customerOrders().comment("what: prepare incomplete order")
+                .purpose("why: require an independent Checker rejection").newEntity(fixture.context);
+        invalid.updatePlatform(platform);
+        invalid.updateDescription("Invalid overlapping request");
+        assertNotSame(valid.getEntityMutationLedger(), invalid.getEntityMutationLedger());
+        var validThread = new AtomicReference<Thread>();
+        var validEntered = new CountDownLatch(1);
+        var invalidFinishing = new CountDownLatch(1);
+        var validFinished = new CountDownLatch(1);
+        fixture.checkerBegin = caller -> {
+            assertSame(fixture.context, caller);
+            if (Thread.currentThread() == validThread.get()) {
+                validEntered.countDown();
+                await(invalidFinishing);
+            } else await(validEntered);
+        };
+        fixture.checkerFinish = caller -> {
+            if (Thread.currentThread() != validThread.get()) {
+                invalidFinishing.countDown();
+                await(validFinished);
+            }
+        };
+        fixture.clear();
+        var workers = Executors.newFixedThreadPool(2);
+        try {
+            var first = workers.submit(() -> {
+                validThread.set(Thread.currentThread());
+                try { return saveFailure(valid, fixture.context, "accept overlapping valid order"); }
+                finally { validFinished.countDown(); }
+            });
+            // The first run must enter its initialized Checker before the second
+            // can initialize its own state. No timing sleeps or fake checkers.
+            await(validEntered);
+            var second = workers.submit(() -> saveFailure(invalid, fixture.context, "reject overlapping incomplete order"));
+            Throwable accepted = first.get(20, TimeUnit.SECONDS);
+            Throwable rejected = second.get(20, TimeUnit.SECONDS);
+            assertNull("valid request must not inherit another check's violations: " + accepted, accepted);
+            assertTrue(rejected instanceof io.teaql.core.checker.CheckException);
+            assertTrue(((io.teaql.core.checker.CheckException) rejected).getViolates().stream()
+                    .anyMatch(value -> value.getLocation().modelPath().endsWith("order_number")));
+            assertEquals(1, fixture.commands.size());
+            assertEquals(1, fixture.audit.size());
+            var lineage = List.of(new TraceNode(TraceKind.AUDIT_REASON, "CustomerOrder", valid.getId(), "accept overlapping valid order"));
+            assertEquals(lineage, fixture.commands.get(0).getTraceChain());
+            assertEquals(lineage, fixture.audit.get(0).traceChain());
+            assertTrue(fixture.sql.stream().allMatch(entry -> entry.getMutationLineage().equals(lineage)));
+            assertNull("Checker rejects before allocation", invalid.getId());
+        } finally {
+            validEntered.countDown(); invalidFinishing.countDown(); validFinished.countDown();
+            workers.shutdownNow();
+            assertTrue(workers.awaitTermination(10, TimeUnit.SECONDS));
+            fixture.checkerBegin = null; fixture.checkerFinish = null;
+        }
+        var loaded = Q.customerOrders().withIdIs(valid.getId()).limit(1)
+                .comment("what: reload accepted concurrent request")
+                .purpose("why: prove generated Q/E observe its committed row").executeForOne(fixture.context);
+        assertEquals("TRACE-CONCURRENT-" + fixture.base, E.customerOrder(loaded).getOrderNumber().eval());
+        assertTrue(fixture.context.getTraceChain().isEmpty());
+        System.out.println("PASS Java generated overlapping Checker: valid commits, invalid rejected before provider");
+    }
+
+    @Test public void independentGeneratedGraphsShareOneContextWithoutTraceOrAuditCrossTalk() throws Exception {
+        var fixture = new Fixture();
+        var platform = Q.platforms().withIdIs(1L).limit(1).comment("what: reuse root")
+                .purpose("why: prepare two independent graphs").executeForOne(fixture.context);
+        var platformLedger = platform.getEntityMutationLedger();
+        var orders = new java.util.ArrayList<CustomerOrder>();
+        for (String suffix : List.of("alpha", "beta")) {
+            var order = Q.customerOrders().comment("what: prepare " + suffix)
+                    .purpose("why: exercise concurrent graph ownership").newEntity(fixture.context);
+            order.updatePlatform(platform);
+            order.updateOrderNumber("TRACE-PARALLEL-" + fixture.base + "-" + suffix);
+            order.updateDescription("Parallel graph " + suffix);
+            var item = Q.orderItems().comment("what: prepare " + suffix + " item")
+                    .purpose("why: exercise local child responsibility").newEntity(fixture.context);
+            item.updateName("Parallel entry " + suffix);
+            item.comment("append " + suffix);
+            order.addOrderItem(item);
+            orders.add(order);
+        }
+        assertNotSame(orders.get(0).getEntityMutationLedger(), orders.get(1).getEntityMutationLedger());
+        var checkpoint = new CyclicBarrier(2);
+        fixture.checkerBegin = caller -> {
+            assertSame(fixture.context, caller);
+            try { checkpoint.await(10, TimeUnit.SECONDS); }
+            catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); throw new AssertionError(interrupted); }
+            catch (Exception failure) { throw new AssertionError(failure); }
+        };
+        fixture.serializeTransactions = true;
+        fixture.clear();
+        var workers = Executors.newFixedThreadPool(2);
+        try {
+            var first = workers.submit(() -> saveFailure(orders.get(0), fixture.context, "save alpha graph"));
+            var second = workers.submit(() -> saveFailure(orders.get(1), fixture.context, "save beta graph"));
+            Throwable alpha = first.get(20, TimeUnit.SECONDS);
+            Throwable beta = second.get(20, TimeUnit.SECONDS);
+            if (alpha != null) throw new AssertionError("alpha graph failed", alpha);
+            if (beta != null) throw new AssertionError("beta graph failed", beta);
+        } finally {
+            workers.shutdownNow();
+            assertTrue(workers.awaitTermination(10, TimeUnit.SECONDS));
+            fixture.checkerBegin = null;
+        }
+        assertEquals(4, fixture.commands.size());
+        assertEquals(4, fixture.audit.size());
+        assertSame("shared read-only relation retains its independent ledger", platformLedger, platform.getEntityMutationLedger());
+        for (int index = 0; index < orders.size(); index++) {
+            var order = orders.get(index);
+            String suffix = index == 0 ? "alpha" : "beta";
+            var graphCommands = fixture.commands.stream().filter(value ->
+                    value.getTraceChain().get(0).getEntityId().equals(order.getId())).toList();
+            assertEquals(2, graphCommands.size());
+            for (var command : graphCommands) {
+                var expected = command.getEntity().typeName().equals("CustomerOrder")
+                        ? List.of("save " + suffix + " graph")
+                        : List.of("save " + suffix + " graph", "append " + suffix);
+                assertEquals(expected, command.getTraceChain().stream().map(TraceNode::getComment).toList());
+                var event = fixture.audit.stream().filter(value -> value.entityType().equals(command.getEntity().typeName())
+                        && value.entityId().equals(command.getEntity().getId())).findFirst().orElseThrow();
+                assertEquals(command.getTraceChain(), event.traceChain());
+                assertTrue(fixture.sql.stream().anyMatch(value -> value.getOperation() == DataServiceOperation.MUTATION
+                        && value.getMutationLineage().equals(command.getTraceChain())));
+                assertTrue(fixture.sql.stream().anyMatch(value -> value.getOperation() == DataServiceOperation.QUERY
+                        && value.getMutationLineage().equals(command.getTraceChain())));
+            }
+            var loaded = Q.customerOrders().withIdIs(order.getId()).limit(1)
+                    .selectOrderItemListWith(Q.orderItems().limit(10))
+                    .comment("what: reload " + suffix + " graph")
+                    .purpose("why: verify independent commits through generated Q/E").executeForOne(fixture.context);
+            assertEquals(Integer.valueOf(1), E.customerOrder(loaded).getOrderItemList().size().eval());
+            assertEquals("TRACE-PARALLEL-" + fixture.base + "-" + suffix, E.customerOrder(loaded).getOrderNumber().eval());
+        }
+        assertTrue(fixture.context.getTraceChain().isEmpty());
+        System.out.println("PASS Java generated concurrent graphs: same Context, independent ledgers and per-item SQL/audit lineage");
+    }
+
+    @Test public void generatedSameTypePreparedBatchKeepsItemReasonsAndCompleteLedgerReplacement() throws Exception {
+        var fixture = new Fixture();
+        var platform = Q.platforms().withIdIs(1L).limit(1)
+                .comment("what: reuse the bootstrap root for batch acceptance")
+                .purpose("why: keep fixture writes inside generated APIs").executeForOne(fixture.context);
+        var order = Q.customerOrders().comment("what: initialize the batch order")
+                .purpose("why: verify generated prepared graph persistence").newEntity(fixture.context);
+        order.updatePlatform(platform);
+        order.updateOrderNumber("TRACE-BATCH-" + fixture.base);
+        order.updateDescription("Prepared batch fixture");
+        var first = Q.orderItems().comment("what: initialize entry alpha")
+                .purpose("why: verify per-item responsibility").newEntity(fixture.context);
+        first.updateName("Batch entry alpha");
+        first.comment("append alpha");
+        var second = Q.orderItems().comment("what: initialize entry beta")
+                .purpose("why: verify independent item responsibility").newEntity(fixture.context);
+        second.updateName("Batch entry beta");
+        second.comment("append beta");
+        order.addOrderItem(first).addOrderItem(second);
+        fixture.clear();
+        order.auditAs("compose generated batch").save(fixture.context);
+        long orderId = E.customerOrder(order).getId().eval();
+        long firstId = E.orderItem(first).getId().eval();
+        long secondId = E.orderItem(second).getId().eval();
+
+        assertEquals("one actual two-row prepared JDBC insert", List.of(2), fixture.itemInsertBatchSizes);
+        assertEquals(3, fixture.commands.size());
+        assertEquals(3, fixture.audit.size());
+        var expectedFirst = List.of(new TraceNode(TraceKind.AUDIT_REASON, "CustomerOrder", orderId, "compose generated batch"),
+                new TraceNode(TraceKind.AUDIT_REASON, "OrderItem", firstId, "append alpha"));
+        var expectedSecond = List.of(new TraceNode(TraceKind.AUDIT_REASON, "CustomerOrder", orderId, "compose generated batch"),
+                new TraceNode(TraceKind.AUDIT_REASON, "OrderItem", secondId, "append beta"));
+        for (long id : List.of(firstId, secondId)) {
+            var expected = id == firstId ? expectedFirst : expectedSecond;
+            var command = fixture.commands.stream().filter(value -> value.getEntity().typeName().equals("OrderItem")
+                    && value.getEntity().getId().equals(id)).findFirst().orElseThrow();
+            assertEquals(expected, command.getTraceChain());
+            var event = fixture.audit.stream().filter(value -> value.entityType().equals("OrderItem")
+                    && value.entityId().equals(id)).findFirst().orElseThrow();
+            assertEquals(expected, event.traceChain());
+            var writes = fixture.sql.stream().filter(value -> value.getOperation() == DataServiceOperation.MUTATION
+                    && value.getMutationLineage().equals(expected)).toList();
+            assertEquals(1, writes.size());
+            assertEquals("success", writes.get(0).getExecutionOutcome());
+            assertEquals(Long.valueOf(1), writes.get(0).getAffectedRows());
+            assertTrue(fixture.sql.stream().anyMatch(value -> value.getOperation() == DataServiceOperation.QUERY
+                    && value.getMutationLineage().equals(expected)));
+        }
+        var loaded = Q.customerOrders().withIdIs(orderId).limit(1)
+                .selectOrderItemListWith(Q.orderItems().orderByIdAscending().limit(10))
+                .comment("what: reload the batch through generated relations")
+                .purpose("why: independently validate FK association and scalar readback").executeForOne(fixture.context);
+        assertEquals(Integer.valueOf(2), E.customerOrder(loaded).getOrderItemList().size().eval());
+        assertEquals("Batch entry alpha", E.orderItem(first).getName().eval());
+        assertEquals("Batch entry beta", E.orderItem(second).getName().eval());
+        assertEquals(Long.valueOf(1), E.orderItem(first).getVersion().eval());
+        assertEquals(Long.valueOf(1), E.orderItem(second).getVersion().eval());
+
+        // Java assigns IDs at graph-save time. After the generated insert/readback,
+        // prove complete-ledger replacement on an identified existing child.
+        order.updateDescription("Ledger override fixture");
+        second.updateName("Updated beta entry");
+        second.comment("local fallback must not be appended");
+        var complete = List.of(new TraceNode(TraceKind.AUDIT_REASON, "CustomerOrder", orderId, "delegated batch root"),
+                new TraceNode(TraceKind.AUDIT_REASON, "OrderItem", secondId, "delegated beta"));
+        second.setTraceChain(complete);
+        var sibling = Q.orderItems().comment("what: initialize an unannotated sibling")
+                .purpose("why: prove complete ledger replacement is scoped to one typed key").newEntity(fixture.context);
+        sibling.updateName("Unannotated ledger sibling");
+        order.addOrderItem(sibling);
+        fixture.clear();
+        order.auditAs("replacement graph fallback").save(fixture.context);
+        var overrideCommand = fixture.commands.stream().filter(value -> value.getEntity().typeName().equals("OrderItem")
+                && value.getEntity().getId().equals(secondId)).findFirst().orElseThrow();
+        assertEquals(complete, overrideCommand.getTraceChain());
+        var overrideAudit = fixture.audit.stream().filter(value -> value.entityType().equals("OrderItem")
+                && value.entityId().equals(secondId)).findFirst().orElseThrow();
+        assertEquals(complete, overrideAudit.traceChain());
+        assertTrue(fixture.sql.stream().anyMatch(value -> value.getOperation() == DataServiceOperation.MUTATION
+                && value.getMutationLineage().equals(complete)));
+        assertTrue(fixture.sql.stream().anyMatch(value -> value.getOperation() == DataServiceOperation.QUERY
+                && value.getMutationLineage().equals(complete)));
+        assertNotNull("new fallback sibling receives its assigned ID", sibling.getId());
+        assertTrue(sibling.getId() > 0);
+        var fallback = List.of(new TraceNode(TraceKind.AUDIT_REASON, "CustomerOrder", orderId, "replacement graph fallback"));
+        var expectedByIdentity = java.util.Map.of(
+                new GraphIdentity("CustomerOrder", orderId), fallback,
+                new GraphIdentity("OrderItem", secondId), complete,
+                new GraphIdentity("OrderItem", sibling.getId()), fallback);
+        assertEquals(3, fixture.commands.size());
+        assertEquals(3, fixture.audit.size());
+        assertExactGraphIdentities("ledger override commands", expectedByIdentity.keySet(), fixture.commands.stream()
+                .map(value -> new GraphIdentity(value.getEntity().typeName(), value.getEntity().getId())).toList());
+        assertExactGraphIdentities("ledger override committed audit", expectedByIdentity.keySet(), fixture.audit.stream()
+                .map(value -> new GraphIdentity(value.entityType(), ((Number)value.entityId()).longValue())).toList());
+        for (var command : fixture.commands) {
+            var identity = new GraphIdentity(command.getEntity().typeName(), command.getEntity().getId());
+            var expected = expectedByIdentity.get(identity);
+            assertEquals("complete ledger replaces only its own key: " + identity, expected, command.getTraceChain());
+            var event = fixture.audit.stream().filter(value -> value.entityType().equals(identity.entity())
+                    && value.entityId().equals(identity.id())).findFirst().orElseThrow();
+            assertEquals("sibling fallback at committed audit: " + identity, expected, event.traceChain());
+            var writes = fixture.sql.stream().filter(value -> value.getOperation() == DataServiceOperation.MUTATION
+                    && value.getMutationLineage().equals(expected)
+                    && value.getTraceChain().stream().anyMatch(node -> node.getKind() == TraceKind.ENTITY
+                            && node.getName().equals(identity.entity()))).toList();
+            assertEquals("one physical write for ledger key " + identity, 1, writes.size());
+            assertEquals("success", writes.get(0).getExecutionOutcome());
+            assertTrue("readback retains this key's lineage: " + identity, fixture.sql.stream().anyMatch(value ->
+                    value.getOperation() == DataServiceOperation.QUERY && value.getMutationLineage().equals(expected)));
+        }
+        assertEquals(3, fixture.sql.stream().filter(value -> value.getOperation() == DataServiceOperation.MUTATION).count());
+        System.out.println("PASS Java generated ledger override: one typed key replaces fallback; new sibling inherits only graph root at command/SQL/audit");
+        System.out.println("PASS Java generated prepared batch: per-item lineage and complete ledger replacement");
+    }
+
+    private record GraphIdentity(String entity, Long id) {}
+
+    private static String identityJson(List<GraphIdentity> identities) {
+        return identities.stream().map(value -> "{\"entity\":\"" + value.entity() + "\",\"id\":" + value.id() + "}")
+                .collect(java.util.stream.Collectors.joining(",", "[", "]"));
+    }
+
+    private static void assertExactGraphIdentities(String boundary, Set<GraphIdentity> expected,
+            List<GraphIdentity> actual) {
+        assertEquals(boundary + " count", expected.size(), actual.size());
+        var distinct = new HashSet<>(actual);
+        assertEquals(boundary + " must not repeat an entity", actual.size(), distinct.size());
+        assertEquals(boundary + " exact typed identities", expected, distinct);
+    }
+
+    @Test public void graphIdentityGuardRejectsDuplicatesMissingEntitiesAndTypeCollapse() {
+        var expected = Set.of(new GraphIdentity("CustomerOrder", 100L), new GraphIdentity("OrderItem", 201L),
+                new GraphIdentity("OrderItem", 202L), new GraphIdentity("Payment", 100L),
+                new GraphIdentity("PaymentAttempt", 401L), new GraphIdentity("Shipment", 501L));
+        var correct = new ArrayList<>(expected);
+        assertExactGraphIdentities("control", expected, correct);
+        var duplicate = new ArrayList<>(correct);
+        duplicate.set(duplicate.indexOf(new GraphIdentity("OrderItem", 202L)), new GraphIdentity("OrderItem", 201L));
+        assertThrows(AssertionError.class, () -> assertExactGraphIdentities("duplicate control", expected, duplicate));
+        var unknown = new ArrayList<>(correct);
+        unknown.set(unknown.indexOf(new GraphIdentity("Shipment", 501L)), new GraphIdentity("Shipment", 999L));
+        assertThrows(AssertionError.class, () -> assertExactGraphIdentities("missing control", expected, unknown));
+        var collapsed = new ArrayList<>(correct);
+        collapsed.set(collapsed.indexOf(new GraphIdentity("Payment", 100L)), new GraphIdentity("CustomerOrder", 100L));
+        assertThrows(AssertionError.class, () -> assertExactGraphIdentities("type collapse control", expected, collapsed));
+        System.out.println("PASS Java graph identity controls: duplicate, missing and equal-ID type collapse rejected");
+    }
+
+    @Test public void generatedNormativeGraphHasPerItemPhysicalSqlAndCommittedAudit() throws Exception {
+        var fixture = new Fixture();
+        Graph graph = fixture.saveNormativeGraph();
+        assertEquals("six physical entity commands", 6, fixture.commands.size());
+        assertEquals("six committed entity events", 6, fixture.audit.size());
+        assertEquals("same numeric ID must not collapse different types", graph.order.getId(), graph.payment.getId());
+        assertTrue("mutation planning must not leave an ambient trace", fixture.context.getTraceChain().isEmpty());
+        var identities = Set.of(new GraphIdentity("CustomerOrder", graph.order.getId()),
+                new GraphIdentity("OrderItem", graph.kept.getId()), new GraphIdentity("OrderItem", graph.removed.getId()),
+                new GraphIdentity("Payment", graph.payment.getId()), new GraphIdentity("PaymentAttempt", graph.attempt.getId()),
+                new GraphIdentity("Shipment", graph.shipment.getId()));
+        assertExactGraphIdentities("actual commands", identities, fixture.commands.stream()
+                .map(value -> new GraphIdentity(value.getEntity().typeName(), value.getEntity().getId())).toList());
+        assertExactGraphIdentities("committed audit", identities, fixture.audit.stream()
+                .map(value -> new GraphIdentity(value.entityType(), ((Number)value.entityId()).longValue())).toList());
+        assertEquals("six actual physical writes", 6L,
+                fixture.sql.stream().filter(value -> value.getOperation() == DataServiceOperation.MUTATION).count());
+        var physicalIdentities = new ArrayList<GraphIdentity>();
+        for (var command : fixture.commands) {
+            Entity entity = command.getEntity();
+            var expected = expected(fixture.base, entity.typeName(), entity.getId());
+            assertEquals("provider command " + entity.typeName(), expected, command.getTraceChain());
+            var event = fixture.audit.stream().filter(value -> value.entityType().equals(entity.typeName())
+                    && value.entityId().equals(entity.getId())).findFirst().orElseThrow();
+            assertEquals("safe committed event", expected, event.traceChain());
+            String action = command.getAction() == EntityPersistenceMutation.Action.DELETE ? "delete"
+                    : entity.typeName().equals("CustomerOrder") || entity.typeName().equals("OrderItem") ? "update" : "insert";
+            var writes = fixture.sql.stream().filter(value -> value.getOperation() == DataServiceOperation.MUTATION
+                    && value.getTraceChain().get(1).getName().equals(entity.typeName())
+                    && value.getMutationLineage().equals(expected)).toList();
+            assertEquals("one actual SQL write for " + entity.typeName() + "#" + entity.getId(), 1, writes.size());
+            // Physical paths deliberately do not carry IDs. Bind the unique
+            // observed SQL fact to its real provider command, not a fabricated path ID.
+            physicalIdentities.add(new GraphIdentity(entity.typeName(), entity.getId()));
+            for (var entry : writes) {
+                assertEquals("success", entry.getExecutionOutcome());
+                assertEquals("CustomerOrder", entry.getTraceChain().get(0).getName());
+                assertEquals("sqlite", entry.getTraceChain().get(entry.getTraceChain().size() - 2).getName());
+                assertEquals(action, entry.getTraceChain().get(entry.getTraceChain().size() - 1).getName());
+            }
+            assertTrue("readback retains entity responsibility", fixture.sql.stream().anyMatch(value ->
+                    value.getOperation() == DataServiceOperation.QUERY && value.getMutationLineage().equals(expected)));
+        }
+        assertExactGraphIdentities("command-bound physical SQL", identities, physicalIdentities);
+        System.out.println("GRAPH IDENTITY EVIDENCE " + "{\"expected\":" + identityJson(new ArrayList<>(identities))
+                + ",\"commands\":" + identityJson(fixture.commands.stream()
+                        .map(value -> new GraphIdentity(value.getEntity().typeName(), value.getEntity().getId())).toList())
+                + ",\"physical\":" + identityJson(physicalIdentities)
+                + ",\"audit\":" + identityJson(fixture.audit.stream()
+                        .map(value -> new GraphIdentity(value.entityType(), ((Number)value.entityId()).longValue())).toList()) + "}");
+        assertEquals(Long.valueOf(2), E.customerOrder(graph.order).getVersion().eval());
+        assertEquals(Long.valueOf(-2), E.orderItem(graph.removed).getVersion().eval());
+        assertEquals(Long.valueOf(1), E.payment(graph.payment).getVersion().eval());
+        var current = Q.customerOrders().withIdIs(graph.order.getId()).limit(1)
+                .selectOrderItemListWith(Q.orderItems().orderByIdAscending().limit(10))
+                .selectPaymentListWith(Q.payments().orderByIdAscending().limit(10)
+                        .selectPaymentAttemptListWith(Q.paymentAttempts().orderByIdAscending().limit(10)))
+                .comment("what: reload the committed order graph")
+                .purpose("why: independently verify Q and E after persistence").executeForOne(fixture.context);
+        assertEquals("Submitted fixture", E.customerOrder(current).getDescription().eval());
+        assertEquals(Integer.valueOf(1), E.customerOrder(current).getOrderItemList().size().eval());
+        assertEquals(Integer.valueOf(1), E.customerOrder(current).getPaymentList().size().eval());
+        assertNull(Q.orderItems().withIdIs(graph.removed.getId()).limit(1)
+                .comment("what: verify the deletion mark")
+                .purpose("why: normal queries must hide deleted rows").executeForOne(fixture.context));
+        var deleted = Q.orderItems().withIdIs(graph.removed.getId()).deletedRowsOnly().limit(1)
+                .comment("what: inspect the stored deletion version")
+                .purpose("why: prove version-aware deletion, not physical removal").executeForOne(fixture.context);
+        assertEquals(Long.valueOf(-2), E.orderItem(deleted).getVersion().eval());
+        System.out.println("PASS Java generated normative Trace Chain graph: six physical writes and committed audits");
+    }
+
+    @Test public void generatedPreparedUpdateDeleteRecoveryCycleKeepsUnequalVersionsAndItemTraces() throws Exception {
+        var fixture = new Fixture();
+        Graph graph = fixture.saveNormativeGraph();
+        fixture.clear();
+        // Discovered through current Java Delete Assist; no generated-source lookup.
+        graph.removed.markToRecover();
+        graph.removed.comment("prepare previously removed item");
+        graph.order.auditAs("prepare active cycle fixtures").save(fixture.context);
+        assertEquals(Long.valueOf(3), E.orderItem(graph.removed).getVersion().eval());
+
+        fixture.clear();
+        graph.kept.updateName("Cycle entry alpha");
+        graph.kept.comment("revise alpha");
+        graph.removed.updateName("Cycle entry beta");
+        graph.removed.comment("revise beta");
+        graph.order.auditAs("revise generated entries").save(fixture.context);
+        assertEquals(List.of(2), fixture.itemUpdateBatchSizes);
+        assertCycleBoundaries(fixture, graph, "update", MutationAuditKind.UPDATED, "revise generated entries", "revise alpha", "revise beta");
+        assertEquals(Long.valueOf(3), E.orderItem(graph.kept).getVersion().eval());
+        assertEquals(Long.valueOf(4), E.orderItem(graph.removed).getVersion().eval());
+
+        fixture.clear();
+        graph.kept.markForDeletion();
+        graph.kept.comment("remove alpha");
+        graph.removed.markForDeletion();
+        graph.removed.comment("remove beta");
+        graph.order.auditAs("remove generated entries").save(fixture.context);
+        assertEquals(List.of(2), fixture.itemDeleteBatchSizes);
+        assertCycleBoundaries(fixture, graph, "delete", MutationAuditKind.DELETED, "remove generated entries", "remove alpha", "remove beta");
+        assertEquals(Long.valueOf(-4), E.orderItem(graph.kept).getVersion().eval());
+        assertEquals(Long.valueOf(-5), E.orderItem(graph.removed).getVersion().eval());
+        assertNull(Q.orderItems().withIdIs(graph.kept.getId()).limit(1)
+                .comment("what: inspect normal visibility after graph deletion")
+                .purpose("why: prove pending deletion was actually saved").executeForOne(fixture.context));
+        var deleted = Q.orderItems().withIdIs(graph.removed.getId()).deletedRowsOnly().limit(1)
+                .comment("what: inspect retained deleted item")
+                .purpose("why: verify its independent negative version").executeForOne(fixture.context);
+        assertEquals(Long.valueOf(-5), E.orderItem(deleted).getVersion().eval());
+
+        fixture.clear();
+        graph.kept.markToRecover();
+        graph.kept.comment("restore alpha");
+        graph.removed.markToRecover();
+        graph.removed.comment("restore beta");
+        graph.order.auditAs("restore generated entries").save(fixture.context);
+        assertEquals(List.of(2), fixture.itemRecoverBatchSizes);
+        assertCycleBoundaries(fixture, graph, "recover", MutationAuditKind.RECOVERED, "restore generated entries", "restore alpha", "restore beta");
+        assertEquals(Long.valueOf(5), E.orderItem(graph.kept).getVersion().eval());
+        assertEquals(Long.valueOf(6), E.orderItem(graph.removed).getVersion().eval());
+        var restored = Q.customerOrders().withIdIs(graph.order.getId()).limit(1)
+                .selectOrderItemListWith(Q.orderItems().orderByIdAscending().limit(10))
+                .comment("what: reload the restored order graph")
+                .purpose("why: verify two visible children through generated Q and E").executeForOne(fixture.context);
+        assertEquals(Integer.valueOf(2), E.customerOrder(restored).getOrderItemList().size().eval());
+        assertEquals("Cycle entry alpha", E.orderItem(graph.kept).getName().eval());
+        assertEquals("Cycle entry beta", E.orderItem(graph.removed).getName().eval());
+        System.out.println("PASS Java generated prepared update/delete/recover: unequal versions and per-item lineage");
+    }
+
+    private static void assertCycleBoundaries(Fixture fixture, Graph graph, String operation, MutationAuditKind kind,
+            String rootReason, String firstReason, String secondReason) {
+        assertEquals(2, fixture.commands.size());
+        assertEquals(2, fixture.audit.size());
+        for (var item : List.of(graph.kept, graph.removed)) {
+            long id = E.orderItem(item).getId().eval();
+            var expected = List.of(new TraceNode(TraceKind.AUDIT_REASON, "CustomerOrder", graph.order.getId(), rootReason),
+                    new TraceNode(TraceKind.AUDIT_REASON, "OrderItem", id, item == graph.kept ? firstReason : secondReason));
+            var command = fixture.commands.stream().filter(value -> value.getEntity().getId().equals(id)).findFirst().orElseThrow();
+            var audit = fixture.audit.stream().filter(value -> value.entityId().equals(id)).findFirst().orElseThrow();
+            assertEquals(expected, command.getTraceChain());
+            assertEquals(expected, audit.traceChain());
+            assertEquals(kind, audit.kind());
+            var writes = fixture.sql.stream().filter(value -> value.getOperation() == DataServiceOperation.MUTATION
+                    && value.getMutationLineage().equals(expected)).toList();
+            assertEquals(1, writes.size());
+            assertEquals(operation, writes.get(0).getStatementOperation());
+            assertEquals(Long.valueOf(1), writes.get(0).getAffectedRows());
+            assertTrue(fixture.sql.stream().anyMatch(value -> value.getOperation() == DataServiceOperation.QUERY
+                    && value.getMutationLineage().equals(expected)));
+        }
+    }
+
+    @Test public void generatedThreeLevelQueryProducesAllRelationFramesAndRootIntent() throws Exception {
+        var fixture = new Fixture();
+        Graph graph = fixture.saveNormativeGraph();
+        fixture.clear();
+        var row = Q.paymentAttempts().withIdIs(graph.attempt.getId()).limit(1)
+                .selectPaymentWith(Q.payments().limit(1)
+                        .selectCustomerOrderWith(Q.customerOrders().limit(1)
+                                .selectPlatformWith(Q.platforms().limit(1))))
+                .comment("what: load three levels of payment context")
+                .purpose("why: verify generated SQL trace propagation").executeForOne(fixture.context);
+        var payment = E.paymentAttempt(row).getPayment().eval();
+        var order = E.payment(payment).getCustomerOrder().eval();
+        var platform = E.customerOrder(order).getPlatform().eval();
+        assertEquals("Trace Chain Verification", E.platform(platform).getName().eval());
+        var statements = fixture.sql.stream().filter(value -> value.getOperation() == DataServiceOperation.QUERY).toList();
+        assertEquals("one root query and three explicit relation queries", 4, statements.size());
+        List<String> names = List.of("payment", "customerOrder", "platform");
+        for (int depth = 0; depth < statements.size(); depth++) {
+            var entry = statements.get(depth);
+            assertEquals("what: load three levels of payment context", entry.getComment());
+            assertEquals("why: verify generated SQL trace propagation", entry.getPurpose());
+            assertEquals("PaymentAttempt", entry.getTraceChain().get(0).getName());
+            assertEquals("PaymentAttempt", entry.getTraceChain().get(1).getName());
+            var relations = entry.getTraceChain().stream().filter(node -> node.getKind() == TraceKind.RELATION)
+                    .map(TraceNode::getName).toList();
+            assertEquals("actual relation depth " + depth, names.subList(0, depth), relations);
+            var details = entry.getTraceChain().stream().filter(node -> node.getKind() == TraceKind.RELATION)
+                    .map(TraceNode::getComment).toList();
+            assertEquals(List.of("PaymentAttempt.payment", "Payment.customerOrder", "CustomerOrder.platform")
+                    .subList(0, depth), details);
+            var kinds = new ArrayList<>(List.of(TraceKind.OPERATION, TraceKind.REQUEST));
+            for (int relation = 0; relation < depth; relation++) kinds.add(TraceKind.RELATION);
+            kinds.add(TraceKind.PROVIDER); kinds.add(TraceKind.SQL);
+            assertEquals("canonical generated path at every physical boundary", kinds,
+                    entry.getTraceChain().stream().map(TraceNode::getKind).toList());
+            assertEquals("query", entry.getTraceChain().get(0).getComment());
+            assertEquals("", entry.getTraceChain().get(1).getComment());
+            assertEquals("sqlite", entry.getTraceChain().get(depth + 2).getName());
+            assertEquals("", entry.getTraceChain().get(depth + 2).getComment());
+            assertEquals("select", entry.getTraceChain().get(depth + 3).getName());
+            assertEquals("", entry.getTraceChain().get(depth + 3).getComment());
+            assertTrue(entry.getTraceChain().stream().allMatch(node -> node.getEntityId() == null));
+        }
+        System.out.println("PASS Java generated three-level SQL Trace Path and inherited request intent");
+        assertFilteredForwardReference(fixture, graph);
+    }
+
+    private static void assertFilteredForwardReference(Fixture fixture, Graph graph) {
+        var hidden = Q.payments().withIdIs(graph.payment.getId()).limit(1)
+                .selectCustomerOrderWith(Q.customerOrders().withIdIs(0L).limit(1))
+                .comment("load filtered forward reference").purpose("preserve real FK identity")
+                .executeForOne(fixture.context);
+        var identity = E.payment(hidden).getCustomerOrder().eval();
+        assertNotNull("filtered detail must not erase the FK", identity);
+        assertEquals(graph.order.getId(), E.customerOrder(identity).getId().eval());
+        assertThrows(io.teaql.core.value.TeaQLNotLoadedException.class,
+                () -> E.customerOrder(identity).getDescription().eval());
+        var visible = Q.payments().withIdIs(graph.payment.getId()).limit(1)
+                .selectCustomerOrderWith(Q.customerOrders().limit(1))
+                .comment("load independent full reference").purpose("verify edge-owned detail boundaries")
+                .executeForOne(fixture.context);
+        assertEquals(graph.order.getDescription(), E.customerOrder(E.payment(visible).getCustomerOrder().eval()).getDescription().eval());
+        assertThrows(io.teaql.core.value.TeaQLNotLoadedException.class,
+                () -> E.customerOrder(identity).getDescription().eval());
+        System.out.println("PASS FORWARD_NOTLOADED: Java generated Q/E retains FK and hidden detail guard");
+    }
+
+    @Test public void generatedQueriesReturnStatementEvidenceWithoutLogging() throws Exception {
+        var fixture = new Fixture(false);
+        Graph graph = fixture.saveNormativeGraph();
+        fixture.clear(); fixture.queryResults.clear();
+        var comment = "what: inspect payment without SQL logging";
+        var row = loadPaymentContext(fixture, graph, comment, "why: retain execution evidence independently");
+        assertEquals(graph.attempt.getId(), E.paymentAttempt(row).getId().eval());
+        var result = fixture.queryResults.get(fixture.queryResults.size() - 1);
+        assertEquals(4, result.statements().size());
+        var names = List.of("payment", "customerOrder", "platform");
+        for (int depth = 0; depth < 4; depth++) {
+            var entry = result.statements().get(depth);
+            assertEquals(comment, entry.getComment());
+            assertEquals("success", entry.getExecutionOutcome());
+            assertEquals("PaymentAttempt", entry.getTraceChain().get(0).getName());
+            assertEquals(names.subList(0, depth), entry.getTraceChain().stream()
+                    .filter(node -> node.getKind() == TraceKind.RELATION).map(TraceNode::getName).toList());
+        }
+        assertThrows(UnsupportedOperationException.class, () -> result.statements().clear());
+        assertTrue(fixture.sql.isEmpty());
+        assertTrue(fixture.context.getTraceChain().isEmpty());
+        System.out.println("PASS Java generated query evidence: logging disabled, three relation levels, immutable result list");
+        assertFilteredForwardReference(fixture, graph);
+    }
+
+    private static PaymentAttempt loadPaymentContext(Fixture fixture, Graph graph, String comment, String purpose) {
+        var row = Q.paymentAttempts().withIdIs(graph.attempt.getId()).limit(1)
+                .selectPaymentWith(Q.payments().limit(1)
+                        .selectCustomerOrderWith(Q.customerOrders().limit(1)
+                                .selectPlatformWith(Q.platforms().limit(1))))
+                .comment(comment).purpose(purpose).executeForOne(fixture.context);
+        assertEquals(graph.attempt.getId(), E.paymentAttempt(row).getId().eval());
+        var payment = E.paymentAttempt(row).getPayment().eval();
+        var order = E.payment(payment).getCustomerOrder().eval();
+        var platform = E.customerOrder(order).getPlatform().eval();
+        assertEquals("Trace Chain Verification", E.platform(platform).getName().eval());
+        return row;
+    }
+
+    @Test public void overlappingGeneratedQueriesKeepThreeLevelRoutesOffContext() throws Exception {
+        var fixture = new Fixture();
+        Graph graph = fixture.saveNormativeGraph(); fixture.clear();
+        var firstEntered = new CountDownLatch(1);
+        var bothEntered = new CountDownLatch(2);
+        var release = new CountDownLatch(1);
+        fixture.queryBegin = (caller, request) -> {
+            assertSame(fixture.context, caller);
+            firstEntered.countDown(); bothEntered.countDown(); await(release);
+            assertTrue("root and relation queries must never write a Context trace stack", caller.getTraceChain().isEmpty());
+        };
+        var workers = Executors.newFixedThreadPool(2);
+        try {
+            var first = workers.submit(() -> loadPaymentContext(fixture, graph,
+                    "what: inspect payment ownership", "why: render the first view"));
+            await(firstEntered);
+            var second = workers.submit(() -> loadPaymentContext(fixture, graph,
+                    "what: inspect payment trace", "why: render the second view"));
+            await(bothEntered);
+            assertTrue("both real generated Q executions are live", fixture.context.getTraceChain().isEmpty());
+            release.countDown();
+            var left = first.get(20, TimeUnit.SECONDS); var right = second.get(20, TimeUnit.SECONDS);
+            assertNotSame("hydrated root objects belong to independent queries", left, right);
+            for (String comment : List.of("what: inspect payment ownership", "what: inspect payment trace")) {
+                var statements = fixture.sql.stream().filter(entry -> comment.equals(entry.getComment())).toList();
+                assertEquals("each query emits its own root plus three relation statements", 4, statements.size());
+                var returned = fixture.queryResults.stream()
+                        .filter(result -> result.statements().size() == 4
+                                && comment.equals(result.statements().get(0).getComment())).toList();
+                assertEquals("one request-owned full result per concurrent query", 1, returned.size());
+                assertTrue(returned.get(0).statements().stream().allMatch(entry -> comment.equals(entry.getComment())));
+                String purpose = comment.endsWith("ownership") ? "why: render the first view" : "why: render the second view";
+                for (int depth = 0; depth < statements.size(); depth++) {
+                    var entry = statements.get(depth);
+                    assertEquals(purpose, entry.getPurpose());
+                    assertEquals("PaymentAttempt", entry.getTraceChain().get(0).getName());
+                    assertEquals(List.of("payment", "customerOrder", "platform").subList(0, depth),
+                            entry.getTraceChain().stream().filter(node -> node.getKind() == TraceKind.RELATION)
+                                    .map(TraceNode::getName).toList());
+                }
+            }
+            assertEquals(8, fixture.sql.size());
+            assertTrue(fixture.context.getTraceChain().isEmpty());
+        } finally {
+            release.countDown(); workers.shutdownNow();
+            assertTrue(workers.awaitTermination(10, TimeUnit.SECONDS));
+        }
+        System.out.println("PASS Java generated overlapping queries: request-owned three-level SQL paths, Context unchanged");
+    }
+
+    @Test public void generatedStreamKeepsItsIntentAcrossLateConsumption() throws Exception {
+        var fixture = new Fixture(); Graph graph = fixture.saveNormativeGraph(); fixture.clear();
+        fixture.streamOpen = caller -> {
+            assertSame(fixture.context, caller);
+            assertTrue("the actual JDBC cursor open must not depend on Context frames", caller.getTraceChain().isEmpty());
+        };
+        try (var stream = Q.customerOrders().withIdIs(graph.order.getId()).limit(1)
+                .comment("what: stream the selected order").purpose("why: consume after another query")
+                .executeForStream(fixture.context)) {
+            Q.platforms().withIdIs(1L).limit(1).comment("what: inspect an unrelated platform")
+                    .purpose("why: prove delayed cursors keep their own intent").executeForOne(fixture.context);
+            var rows = stream.toList();
+            assertEquals(1, rows.size());
+            assertEquals(graph.order.getId(), E.customerOrder(rows.get(0)).getId().eval());
+        }
+        assertEquals(2, fixture.sql.size());
+        var cursor = fixture.sql.stream().filter(entry -> "what: stream the selected order".equals(entry.getComment()))
+                .findFirst().orElseThrow();
+        assertEquals("why: consume after another query", cursor.getPurpose());
+        assertEquals("CustomerOrder", cursor.getTraceChain().get(0).getName());
+        assertTrue(fixture.context.getTraceChain().isEmpty());
+        System.out.println("PASS Java generated stream: request-owned SQL path and delayed consumption intent");
+    }
+
+    @Test public void generatedStreamsReturnLifecycleEvidenceWithLoggingDisabled() throws Exception {
+        var fixture = new Fixture(false); Graph graph = fixture.saveNormativeGraph(); fixture.clear();
+        for (String mode : List.of("success", "cancelled", "failure")) {
+            try (var stream = Q.customerOrders().withIdIs(graph.order.getId()).limit(1)
+                    .comment("stream " + mode).purpose("verify generated terminal evidence").executeForStream(fixture.context)) {
+                var cursor = fixture.cursors.get(fixture.cursors.size() - 1);
+                assertTrue("no terminal fact at open", cursor.statements().isEmpty());
+                Q.platforms().withIdIs(1L).limit(1).comment("independent query during cursor")
+                        .purpose("verify invocation ownership").executeForOne(fixture.context);
+                if (mode.equals("failure")) {
+                    var failure = new IllegalStateException("consumer failed");
+                    assertSame(failure, assertThrows(IllegalStateException.class,
+                            () -> stream.forEach(row -> { throw failure; })));
+                } else {
+                    var rows = mode.equals("cancelled") ? stream.limit(1).toList() : stream.toList();
+                    assertEquals(graph.order.getId(), E.customerOrder(rows.get(0)).getId().eval());
+                }
+            }
+            var facts = fixture.cursors.get(fixture.cursors.size() - 1).statements();
+            assertEquals(1, facts.size());
+            assertEquals(mode, facts.get(0).getExecutionOutcome());
+            assertEquals("stream " + mode, facts.get(0).getComment());
+            assertEquals("CustomerOrder", facts.get(0).getTraceChain().get(0).getName());
+            assertEquals(Integer.valueOf(1), facts.get(0).getResultCount());
+        }
+        assertTrue(fixture.sql.isEmpty()); assertTrue(fixture.context.getTraceChain().isEmpty());
+        System.out.println("PASS Java generated cursor evidence: logging disabled, completion, cancellation and failure");
+    }
+
+    private static void assertQueryPaths(Fixture fixture, String comment, String purpose,
+                                         List<List<String>> expectedRelations) {
+        assertEquals(expectedRelations.size(), fixture.sql.size());
+        for (int index = 0; index < fixture.sql.size(); index++) {
+            var entry = fixture.sql.get(index);
+            assertEquals(comment, entry.getComment()); assertEquals(purpose, entry.getPurpose());
+            var kinds = new java.util.ArrayList<>(List.of(TraceKind.OPERATION, TraceKind.REQUEST));
+            expectedRelations.get(index).forEach(relation -> kinds.add(TraceKind.RELATION));
+            kinds.add(TraceKind.PROVIDER); kinds.add(TraceKind.SQL);
+            assertEquals(kinds, entry.getTraceChain().stream().map(TraceNode::getKind).toList());
+            assertEquals("PaymentAttempt", entry.getTraceChain().get(0).getName());
+            assertEquals("PaymentAttempt", entry.getTraceChain().get(1).getName());
+            assertEquals("sqlite", entry.getTraceChain().get(entry.getTraceChain().size() - 2).getName());
+            assertEquals("select", entry.getTraceChain().get(entry.getTraceChain().size() - 1).getName());
+            assertEquals(expectedRelations.get(index), entry.getTraceChain().stream()
+                    .filter(node -> node.getKind() == TraceKind.RELATION).map(TraceNode::getName).toList());
+        }
+        assertTrue(fixture.context.getTraceChain().isEmpty());
+    }
+
+    @Test public void generatedNestedFacetsKeepTheOriginalRootAndLogicalRoute() throws Exception {
+        var fixture = new Fixture(); Graph graph = fixture.saveNormativeGraph(); fixture.clear();
+        String comment = "what: inspect payment ownership facets";
+        String purpose = "why: retain the request route through nested facet materialization";
+        var rows = Q.paymentAttempts().withIdIs(graph.attempt.getId()).limit(1)
+                .facetByPaymentAs("payments", Q.payments().withIdIs(graph.payment.getId()).limit(1)
+                        .facetByCustomerOrderAs("orders", Q.customerOrders().withIdIs(graph.order.getId()).limit(1)))
+                .comment(comment).purpose(purpose).executeForList(fixture.context);
+        assertEquals(1, rows.size());
+        assertEquals(graph.attempt.getId(), E.paymentAttempt(rows.get(0)).getId().eval());
+        var payments = rows.getFacet("payments"); assertNotNull(payments); assertEquals(1, payments.size());
+        var payment = (Payment) payments.get(0);
+        assertEquals(graph.payment.getId(), E.payment(payment).getId().eval());
+        assertEquals(1, ((Number) payment.getDynamicProperty("count")).intValue());
+        assertQueryPaths(fixture, comment, purpose, List.of(List.of(), List.of(),
+                List.of("payment"), List.of("payment"), List.of("payment", "customerOrder")));
+        System.out.println("PASS Java generated nested facets: filtered counts and original root/relation SQL paths");
+    }
+
+    @Test public void generatedFacetInsideALoadedRelationKeepsItsAncestorPath() throws Exception {
+        var fixture = new Fixture(); Graph graph = fixture.saveNormativeGraph(); fixture.clear();
+        String comment = "what: inspect related order facets";
+        String purpose = "why: retain already loaded relation ancestry";
+        var row = Q.paymentAttempts().withIdIs(graph.attempt.getId()).limit(1)
+                .selectPaymentWith(Q.payments().limit(1)
+                        .facetByCustomerOrderAs("orders", Q.customerOrders().withIdIs(graph.order.getId()).limit(1)))
+                .comment(comment).purpose(purpose).executeForOne(fixture.context);
+        assertEquals(graph.attempt.getId(), E.paymentAttempt(row).getId().eval());
+        assertEquals(graph.payment.getId(), E.payment(E.paymentAttempt(row).getPayment().eval()).getId().eval());
+        assertQueryPaths(fixture, comment, purpose, List.of(List.of(), List.of("payment"),
+                List.of("payment"), List.of("payment", "customerOrder")));
+        System.out.println("PASS Java generated relation facet: original root and complete inherited SQL route");
+    }
+
+    @Test public void generatedCheckerRejectsInvalidBusinessStateBeforeProvider() throws Exception {
+        var fixture = new Fixture();
+        var platform = Q.platforms().withIdIs(1L).limit(1).comment("what: reuse root")
+                .purpose("why: verify checker enforcement").executeForOne(fixture.context);
+        var invalid = Q.customerOrders().comment("what: prepare an incomplete order")
+                .purpose("why: test generated required-field rules").newEntity(fixture.context);
+        invalid.updatePlatform(platform);
+        invalid.updateDescription("Incomplete fixture");
+        fixture.clear();
+        var failure = assertThrows(io.teaql.core.checker.CheckException.class,
+                () -> invalid.auditAs("reject incomplete order").save(fixture.context));
+        assertTrue(failure.getViolates().toString(), failure.getViolates().stream()
+                .anyMatch(value -> value.getLocation().modelPath().endsWith("order_number")));
+        assertTrue(fixture.commands.isEmpty());
+        assertTrue(fixture.sql.isEmpty());
+        assertTrue(fixture.audit.isEmpty());
+        System.out.println("PASS Java generated Checker rejection before provider access");
+    }
+
+    @Test public void generatedProviderFailureKeepsAttemptedLineageWithoutCommittedAudit() throws Exception {
+        var fixture = new Fixture();
+        Graph prior = fixture.saveNormativeGraph();
+        fixture.driver.execute("CREATE UNIQUE INDEX IF NOT EXISTS trace_payment_reference_unique ON payment_data(reference_code)");
+        var failed = Q.customerOrders().comment("what: prepare a failing transaction")
+                .purpose("why: test generated graph rollback").newEntity(fixture.context);
+        var platform = Q.platforms().withIdIs(1L).limit(1).comment("what: reuse root")
+                .purpose("why: prepare the authorized fixture").executeForOne(fixture.context);
+        failed.updatePlatform(platform);
+        failed.updateOrderNumber("TRACE-FAIL-" + fixture.base);
+        failed.updateDescription("Will roll back");
+        var duplicate = Q.payments().comment("what: prepare duplicate payment")
+                .purpose("why: provoke an actual SQLite uniqueness error").newEntity(fixture.context);
+        duplicate.updateReferenceCode(E.payment(prior.payment).getReferenceCode().eval());
+        duplicate.comment("reject duplicate transfer");
+        failed.addPayment(duplicate);
+        fixture.clear();
+        assertThrows(RuntimeException.class, () -> failed.auditAs("attempt atomic submission").save(fixture.context));
+        assertTrue("rollback is not a committed audit", fixture.audit.isEmpty());
+        var error = fixture.sql.stream().filter(value -> "failure".equals(value.getBatchOutcome())).findFirst().orElseThrow();
+        assertEquals(List.of("attempt atomic submission", "reject duplicate transfer"),
+                error.getMutationLineage().stream().map(TraceNode::getComment).toList());
+        assertEquals(duplicate.getId(), error.getMutationLineage().get(1).getEntityId());
+        assertTrue(fixture.sql.stream().anyMatch(value -> value.getOperation() == DataServiceOperation.MUTATION
+                && "success".equals(value.getExecutionOutcome())));
+        assertNull(Q.customerOrders().withIdIs(failed.getId()).limit(1)
+                .comment("what: query the failed graph identity")
+                .purpose("why: prove the earlier root insert rolled back").executeForOne(fixture.context));
+        System.out.println("PASS Java generated provider failure: attempted lineage, rollback, no committed audit");
+    }
+
+    @Test public void generatedReadbackFailurePreservesWriteTraceAndRetries() throws Exception {
+        var fixture = new Fixture();
+        Graph graph = fixture.saveNormativeGraph();
+        graph.order.updateDescription("Readback retry fixture");
+        fixture.clear();
+        fixture.failReadback = true;
+        assertThrows(RuntimeException.class, () -> graph.order.auditAs("attempt readback").save(fixture.context));
+        assertTrue(fixture.audit.isEmpty());
+        var write = fixture.sql.stream().filter(value -> value.getOperation() == DataServiceOperation.MUTATION).findFirst().orElseThrow();
+        var readback = fixture.sql.stream().filter(value -> value.getOperation() == DataServiceOperation.QUERY
+                && "failure".equals(value.getExecutionOutcome())).findFirst().orElseThrow();
+        assertEquals("success", write.getExecutionOutcome());
+        assertEquals(write.getMutationLineage(), readback.getMutationLineage());
+        assertEquals("select", readback.getStatementOperation());
+        assertEquals(Long.valueOf(2), E.customerOrder(graph.order).getVersion().eval());
+        fixture.failReadback = false;
+        fixture.clear();
+        graph.order.auditAs("retry readback").save(fixture.context);
+        assertEquals(1, fixture.audit.size());
+        assertEquals(List.of("retry readback"), fixture.audit.get(0).traceChain().stream().map(TraceNode::getComment).toList());
+        assertEquals(Long.valueOf(3), E.customerOrder(graph.order).getVersion().eval());
+        System.out.println("PASS Java generated readback failure: separate outcomes and successful retry");
+    }
+
+    static List<TraceNode> expected(long base, String type, long id) {
+        var root = new TraceNode(TraceKind.AUDIT_REASON, "CustomerOrder", base, "submit order");
+        if (type.equals("Payment") || type.equals("PaymentAttempt"))
+            return List.of(root, new TraceNode(TraceKind.AUDIT_REASON, "Payment", base, "authorize payment"));
+        if (type.equals("Shipment"))
+            return List.of(root, new TraceNode(TraceKind.AUDIT_REASON, "Shipment", base + 401, "dispatch shipment"));
+        if (type.equals("OrderItem") && id == base + 102)
+            return List.of(root, new TraceNode(TraceKind.AUDIT_REASON, "OrderItem", id, "remove unavailable item"));
+        return List.of(root);
+    }
+}

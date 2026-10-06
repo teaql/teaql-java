@@ -110,6 +110,103 @@ Mutations declare an audit action:
 task.auditAs("Move task to Done").save(userContext);
 ```
 
+### Request owned intent on the development branch
+
+The `feature/request-trace-chain` branch makes non-blank `comment` part of both
+`QueryRequest` and `MutationRequest`. Query also requires non-blank `purpose`.
+Existing generated `.comment(...).purpose(...)` and `.auditAs(...)` spelling
+does not change. Low-level provider requests now expose an immutable validated
+`QueryIntent` or `MutationIntent`; custom SPI implementations must adopt this
+contract. These changes are not a claim about published Maven artifacts.
+
+Missing or Unicode-whitespace-only comment fails with
+`REQUEST_COMMENT_REQUIRED` at `comment`; missing Query purpose fails with
+`QUERY_PURPOSE_REQUIRED` at `purpose`. Validation happens before policy and
+provider execution, including direct runtime calls and disabled logging.
+Neither a Context default nor a fabricated trace supplies missing intent.
+
+List, aggregate, relation and streaming execution no longer push or pop query
+frames on Context. Streaming providers now accept the same validated
+`QueryRequest` envelope as materialized providers instead of a bare
+`SearchRequest`. A custom `StreamingQueryExecutor` must migrate that SPI
+signature; generated `.executeForStream(context)` calls remain unchanged.
+The captured intent survives Policy changes to a builder and delayed cursor
+consumption. SQL providers snapshot source paths and redaction provenance for
+the invocation, including inherited internal streams. Legacy unbound direct SQL
+diagnostics can still use explicitly supplied Context frames; those compatibility
+calls are not the runtime query ownership contract.
+
+Derived relation, Facet and materialized relation-predicate queries carry their
+validated originating intent instead of asking callers to repeat it. Mutation
+reason is captured before policy and retained in provider requests and committed
+audit facts. Graph saves now use immutable parent-linked mutation scopes, rather
+than a Context push/pop stack. Each persistence request carries its own typed
+lineage through SQL writes, authoritative readback and committed safe audit.
+`TraceNode` includes entity type and assigned ID; Entity and Ledger trace setters
+now accept immutable `List<TraceNode>`, not flattened strings. Custom callers
+using the old string API must migrate; this is a local source change, not a
+released API. SQL `tracePath` remains separate from `mutationLineage`.
+
+The local runtime tests cover branch reasons, deleted children, same numeric ID
+across types, assigned IDs, complete ledger overrides and concurrent saves sharing
+one Context. Actual SQLite tests cover SQL/audit propagation, provider rollback,
+readback failure/retry and masking. Native batch diagnostics distinguish the
+batch call's `batchOutcome` from an individual member's possibly unknown
+`executionOutcome`. Same-type graph inserts now use a validated
+`MutationBatchRequest` and the optional `BatchMutationExecutor` capability.
+Physical JDBC rows retain separate immutable trace bindings, including failure
+and readback diagnostics; incompatible insert column layouts are grouped separately.
+Root intent remains required even if children are annotated or logs are disabled.
+Providers without the capability retain individual command execution.
+
+Internal reverse-list attachment-key projection preserves an explicitly requested
+nested forward load. It must not use the public scalar selection operation that
+removes a same-named relation load. Native SQLite tests cover root/nested graphs,
+window/probe plans and logging on/off; the example gate runs these tests too.
+Java retains an ID-only reference when its forward query has no matching target:
+non-loaded fields remain guarded by `TeaQLNotLoadedException`, while list
+membership and independent counts survive. This is not a claim of null-valued
+reference parity with other runtimes.
+
+Bootstrap follows the same request and audit boundary. Call
+`context.ensureSchema()` with the generated Runtime Module installed: providers
+perform physical DDL, then generated Q and audited Mutation reconcile roots and
+constants. The legacy Portable `ensureSchema(context, type)` and repository
+`ensureInitData(context)` data-write APIs have been removed. The
+[School example](examples/school-management/README.md) verifies real bootstrap
+SQL intent, committed lineage, fixed IDs, no-op reseeding and versioned constant
+reconciliation on two starts of the same database.
+
+The generated [Trace Chain example](examples/trace-chain/README.md) proves the
+normative graph, overlapping three-level Q/E queries, late-consumed streams,
+nested Facets with the original root and complete relation paths,
+prepared insert grouping and complete ledger replacement, plus prepared
+update/delete/recover batches with independent
+optimistic versions. It now also runs real overlapping generated Checkers and
+independent graph saves with one Context, observing per-item SQL and committed
+audit lineage. Temporary check results, visited objects, Fix evidence and the
+captured graph clock belong to each synchronous Checker invocation. Nested saves
+restore the outer invocation while preserving the original custom Context and
+its service hooks. `lastFixEvidence()` is the last completed check's diagnostic
+receipt on the calling execution thread; it is not an async propagation API.
+Read-only loaded relations retain their private ledger when reused by independent
+graphs. Graph composition imports only pending mutations of explicitly visited
+related entity keys, not every pending key from a foreign reference's ledger.
+The provider-route guard also belongs to each mutation plan, not a retained
+Context attribute. Independent graphs may use different providers on one
+Context. A single atomic graph with writes to different routes is rejected
+before mutation execution; read-only references do not count as writes.
+Native tests cover separate SQLite databases and actual overlapping threads.
+
+Native dynamic-aggregation tests also retain the original root through nested
+relations, preserve inherited masking provenance and avoid fabricated relation
+nodes for numeric partitions. They are separate from generated Facet acceptance.
+
+Complete entry-point/privacy coverage, legacy unbound SQL diagnostic migration, asynchronous
+handoff/cancellation and immutable internal Registry replay remain separate open
+gates. The tested SQLite writer transactions serialize while the generated
+Checkers overlap. This is local source evidence, not a merge or release claim.
+
 Applications can replace runtime services such as `QueryPolicy`, the
 `MutationPolicyRegistry`, `MutationPolicyApprovalProvider`, `RuntimeLogSink`,
 `DataServiceRegistry`, `InternalIdGenerationService`, and `EntityMetaFactory`
@@ -117,22 +214,26 @@ in their integration layer.
 
 Query and Mutation execution logs are enabled by default. The built-in default
 sink is safe for ordinary operator output: it includes intent, trace, elapsed
-time, outcome, and parameterized SQL, but excludes bind values and rendered
-Debug SQL. Enable copy/paste SQL only for a controlled troubleshooting surface:
+time, outcome, and SQL with safely rendered parameters. Sensitive values follow
+the field's masking policy; an unsafe statement is omitted with a reason rather
+than printed as plaintext. Select an additional diagnostic destination only for
+controlled troubleshooting:
 
 ```java
 TeaQLRuntime runtime = TeaQLRuntime.builder()
     .metadata(metadata)
     .queryExecutionLogging(true)
     .mutationExecutionLogging(true)
-    .diagnosticSqlLogging(true) // values and Debug SQL; apply restricted retention
+    .diagnosticSqlLogging(true) // selecting a destination alone does not authorize plaintext
     .build();
 ```
 
 The Query and Mutation switches remain independent. Selecting diagnostic SQL
 changes the built-in destination; it does not enable or disable either family.
-Custom `RuntimeLogSink` implementations receive only parameterized SQL unless
-they explicitly override `requiresSensitiveSqlData()` to return `true`.
+Custom `RuntimeLogSink` implementations receive safe SQL projections too.
+Plaintext requires both an explicitly sensitive destination and the exact
+`TEAQL_ALLOW_SENSITIVE_PLAINTEXT_LOGS=I_UNDERSTAND_SENSITIVE_DATA_MAY_BE_WRITTEN_TO_DISK`
+acknowledgement. Debug records are individually labeled; credentials remain protected.
 Custom `UserContext` implementations must also explicitly delegate or override
 `requiresSensitiveSqlLogData()` when they enable a diagnostic sink.
 The optional file-backed `LogManager` requests value-bearing SQL only with
@@ -143,9 +244,9 @@ The optional file-backed `LogManager` requests value-bearing SQL only with
 TeaQL Java is a server-side security reference runtime:
 
 - ordinary Query and Mutation logs are enabled by default and retain intent,
-  trace, parameterized SQL, timing, and outcome without bind values;
-- copy/paste SQL and parameter values require an explicitly selected sensitive
-  diagnostic sink;
+  typed trace, safely expanded SQL, timing, and outcome;
+- ordinary SQL remains copy/paste-readable with masked values; plaintext requires
+  a sensitive diagnostic sink and the exact environment acknowledgement;
 - the TFP endpoint applies trusted server policy, bounded queries, writable-field
   rules, tenant scope, and optimistic version in the provider operation;
 - boundary-facing entity references can be issued and verified through

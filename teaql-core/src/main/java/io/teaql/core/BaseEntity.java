@@ -42,6 +42,20 @@ public class BaseEntity implements Entity {
 
     private DynamicFieldValues dynamicFieldValues;
 
+    // Query-only sidecar. Never a model property or mutation-ledger entry.
+    private transient Map<String, SmartList<?>> queryFacets = Map.of();
+
+    @Override
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public Map<String, SmartList<?>> getQueryFacets() {
+        return queryFacets;
+    }
+
+    @FrameworkInternal
+    public void __internalSetQueryFacets(Map<String, ? extends SmartList<?>> facets) {
+        queryFacets = facets == null || facets.isEmpty() ? Map.of() : Map.copyOf(facets);
+    }
+
     private Map<String, Entity> relationCache = new HashMap<>();
 
     private List<Object> actionList;
@@ -66,16 +80,19 @@ public class BaseEntity implements Entity {
         }
     }
 
-    private String _traceChain;
+    private List<TraceNode> _traceChain = List.of();
 
     @Override
-    public String getTraceChain() {
+    public List<TraceNode> getTraceChain() {
         return _traceChain;
     }
 
     @Override
-    public void setTraceChain(String traceChain) {
-        this._traceChain = traceChain;
+    public void setTraceChain(List<TraceNode> traceChain) {
+        this._traceChain = traceChain == null ? List.of() : List.copyOf(traceChain);
+        if (entityMutationLedger != null && id != null) {
+            entityMutationLedger.setTraceChain(new EntityKey(typeName(), id), this._traceChain);
+        }
     }
 
     public EntityStatus get$status() {
@@ -326,6 +343,9 @@ public class BaseEntity implements Entity {
     @Override
     public void markAsRecover() {
         gotoNextStatus(EntityAction.RECOVER);
+        if (entityMutationLedger != null && id != null) {
+            entityMutationLedger.markAsRecover(new EntityKey(typeName(), id));
+        }
     }
 
     @Override
@@ -547,7 +567,7 @@ public class BaseEntity implements Entity {
         if (entityMutationLedger != null && id != null) {
             EntityKey key = new EntityKey(typeName(), id);
             entityMutationLedger.set(key, propertyName, newValue);
-            if (_traceChain != null) {
+            if (!_traceChain.isEmpty()) {
                 entityMutationLedger.setTraceChain(key, _traceChain);
             }
         }
@@ -577,7 +597,7 @@ public class BaseEntity implements Entity {
     }
 
     public BaseEntity markToRecover() {
-        gotoNextStatus(EntityAction.RECOVER);
+        markAsRecover();
         return this;
     }
 

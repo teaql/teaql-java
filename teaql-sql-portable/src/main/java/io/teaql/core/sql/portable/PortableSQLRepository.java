@@ -61,7 +61,6 @@ import io.teaql.core.internal.TempRequest;
 import io.teaql.core.meta.EntityDescriptor;
 import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.PropertyDescriptor;
-import io.teaql.core.meta.PropertyType;
 import io.teaql.core.meta.Relation;
 
 import io.teaql.core.sql.SQLColumn;
@@ -223,6 +222,9 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     // ==========================================
 
     public String buildDataSQL(UserContext userContext, SearchRequest request, Map<String, Object> parameters) {
+        if (parameters instanceof io.teaql.core.sql.SqlParameters tracked) {
+            tracked.captureQueryContext(request);
+        }
         String partitionProperty = request.getPartitionProperty();
         if (ObjectUtil.isNotEmpty(partitionProperty) && request.getSlice() != null) {
             ensureOrderByForPartition(request);
@@ -230,6 +232,17 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
         return compiler.buildDataSQL(sqlMetadata, this, userContext, request, parameters);
+    }
+
+    /** Framework-owned predicate lookup; keep all physical work on its request's collector. */
+    public SmartList<Entity> materializeRelationPredicate(UserContext context, SearchRequest<?> child,
+            SearchRequest<?> origin, String propertyName) {
+        var source = SqlDiagnosticRequest.source(context, origin);
+        var property = findProperty(propertyName);
+        var lookup = property instanceof Relation
+                ? SqlDiagnosticRequest.forRelation(child, source, origin, propertyName)
+                : SqlDiagnosticRequest.forDerived(child, source, origin);
+        return context.internalExecuteForList(lookup);
     }
 
     // ==========================================
@@ -262,16 +275,18 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     private record QueryShape(String key, Object[] arguments) {}
 
-    private PositionalSQL withQueryIntent(PositionalSQL sql, io.teaql.core.SqlIntentRedactions intent) {
+    private PositionalSQL withQueryIntent(PositionalSQL sql, io.teaql.core.SqlIntentRedactions intent,
+                                          SearchRequest<?> request) {
         if (intent == null) return sql;
         intent.capture(sql.logBindings.policies(), sql.args);
         return new PositionalSQL(sql.sql, sql.args, new SqlLogBindings(sql.logBindings.policies(),
-                sql.logBindings.generated(), sql.logBindings.diagnosticSql(), intent.copy()));
+                sql.logBindings.generated(), sql.logBindings.diagnosticSql(), intent.copy(),
+                SqlDiagnosticRequest.statementTrace(request)));
     }
 
     private SqlLogBindings withMutationIntent(SqlLogBindings bindings, io.teaql.core.SqlIntentRedactions intent) {
         if (intent == null) return bindings;
-        return new SqlLogBindings(bindings.policies(), bindings.generated(), bindings.diagnosticSql(), intent.copy());
+        return new SqlLogBindings(bindings.policies(), bindings.generated(), bindings.diagnosticSql(), intent.copy(), bindings.executionTrace(), bindings.batchTraces());
     }
 
     private PositionalSQL toPositional(String namedSql, Map<String, Object> params) {
@@ -589,7 +604,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         }
         String key = idSetQueryKey(context, working, options, idSql, idParams);
         // Capture current bindings even when retained IDs avoid executing the discovery query.
-        PositionalSQL idStatement = withQueryIntent(toPositional(idSql, idParams), intent);
+        PositionalSQL idStatement = withQueryIntent(toPositional(idSql, idParams), intent, idRequest);
         IdSetStore store = idSetStore(context);
         RetainedIdSet retained;
         try {
@@ -700,6 +715,9 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     private SmartList<T> loadWithIntent(UserContext userContext, SearchRequest<T> request,
             io.teaql.core.SqlIntentRedactions intent) {
+        // Inspect the current typed request, including future child predicates, before
+        // any SQL. Cached plans never own these values and binds are never rewritten.
+        SqlLikeIntent.capture(userContext, request, this, intent);
         IdSetExecution<T> idSetExecution = prepareIdSetPage(userContext, request, intent);
         if (idSetExecution.optimized() && idSetExecution.pageIds().length == 0) {
             return SmartList.empty(request.returnType());
@@ -744,7 +762,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             }
         }
         // Attach only after inserting the reusable plan: no original values enter the plan cache.
-        psql = withQueryIntent(psql, intent);
+        psql = withQueryIntent(psql, intent, request);
         SmartList<T> smartList;
         Object mapperExtension = request.getExtension(COMPILED_ROW_MAPPER);
         io.teaql.core.CompiledRowMapper<?> selectedMapper =
@@ -787,7 +805,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         if (facetRequests != null && !facetRequests.isEmpty()) {
             io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
             for (io.teaql.core.FacetRequest facetRequest : facetRequests) {
-                io.teaql.core.internal.TempRequest tr = new io.teaql.core.internal.TempRequest(request);
+                io.teaql.core.internal.TempRequest tr =
+                        SqlDiagnosticRequest.forDerived(request, intent, request);
                 tr.setAggregations(new io.teaql.core.Aggregations());
                 tr.groupBy(facetRequest.getRelationName());
                 tr.count("count");
@@ -797,7 +816,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 String facetSql = compiler.buildAggregationSQL(this.sqlMetadata, this, userContext, tr, facetParams, facetTables);
                 if (!io.teaql.core.utils.ObjectUtil.isEmpty(facetSql)) {
                     var facetIntent = intent == null ? null : intent.copy();
-                    PositionalSQL psqlFacet = withQueryIntent(toPositional(facetSql, facetParams), facetIntent);
+                    PositionalSQL psqlFacet = withQueryIntent(toPositional(facetSql, facetParams), facetIntent, request);
                     List<Map<String, Object>> facetRows = database.query(userContext, psqlFacet.sql, psqlFacet.args, psqlFacet.logBindings);
                     
                     SmartList<io.teaql.core.Entity> facetEntities = new SmartList<>();
@@ -817,9 +836,16 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                                     idToCount.put(io.teaql.core.utils.Convert.convert(Long.class, relId), countVal);
                                 }
                             }
-                            io.teaql.core.internal.TempRequest fetchRelReq = new io.teaql.core.internal.TempRequest(relationReq);
+                            io.teaql.core.internal.TempRequest fetchRelReq =
+                                    SqlDiagnosticRequest.forRelation(
+                                            relationReq, facetIntent, request, facetRequest.getRelationName());
                             if (facetRequest.isMergeCriteria()) {
-                                fetchRelReq.appendSearchCriteria(request.getSearchCriteria());
+                                // The count query already applied the source's
+                                // filters. Its FK membership is the only valid
+                                // restriction on the target: source predicates
+                                // belong to another table/type (even "id").
+                                fetchRelReq.appendSearchCriteria(fetchRelReq.createBasicSearchCriteria(
+                                        BaseEntity.ID_PROPERTY, io.teaql.core.criteria.Operator.IN, relIds));
                             }
                             SmartList<?> loadedRels = relationRepo.loadInternal(userContext, fetchRelReq, facetIntent);
                             java.util.List<String> countAliases = relationReq.getAggregations().getAggregates()
@@ -836,6 +862,10 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                                 }
                                 facetEntities.add(rel);
                             }
+                            // Materialization changes the row carrier, not the
+                            // nested facet result. Preserve its collection-owned
+                            // metadata without sharing the mutable map itself.
+                            loadedRels.getFacets().forEach(facetEntities::addFacet);
                         }
                     }
                     smartList.addFacet(facetRequest.getFacetName(), facetEntities);
@@ -1029,6 +1059,19 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         return number.longValue() == 0L && number.doubleValue() == 0D;
     }
 
+    /** Loaded private values may appear in intent even when absent from this write's bindings. */
+    void captureMutationIntent(Entity entity, io.teaql.core.SqlIntentRedactions intent) {
+        if (!(entity instanceof BaseEntity base)) return;
+        for (PropertyDescriptor property : allProperties) {
+            if (property instanceof Relation || !shouldHandle(property)) continue;
+            String name = property.getName();
+            var policy = List.of(parameterLogPolicy(name));
+            if (base.isPropertyLoaded(name)) intent.capture(policy, new Object[] {base.getProperty(name)});
+            if (base.getUpdatedProperties().contains(name))
+                intent.capture(policy, new Object[] {base.getOldValue(name)});
+        }
+    }
+
     @SuppressWarnings("unchecked")
     public T loadPersistedById(UserContext userContext, Long id) {
         return loadPersistedById(userContext, id, null);
@@ -1036,12 +1079,18 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     @SuppressWarnings("unchecked")
     T loadPersistedById(UserContext userContext, Long id, io.teaql.core.SqlIntentRedactions intent) {
+        return loadPersistedById(userContext, id, intent, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    T loadPersistedById(UserContext userContext, Long id, io.teaql.core.SqlIntentRedactions intent,
+            io.teaql.core.SqlExecutionTrace trace) {
         String primaryTable = thisPrimaryTableName != null
                 ? thisPrimaryTableName : tableName(entityDescriptor.getType());
         String sql = "SELECT * FROM " + escapeIdentifier(primaryTable)
                 + " WHERE " + escapeIdentifier("id") + " = ?";
         List<Map<String, Object>> rows = database.query(userContext, sql, new Object[] {id},
-                new SqlLogBindings(List.of(parameterLogPolicy("id")), true, null, intent));
+                new SqlLogBindings(List.of(parameterLogPolicy("id")), true, null, intent, trace));
         if (rows.size() != 1) {
             throw new TeaQLRuntimeException(
                     "Persisted " + entityDescriptor.getType() + "(" + id + ") could not be read back");
@@ -1075,10 +1124,13 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     public Stream<T> streamInternal(UserContext userContext, SearchRequest<T> request) {
+        var intent = SqlDiagnosticRequest.source(userContext, request);
+        SqlLikeIntent.capture(userContext, request, this, intent);
         Map<String, Object> params = new io.teaql.core.sql.SqlParameters();
         String sql = buildDataSQL(userContext, request, params);
         if (ObjectUtil.isEmpty(sql)) return Stream.empty();
-        PositionalSQL psql = toPositional(sql, params);
+        PositionalSQL psql = withQueryIntent(toPositional(sql, params),
+                intent, request);
         return database.queryForStream(userContext, psql.sql, psql.args, psql.logBindings)
                 .map(row -> mapRowToEntity(userContext, request, row));
     }
@@ -1218,48 +1270,197 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     void createInternal(UserContext userContext, Collection<T> createItems, io.teaql.core.SqlIntentRedactions intent) {
+        createInternal(userContext, createItems, intent, null);
+    }
+
+    void createInternal(UserContext userContext, Collection<T> createItems, io.teaql.core.SqlIntentRedactions intent,
+            io.teaql.core.SqlExecutionTrace trace) {
+        createRows(userContext, new ArrayList<>(createItems), intent, trace, List.of());
+    }
+
+    void createBatchInternal(UserContext userContext, List<T> createItems, io.teaql.core.SqlIntentRedactions intent,
+            List<io.teaql.core.SqlExecutionTrace> traces) {
+        if (createItems.size() != traces.size()) {
+            throw new IllegalArgumentException("Insert batch requires one trace per entity");
+        }
+        createRows(userContext, createItems, intent, null, List.copyOf(traces));
+    }
+
+    private record InsertShape(String table, List<String> columns) {
+        private InsertShape { columns = List.copyOf(columns); }
+    }
+
+    private record InsertRow(Object[] values, SQLEntity entity, io.teaql.core.SqlExecutionTrace trace) {}
+
+    private void createRows(UserContext userContext, List<T> createItems, io.teaql.core.SqlIntentRedactions intent,
+            io.teaql.core.SqlExecutionTrace fallback, List<io.teaql.core.SqlExecutionTrace> traces) {
         if (intent != null) createItems.forEach(item -> intent.captureTargetId(item.getId()));
-        List<SQLEntity> sqlEntities = CollectionUtil.map(createItems,
-                i -> convertToSQLEntityForInsert(userContext, i), true);
-        if (ObjectUtil.isEmpty(sqlEntities)) return;
-
-        SQLEntity sqlEntity = sqlEntities.get(0);
-        Map<String, List<String>> tableColumns = sqlEntity.getTableColumnNames();
-
-        Map<String, List<Object[]>> rows = new HashMap<>();
-        for (SQLEntity entity : sqlEntities) {
+        Map<InsertShape, List<InsertRow>> rows = new java.util.LinkedHashMap<>();
+        for (int index = 0; index < createItems.size(); index++) {
+            SQLEntity entity = convertToSQLEntityForInsert(userContext, createItems.get(index));
             Map<String, List> tableColumnValues = entity.getTableColumnValues();
             for (Map.Entry<String, List> entry : tableColumnValues.entrySet()) {
                 String k = entry.getKey();
                 List v = entry.getValue();
-                List<Object[]> values = rows.computeIfAbsent(k, key -> new ArrayList<>());
                 if (auxiliaryTableNames.contains(k) && entity.allNullExceptID(v)) continue;
-                values.add(v.toArray());
+                var shape = new InsertShape(k, entity.getTableColumnNames().get(k));
+                rows.computeIfAbsent(shape, key -> new ArrayList<>()).add(
+                        new InsertRow(v.toArray(), entity, traces.isEmpty() ? fallback : traces.get(index)));
             }
         }
-
-        TreeMap<String, List<Object[]>> sorted = MapUtil.sort(rows, (t1, t2) -> {
-            if (t1.equals(versionTableName)) return -1;
-            if (t2.equals(versionTableName)) return 1;
-            return 0;
+        // Capture every sibling/table before any statement is emitted. A root reason
+        // can mention a masked value belonging to a later member of this batch.
+        if (intent != null) rows.forEach((shape, members) -> {
+            var policies = logBindings(shape.table(), shape.columns()).policies();
+            members.forEach(member -> intent.capture(policies, member.values()));
         });
-
-        sorted.forEach((k, v) -> {
-            if (v.isEmpty()) return;
-            List<String> columns = tableColumns.get(k);
+        var shapes = new ArrayList<>(rows.keySet());
+        shapes.sort(java.util.Comparator.comparingInt((InsertShape shape) -> shape.table().equals(versionTableName) ? 0 : 1)
+                .thenComparing(InsertShape::table).thenComparing(shape -> String.join(",", shape.columns())));
+        for (InsertShape shape : shapes) {
+            List<InsertRow> members = rows.get(shape);
+            SQLEntity first = members.get(0).entity();
             io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
-            String sql = compiler.buildInsertSQL(this, k, columns, sqlEntity.getTraceChain());
-            var bindings = logBindings(k, columns, sql, sqlEntity.getTraceChain());
-            if (intent != null) for (Object[] args : v) intent.capture(bindings.policies(), args);
-            database.batchUpdate(userContext, sql, v, withMutationIntent(bindings, intent));
-        });
+            String sql = compiler.buildInsertSQL(this, shape.table(), shape.columns(), first.getTraceChain());
+            var bindings = logBindings(shape.table(), shape.columns(), sql, first.getTraceChain());
+            bindings = traces.isEmpty() ? bindings.withTrace(fallback)
+                    : bindings.withBatchTraces(members.stream().map(InsertRow::trace).toList());
+            database.batchUpdate(userContext, sql, members.stream().map(InsertRow::values).toList(),
+                    withMutationIntent(bindings, intent));
+        }
     }
 
-        public void updateInternal(UserContext userContext, Collection<T> updateItems) {
+    private record PreparedWriteShape(String table, String sql, List<String> bindingColumns,
+            boolean optimistic, boolean exactlyOne) {
+        private PreparedWriteShape { bindingColumns = List.copyOf(bindingColumns); }
+    }
+
+    private record PreparedWriteRow(Object[] values, io.teaql.core.SqlExecutionTrace trace) {}
+
+    void updateBatchInternal(UserContext context, List<T> entities, io.teaql.core.SqlIntentRedactions intent,
+            List<io.teaql.core.SqlExecutionTrace> traces) {
+        requireMemberTraces(entities, traces);
+        Map<PreparedWriteShape, List<PreparedWriteRow>> rows = new java.util.LinkedHashMap<>();
+        var compiler = new io.teaql.core.sql.SqlAstCompiler();
+        for (int index = 0; index < entities.size(); index++) {
+            T entity = entities.get(index);
+            if (intent != null) intent.captureTargetId(entity.getId());
+            SQLEntity converted = convertToSQLEntityForUpdate(context, entity);
+            boolean versionUpdated = false;
+            if (converted != null) {
+                for (var entry : converted.getTableColumnValues().entrySet()) {
+                    String table = entry.getKey();
+                    List<String> columns = new ArrayList<>(converted.getTableColumnNames().get(table));
+                    List<Object> values = new ArrayList<>(entry.getValue());
+                    List<String> bindings = new ArrayList<>(columns);
+                    String sql;
+                    boolean optimistic = table.equals(versionTableName);
+                    boolean primary = primaryTableNames.contains(table);
+                    if (optimistic) {
+                        versionUpdated = true;
+                        columns.add("version");
+                        bindings.add("version"); bindings.add("id"); bindings.add("version");
+                        values.add(entity.getVersion() + 1); values.add(entity.getId()); values.add(entity.getVersion());
+                        sql = compiler.buildUpdateVersionSQL(this, table, columns, null);
+                    } else if (primary) {
+                        bindings.add("id"); values.add(entity.getId());
+                        sql = compiler.buildUpdatePrimarySQL(this, table, columns, null);
+                    } else {
+                        sql = dialect.buildSubsidiaryInsertSql(table, columns);
+                    }
+                    var shape = new PreparedWriteShape(table, sql, bindings, optimistic, optimistic || primary);
+                    rows.computeIfAbsent(shape, ignored -> new ArrayList<>()).add(
+                            new PreparedWriteRow(values.toArray(), traces.get(index)));
+                }
+            }
+            if (!versionUpdated) {
+                var shape = new PreparedWriteShape(versionTableName,
+                        compiler.buildUpdateVersionTableVersionSQL(this, versionTableName),
+                        List.of("version", "id", "version"), true, true);
+                rows.computeIfAbsent(shape, ignored -> new ArrayList<>()).add(new PreparedWriteRow(
+                        new Object[]{entity.getVersion() + 1, entity.getId(), entity.getVersion()}, traces.get(index)));
+            }
+        }
+        executePreparedWrites(context, rows, intent);
+    }
+
+    void deleteBatchInternal(UserContext context, List<T> entities, io.teaql.core.SqlIntentRedactions intent,
+            List<io.teaql.core.SqlExecutionTrace> traces) {
+        versionBatchInternal(context, entities, intent, traces, false);
+    }
+
+    void recoverBatchInternal(UserContext context, List<T> entities, io.teaql.core.SqlIntentRedactions intent,
+            List<io.teaql.core.SqlExecutionTrace> traces) {
+        versionBatchInternal(context, entities, intent, traces, true);
+    }
+
+    private void versionBatchInternal(UserContext context, List<T> entities, io.teaql.core.SqlIntentRedactions intent,
+            List<io.teaql.core.SqlExecutionTrace> traces, boolean recover) {
+        requireMemberTraces(entities, traces);
+        var compiler = new io.teaql.core.sql.SqlAstCompiler();
+        var shape = new PreparedWriteShape(versionTableName,
+                recover ? compiler.buildRecoverSQL(this, versionTableName) : compiler.buildDeleteSQL(this, versionTableName),
+                List.of("version", "id", "version"), true, true);
+        List<PreparedWriteRow> members = new ArrayList<>();
+        for (int index = 0; index < entities.size(); index++) {
+            T entity = entities.get(index);
+            Long version = entity.getVersion();
+            if (version == null || (recover ? version >= 0 : version <= 0)) {
+                throw new IllegalArgumentException("Delete/recover batch requires the matching persisted version sign");
+            }
+            if (intent != null) intent.captureTargetId(entity.getId());
+            members.add(new PreparedWriteRow(new Object[]{recover ? -version + 1 : -(version + 1),
+                    entity.getId(), version}, traces.get(index)));
+        }
+        executePreparedWrites(context, Map.of(shape, members), intent);
+    }
+
+    private void requireMemberTraces(List<T> entities, List<io.teaql.core.SqlExecutionTrace> traces) {
+        if (entities.size() != traces.size()) throw new IllegalArgumentException("Write batch requires one trace per entity");
+        if (traces.stream().anyMatch(java.util.Objects::isNull)) throw new IllegalArgumentException("Write batch trace must not be null");
+    }
+
+    private void executePreparedWrites(UserContext context,
+            Map<PreparedWriteShape, List<PreparedWriteRow>> rows, io.teaql.core.SqlIntentRedactions intent) {
+        // Capture the complete planned batch before emitting any table's statement.
+        if (intent != null) rows.forEach((shape, members) -> {
+            var policies = logBindings(shape.table(), shape.bindingColumns()).policies();
+            members.forEach(member -> intent.capture(policies, member.values()));
+        });
+        var shapes = new ArrayList<>(rows.keySet());
+        shapes.sort(java.util.Comparator.comparingInt((PreparedWriteShape shape) -> shape.optimistic() ? 0 : 1)
+                .thenComparing(PreparedWriteShape::table).thenComparing(PreparedWriteShape::sql));
+        for (var shape : shapes) {
+            var members = rows.get(shape);
+            if (members.isEmpty()) continue;
+            var bindings = logBindings(shape.table(), shape.bindingColumns())
+                    .withBatchTraces(members.stream().map(PreparedWriteRow::trace).toList());
+            int[] counts = database.batchUpdate(context, shape.sql(), members.stream().map(PreparedWriteRow::values).toList(),
+                    withMutationIntent(bindings, intent));
+            if (counts.length != members.size()) throw new TeaQLRuntimeException("Prepared mutation returned an incomplete row-count array");
+            if (shape.exactlyOne()) {
+                for (int count : counts) {
+                    if (count == 1) continue;
+                    if (count == java.sql.Statement.SUCCESS_NO_INFO) {
+                        throw new TeaQLRuntimeException("Prepared mutation requires an exact per-item affected-row count");
+                    }
+                    if (shape.optimistic()) throw new ConcurrentModifyException();
+                    throw new TeaQLRuntimeException("primary table update failed");
+                }
+            }
+        }
+    }
+
+    public void updateInternal(UserContext userContext, Collection<T> updateItems) {
         updateInternal(userContext, updateItems, null);
     }
 
     void updateInternal(UserContext userContext, Collection<T> updateItems, io.teaql.core.SqlIntentRedactions intent) {
+        updateInternal(userContext, updateItems, intent, null);
+    }
+
+    void updateInternal(UserContext userContext, Collection<T> updateItems, io.teaql.core.SqlIntentRedactions intent,
+            io.teaql.core.SqlExecutionTrace trace) {
         if (intent != null) updateItems.forEach(item -> intent.captureTargetId(item.getId()));
         if (ObjectUtil.isEmpty(updateItems)) return;
         List<SQLEntity> sqlEntities = CollectionUtil.map(updateItems,
@@ -1279,42 +1480,43 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 boolean primaryTable = this.primaryTableNames.contains(k);
 
                 if (versionTable) {
-                    updateVersionTable(userContext, sqlEntity, versionTableUpdated, k, columns, l, intent);
+                    updateVersionTable(userContext, sqlEntity, versionTableUpdated, k, columns, l, intent, trace);
                     return;
                 }
                 if (primaryTable) {
-                    updatePrimaryTable(userContext, sqlEntity, k, columns, l, intent);
+                    updatePrimaryTable(userContext, sqlEntity, k, columns, l, intent, trace);
                     return;
                 }
                 String updateSql = dialect.buildSubsidiaryInsertSql(k, columns);
-                var bindings = logBindings(k, columns);
+                var bindings = logBindings(k, columns).withTrace(trace);
                 if (intent != null) intent.capture(bindings.policies(), l.toArray());
                 database.executeUpdate(userContext, updateSql, l.toArray(), withMutationIntent(bindings, intent));
             });
 
             if (!versionTableUpdated.get()) {
-                updateVersionTableVersion(userContext, sqlEntity, intent);
+                updateVersionTableVersion(userContext, sqlEntity, intent, trace);
             }
         }
     }
 
-    private void updateVersionTableVersion(UserContext userContext, SQLEntity sqlEntity, io.teaql.core.SqlIntentRedactions intent) {
+    private void updateVersionTableVersion(UserContext userContext, SQLEntity sqlEntity, io.teaql.core.SqlIntentRedactions intent,
+            io.teaql.core.SqlExecutionTrace trace) {
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
         String updateSql = compiler.buildUpdateVersionTableVersionSQL(this, this.versionTableName);
         Object[] parameters = {sqlEntity.getVersion() + 1, sqlEntity.getId(), sqlEntity.getVersion()};
-        var bindings = logBindings(this.versionTableName, List.of("version", "id", "version"));
+        var bindings = logBindings(this.versionTableName, List.of("version", "id", "version")).withTrace(trace);
         if (intent != null) intent.capture(bindings.policies(), parameters);
         int update = database.executeUpdate(userContext, updateSql, parameters, withMutationIntent(bindings, intent));
         if (update != 1) throw new ConcurrentModifyException();
     }
 
     private void updatePrimaryTable(UserContext userContext, SQLEntity sqlEntity, String k, List<String> columns, List l,
-            io.teaql.core.SqlIntentRedactions intent) {
+            io.teaql.core.SqlIntentRedactions intent, io.teaql.core.SqlExecutionTrace trace) {
         l.add(sqlEntity.getId());
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
         String updateSql = compiler.buildUpdatePrimarySQL(this, k, columns, sqlEntity.getTraceChain());
         List<String> bindings = new ArrayList<>(columns); bindings.add("id");
-        var policies = logBindings(k, bindings, updateSql, sqlEntity.getTraceChain());
+        var policies = logBindings(k, bindings, updateSql, sqlEntity.getTraceChain()).withTrace(trace);
         if (intent != null) intent.capture(policies.policies(), l.toArray());
         int update = database.executeUpdate(userContext, updateSql, l.toArray(), withMutationIntent(policies, intent));
         if (update != 1) throw new TeaQLRuntimeException("primary table update failed");
@@ -1322,7 +1524,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     private void updateVersionTable(UserContext userContext, SQLEntity sqlEntity,
                                      AtomicBoolean versionTableUpdated, String k, List<String> columns, List l,
-                                     io.teaql.core.SqlIntentRedactions intent) {
+                                     io.teaql.core.SqlIntentRedactions intent, io.teaql.core.SqlExecutionTrace trace) {
         versionTableUpdated.set(true);
         columns.add("version");
         l.add(sqlEntity.getVersion() + 1);
@@ -1331,7 +1533,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
         String updateSql = compiler.buildUpdateVersionSQL(this, k, columns, sqlEntity.getTraceChain());
         List<String> bindings = new ArrayList<>(columns); bindings.add("id"); bindings.add("version");
-        var policies = logBindings(k, bindings, updateSql, sqlEntity.getTraceChain());
+        var policies = logBindings(k, bindings, updateSql, sqlEntity.getTraceChain()).withTrace(trace);
         if (intent != null) intent.capture(policies.policies(), l.toArray());
         int update = database.executeUpdate(userContext, updateSql, l.toArray(), withMutationIntent(policies, intent));
         if (update != 1) throw new ConcurrentModifyException();
@@ -1342,6 +1544,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     void deleteInternal(UserContext userContext, Collection<T> entities, io.teaql.core.SqlIntentRedactions intent) {
+        deleteInternal(userContext, entities, intent, null);
+    }
+
+    void deleteInternal(UserContext userContext, Collection<T> entities, io.teaql.core.SqlIntentRedactions intent,
+            io.teaql.core.SqlExecutionTrace trace) {
         if (intent != null) entities.forEach(item -> intent.captureTargetId(item.getId()));
         if (ObjectUtil.isEmpty(entities)) return;
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
@@ -1350,7 +1557,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 .filter(e -> e.getVersion() > 0)
                 .map(e -> new Object[]{-(e.getVersion() + 1), e.getId(), e.getVersion()})
                 .collect(Collectors.toList());
-        var bindings = logBindings(this.versionTableName, List.of("version", "id", "version"));
+        var bindings = logBindings(this.versionTableName, List.of("version", "id", "version")).withTrace(trace);
         if (intent != null) for (Object[] row : args) intent.capture(bindings.policies(), row);
         int[] rets = database.batchUpdate(userContext, updateSql, args, withMutationIntent(bindings, intent));
         for (int ret : rets) {
@@ -1363,6 +1570,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     void recoverInternal(UserContext userContext, Collection<T> entities, io.teaql.core.SqlIntentRedactions intent) {
+        recoverInternal(userContext, entities, intent, null);
+    }
+
+    void recoverInternal(UserContext userContext, Collection<T> entities, io.teaql.core.SqlIntentRedactions intent,
+            io.teaql.core.SqlExecutionTrace trace) {
         if (intent != null) entities.forEach(item -> intent.captureTargetId(item.getId()));
         if (ObjectUtil.isEmpty(entities)) return;
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
@@ -1371,7 +1583,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 .filter(e -> e.getVersion() < 0)
                 .map(e -> new Object[]{(-e.getVersion() + 1), e.getId(), e.getVersion()})
                 .collect(Collectors.toList());
-        var bindings = logBindings(this.versionTableName, List.of("version", "id", "version"));
+        var bindings = logBindings(this.versionTableName, List.of("version", "id", "version")).withTrace(trace);
         if (intent != null) for (Object[] row : args) intent.capture(bindings.policies(), row);
         int[] rets = database.batchUpdate(userContext, updateSql, args, withMutationIntent(bindings, intent));
         for (int ret : rets) {
@@ -1401,11 +1613,6 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     // ==========================================
     // Schema management
     // ==========================================
-
-    public void ensureSchema(UserContext context) {
-        ensurePhysicalSchema(context);
-        ensureInitData(context);
-    }
 
     /**
      * Reconciles physical database objects only. Generated runtime modules use
@@ -1756,226 +1963,6 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 cause);
     }
 
-    public void ensureInitData(UserContext context) {
-        if (entityDescriptor.isRoot()) ensureRoot(context);
-        if (entityDescriptor.isConstant()) ensureConstant(context);
-    }
-
-    private void ensureRoot(UserContext context) {
-        List<Map<String, Object>> dbRow = queryBootstrap(context,
-                StrUtil.format("SELECT * FROM {} WHERE id = '1'", tableName(entityDescriptor.getType())),
-                "inspect root");
-
-        if (!dbRow.isEmpty()) {
-            ensureBootstrapIdFloor(context, 1L);
-            long version = bootstrapVersion(dbRow.get(0), "inspect root version");
-            if (version > 0) return;
-            String sql = StrUtil.format("UPDATE {} SET version = {} where id = '1'",
-                    tableName(entityDescriptor.getType()), Math.max(1L, -version));
-            logInfo(sql + ";");
-            if (ensureTableEnabled(context)) {
-                updateBootstrap(context, sql, "restore root");
-            }
-            return;
-        }
-
-        List<String> columns = new ArrayList<>();
-        List<Object> rootRow = new ArrayList<>();
-        for (PropertyDescriptor ownProperty : entityDescriptor.getOwnProperties()) {
-            columns.add(getSqlColumn(ownProperty).getColumnName());
-            rootRow.add(getRootPropertyValue(context, ownProperty));
-        }
-        String sql = StrUtil.format("INSERT INTO {} ({}) VALUES ({})",
-                tableName(entityDescriptor.getType()),
-                CollectionUtil.join(columns, ","),
-                CollectionUtil.join(rootRow, ",", value -> getSqlValue(value)));
-        logInfo(sql + ";");
-        if (ensureTableEnabled(context)) {
-            try {
-                executeBootstrap(context, sql, "create root");
-            } catch (IllegalStateException insertFailure) {
-                List<Map<String, Object>> observed = queryBootstrap(context,
-                        StrUtil.format("SELECT * FROM {} WHERE id = '1'", tableName(entityDescriptor.getType())),
-                        "verify root after failed insert");
-                if (observed.isEmpty()) throw insertFailure;
-                long version = bootstrapVersion(observed.get(0), "verify root version");
-                if (version <= 0) {
-                    updateBootstrap(context,
-                            StrUtil.format("UPDATE {} SET version = {} where id = '1'",
-                                    tableName(entityDescriptor.getType()), Math.max(1L, -version)),
-                            "restore root after failed insert");
-                }
-            }
-        }
-        ensureBootstrapIdFloor(context, 1L);
-    }
-
-    private void ensureConstant(UserContext context) {
-        PropertyDescriptor identifier = entityDescriptor.getIdentifier();
-        List<String> candidates = identifier.getCandidates();
-        List<PropertyDescriptor> ownProperties = entityDescriptor.getOwnProperties();
-        List<String> columns = ownProperties.stream()
-                .map(p -> getSqlColumn(p).getColumnName())
-                .collect(Collectors.toList());
-
-        for (int idx = 0; idx < candidates.size(); idx++) {
-            final int i = idx;
-            String code = candidates.get(i);
-            List<Object> oneConstant = ownProperties.stream()
-                    .map(p -> getConstantPropertyValue(context, p, i, code))
-                    .collect(Collectors.toList());
-            Object constantId = getConstantPropertyValue(
-                    context, entityDescriptor.findIdProperty(), i, code);
-
-            List<Map<String, Object>> existing = queryBootstrap(context,
-                    StrUtil.format("SELECT * FROM {} WHERE id = '{}'",
-                            tableName(entityDescriptor.getType()), constantId),
-                    "inspect constant");
-            if (!existing.isEmpty()) {
-                long version = bootstrapVersion(existing.get(0), "inspect constant version");
-                if (version > 0) {
-                    reconcileConstant(context, ownProperties, oneConstant, existing.get(0), version);
-                    ensureBootstrapIdFloor(context, constantId);
-                    continue;
-                }
-                restoreConstant(context, constantId, version, ownProperties, oneConstant);
-                ensureBootstrapIdFloor(context, constantId);
-                continue;
-            }
-
-            String sql = StrUtil.format("INSERT INTO {} ({}) VALUES ({})",
-                    tableName(entityDescriptor.getType()),
-                    CollectionUtil.join(columns, ","),
-                    CollectionUtil.join(oneConstant, ",", value -> getSqlValue(value)));
-            logInfo(sql + ";");
-            if (ensureTableEnabled(context)) {
-                try {
-                    executeBootstrap(context, sql, "create constant");
-                } catch (IllegalStateException insertFailure) {
-                    List<Map<String, Object>> observed = queryBootstrap(context,
-                            StrUtil.format("SELECT * FROM {} WHERE id = '{}'",
-                                    tableName(entityDescriptor.getType()), constantId),
-                            "verify constant after failed insert");
-                    if (observed.isEmpty()) throw insertFailure;
-                    long version = bootstrapVersion(observed.get(0), "verify constant version");
-                    if (version > 0) {
-                        reconcileConstant(context, ownProperties, oneConstant, observed.get(0), version);
-                    } else {
-                        restoreConstant(context, constantId, version, ownProperties, oneConstant);
-                    }
-                }
-            }
-            ensureBootstrapIdFloor(context, constantId);
-        }
-    }
-
-    private List<Map<String, Object>> queryBootstrap(
-            UserContext context, String sql, String operation) {
-        try {
-            return database.query(context, sql, new Object[0]);
-        } catch (Exception failure) {
-            throw bootstrapFailure(operation, failure);
-        }
-    }
-
-    private void executeBootstrap(UserContext context, String sql, String operation) {
-        try {
-            database.execute(context, sql);
-        } catch (Exception failure) {
-            throw bootstrapFailure(operation, failure);
-        }
-    }
-
-    private void updateBootstrap(UserContext context, String sql, String operation) {
-        try {
-            int affected = database.executeUpdate(context, sql, new Object[0]);
-            if (affected != 1) {
-                throw new IllegalStateException("Expected one bootstrap row, updated " + affected);
-            }
-        } catch (Exception failure) {
-            throw bootstrapFailure(operation, failure);
-        }
-    }
-
-    private IllegalStateException bootstrapFailure(String operation, Exception cause) {
-        return new IllegalStateException(
-                "Cannot " + operation + " for " + entityDescriptor.getType()
-                        + " on table " + tableName(entityDescriptor.getType()),
-                cause);
-    }
-
-    private long bootstrapVersion(Map<String, Object> row, String operation) {
-        try {
-            return Long.parseLong(String.valueOf(findColumnValue(row, "version")));
-        } catch (RuntimeException failure) {
-            throw bootstrapFailure(operation, failure);
-        }
-    }
-
-    private void restoreConstant(
-            UserContext context,
-            Object constantId,
-            long version,
-            List<PropertyDescriptor> properties,
-            List<Object> desiredValues) {
-        String table = tableName(entityDescriptor.getType());
-        String sql = StrUtil.format("UPDATE {} SET version = {} WHERE id = '{}'",
-                table, Math.max(1L, -version), constantId);
-        logInfo(sql + ";");
-        if (!ensureTableEnabled(context)) return;
-        updateBootstrap(context, sql, "restore constant");
-        List<Map<String, Object>> restored = queryBootstrap(context,
-                StrUtil.format("SELECT * FROM {} WHERE id = '{}'", table, constantId),
-                "inspect restored constant");
-        if (restored.size() != 1) {
-            throw bootstrapFailure("inspect restored constant",
-                    new IllegalStateException("Expected one restored row, found " + restored.size()));
-        }
-        long restoredVersion = bootstrapVersion(restored.get(0), "inspect restored constant version");
-        reconcileConstant(context, properties, desiredValues, restored.get(0), restoredVersion);
-    }
-
-    private void ensureBootstrapIdFloor(UserContext context, Object id) {
-        if (!ensureTableEnabled(context) || id == null) return;
-        long floor = id instanceof Number
-                ? ((Number) id).longValue()
-                : Long.parseLong(String.valueOf(id));
-        new IdSpaceIdGenerator(database, getTqlIdSpaceTable())
-                .ensureFloor(entityDescriptor.getType(), floor);
-    }
-
-    private void reconcileConstant(
-            UserContext context,
-            List<PropertyDescriptor> properties,
-            List<Object> desiredValues,
-            Map<String, Object> existing,
-            long version) {
-        List<String> assignments = new ArrayList<>();
-        Object id = null;
-        for (int i = 0; i < properties.size(); i++) {
-            PropertyDescriptor property = properties.get(i);
-            Object desired = desiredValues.get(i);
-            String column = getSqlColumn(property).getColumnName();
-            if (property.isId()) {
-                id = desired;
-                continue;
-            }
-            if (property.isVersion()) continue;
-            if (!bootstrapValuesEqual(findColumnValue(existing, column), desired)) {
-                assignments.add(dialect.escapeIdentifier(column) + " = " + getSqlValue(desired));
-            }
-        }
-        if (assignments.isEmpty()) return;
-        assignments.add("version = version + 1");
-        String sql = StrUtil.format(
-                "UPDATE {} SET {} WHERE id = {} AND version = {}",
-                tableName(entityDescriptor.getType()),
-                CollectionUtil.join(assignments, ","),
-                getSqlValue(id),
-                version);
-        logInfo(sql + ";");
-        if (ensureTableEnabled(context)) updateBootstrap(context, sql, "reconcile constant");
-    }
 
     private Object findColumnValue(Map<String, Object> row, String column) {
         for (Map.Entry<String, Object> entry : row.entrySet()) {
@@ -1993,16 +1980,6 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         return column == null ? null : findColumnValue(row, column.getColumnName());
     }
 
-    private boolean bootstrapValuesEqual(Object existing, Object desired) {
-        if (java.util.Objects.equals(existing, desired)) return true;
-        if (existing == null || desired == null) return false;
-        try {
-            return new BigDecimal(String.valueOf(existing))
-                    .compareTo(new BigDecimal(String.valueOf(desired))) == 0;
-        } catch (NumberFormatException ignored) {
-            return String.valueOf(existing).equals(String.valueOf(desired));
-        }
-    }
 
     // ==========================================
     // Helper methods
@@ -2107,37 +2084,6 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         return NamingCase.toCamelCase(table);
     }
 
-    protected String getSqlValue(Object value) {
-        if (value == null) return "NULL";
-        if (value instanceof Number) return String.valueOf(value);
-        if (value instanceof Boolean) return boolToSqlString(value);
-        return StrUtil.wrapIfMissing(String.valueOf(value), "'", "'");
-    }
-
-    private Object getRootPropertyValue(UserContext context, PropertyDescriptor property) {
-        if (property.isId()) return 1L;
-        if (property.isVersion()) return 1L;
-        String createFunction = property.getAdditionalInfo().get("createFunction");
-        if (!ObjectUtil.isEmpty(createFunction)) return context.evaluate(createFunction);
-        return property.getAdditionalInfo().get("candidates");
-    }
-
-    private Object getConstantPropertyValue(UserContext context, PropertyDescriptor property, int index, String identifier) {
-        if (property.isVersion()) return 1L;
-        PropertyType type = property.getType();
-        if (BaseEntity.class.isAssignableFrom(type.javaType())) return "1";
-        String createFunction = property.getAdditionalInfo().get("createFunction");
-        if (!ObjectUtil.isEmpty(createFunction)) return context.evaluate(createFunction);
-        List<String> candidates = property.getCandidates();
-        if (property.isIdentifier()) return identifier;
-        if (ObjectUtil.isNotEmpty(candidates)) return CollectionUtil.get(candidates, index);
-        if (property.isId()) return Math.abs((long) identifier.toUpperCase().hashCode());
-        return null;
-    }
-
-    private long genIdForCandidateCode(String code) {
-        return Math.abs((long) code.toUpperCase().hashCode());
-    }
 
     // ==========================================
     // SQL building helpers
@@ -2178,18 +2124,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             return io.teaql.core.SqlParameterLogPolicy.CREDENTIAL;
         for (PropertyDescriptor property : allProperties) {
             if (!property.getName().equals(name)) continue;
-            if (entityDescriptor.getAuditMaskFields().contains(name)
-                    || property.getOwner() != null && property.getOwner().getAuditMaskFields().contains(name)
-                    || "masked".equalsIgnoreCase(property.getAdditionalInfo().get("logPolicy")))
-                return io.teaql.core.SqlParameterLogPolicy.MASKED;
-            if ("credential".equalsIgnoreCase(property.getAdditionalInfo().get("logPolicy")))
-                return io.teaql.core.SqlParameterLogPolicy.CREDENTIAL;
-            if ("plain".equalsIgnoreCase(property.getAdditionalInfo().get("logPolicy")))
-                return io.teaql.core.SqlParameterLogPolicy.PLAIN;
-            EntityDescriptor owner = property.getOwner();
-            return (owner == null ? entityDescriptor : owner).isAuditMaskFieldsDeclared()
-                    ? io.teaql.core.SqlParameterLogPolicy.PLAIN
-                    : io.teaql.core.SqlParameterLogPolicy.UNKNOWN;
+            return io.teaql.core.SqlFieldLogPolicy.resolve(entityDescriptor, property);
         }
         return io.teaql.core.SqlParameterLogPolicy.UNKNOWN;
     }
@@ -2274,6 +2209,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     private AggregationResult aggregateWithIntent(UserContext userContext, SearchRequest<T> request,
             io.teaql.core.SqlIntentRedactions intent) {
         if (!request.hasSimpleAgg()) return null;
+        SqlLikeIntent.capture(userContext, request, this, intent);
 
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
         List<String> tables = compiler.collectAggregationTables(sqlMetadata, this, userContext, request);
@@ -2285,7 +2221,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             String sql = compiler.buildAggregationSQL(sqlMetadata, this, userContext, request, parameters, tables);
             if (sql == null) return null;
 
-            PositionalSQL psql = withQueryIntent(toPositional(sql, parameters), intent);
+            PositionalSQL psql = withQueryIntent(toPositional(sql, parameters), intent, request);
             List<Map<String, Object>> rows = database.query(userContext, psql.sql, psql.args, psql.logBindings);
 
             AggregationResult result = new AggregationResult();
@@ -2349,7 +2285,4 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 : io.teaql.core.EntityStatus.PERSISTED;
     }
 
-    protected String boolToSqlString(Object value) {
-        return ((Boolean) value) ? "1" : "0";
-    }
 }

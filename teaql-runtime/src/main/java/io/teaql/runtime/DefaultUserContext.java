@@ -108,6 +108,11 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
 
     @Override
     public void putAttribute(String key, Object value) {
+        var checker = io.teaql.core.checker.internal.CheckerInvocation.current(this);
+        if (checker != null && io.teaql.core.checker.internal.CheckerInvocation.isScopedAttribute(key)) {
+            checker.attribute(key, value);
+            return;
+        }
         if (value == null) {
             storage.remove(key);
         } else {
@@ -117,13 +122,17 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
 
     @Override
     public Object getAttribute(String key) {
+        var checker = io.teaql.core.checker.internal.CheckerInvocation.current(this);
+        if (checker != null && io.teaql.core.checker.internal.CheckerInvocation.isScopedAttribute(key)) {
+            return checker.attribute(key);
+        }
         return storage.get(key);
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getAttribute(String key, Class<T> clazz) {
-        Object val = storage.get(key);
+        Object val = getAttribute(key);
         if (clazz != null && clazz.isInstance(val)) {
             return (T) val;
         }
@@ -292,34 +301,19 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
         if (metadata.getTraceChain() == null || metadata.getTraceChain().isEmpty()) {
             metadata.setTraceChain(getTraceChain());
         }
-        if (metadata.getTraceChain() != null) {
-            for (TraceNode node : metadata.getTraceChain()) {
-                if (node.getKind() == TraceKind.COMMENT) metadata.setComment(node.getComment());
-                if (node.getKind() == TraceKind.PURPOSE) metadata.setPurpose(node.getComment());
-                if (node.getKind() == TraceKind.AUDIT_REASON) metadata.setAuditReason(node.getComment());
-            }
-        }
-        java.util.List<TraceNode> canonical = new java.util.ArrayList<>();
-        if (metadata.getTraceChain() != null) {
-            metadata.getTraceChain().stream()
-                    .filter(node -> node.getKind() != TraceKind.COMMENT
-                            && node.getKind() != TraceKind.PURPOSE
-                            && node.getKind() != TraceKind.AUDIT_REASON
-                            && node.getKind() != TraceKind.PROVIDER
-                            && node.getKind() != TraceKind.SQL)
-                    .forEach(canonical::add);
-        }
-        String backend = metadata.getBackend() == null ? "unknown" : metadata.getBackend();
-        canonical.add(new TraceNode(TraceKind.PROVIDER, backend, backend));
-        String sqlOperation = sqlOperation(metadata);
-        canonical.add(new TraceNode(TraceKind.SQL, sqlOperation, sqlOperation));
-        metadata.setTraceChain(canonical);
+        var canonical = io.teaql.core.SqlTracePath.canonical(
+                metadata.getTraceChain(), metadata.getBackend(), sqlOperation(metadata));
+        if (canonical.comment() != null) metadata.setComment(canonical.comment());
+        if (canonical.purpose() != null) metadata.setPurpose(canonical.purpose());
+        if (canonical.auditReason() != null) metadata.setAuditReason(canonical.auditReason());
+        metadata.setTraceChain(canonical.path());
         if (runtime != null) {
             runtime.recordExecutionMetadata(this, metadata);
         }
     }
 
     private static String sqlOperation(io.teaql.core.ExecutionMetadata metadata) {
+        if (metadata.getStatementOperation() != null) return metadata.getStatementOperation();
         String sql = metadata.getParameterizedQuery();
         if (sql != null) {
             String normalized = sql.stripLeading();
@@ -343,7 +337,8 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
     public final <T> T evaluate(String expression, Object... args) {
         // Built-in: "now" comes from the context-owned business clock.
         if ("now".equalsIgnoreCase(expression)) {
-            Object captured = getAttribute(io.teaql.core.checker.Checker.TEAQL_FIX_TIME);
+            Object captured = io.teaql.core.checker.internal.CheckerInvocation.attribute(
+                    this, io.teaql.core.checker.Checker.TEAQL_FIX_TIME);
             return (T) (captured != null ? captured : businessTime());
         }
         // Delegate to subclass or extension for application-defined expressions.

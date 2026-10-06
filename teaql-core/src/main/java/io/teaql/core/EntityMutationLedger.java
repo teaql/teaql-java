@@ -4,7 +4,7 @@ import java.util.*;
 
 /**
  * Central change tracking context shared across all entities in a save graph.
- * Holds the change set stack, deleted keys, new keys, trace chains, and original versions.
+ * Holds the change set stack, deleted/recovered/new keys, trace chains, and original versions.
  *
  * This is the Java equivalent of Rust's {@code EntityMutationLedger}.
  */
@@ -12,8 +12,9 @@ public class EntityMutationLedger {
     private final ChangeSetStack changeSets = new ChangeSetStack();
     private String comment;
     private final Set<EntityKey> deletedKeys = new TreeSet<>();
+    private final Set<EntityKey> recoveredKeys = new TreeSet<>();
     private final Set<EntityKey> newKeys = new TreeSet<>();
-    private final Map<EntityKey, String> traceChains = new TreeMap<>();
+    private final Map<EntityKey, List<TraceNode>> traceChains = new TreeMap<>();
     private final Map<EntityKey, Long> originalVersions = new TreeMap<>();
 
     // --- Change Set Stack ---
@@ -30,12 +31,14 @@ public class EntityMutationLedger {
         changeSets.clearCurrent();
         newKeys.clear();
         deletedKeys.clear();
+        recoveredKeys.clear();
         // A successful save establishes a new persistence baseline. Keeping the
         // pre-save version here makes a later mutation on the same entity use a
         // stale optimistic-lock value (for example update -> save -> delete ->
         // save). The materialized entity now carries the authoritative version
         // returned by the provider, so the next mutation must capture that value.
         originalVersions.clear();
+        traceChains.clear();
     }
 
     public void set(EntityKey key, String field, Object value) {
@@ -79,6 +82,7 @@ public class EntityMutationLedger {
 
     public void markAsDelete(EntityKey key) {
         changeSets.clearEntity(key);
+        recoveredKeys.remove(key);
         deletedKeys.add(key);
     }
 
@@ -90,6 +94,16 @@ public class EntityMutationLedger {
         return Collections.unmodifiableSet(deletedKeys);
     }
 
+    // Recovery is a mutation even when no scalar property has changed.
+    public void markAsRecover(EntityKey key) {
+        deletedKeys.remove(key);
+        recoveredKeys.add(key);
+    }
+
+    public Set<EntityKey> recoveredKeys() {
+        return Collections.unmodifiableSet(recoveredKeys);
+    }
+
     // --- Changed Fields ---
 
     public Set<String> changedFieldNames(EntityKey key) {
@@ -98,11 +112,11 @@ public class EntityMutationLedger {
 
     // --- Trace Chains ---
 
-    public void setTraceChain(EntityKey key, String traceChain) {
-        traceChains.put(key, traceChain);
+    public void setTraceChain(EntityKey key, List<TraceNode> traceChain) {
+        traceChains.put(key, traceChain == null ? List.of() : List.copyOf(traceChain));
     }
 
-    public String getTraceChain(EntityKey key) {
+    public List<TraceNode> getTraceChain(EntityKey key) {
         return traceChains.get(key);
     }
 
@@ -114,6 +128,27 @@ public class EntityMutationLedger {
 
     public Long getOriginalVersion(EntityKey key) {
         return originalVersions.get(key);
+    }
+
+    /**
+     * Imports only the explicitly visited entity's pending mutation. A loaded
+     * reference may be shared by otherwise independent graphs; importing its
+     * entire ledger could pull in an unrelated root's changes. Returns false
+     * for a read-only entity, which must retain its private ledger ownership.
+     */
+    public boolean mergeEntityFrom(EntityMutationLedger other, EntityKey key) {
+        if (other == null || other == this) return false;
+        Map<String, Object> fields = other.currentChangeSet().changes().get(key);
+        boolean pending = (fields != null && !fields.isEmpty()) || other.newKeys.contains(key)
+                || other.deletedKeys.contains(key) || other.recoveredKeys.contains(key);
+        if (!pending) return false;
+        if (fields != null) fields.forEach((field, value) -> set(key, field, value));
+        if (other.deletedKeys.contains(key)) markAsDelete(key);
+        if (other.recoveredKeys.contains(key)) markAsRecover(key);
+        if (other.newKeys.contains(key)) markAsNew(key);
+        if (other.traceChains.containsKey(key)) setTraceChain(key, other.traceChains.get(key));
+        if (other.originalVersions.containsKey(key)) setOriginalVersion(key, other.originalVersions.get(key));
+        return true;
     }
 
     /**
@@ -136,6 +171,10 @@ public class EntityMutationLedger {
         for (EntityKey key : other.deletedKeys()) {
             this.markAsDelete(key);
         }
+
+        for (EntityKey key : other.recoveredKeys()) {
+            this.markAsRecover(key);
+        }
         
         // Merge new keys
         for (EntityKey key : other.newKeys()) {
@@ -143,7 +182,7 @@ public class EntityMutationLedger {
         }
         
         // Merge trace chains
-        for (Map.Entry<EntityKey, String> entry : other.traceChains.entrySet()) {
+        for (Map.Entry<EntityKey, List<TraceNode>> entry : other.traceChains.entrySet()) {
             this.setTraceChain(entry.getKey(), entry.getValue());
         }
         

@@ -12,7 +12,8 @@ public class JsonReaderFormatter implements LogFormatter {
         return "[" + traceChain.stream()
                 .map(t -> (CharSequence)("{\"kind\":\"" + t.getKind()
                         + "\",\"name\":\"" + escapeJson(t.getName())
-                        + "\",\"value\":\"" + escapeJson(t.getComment()) + "\"}"))
+                        + "\",\"entityId\":" + t.getEntityId()
+                        + ",\"value\":\"" + escapeJson(t.getComment()) + "\"}"))
                 .collect(Collectors.joining(",")) + "]";
     }
 
@@ -31,8 +32,9 @@ public class JsonReaderFormatter implements LogFormatter {
     @Override
     public String formatExecutionLog(io.teaql.core.ExecutionMetadata metadata) {
         metadata = io.teaql.runtime.LogPrivacy.sql(metadata, io.teaql.runtime.LogPrivacy.plaintextEnabled());
-        return String.format("{\"type\":\"EXEC_LOG\",\"tracePath\":%s,\"backend\":\"%s\",\"operation\":\"%s\",\"comment\":\"%s\",\"purpose\":\"%s\",\"auditReason\":\"%s\",\"elapsedUs\":%d,\"resultCount\":%s,\"affectedRows\":%s,\"summary\":\"%s\",\"sql\":\"%s\",\"logMode\":\"%s\",\"maskedParameters\":%s,\"sqlOmissionReason\":\"%s\",\"executionOutcome\":\"%s\"}",
+        return String.format("{\"type\":\"EXEC_LOG\",\"tracePath\":%s,\"mutationLineage\":%s,\"backend\":\"%s\",\"operation\":\"%s\",\"comment\":\"%s\",\"purpose\":\"%s\",\"auditReason\":\"%s\",\"elapsedUs\":%d,\"resultCount\":%s,\"affectedRows\":%s,\"summary\":\"%s\",\"sql\":\"%s\",\"logMode\":\"%s\",\"maskedParameters\":%s,\"sqlOmissionReason\":\"%s\",\"executionOutcome\":\"%s\",\"batchOutcome\":\"%s\"}",
                 formatTraceChain(metadata.getTraceChain()),
+                formatTraceChain(metadata.getMutationLineage()),
                 escapeJson(metadata.getBackend()), metadata.getOperation(),
                 escapeJson(metadata.getComment()), escapeJson(metadata.getPurpose()),
                 escapeJson(metadata.getAuditReason()), metadata.getElapsedUs(),
@@ -40,7 +42,8 @@ public class JsonReaderFormatter implements LogFormatter {
                 escapeJson(metadata.getResultSummary()), escapeJson(metadata.getDebugQuery()),
                 escapeJson(metadata.getLogMode()), metadata.getParameterMasked(),
                 escapeJson(metadata.getSqlOmissionReason()),
-                escapeJson(metadata.getExecutionOutcome() == null ? "unknown" : metadata.getExecutionOutcome()));
+                escapeJson(metadata.getExecutionOutcome() == null ? "unknown" : metadata.getExecutionOutcome()),
+                escapeJson(metadata.getBatchOutcome() == null ? "not_applicable" : metadata.getBatchOutcome()));
     }
 
     @Override

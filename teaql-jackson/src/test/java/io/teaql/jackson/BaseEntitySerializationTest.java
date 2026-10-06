@@ -29,7 +29,8 @@ public class BaseEntitySerializationTest {
         entity.updateId(1001L);
         entity.updateVersion(7L);
         entity.setComment("internal comment");
-        entity.setTraceChain("internal trace");
+        entity.setTraceChain(java.util.List.of(new io.teaql.core.TraceNode(
+                io.teaql.core.TraceKind.AUDIT_REASON, entity.typeName(), 1001L, "internal trace")));
         entity.putAdditional("#customer_asset_no", "A-10086");
 
         ObjectMapper mapper = new ObjectMapper().registerModule(TeaQLModule.INSTANCE);
@@ -41,6 +42,7 @@ public class BaseEntitySerializationTest {
         assertFalse(json.has("$status"));
         assertFalse(json.has("comment"));
         assertFalse(json.has("traceChain"));
+        assertFalse(json.toString().contains("internal trace"));
         assertFalse(json.has("additionalInfo"));
     }
 

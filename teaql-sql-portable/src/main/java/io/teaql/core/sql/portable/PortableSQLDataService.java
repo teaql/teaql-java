@@ -6,7 +6,7 @@ import io.teaql.runtime.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class PortableSQLDataService implements DataServiceExecutor, QueryExecutor, StreamingQueryExecutor, MutationExecutor, TransactionExecutor {
+public class PortableSQLDataService implements DataServiceExecutor, QueryExecutor, StreamingQueryExecutor, BatchMutationExecutor, TransactionExecutor {
 
     private final String name;
     private final DataServiceCapabilities capabilities;
@@ -30,6 +30,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         this.capabilities = new DataServiceCapabilities();
         this.capabilities.setQuery(true);
         this.capabilities.setMutation(true);
+        this.capabilities.setBatchMutation(true);
         this.capabilities.setTransaction(true);
         this.capabilities.setStreamingQuery(true);
     }
@@ -75,13 +76,16 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             throw new TeaQLRuntimeException("Unsupported QueryRequest in PortableSQLDataService");
         }
         SearchRequest<?> searchRequest = ((DefaultQueryRequest) request).getSearchRequest();
+        SqlIntentRedactions intent = SqlDiagnosticRequest.source(context, searchRequest);
+        if (intent == null) intent = new SqlIntentRedactions();
+        var statements = new ArrayList<ExecutionMetadata>();
+        searchRequest = SqlDiagnosticRequest.collecting(searchRequest, intent, request.intent(), statements::add);
         String typeName = searchRequest.getTypeName();
         PortableSQLRepository<?> repository = getRepository(typeName);
-        SqlIntentRedactions intent = SqlDiagnosticRequest.source(context, searchRequest);
         if (searchRequest.hasSimpleAgg()) {
             AggregationResult aggregation =
                     repository.doAggregateInternal(context, (SearchRequest) searchRequest, intent);
-            return new DefaultQueryResult(new SmartList<>(), aggregation);
+            return new DefaultQueryResult(new SmartList<>(), aggregation, statements);
         }
         SmartList<?> result = repository.loadInternal(context, (SearchRequest) searchRequest, intent);
         
@@ -90,15 +94,31 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         }
         attachDynamicAggregations(context, (SmartList<Entity>) result, searchRequest, intent);
         
-        return new DefaultQueryResult((SmartList<Entity>) result);
+        return new DefaultQueryResult((SmartList<Entity>) result, null, statements);
     }
 
     @Override
-    public <T extends Entity> java.util.stream.Stream<T> queryForStream(UserContext context, SearchRequest<T> request) {
-        if (request.hasSimpleAgg() || !request.enhanceRelations().isEmpty() || !request.enhanceChildren().isEmpty()) {
+    @SuppressWarnings("unchecked")
+    public <T extends Entity> java.util.stream.Stream<T> queryForStream(UserContext context, QueryRequest request) {
+        return this.<T>queryForCursor(context, request).stream();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T extends Entity> QueryCursor<T> queryForCursor(UserContext context, QueryRequest request) {
+        if (!(request instanceof DefaultQueryRequest query)) {
+            throw new TeaQLRuntimeException("Unsupported QueryRequest in PortableSQLDataService");
+        }
+        SearchRequest<T> searchRequest = (SearchRequest<T>) query.getSearchRequest();
+        SqlIntentRedactions source = SqlDiagnosticRequest.source(context, searchRequest);
+        if (source == null) source = new SqlIntentRedactions();
+        var statements = new java.util.concurrent.CopyOnWriteArrayList<ExecutionMetadata>();
+        SearchRequest<T> scoped = SqlDiagnosticRequest.collecting(searchRequest, source, request.intent(), statements::add);
+        if (scoped.hasSimpleAgg() || !scoped.enhanceRelations().isEmpty() || !scoped.enhanceChildren().isEmpty()) {
             throw new TeaQLRuntimeException("Streaming aggregation/relation enhancement is not supported; stream root rows only");
         }
-        return this.<T>getRepository(request.getTypeName()).streamInternal(context, request);
+        return new QueryCursor<>(this.<T>getRepository(scoped.getTypeName()).streamInternal(context, scoped),
+                () -> statements);
     }
 
     private void attachDynamicAggregations(
@@ -124,7 +144,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             }
 
             io.teaql.core.internal.TempRequest request =
-                    new io.teaql.core.internal.TempRequest(aggregateRequest);
+                    dynamicAggregateRequest(aggregateRequest, partitionProperty, intent, parentRequest);
             request.groupBy(partitionProperty);
             request.appendSearchCriteria(
                     request.createBasicSearchCriteria(
@@ -160,6 +180,25 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         }
     }
 
+    private SqlDiagnosticRequest dynamicAggregateRequest(SearchRequest<?> aggregateRequest,
+            String partitionProperty, SqlIntentRedactions intent, SearchRequest<?> parentRequest) {
+        EntityDescriptor aggregateDescriptor = metadata.resolveEntityDescriptor(aggregateRequest.getTypeName());
+        PropertyDescriptor partition = findProperty(aggregateDescriptor, partitionProperty);
+        if (partition instanceof Relation relation && shouldHandle(aggregateDescriptor, relation)) {
+            PropertyDescriptor reverse = relation.getReverseProperty();
+            EntityDescriptor parentDescriptor = metadata.resolveEntityDescriptor(parentRequest.getTypeName());
+            while (reverse != null && parentDescriptor != null) {
+                if (reverse.getOwner() == parentDescriptor) {
+                    return SqlDiagnosticRequest.forRelation(
+                            aggregateRequest, intent, parentRequest, reverse.getName());
+                }
+                parentDescriptor = parentDescriptor.getParent();
+            }
+        }
+        // Arbitrary partitions still inherit their request origin, but cannot claim a model edge.
+        return SqlDiagnosticRequest.forDerived(aggregateRequest, intent, parentRequest);
+    }
+
     private Entity parentByAggregationKey(Map<Long, Entity> parentsById, Object parentId) {
         if (parentId instanceof Number number) {
             return parentsById.get(number.longValue());
@@ -189,10 +228,10 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                     if (!(property instanceof Relation)) return;
 
                     if (shouldHandle(entityDescriptor, (Relation) property)) {
-                        enhanceParent(userContext, dataSet, (Relation) property, r, intent);
+                        enhanceParent(userContext, dataSet, (Relation) property, r, intent, request);
                         return;
                     }
-                    collectChildren(userContext, dataSet, (Relation) property, r, intent);
+                    collectChildren(userContext, dataSet, (Relation) property, r, intent, request);
                 });
     }
 
@@ -224,7 +263,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             UserContext userContext,
             SmartList<Entity> results,
             Relation relation,
-            SearchRequest parentRequest, SqlIntentRedactions intent) {
+            SearchRequest parentRequest, SqlIntentRedactions intent, SearchRequest<?> origin) {
         List<Entity> parents =
                 results.stream()
                         .map(e -> e.getProperty(relation.getName()))
@@ -234,7 +273,37 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                         .toList();
         if (io.teaql.core.utils.ObjectUtil.isEmpty(parents)) return;
 
-        io.teaql.core.internal.TempRequest parentTemp = new SqlDiagnosticRequest(parentRequest, intent);
+        // Facets belong to the referenced entity's query, not the union of
+        // every parent's membership. Keep them in a nonpersistent sidecar.
+        // Ordinary relation hydration continues to use the bulk lookup below.
+        if (parentRequest.getFacetRequests() != null && !parentRequest.getFacetRequests().isEmpty()) {
+            Map<Long, Entity> loadedById = new HashMap<>();
+            for (Entity parent : parents) {
+                var scoped = SqlDiagnosticRequest.forRelation(parentRequest, intent, origin, relation.getName());
+                scoped.appendSearchCriteria(scoped.createBasicSearchCriteria(
+                        BaseEntity.ID_PROPERTY, io.teaql.core.criteria.Operator.EQUAL, parent.getId()));
+                if (scoped.getSlice() == null) scoped.setSize(1);
+                SmartList<Entity> loaded = userContext.internalExecuteForList(scoped);
+                Map<String, SmartList<?>> facets = new HashMap<>();
+                loaded.getFacets().forEach(facets::put);
+                for (Entity entity : loaded) {
+                    if (entity instanceof BaseEntity base) base.__internalSetQueryFacets(facets);
+                    loadedById.put(entity.getId(), entity);
+                }
+            }
+            for (Entity result : results) {
+                Object old = result.getProperty(relation.getName());
+                if (old instanceof Entity reference) {
+                    Entity loaded = loadedById.get(reference.getId());
+                    // A target filter cannot erase the source's known FK.
+                    if (loaded != null) attachRelation(result, relation, loaded);
+                }
+            }
+            return;
+        }
+
+        io.teaql.core.internal.TempRequest parentTemp = SqlDiagnosticRequest.forRelation(
+                parentRequest, intent, origin, relation.getName());
         parentTemp.appendSearchCriteria(parentTemp.createBasicSearchCriteria(BaseEntity.ID_PROPERTY, io.teaql.core.criteria.Operator.IN, parents));
         // This is a framework-owned lookup over the already materialized child page.
         // A caller may project the parent without specifying a separate page size, but
@@ -259,15 +328,38 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             UserContext userContext,
             SmartList<Entity> dataSet,
             Relation relation,
-            SearchRequest childRequest, SqlIntentRedactions intent) {
-        io.teaql.core.internal.TempRequest childTempRequest = new SqlDiagnosticRequest(childRequest, intent);
+            SearchRequest childRequest, SqlIntentRedactions intent, SearchRequest<?> origin) {
+        io.teaql.core.internal.TempRequest childTempRequest = SqlDiagnosticRequest.forRelation(
+                childRequest, intent, origin, relation.getName());
         PropertyDescriptor reverseProperty = relation.getReverseProperty();
-        childTempRequest.selectProperty(reverseProperty.getName());
+        selectRelationAttachmentKey(childTempRequest, reverseProperty.getName());
         Slice slice = childTempRequest.getSlice();
         boolean boundedTopN = slice != null && slice.getSize() > 0;
         if (boundedTopN) ensureStableEntityIdOrder(childTempRequest);
         Integer configuredThreshold = childTempRequest.topNProbeParentThreshold();
         boolean probe = boundedTopN && shouldProbe(dataSet.size(), configuredThreshold);
+
+        // A collection Facet is scoped to one parent's entire filtered child
+        // set, even when the visible child page is smaller. A union query's
+        // Facets cannot be copied to every parent. Keep each returned SmartList
+        // intact, including its explicitly loaded empty Facets.
+        if (childRequest.getFacetRequests() != null && !childRequest.getFacetRequests().isEmpty()) {
+            for (Entity parent : dataSet) {
+                var scoped = SqlDiagnosticRequest.forRelation(childRequest, intent, origin, relation.getName());
+                selectRelationAttachmentKey(scoped, reverseProperty.getName());
+                scoped.setPartitionProperty(null);
+                if (boundedTopN) {
+                    ensureStableEntityIdOrder(scoped);
+                    addTopNTelemetry(scoped, dataSet.size(), slice.getSize(), configuredThreshold,
+                            "facet-scope", dataSet.size());
+                }
+                scoped.appendSearchCriteria(scoped.createBasicSearchCriteria(
+                        reverseProperty.getName(), io.teaql.core.criteria.Operator.EQUAL, parent));
+                SmartList<Entity> loaded = userContext.internalExecuteForList(scoped);
+                parent.setProperty(relation.getName(), loaded);
+            }
+            return;
+        }
         SmartList<Entity> children = new SmartList<>();
 
         if (probe) {
@@ -275,8 +367,8 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                     "probe", dataSet.size());
             for (Entity parent : dataSet) {
                 io.teaql.core.internal.TempRequest probeRequest =
-                        new SqlDiagnosticRequest(childRequest, intent);
-                probeRequest.selectProperty(reverseProperty.getName());
+                        SqlDiagnosticRequest.forRelation(childRequest, intent, origin, relation.getName());
+                selectRelationAttachmentKey(probeRequest, reverseProperty.getName());
                 probeRequest.setPartitionProperty(null);
                 ensureStableEntityIdOrder(probeRequest);
                 probeRequest.appendSearchCriteria(
@@ -328,6 +420,14 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         }
     }
 
+    private void selectRelationAttachmentKey(BaseRequest<?> request, String property) {
+        // Public selectProperty intentionally unselects a same-named relation.
+        // Internal key projection must preserve that requested hydration (and
+        // must not mutate TempRequest's shared source relation map).
+        request.getProjections().removeIf(projection -> projection.name().equals(property));
+        request.getProjections().add(new SimpleNamedExpression(property));
+    }
+
     private void ensureStableEntityIdOrder(BaseRequest<?> request) {
         boolean hasId = request.getOrderBy().properties(null).stream()
                 .anyMatch(BaseEntity.ID_PROPERTY::equals);
@@ -367,8 +467,16 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         String typeName = entity.typeName();
         PortableSQLRepository repository = getRepository(typeName);
         // Local to this mutation, never stored on context or a shared repository.
-        var readbackIntent = context.isQueryExecutionLoggingEnabled() || context.isMutationExecutionLoggingEnabled()
-                ? new io.teaql.core.SqlIntentRedactions() : null;
+        var readbackIntent = mutation.diagnosticRedactions();
+        repository.captureMutationIntent(entity, readbackIntent);
+        if (mutation.diagnosticSource() != entity)
+            repository.captureMutationIntent(mutation.diagnosticSource(), readbackIntent);
+        var statements = new ArrayList<io.teaql.core.ExecutionMetadata>();
+
+        String operation = mutation.getAction() == EntityPersistenceMutation.Action.DELETE ? "delete"
+                : entity.newItem() ? "insert" : entity.recoverItem() ? "recover" : "update";
+        var trace = io.teaql.core.SqlExecutionTrace.mutation(entity, mutation.getTraceChain(), operation, mutation.intent())
+                .collecting(statements::add);
 
         if (mutation.getAction() == EntityPersistenceMutation.Action.SAVE) {
             if (entity.getId() == null) {
@@ -377,19 +485,19 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             }
             if (entity.newItem()) {
                 ((BaseEntity) entity).__internalSet("version", 1L);
-                repository.createInternal(context, Collections.singletonList(entity), readbackIntent);
+                repository.createInternal(context, Collections.singletonList(entity), readbackIntent, trace);
             } else if (entity.updateItem()) {
-                repository.updateInternal(context, Collections.singletonList(entity), readbackIntent);
+                repository.updateInternal(context, Collections.singletonList(entity), readbackIntent, trace);
                 ((BaseEntity) entity).__internalSet("version", entity.getVersion() + 1);
             } else if (entity.recoverItem()) {
-                repository.recoverInternal(context, Collections.singletonList(entity), readbackIntent);
+                repository.recoverInternal(context, Collections.singletonList(entity), readbackIntent, trace);
                 ((BaseEntity) entity).__internalSet("version", -entity.getVersion() + 1);
             }
             if (entity instanceof BaseEntity) {
                 ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);
             }
         } else if (mutation.getAction() == EntityPersistenceMutation.Action.DELETE) {
-            repository.deleteInternal(context, Collections.singletonList(entity), readbackIntent);
+            repository.deleteInternal(context, Collections.singletonList(entity), readbackIntent, trace);
             ((BaseEntity) entity).__internalSet("version", -(entity.getVersion() + 1));
             if (entity instanceof BaseEntity) {
                 ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);
@@ -400,9 +508,90 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         if (entity.getId() != null
                 && (mutation.getAction() == EntityPersistenceMutation.Action.SAVE
                     || mutation.getAction() == EntityPersistenceMutation.Action.DELETE)) {
-            persisted = repository.loadPersistedById(context, entity.getId(), readbackIntent);
+            persisted = repository.loadPersistedById(context, entity.getId(), readbackIntent, trace.readback(mutation.intent()));
         }
-        return new io.teaql.core.DefaultMutationResult(persisted);
+        return new io.teaql.core.DefaultMutationResult(persisted, statements);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<MutationResult> mutateBatch(UserContext context, MutationBatchRequest request) {
+        Objects.requireNonNull(request, "request");
+        List<EntityPersistenceMutation> items = new ArrayList<>();
+        for (PersistenceMutation item : request.items()) {
+            if (!(item instanceof EntityPersistenceMutation mutation)) {
+                throw new TeaQLRuntimeException("Unsupported batch member in PortableSQLDataService");
+            }
+            items.add(mutation);
+        }
+        if (items.isEmpty()) return List.of();
+        String type = items.get(0).getEntity().typeName();
+        String operation = batchOperation(items.get(0));
+        if (items.stream().anyMatch(item -> !item.getEntity().typeName().equals(type)
+                || !batchOperation(item).equals(operation))) {
+            throw new TeaQLRuntimeException("Portable SQL prepared batch requires one entity type and mutation operation");
+        }
+        return executeInTransaction(context, () -> {
+            PortableSQLRepository repository = getRepository(type);
+            var redactions = new SqlIntentRedactions();
+            for (var item : items) {
+                redactions.include(item.diagnosticRedactions());
+                repository.captureMutationIntent(item.getEntity(), redactions);
+                if (item.diagnosticSource() != item.getEntity())
+                    repository.captureMutationIntent(item.diagnosticSource(), redactions);
+            }
+            List<Entity> entities = new ArrayList<>();
+            List<SqlExecutionTrace> traces = new ArrayList<>();
+            List<List<io.teaql.core.ExecutionMetadata>> statements = new ArrayList<>();
+            for (EntityPersistenceMutation item : items) {
+                var entity = (BaseEntity) item.getEntity();
+                if (operation.equals("insert")) {
+                    if (entity.getId() == null) entity.__internalSet("id", repository.prepareId(context, entity));
+                    entity.__internalSet("version", 1L);
+                } else if (entity.getId() == null || entity.getVersion() == null) {
+                    throw new TeaQLRuntimeException("Prepared persisted mutation requires identity and optimistic version");
+                }
+                entities.add(entity);
+                var memberStatements = new ArrayList<io.teaql.core.ExecutionMetadata>();
+                statements.add(memberStatements);
+                traces.add(SqlExecutionTrace.mutation(entity, item.getTraceChain(), operation, item.intent())
+                        .collecting(memberStatements::add));
+            }
+            switch (operation) {
+                case "insert" -> repository.createBatchInternal(context, entities, redactions, traces);
+                case "update" -> repository.updateBatchInternal(context, entities, redactions, traces);
+                case "delete" -> repository.deleteBatchInternal(context, entities, redactions, traces);
+                case "recover" -> repository.recoverBatchInternal(context, entities, redactions, traces);
+                default -> throw new TeaQLRuntimeException("Unsupported prepared mutation operation");
+            }
+            List<MutationResult> results = new ArrayList<>();
+            for (int index = 0; index < items.size(); index++) {
+                var item = items.get(index);
+                var entity = (BaseEntity) item.getEntity();
+                if (!operation.equals("insert")) {
+                    long version = entity.getVersion();
+                    entity.__internalSet("version", operation.equals("delete") ? -(version + 1)
+                            : operation.equals("recover") ? -version + 1 : version + 1);
+                }
+                entity.gotoNextStatus(EntityAction.PERSIST);
+                Entity persisted = repository.loadPersistedById(context, entity.getId(), redactions,
+                        traces.get(index).readback(item.intent()));
+                if (persisted == null) throw new TeaQLRuntimeException("Batch mutation readback returned no entity");
+                results.add(new DefaultMutationResult(persisted, statements.get(index)));
+            }
+            return List.copyOf(results);
+        });
+    }
+
+    private String batchOperation(EntityPersistenceMutation item) {
+        Entity entity = item.getEntity();
+        if (item.getAction() == EntityPersistenceMutation.Action.DELETE && entity.deleteItem()) return "delete";
+        if (item.getAction() == EntityPersistenceMutation.Action.SAVE) {
+            if (entity.newItem()) return "insert";
+            if (entity.updateItem()) return "update";
+            if (entity.recoverItem()) return "recover";
+        }
+        throw new TeaQLRuntimeException("Prepared mutation member has no executable persistence state");
     }
 
     @Override
@@ -427,8 +616,4 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         return (T) resultHolder[0];
     }
 
-    public void ensureSchema(UserContext context, String typeName) {
-        PortableSQLRepository<?> repository = getRepository(typeName);
-        repository.ensureSchema(context);
-    }
 }

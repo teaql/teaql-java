@@ -166,35 +166,14 @@ public class TeaQLRuntime {
                 new RuntimeTelemetry.Operation("query", request.getTypeName() + ".list",
                         Map.of("teaql.entity.type", request.getTypeName())));
         try {
-        if (request.purpose() == null || request.purpose().trim().isEmpty()) {
-            throw new TeaQLRuntimeException("[PURPOSE REQUIRED] Missing .purpose() on query execution.");
-        }
+        QueryIntent intent = QueryIntent.of(request.comment(), request.purpose());
         enforceMaterializedLimit(request, request.hardLimit());
         if (queryPolicy != null) {
             queryPolicy.enforceSelect(context, request);
         }
-        boolean pushedComment = false;
-        boolean pushedPurpose = false;
-        context.pushTrace(TraceKind.OPERATION, request.getTypeName(), "query");
-        context.pushTrace(TraceKind.REQUEST, request.getTypeName(), request.getTypeName());
-        if (request.comment() != null && !request.comment().trim().isEmpty()) {
-            context.pushTrace(TraceKind.COMMENT, request.getTypeName(), request.comment());
-            pushedComment = true;
-        }
-        if (request.purpose() != null && !request.purpose().trim().isEmpty()) {
-            context.pushTrace(TraceKind.PURPOSE, request.getTypeName(), request.purpose());
-            pushedPurpose = true;
-        }
-        try {
-            SmartList<T> result = executeForListResolved(context, request);
-            telemetryScope.success(Map.of("teaql.result.cardinality", result.size()));
-            return result;
-        } finally {
-            if (pushedPurpose) context.popTrace();
-            if (pushedComment) context.popTrace();
-            context.popTrace();
-            context.popTrace();
-        }
+        SmartList<T> result = executeForListResolved(context, request, intent);
+        telemetryScope.success(Map.of("teaql.result.cardinality", result.size()));
+        return result;
         } catch (RuntimeException | Error error) {
             telemetryScope.failure(error);
             throw error;
@@ -204,6 +183,7 @@ public class TeaQLRuntime {
     @SuppressWarnings("unchecked")
     public <T extends Entity> SmartList<T> executeForPage(
             UserContext context, SearchRequest<T> request, int offset, int limit) {
+        QueryIntent intent = QueryIntent.of(request.comment(), request.purpose());
         if (!(request instanceof BaseRequest<?> baseRequest)) {
             throw new TeaQLRuntimeException("Paged execution requires a generated BaseRequest");
         }
@@ -227,7 +207,7 @@ public class TeaQLRuntime {
         String route = descriptor.getDataService();
         if (route == null || route.isEmpty()) route = "default";
         QueryExecutor executor = registry.resolveQueryExecutor(route);
-        QueryResult countResult = executor.query(context, new DefaultQueryRequest(countRequest));
+        QueryResult countResult = executor.query(context, new DefaultQueryRequest(countRequest, intent));
         if (!(countResult instanceof DefaultQueryResult result)
                 || result.getAggregationResult() == null) {
             throw new TeaQLRuntimeException("Exact page count is not supported for route: " + route);
@@ -242,14 +222,11 @@ public class TeaQLRuntime {
     /** Executes a business-facing streaming query after the same policy gate as list queries. */
     public <T extends Entity> Stream<T> executeForStream(
             UserContext context, SearchRequest<T> request) {
-        if (request.purpose() == null || request.purpose().trim().isEmpty()) {
-            throw new TeaQLRuntimeException(
-                    "[PURPOSE REQUIRED] Missing .purpose() on streaming query execution.");
-        }
+        QueryIntent intent = QueryIntent.of(request.comment(), request.purpose());
         if (queryPolicy != null) {
             queryPolicy.enforceSelect(context, request);
         }
-        return executeForStreamResolved(context, request);
+        return executeForStreamResolved(context, request, intent);
     }
 
     /**
@@ -258,19 +235,16 @@ public class TeaQLRuntime {
      */
     public <T extends Entity> Stream<T> internalExecuteForStream(
             UserContext context, SearchRequest<T> request) {
-        if (context.getTraceChain() == null || context.getTraceChain().isEmpty()) {
-            throw new TeaQLRuntimeException(
-                    "[INTERNAL QUERY CONTEXT REQUIRED] Nested streaming query has no authorized root trace.");
-        }
+        QueryIntent intent = requireInheritedQueryIntent(request);
         if (queryPolicy != null) {
             queryPolicy.enforceSelect(context, request);
         }
-        return executeForStreamResolved(context, request);
+        return executeForStreamResolved(context, request, intent);
     }
 
     @SuppressWarnings("unchecked")
     private <T extends Entity> Stream<T> executeForStreamResolved(
-            UserContext context, SearchRequest<T> request) {
+            UserContext context, SearchRequest<T> request, QueryIntent intent) {
         EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
         String route = descriptor != null ? descriptor.getDataService() : null;
         if (route == null || route.isEmpty()) {
@@ -278,15 +252,15 @@ public class TeaQLRuntime {
         }
         DataServiceExecutor executor = registry.resolve(route);
         if (executor instanceof StreamingQueryExecutor streamingQueryExecutor) {
-            return streamingQueryExecutor.queryForStream(context, request);
+            return streamingQueryExecutor.queryForStream(context, new DefaultQueryRequest(request, intent));
         }
         throw new TeaQLRuntimeException("Streaming query is not supported for route: " + route);
     }
 
     /**
-     * Executes a framework-owned nested query under the trace established by its
-     * already-authorized root request. Nested relation requests are generated as
-     * query expressions and deliberately do not carry a second business purpose.
+     * Executes a framework-owned nested query with the explicit provenance of its
+     * already-authorized root request, never a Context trace stack. Nested relation
+     * requests do not require a second caller-supplied business purpose.
      */
     public <T extends Entity> SmartList<T> internalExecuteForList(
             UserContext context, SearchRequest<T> request) {
@@ -306,22 +280,14 @@ public class TeaQLRuntime {
                 new RuntimeTelemetry.Operation("relation_load", request.getTypeName() + ".relation",
                         relationAttributes));
         try {
-        if (context.getTraceChain() == null || context.getTraceChain().isEmpty()) {
-            throw new TeaQLRuntimeException(
-                    "[INTERNAL QUERY CONTEXT REQUIRED] Nested query has no authorized root trace.");
-        }
+        QueryIntent intent = requireInheritedQueryIntent(request);
         enforceMaterializedLimit(request, SearchRequest.DEFAULT_HARD_LIMIT);
         if (queryPolicy != null) {
             queryPolicy.enforceSelect(context, request);
         }
-        context.pushTrace(TraceKind.RELATION, request.getTypeName(), request.getTypeName());
-        try {
-            SmartList<T> result = executeForListResolved(context, request);
-            relationScope.success(Map.of("teaql.result.cardinality", result.size()));
-            return result;
-        } finally {
-            context.popTrace();
-        }
+        SmartList<T> result = executeForListResolved(context, request, intent);
+        relationScope.success(Map.of("teaql.result.cardinality", result.size()));
+        return result;
         } catch (RuntimeException | Error error) {
             relationScope.failure(error);
             throw error;
@@ -332,6 +298,15 @@ public class TeaQLRuntime {
             SearchRequest<?> request, Map<String, Object> attributes, String extension, String attribute) {
         Object value = request.getExtension(extension);
         if (value != null) attributes.put(attribute, value);
+    }
+
+    private static QueryIntent requireInheritedQueryIntent(SearchRequest<?> request) {
+        QueryIntent intent = request.inheritedQueryIntent();
+        if (intent == null) {
+            throw new TeaQLRuntimeException(
+                    "[INTERNAL QUERY CONTEXT REQUIRED] Nested query requires an explicit validated root request intent.");
+        }
+        return intent;
     }
 
     private static void enforceMaterializedLimit(SearchRequest<?> request, int hardLimit) {
@@ -350,7 +325,7 @@ public class TeaQLRuntime {
 
     @SuppressWarnings("unchecked")
     private <T extends Entity> SmartList<T> executeForListResolved(
-            UserContext context, SearchRequest<T> request) {
+            UserContext context, SearchRequest<T> request, QueryIntent intent) {
         EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
         String route = descriptor.getDataService();
         if (route == null || route.isEmpty()) {
@@ -360,7 +335,7 @@ public class TeaQLRuntime {
         if (queryExecutor == null) {
             throw new TeaQLRuntimeException("No QueryExecutor registered for route: " + route);
         }
-        QueryRequest queryRequest = new DefaultQueryRequest(request);
+        QueryRequest queryRequest = new DefaultQueryRequest(request, intent);
         RuntimeTelemetry.Scope providerScope = RuntimeTelemetry.startSafely(telemetry,
                 new RuntimeTelemetry.Operation("provider", route + ".query", Map.of(
                         "teaql.provider.kind", route,
@@ -381,42 +356,25 @@ public class TeaQLRuntime {
     }
 
     public <T extends Entity> AggregationResult aggregation(UserContext context, SearchRequest<T> request) {
-        if (request.purpose() == null || request.purpose().trim().isEmpty()) {
-            throw new TeaQLRuntimeException("[PURPOSE REQUIRED] Missing .purpose() on aggregation.");
-        }
+        QueryIntent intent = QueryIntent.of(request.comment(), request.purpose());
         if (queryPolicy != null) {
             queryPolicy.enforceSelect(context, request);
         }
-        boolean pushedComment = false;
-        boolean pushedPurpose = false;
-        if (request.comment() != null && !request.comment().trim().isEmpty()) {
-            context.pushTrace(TraceKind.COMMENT, request.getTypeName(), request.comment());
-            pushedComment = true;
+        EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
+        String route = descriptor.getDataService();
+        if (route == null || route.isEmpty()) {
+            route = "default";
         }
-        if (request.purpose() != null && !request.purpose().trim().isEmpty()) {
-            context.pushTrace(TraceKind.PURPOSE, request.getTypeName(), request.purpose());
-            pushedPurpose = true;
+        QueryExecutor queryExecutor = registry.resolveQueryExecutor(route);
+        if (queryExecutor == null) {
+            throw new TeaQLRuntimeException("No QueryExecutor registered for route: " + route);
         }
-        try {
-            EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
-            String route = descriptor.getDataService();
-            if (route == null || route.isEmpty()) {
-                route = "default";
-            }
-            QueryExecutor queryExecutor = registry.resolveQueryExecutor(route);
-            if (queryExecutor == null) {
-                throw new TeaQLRuntimeException("No QueryExecutor registered for route: " + route);
-            }
-            QueryRequest queryRequest = new DefaultQueryRequest(request);
-            QueryResult queryResult = queryExecutor.query(context, queryRequest);
-            if (queryResult instanceof DefaultQueryResult) {
-                return ((DefaultQueryResult) queryResult).getAggregationResult();
-            }
-            throw new TeaQLRuntimeException("Unsupported QueryResult type: " + queryResult.getClass().getName());
-        } finally {
-            if (pushedPurpose) context.popTrace();
-            if (pushedComment) context.popTrace();
+        QueryRequest queryRequest = new DefaultQueryRequest(request, intent);
+        QueryResult queryResult = queryExecutor.query(context, queryRequest);
+        if (queryResult instanceof DefaultQueryResult) {
+            return ((DefaultQueryResult) queryResult).getAggregationResult();
         }
+        throw new TeaQLRuntimeException("Unsupported QueryResult type: " + queryResult.getClass().getName());
     }
 
     public void saveGraph(UserContext context, Object items) {
@@ -429,25 +387,13 @@ public class TeaQLRuntime {
         }
     }
 
-    private static final String SAVE_GRAPH_ACTIVE_ROUTE_KEY = "__teaql_save_graph_route__";
-
     public void saveGraph(UserContext context, Entity entity) {
         RuntimeTelemetry.Scope telemetryScope = RuntimeTelemetry.startSafely(telemetry,
                 new RuntimeTelemetry.Operation("mutation", entity.typeName() + ".save", Map.of(
                         "teaql.entity.type", entity.typeName(),
                         "teaql.mutation.kind", "save")));
         try {
-        if (entity.getComment() == null || entity.getComment().trim().isEmpty()) {
-            throw new TeaQLRuntimeException("[AUDIT REQUIRED] Missing .auditAs() or .setComment() before saveGraph().");
-        }
-        boolean pushed = false;
-        context.pushTrace(TraceKind.OPERATION, entity.typeName(), "mutation");
-        context.pushTrace(TraceKind.ENTITY, entity.typeName(), entity.typeName());
-        if (entity.getComment() != null && !entity.getComment().trim().isEmpty()) {
-            context.pushTrace(TraceKind.AUDIT_REASON, entity.typeName(), entity.getComment());
-            pushed = true;
-        }
-        try {
+            MutationIntent intent = MutationIntent.of(entity.getComment());
             checkAndFix(context, entity);
             // Get entity's own EntityMutationLedger
             EntityMutationLedger entityMutationLedger = ((BaseEntity) entity).getEntityMutationLedger();
@@ -468,21 +414,18 @@ public class TeaQLRuntime {
                     entityMutationLedger,
                     Collections.newSetFromMap(new IdentityHashMap<>()));
 
+            Map<EntityKey, MutationTraceScope> traceScopes = new HashMap<>();
+            MutationTraceScope graphScope = MutationTraceScope.append(
+                    null, entity.typeName(), entity.getId(), intent.comment());
+            traceScopes.put(new EntityKey(entity.typeName(), entity.getId()), graphScope);
+            Set<Entity> traceVisited = Collections.newSetFromMap(new IdentityHashMap<>());
+            traceVisited.add(entity);
+            visitRelatedEntities(entity, child -> collectMutationTraceScopes(child, graphScope, traceScopes, traceVisited));
+
             EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());
             String route = descriptor.getDataService();
             if (route == null || route.isEmpty()) {
                 route = "default";
-            }
-
-            Object activeRoute = context.extension(SAVE_GRAPH_ACTIVE_ROUTE_KEY);
-            if (activeRoute == null) {
-                context.putAttribute(SAVE_GRAPH_ACTIVE_ROUTE_KEY, route);
-            } else if (!activeRoute.equals(route)) {
-                throw new TeaQLRuntimeException(
-                    "[CROSS-PROVIDER MUTATION] saveGraph attempted to write entity '"
-                    + entity.typeName() + "' to route '" + route
-                    + "' while the current saveGraph chain is already writing to route '"
-                    + activeRoute + "'.");
             }
 
             MutationExecutor mutationExecutor = registry.resolveMutationExecutor(route);
@@ -501,17 +444,18 @@ public class TeaQLRuntime {
                     new PersistenceState(
                             value.getVersion(), value.get$status(),
                             value.isPropertyLoaded(BaseEntity.VERSION_PROPERTY))));
-            MutationPlan mutationPlan = buildMutationPlan(entity, entityMutationLedger, realEntities);
+            MutationPlan mutationPlan = buildMutationPlan(entity, entityMutationLedger, realEntities, intent);
+            requireSingleMutationRoute(mutationPlan, route);
             MutationGovernanceSnapshot governance = reviewMutationPlan(context, mutationPlan);
             List<PendingMutation> completed;
             try {
                 if (mutationExecutor instanceof TransactionExecutor transactionExecutor) {
                     completed = transactionExecutor.executeInTransaction(context, () ->
                             executeLedgerPlan(context, entityMutationLedger, mutationExecutor,
-                                    realEntities, governance));
+                                    realEntities, governance, intent, traceScopes, graphScope));
                 } else {
                     completed = executeLedgerPlan(
-                            context, entityMutationLedger, mutationExecutor, realEntities, governance);
+                            context, entityMutationLedger, mutationExecutor, realEntities, governance, intent, traceScopes, graphScope);
                 }
             } catch (RuntimeException | Error failure) {
                 restoreGraphPersistenceState(
@@ -524,15 +468,46 @@ public class TeaQLRuntime {
             completeLedgerPlan(context, completed);
             entityMutationLedger.clearCurrentChangeSet();
             telemetryScope.success();
-        } finally {
-            if (pushed) context.popTrace();
-            context.popTrace();
-            context.popTrace();
-        }
         } catch (RuntimeException | Error error) {
             telemetryScope.failure(error);
             throw error;
         }
+    }
+
+    /** One atomic plan cannot borrow a root provider for a different entity route. */
+    private void requireSingleMutationRoute(MutationPlan plan, String rootRoute) {
+        for (MutationOperation operation : plan.operations()) {
+            String type = operation.entity().entity();
+            EntityDescriptor descriptor = metadata.resolveEntityDescriptor(type);
+            String route = descriptor.getDataService();
+            if (route == null || route.isEmpty()) route = "default";
+            if (!rootRoute.equals(route)) {
+                throw new TeaQLRuntimeException(
+                        "[CROSS-PROVIDER MUTATION] Atomic mutation plan contains entity '"
+                                + type + "' on route '" + route
+                                + "' outside its root route '" + rootRoute
+                                + "'. Use independently audited saves or explicit orchestration.");
+            }
+        }
+    }
+
+    private void collectMutationTraceScopes(Entity entity, MutationTraceScope parent,
+            Map<EntityKey, MutationTraceScope> scopes, Set<Entity> visited) {
+        if (!(entity instanceof BaseEntity baseEntity) || !visited.add(entity)) return;
+        MutationTraceScope active = MutationTraceScope.append(
+                parent, entity.typeName(), entity.getId(), entity.getComment());
+        EntityKey key = new EntityKey(entity.typeName(), entity.getId());
+        // A reference cannot replace the lineage of its materialized counterpart.
+        if (baseEntity.get$status() != io.teaql.core.EntityStatus.REFER) scopes.put(key, active);
+        visitRelatedEntities(entity, child -> collectMutationTraceScopes(child, active, scopes, visited));
+    }
+
+    private List<TraceNode> mutationTrace(EntityMutationLedger ledger, EntityKey key,
+            Map<EntityKey, MutationTraceScope> scopes, MutationTraceScope graphScope) {
+        List<TraceNode> specific = ledger.getTraceChain(key);
+        if (specific != null && !specific.isEmpty()) return specific;
+        MutationTraceScope scope = scopes.getOrDefault(key, graphScope);
+        return scope.recover();
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -544,26 +519,16 @@ public class TeaQLRuntime {
         if (checker == null) {
             return;
         }
-        context.putAttribute(Checker.TEAQL_DATA_CHECK_RESULT, new ArrayList<CheckResult>());
-        context.putAttribute(Checker.TEAQL_DATA_CHECKED_ITEMS, new ArrayList<>());
-        context.beginFixEvidence();
-        boolean ownsFixTime = context.getAttribute(Checker.TEAQL_FIX_TIME) == null;
-        if (ownsFixTime) {
-            context.putAttribute(Checker.TEAQL_FIX_TIME, context.businessTime());
-        }
-        try {
-            checker.checkAndFix(context, (BaseEntity) entity);
-            List<CheckResult> violations = (List<CheckResult>)
-                    context.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT);
-            if (violations != null && !violations.isEmpty()) {
-                throw new CheckException(new ArrayList<>(violations));
-            }
-        } finally {
-            context.finishFixEvidence();
-            context.putAttribute(Checker.TEAQL_DATA_CHECK_RESULT, null);
-            context.putAttribute(Checker.TEAQL_DATA_CHECKED_ITEMS, null);
-            if (ownsFixTime) {
-                context.putAttribute(Checker.TEAQL_FIX_TIME, null);
+        try (var invocation = io.teaql.core.checker.internal.CheckerInvocation.open(context)) {
+            context.beginFixEvidence();
+            try {
+                checker.checkAndFix(context, (BaseEntity) entity);
+                List<CheckResult> violations = (List<CheckResult>) invocation.attribute(Checker.TEAQL_DATA_CHECK_RESULT);
+                if (violations != null && !violations.isEmpty()) {
+                    throw new CheckException(new ArrayList<>(violations));
+                }
+            } finally {
+                context.finishFixEvidence();
             }
         }
     }
@@ -595,10 +560,12 @@ public class TeaQLRuntime {
         }
 
         visitRelatedEntities(entity, related -> {
+            if (visited.contains(related)) return;
             BaseEntity relatedBase = (BaseEntity) related;
             EntityMutationLedger relatedRoot = relatedBase.getEntityMutationLedger();
-            if (relatedRoot != null && relatedRoot != targetRoot) {
-                targetRoot.mergeFrom(relatedRoot);
+            EntityKey relatedKey = new EntityKey(related.typeName(), related.getId());
+            if (relatedBase.get$status() != EntityStatus.REFER
+                    && targetRoot.mergeEntityFrom(relatedRoot, relatedKey)) {
                 relatedBase.setEntityMutationLedger(targetRoot);
             }
             mergeRelatedEntityMutationLedgers(related, targetRoot, visited);
@@ -617,6 +584,7 @@ public class TeaQLRuntime {
         if (baseEntity.getId() != null
                 && baseEntity.get$status() != io.teaql.core.EntityStatus.REFER) {
             EntityKey key = new EntityKey(baseEntity.typeName(), baseEntity.getId());
+            if (baseEntity.recoverItem()) targetRoot.markAsRecover(key);
             for (String property : baseEntity.getUpdatedProperties()) {
                 targetRoot.set(key, property, baseEntity.__internalGet(property));
             }
@@ -697,13 +665,14 @@ public class TeaQLRuntime {
     private MutationPlan buildMutationPlan(
             Entity rootEntity,
             EntityMutationLedger ledger,
-            Map<EntityKey, BaseEntity> realEntities) {
+            Map<EntityKey, BaseEntity> realEntities, MutationIntent intent) {
         EntityChangeSet changeSet = ledger.currentChangeSet();
         Set<EntityKey> deleted = ledger.deletedKeys();
         Set<EntityKey> created = ledger.newKeys();
         Set<EntityKey> keys = new TreeSet<>();
         keys.addAll(changeSet.changes().keySet());
         keys.addAll(deleted);
+        keys.addAll(ledger.recoveredKeys());
 
         List<MutationOperation> operations = new ArrayList<>();
         for (EntityKey key : keys) {
@@ -717,7 +686,7 @@ public class TeaQLRuntime {
                 changes = changeSet.changes().getOrDefault(key, Map.of());
                 if (created.contains(key) || key.id() == null) {
                     kind = MutationOperationKind.CREATE;
-                } else if (target != null && target.recoverItem()) {
+                } else if (ledger.recoveredKeys().contains(key)) {
                     kind = MutationOperationKind.RECOVER;
                 } else {
                     kind = MutationOperationKind.UPDATE;
@@ -731,7 +700,7 @@ public class TeaQLRuntime {
                 UUID.randomUUID().toString(),
                 rootEntity.typeName() + ".saveGraph",
                 rootEntity.typeName(),
-                rootEntity.getComment(),
+                intent.auditReason(),
                 operations);
     }
 
@@ -808,45 +777,64 @@ public class TeaQLRuntime {
             EntityMutationLedger root,
             MutationExecutor mutationExecutor,
             Map<EntityKey, BaseEntity> realEntities,
-            MutationGovernanceSnapshot governance) {
+            MutationGovernanceSnapshot governance,
+            MutationIntent intent, Map<EntityKey, MutationTraceScope> traceScopes, MutationTraceScope graphScope) {
         List<PendingMutation> completed = new ArrayList<>();
         EntityChangeSet changeSet = root.currentChangeSet();
         Set<EntityKey> deletedKeys = root.deletedKeys();
         Set<EntityKey> newKeys = root.newKeys();
+        var graphRedactions = new SqlIntentRedactions();
+        realEntities.values().forEach(value -> graphRedactions.captureEntity(
+                value, metadata.resolveEntityDescriptor(value.typeName())));
+        changeSet.changes().forEach((key, values) -> {
+            var descriptor = metadata.resolveEntityDescriptor(key.entity());
+            values.forEach((field, value) -> graphRedactions.capture(
+                    List.of(SqlFieldLogPolicy.resolve(descriptor, field)), new Object[]{value}));
+        });
 
         // 1. Execute Deletes
         List<EntityKey> sortedDeletedKeys = new ArrayList<>(deletedKeys);
         Collections.sort(sortedDeletedKeys);
+        Map<String, List<EntityKey>> deleteBatches = new TreeMap<>();
         for (EntityKey key : sortedDeletedKeys) {
-            EntityDescriptor descriptor = metadata.resolveEntityDescriptor(key.entity());
-            if (descriptor == null) {
-                throw new TeaQLRuntimeException("No entity descriptor for: " + key.entity());
-            }
-            BaseEntity target = realEntities.get(key);
-            BaseEntity deleteEntity = mutationEntity(descriptor, target);
-            deleteEntity.__internalSet("id", key.id());
-            Long originalVersion = root.getOriginalVersion(key);
-            if (originalVersion == null && target != null) originalVersion = target.getVersion();
-            if (originalVersion != null) deleteEntity.__internalSet("version", originalVersion);
-            deleteEntity.set$status(io.teaql.core.EntityStatus.PERSISTED);
-            deleteEntity.markForDeletion();
-            if (root.getComment() != null) deleteEntity.setComment(root.getComment());
+            deleteBatches.computeIfAbsent(key.entity(), ignored -> new ArrayList<>()).add(key);
+        }
+        for (var batch : deleteBatches.entrySet()) {
+            List<EntityPersistenceMutation> requests = new ArrayList<>();
+            List<BaseEntity> targets = new ArrayList<>();
+            EntityDescriptor descriptor = metadata.resolveEntityDescriptor(batch.getKey());
+            if (descriptor == null) throw new TeaQLRuntimeException("No entity descriptor for: " + batch.getKey());
+            for (EntityKey key : batch.getValue()) {
+                BaseEntity target = realEntities.get(key);
+                BaseEntity deleteEntity = mutationEntity(descriptor, target);
+                deleteEntity.__internalSet("id", key.id());
+                Long originalVersion = root.getOriginalVersion(key);
+                if (originalVersion == null && target != null) originalVersion = target.getVersion();
+                if (originalVersion != null) deleteEntity.__internalSet("version", originalVersion);
+                deleteEntity.set$status(io.teaql.core.EntityStatus.PERSISTED);
+                deleteEntity.markForDeletion();
+                if (root.getComment() != null) deleteEntity.setComment(root.getComment());
 
-            EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
-                deleteEntity, EntityPersistenceMutation.Action.DELETE);
-            MutationResult result = mutateWithTelemetry(context, mutationExecutor, mutationRequest,
-                    key.entity(), "delete");
-            completed.add(new PendingMutation(
-                    descriptor, target == null ? deleteEntity : target, result,
-                    MutationAuditKind.DELETED, Collections.emptyMap(), governance));
+                EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
+                    deleteEntity, EntityPersistenceMutation.Action.DELETE, intent, mutationTrace(root, key, traceScopes, graphScope), target, graphRedactions);
+                requests.add(mutationRequest);
+                targets.add(target == null ? deleteEntity : target);
+            }
+            List<MutationResult> results = mutateBatchWithTelemetry(
+                    context, mutationExecutor, intent, requests, batch.getKey(), "delete");
+            for (int index = 0; index < requests.size(); index++) {
+                completed.add(new PendingMutation(descriptor, targets.get(index), results.get(index),
+                        MutationAuditKind.DELETED, Collections.emptyMap(), governance, intent, requests.get(index).getTraceChain(), graphRedactions));
+            }
         }
 
         // 2. Group changes
         Map<String, List<EntityKey>> insertBatches = new TreeMap<>();
         Map<String, List<EntityKey>> updateBatches = new TreeMap<>();
 
-        for (Map.Entry<EntityKey, Map<String, Object>> entry : changeSet.changes().entrySet()) {
-            EntityKey key = entry.getKey();
+        Set<EntityKey> changedKeys = new TreeSet<>(changeSet.changes().keySet());
+        changedKeys.addAll(root.recoveredKeys());
+        for (EntityKey key : changedKeys) {
             if (deletedKeys.contains(key)) continue;
 
             boolean isNew = newKeys.contains(key) || key.id() == null;
@@ -865,6 +853,10 @@ public class TeaQLRuntime {
             if (descriptor == null) {
                 throw new TeaQLRuntimeException("No entity descriptor for: " + entityName);
             }
+            List<EntityPersistenceMutation> requests = new ArrayList<>();
+            List<BaseEntity> targets = new ArrayList<>();
+            List<Map<String, Object>> snapshots = new ArrayList<>();
+            Collections.sort(keys);
             for (EntityKey key : keys) {
                 Map<String, Object> changes = changeSet.changes().get(key);
                 if (changes == null) continue;
@@ -881,16 +873,21 @@ public class TeaQLRuntime {
                 if (root.getComment() != null) entity.setComment(root.getComment());
 
                 EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
-                    entity, EntityPersistenceMutation.Action.SAVE);
-                MutationResult result = mutateWithTelemetry(context, mutationExecutor, mutationRequest,
-                        entityName, "save");
+                    entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(root, key, traceScopes, graphScope), target, graphRedactions);
+                requests.add(mutationRequest);
+                targets.add(target == null ? entity : target);
+                snapshots.add(snapshotChanges(changes));
+            }
+            List<MutationResult> results = mutateBatchWithTelemetry(
+                    context, mutationExecutor, intent, requests, entityName, "save");
+            for (int index = 0; index < requests.size(); index++) {
                 completed.add(new PendingMutation(
-                        descriptor, target == null ? entity : target, result,
-                        MutationAuditKind.CREATED, snapshotChanges(changes), governance));
+                        descriptor, targets.get(index), results.get(index),
+                        MutationAuditKind.CREATED, snapshots.get(index), governance, intent, requests.get(index).getTraceChain(), graphRedactions));
             }
         }
 
-        // 4. Execute Updates
+        // 4. Execute Updates and Recoveries
         for (Map.Entry<String, List<EntityKey>> entry : updateBatches.entrySet()) {
             String entityName = entry.getKey();
             List<EntityKey> keys = entry.getValue();
@@ -898,33 +895,42 @@ public class TeaQLRuntime {
             if (descriptor == null) {
                 throw new TeaQLRuntimeException("No entity descriptor for: " + entityName);
             }
-            for (EntityKey key : keys) {
-                Map<String, Object> changes = changeSet.changes().get(key);
-                if (changes == null) continue;
-                BaseEntity target = realEntities.get(key);
-                BaseEntity entity = mutationEntity(descriptor, target);
-                entity.__internalSet("id", key.id());
-                Long version = root.getOriginalVersion(key);
-                if (version == null && target != null) version = target.getVersion();
-                if (version != null) {
-                    entity.__internalSet("version", version);
-                }
-                for (Map.Entry<String, Object> change : changes.entrySet()) {
-                    entity.updateProperty(change.getKey(), change.getValue());
-                }
-                entity.set$status(io.teaql.core.EntityStatus.UPDATED);
-                if (root.getComment() != null) entity.setComment(root.getComment());
+            // Separate recover from update: they use different version transitions.
+            Collections.sort(keys);
+            for (boolean recovering : List.of(false, true)) {
+                List<EntityPersistenceMutation> requests = new ArrayList<>();
+                List<BaseEntity> targets = new ArrayList<>();
+                List<Map<String, Object>> snapshots = new ArrayList<>();
+                for (EntityKey key : keys) {
+                    if (root.recoveredKeys().contains(key) != recovering) continue;
+                    BaseEntity target = realEntities.get(key);
+                    Map<String, Object> changes = changeSet.changes().getOrDefault(key, Map.of());
+                    BaseEntity entity = mutationEntity(descriptor, target);
+                    entity.__internalSet("id", key.id());
+                    Long version = root.getOriginalVersion(key);
+                    if (version == null && target != null) version = target.getVersion();
+                    if (version != null) {
+                        entity.__internalSet("version", version);
+                    }
+                    for (Map.Entry<String, Object> change : changes.entrySet()) {
+                        entity.updateProperty(change.getKey(), change.getValue());
+                    }
+                    entity.set$status(recovering ? io.teaql.core.EntityStatus.UPDATED_RECOVER : io.teaql.core.EntityStatus.UPDATED);
+                    if (root.getComment() != null) entity.setComment(root.getComment());
 
-                EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
-                    entity, EntityPersistenceMutation.Action.SAVE);
-                MutationAuditKind auditKind = target != null && target.recoverItem()
-                        ? MutationAuditKind.RECOVERED
-                        : MutationAuditKind.UPDATED;
-                MutationResult result = mutateWithTelemetry(context, mutationExecutor, mutationRequest,
-                        entityName, auditKind.name().toLowerCase(Locale.ROOT));
-                completed.add(new PendingMutation(
-                        descriptor, target == null ? entity : target, result,
-                        auditKind, snapshotChanges(changes), governance));
+                    EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
+                        entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(root, key, traceScopes, graphScope), target, graphRedactions);
+                    requests.add(mutationRequest);
+                    targets.add(target == null ? entity : target);
+                    snapshots.add(snapshotChanges(changes));
+                }
+                MutationAuditKind auditKind = recovering ? MutationAuditKind.RECOVERED : MutationAuditKind.UPDATED;
+                List<MutationResult> results = mutateBatchWithTelemetry(
+                        context, mutationExecutor, intent, requests, entityName, auditKind.name().toLowerCase(Locale.ROOT));
+                for (int index = 0; index < requests.size(); index++) {
+                    completed.add(new PendingMutation(descriptor, targets.get(index), results.get(index),
+                            auditKind, snapshots.get(index), governance, intent, requests.get(index).getTraceChain(), graphRedactions));
+                }
             }
         }
         return completed;
@@ -935,7 +941,7 @@ public class TeaQLRuntime {
             applyPersistedEntity(mutation.descriptor(), mutation.target(), mutation.result());
             emitAuditEvent(
                     context, mutation.target(), mutation.auditKind(), mutation.changedValues(),
-                    mutation.governance());
+                    mutation.governance(), mutation.intent(), mutation.traceChain(), mutation.redactions());
             mutation.target().clearUpdatedProperties();
         }
     }
@@ -959,7 +965,8 @@ public class TeaQLRuntime {
             MutationResult result,
             MutationAuditKind auditKind,
             Map<String, Object> changedValues,
-            MutationGovernanceSnapshot governance) {}
+            MutationGovernanceSnapshot governance, MutationIntent intent, List<TraceNode> traceChain,
+            SqlIntentRedactions redactions) {}
 
     private record PersistenceState(
             Long version, io.teaql.core.EntityStatus status, boolean versionLoaded) {}
@@ -1021,12 +1028,56 @@ public class TeaQLRuntime {
         }
     }
 
+    private List<MutationResult> mutateBatchWithTelemetry(
+            UserContext context, MutationExecutor executor, MutationIntent intent,
+            List<EntityPersistenceMutation> requests, String entityType, String operation) {
+        if (requests.size() < 2 || !(executor instanceof io.teaql.core.BatchMutationExecutor batchExecutor)) {
+            List<MutationResult> results = new ArrayList<>();
+            for (EntityPersistenceMutation request : requests) {
+                results.add(mutateWithTelemetry(context, executor, request, entityType, operation));
+            }
+            return results;
+        }
+        var request = new io.teaql.core.MutationBatchRequest(intent, requests);
+        String provider = executor.getClass().getSimpleName();
+        RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(telemetry,
+                new RuntimeTelemetry.Operation("provider", provider + ".mutation.batch", Map.of(
+                        "teaql.provider.kind", provider,
+                        "teaql.provider.operation", operation,
+                        "teaql.entity.type", entityType,
+                        "teaql.batch.size", requests.size())));
+        try {
+            List<MutationResult> results = batchExecutor.mutateBatch(context, request);
+            if (results == null || results.size() != requests.size()) {
+                throw new TeaQLRuntimeException("Batch mutation must return one ordered result per item");
+            }
+            for (int index = 0; index < results.size(); index++) {
+                MutationResult result = results.get(index);
+                if (result == null || result.persistedEntity() == null) {
+                    throw new TeaQLRuntimeException("Batch mutation did not return an authoritative persisted entity");
+                }
+                Entity expected = requests.get(index).getEntity();
+                Entity persisted = result.persistedEntity();
+                if (!expected.typeName().equals(persisted.typeName())
+                        || !Objects.equals(expected.getId(), persisted.getId())) {
+                    throw new TeaQLRuntimeException("Batch mutation result identity does not match its ordered command");
+                }
+            }
+            scope.success();
+            return results;
+        } catch (RuntimeException | Error error) {
+            scope.failure(error);
+            throw error;
+        }
+    }
+
     private void emitAuditEvent(
             UserContext context,
             Entity entity,
             MutationAuditKind kind,
             Map<String, Object> changedValues,
-            MutationGovernanceSnapshot governance) {
+            MutationGovernanceSnapshot governance, MutationIntent intent, List<TraceNode> traceChain,
+            SqlIntentRedactions redactions) {
         List<AuditFieldChange> changes = new ArrayList<>();
         if (changedValues != null) {
             for (Map.Entry<String, Object> entry : changedValues.entrySet()) {
@@ -1040,10 +1091,10 @@ public class TeaQLRuntime {
                 entity.typeName(),
                 entity.getId(),
                 changes,
-                context.getTraceChain(),
+                traceChain,
                 context.getAttribute(GeneratedSchemaBootstrap.AUDIT_ACTOR_ATTRIBUTE, String.class),
                 context.getAttribute(GeneratedSchemaBootstrap.AUDIT_CATEGORY_ATTRIBUTE, String.class),
-                entity.getComment(),
+                intent.auditReason(),
                 entity.getVersion(),
                 java.time.Instant.now(),
                 governance);
@@ -1058,12 +1109,12 @@ public class TeaQLRuntime {
         // The standard sink is server-owned by TeaQLRuntime and cannot be replaced by
         // dynamic input or an application capability registered on UserContext.
         if (logSink != null) {
-            logSink.writeAuditEvent(context, LogPrivacy.audit(rawEvent, LogPrivacy.plaintextEnabled()));
+            logSink.writeAuditEvent(context, LogPrivacy.audit(rawEvent, LogPrivacy.plaintextEnabled(), redactions));
         }
 
         AppAuditEventSink appSink = context.capability(AppAuditEventSink.class);
         if (appSink != null) {
-            appSink.onAuditEvent(context, buildSafeAuditEvent(rawEvent));
+            appSink.onAuditEvent(context, buildSafeAuditEvent(rawEvent, redactions));
         }
         telemetryScope.success();
         } catch (RuntimeException | Error error) {
@@ -1072,7 +1123,7 @@ public class TeaQLRuntime {
         }
     }
 
-    private SafeAuditEvent buildSafeAuditEvent(RawAuditEvent event) {
+    private SafeAuditEvent buildSafeAuditEvent(RawAuditEvent event, SqlIntentRedactions redactions) {
         EntityDescriptor descriptor = metadata.resolveEntityDescriptor(event.entityType());
         Set<String> maskFields = descriptor == null
                 ? Collections.emptySet()
@@ -1081,6 +1132,7 @@ public class TeaQLRuntime {
         List<SafeAuditField> fields = new ArrayList<>();
         List<Object> sensitiveValues = new ArrayList<>();
         boolean allowPlaintext = LogPrivacy.plaintextEnabled();
+        redactions.appendTo(sensitiveValues, allowPlaintext);
         for (AuditFieldChange change : event.changes()) {
             if ((!allowPlaintext && maskFields.contains(change.field())) || LogPrivacy.credential(change.field())
                     || LogPrivacy.hasCredentials(change.oldValue()) || LogPrivacy.hasCredentials(change.newValue())) {

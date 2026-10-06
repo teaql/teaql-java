@@ -36,7 +36,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <argLine>--add-reads io.teaql.hana=io.teaql.runtime</argLine>
+                    <argLine>--add-modules io.teaql.runtime --add-reads io.teaql.hana=io.teaql.runtime</argLine>
                 </configuration>
             </plugin>
         </plugins>

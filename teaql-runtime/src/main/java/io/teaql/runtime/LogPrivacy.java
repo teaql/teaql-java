@@ -62,7 +62,7 @@ public final class LogPrivacy {
     public static List<TraceNode> trace(List<TraceNode> nodes, Collection<?> values) {
         if (nodes == null) return List.of();
         return nodes.stream().map(node -> new TraceNode(node.getKind(),
-                scrub(node.getName(), values), scrub(node.getComment(), values))).toList();
+                scrub(node.getName(), values), node.getEntityId(), scrub(node.getComment(), values))).toList();
     }
 
     public static ExecutionMetadata sql(ExecutionMetadata source, boolean allow) {
@@ -106,6 +106,7 @@ public final class LogPrivacy {
         ExecutionMetadata safe = new ExecutionMetadata();
         safe.setBackend(source.getBackend()); safe.setOperation(source.getOperation());
         safe.setExecutionOutcome(source.getExecutionOutcome());
+        safe.setBatchOutcome(source.getBatchOutcome());
         safe.setStartedAt(source.getStartedAt()); safe.setEndedAt(source.getEndedAt());
         safe.setElapsedUs(source.getElapsedUs()); safe.setAffectedRows(source.getAffectedRows());
         safe.setResultCount(source.getResultCount());
@@ -115,6 +116,8 @@ public final class LogPrivacy {
         safe.setBackendRequestId(scrub(source.getBackendRequestId(), secrets));
         safe.setComment(scrub(source.getComment(), secrets)); safe.setPurpose(scrub(source.getPurpose(), secrets));
         safe.setAuditReason(scrub(source.getAuditReason(), secrets)); safe.setTraceChain(trace(source.getTraceChain(), secrets));
+        safe.setMutationLineage(trace(source.getMutationLineage(), secrets));
+        safe.setStatementOperation(source.getStatementOperation());
         if (orphanedDebug) {
             safe.setComment(hideIntent(source.getComment())); safe.setPurpose(hideIntent(source.getPurpose()));
             safe.setAuditReason(hideIntent(source.getAuditReason()));
@@ -122,7 +125,9 @@ public final class LogPrivacy {
             if (source.getResultCount() == null && source.getAffectedRows() == null)
                 safe.setResultSummary(hideIntent(source.getResultSummary()));
             safe.setTraceChain(source.getTraceChain() == null ? List.of() : source.getTraceChain().stream()
-                    .map(node -> new TraceNode(node.getKind(), hideIntent(node.getName()), hideIntent(node.getComment()))).toList());
+                    .map(node -> new TraceNode(node.getKind(), hideIntent(node.getName()), node.getEntityId(), hideIntent(node.getComment()))).toList());
+            safe.setMutationLineage(source.getMutationLineage().stream()
+                    .map(node -> new TraceNode(node.getKind(), hideIntent(node.getName()), node.getEntityId(), hideIntent(node.getComment()))).toList());
         }
         String sql = source.getParameterizedQuery();
         safe.setParameterizedQuery(sql);
@@ -190,7 +195,12 @@ public final class LogPrivacy {
     }
 
     public static RawAuditEvent audit(RawAuditEvent source, boolean allow) {
+        return audit(source, allow, null);
+    }
+
+    public static RawAuditEvent audit(RawAuditEvent source, boolean allow, io.teaql.core.SqlIntentRedactions redactions) {
         List<Object> secrets = new ArrayList<>();
+        if (redactions != null) redactions.appendTo(secrets, allow);
         List<AuditFieldChange> changes = source.changes().stream().map(change -> {
             boolean mask = !allow || credential(change.field()) || hasCredentials(change.oldValue()) || hasCredentials(change.newValue());
             if (!mask) return change;

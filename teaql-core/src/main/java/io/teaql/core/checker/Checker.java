@@ -9,6 +9,7 @@ import io.teaql.core.utils.StrUtil;
 import io.teaql.core.BaseEntity;
 import io.teaql.core.EntityStatus;
 import io.teaql.core.UserContext;
+import io.teaql.core.checker.internal.CheckerInvocation;
 
 /**
  * check or set (default) values for the entity before persist
@@ -24,10 +25,10 @@ public interface Checker<T extends BaseEntity> {
     void checkAndFix(UserContext context, T entity, ObjectLocation location);
 
     default void markAsChecked(UserContext context, T entity) {
-        java.util.List list = (java.util.List) context.getAttribute(TEAQL_DATA_CHECKED_ITEMS);
+        java.util.List list = (java.util.List) CheckerInvocation.attribute(context, TEAQL_DATA_CHECKED_ITEMS);
         if (list == null) {
             list = new java.util.ArrayList();
-            context.putAttribute(TEAQL_DATA_CHECKED_ITEMS, list);
+            CheckerInvocation.attribute(context, TEAQL_DATA_CHECKED_ITEMS, list);
         }
         list.add(entity);
     }
@@ -37,9 +38,11 @@ public interface Checker<T extends BaseEntity> {
             return false;
         }
 
-        java.util.List list = (java.util.List) context.getAttribute(TEAQL_DATA_CHECKED_ITEMS);
-        if (list != null && list.contains(entity)) {
-            return false;
+        java.util.List list = (java.util.List) CheckerInvocation.attribute(context, TEAQL_DATA_CHECKED_ITEMS);
+        if (list != null) {
+            for (Object checked : list) {
+                if (checked == entity) return false;
+            }
         }
 
         if (entity.get$status() == EntityStatus.REFER) {
@@ -116,10 +119,10 @@ public interface Checker<T extends BaseEntity> {
 
     default void appendResult(UserContext context, CheckResult result) {
         context.translateCheckResult(result);
-        java.util.List list = (java.util.List) context.getAttribute(TEAQL_DATA_CHECK_RESULT);
+        java.util.List list = (java.util.List) CheckerInvocation.attribute(context, TEAQL_DATA_CHECK_RESULT);
         if (list == null) {
             list = new java.util.ArrayList();
-            context.putAttribute(TEAQL_DATA_CHECK_RESULT, list);
+            CheckerInvocation.attribute(context, TEAQL_DATA_CHECK_RESULT, list);
         }
         list.add(result);
     }

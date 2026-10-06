@@ -16,6 +16,29 @@ public class ExpressionHelper {
             OrderBysParser.class, ParameterParser.class, PropertyParser.class, SubQueryParser.class,
             TwoOperatorExpressionParser.class, TypeCriteriaParser.class, VersionSearchCriteriaParser.class);
 
+    /** Diagnostic inspection may trust only the same built-in parsers as compilation. */
+    public static boolean hasBuiltinParser(Expression expression, SQLColumnResolver resolver) {
+        if (expression == null || expression instanceof SQLExpressionParser) return false;
+        for (Class<?> type = expression.getClass(); type != null; type = type.getSuperclass()) {
+            var parser = resolver.getExpressionParsers().get(type);
+            if (parser != null) return BUILTIN.contains(parser.getClass());
+        }
+        return false;
+    }
+
+    /** Resolved expression scope, not the caller-supplied parameter name. */
+    public static io.teaql.core.SqlParameterLogPolicy parameterPolicy(
+            UserContext context, Expression expression, SQLColumnResolver resolver) {
+        var properties = expression.properties(context);
+        var policy = io.teaql.core.SqlParameterLogPolicy.PLAIN;
+        if (properties == null || properties.isEmpty()) return io.teaql.core.SqlParameterLogPolicy.UNKNOWN;
+        for (String property : properties) {
+            var candidate = resolver.parameterLogPolicy(property);
+            if (rank(candidate) > rank(policy)) policy = candidate;
+        }
+        return policy;
+    }
+
     public static String toSql(
             UserContext userContext,
             Expression expression,
@@ -72,14 +95,7 @@ public class ExpressionHelper {
         try {
             if (expression instanceof io.teaql.core.criteria.TwoOperatorCriteria
                     || expression instanceof io.teaql.core.criteria.Between) {
-                var properties = expression.properties(userContext);
-                var policy = io.teaql.core.SqlParameterLogPolicy.PLAIN;
-                if (properties == null || properties.isEmpty()) policy = io.teaql.core.SqlParameterLogPolicy.UNKNOWN;
-                else for (String property : properties) {
-                    var candidate = columnResolver.parameterLogPolicy(property);
-                    if (rank(candidate) > rank(policy)) policy = candidate;
-                }
-                tracked.currentPolicy(policy);
+                tracked.currentPolicy(parameterPolicy(userContext, expression, columnResolver));
             }
             return parser.toSql(userContext, expression, idTable, parameters, columnResolver);
         } finally { tracked.currentPolicy(previous); }

@@ -365,6 +365,8 @@
             <modules>
                 <module>examples/school-management/lib</module>
                 <module>examples/school-management</module>
+                <module>examples/trace-chain/lib</module>
+                <module>examples/trace-chain</module>
             </modules>
         </profile>
     </profiles>
