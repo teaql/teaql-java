@@ -86,6 +86,32 @@ public class JdbcSqlExecutorTest {
     }
 
     @Test
+    public void testListRowMutationCannotChangeSiblingColumnsOrValues() {
+        var rows = sqlExecutor.queryForList("SELECT 1 AS id, NULL AS note UNION ALL SELECT 2, 'private'", new Object[0]);
+        assertTrue(rows.get(0) instanceof JdbcColumnRow);
+        assertTrue(rows.get(0).containsKey("note"));
+        rows.get(0).put("note", "changed");
+        rows.get(0).remove("id");
+        rows.get(0).put("extra", null);
+        assertEquals(2, ((Number) rows.get(1).get("id")).intValue());
+        assertEquals("private", rows.get(1).get("note"));
+        assertTrue(!rows.get(1).containsKey("extra"));
+    }
+
+    @Test
+    public void testMapStreamRowsSurviveCloseAndDuplicateAliasesKeepLastValue() {
+        List<Map<String, Object>> rows;
+        try (var stream = sqlExecutor.queryForStream("SELECT 1 AS \"Name\", 2 AS \"NAME\" UNION ALL SELECT 3, 4", new Object[0])) {
+            rows = stream.toList();
+        }
+        assertTrue(rows.get(0) instanceof JdbcColumnRow);
+        assertEquals(1, rows.get(0).size());
+        assertEquals(2, ((Number) rows.get(0).get("name")).intValue());
+        rows.get(0).put("name", 5);
+        assertEquals(4, ((Number) rows.get(1).get("name")).intValue());
+    }
+
+    @Test
     public void testNullParameterUsesSqlNull() {
         sqlExecutor.update(
                 "INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",

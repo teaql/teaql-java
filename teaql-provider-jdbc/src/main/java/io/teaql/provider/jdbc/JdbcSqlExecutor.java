@@ -61,11 +61,8 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
     public Stream<Map<String, Object>> queryForStream(String sql, Object[] params) {
         return streamQuery(sql, params, rows -> {
             String[] columnLabels = columnLabels(rows);
-            return () -> {
-                Map<String, Object> row = new java.util.HashMap<>();
-                for (int i = 0; i < columnLabels.length; i++) row.put(columnLabels[i], rows.getObject(i + 1));
-                return row;
-            };
+            JdbcColumnRow.Layout layout = new JdbcColumnRow.Layout(columnLabels);
+            return () -> readColumnRow(rows, layout, columnLabels.length);
         });
     }
 
@@ -178,12 +175,9 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             }
             try (ResultSet rs = ps.executeQuery()) {
                 String[] columnLabels = columnLabels(rs);
+                JdbcColumnRow.Layout layout = new JdbcColumnRow.Layout(columnLabels);
                 while (rs.next()) {
-                    java.util.Map<String, Object> row = new java.util.HashMap<>();
-                    for (int i = 0; i < columnLabels.length; i++) {
-                        row.put(columnLabels[i], rs.getObject(i + 1));
-                    }
-                    result.add(row);
+                    result.add(readColumnRow(rs, layout, columnLabels.length));
                 }
             }
                 return result;
@@ -290,6 +284,13 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             throw new IllegalArgumentException("Cannot convert JDBC value " + value.getClass().getName()
                     + " to " + type.getName());
         }
+    }
+
+    private static JdbcColumnRow readColumnRow(ResultSet resultSet, JdbcColumnRow.Layout layout, int width)
+            throws SQLException {
+        Object[] values = new Object[width];
+        for (int i = 0; i < width; i++) values[i] = resultSet.getObject(i + 1);
+        return new JdbcColumnRow(layout, values);
     }
 
     private static String[] columnLabels(ResultSet resultSet) throws SQLException {
