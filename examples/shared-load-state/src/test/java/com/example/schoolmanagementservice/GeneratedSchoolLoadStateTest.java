@@ -158,6 +158,19 @@ class GeneratedSchoolLoadStateTest {
         assertFalse(sparse.get(0).isPropertyLoaded("address"));
         var mapper = new ObjectMapper().registerModule(new TeaQLModule(context))
                 .registerModule(new JavaTimeModule()).disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        long[] beforeJsonGuard = sql.counts();
+        for (String key : java.util.List.of("_comment", "_dirty_fields", "_original_values", "_is_new",
+                "_is_deleted", "__load_state", "__teaql_runtime_state")) {
+            var input = mapper.createObjectNode().put("id", sparse.get(0).getId());
+            input.putObject(key).put("payload", "PRIVATE-STATE-CANARY");
+            var error = assertThrows(com.fasterxml.jackson.databind.JsonMappingException.class,
+                    () -> mapper.treeToValue(input, School.class));
+            assertTrue(error.getMessage().contains("Incoming runtime state is forbidden"));
+            assertFalse(error.getMessage().contains("PRIVATE-STATE-CANARY"));
+        }
+        assertArrayEquals(beforeJsonGuard, sql.counts(), "JSON guard must not enter any provider");
+        assertFalse(sparse.get(0).__internalHasMutationLedger());
+        System.out.println("PASS generated Java reserved runtime JSON keys reject without provider entry or value leakage");
         var sparseJson = mapper.readTree(mapper.writeValueAsString(sparse));
         assertEquals(first, sparseJson.get(0).get("name").asText());
         assertFalse(sparseJson.get(0).has("address"), "NotLoaded must not become serialized NULL");

@@ -21,6 +21,11 @@ import java.util.Objects;
 
 /** Model-bound JSON hydration; no bean setters, reflection, database calls or mutation APIs. */
 final class TypedEntityJsonDeserializer extends JsonDeserializer<BaseEntity> {
+    // Same wire-state boundary as the Rust context-owned reader. These are not
+    // readonly business properties and must reject before the supplier is used.
+    private static final java.util.Set<String> FORBIDDEN_RUNTIME_KEYS = java.util.Set.of(
+            "_comment", "_dirty_fields", "_original_values", "_is_new", "_is_deleted",
+            "__load_state", "__teaql_runtime_state");
     private record Binding(String member, Class<?> type, int index, Class<? extends Entity> element) {}
     private final Class<?> target;
     private final java.util.function.Supplier<? extends Entity> supplier;
@@ -71,7 +76,12 @@ final class TypedEntityJsonDeserializer extends JsonDeserializer<BaseEntity> {
         var names = node.fieldNames();
         while (names.hasNext()) {
             String name = names.next();
-            if (name.startsWith("_") && name.length() > 1) continue; // readonly derived data, not load-state metadata
+            if (name.startsWith("_") && name.length() > 1) {
+                if (FORBIDDEN_RUNTIME_KEYS.contains(name)) {
+                    return context.reportInputMismatch(target, "Incoming runtime state is forbidden: %s", name);
+                }
+                continue; // readonly derived data, not load-state metadata
+            }
             Binding field = binding(name);
             if (field == null) return context.reportInputMismatch(target, "Unknown or unsupported model field: %s", name);
             members.add(field.member());

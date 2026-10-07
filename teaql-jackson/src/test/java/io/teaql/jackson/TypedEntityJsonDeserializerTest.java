@@ -131,6 +131,39 @@ public class TypedEntityJsonDeserializerTest {
         assertFalse(row.__internalHasMutationLedger()); assertTrue(row.getUpdatedProperties().isEmpty());
     }
 
+    @Test public void reservedRuntimeKeysCannotMasqueradeAsReadonlyProperties() throws Exception {
+        var constructed = new AtomicInteger();
+        var mapper = new ObjectMapper().registerModule(new TeaQLModule(context("A", constructed)));
+        for (String key : List.of("_comment", "_dirty_fields", "_original_values", "_is_new",
+                "_is_deleted", "__load_state", "__teaql_runtime_state")) {
+            var input = mapper.createObjectNode().put("id", 1).put("name", "legitimate name");
+            input.putObject(key).put("payload", "PRIVATE-STATE-CANARY");
+            var error = assertThrows(JsonMappingException.class,
+                    () -> mapper.treeToValue(input, Row.class));
+            assertTrue(error.getMessage().contains("Incoming runtime state is forbidden"));
+            assertFalse(error.getMessage().contains("PRIVATE-STATE-CANARY"));
+        }
+        assertEquals("reject before constructing any model object", 0, constructed.get());
+    }
+
+    @Test public void reservedRuntimeKeysRejectTheWholeArrayWithoutConstructingTheInvalidRow() throws Exception {
+        var constructed = new AtomicInteger();
+        var mapper = new ObjectMapper().registerModule(new TeaQLModule(context("A", constructed)));
+        for (String key : List.of("_comment", "_dirty_fields", "_original_values", "_is_new",
+                "_is_deleted", "__load_state", "__teaql_runtime_state")) {
+            var input = mapper.createObjectNode().put("id", 1);
+            input.putObject(key).put("payload", "PRIVATE-STATE-CANARY");
+            var batch = mapper.createArrayNode();
+            batch.addObject().put("id", 2).put("name", "valid first row");
+            batch.add(input);
+            var error = assertThrows(JsonMappingException.class,
+                    () -> mapper.readerForListOf(Row.class).readValue(batch));
+            assertTrue(error.getMessage().contains("Incoming runtime state is forbidden"));
+            assertFalse(error.getMessage().contains("PRIVATE-STATE-CANARY"));
+        }
+        assertEquals("only each valid first row may reach the supplier", 7, constructed.get());
+    }
+
     @Test public void unregisteredEntityCannotFallBackToBeanMutation() throws Exception {
         var mapper = new ObjectMapper().registerModule(new TeaQLModule(context("A", new AtomicInteger())));
         var error = assertThrows(JsonMappingException.class,

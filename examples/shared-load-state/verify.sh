@@ -68,6 +68,7 @@ for round in first second; do
     }
   rg -F "PASS generated Java indexed Q/E/Checker/create/update/delete and snapshot sharing $round" "$run_dir/$round.log"
   rg -F "PASS generated Java typed native JSON roundtrip and snapshot sharing $round" "$run_dir/$round.log"
+  rg -F "PASS generated Java reserved runtime JSON keys reject without provider entry or value leakage" "$run_dir/$round.log"
   rg -F "PASS generated Java typed JSON graph roundtrip and Empty/NotLoaded isolation" "$run_dir/$round.log"
   rg -F "PASS generated Java sparse Checker rejects before provider entry" "$run_dir/$round.log"
   rg -F "PASS generated Java complete parent saves with untouched partial reference" "$run_dir/$round.log"
