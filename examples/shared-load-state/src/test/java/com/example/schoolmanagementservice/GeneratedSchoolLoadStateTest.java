@@ -141,6 +141,7 @@ class GeneratedSchoolLoadStateTest {
         assertEquals(false, E.school(full.get(0)).isActive().eval());
         assertEquals(1001L, full.get(0).getSchoolType().getId());
         GeneratedFieldOrderAcceptance.verify(context, dataSource, full.get(0).getId());
+        GeneratedPageStreamAcceptance.verify(context, first, second);
 
         var sparse = Q.schoolsWithMinimalFields().withNameIn(first, second).selectName()
                 .orderByIdAscending().limit(2).comment("what: read matching sparse projections")

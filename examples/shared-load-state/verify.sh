@@ -71,6 +71,7 @@ for round in first second; do
   rg -F "PASS generated Java typed JSON graph roundtrip and Empty/NotLoaded isolation" "$run_dir/$round.log"
   rg -F "PASS generated Java sparse Checker rejects before provider entry" "$run_dir/$round.log"
   rg -F "PASS generated Java Q selection and real JDBC column-order invariance" "$run_dir/$round.log"
+  rg -F "PASS generated Java page and stream shared load state" "$run_dir/$round.log"
   rg -F "PASS generated Java dynamic storage provenance and retry" "$run_dir/$round.log"
   rg -F "PASS generated Java namespace serialization and NotLoaded boundary" "$run_dir/$round.log"
   rg -F "PASS generated Java nested/reverse graph Q/E/JSON and Empty/NotLoaded isolation" "$run_dir/$round.log"
