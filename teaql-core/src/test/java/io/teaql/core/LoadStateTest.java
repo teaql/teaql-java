@@ -124,6 +124,12 @@ public class LoadStateTest {
 
     static final class LateLayoutEntity extends BaseEntity { }
 
+    static final class ForeignLayoutEntity extends BaseEntity {
+        static final FieldLayout LAYOUT = FieldLayout.installGenerated(FieldLayout.generated(
+                ForeignLayoutEntity.class, "load-state-fixture-v1", IndexedEntity.__TEAQL_FIXED_FIELD_INDEXES,
+                IndexedEntity.__TEAQL_FIXED_FIELD_MAPPINGS, IndexedEntity.__TEAQL_FIXED_RELATION_NAMES));
+    }
+
     private static final java.util.concurrent.atomic.AtomicInteger COLD_INSTALLATIONS =
             new java.util.concurrent.atomic.AtomicInteger();
 
@@ -307,6 +313,53 @@ public class LoadStateTest {
         assertNull(row.getProperty("baseUrl"));
         assertThrows(IllegalArgumentException.class, () -> row.markPropertyLoaded("typo"));
         assertEquals(0L, row.__internalLoadState().bits());
+    }
+
+    @Test
+    public void canonicalMemberAndPhysicalAliasesShareOneBitWithoutCorruptingOtherFields() {
+        var layout = IndexedEntity.__TEAQL_FIELD_LAYOUT;
+        for (String alias : List.of("base_url", "baseUrl", "legacy_url")) {
+            var state = LoadState.projection(layout, List.of(alias));
+            assertEquals(1L << 2, state.bits());
+            for (String spelling : List.of("base_url", "baseUrl", "legacy_url")) {
+                assertTrue(state.isLoaded(spelling));
+                assertSame(state, state.withLoaded(spelling, true));
+            }
+            assertFalse(state.isLoaded("id"));
+            assertFalse(state.isLoaded("version"));
+            assertThrows(IllegalArgumentException.class, () -> state.withLoaded("base_ur1", true));
+            assertEquals(1L << 2, state.bits());
+        }
+        assertThrows(IllegalArgumentException.class, () -> FieldLayout.generated(IndexedEntity.class, "ambiguous",
+                Map.of("id", 0, "version", 1, "base_url", 2),
+                Map.of("id", List.of("id", "id"), "version", List.of("version", "version"),
+                        "base_url", List.of("baseUrl", "id")), Set.of()));
+    }
+
+    @Test
+    public void identicalBitPatternsCannotCrossEntityTypesOrModelRevisions() {
+        var first = new IndexedEntity();
+        var second = new ForeignLayoutEntity();
+        var firstState = LoadState.projection(IndexedEntity.__TEAQL_FIELD_LAYOUT, List.of("id", "field_64"));
+        var secondState = LoadState.projection(ForeignLayoutEntity.LAYOUT, List.of("id", "field_64"));
+        first.__internalUseLoadState(firstState);
+        second.__internalUseLoadState(secondState);
+        assertEquals(firstState.bits(), secondState.bits());
+        assertEquals(firstState.overflow(), secondState.overflow());
+        assertNotEquals(firstState, secondState);
+        assertThrows(IllegalArgumentException.class, () -> first.__internalUseLoadState(secondState));
+        assertThrows(IllegalArgumentException.class, () -> second.__internalUseLoadState(firstState));
+        var revision = FieldLayout.generated(IndexedEntity.class, "revision-v2",
+                IndexedEntity.__TEAQL_FIXED_FIELD_INDEXES, IndexedEntity.__TEAQL_FIXED_FIELD_MAPPINGS,
+                IndexedEntity.__TEAQL_FIXED_RELATION_NAMES);
+        assertThrows(IllegalArgumentException.class, () -> first.__internalUseLoadState(
+                LoadState.projection(revision, List.of("id", "field_64"))));
+        List<BaseEntity> rows = new ArrayList<>(List.of(first, second));
+        SmartList.takeOwnership(rows);
+        assertSame(firstState, first.__internalLoadState());
+        assertSame(secondState, second.__internalLoadState());
+        assertFalse(first.__internalHasMutationLedger());
+        assertFalse(second.__internalHasMutationLedger());
     }
 
     @Test
