@@ -12,6 +12,7 @@ public final class LoadState {
     private final Set<Integer> overflow;
     // Dynamic field selection, named relation materialization and unindexed adapter fields.
     private final Set<String> selectedNames;
+    private final DynamicPropertyMetadata dynamicPropertyMetadata;
     private final int hash;
     // Value-free memoization shared by the snapshot, never a per-entity payload.
     private volatile String[] dynamicCodes;
@@ -22,15 +23,22 @@ public final class LoadState {
 
     private LoadState(FieldLayout layout, long bits, Set<Integer> overflow, Set<String> selectedNames,
                       String[] dynamicCodes) {
+        this(layout, bits, overflow, selectedNames, dynamicCodes, null);
+    }
+
+    private LoadState(FieldLayout layout, long bits, Set<Integer> overflow, Set<String> selectedNames,
+                      String[] dynamicCodes, DynamicPropertyMetadata metadata) {
         this.layout = Objects.requireNonNull(layout, "layout");
         this.bits = bits;
         this.overflow = overflow;
         this.selectedNames = selectedNames;
         this.dynamicCodes = dynamicCodes;
+        this.dynamicPropertyMetadata = metadata;
         int result = System.identityHashCode(layout);
         result = 31 * result + Long.hashCode(bits);
         result = 31 * result + overflow.hashCode();
-        hash = 31 * result + selectedNames.hashCode();
+        result = 31 * result + selectedNames.hashCode();
+        hash = 31 * result + Objects.hashCode(metadata);
     }
 
     static LoadState empty(FieldLayout layout) {
@@ -63,6 +71,14 @@ public final class LoadState {
     public Set<Integer> overflow() { return overflow; }
     public Set<String> selectedNames() { return selectedNames; }
 
+    public DynamicPropertyMetadata dynamicPropertyMetadata() { return dynamicPropertyMetadata; }
+
+    /** Shared schema only: never marks a readonly property as loaded or present. */
+    public LoadState withDynamicPropertyMetadata(DynamicPropertyMetadata metadata) {
+        if (Objects.equals(dynamicPropertyMetadata, metadata)) return this;
+        return new LoadState(layout, bits, overflow, selectedNames, dynamicCodes, metadata);
+    }
+
     /** Build once for a dynamic-field batch shape, preserving fixed slots and relation markers. */
     public LoadState withDynamicSelection(Set<String> codes) {
         // A custom sorted comparator may equate different literal field codes.
@@ -82,7 +98,7 @@ public final class LoadState {
         Set<String> names = new HashSet<>(selectedNames);
         names.removeIf(name -> name.startsWith("#"));
         for (String code : stableCodes) names.add("#" + Objects.requireNonNull(code, "dynamic code"));
-        return new LoadState(layout, bits, overflow, Set.copyOf(names), stableCodes);
+        return new LoadState(layout, bits, overflow, Set.copyOf(names), stableCodes, dynamicPropertyMetadata);
     }
 
     private String[] dynamicCodes() {
@@ -113,16 +129,16 @@ public final class LoadState {
         if (isLoaded(field) == loaded) return this;
         if (index >= 0 && index < Long.SIZE) {
             long next = loaded ? bits | (1L << index) : bits & ~(1L << index);
-            return new LoadState(layout, next, overflow, selectedNames, dynamicCodes);
+            return new LoadState(layout, next, overflow, selectedNames, dynamicCodes, dynamicPropertyMetadata);
         }
         if (index >= Long.SIZE) {
             Set<Integer> next = new HashSet<>(overflow);
             if (loaded) next.add(index); else next.remove(index);
-            return new LoadState(layout, bits, Set.copyOf(next), selectedNames, dynamicCodes);
+            return new LoadState(layout, bits, Set.copyOf(next), selectedNames, dynamicCodes, dynamicPropertyMetadata);
         }
         Set<String> next = new HashSet<>(selectedNames);
         if (loaded) next.add(field); else next.remove(field);
-        return new LoadState(layout, bits, overflow, Set.copyOf(next));
+        return new LoadState(layout, bits, overflow, Set.copyOf(next), null, dynamicPropertyMetadata);
     }
 
     @Override
@@ -133,6 +149,7 @@ public final class LoadState {
         if (this == other) return true;
         if (!(other instanceof LoadState state)) return false;
         return layout == state.layout && bits == state.bits
-                && overflow.equals(state.overflow) && selectedNames.equals(state.selectedNames);
+                && overflow.equals(state.overflow) && selectedNames.equals(state.selectedNames)
+                && Objects.equals(dynamicPropertyMetadata, state.dynamicPropertyMetadata);
     }
 }

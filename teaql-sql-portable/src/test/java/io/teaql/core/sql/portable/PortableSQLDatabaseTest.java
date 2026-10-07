@@ -157,6 +157,25 @@ public class PortableSQLDatabaseTest {
         assertTrue("selected SQL NULL must still invoke the entity mapper", loaded.isLoaded("title"));
     }
 
+    @Test public void testReadonlyPropertySchemaSurvivesQueryWithoutInstallingMissingValues() {
+        sqliteDb.executeUpdate("INSERT INTO task_data (id, version, title, status) VALUES (?, ?, ?, ?)",
+            new Object[]{901L,1L,"schema control","PROPERTY-SCHEMA"});
+        TaskRequest request = new TaskRequest().filterByStatus("PROPERTY-SCHEMA");
+        request.setDynamicPropertyMetadata(new DynamicPropertyMetadata(Map.of("_missing",Long.class)));
+        SmartList<Task> rows = request.comment("load a readonly result-schema control")
+            .purpose("keep missing property distinct from a computed zero").executeForList(context);
+        assertEquals(1, rows.size());
+        Task row = rows.get(0);
+        assertSame(Long.class,row.getDynamicPropertyType("missing"));
+        assertNull(row.getDynamicProperty("missing"));assertFalse(row.hasDynamicProperty("missing"));
+        assertFalse(row.isPropertyLoaded("_missing"));assertTrue(row.getUpdatedProperties().isEmpty());
+        try (var stream = sqlDataService.<Task>getRepository("Task").streamInternal(context,request)) {
+            Task streamed = stream.findFirst().orElseThrow();
+            assertSame(Long.class,streamed.getDynamicPropertyType("missing"));
+            assertFalse(streamed.hasDynamicProperty("missing"));
+        }
+    }
+
     @Test
     public void TOPN_001_TO_009_windowAndProbePlansAreEquivalentOnSQLite() {
         registerTopNFixture();

@@ -794,6 +794,10 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 smartList.add(mapRowToEntity(userContext, executedRequest, row, projection, dynamicProperties));
             }
         }
+        if (request.getDynamicPropertyMetadata() != null) {
+            Map<io.teaql.core.LoadState, io.teaql.core.LoadState> states = new HashMap<>();
+            for (T entity : smartList.getData()) attachPropertyMetadata(entity, request.getDynamicPropertyMetadata(), states);
+        }
         registerContinuousPage(userContext, request, pageExecution, smartList.getData());
         if (idSetExecution.optimized()) {
             Map<Long, Integer> positions = new HashMap<>();
@@ -1192,16 +1196,31 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             io.teaql.core.CompiledRowMapper<T> mapper = extension instanceof io.teaql.core.CompiledRowMapper<?> supplied
                     ? (io.teaql.core.CompiledRowMapper<T>) supplied : compileRowMapper(request);
             if (mapper != null) {
-                return database.queryForStream(userContext, psql.sql, psql.args, mapper, psql.logBindings);
+                return withPropertyMetadata(database.queryForStream(userContext, psql.sql, psql.args, mapper, psql.logBindings), request.getDynamicPropertyMetadata());
             }
         }
         MapProjection[] projections = new MapProjection[16];
         SimpleNamedExpression[] dynamicProperties = request.getSimpleDynamicProperties().toArray(SimpleNamedExpression[]::new);
-        return database.queryForStream(userContext, psql.sql, psql.args, psql.logBindings)
+        return withPropertyMetadata(database.queryForStream(userContext, psql.sql, psql.args, psql.logBindings)
                 .map(row -> {
                     MapProjection shape = resolveMapProjection(request.returnType(), row, projections);
                     return mapRowToEntity(userContext, request, row, shape, dynamicProperties);
-                });
+                }), request.getDynamicPropertyMetadata());
+    }
+
+    private void attachPropertyMetadata(T entity, io.teaql.core.DynamicPropertyMetadata metadata,
+            Map<io.teaql.core.LoadState, io.teaql.core.LoadState> states) {
+        if (!(entity instanceof BaseEntity base)) {
+            throw new TeaQLRuntimeException("Readonly property metadata requires a runtime-owned entity carrier");
+        }
+        base.__internalUseLoadState(states.computeIfAbsent(base.__internalLoadState(),
+            shape -> shape.withDynamicPropertyMetadata(metadata)));
+    }
+
+    private Stream<T> withPropertyMetadata(Stream<T> source, io.teaql.core.DynamicPropertyMetadata metadata) {
+        if (metadata == null) return source;
+        Map<io.teaql.core.LoadState, io.teaql.core.LoadState> states = new HashMap<>();
+        return source.map(entity -> { attachPropertyMetadata(entity, metadata, states); return entity; });
     }
 
     private record MapBinding(PropertyDescriptor property, String column) {}

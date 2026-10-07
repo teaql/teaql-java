@@ -31,6 +31,10 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
 
     protected String comment;
     protected String purpose;
+    protected DynamicPropertyMetadata dynamicPropertyMetadata;
+
+    @Override public DynamicPropertyMetadata getDynamicPropertyMetadata() { return dynamicPropertyMetadata; }
+    public void setDynamicPropertyMetadata(DynamicPropertyMetadata metadata) { dynamicPropertyMetadata = metadata; }
 
     // select properties
     protected List<SimpleNamedExpression> projections = new ArrayList<>();
@@ -925,6 +929,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         if (!(pO instanceof BaseRequest<?> that)) return false;
         return Objects.equals(getProjections(), that.getProjections())
                 && Objects.equals(getSimpleDynamicProperties(), that.getSimpleDynamicProperties())
+                && Objects.equals(getDynamicPropertyMetadata(), that.getDynamicPropertyMetadata())
                 && Objects.equals(getSearchCriteria(), that.getSearchCriteria())
                 && Objects.equals(orderBys, that.orderBys)
                 && Objects.equals(getSlice(), that.getSlice())
@@ -946,6 +951,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         return Objects.hash(
                 getProjections(),
                 getSimpleDynamicProperties(),
+                getDynamicPropertyMetadata(),
                 getSearchCriteria(),
                 orderBys,
                 getSlice(),

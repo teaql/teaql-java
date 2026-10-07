@@ -11,6 +11,7 @@ import io.teaql.core.utils.StrUtil;
 import io.teaql.data.dynamic.DynamicFieldSelection;
 
 public interface SearchRequest<T extends Entity> {
+    default DynamicPropertyMetadata getDynamicPropertyMetadata() { return null; }
     int DEFAULT_HARD_LIMIT = 10_000;
     default String getTypeName() {
         String simpleName = this.getClass().getSimpleName();

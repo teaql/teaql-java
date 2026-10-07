@@ -41,6 +41,7 @@ public class TempRequest extends BaseRequest {
     private void copy(SearchRequest pRequest) {
         projections.addAll(pRequest.getProjections());
         simpleDynamicProperties.addAll(pRequest.getSimpleDynamicProperties());
+        dynamicPropertyMetadata = pRequest.getDynamicPropertyMetadata();
         searchCriteria = pRequest.getSearchCriteria();
         orderBys = pRequest.getOrderBy();
         slice = pRequest.getSlice();

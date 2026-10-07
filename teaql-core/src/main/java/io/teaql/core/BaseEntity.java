@@ -306,7 +306,9 @@ public class BaseEntity implements Entity {
 
     @Override
     public void addDynamicProperty(String propertyName, Object value) {
-        mutableAdditionalInfo().put(dynamicPropertyNameOf(propertyName), value);
+        String key = dynamicPropertyNameOf(propertyName);
+        if (loadState.dynamicPropertyMetadata() != null) loadState.dynamicPropertyMetadata().validate(key, value);
+        mutableAdditionalInfo().put(key, value);
     }
 
     @Override
@@ -324,6 +326,16 @@ public class BaseEntity implements Entity {
     @SuppressWarnings("unchecked")
     public <T> T getDynamicProperty(String propertyName) {
         return (T) additionalInfo.get(dynamicPropertyNameOf(propertyName));
+    }
+
+    public boolean hasDynamicProperty(String propertyName) {
+        return additionalInfo.containsKey(dynamicPropertyNameOf(propertyName));
+    }
+
+    @Override
+    public Class<?> getDynamicPropertyType(String propertyName) {
+        DynamicPropertyMetadata metadata = loadState.dynamicPropertyMetadata();
+        return metadata == null ? null : metadata.type(dynamicPropertyNameOf(propertyName));
     }
 
     private String dynamicPropertyNameOf(String propertyName) {
@@ -486,6 +498,9 @@ public class BaseEntity implements Entity {
     public void __internalUseLoadState(LoadState state) {
         if (state == null || state.layout() != FieldLayout.forType(getClass())) {
             throw new IllegalArgumentException("Incompatible entity load-state layout: " + typeName());
+        }
+        if (state.dynamicPropertyMetadata() != null) {
+            additionalInfo.forEach((name, value) -> state.dynamicPropertyMetadata().validate(name, value));
         }
         loadState = state;
     }
