@@ -104,6 +104,7 @@ class GeneratedSchoolLoadStateTest {
             school.updateUpdateTime(LocalDateTime.of(2023, 11, 14, 22, 13));
             school.auditAs("Create controlled shared-state probe").save(context);
         }
+        GeneratedPartialGraphCheckerAcceptance.verify(context, sql, first);
         var full = Q.schools().withNameIn(first, second).selectSelfFields()
                 .orderByIdAscending().limit(2).comment("what: read compatible full projections")
                 .purpose("why: inspect exact immutable state references").executeForList(context);
@@ -167,6 +168,14 @@ class GeneratedSchoolLoadStateTest {
         assertFalse(sparseRestored.isPropertyLoaded("address"));
         assertFalse(sparseRestored.__internalHasMutationLedger());
         assertTrue(sparseRestored.getUpdatedProperties().isEmpty());
+        var emptyNameJson = (com.fasterxml.jackson.databind.node.ObjectNode) sparseJson.get(0).deepCopy();
+        emptyNameJson.put("name", "");
+        var emptyName = mapper.treeToValue(emptyNameJson, School.class);
+        assertEquals("", E.school(emptyName).getName().eval());
+        assertTrue(emptyName.isPropertyLoaded("name"));
+        assertFalse(emptyName.isPropertyLoaded("address"));
+        assertFalse(emptyName.__internalHasMutationLedger());
+        System.out.println("PASS generated Java empty native value stays loaded without widening absent fields");
         var sparseSecondRestored = mapper.treeToValue(sparseJson.get(1), School.class);
         assertSame(sparseRestored.__internalLoadState(), sparseSecondRestored.__internalLoadState());
         assertEquals(sparseJson.get(0), mapper.readTree(mapper.writeValueAsString(sparseRestored)));

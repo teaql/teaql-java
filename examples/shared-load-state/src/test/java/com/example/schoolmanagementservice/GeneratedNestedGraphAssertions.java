@@ -144,11 +144,13 @@ final class GeneratedNestedGraphAssertions {
         assertEquals(1001L, filtered.getSchoolType().getId());
         assertTrue(filtered.getSchoolType().isPropertyLoaded("id"), "FK identity cannot become NotLoaded with excluded details");
         assertFalse(filtered.getSchoolType().isPropertyLoaded("code"));
+        assertThrows(RuntimeException.class, () -> E.school(filtered).getSchoolType().getCode().eval());
         var filteredJson = mapper.readTree(mapper.writeValueAsString(filtered));
         assertFalse(filteredJson.get("schoolType").has("code"));
         var restoredFiltered = mapper.treeToValue(filteredJson, filtered.getClass());
         assertEquals(1001L, restoredFiltered.getSchoolType().getId());
         assertFalse(restoredFiltered.getSchoolType().isPropertyLoaded("code"));
+        assertThrows(RuntimeException.class, () -> E.school(restoredFiltered).getSchoolType().getCode().eval());
         assertFalse(restoredFiltered.__internalHasMutationLedger());
         System.out.println("PASS generated Java LF08 loaded FK and excluded forward details stay distinct");
         System.out.println("PASS generated Java typed JSON graph roundtrip and Empty/NotLoaded isolation");

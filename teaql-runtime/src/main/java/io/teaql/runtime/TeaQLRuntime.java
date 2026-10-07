@@ -547,23 +547,52 @@ public class TeaQLRuntime {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private void checkAndFix(UserContext context, Entity entity) {
-        Checker checker = checkers.get(entity.runtimeType());
-        if (checker == null) {
-            checker = checkers.get(entity.typeName());
-        }
-        if (checker == null) {
-            return;
-        }
-        try (var invocation = io.teaql.core.checker.internal.CheckerInvocation.open(context)) {
+        if (checkers.isEmpty()) return;
+        try (var invocation = io.teaql.core.checker.internal.CheckerInvocation.openMutation(context)) {
             context.beginFixEvidence();
             try {
-                checker.checkAndFix(context, (BaseEntity) entity);
+                checkGraphMutations(context, entity, null,
+                        Collections.newSetFromMap(new IdentityHashMap<>()));
                 List<CheckResult> violations = (List<CheckResult>) invocation.attribute(Checker.TEAQL_DATA_CHECK_RESULT);
                 if (violations != null && !violations.isEmpty()) {
                     throw new CheckException(new ArrayList<>(violations));
                 }
             } finally {
                 context.finishFixEvidence();
+            }
+        }
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private void checkGraphMutations(UserContext context, Entity entity,
+            io.teaql.core.checker.ObjectLocation location, Set<Entity> visited) {
+        if (!(entity instanceof BaseEntity base) || !visited.add(entity)) return;
+        Checker checker = checkers.get(entity.runtimeType());
+        if (checker == null) checker = checkers.get(entity.typeName());
+        if (checker != null && checker.needCheck(context, base)) {
+            checker.checkAndFix(context, base, location);
+        }
+        // An untouched partial parent must not hide a dirty descendant. Generated
+        // Checkers may stop at that parent, so persistence walks the graph itself.
+        EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());
+        for (EntityDescriptor current = descriptor; current != null; current = current.getParent()) {
+            for (PropertyDescriptor property : current.getProperties()) {
+                if (!(property instanceof io.teaql.core.meta.Relation)) continue;
+                String member = io.teaql.core.utils.NamingCase.toUnderlineCase(property.getName());
+                var childLocation = location == null
+                        ? io.teaql.core.checker.ObjectLocation.hashRoot(member) : location.member(member);
+                Object value = entity.getProperty(property.getName());
+                if (value instanceof Entity child) {
+                    checkGraphMutations(context, child, childLocation, visited);
+                } else if (value instanceof Iterable<?> children) {
+                    int index = 0;
+                    for (Object child : children) {
+                        if (child instanceof Entity related) {
+                            checkGraphMutations(context, related, childLocation.element(index), visited);
+                        }
+                        index++;
+                    }
+                }
             }
         }
     }

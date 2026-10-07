@@ -28,12 +28,14 @@ public final class CheckerInvocation implements AutoCloseable {
 
     private final UserContext context;
     private final CheckerInvocation parent;
+    private final boolean mutationOnly;
     private final Map<String, Object> attributes = new HashMap<>();
     private boolean closed;
 
-    private CheckerInvocation(UserContext context) {
+    private CheckerInvocation(UserContext context, boolean mutationOnly) {
         this.context = java.util.Objects.requireNonNull(context, "context");
         this.parent = ACTIVE.get();
+        this.mutationOnly = mutationOnly;
         attributes.put(Checker.TEAQL_DATA_CHECK_RESULT, new ArrayList<CheckResult>());
         attributes.put(Checker.TEAQL_DATA_CHECKED_ITEMS, new ArrayList<>());
         attributes.put(UserContext.TEAQL_FIX_EVIDENCE_CURRENT, new ArrayList<FixEvidence>());
@@ -44,7 +46,16 @@ public final class CheckerInvocation implements AutoCloseable {
 
     /** Internal synchronous runtime boundary; do not open scopes in business code. */
     public static CheckerInvocation open(UserContext context) {
-        return new CheckerInvocation(context);
+        return new CheckerInvocation(context, false);
+    }
+
+    /** Save validates changed objects, not untouched partial reference details. */
+    public static CheckerInvocation openMutation(UserContext context) {
+        return new CheckerInvocation(context, true);
+    }
+
+    public boolean mutationOnly() {
+        return mutationOnly;
     }
 
     public static CheckerInvocation current(UserContext context) {

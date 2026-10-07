@@ -96,6 +96,7 @@ class GeneratedInheritedSchoolLoadStateTest {
                 .comment("what: load an incomplete inherited projection").purpose("why: retain full-object Checker enforcement")
                 .executeForOne(context);
         assertFalse(sparse.__internalLoadState().isLoaded("name"));
+        sparse.updateCampusCode("incomplete inherited mutation");
         assertThrows(CheckException.class, () -> sparse.auditAs("reject sparse inherited save").save(context));
         var changed = full.get(0);
         Long siblingVersion = full.get(1).getVersion();
