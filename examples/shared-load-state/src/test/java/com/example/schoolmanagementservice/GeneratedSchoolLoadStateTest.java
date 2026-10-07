@@ -199,6 +199,12 @@ class GeneratedSchoolLoadStateTest {
                 .auditAs("Reject sparse whole-object update").save(context));
         assertArrayEquals(beforeRejectedSave, sql.counts(),
                 "Checker must reject before read, write or transaction provider entry");
+        assertFalse(sparse.get(0).isPropertyLoaded("active"),
+                "checker cannot promote an absent false default into loaded state");
+        assertFalse(sparse.get(0).isPropertyLoaded("establishedDate"));
+        assertTrue(sparse.get(0).isPropertyLoaded("address"), "the explicit caller mutation must remain loaded");
+        assertSame(sparseState, sparse.get(1).__internalLoadState(), "validation cannot widen a sibling projection");
+        System.out.println("PASS generated Java Checker preserves NotLoaded and sibling load boundaries");
 
         var changed = full.get(0);
         Long originalVersion = changed.getVersion();
