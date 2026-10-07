@@ -263,6 +263,32 @@ public class LoadStateTest {
     }
 
     @Test
+    public void deferredGroupingHandlesRepeatedFirstShapeAndLinkedLists() {
+        var layout = FieldLayout.forType(IndexedEntity.class);
+        for (boolean linked : new boolean[]{false,true}) {
+            var firstShape = LoadState.projection(layout, List.of("id"));
+            var fullShape = LoadState.projection(layout, List.of("id", "baseUrl"));
+            var equalFirst = LoadState.projection(layout, List.of("id"));
+            var equalFull = LoadState.projection(layout, List.of("baseUrl", "id"));
+            assertNotSame(firstShape,equalFirst);assertNotSame(fullShape,equalFull);
+            List<IndexedEntity> rows = linked ? new java.util.LinkedList<>() : new ArrayList<>();
+            for(var state : List.of(firstShape,firstShape,fullShape,equalFirst,equalFull,firstShape)) {
+                var row=new IndexedEntity();row.__internalUseLoadState(state);rows.add(row);
+            }
+            var list=SmartList.takeOwnership(rows);
+            assertSame(firstShape,list.get(0).__internalLoadState());
+            assertSame(firstShape,list.get(1).__internalLoadState());
+            assertSame(firstShape,list.get(3).__internalLoadState());
+            assertSame(firstShape,list.get(5).__internalLoadState());
+            assertSame(fullShape,list.get(2).__internalLoadState());
+            assertSame(fullShape,list.get(4).__internalLoadState());
+            assertFalse(list.get(3).isPropertyLoaded("baseUrl"));
+            list.__internalShareLoadStates();
+            assertSame(firstShape,list.get(3).__internalLoadState());
+        }
+    }
+
+    @Test
     public void hydrateIndexMismatchFailsBeforeWritingAndUnknownNamesCannotCorruptBits() {
         IndexedEntity row = new IndexedEntity();
         assertThrows(IllegalArgumentException.class, () -> row.__internalHydrate("baseUrl", "bad", 1));

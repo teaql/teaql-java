@@ -124,10 +124,24 @@ public class SmartList<T extends Entity> implements Iterable<T> {
     @FrameworkInternal("Hydration result finalization only")
     public void __internalShareLoadStates() {
         if (data == null || data.size() < 2) return;
-        Map<LoadState, LoadState> shapes = new HashMap<>();
-        for (T entity : data) {
+        LoadState first = null;
+        Map<LoadState, LoadState> shapes = null;
+        // Indexed traversal avoids an iterator allocation on the normal ArrayList
+        // result, while non-random-access lists retain linear traversal.
+        Iterator<T> iterator = data instanceof java.util.RandomAccess ? null : data.iterator();
+        int index = 0;
+        while (iterator == null ? index < data.size() : iterator.hasNext()) {
+            T entity = iterator == null ? data.get(index++) : iterator.next();
             if (!(entity instanceof BaseEntity base)) continue;
             LoadState state = base.__internalLoadState();
+            if (first == null) { first = state; continue; }
+            // Compiled hydration already supplies the same immutable snapshot.
+            // No grouping index is needed unless another reference appears.
+            if (state == first) continue;
+            if (shapes == null) {
+                shapes = new HashMap<>();
+                shapes.put(first, first);
+            }
             LoadState shared = shapes.putIfAbsent(state, state);
             if (shared != null && shared != state) base.__internalUseLoadState(shared);
         }

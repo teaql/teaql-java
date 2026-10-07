@@ -110,6 +110,7 @@ class GeneratedSchoolLoadStateTest {
         assertEquals(2, full.size());
         LoadState snapshot = full.get(0).__internalLoadState();
         assertSame(snapshot, full.get(1).__internalLoadState());
+        LoadStateAllocationTest.verifyGeneratedSharing(full);
         FieldLayout layout = FieldLayout.forType(School.class);
         assertSame(layout, snapshot.layout());
         assertEquals(School.__TEAQL_FIELD_LAYOUT_REVISION, layout.revision());

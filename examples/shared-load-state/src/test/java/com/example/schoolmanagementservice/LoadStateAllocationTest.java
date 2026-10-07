@@ -18,6 +18,67 @@ public class LoadStateAllocationTest {
     private static volatile Object consumed;
     private static final class Probe extends BaseEntity {}
     private record Sample(long bytes, long nanos) {}
+    static void verifyGeneratedSharing(io.teaql.core.SmartList<?> list) {
+        var bean=(com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
+        assertTrue(bean.isThreadAllocatedMemorySupported());bean.setThreadAllocatedMemoryEnabled(true);
+        var control=measure(bean,1,() -> consumed=new byte[8]);
+        assertTrue(control.bytes()>0,"allocation counter must observe its positive control");
+        var state=((BaseEntity)list.first()).__internalLoadState();
+        for(var row:list)assertSame(state,((BaseEntity)row).__internalLoadState());
+        Runnable action=list::__internalShareLoadStates;
+        for(int i=0;i<10_000;i++)action.run();
+        // Warm the exact counter/action invocation path, not only the list loop.
+        // Counter/JIT initialization is excluded from the steady-state claim.
+        for(int i=0;i<100;i++)measure(bean,100,action);
+        for(int iterations:new int[]{1,100,10_000}) {
+            int consecutiveZero=0;
+            for(int attempt=0;attempt<20 && consecutiveZero<3;attempt++) {
+                long bytes=measure(bean,iterations,action).bytes();
+                // A bounded stable window excludes intermittent JVM counter/JIT
+                // setup, but cannot accept an action that allocates on every call.
+                consecutiveZero=bytes==0?consecutiveZero+1:0;
+                System.out.printf("GENERATED_LIST_FINALIZE,%d,%d,%d%n",iterations,attempt,bytes);
+            }
+            assertEquals(3,consecutiveZero,"shared generated lists require three consecutive allocation-free samples");
+        }
+        for(var row:list)assertSame(state,((BaseEntity)row).__internalLoadState());
+        System.out.println("PASS generated Java homogeneous list finalization allocates zero and preserves shared state");
+    }
+    private static final class SharingProbe extends BaseEntity {
+        static {
+            Map<String,Integer> indexes = new LinkedHashMap<>();
+            Map<String,List<String>> mappings = new LinkedHashMap<>();
+            for(int i=0;i<130;i++) {
+                String name=i==0?"id":i==1?"version":"field_"+i;
+                indexes.put(name,i);mappings.put(name,List.of(name,name));
+            }
+            FieldLayout.installGenerated(FieldLayout.generated(SharingProbe.class,"sharing-v1",indexes,mappings,Set.of()));
+        }
+    }
+
+    @Test
+    public void homogeneousListFinalizationAllocationProbe() {
+        var bean=(com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
+        assertTrue(bean.isThreadAllocatedMemorySupported());bean.setThreadAllocatedMemoryEnabled(true);
+        new SharingProbe(); // Install type metadata outside measurement.
+        var layout=FieldLayout.forType(SharingProbe.class);
+        for(boolean wide:new boolean[]{false,true}) {
+            List<String> fields=new ArrayList<>();
+            for(int i=0;i<(wide?130:3);i++)fields.add(i==0?"id":i==1?"version":"field_"+i);
+            var shape=LoadState.projection(layout,fields).withDynamicSelection(Set.of("note"));
+            for(int count:new int[]{1,100,10_000}) {
+                List<SharingProbe> rows=new ArrayList<>(count);
+                for(int i=0;i<count;i++){var row=new SharingProbe();row.__internalUseLoadState(shape);rows.add(row);}
+                var list=io.teaql.core.SmartList.takeOwnership(rows);
+                Runnable action=list::__internalShareLoadStates;
+                for(int i=0;i<4_000;i++)action.run();
+                var sample=measure(bean,100,action);
+                for(var row:rows)assertSame(shape,row.__internalLoadState());
+                System.out.printf("LIST_FINALIZE,%s,%d,%d%n",wide,count,sample.bytes());
+                assertEquals(0,sample.bytes(),"already-shared list finalization must not build a grouping index");
+            }
+        }
+    }
 
     // Retained old no-op algorithm, not a production compatibility path.
     private static LoadState referenceDynamicNoop(LoadState state, Set<String> codes) {
