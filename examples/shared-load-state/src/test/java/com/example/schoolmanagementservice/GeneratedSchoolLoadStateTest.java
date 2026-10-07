@@ -299,6 +299,7 @@ class GeneratedSchoolLoadStateTest {
         System.out.println("PASS generated Java dynamic storage provenance and retry");
         var combined = GeneratedDynamicRollbackAcceptance.verify(context, sql, extended, renamed, second, extension, provider, definitionContext);
         String deletionName = combined.getName();
+        GeneratedNamespaceCowAcceptance.verify(context,combined.getId(),deletionName,second,extension,provider,definitionContext,mapper);
         // Partial related objects are valid for E reads, not for whole-graph Checker validation.
         var forDeletion = Q.schools().withIdIs(changed.getId()).limit(1)
                 .comment("what: reload the full native School before deletion")

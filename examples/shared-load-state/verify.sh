@@ -83,6 +83,8 @@ for round in first second; do
   rg -F "PASS generated Java LF08 loaded FK and excluded forward details stay distinct" "$run_dir/$round.log"
   rg -F "PASS generated Java LF09 reverse Loaded/Empty/NotLoaded through Q/E/JSON" "$run_dir/$round.log"
   rg -F "PASS generated Java LF17 dynamic metadata shared without fixed slots" "$run_dir/$round.log"
+  rg -F "PASS generated Java LF19 fixed derived and persistent same-name namespace isolation" "$run_dir/$round.log"
+  rg -F "PASS generated Java LF23 dynamic availability detaches only one view" "$run_dir/$round.log"
   rg -F "PASS generated Java homogeneous list finalization allocates zero and preserves shared state" "$run_dir/$round.log"
   rg -F "PASS Java real typed stream loaded state and provider allocation controls" "$run_dir/$round.log"
   if [[ "$fixture_inheritance" == true ]]; then
