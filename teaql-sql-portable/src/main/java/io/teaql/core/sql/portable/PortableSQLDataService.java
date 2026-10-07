@@ -100,13 +100,24 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
     }
 
     private void attachDynamicFields(UserContext context, SmartList<?> results, SearchRequest<?> request) {
+        attachDynamicFields(context, results, request, new java.util.HashMap<>());
+    }
+
+    private void attachDynamicFields(UserContext context, SmartList<?> results, SearchRequest<?> request,
+            Map<LoadState, Map<Set<String>, LoadState>> shapes) {
         var selection = request.getDynamicFieldSelection();
         if (selection == null || results.isEmpty()) return;
         var owners = new java.util.ArrayList<io.teaql.data.dynamic.DynamicOwnerRef>(results.size());
         for (Entity entity : results) owners.add(io.teaql.data.dynamic.DynamicOwnerRef.of(entity.typeName(), entity.getId()));
         var batch = context.dynamicFields().purpose(request.purpose()).comment(request.comment()).readAll(owners, selection);
+        // Validate every owner/carrier before changing any entity in the batch.
+        for (var owner : owners) {
+            if (batch.get(owner) == null) throw new TeaQLRuntimeException("Dynamic field batch omitted owner " + owner);
+        }
+        for (Entity entity : results) {
+            if (!(entity instanceof BaseEntity)) throw new TeaQLRuntimeException("Dynamic fields require a runtime-owned entity carrier");
+        }
         // One named-selection set per actual loaded shape, not one copy per row.
-        var shapes = new java.util.HashMap<io.teaql.core.LoadState, java.util.Map<java.util.Set<String>, io.teaql.core.LoadState>>();
         int index = 0;
         for (Entity entity : results) {
             var owner = owners.get(index++);
@@ -137,12 +148,16 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         if (source == null) source = new SqlIntentRedactions();
         var statements = new java.util.concurrent.CopyOnWriteArrayList<ExecutionMetadata>();
         SearchRequest<T> scoped = SqlDiagnosticRequest.collecting(searchRequest, source, request.intent(), statements::add);
-        if (scoped.hasSimpleAgg() || !scoped.enhanceRelations().isEmpty() || !scoped.enhanceChildren().isEmpty()
-                || scoped.getDynamicFieldSelection() != null) {
-            throw new TeaQLRuntimeException("Streaming aggregation/relation/dynamic-field enhancement is not supported; stream root rows only");
+        if (scoped.hasSimpleAgg() || !scoped.enhanceRelations().isEmpty() || !scoped.enhanceChildren().isEmpty()) {
+            throw new TeaQLRuntimeException("Streaming aggregation/relation enhancement is not supported; stream root rows only");
         }
-        return new QueryCursor<>(this.<T>getRepository(scoped.getTypeName()).streamInternal(context, scoped),
-                () -> statements);
+        var stream = this.<T>getRepository(scoped.getTypeName()).streamInternal(context, scoped);
+        if (scoped.getDynamicFieldSelection() != null) {
+            var shapes = new HashMap<LoadState, Map<Set<String>, LoadState>>();
+            stream = BatchedRootStream.enhance(stream, 128,
+                    batch -> attachDynamicFields(context, batch, scoped, shapes));
+        }
+        return new QueryCursor<>(stream, () -> statements);
     }
 
     private void attachDynamicAggregations(

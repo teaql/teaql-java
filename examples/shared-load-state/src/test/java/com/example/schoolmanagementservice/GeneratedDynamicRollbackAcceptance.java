@@ -32,6 +32,24 @@ final class GeneratedDynamicRollbackAcceptance {
                 .purpose("why: seed an explicit NULL through audited mutation").executeForOne(context);
         companion.updateDynamicField(code, null);
         companion.auditAs("seed the combined-state null control").save(context);
+        var streamRequest = Q.schoolsWithMinimalFields().withNameIn(firstName, secondName).selectName();
+        streamRequest.selectDynamicFieldsWith(selection);
+        java.util.List<School> streamed;
+        try (var stream = streamRequest.orderByIdAscending().limit(2)
+                .comment("what: stream sparse Schools with selected persistent extensions")
+                .purpose("why: retain Value NULL and NotLoaded after cursor cleanup").executeForStream(context)) {
+            streamed = stream.toList();
+        }
+        assertEquals(2, streamed.size());
+        assertSame(streamed.get(0).__internalLoadState(), streamed.get(1).__internalLoadState());
+        assertEquals("matrix baseline", streamed.get(0).dynamicFields().field(code).value());
+        assertEquals(DynamicFieldValue.State.NULL, streamed.get(1).dynamicFields().field(code).state());
+        for (var row : streamed) {
+            assertFalse(row.isPropertyLoaded("address"));
+            assertEquals(DynamicFieldValue.State.NOT_LOADED, row.dynamicFields().field(unused).state());
+            assertFalse(row.__internalHasMutationLedger());
+        }
+        System.out.println("PASS generated Java dynamic stream Value/Null/NotLoaded and shared snapshots");
         var all = Q.schools().withNameIn(firstName, secondName);
         all.selectDynamicFieldsWith(selection);
         var rows = all.orderByIdAscending().limit(2).comment("what: load value and null extensions together")

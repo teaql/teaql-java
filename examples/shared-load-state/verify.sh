@@ -72,6 +72,7 @@ for round in first second; do
   rg -F "PASS generated Java sparse Checker rejects before provider entry" "$run_dir/$round.log"
   rg -F "PASS generated Java Q selection and real JDBC column-order invariance" "$run_dir/$round.log"
   rg -F "PASS generated Java page and stream shared load state" "$run_dir/$round.log"
+  rg -F "PASS generated Java dynamic stream Value/Null/NotLoaded and shared snapshots" "$run_dir/$round.log"
   rg -F "PASS generated Java Checker preserves NotLoaded and sibling load boundaries" "$run_dir/$round.log"
   rg -F "PASS generated Java dynamic storage provenance and retry" "$run_dir/$round.log"
   rg -F "PASS generated Java mixed dynamic Value/Null/NotLoaded list lifetime readback rollback and retry" "$run_dir/$round.log"
