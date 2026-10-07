@@ -301,9 +301,12 @@ class GeneratedSchoolLoadStateTest {
         extended.updateDynamicField(extension, "must not cross storage profile");
         context.putAttribute(DynamicFieldsFacade.class.getName(),
                 new DefaultDynamicFieldsFacade(provider, DynamicFieldScope.of("PROFILE", "other")));
+        var beforeProvenanceRejection = sql.counts();
         var rejected = assertThrows(DynamicFieldException.class,
                 () -> extended.auditAs("Reject held dynamic view in another profile").save(context));
         assertEquals("DYNAMIC_FIELD_STORAGE_PROVENANCE_MISMATCH", rejected.errorCode());
+        assertArrayEquals(beforeProvenanceRejection, sql.counts(),
+                "Held storage provenance must reject before provider entry");
         assertEquals(heldVersion, extended.getVersion());
         assertFalse(extended.__internalDynamicMutations().isEmpty());
         context.putAttribute(DynamicFieldsFacade.class.getName(),
@@ -314,13 +317,17 @@ class GeneratedSchoolLoadStateTest {
                 .readAll(new DynamicFieldSelection().selectString(extension));
         assertEquals("Private extension", stored.getString(extension));
         extended.updateDynamicField(extension, null);
+        var beforeValidExtensionSave = sql.counts();
         extended.auditAs("Persist explicit extension NULL").save(context);
+        assertFalse(java.util.Arrays.equals(beforeValidExtensionSave, sql.counts()),
+                "Positive control: a valid extension save must enter the provider");
         assertEquals(DynamicFieldValue.State.NULL, extended.dynamicFields().field(extension).state());
         extended.deleteDynamicField(extension);
         extended.auditAs("Delete the extension without confusing it with NULL").save(context);
         assertEquals(DynamicFieldValue.State.NOT_LOADED, extended.dynamicFields().field(extension).state());
         assertEquals("readonly-derived-name", extended.getProperty("_name"));
         System.out.println("PASS generated Java dynamic storage provenance and retry");
+        System.out.println("PASS generated Java LF20 held provenance rejects before provider with valid-save positive control");
         var combined = GeneratedDynamicRollbackAcceptance.verify(context, sql, extended, renamed, second, extension, provider, definitionContext);
         String deletionName = combined.getName();
         GeneratedNamespaceCowAcceptance.verify(context,combined.getId(),deletionName,second,extension,provider,definitionContext,mapper);
