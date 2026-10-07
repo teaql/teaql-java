@@ -45,6 +45,31 @@ public class DynamicMemberStateTest {
     }
 
     @Test
+    public void readonlyFalseEmptyNullAndAbsenceHavePrivatePresenceWithoutMutationOrSlots() {
+        Row row = new Row();
+        var state = row.__internalLoadState();
+        row.addDynamicProperty("flag", false);
+        row.addDynamicProperty("empty", "");
+        row.addDynamicProperty("null", null);
+        assertEquals(Boolean.FALSE, row.getDynamicProperty("flag"));
+        assertEquals("", row.getDynamicProperty("empty"));
+        assertNull(row.getDynamicProperty("null"));
+        assertNull(row.getDynamicProperty("absent"));
+        assertTrue(row.hasDynamicProperty("flag"));
+        assertTrue(row.hasDynamicProperty("empty"));
+        assertTrue(row.hasDynamicProperty("null"));
+        assertFalse(row.hasDynamicProperty("absent"));
+        assertSame(state, row.__internalLoadState());
+        for (String name : List.of("_flag", "_empty", "_null", "_absent")) {
+            assertFalse(row.isPropertyLoaded(name));
+            assertNull(state.layout().findIndex(name));
+        }
+        assertTrue(row.getUpdatedProperties().isEmpty());
+        assertFalse(row.__internalHasMutationLedger());
+        assertEquals(0, row.collectDynamicFieldValues().size());
+    }
+
+    @Test
     public void sharedSelectionKeepsWrapperNullAndValuePrivateAndLeavesFixedSlotsUnchanged() {
         DynamicFieldMetadata metadata = new DynamicFieldMetadata(Map.of("note", DynamicDataType.STRING, "extra", DynamicDataType.STRING));
         Row first = new Row(); Row second = new Row();
