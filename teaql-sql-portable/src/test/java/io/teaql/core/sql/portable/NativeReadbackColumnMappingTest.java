@@ -24,6 +24,9 @@ public class NativeReadbackColumnMappingTest {
         String customerReference;
         LocalDate establishedDate;
         Integer counterValue;
+        void updateReference(String value) {
+            handleUpdate("customerReference",customerReference,value);customerReference=value;
+        }
         @Override public Object __internalGet(String name) {
             return switch (name) {
                 case "customerReference" -> customerReference;
@@ -45,6 +48,9 @@ public class NativeReadbackColumnMappingTest {
     record Fixture(PortableSQLDatabaseTest.SQLiteTeaQLDatabase database,
                    PortableSQLRepository<Row> repository, DefaultUserContext context) {}
     private Fixture fixture() throws Exception {
+        return fixture(false);
+    }
+    private Fixture fixture(boolean preparedQueries) throws Exception {
         assertNotNull(Row.LAYOUT);
         var descriptor = new EntityDescriptor();
         descriptor.setType("Row"); descriptor.setTargetType(Row.class); descriptor.setEntitySupplier(Row::new);
@@ -63,7 +69,17 @@ public class NativeReadbackColumnMappingTest {
         descriptor.setProperties(properties);
         var metadata = new SimpleEntityMetaFactory(); metadata.register(descriptor);
         var context = new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata).queryExecutionLogging(false).build());
-        var database = new PortableSQLDatabaseTest.SQLiteTeaQLDatabase();
+        var database = new PortableSQLDatabaseTest.SQLiteTeaQLDatabase() {
+            @Override public List<Map<String,Object>> query(String sql,Object[] args) {
+                if(preparedQueries && sql.startsWith("SELECT *") && args.length==1) {
+                    Map<String,Object> row=new LinkedHashMap<>();
+                    row.put("id",args[0]);row.put("version",1L);row.put("external_ref","CR-"+args[0]);
+                    row.put("started_on","2026-10-07");row.put("counter_value",null);
+                    return List.of(row);
+                }
+                return super.query(sql,args);
+            }
+        };
         var repository = new PortableSQLRepository<Row>(descriptor, database, type -> null, metadata);
         repository.ensurePhysicalSchema(context);
         return new Fixture(database, repository, context);
@@ -86,5 +102,40 @@ public class NativeReadbackColumnMappingTest {
                     new Object[]{1L, 1L, "CR-A", invalid, null});
             assertThrows(DateTimeParseException.class, () -> fixture.repository.loadPersistedById(fixture.context, 1L));
         }
+    }
+    @Test public void repeatedNativeReadbackSharesOnlyGeometryNotValuesOrMutationOwnership() throws Exception {
+        var fixture = fixture();
+        fixture.database.executeUpdate("INSERT INTO native_readback_data(id,version,external_ref,STARTED_ON,counter_value) VALUES(?,?,?,?,?)",
+                new Object[]{1L,1L,"CR-A","2026-10-07",null});
+        fixture.database.executeUpdate("INSERT INTO native_readback_data(id,version,external_ref,STARTED_ON,counter_value) VALUES(?,?,?,?,?)",
+                new Object[]{2L,1L,"CR-B","2026-10-08",0});
+        var first=fixture.repository.loadPersistedById(fixture.context,1L);
+        var second=fixture.repository.loadPersistedById(fixture.context,2L);
+        assertSame(first.__internalLoadState(),second.__internalLoadState());
+        assertEquals("CR-A",first.customerReference);assertEquals("CR-B",second.customerReference);
+        assertNull(first.counterValue);assertEquals(Integer.valueOf(0),second.counterValue);
+        first.updateReference("CR-C");
+        assertSame(first.__internalLoadState(),second.__internalLoadState());
+        assertEquals("CR-B",second.customerReference);
+        assertTrue(second.getUpdatedProperties().isEmpty());assertFalse(second.__internalHasMutationLedger());
+    }
+    @Test public void concurrentColdReadbacksUseOneWinningImmutableShape() throws Exception {
+        var fixture=fixture(true);
+        var start=new java.util.concurrent.CountDownLatch(1);
+        var pool=java.util.concurrent.Executors.newFixedThreadPool(16);
+        try {
+            List<java.util.concurrent.Future<Row>> tasks=new ArrayList<>();
+            for(long id=1;id<=16;id++) {
+                long requested=id;
+                tasks.add(pool.submit(()->{start.await();return fixture.repository.loadPersistedById(fixture.context,requested);}));
+            }
+            start.countDown();LoadState first=null;
+            for(int index=0;index<tasks.size();index++) {
+                var row=tasks.get(index).get(20,java.util.concurrent.TimeUnit.SECONDS);
+                if(first==null)first=row.__internalLoadState();else assertSame(first,row.__internalLoadState());
+                assertEquals("CR-"+(index+1),row.customerReference);
+                assertTrue(row.getUpdatedProperties().isEmpty());assertFalse(row.__internalHasMutationLedger());
+            }
+        } finally {pool.shutdownNow();}
     }
 }

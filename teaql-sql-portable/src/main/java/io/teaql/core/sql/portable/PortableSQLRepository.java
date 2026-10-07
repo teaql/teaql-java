@@ -91,6 +91,9 @@ import io.teaql.core.utils.StrUtil;
  * Reuses SQLRepository's SQL building logic (buildDataSQL, etc.).
  */
 public class PortableSQLRepository<T extends Entity> implements SqlCompilerDelegate {
+    // Value-free, bounded hints for repeated authoritative reads of this fixed type.
+    // Neither row values, actor policy nor mutation ownership enters this cache.
+    private final MapProjection[] nativeReadbackProjections = new MapProjection[16];
 
     private static final Pattern NAMED_PARAM = Pattern.compile(":(\\w+)");
     public static final String CONTINUOUS_PAGE_PLAN = "teaql.continuousPage.plan";
@@ -1139,7 +1142,10 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         Map<String, Object> row = rows.get(0);
         // SELECT * returns physical column names, unlike the aliased normal Q path.
         // Install the actual geometry once before setters hydrate native values.
-        MapProjection projection = mapProjection(entityDescriptor.getTargetType(), row);
+        MapProjection projection;
+        synchronized (nativeReadbackProjections) {
+            projection = resolveMapProjection(entityDescriptor.getTargetType(), row, nativeReadbackProjections);
+        }
         if (entity instanceof BaseEntity base && projection.loadedState() != null) {
             base.__internalUseLoadState(projection.loadedState());
         }

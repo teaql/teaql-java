@@ -6,7 +6,7 @@ test_targets=LoadStateAllocationTest,HydrationAllocationTest
 wide=false
 case "${1:-}" in
   "") ;;
-  --wide) wide=true; test_targets+=,GeneratedWideHydrationAllocationTest ;;
+  --wide) wide=true; test_targets+=,GeneratedWideHydrationAllocationTest,GeneratedReadbackAllocationTest ;;
   *) printf 'Usage: bash verify-allocations.sh [--wide]\n' >&2; exit 2 ;;
 esac
 if (( $# > 1 )); then printf 'Unexpected arguments\n' >&2; exit 2; fi
@@ -39,6 +39,9 @@ if [[ "$wide" == true ]]; then
   printf 'case,entity,selected_fields,rows,allocated_bytes,elapsed_ns\n' >"$run_dir/wide-hydration.csv"
   rg '^generated_wide_hydration,' "$run_dir/probe.log" >>"$run_dir/wide-hydration.csv"
   rg -F 'PASS generated Java wide hydration shares one overflow snapshot per shape' "$run_dir/probe.log"
+  printf 'case,rows,incremental_reference_bytes,current_bytes\n' >"$run_dir/native-readback.csv"
+  rg '^NATIVE_READBACK_ALLOC,' "$run_dir/probe.log" >>"$run_dir/native-readback.csv"
+  rg -F 'PASS generated Java authoritative readback reuses one actual shape and avoids per-field overflow copies' "$run_dir/probe.log"
 fi
 sha256sum --check --quiet "$run_dir/generated-source.sha256"
 printf 'PASS Java warmed load-state allocation probe\n'
