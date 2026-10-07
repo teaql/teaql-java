@@ -89,6 +89,10 @@ class DriverQueryBenchmarkTest {
         // Synthetic fixture only. Business/bootstrap save alternatives are not
         // under test, and raw fixture setup is excluded from all measurements.
         try (Connection connection = source.getConnection()) {
+            System.out.println("DRIVER_VERSION," + connection.getMetaData().getDriverName() + "," + connection.getMetaData().getDriverVersion());
+            try (Statement version = connection.createStatement(); ResultSet row = version.executeQuery("SELECT sqlite_version()")) {
+                assertTrue(row.next()); System.out.println("ENGINE_VERSION,sqlite," + row.getString(1));
+            }
             connection.setAutoCommit(false);
             try (PreparedStatement insert = connection.prepareStatement(
                     "INSERT INTO probe_data(id,version,name,note) VALUES(?,?,?,?)")) {
