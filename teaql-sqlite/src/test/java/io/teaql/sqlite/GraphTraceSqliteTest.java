@@ -277,7 +277,15 @@ public class GraphTraceSqliteTest {
                     inner.auditAs("save independent nested graph").save(caller);
                     assertEquals("nested execution must restore the outer captured clock", now, caller.evaluate("now"));
                     assertFalse("outer entity must remain checked", needCheck(caller, outer));
-                    assertTrue("inner visited identities must not leak into the outer graph", needCheck(caller, inner));
+                    assertEquals(EntityStatus.PERSISTED, inner.get$status());
+                    assertFalse("an unchanged object saved by the nested invocation must not be checked again",
+                            needCheck(caller, inner));
+                    // needCheck also considers mutation status. Test the visited
+                    // identities directly so the isolation assertion does not
+                    // mistake the now-persisted inner graph for a dirty object.
+                    var visited = (List<?>) caller.getAttribute(Checker.TEAQL_DATA_CHECKED_ITEMS);
+                    assertEquals("inner visited identities must not leak into the outer graph", 1, visited.size());
+                    assertSame(outer, visited.get(0));
                 }
                 entity.updateProperty("memo", now.toString());
             }
