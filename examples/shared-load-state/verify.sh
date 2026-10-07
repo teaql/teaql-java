@@ -86,6 +86,7 @@ for round in first second; do
   rg -F "PASS generated Java LF19 fixed derived and persistent same-name namespace isolation" "$run_dir/$round.log"
   rg -F "PASS generated Java LF23 dynamic availability detaches only one view" "$run_dir/$round.log"
   rg -F "PASS generated Java LF20 readonly total persists only through modeled materialization" "$run_dir/$round.log"
+  rg -F "PASS generated Java LF11 native readback rollback retains loaded state and retry intent" "$run_dir/$round.log"
   rg -F "PASS generated Java homogeneous list finalization allocates zero and preserves shared state" "$run_dir/$round.log"
   rg -F "PASS Java real typed stream loaded state and provider allocation controls" "$run_dir/$round.log"
   if [[ "$fixture_inheritance" == true ]]; then

@@ -1137,9 +1137,15 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         }
         T entity = (T) entityDescriptor.createEntity();
         Map<String, Object> row = rows.get(0);
+        // SELECT * returns physical column names, unlike the aliased normal Q path.
+        // Install the actual geometry once before setters hydrate native values.
+        MapProjection projection = mapProjection(entityDescriptor.getTargetType(), row);
+        if (entity instanceof BaseEntity base && projection.loadedState() != null) {
+            base.__internalUseLoadState(projection.loadedState());
+        }
         for (PropertyDescriptor property : this.allProperties) {
             if (!shouldHandle(property)) continue;
-            String columnKey = findColumnKey(row, property.getName());
+            String columnKey = findColumnKey(row, property);
             if (columnKey == null) continue;
             Object value = row.get(columnKey);
             if (!(property instanceof Relation)) {
@@ -1220,7 +1226,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         List<MapBinding> bindings = new ArrayList<>();
         for (PropertyDescriptor property : allProperties) {
             if (!shouldHandle(property)) continue;
-            String column = findColumnKey(row, property.getName());
+            String column = findColumnKey(row, property);
             if (column != null) {
                 selected.add(property.getName());
                 bindings.add(new MapBinding(property, column));
@@ -1288,6 +1294,13 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         return entity;
     }
 
+    private String findColumnKey(Map<String, Object> row, PropertyDescriptor property) {
+        String member = findColumnKey(row, property.getName());
+        if (member != null) return member;
+        SQLColumn column = getSqlColumn(property);
+        return column == null ? null : findColumnKey(row, column.getColumnName());
+    }
+
     private String findColumnKey(Map<String, Object> row, String propertyName) {
         if (row.containsKey(propertyName)) return propertyName;
         for (String key : row.keySet()) {
@@ -1317,9 +1330,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 return timestamp.toLocalDateTime().toLocalDate();
             }
             String text = String.valueOf(value);
-            if (text.length() >= 10) {
-                return java.time.LocalDate.parse(text.substring(0, 10));
-            }
+            return java.time.LocalDate.parse(text.substring(0, Math.min(10, text.length())));
         }
         if (targetType == java.time.LocalTime.class) {
             if (value instanceof java.sql.Time time) return time.toLocalTime();
