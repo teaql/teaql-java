@@ -749,16 +749,12 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             }
             psql = toPositional(sql, params);
             if (shape != null && psql.args.length == shape.arguments().length) {
-                if (compiledQueryPlans.size() >= MAX_COMPILED_QUERY_PLANS) {
-                    compiledQueryPlans.clear();
-                }
                 CompiledQueryPlan candidate = new CompiledQueryPlan(
                         psql.sql,
                         psql.args.length,
                         psql.logBindings,
                         compileRowMapper(executedRequest));
-                CompiledQueryPlan existing = compiledQueryPlans.putIfAbsent(shape.key(), candidate);
-                plan = existing == null ? candidate : existing;
+                plan = cacheCompiledQueryPlan(shape.key(), candidate);
             }
         }
         // Attach only after inserting the reusable plan: no original values enter the plan cache.
@@ -877,6 +873,18 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         }
         
         return smartList;
+    }
+
+    private CompiledQueryPlan cacheCompiledQueryPlan(String key, CompiledQueryPlan candidate) {
+        // Misses compile outside the lock; only admission/eviction is atomic.
+        // ConcurrentHashMap keeps the much more common hit path lock-free.
+        synchronized (compiledQueryPlans) {
+            CompiledQueryPlan existing = compiledQueryPlans.get(key);
+            if (existing != null) return existing;
+            if (compiledQueryPlans.size() >= MAX_COMPILED_QUERY_PLANS) compiledQueryPlans.clear();
+            compiledQueryPlans.put(key, candidate);
+            return candidate;
+        }
     }
 
     private io.teaql.core.CompiledRowMapper<T> compileRowMapper(SearchRequest<T> request) {
