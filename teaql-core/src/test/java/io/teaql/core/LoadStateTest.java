@@ -399,6 +399,22 @@ public class LoadStateTest {
     }
 
     @Test
+    public void overflowUsesOneEmptySentinelUntilAHighSlotIsActuallyLoaded() {
+        var layout = FieldLayout.forType(IndexedEntity.class);
+        var noOverflow = layout.emptyState().overflow();
+        var ordinary = LoadState.projection(layout, List.of("id", "field_63"));
+        assertSame(noOverflow, ordinary.overflow());
+        var wide = ordinary.withLoaded("field_64", true);
+        assertNotSame(noOverflow, wide.overflow());
+        assertEquals(Set.of(64), wide.overflow());
+        assertSame(noOverflow, ordinary.overflow());
+        var cleared = wide.withLoaded("field_64", false);
+        assertSame(noOverflow, cleared.overflow());
+        assertEquals(ordinary.bits(), cleared.bits());
+        assertTrue(wide.isLoaded("field_64"));
+    }
+
+    @Test
     public void ordinaryCompiledShapesRetainOneSnapshotAtAllRequiredRowScales() {
         FieldLayout layout = FieldLayout.forType(IndexedEntity.class);
         for (int count : new int[]{1, 100, 10_000}) {
