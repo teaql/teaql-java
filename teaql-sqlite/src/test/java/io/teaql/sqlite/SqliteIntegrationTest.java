@@ -522,11 +522,34 @@ public class SqliteIntegrationTest {
 
         TaskRequest streamed = new TaskRequest().filterByStatus("DYNAMIC-LOAD-SHAPE");
         streamed.setSize(3);
+        streamed.addOrderBy("id", true);
         streamed.selectDynamicFieldsWith(new io.teaql.data.dynamic.DynamicFieldSelection().selectString("title"));
-        streamed.comment("reject unsupported streaming extension load").purpose("do not silently drop projections");
+        streamed.comment("stream persistent extension availability").purpose("preserve sparse wrappers after cursor cleanup");
         var streaming = (StreamingQueryExecutor) runtime.getRegistry().resolve("sqlite");
-        assertThrows(TeaQLRuntimeException.class, () -> streaming.queryForCursor(local, new DefaultQueryRequest(streamed)));
-        assertEquals(1, provider.batches);
+        List<Task> streamedRows;
+        try (var cursor = streaming.<Task>queryForCursor(local, new DefaultQueryRequest(streamed))) {
+            assertEquals("cursor creation must not hydrate extensions", 1, provider.batches);
+            streamedRows = cursor.stream().toList();
+        }
+        assertEquals(3, streamedRows.size());
+        assertEquals(2, provider.batches);
+        assertEquals("stream persistent extension availability", provider.lastContext.comment());
+        assertEquals("preserve sparse wrappers after cursor cleanup", provider.lastContext.purpose());
+        assertSame(streamedRows.get(0).__internalLoadState(), streamedRows.get(1).__internalLoadState());
+        assertNotSame(streamedRows.get(1).__internalLoadState(), streamedRows.get(2).__internalLoadState());
+        assertEquals("extension", streamedRows.get(0).dynamicFields().field("title").value());
+        assertEquals(DynamicFieldValue.State.NULL, streamedRows.get(1).dynamicFields().field("title").state());
+        assertEquals(DynamicFieldValue.State.NOT_LOADED, streamedRows.get(2).dynamicFields().field("title").state());
+        for (Task row : streamedRows) {
+            assertFalse(row.__internalHasMutationLedger());
+            assertEquals(DynamicFieldValue.State.NOT_LOADED, row.dynamicFields().field("extra").state());
+            assertTrue(row.getUpdatedProperties().isEmpty());
+        }
+        // Invalid type projections still fail before invoking the provider, even on streams.
+        try (var cursor = streaming.<Task>queryForCursor(local, new DefaultQueryRequest(wrongType))) {
+            assertThrows(DynamicFieldException.class, () -> cursor.stream().toList());
+        }
+        assertEquals("rejected stream projection must not reach provider", 2, provider.batches);
     }
 
     @Test
