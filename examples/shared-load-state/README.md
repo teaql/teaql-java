@@ -124,6 +124,11 @@ changes still detach, and caller-owned sets cannot mutate the saved shape.
 The script retains separate state and four-field hydration CSV/logs. After
 generating a wide fixture, add `--wide` to measure actual generated School and
 optional Academy hydration at 3/64/full selected fields and 1/100/10,000 rows.
+Wide mode also requires `GeneratedReadbackAllocationTest`: generated School
+authoritative reads reuse value-free projection geometry. The prepared-map
+probe compares gross thread allocation with a typed incremental-state reference
+at 1/100/10,000 readbacks. It checks every value, shared state and private ledgers;
+it does not measure complete saves, SQL I/O, live heap or old-version latency.
 This checks shared overflow snapshots, COW isolation and lazy ledgers, requires
 unchanged generated-source hashes, and rejects a non-wide artifact. Prepared
 inputs, JDBC and logging remain outside the measured hydration region. These
