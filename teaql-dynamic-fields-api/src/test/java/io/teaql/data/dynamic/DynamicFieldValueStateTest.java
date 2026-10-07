@@ -25,6 +25,9 @@ public class DynamicFieldValueStateTest {
 
     @Test
     public void zeroFalseEmptyNullAndNotLoadedRemainDistinct() {
+        assertEquals(0, DynamicFieldValue.ofNumber("number", 0).value());
+        assertEquals(Boolean.FALSE, DynamicFieldValue.ofBool("flag", false).value());
+        assertEquals("", DynamicFieldValue.ofString("text", "").value());
         for (DynamicFieldValue value : new DynamicFieldValue[]{
                 DynamicFieldValue.ofNumber("number", 0), DynamicFieldValue.ofBool("flag", false),
                 DynamicFieldValue.ofString("text", "")}) {

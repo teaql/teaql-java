@@ -204,7 +204,18 @@ public class LoadStateTest {
     @Test
     public void bitmapBoundariesAndOverflowNeverWrap() {
         FieldLayout layout = FieldLayout.forType(IndexedEntity.class);
+        for (int slot : new int[]{0, 31, 32, 63, 64, 65, 129}) {
+            String selected = slot == 0 ? "id" : "field_" + slot;
+            LoadState isolated = LoadState.projection(layout, List.of(selected));
+            assertEquals("exact bit for slot " + slot, slot < 64 ? 1L << slot : 0L, isolated.bits());
+            assertEquals(slot < 64 ? Set.of() : Set.of(slot), isolated.overflow());
+            for (int other : new int[]{0, 31, 32, 63, 64, 65, 129}) {
+                assertEquals("independent slot " + other, slot == other,
+                        isolated.isLoaded(other == 0 ? "id" : "field_" + other));
+            }
+        }
         LoadState state = LoadState.projection(layout, List.of("id", "field_31", "field_32", "field_63"));
+        assertEquals(1L | (1L << 31) | (1L << 32) | (1L << 63), state.bits());
         assertTrue(state.bits() < 0L);
         assertTrue(state.overflow().isEmpty());
         assertFalse(state.isLoaded("field_64"));
