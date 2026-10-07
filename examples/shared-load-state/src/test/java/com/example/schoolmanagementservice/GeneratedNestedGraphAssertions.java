@@ -40,6 +40,12 @@ final class GeneratedNestedGraphAssertions {
                 .purpose("why: verify nested row-owned dynamic field carriers").executeForOne(context);
         var rows = loaded.getSchoolList();
         assertEquals(3, rows.size());
+        var metadata = rows.get(0).dynamicFields().metadata();
+        for (var row : rows.getData()) {
+            assertSame(metadata, row.dynamicFields().metadata(), "compatible children share immutable name/type metadata");
+            assertFalse(com.example.schoolmanagementservice.school.School.__TEAQL_FIXED_FIELD_INDEXES.containsKey("#" + extension));
+            assertFalse(com.example.schoolmanagementservice.school.School.__TEAQL_FIXED_FIELD_INDEXES.containsKey("_" + extension));
+        }
         assertEquals("Private extension", rows.get(0).dynamicFields().field(extension).value());
         assertEquals(DynamicFieldValue.State.NOT_LOADED, rows.get(1).dynamicFields().field(extension).state());
         assertEquals(DynamicFieldValue.State.NULL, rows.get(2).dynamicFields().field(extension).state());
@@ -61,6 +67,7 @@ final class GeneratedNestedGraphAssertions {
         assertEquals("Private extension", json.get("platform").get("schoolList").get(0).get("#" + extension).asText());
         assertTrue(json.get("platform").get("schoolList").get(1).get("#" + extension).isNull());
         System.out.println("PASS generated Java nested dynamic Value/NULL/NotLoaded and shared snapshots");
+        System.out.println("PASS generated Java LF17 dynamic metadata shared without fixed slots");
     }
 
     static void verify(UserContext context, Long schoolId, String renamed,
@@ -128,12 +135,14 @@ final class GeneratedNestedGraphAssertions {
         assertFalse(mapper.readTree(mapper.writeValueAsString(unselected)).has("schoolList"));
         var restoredUnselected = mapper.readValue(mapper.writeValueAsString(unselected), unselected.getClass());
         assertFalse(restoredUnselected.isPropertyLoaded("schoolList"));
+        System.out.println("PASS generated Java LF09 reverse Loaded/Empty/NotLoaded through Q/E/JSON");
 
         var filtered = Q.schoolsWithMinimalFields().withIdIs(schoolId)
                 .selectSchoolTypeWith(Q.schoolTypesWithMinimalFields().withIdIs(1002L))
                 .limit(1).comment("what: retain Primary FK while excluding it from selected target detail")
                 .purpose("why: verify current filtered-forward NotLoaded semantics").executeForOne(context);
         assertEquals(1001L, filtered.getSchoolType().getId());
+        assertTrue(filtered.getSchoolType().isPropertyLoaded("id"), "FK identity cannot become NotLoaded with excluded details");
         assertFalse(filtered.getSchoolType().isPropertyLoaded("code"));
         var filteredJson = mapper.readTree(mapper.writeValueAsString(filtered));
         assertFalse(filteredJson.get("schoolType").has("code"));
@@ -141,6 +150,7 @@ final class GeneratedNestedGraphAssertions {
         assertEquals(1001L, restoredFiltered.getSchoolType().getId());
         assertFalse(restoredFiltered.getSchoolType().isPropertyLoaded("code"));
         assertFalse(restoredFiltered.__internalHasMutationLedger());
+        System.out.println("PASS generated Java LF08 loaded FK and excluded forward details stay distinct");
         System.out.println("PASS generated Java typed JSON graph roundtrip and Empty/NotLoaded isolation");
         System.out.println("PASS generated Java nested/reverse graph Q/E/JSON and Empty/NotLoaded isolation");
     }

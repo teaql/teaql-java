@@ -80,6 +80,9 @@ for round in first second; do
   rg -F "PASS generated Java namespace serialization and NotLoaded boundary" "$run_dir/$round.log"
   rg -F "PASS generated Java nested/reverse graph Q/E/JSON and Empty/NotLoaded isolation" "$run_dir/$round.log"
   rg -F "PASS generated Java nested dynamic Value/NULL/NotLoaded and shared snapshots" "$run_dir/$round.log"
+  rg -F "PASS generated Java LF08 loaded FK and excluded forward details stay distinct" "$run_dir/$round.log"
+  rg -F "PASS generated Java LF09 reverse Loaded/Empty/NotLoaded through Q/E/JSON" "$run_dir/$round.log"
+  rg -F "PASS generated Java LF17 dynamic metadata shared without fixed slots" "$run_dir/$round.log"
   rg -F "PASS Java real typed stream loaded state and provider allocation controls" "$run_dir/$round.log"
   if [[ "$fixture_inheritance" == true ]]; then
     rg -F "PASS generated Java inherited indexes Q/E/save and snapshot isolation $round" "$run_dir/$round.log"
