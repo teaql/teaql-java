@@ -45,13 +45,25 @@ class GeneratedSchoolLoadStateTest {
 
     @Test
     void generatedSchoolUsesLocalRuntimeAndSharedState() throws Exception {
-        Path root = Path.of(System.getenv("TEAQL_LOCAL_RUNTIME_ROOT")).toRealPath();
+        String dependencyMode = System.getenv().getOrDefault("TEAQL_RUNTIME_DEPENDENCY_MODE", "workspace");
+        assertTrue(List.of("workspace", "registry").contains(dependencyMode), "Unknown dependency verification mode");
+        Path root = Path.of(System.getenv(dependencyMode.equals("registry")
+                ? "TEAQL_ARTIFACT_CACHE" : "TEAQL_LOCAL_RUNTIME_ROOT")).toRealPath();
         for (Class<?> type : List.of(BaseEntity.class, LoadState.class, TeaQLRuntime.class,
                 JdbcSqlExecutor.class, SqliteDataServiceExecutor.class, TeaQLModule.class, School.class)) {
             Path location = Path.of(type.getProtectionDomain().getCodeSource().getLocation().toURI()).toRealPath();
             assertTrue(location.startsWith(root), "Non-local dependency " + type + " from " + location);
-            assertTrue(location.endsWith(Path.of("target/classes")), "Expected reactor classes: " + location);
-            System.out.println("LOCAL_CLASS " + type.getName() + " " + location);
+            if (dependencyMode.equals("registry")) {
+                assertTrue(location.toString().endsWith(".jar"), "Expected isolated downloaded JAR: " + location);
+                if (type.getName().startsWith("io.teaql.")) {
+                    String version = System.getenv("TEAQL_CANDIDATE_VERSION");
+                    assertNotNull(version); assertTrue(location.toString().contains("/" + version + "/"));
+                }
+                System.out.println("ARTIFACT_CLASS " + type.getName() + " " + location);
+            } else {
+                assertTrue(location.endsWith(Path.of("target/classes")), "Expected reactor classes: " + location);
+                System.out.println("LOCAL_CLASS " + type.getName() + " " + location);
+            }
         }
         String round = System.getenv("TEAQL_LOAD_STATE_ROUND");
         SQLiteDataSource dataSource = new SQLiteDataSource();
