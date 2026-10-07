@@ -22,6 +22,13 @@ fi
 run_dir="$(mktemp -d -t teaql-java-state-allocations.XXXXXXXX)"
 printf 'Evidence retained at %s\n' "$run_dir"
 java -version >"$run_dir/toolchain.txt" 2>&1
+git -C "$runtime_dir" rev-parse HEAD >"$run_dir/base-commit.txt"
+git -C "$runtime_dir" diff --exit-code -- examples/shared-load-state teaql-core teaql-runtime teaql-sql-portable teaql-provider-jdbc teaql-sqlite
+(
+  cd "$runtime_dir"
+  git ls-files -z teaql-core/src teaql-runtime/src teaql-sql-portable/src teaql-provider-jdbc/src teaql-sqlite/src examples/shared-load-state/src examples/shared-load-state/verify-allocations.sh |
+    xargs -0 sha256sum
+) >"$run_dir/source.sha256"
 rg --files --hidden --no-ignore "$example_dir/target/generated/lib/src" -0 |
   sort -z | xargs -0 sha256sum >"$run_dir/generated-source.sha256"
 mvn -q -f "$runtime_dir/pom.xml" -Pshared-load-state-example \
@@ -34,6 +41,10 @@ printf 'case,width,iterations,allocated_bytes,elapsed_ns\n' >"$run_dir/allocatio
 rg '^(loaded_|reference_)' "$run_dir/probe.log" >>"$run_dir/allocations.csv"
 printf 'case,projection,rows,allocated_bytes,elapsed_ns\n' >"$run_dir/hydration.csv"
 rg '^(compiled_hydration|map_hydration|plain_hydration),' "$run_dir/probe.log" >>"$run_dir/hydration.csv"
+printf 'case,lane,projection,rows,allocated_bytes\n' >"$run_dir/stream-hydration.csv"
+rg '^STREAM_HYDRATION,' "$run_dir/probe.log" >>"$run_dir/stream-hydration.csv"
+printf 'case,wide,rows,allocated_bytes\n' >"$run_dir/list-finalization.csv"
+rg '^LIST_FINALIZE,' "$run_dir/probe.log" >>"$run_dir/list-finalization.csv"
 rg -F 'PASS mixed map/parallel-stream projection and dynamic-property NULL presence' "$run_dir/probe.log"
 if [[ "$wide" == true ]]; then
   printf 'case,entity,selected_fields,rows,allocated_bytes,elapsed_ns\n' >"$run_dir/wide-hydration.csv"
@@ -44,4 +55,5 @@ if [[ "$wide" == true ]]; then
   rg -F 'PASS generated Java authoritative readback reuses one actual shape and avoids per-field overflow copies' "$run_dir/probe.log"
 fi
 sha256sum --check --quiet "$run_dir/generated-source.sha256"
+(cd "$runtime_dir" && sha256sum --check --quiet "$run_dir/source.sha256")
 printf 'PASS Java warmed load-state allocation probe\n'
