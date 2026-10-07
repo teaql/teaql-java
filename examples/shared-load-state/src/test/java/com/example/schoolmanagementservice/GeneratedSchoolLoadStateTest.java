@@ -221,6 +221,7 @@ class GeneratedSchoolLoadStateTest {
         assertTrue(afterAcceptedSave[2] > beforeRejectedSave[2], "accepted save must exercise observed transactions");
         System.out.println("PASS generated Java sparse Checker rejects before provider entry; positive save observed");
         assertEquals(originalVersion + 1, changed.getVersion());
+        GeneratedIndependentMutationAcceptance.verify(context, changed.getId(), renamed, second);
         var related = Q.schools().withIdIs(changed.getId())
                 .selectPlatformWith(Q.platformsWithMinimalFields().selectName())
                 .selectSchoolTypeWith(Q.schoolTypesWithMinimalFields().selectCode())
