@@ -1152,7 +1152,10 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         for (PropertyDescriptor property : this.allProperties) {
             if (!shouldHandle(property)) continue;
             String columnKey = findColumnKey(row, property);
-            if (columnKey == null) continue;
+            if (columnKey == null) {
+                throw new TeaQLRuntimeException("Authoritative readback missing mapped field "
+                        + entityDescriptor.getType() + "." + property.getName());
+            }
             Object value = row.get(columnKey);
             if (!(property instanceof Relation)) {
                 Class targetType = property.getType().javaType();

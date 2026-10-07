@@ -53,6 +53,34 @@ final class GeneratedNativeRollbackAcceptance {
         assertSame(snapshot, pending.__internalLoadState());
         pending.updateName(name);
         pending.auditAs("Restore the native rollback fixture name").save(context);
+        verifyMissingColumn(context,sql,name,sibling);
         System.out.println("PASS generated Java LF11 native readback rollback retains loaded state and retry intent");
+    }
+    private static void verifyMissingColumn(UserContext context,ObservedJdbcExecutor sql,String name,String sibling) {
+        var rows=Q.schools().withNameIn(name,sibling).selectSelfFields().orderByIdAscending().limit(2)
+                .comment("what: load complete native-column controls")
+                .purpose("why: test authoritative omission without changing Q projection semantics").executeForList(context);
+        assertEquals(2,rows.size());var pending=rows.get(0);var held=rows.get(1);
+        var state=pending.__internalLoadState();Long version=pending.getVersion(),siblingVersion=held.getVersion();
+        String next=name+" missing-column retry";pending.updateName(next);
+        sql.omitNativeDateAfterWrite();
+        try {
+            var error=assertThrows(RuntimeException.class,()->pending.auditAs("Reject incomplete native readback").save(context));
+            assertTrue(error.getMessage().contains("missing mapped field School.establishedDate"));
+        } finally {sql.clearNativeOmission();}
+        assertTrue(sql.nativeOmissionObserved(),"omission must happen after successful native DML");
+        assertEquals(version,pending.getVersion());assertSame(state,pending.__internalLoadState());
+        assertTrue(pending.getUpdatedProperties().contains("name"));
+        assertEquals(siblingVersion,held.getVersion());assertTrue(held.getUpdatedProperties().isEmpty());
+        var stored=Q.schools().withIdIs(pending.getId()).selectSelfFields().limit(1)
+                .comment("what: inspect native state after omitted readback")
+                .purpose("why: verify rollback preserved name version and legitimate date").executeForOne(context);
+        assertEquals(name,E.school(stored).getName().eval());assertEquals(version,stored.getVersion());
+        assertEquals(LocalDate.of(1995,9,1),E.school(stored).getEstablishedDate().eval());
+        pending.auditAs("Retry the original intent after readback omission").save(context);
+        assertEquals(version+1,pending.getVersion());assertEquals(next,E.school(pending).getName().eval());
+        assertSame(state,pending.__internalLoadState());assertTrue(pending.getUpdatedProperties().isEmpty());
+        pending.updateName(name);pending.auditAs("Restore the missing-column fixture name").save(context);
+        System.out.println("PASS generated Java authoritative missing column rolls back without turning absence into null");
     }
 }

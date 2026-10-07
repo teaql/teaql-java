@@ -17,6 +17,9 @@ final class ObservedJdbcExecutor extends JdbcSqlExecutor {
     private final AtomicBoolean failDynamicReadback = new AtomicBoolean();
     private final AtomicBoolean dynamicWriteSeen = new AtomicBoolean();
     private final AtomicBoolean readbackFailureSeen = new AtomicBoolean();
+    private final AtomicBoolean omitNativeColumn = new AtomicBoolean();
+    private final AtomicBoolean nativeWriteSeen = new AtomicBoolean();
+    private final AtomicBoolean nativeColumnOmissionSeen = new AtomicBoolean();
     ObservedJdbcExecutor(DataSource source) { super(source); }
     /** Read, write and transaction entry; nested delegations may count more than once. */
     long[] counts() { return new long[]{calls.get(0), calls.get(1), calls.get(2)}; }
@@ -25,7 +28,23 @@ final class ObservedJdbcExecutor extends JdbcSqlExecutor {
     }
     boolean readbackFailureObserved() { return readbackFailureSeen.get(); }
     void clearReadbackFailure() { failDynamicReadback.set(false); }
+    void omitNativeDateAfterWrite() {
+        nativeWriteSeen.set(false);nativeColumnOmissionSeen.set(false);omitNativeColumn.set(true);
+    }
+    void clearNativeOmission() { omitNativeColumn.set(false); }
+    boolean nativeOmissionObserved() { return nativeColumnOmissionSeen.get(); }
+    private List<Map<String,Object>> nativeReadbackView(String sql,List<Map<String,Object>> rows) {
+        if(nativeWriteSeen.get() && sql.startsWith("SELECT *") && sql.contains("school_data")
+                && omitNativeColumn.compareAndSet(true,false)) {
+            nativeColumnOmissionSeen.set(true);
+            return rows.stream().map(row->{Map<String,Object> copy=new java.util.LinkedHashMap<>(row);
+                copy.remove("established_date");return copy;}).toList();
+        }
+        return rows;
+    }
     private void observeDynamicWrite(String sql, int changed) {
+        if(changed>0 && omitNativeColumn.get() && sql.toLowerCase(java.util.Locale.ROOT).startsWith("update")
+                && sql.contains("school_data"))nativeWriteSeen.set(true);
         if (changed > 0 && failDynamicReadback.get() && sql.contains("teaql_dynamic_field_value")) dynamicWriteSeen.set(true);
     }
     private void rejectDynamicReadback(String sql) {
@@ -53,7 +72,7 @@ final class ObservedJdbcExecutor extends JdbcSqlExecutor {
         calls.incrementAndGet(0); rejectDynamicReadback(sql); return super.queryForList(sql, params);
     }
     @Override public List<Map<String,Object>> queryForList(String sql, Object[] params) {
-        calls.incrementAndGet(0); rejectDynamicReadback(sql); return super.queryForList(sql, params);
+        calls.incrementAndGet(0); rejectDynamicReadback(sql); return nativeReadbackView(sql,super.queryForList(sql, params));
     }
     @Override public Map<String,Object> queryForMap(String sql, Map<String,Object> params) {
         calls.incrementAndGet(0); return super.queryForMap(sql, params);

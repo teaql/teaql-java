@@ -51,6 +51,9 @@ public class NativeReadbackColumnMappingTest {
         return fixture(false);
     }
     private Fixture fixture(boolean preparedQueries) throws Exception {
+        return fixture(preparedQueries,Set.of());
+    }
+    private Fixture fixture(boolean preparedQueries,Set<String> omittedColumns) throws Exception {
         assertNotNull(Row.LAYOUT);
         var descriptor = new EntityDescriptor();
         descriptor.setType("Row"); descriptor.setTargetType(Row.class); descriptor.setEntitySupplier(Row::new);
@@ -75,6 +78,7 @@ public class NativeReadbackColumnMappingTest {
                     Map<String,Object> row=new LinkedHashMap<>();
                     row.put("id",args[0]);row.put("version",1L);row.put("external_ref","CR-"+args[0]);
                     row.put("started_on","2026-10-07");row.put("counter_value",null);
+                    omittedColumns.forEach(row::remove);
                     return List.of(row);
                 }
                 return super.query(sql,args);
@@ -137,5 +141,13 @@ public class NativeReadbackColumnMappingTest {
                 assertTrue(row.getUpdatedProperties().isEmpty());assertFalse(row.__internalHasMutationLedger());
             }
         } finally {pool.shutdownNow();}
+    }
+    @Test public void missingAuthoritativeColumnCannotMasqueradeAsLoadedNullOrOldValue() throws Exception {
+        for(String missing:List.of("id","version","started_on","counter_value","external_ref")) {
+            var fixture=fixture(true,Set.of(missing));
+            var failure=assertThrows(TeaQLRuntimeException.class,
+                    ()->fixture.repository.loadPersistedById(fixture.context,1L));
+            assertTrue(failure.getMessage().contains("missing"));
+        }
     }
 }
