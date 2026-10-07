@@ -66,6 +66,10 @@ class DriverQueryBenchmarkTest {
                 times[(int)Math.ceil(times.length*0.95)-1],samples.size()*1e9/total,bytes[bytes.length/2]);
     }
     @Test void matchedTypedDriverQueries() throws Exception {
+        String logMode = System.getenv().getOrDefault("TEAQL_DRIVER_BENCHMARK_LOG_MODE", "off");
+        assertTrue(Set.of("off", "default").contains(logMode));
+        boolean defaultLog = logMode.equals("default");
+        System.out.println("BENCHMARK_LOG_MODE," + logMode);
         assertNotNull(HydrationAllocationTest.Probe.LAYOUT);
         var metadata = new SimpleEntityMetaFactory();
         var descriptor = new SQLEntityDescriptor(); descriptor.setType("Probe");
@@ -83,8 +87,11 @@ class DriverQueryBenchmarkTest {
         System.out.println("DATABASE "+database);
         var sql = new JdbcSqlExecutor(source);
         var service = new SqliteDataServiceExecutor("sqlite",sql,source);
-        var context = new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata)
-                .dataService("default",service).queryExecutionLogging(false).build());
+        var builder = TeaQLRuntime.builder().metadata(metadata).dataService("default", service);
+        if (!defaultLog) builder.queryExecutionLogging(false);
+        var runtime = builder.build();
+        assertEquals(defaultLog, runtime.isQueryExecutionLoggingEnabled());
+        var context = new DefaultUserContext(runtime);
         context.ensureSchema();
         // Synthetic fixture only. Business/bootstrap save alternatives are not
         // under test, and raw fixture setup is excluded from all measurements.
@@ -111,12 +118,14 @@ class DriverQueryBenchmarkTest {
         var bean = (com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
         assertTrue(bean.isThreadAllocatedMemorySupported()); bean.setThreadAllocatedMemoryEnabled(true);
         var warm = new HydrationAllocationTest.Request(metadata,false,1);
+        warm.appendSearchCriteria(warm.createBasicSearchCriteria("name", io.teaql.core.criteria.Operator.BEGIN_WITH, "row-"));
         warm.addOrderByAscending("id");
         var warmQuery = warm.purpose("why: warm JIT and runtime caches");
         for (int i=0; i<4_000; i++) consumed = warmQuery.executeForList(context);
         System.out.println("case,projection,rows,samples,p50_ns,p95_ns,queries_per_second,allocated_bytes");
         for (boolean full : List.of(false,true)) for (int count : new int[]{1,100,10_000}) {
             var request = new HydrationAllocationTest.Request(metadata,full,count);
+            request.appendSearchCriteria(request.createBasicSearchCriteria("name", io.teaql.core.criteria.Operator.BEGIN_WITH, "row-"));
             request.addOrderByAscending("id");
             var executable = request.purpose("why: isolate governed runtime query overhead");
             capture.inputs.clear();
@@ -150,6 +159,6 @@ class DriverQueryBenchmarkTest {
             }
             report("jdbc",full,count,nativeSamples); report("teaql",full,count,runtimeSamples);
         }
-        System.out.println("PASS matched JDBC typed results and shared snapshots; log-off; per-query connections");
+        System.out.println("PASS matched JDBC typed results and shared snapshots; log-mode=" + logMode + "; per-query connections");
     }
 }

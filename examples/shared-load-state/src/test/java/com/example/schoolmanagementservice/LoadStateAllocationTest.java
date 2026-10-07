@@ -99,12 +99,28 @@ public class LoadStateAllocationTest {
         return new Sample(bytes, nanos);
     }
 
+    private static Sample steadyNoop(com.sun.management.ThreadMXBean bean, String name,
+            int width, int count, Runnable action, LoadState expected) {
+        int zeroRun = 0;
+        for (int attempt = 0; attempt < 20; attempt++) {
+            Sample sample = measure(bean, count, action);
+            assertSame(expected, consumed);
+            System.out.printf("NOOP_WINDOW,%s,%d,%d,%d,%d,%d%n",
+                    name, width, count, attempt, sample.bytes(), sample.nanos());
+            zeroRun = sample.bytes() == 0 ? zeroRun + 1 : 0;
+            if (zeroRun == 3) return sample;
+        }
+        throw new AssertionError("No three consecutive zero-allocation samples for " + name);
+    }
+
     @Test
     public void loadedAvailabilityAllocationProbe() {
         assertTrue(ManagementFactory.getThreadMXBean() instanceof com.sun.management.ThreadMXBean, "Requires a JVM thread-allocation counter");
         var bean = (com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
         assertTrue(bean.isThreadAllocatedMemorySupported(), "JVM thread allocation counter must be supported");
         bean.setThreadAllocatedMemoryEnabled(true);
+        assertTrue(measure(bean, 1, () -> consumed = new byte[4096]).bytes() >= 4096,
+                "positive allocation calibration must be visible");
         System.out.println("case,width,iterations,allocated_bytes,elapsed_ns");
         for (int width : new int[]{4, 64, 130}) {
             Map<String, Integer> indexes = new LinkedHashMap<>();
@@ -127,15 +143,15 @@ public class LoadStateAllocationTest {
             Runnable reference = () -> consumed = referenceDynamicNoop(selected, codes);
             for (int i = 0; i < 30_000; i++) { fixed.run(); dynamic.run(); dynamicView.run(); reference.run(); }
             for (int iterations : new int[]{1, 100, 10_000}) {
-                Sample result = measure(bean, iterations, fixed);
+                Sample result = steadyNoop(bean, "fixed", width, iterations, fixed, base);
                 System.out.printf("loaded_fixed_noop,%d,%d,%d,%d%n", width, iterations, result.bytes(), result.nanos());
                 assertSame(base, consumed);
                 assertEquals(0, result.bytes(), "fixed value-only availability must not allocate");
-                result = measure(bean, iterations, dynamic);
+                result = steadyNoop(bean, "dynamic", width, iterations, dynamic, selected);
                 System.out.printf("loaded_dynamic_noop,%d,%d,%d,%d%n", width, iterations, result.bytes(), result.nanos());
                 assertSame(selected, consumed);
                 assertEquals(0, result.bytes(), "unchanged dynamic selection must not allocate");
-                result = measure(bean, iterations, dynamicView);
+                result = steadyNoop(bean, "dynamic-map-view", width, iterations, dynamicView, selected);
                 System.out.printf("loaded_dynamic_map_view_noop,%d,%d,%d,%d%n", width, iterations, result.bytes(), result.nanos());
                 assertSame(selected, consumed);
                 assertEquals(0, result.bytes(), "map-backed selected-code views must not allocate iterators");
