@@ -296,20 +296,23 @@ class GeneratedSchoolLoadStateTest {
         assertEquals(DynamicFieldValue.State.NOT_LOADED, extended.dynamicFields().field(extension).state());
         assertEquals("readonly-derived-name", extended.getProperty("_name"));
         System.out.println("PASS generated Java dynamic storage provenance and retry");
+        var combined = GeneratedDynamicRollbackAcceptance.verify(context, sql, extended, renamed, second, extension, provider, definitionContext);
+        String deletionName = combined.getName();
         // Partial related objects are valid for E reads, not for whole-graph Checker validation.
         var forDeletion = Q.schools().withIdIs(changed.getId()).limit(1)
                 .comment("what: reload the full native School before deletion")
                 .purpose("why: preserve whole-object Checker validation without partial child projections")
                 .executeForOne(context);
-        assertEquals(renamed, E.school(forDeletion).getName().eval());
+        assertEquals(deletionName, E.school(forDeletion).getName().eval());
         assertNull(forDeletion.getProperty("_name"), "readonly dynamic properties must not be persisted by save");
         forDeletion.markForDeletion().auditAs("Soft-delete the selected probe").save(context);
-        var remaining = Q.schools().withNameIn(renamed, second).orderByIdAscending().limit(2)
+        var remaining = Q.schools().withNameIn(deletionName, second).orderByIdAscending().limit(2)
                 .comment("what: inspect the surviving sibling").purpose("why: verify mutation isolation")
                 .executeForList(context);
         assertEquals(1, remaining.size());
         assertEquals(second, remaining.get(0).getName());
-        assertEquals(full.get(1).getVersion(), remaining.get(0).getVersion());
+        // The combined control explicitly seeds the companion's NULL extension once.
+        assertEquals(full.get(1).getVersion() + 1, remaining.get(0).getVersion());
         System.out.println("PASS generated Java indexed Q/E/Checker/create/update/delete and snapshot sharing " + round);
     }
 
