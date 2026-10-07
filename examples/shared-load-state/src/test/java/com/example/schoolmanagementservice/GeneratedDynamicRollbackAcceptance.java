@@ -3,6 +3,7 @@ package com.example.schoolmanagementservice;
 import com.example.schoolmanagementservice.school.School;
 import io.teaql.core.SmartList;
 import io.teaql.core.UserContext;
+import io.teaql.core.checker.CheckException;
 import io.teaql.data.dynamic.*;
 import io.teaql.data.dynamic.jdbc.JdbcDynamicFieldsProvider;
 import static org.junit.jupiter.api.Assertions.*;
@@ -50,6 +51,48 @@ final class GeneratedDynamicRollbackAcceptance {
             assertFalse(row.__internalHasMutationLedger());
         }
         System.out.println("PASS generated Java dynamic stream Value/Null/NotLoaded and shared snapshots");
+        var streamedState = streamed.get(0).__internalLoadState();
+        long[] beforeStreamRejection = sql.counts();
+        streamed.get(0).updateDynamicField(code, "must-not-persist");
+        assertThrows(CheckException.class, () -> streamed.get(0)
+                .auditAs("reject extension mutation on an incomplete streamed object").save(context));
+        assertArrayEquals(beforeStreamRejection, sql.counts(), "incomplete stream mutation must reject before provider entry");
+        // The declared timestamp Fix may detach only this modified row's state.
+        assertNotSame(streamedState, streamed.get(0).__internalLoadState());
+        assertTrue(streamed.get(0).isPropertyLoaded("updateTime"));
+        assertSame(streamedState, streamed.get(1).__internalLoadState());
+        assertFalse(streamedState.isLoaded("updateTime"));
+        assertFalse(streamed.get(0).isPropertyLoaded("address"));
+        assertFalse(streamed.get(0).__internalDynamicMutations().isEmpty());
+        assertEquals(DynamicFieldValue.State.NULL, streamed.get(1).dynamicFields().field(code).state());
+        assertFalse(streamed.get(1).__internalHasMutationLedger());
+        var completeStreamRequest = Q.schools().withNameIn(firstName, secondName).selectSelfFields();
+        completeStreamRequest.selectDynamicFieldsWith(selection);
+        java.util.List<School> completeStreamed;
+        try (var stream = completeStreamRequest.orderByIdAscending().limit(2)
+                .comment("what: stream complete Schools with durable extensions")
+                .purpose("why: preserve fixed slots and overflow during enhancement").executeForStream(context)) {
+            completeStreamed = stream.toList();
+        }
+        assertEquals(2, completeStreamed.size());
+        var completeStreamState = completeStreamed.get(0).__internalLoadState();
+        assertSame(completeStreamState, completeStreamed.get(1).__internalLoadState());
+        for (var row : completeStreamed) {
+            for (var field : School.__TEAQL_FIXED_FIELD_INDEXES.entrySet()) {
+                assertTrue(row.isPropertyLoaded(field.getKey()), "complete stream omitted " + field.getKey());
+                if (field.getValue() >= 64) assertTrue(row.__internalLoadState().overflow().contains(field.getValue()));
+            }
+            if (Boolean.parseBoolean(System.getenv("TEAQL_LOAD_STATE_WIDE"))) {
+                for (int slot : new int[]{63,64,65,129}) {
+                    String field = School.__TEAQL_FIXED_FIELD_INDEXES.entrySet().stream()
+                            .filter(e -> e.getValue() == slot).findFirst().orElseThrow().getKey();
+                    assertNull(row.__internalGet(School.__TEAQL_FIXED_FIELD_MAPPINGS.get(field).get(0)));
+                }
+            }
+            assertFalse(row.__internalHasMutationLedger());
+            assertEquals(DynamicFieldValue.State.NOT_LOADED, row.dynamicFields().field(unused).state());
+        }
+        System.out.println("PASS generated Java dynamic stream full/overflow/sparse state and Checker-before-provider");
         var all = Q.schools().withNameIn(firstName, secondName);
         all.selectDynamicFieldsWith(selection);
         var rows = all.orderByIdAscending().limit(2).comment("what: load value and null extensions together")
