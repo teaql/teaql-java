@@ -31,11 +31,20 @@ class GeneratedQueryBenchmarkTest {
     /** Controlled reconstruction of the previous generic JDBC query path. */
     static final class SwitchingSql extends JdbcSqlExecutor {
         private final SQLiteDataSource source;
+        private final List<java.util.function.Consumer<Connection>> initializers=new ArrayList<>();
         boolean reference;
         SwitchingSql(SQLiteDataSource source){super(source);this.source=source;}
+        @Override public SwitchingSql addConnectionInitializer(java.util.function.Consumer<Connection> initializer) {
+            initializers.add(initializer);super.addConnectionInitializer(initializer);return this;
+        }
+        private Connection openReferenceConnection() throws SQLException {
+            Connection connection=source.getConnection();
+            try {for(var initializer:initializers)initializer.accept(connection);return connection;}
+            catch(RuntimeException failure){try{connection.close();}catch(SQLException suppressed){failure.addSuppressed(suppressed);}throw failure;}
+        }
         @Override public List<Map<String,Object>> queryForList(String sql,Object[] params) {
             if(!reference)return super.queryForList(sql,params);
-            try(Connection connection=source.getConnection();PreparedStatement statement=connection.prepareStatement(sql)) {
+            try(Connection connection=openReferenceConnection();PreparedStatement statement=connection.prepareStatement(sql)) {
                 if(params!=null)for(int i=0;i<params.length;i++)statement.setObject(i+1,params[i]);
                 try(ResultSet rows=statement.executeQuery()) {
                     var metadata=rows.getMetaData();int width=metadata.getColumnCount();String[] labels=new String[width];
