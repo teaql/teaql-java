@@ -32,9 +32,10 @@ final class BatchedRootStream {
                 try {
                     if (!ready.hasNext()) {
                         if (input == null) input = source.iterator();
+                        if (!input.hasNext()) { close(); return false; }
                         var batch = new SmartList<T>(batchSize);
-                        while (batch.size() < batchSize && input.hasNext()) batch.add(input.next());
-                        if (batch.isEmpty()) { close(); return false; }
+                        do { batch.add(input.next()); }
+                        while (batch.size() < batchSize && input.hasNext());
                         hydrate.accept(batch);
                         ready = batch.iterator();
                     }
