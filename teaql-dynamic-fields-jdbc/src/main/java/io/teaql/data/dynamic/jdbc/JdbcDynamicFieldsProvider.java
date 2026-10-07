@@ -18,7 +18,6 @@ import java.util.logging.Logger;
  * <p>Call {@link #ensureSchema()} once at application startup to auto-create the tables.</p>
  */
 public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
-
     private static final Logger LOG = Logger.getLogger(JdbcDynamicFieldsProvider.class.getName());
 
     private final SqlExecutionAdapter executor;
@@ -97,6 +96,39 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
 
     // ─── Field Definition Management ───────────────────────────────────
 
+    @Override public boolean participatesInGraphTransaction(Object resource) {
+        return resource == executor && executor.hasActiveTransaction();
+    }
+
+    @Override public void validateGraphMutation(DynamicFieldContext context, DynamicGraphMutation request) {
+        if (!request.sourceMetadata().matchesStorage(requireStorageIdentity(), context.scopeType(), context.scopeId(), request.owner().ownerType())) {
+            throw new DynamicFieldException("DYNAMIC_FIELD_STORAGE_PROVENANCE_MISMATCH", "Reload the dynamic view through the current storage provider and scope");
+        }
+        if (request.mutation().kind() == DynamicFieldMutation.Kind.SET && request.mutation().value() != null) {
+            if (request.mutation().dataType() == DynamicDataType.NUMBER) exactLong((Number) request.mutation().value());
+            if (request.mutation().dataType() == DynamicDataType.DATE_TIME) toTimestamp(request.mutation().value());
+        }
+    }
+
+    private Object requireStorageIdentity() {
+        Object identity = executor.storageIdentity();
+        if (identity == null) throw new DynamicFieldException("DYNAMIC_FIELD_STORAGE_IDENTITY_REQUIRED",
+                "The storage adapter must supply an opaque instance identity for dynamic field views");
+        return identity;
+    }
+
+    @Override public DynamicFieldMetadata metadata(DynamicFieldContext context, String ownerType) {
+        return DynamicFieldMetadata.fromDefinitions(listFieldDefs(context, ownerType))
+                .withStorageBinding(requireStorageIdentity(), context.scopeType(), context.scopeId(), ownerType);
+    }
+
+    private static long exactLong(Number value) {
+        try { return new java.math.BigDecimal(value.toString()).longValueExact(); }
+        catch (ArithmeticException | NumberFormatException invalid) {
+            throw new DynamicFieldException("DYNAMIC_FIELD_NUMERIC_RANGE", "This JDBC dynamic NUMBER column requires an exact 64-bit integer");
+        }
+    }
+
     /**
      * Registers a field definition. Assigns an ID via teaql_id_space if not set.
      */
@@ -158,7 +190,7 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
                 context.scopeType(), context.scopeId(),
                 ownerRef.ownerType(), ownerRef.ownerId()
         });
-        return buildFieldValues(rows, selection);
+        return buildFieldValues(rows, selection, metadata(context, ownerRef.ownerType()));
     }
 
     @Override
@@ -170,8 +202,17 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
             return Collections.emptyMap();
         }
 
+        Map<String, List<DynamicOwnerRef>> types = new LinkedHashMap<>();
+        for (DynamicOwnerRef owner : ownerRefs) types.computeIfAbsent(owner.ownerType(), ignored -> new ArrayList<>()).add(owner);
+        if (types.size() > 1) {
+            Map<DynamicOwnerRef, DynamicFieldValues> result = new LinkedHashMap<>();
+            for (List<DynamicOwnerRef> group : types.values()) result.putAll(loadValues(context, group, selection));
+            return result;
+        }
+
         // Build IN clause dynamically
         String ownerType = ownerRefs.get(0).ownerType();
+        DynamicFieldMetadata metadata = metadata(context, ownerType);
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT v.owner_id, v.field_id, d.code, d.data_type, ");
         sql.append("v.string_value, v.number_value, v.bool_value, v.datetime_value, v.enum_value ");
@@ -204,7 +245,7 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
         Map<DynamicOwnerRef, DynamicFieldValues> result = new LinkedHashMap<>();
         for (DynamicOwnerRef ref : ownerRefs) {
             List<Map<String, Object>> ownerRows = grouped.getOrDefault(ref.ownerId(), Collections.emptyList());
-            result.put(ref, buildFieldValues(ownerRows, selection));
+            result.put(ref, buildFieldValues(ownerRows, selection, metadata));
         }
         return result;
     }
@@ -220,6 +261,7 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
         if (def == null) {
             throw DynamicFieldException.notFound(command.fieldCode());
         }
+        if (def.getDataType() != command.dataType()) throw DynamicFieldException.typeMismatch(command.fieldCode(), def.getDataType(), command.dataType());
         if (!def.isActive()) {
             throw new DynamicFieldException("DYNAMIC_FIELD_NOT_ACTIVE",
                     "Dynamic field '" + command.fieldCode() + "' is not active (status: " + def.getStatus() + ")");
@@ -241,7 +283,7 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
         if (command.value() != null) {
             switch (command.dataType()) {
                 case STRING -> stringVal = command.value().toString();
-                case NUMBER -> numberVal = ((Number) command.value()).longValue();
+                case NUMBER -> numberVal = exactLong((Number) command.value());
                 case BOOL -> boolVal = boolToInt((Boolean) command.value());
                 case DATE_TIME -> datetimeVal = toTimestamp(command.value());
                 case ENUM -> enumVal = command.value().toString();
@@ -294,8 +336,8 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
     // ─── Internal Helpers ──────────────────────────────────────────────
 
     private DynamicFieldValues buildFieldValues(List<Map<String, Object>> rows,
-                                                 DynamicFieldSelection selection) {
-        List<DynamicFieldValue> values = new ArrayList<>();
+                                                 DynamicFieldSelection selection, DynamicFieldMetadata metadata) {
+        Map<String, DynamicFieldValue> values = new LinkedHashMap<>();
         Set<String> selectedCodes = null;
 
         if (!selection.isSelectAll()) {
@@ -308,6 +350,7 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
         for (Map<String, Object> row : rows) {
             String code = (String) row.get("code");
             String dataTypeStr = (String) row.get("data_type");
+            if (!metadata.types().containsKey(code)) continue;
 
             // Filter by selection if not selectAll
             if (selectedCodes != null && !selectedCodes.contains(code)) {
@@ -315,10 +358,10 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
             }
 
             DynamicDataType dataType = DynamicDataType.valueOf(dataTypeStr);
-            values.add(extractFieldValue(code, dataType, row));
+            values.put(code, extractFieldValue(code, dataType, row));
         }
 
-        return DynamicFieldValues.of(values);
+        return new DynamicFieldValues(metadata, values);
     }
 
     private DynamicFieldValue extractFieldValue(String code, DynamicDataType dataType,
@@ -396,8 +439,12 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
     }
 
     protected long toTimestamp(Object value) {
-        if (value instanceof Number n) { return n.longValue(); }
-        return System.currentTimeMillis();
+        if (value instanceof Number n) return exactLong(n);
+        if (value instanceof java.util.Date date) return date.getTime();
+        if (value instanceof java.time.Instant instant) return instant.toEpochMilli();
+        if (value instanceof java.time.OffsetDateTime date) return date.toInstant().toEpochMilli();
+        if (value instanceof java.time.ZonedDateTime date) return date.toInstant().toEpochMilli();
+        throw new DynamicFieldException("DYNAMIC_FIELD_DATETIME_ZONE_REQUIRED", "Use epoch milliseconds or an instant with an explicit timezone");
     }
 
     protected DynamicFieldValue toStringFieldValue(String code, Object v) {

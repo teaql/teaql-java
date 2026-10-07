@@ -246,12 +246,13 @@ public class BaseEntityTest {
     }
 
     @Test
-    public void testLoadedPropertyBitsAndOverflowPreserveSemantics() {
+    public void testUnindexedAdaptersPreserveMembershipWithoutInventingFixedPositions() {
         TestEntity entity = new TestEntity();
         for (int i = 0; i < 70; i++) entity.markPropertyLoaded("field" + i);
 
         for (int i = 0; i < 70; i++) assertTrue(entity.isPropertyLoaded("field" + i));
         assertFalse(entity.isPropertyLoaded("notLoaded"));
+        assertEquals(-1, BaseEntity.loadedPropertyIndex(TestEntity.class, "field0"));
     }
 
     @Test
@@ -334,8 +335,9 @@ public class BaseEntityTest {
         e.addDynamicProperty("prop1", "val1");
         assertEquals("val1", e.getDynamicProperty("prop1"));
         
-        e.addDynamicProperty("#prop2", "val2");
-        assertEquals("val2", e.getDynamicProperty("#prop2"));
+        e.addDynamicProperty("_prop2", "val2");
+        assertEquals("val2", e.getDynamicProperty("_prop2"));
+        assertThrows(IllegalArgumentException.class, () -> e.addDynamicProperty("#prop2", "value"));
         
         e.appendDynamicProperty("listProp", "item1");
         e.appendDynamicProperty("listProp", "item2");
@@ -399,11 +401,11 @@ public class BaseEntityTest {
     @Test
     public void testDynamicFieldValues() {
         TestEntity e = new TestEntity();
-        e.addDynamicProperty("str", "hello");
-        e.addDynamicProperty("num", 100);
-        e.addDynamicProperty("bool", true);
-        e.addDynamicProperty("nullval", null);
-        e.addDynamicProperty("obj", new Object() {
+        e.putAdditional("#str", "hello");
+        e.putAdditional("#num", 100);
+        e.putAdditional("#bool", true);
+        e.putAdditional("#nullval", null);
+        e.putAdditional("#obj", new Object() {
             @Override
             public String toString() {
                 return "obj_string";
@@ -415,10 +417,11 @@ public class BaseEntityTest {
         
         TestEntity e2 = new TestEntity();
         e2.setDynamicFieldValues(dfv);
-        assertEquals("hello", e2.getDynamicProperty("str"));
-        assertEquals(Integer.valueOf(100), e2.getDynamicProperty("num"));
-        assertEquals(Boolean.TRUE, e2.getDynamicProperty("bool"));
-        assertEquals("obj_string", e2.getDynamicProperty("obj"));
+        assertEquals("hello", e2.dynamicFields().getString("str"));
+        assertEquals(Integer.valueOf(100), e2.dynamicFields().getNumber("num"));
+        assertEquals(Boolean.TRUE, e2.dynamicFields().getBool("bool"));
+        assertEquals("obj_string", e2.dynamicFields().getString("obj"));
+        assertTrue(e2.dynamicFields().isNull("nullval"));
         
         assertEquals(dfv, e2.getDynamicFieldValues());
         e2.setDynamicFieldValues(null);

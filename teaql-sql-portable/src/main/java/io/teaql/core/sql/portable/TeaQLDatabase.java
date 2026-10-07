@@ -37,6 +37,14 @@ public interface TeaQLDatabase {
         return false;
     }
 
+    default boolean supportsCompiledStreamMapping() { return false; }
+
+    default <T extends io.teaql.core.Entity> Stream<T> queryForStream(
+            io.teaql.core.UserContext context, String sql, Object[] args,
+            io.teaql.core.CompiledRowMapper<T> mapper, SqlLogBindings bindings) {
+        throw new UnsupportedOperationException("compiled streaming row mapping is not supported");
+    }
+
     /**
      * Execute a query and return a list of rows. Each row is a Map (column name -> value).
      */

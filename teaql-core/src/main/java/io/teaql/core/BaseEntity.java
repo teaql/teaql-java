@@ -24,23 +24,17 @@ public class BaseEntity implements Entity {
 
     private String displayName;
 
-    private Map<String, PropertyChange> updatedProperties = new ConcurrentHashMap<>();
+    private static final Map<String, PropertyChange> NO_UPDATES = Map.of();
+    private Map<String, PropertyChange> updatedProperties = NO_UPDATES;
 
-    private static final ClassValue<LoadedPropertyLayout> LOADED_PROPERTY_LAYOUTS =
-            new ClassValue<>() {
-                @Override
-                protected LoadedPropertyLayout computeValue(Class<?> type) {
-                    return new LoadedPropertyLayout();
-                }
-            };
-
-    private long loadedPropertyBits;
-    private Set<String> overflowLoadedProperties;
+    private LoadState loadState = FieldLayout.forType(getClass()).emptyState();
     private boolean hydratingProperty;
 
-    private Map<String, Object> additionalInfo = new ConcurrentHashMap<>();
+    private Map<String, Object> additionalInfo = Map.of();
 
     private DynamicFieldValues dynamicFieldValues;
+    private Map<String, io.teaql.data.dynamic.DynamicFieldMutation> dynamicMutations = Map.of();
+    private Map<String, DynamicFieldValue> dynamicOriginalValues = Map.of();
 
     // Query-only sidecar. Never a model property or mutation-ledger entry.
     private transient Map<String, SmartList<?>> queryFacets = Map.of();
@@ -56,7 +50,7 @@ public class BaseEntity implements Entity {
         queryFacets = facets == null || facets.isEmpty() ? Map.of() : Map.copyOf(facets);
     }
 
-    private Map<String, Entity> relationCache = new HashMap<>();
+    private Map<String, Entity> relationCache = Map.of();
 
     private List<Object> actionList;
 
@@ -65,7 +59,9 @@ public class BaseEntity implements Entity {
     /**
      * Shared change tracking root for the entire entity graph.
      */
-    private EntityMutationLedger entityMutationLedger = new EntityMutationLedger();
+    private EntityMutationLedger entityMutationLedger;
+    // Database baseline is a row-owned scalar, not a reason to allocate a ledger.
+    private Long hydratedOriginalVersion;
 
     @Override
     public String getComment() {
@@ -126,7 +122,7 @@ public class BaseEntity implements Entity {
         }
         id = fixedId;
         markPropertyLoaded(ID_PROPERTY);
-        entityMutationLedger.markAsNew(new EntityKey(typeName(), fixedId));
+        getEntityMutationLedger().markAsNew(new EntityKey(typeName(), fixedId));
     }
 
     @Override
@@ -158,6 +154,7 @@ public class BaseEntity implements Entity {
             Long restoredVersion, EntityStatus restoredStatus, boolean versionWasLoaded) {
         this.version = restoredVersion;
         this.$status = restoredStatus;
+        if (hydratedOriginalVersion != null) hydratedOriginalVersion = restoredVersion;
         restorePropertyLoaded(VERSION_PROPERTY, versionWasLoaded);
     }
 
@@ -238,7 +235,13 @@ public class BaseEntity implements Entity {
             EntityKey key = new EntityKey(typeName(), id);
             Set<String> rootChanges = entityMutationLedger.changedFieldNames(key);
             if (rootChanges != null && !rootChanges.isEmpty()) {
-                return new ArrayList<>(rootChanges);
+                // Native SQL/checker callers consume predefined properties.
+                // dirtyFields()/the ledger expose # extension intents separately.
+                var nativeChanges = new ArrayList<String>();
+                for (String field : rootChanges) if (!field.startsWith("#")) nativeChanges.add(field);
+                if (nativeChanges.isEmpty()) return new ArrayList<>(updatedProperties.keySet());
+                if (updatedProperties.containsKey(VERSION_PROPERTY) && !nativeChanges.contains(VERSION_PROPERTY)) nativeChanges.add(VERSION_PROPERTY);
+                return nativeChanges;
             }
         }
         return new ArrayList<>(updatedProperties.keySet());
@@ -303,8 +306,7 @@ public class BaseEntity implements Entity {
 
     @Override
     public void addDynamicProperty(String propertyName, Object value) {
-        if (value == null) return;
-        additionalInfo.put(dynamicPropertyNameOf(propertyName), value);
+        mutableAdditionalInfo().put(dynamicPropertyNameOf(propertyName), value);
     }
 
     @Override
@@ -313,7 +315,7 @@ public class BaseEntity implements Entity {
         List<Object> existing = (List<Object>) additionalInfo.get(key);
         if (existing == null) {
             existing = new ArrayList<>();
-            additionalInfo.put(key, existing);
+            mutableAdditionalInfo().put(key, existing);
         }
         existing.add(value);
     }
@@ -325,17 +327,20 @@ public class BaseEntity implements Entity {
     }
 
     private String dynamicPropertyNameOf(String propertyName) {
-        if (propertyName.startsWith("#")) {
+        if (propertyName == null || propertyName.isBlank() || propertyName.startsWith("#")) {
+            throw new IllegalArgumentException("Dynamic properties use '_' names; '#' belongs to persistent dynamic fields");
+        }
+        if (propertyName.startsWith("_")) {
             return propertyName;
         }
-        return "#" + propertyName;
+        return "_" + propertyName;
     }
 
     @Override
     public BaseEntity markForDeletion() {
         gotoNextStatus(EntityAction.DELETE);
-        if (entityMutationLedger != null && id != null) {
-            entityMutationLedger.markAsDelete(new EntityKey(typeName(), id));
+        if (id != null) {
+            getEntityMutationLedger().markAsDelete(new EntityKey(typeName(), id));
         }
         return this;
     }
@@ -343,8 +348,8 @@ public class BaseEntity implements Entity {
     @Override
     public void markAsRecover() {
         gotoNextStatus(EntityAction.RECOVER);
-        if (entityMutationLedger != null && id != null) {
-            entityMutationLedger.markAsRecover(new EntityKey(typeName(), id));
+        if (id != null) {
+            getEntityMutationLedger().markAsRecover(new EntityKey(typeName(), id));
         }
     }
 
@@ -354,7 +359,7 @@ public class BaseEntity implements Entity {
     }
 
     public void clearUpdatedProperties() {
-        this.updatedProperties.clear();
+        if (!updatedProperties.isEmpty()) updatedProperties.clear();
     }
 
     public void addAction(Object action) {
@@ -391,8 +396,23 @@ public class BaseEntity implements Entity {
     // --- EntityMutationLedger integration ---
 
     public EntityMutationLedger getEntityMutationLedger() {
+        if (entityMutationLedger == null) {
+            entityMutationLedger = new EntityMutationLedger();
+            entityMutationLedger.setComment(_comment);
+            if (id != null) {
+                EntityKey key = new EntityKey(typeName(), id);
+                // New-entity intent is installed by its explicit lifecycle entry
+                // point, not invented merely by requesting an empty ledger.
+                if (hydratedOriginalVersion != null) entityMutationLedger.setOriginalVersion(key, hydratedOriginalVersion);
+                if (!_traceChain.isEmpty()) entityMutationLedger.setTraceChain(key, _traceChain);
+            }
+        }
         return entityMutationLedger;
     }
+
+    @FrameworkInternal("Allocation and hydration qualification only")
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public boolean __internalHasMutationLedger() { return entityMutationLedger != null; }
 
     public void setEntityMutationLedger(EntityMutationLedger entityMutationLedger) {
         this.entityMutationLedger = entityMutationLedger;
@@ -430,8 +450,9 @@ public class BaseEntity implements Entity {
     }
 
     public Long getOriginalVersion() {
-        if (entityMutationLedger == null || id == null) {
-            return null;
+        if (id == null) return null;
+        if (entityMutationLedger == null) {
+            return hydratedOriginalVersion;
         }
         return entityMutationLedger.getOriginalVersion(new EntityKey(typeName(), id));
     }
@@ -445,32 +466,42 @@ public class BaseEntity implements Entity {
     @FrameworkInternal("Expression and hydration infrastructure only")
     public void markPropertyLoaded(String propertyName) {
 		if (propertyName == null || hydratingProperty) return;
-        markPropertyLoaded(loadedPropertyIndex(getClass(), propertyName), propertyName);
+        loadState = loadState.withLoaded(propertyName, true);
 	}
 
     public boolean isPropertyLoaded(String propertyName) {
-		if (propertyName == null) return false;
-        Integer index = LOADED_PROPERTY_LAYOUTS.get(getClass()).find(propertyName);
-        if (index == null) return overflowLoadedProperties != null
-                && overflowLoadedProperties.contains(propertyName);
-        if (index < Long.SIZE) return (loadedPropertyBits & (1L << index)) != 0;
-        return overflowLoadedProperties != null && overflowLoadedProperties.contains(propertyName);
+		return loadState.isLoaded(propertyName);
 	}
 
     @FrameworkInternal("Compiled hydration infrastructure only")
     public static int loadedPropertyIndex(Class<? extends BaseEntity> entityType, String propertyName) {
-        return LOADED_PROPERTY_LAYOUTS.get(entityType).index(propertyName);
+        return FieldLayout.forType(entityType).indexForLoad(propertyName);
+    }
+
+    @FrameworkInternal("Immutable loaded-state sharing and hydration only")
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public LoadState __internalLoadState() { return loadState; }
+
+    @FrameworkInternal("Immutable loaded-state sharing and hydration only")
+    public void __internalUseLoadState(LoadState state) {
+        if (state == null || state.layout() != FieldLayout.forType(getClass())) {
+            throw new IllegalArgumentException("Incompatible entity load-state layout: " + typeName());
+        }
+        loadState = state;
     }
 
     @FrameworkInternal("Compiled hydration infrastructure only")
     public void __internalHydrate(String propertyName, Object value, int loadedPropertyIndex) {
+        if (loadState.layout().indexForLoad(propertyName) != loadedPropertyIndex) {
+            throw new IllegalArgumentException("Hydration index disagrees with generated layout: " + propertyName);
+        }
         hydratingProperty = true;
         try {
             __internalSet(propertyName, value);
         } finally {
             hydratingProperty = false;
         }
-        markPropertyLoaded(loadedPropertyIndex, propertyName);
+        loadState = loadState.withLoaded(propertyName, true);
         captureHydratedOriginalVersion();
     }
 
@@ -480,53 +511,13 @@ public class BaseEntity implements Entity {
      * entity-owned Mutation Ledger without creating a business mutation.
      */
     private void captureHydratedOriginalVersion() {
-        if (entityMutationLedger == null || id == null || version == null) return;
-        entityMutationLedger.setOriginalVersion(new EntityKey(typeName(), id), version);
-    }
-
-    private void markPropertyLoaded(int index, String propertyName) {
-        if (index < Long.SIZE) {
-            loadedPropertyBits |= 1L << index;
-            return;
-        }
-        if (overflowLoadedProperties == null) overflowLoadedProperties = new java.util.HashSet<>();
-        overflowLoadedProperties.add(propertyName);
+        if (id == null || version == null) return;
+        hydratedOriginalVersion = version;
+        if (entityMutationLedger != null) entityMutationLedger.setOriginalVersion(new EntityKey(typeName(), id), version);
     }
 
     private void restorePropertyLoaded(String propertyName, boolean loaded) {
-        Integer index = LOADED_PROPERTY_LAYOUTS.get(getClass()).find(propertyName);
-        if (index == null) {
-            if (loaded) {
-                if (overflowLoadedProperties == null) overflowLoadedProperties = new java.util.HashSet<>();
-                overflowLoadedProperties.add(propertyName);
-            } else if (overflowLoadedProperties != null) {
-                overflowLoadedProperties.remove(propertyName);
-            }
-            return;
-        }
-        if (index < Long.SIZE) {
-            if (loaded) loadedPropertyBits |= 1L << index;
-            else loadedPropertyBits &= ~(1L << index);
-        } else if (loaded) {
-            if (overflowLoadedProperties == null) overflowLoadedProperties = new java.util.HashSet<>();
-            overflowLoadedProperties.add(propertyName);
-        } else if (overflowLoadedProperties != null) {
-            overflowLoadedProperties.remove(propertyName);
-        }
-    }
-
-    private static final class LoadedPropertyLayout {
-        private final ConcurrentHashMap<String, Integer> indexes = new ConcurrentHashMap<>();
-        private final java.util.concurrent.atomic.AtomicInteger nextIndex =
-                new java.util.concurrent.atomic.AtomicInteger();
-
-        int index(String propertyName) {
-            return indexes.computeIfAbsent(propertyName, ignored -> nextIndex.getAndIncrement());
-        }
-
-        Integer find(String propertyName) {
-            return indexes.get(propertyName);
-        }
+        loadState = loadState.withLoaded(propertyName, loaded);
     }
 
     @Override
@@ -544,9 +535,8 @@ public class BaseEntity implements Entity {
         if (o != null) {
             return (P) o;
         }
-        Object dynamicProperty = this.additionalInfo.get(dynamicPropertyNameOf(propertyName));
-        if (dynamicProperty != null) {
-            return (P) dynamicProperty;
+        if (propertyName != null && (propertyName.startsWith("_") || propertyName.startsWith("#"))) {
+            return (P) additionalInfo.get(propertyName);
         }
         return Entity.super.getProperty(propertyName);
     }
@@ -559,12 +549,13 @@ public class BaseEntity implements Entity {
             oldValue = propertyChange.getOldValue();
         }
         if (ObjectUtil.equals(oldValue, newValue)) {
-            updatedProperties.remove(propertyName);
+            if (!updatedProperties.isEmpty()) updatedProperties.remove(propertyName);
             return;
         }
-        updatedProperties.put(propertyName, new PropertyChange(propertyName, oldValue, newValue));
+        mutableUpdatedProperties().put(propertyName, new PropertyChange(propertyName, oldValue, newValue));
 
-        if (entityMutationLedger != null && id != null) {
+        if (id != null) {
+            EntityMutationLedger entityMutationLedger = getEntityMutationLedger();
             EntityKey key = new EntityKey(typeName(), id);
             entityMutationLedger.set(key, propertyName, newValue);
             if (!_traceChain.isEmpty()) {
@@ -573,13 +564,19 @@ public class BaseEntity implements Entity {
         }
     }
 
+    private Map<String, PropertyChange> mutableUpdatedProperties() {
+        if (updatedProperties == NO_UPDATES) updatedProperties = new ConcurrentHashMap<>();
+        return updatedProperties;
+    }
+
     public void gotoNextStatus(EntityAction action) {
         set$status(get$status().next(action));
     }
 
     public void cacheRelation(String relationName, Entity relation) {
 		markPropertyLoaded(relationName);
-        this.relationCache.put(relationName, relation);
+        if (relationCache.isEmpty()) relationCache = new HashMap<>();
+        relationCache.put(relationName, relation);
         Object initValue = getProperty(relationName);
         handleUpdate(relationName, initValue, relation);
     }
@@ -615,15 +612,83 @@ public class BaseEntity implements Entity {
     }
 
     public Map<String, Object> getAdditionalInfo() {
-        return additionalInfo;
+        return mutableAdditionalInfo();
     }
 
     public void setAdditionalInfo(Map<String, Object> additionalInfo) {
-        this.additionalInfo = additionalInfo;
+        this.additionalInfo = additionalInfo == null || additionalInfo.isEmpty()
+                ? Map.of() : new HashMap<>(additionalInfo);
+    }
+
+    private Map<String, Object> mutableAdditionalInfo() {
+        if (additionalInfo.isEmpty()) additionalInfo = new HashMap<>();
+        return additionalInfo;
+    }
+
+    @Override
+    public DynamicFieldValues dynamicFields() {
+        return dynamicFieldValues == null ? collectDynamicFieldValues() : dynamicFieldValues;
     }
 
     public DynamicFieldValues getDynamicFieldValues() {
         return dynamicFieldValues;
+    }
+
+    public BaseEntity updateDynamicField(String code, Object value) {
+        if (dynamicFieldValues == null) throw new io.teaql.data.dynamic.DynamicFieldException("DYNAMIC_FIELD_DEFINITIONS_MISSING", "Load dynamic field definitions before editing");
+        var mutation = io.teaql.data.dynamic.DynamicFieldMutation.set(code, dynamicFieldValues.metadata().requireType(code), value);
+        stageDynamicMutation(mutation);
+        return this;
+    }
+
+    public BaseEntity deleteDynamicField(String code) {
+        if (dynamicFieldValues == null) throw new io.teaql.data.dynamic.DynamicFieldException("DYNAMIC_FIELD_DEFINITIONS_MISSING", "Load dynamic field definitions before editing");
+        stageDynamicMutation(io.teaql.data.dynamic.DynamicFieldMutation.delete(code, dynamicFieldValues.metadata().requireType(code)));
+        return this;
+    }
+
+    private void stageDynamicMutation(io.teaql.data.dynamic.DynamicFieldMutation mutation) {
+        EntityStatus nextStatus = get$status().next(EntityAction.UPDATE);
+        Map<String, DynamicFieldValue> next = new HashMap<>(dynamicFieldValues.toMap());
+        if (mutation.kind() == io.teaql.data.dynamic.DynamicFieldMutation.Kind.SET) next.put(mutation.code(), mutation.asLoadedValue());
+        else next.remove(mutation.code());
+        DynamicFieldValues values = new DynamicFieldValues(dynamicFieldValues.metadata(), next);
+        LoadState state = loadState.withDynamicSelection(values.selectedCodes());
+        if (dynamicOriginalValues.isEmpty()) dynamicOriginalValues = new HashMap<>();
+        dynamicOriginalValues.putIfAbsent(mutation.code(), dynamicFieldValues.field(mutation.code()));
+        __internalHydrateDynamicFields(values, state);
+        if (dynamicMutations.isEmpty()) dynamicMutations = new HashMap<>();
+        dynamicMutations.put(mutation.code(), mutation);
+        set$status(nextStatus);
+        if (id != null) getEntityMutationLedger().setDynamic(new EntityKey(typeName(), id), mutation);
+    }
+
+    @FrameworkInternal("Graph mutation planning only")
+    public Map<String, io.teaql.data.dynamic.DynamicFieldMutation> __internalDynamicMutations() {
+        return dynamicMutations.isEmpty() ? Map.of() : java.util.Collections.unmodifiableMap(dynamicMutations);
+    }
+
+    @FrameworkInternal("Invocation-local audit and log privacy provenance only")
+    public Map<String, DynamicFieldValue> __internalDynamicOriginalValues() {
+        return dynamicOriginalValues.isEmpty() ? Map.of() : java.util.Collections.unmodifiableMap(dynamicOriginalValues);
+    }
+
+    @FrameworkInternal("Successful graph commit only")
+    public void __internalClearDynamicMutations() { dynamicMutations = Map.of(); dynamicOriginalValues = Map.of(); }
+
+    @FrameworkInternal("Runtime optimistic guard for an extension-only update")
+    public void __internalRequireVersionUpdate() {
+        if (version == null) throw new TeaQLRuntimeException("Dynamic update requires a loaded optimistic version");
+        mutableUpdatedProperties().put(VERSION_PROPERTY, new PropertyChange(VERSION_PROPERTY, version, version));
+    }
+
+    @FrameworkInternal("Replay validated ledger intent into a provider-owned mutation entity")
+    public void __internalApplyRecordedMutation(String property, Object value) {
+        Object before = __internalGet(property);
+        __internalSet(property, value);
+        // The blank provider entity is not the original loaded snapshot. Equal
+        // defaults here must not discard an explicit NULL/zero/false intent.
+        mutableUpdatedProperties().put(property, new PropertyChange(property, before, value));
     }
 
     public DynamicFieldValues collectDynamicFieldValues() {
@@ -655,13 +720,34 @@ public class BaseEntity implements Entity {
     }
 
     public void setDynamicFieldValues(DynamicFieldValues values) {
+        // Hydration replaces this view's selection, not stored values or mutation intent.
+        if (!additionalInfo.isEmpty()) {
+            for (String key : new ArrayList<>(additionalInfo.keySet())) {
+                if (key.startsWith("#")) {
+                    additionalInfo.remove(key);
+                    loadState = loadState.withLoaded(key, false);
+                }
+            }
+        }
         this.dynamicFieldValues = values;
         if (values != null) {
             for (Map.Entry<String, DynamicFieldValue> entry : values.toMap().entrySet()) {
                 String key = "#" + entry.getKey();
-                Object val = entry.getValue().value();
-                additionalInfo.put(key, val);
+                if (!entry.getValue().isLoaded()) continue;
+                mutableAdditionalInfo().put(key, entry.getValue().value());
+                loadState = loadState.withLoaded(key, true);
             }
+        }
+    }
+
+    /** Bulk hydration supplies a shared final selection; values and wrappers stay row-owned. */
+    @FrameworkInternal("Dynamic-field query hydration only")
+    public void __internalHydrateDynamicFields(DynamicFieldValues values, LoadState sharedState) {
+        __internalUseLoadState(sharedState);
+        if (!additionalInfo.isEmpty()) additionalInfo.keySet().removeIf(key -> key.startsWith("#"));
+        dynamicFieldValues = values;
+        for (Map.Entry<String, DynamicFieldValue> entry : values.toMap().entrySet()) {
+            if (entry.getValue().isLoaded()) mutableAdditionalInfo().put("#" + entry.getKey(), entry.getValue().value());
         }
     }
 
@@ -670,6 +756,9 @@ public class BaseEntity implements Entity {
      * Used by deserializers to populate entity fields.
      */
     public void putAdditional(String propertyName, Object value) {
-        additionalInfo.put(propertyName, value);
+        mutableAdditionalInfo().put(propertyName, value);
+        if (propertyName != null && propertyName.startsWith("#")) {
+            loadState = loadState.withLoaded(propertyName, true);
+        }
     }
 }

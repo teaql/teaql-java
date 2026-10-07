@@ -24,6 +24,7 @@ public class InMemoryDynamicFieldsProvider implements DynamicFieldsProvider {
     private static final Logger LOG = Logger.getLogger(InMemoryDynamicFieldsProvider.class.getName());
 
     private final AtomicLong idSequence = new AtomicLong(1);
+    private static final Object EXPLICIT_NULL = new Object();
 
     // key: scope/ownerType/code -> DynamicFieldDef
     private final Map<String, DynamicFieldDef> fieldDefs = new ConcurrentHashMap<>();
@@ -112,6 +113,7 @@ public class InMemoryDynamicFieldsProvider implements DynamicFieldsProvider {
         }
 
         Map<DynamicOwnerRef, DynamicFieldValues> result = new HashMap<>();
+        Map<String, DynamicFieldMetadata> metadata = new HashMap<>();
         for (DynamicOwnerRef ownerRef : ownerRefs) {
             List<DynamicFieldValue> values = new ArrayList<>();
 
@@ -123,9 +125,11 @@ public class InMemoryDynamicFieldsProvider implements DynamicFieldsProvider {
                     if (!def.isActive()) continue;
                     String vKey = valueKey(context, ownerRef, def.getId());
                     Object val = fieldValues.get(vKey);
-                    values.add(toFieldValue(def.getCode(), def.getDataType(), val));
+                    if (val != null) values.add(toFieldValue(def.getCode(), def.getDataType(), val));
                 }
-                result.put(ownerRef, DynamicFieldValues.of(values));
+                DynamicFieldMetadata fields = metadata.computeIfAbsent(ownerRef.ownerType(),
+                        type -> DynamicFieldMetadata.fromDefinitions(defs));
+                result.put(ownerRef, withMetadata(fields, values));
                 continue;
             }
             // Load selected fields
@@ -138,11 +142,19 @@ public class InMemoryDynamicFieldsProvider implements DynamicFieldsProvider {
                 if (def == null) continue;
                 String vKey = valueKey(context, ownerRef, def.getId());
                 Object val = fieldValues.get(vKey);
-                values.add(toFieldValue(entry.code(), entry.dataType(), val));
+                if (val != null) values.add(toFieldValue(entry.code(), entry.dataType(), val));
             }
-            result.put(ownerRef, DynamicFieldValues.of(values));
+            DynamicFieldMetadata fields = metadata.computeIfAbsent(ownerRef.ownerType(),
+                    type -> DynamicFieldMetadata.fromDefinitions(listFieldDefs(context, type)));
+            result.put(ownerRef, withMetadata(fields, values));
         }
         return result;
+    }
+
+    private static DynamicFieldValues withMetadata(DynamicFieldMetadata metadata, List<DynamicFieldValue> values) {
+        Map<String, DynamicFieldValue> selected = new HashMap<>();
+        values.forEach(value -> selected.put(value.fieldCode(), value));
+        return new DynamicFieldValues(metadata, selected);
     }
 
     @Override
@@ -164,10 +176,11 @@ public class InMemoryDynamicFieldsProvider implements DynamicFieldsProvider {
         }
 
         String vKey = valueKey(context, command.ownerRef(), def.getId());
-        fieldValues.remove(vKey);
-        if (command.value() != null) {
-            fieldValues.put(vKey, command.value());
+        if (def.getDataType() != command.dataType()) {
+            throw DynamicFieldException.typeMismatch(command.fieldCode(), def.getDataType(), command.dataType());
         }
+        // Explicit NULL is persisted; removing the entry is a distinct delete intent.
+        fieldValues.put(vKey, command.value() == null ? EXPLICIT_NULL : command.value());
     }
 
     @Override
@@ -204,7 +217,7 @@ public class InMemoryDynamicFieldsProvider implements DynamicFieldsProvider {
     }
 
     private static DynamicFieldValue toFieldValue(String code, DynamicDataType dataType, Object val) {
-        if (val == null) {
+        if (val == EXPLICIT_NULL) {
             return DynamicFieldValue.ofNull(code, dataType);
         }
         return switch (dataType) {

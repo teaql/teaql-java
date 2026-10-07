@@ -437,9 +437,15 @@ public class PortableSQLDatabaseTest {
                 .purpose("verify governed relation plan equivalence")
                 .executeForList(context);
         Map<Long, List<Long>> result = new LinkedHashMap<>();
+        io.teaql.core.LoadState shared = rows.isEmpty() ? null : rows.get(0).__internalLoadState();
         for (TopNParent row : rows) {
             SmartList<TopNChild> children = row.getProperty("children");
-            result.put(row.getId(), children == null ? List.of() : children.toList(Entity::getId));
+            assertNotNull("selected empty children are a real loaded SmartList", children);
+            assertTrue("selected relation marker must include empty parents", row.isPropertyLoaded("children"));
+            assertFalse("read hydration must not allocate a mutation ledger", row.__internalHasMutationLedger());
+            assertSame("loaded and empty reverse parents share one actual shape", shared, row.__internalLoadState());
+            if (children.isEmpty()) assertSame(SmartList.empty(TopNChild.class), children);
+            result.put(row.getId(), children.toList(Entity::getId));
         }
         return result;
     }

@@ -8,6 +8,16 @@ import java.time.LocalTime;
 import org.junit.Test;
 
 public class PortableSQLTemporalConversionTest {
+    @org.junit.Test
+    public void nativeImmutableTemporalValuesAreNotFormattedAndParsedAgain() {
+        var date = java.time.LocalDate.of(2026, 10, 7);
+        var time = java.time.LocalTime.of(12, 34, 56, 123456789);
+        var timestamp = java.time.LocalDateTime.of(date, time);
+        org.junit.Assert.assertSame(date, PortableSQLRepository.convertTemporalColumnValue(java.time.LocalDate.class, date));
+        org.junit.Assert.assertSame(time, PortableSQLRepository.convertTemporalColumnValue(java.time.LocalTime.class, time));
+        org.junit.Assert.assertSame(timestamp, PortableSQLRepository.convertTemporalColumnValue(java.time.LocalDateTime.class, timestamp));
+        org.junit.Assert.assertEquals(123456789, timestamp.getNano());
+    }
     @Test
     public void convertsJdbcStyleTemporalStrings() {
         String timestamp = "2026-08-12 05:25:00.0";

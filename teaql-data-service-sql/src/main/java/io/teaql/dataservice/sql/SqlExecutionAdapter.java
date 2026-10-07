@@ -17,6 +17,13 @@ public interface SqlExecutionAdapter {
     default Stream<Map<String, Object>> queryForStream(String sql, Object[] params) {
         throw new UnsupportedOperationException("streaming query is not supported");
     }
+
+    default boolean supportsCompiledStreamMapping() { return false; }
+
+    default <T extends io.teaql.core.Entity> Stream<T> queryForStream(
+            String sql, Object[] params, io.teaql.core.CompiledRowMapper<T> mapper) {
+        throw new UnsupportedOperationException("compiled streaming row mapping is not supported");
+    }
     
     List<Map<String, Object>> queryForList(String sql, Map<String, Object> params);
     
@@ -37,4 +44,8 @@ public interface SqlExecutionAdapter {
     default void executeInTransaction(Runnable action) {
         action.run();
     }
+    default boolean hasActiveTransaction() { return false; }
+
+    /** Opaque, non-reused instance token for held storage views; never a URL or transaction handle. */
+    default Object storageIdentity() { return null; }
 }

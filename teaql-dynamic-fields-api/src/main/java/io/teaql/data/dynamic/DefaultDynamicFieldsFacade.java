@@ -72,7 +72,67 @@ public class DefaultDynamicFieldsFacade implements DynamicFieldsFacade {
         return new DefaultOwnerBound(ownerType, ownerId);
     }
 
+    @Override
+    public DynamicFieldMetadata metadata(String ownerType) {
+        Objects.requireNonNull(ownerType, "ownerType");
+        DynamicFieldContext context = buildContext();
+        for (DynamicFieldDef field : provider.listFieldDefs(context, ownerType)) {
+            if (field.isActive()) checkReadable(field);
+        }
+        return provider.metadata(context, ownerType);
+    }
+
+    @Override
+    public java.util.Map<DynamicOwnerRef, DynamicFieldValues> readAll(
+            java.util.List<DynamicOwnerRef> owners, DynamicFieldSelection selection) {
+        DynamicFieldContext context = buildContext();
+        java.util.Set<String> checked = new java.util.HashSet<>();
+        for (DynamicOwnerRef owner : owners) {
+            if (!checked.add(owner.ownerType())) continue;
+            if (selection.isSelectAll()) {
+                for (DynamicFieldDef field : provider.listFieldDefs(context, owner.ownerType())) {
+                    if (field.isActive()) checkReadable(field);
+                }
+            } else {
+                for (DynamicFieldSelection.DynamicFieldSelectionEntry entry : selection.getEntries()) {
+                    DynamicFieldDef field = requireFieldDef(context, owner.ownerType(), entry.code());
+                    checkReadable(field); checkType(field, entry.dataType());
+                }
+            }
+        }
+        return provider.loadValues(context, owners, selection);
+    }
+
     // ─── Context Builder ───────────────────────────────────────────────
+
+    @Override
+    public void prepareGraphMutations(Object resource, java.util.List<DynamicGraphMutation> mutations) {
+        if (!provider.participatesInGraphTransaction(resource)) throw new DynamicFieldException(
+                "DYNAMIC_FIELD_TRANSACTION_BINDING_REQUIRED", "Dynamic field provider must share the exact active graph executor");
+        if (purpose == null || purpose.isBlank() || comment == null || comment.isBlank()) throw new DynamicFieldException(
+                "DYNAMIC_FIELD_INTENT_REQUIRED", "Graph dynamic changes require non-empty comment and purpose");
+        DynamicFieldContext context = buildContext();
+        for (DynamicGraphMutation request : mutations) {
+            provider.validateGraphMutation(context, request);
+            DynamicFieldDef def = requireFieldDef(context, request.owner().ownerType(), request.mutation().code());
+            checkWritable(def); checkType(def, request.mutation().dataType());
+        }
+    }
+
+    @Override
+    public void applyGraphMutations(Object resource, java.util.List<DynamicGraphMutation> mutations) {
+        prepareGraphMutations(resource, mutations);
+        DynamicFieldContext context = buildContext();
+        for (DynamicGraphMutation request : mutations) {
+            DynamicFieldMutation mutation = request.mutation();
+            if (mutation.kind() == DynamicFieldMutation.Kind.SET) {
+                provider.saveValue(context, DynamicSetCommand.of(request.owner(), mutation.code(), mutation.dataType(), mutation.value(), purpose, comment));
+            } else {
+                DynamicFieldDef def = requireFieldDef(context, request.owner().ownerType(), mutation.code());
+                provider.deleteValue(context, DynamicValueRef.of(request.owner(), def.getId()));
+            }
+        }
+    }
 
     private DynamicFieldContext buildContext() {
         return new DynamicFieldContext() {
@@ -154,9 +214,8 @@ public class DefaultDynamicFieldsFacade implements DynamicFieldsFacade {
 
         @Override
         public DynamicFieldValues readAll(DynamicFieldSelection selection) {
-            DynamicFieldContext context = buildContext();
             DynamicOwnerRef ownerRef = DynamicOwnerRef.of(ownerType, ownerId);
-            return provider.loadValues(context, ownerRef, selection);
+            return DefaultDynamicFieldsFacade.this.readAll(java.util.List.of(ownerRef), selection).get(ownerRef);
         }
     }
 

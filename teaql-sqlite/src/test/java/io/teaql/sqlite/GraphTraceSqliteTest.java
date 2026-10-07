@@ -224,7 +224,13 @@ public class GraphTraceSqliteTest {
                 try { return checkedSave(fixture, valid, "save valid overlapping graph"); }
                 finally { validFinished.countDown(); }
             });
-            var second = workers.submit(() -> checkedSave(fixture, invalid, "reject invalid overlapping graph"));
+            var second = workers.submit(() -> {
+                // The runtime captures its fix clock before entering the Checker.
+                // Order the operation starts, not just the Checker bodies, so
+                // the date assignment below is deterministic while saves overlap.
+                await(validEntered);
+                return checkedSave(fixture, invalid, "reject invalid overlapping graph");
+            });
             var accepted = first.get(20, TimeUnit.SECONDS);
             var rejected = second.get(20, TimeUnit.SECONDS);
             assertNull("another graph's required-field failure must not reject this valid graph: " + accepted.failure(), accepted.failure());

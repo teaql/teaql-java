@@ -13,6 +13,41 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 public class IdSpaceIdGeneratorTest {
+    @Test
+    public void parentChildrenAndSiblingShareTheContextOwnedRootIdSpace() {
+        var database = new RecordingDatabase();
+        database.levels.put("Parent", 5L);
+        var generator = new IdSpaceIdGenerator(database);
+        var factory = new io.teaql.core.meta.SimpleEntityMetaFactory();
+        var parent = new io.teaql.core.meta.EntityDescriptor(); parent.setType("Parent");
+        var child = new io.teaql.core.meta.EntityDescriptor(); child.setType("Child"); child.setParent(parent);
+        var sibling = new io.teaql.core.meta.EntityDescriptor(); sibling.setType("Sibling"); sibling.setParent(parent);
+        factory.register(parent); factory.register(child); factory.register(sibling);
+        var context = new io.teaql.runtime.DefaultUserContext(io.teaql.runtime.TeaQLRuntime.builder().metadata(factory).build());
+        assertEquals(Long.valueOf(6), generator.generateId(context, new NamedEntity("Child")));
+        assertEquals(Long.valueOf(7), generator.generateId(context, new NamedEntity("Parent")));
+        assertEquals(Long.valueOf(8), generator.generateId(context, new NamedEntity("Sibling")));
+        assertEquals(Map.of("Parent", 8L), database.levels);
+    }
+
+    @Test
+    public void cyclicAllocationMetadataRejectsBeforeDatabaseAccess() {
+        var database = new RecordingDatabase();
+        var parent = new io.teaql.core.meta.EntityDescriptor(); parent.setType("Parent");
+        var child = new io.teaql.core.meta.EntityDescriptor(); child.setType("Child");
+        parent.setParent(child); child.setParent(parent);
+        var factory = new io.teaql.core.meta.SimpleEntityMetaFactory(); factory.register(parent); factory.register(child);
+        var context = new io.teaql.runtime.DefaultUserContext(io.teaql.runtime.TeaQLRuntime.builder().metadata(factory).build());
+        assertThrows(IllegalArgumentException.class, () -> new IdSpaceIdGenerator(database).generateId(context, new NamedEntity("Child")));
+        assertTrue(database.queries.isEmpty());
+    }
+
+    private static final class NamedEntity extends io.teaql.core.BaseEntity {
+        private final String type;
+        NamedEntity(String type) { this.type = type; }
+        @Override public String typeName() { return type; }
+    }
+
 
     @Test
     public void incrementsExistingRowWithOptimisticCompareAndSet() {

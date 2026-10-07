@@ -361,6 +361,13 @@
 
     <profiles>
         <profile>
+            <id>shared-load-state-example</id>
+            <modules>
+                <module>examples/shared-load-state/target/generated/lib</module>
+                <module>examples/shared-load-state</module>
+            </modules>
+        </profile>
+        <profile>
             <id>runtime-examples</id>
             <modules>
                 <module>examples/school-management/lib</module>
