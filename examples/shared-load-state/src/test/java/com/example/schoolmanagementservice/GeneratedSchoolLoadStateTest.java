@@ -151,18 +151,35 @@ class GeneratedSchoolLoadStateTest {
         assertTrue(sparse.get(0).isPropertyLoaded("id"));
         assertTrue(sparse.get(0).isPropertyLoaded("version"));
         assertFalse(sparse.get(0).isPropertyLoaded("address"));
-        var mapper = new ObjectMapper().registerModule(TeaQLModule.INSTANCE)
+        var mapper = new ObjectMapper().registerModule(new TeaQLModule(context))
                 .registerModule(new JavaTimeModule()).disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         var sparseJson = mapper.readTree(mapper.writeValueAsString(sparse));
         assertEquals(first, sparseJson.get(0).get("name").asText());
         assertFalse(sparseJson.get(0).has("address"), "NotLoaded must not become serialized NULL");
         assertFalse(sparseJson.get(0).has("establishedDate"));
         assertSame(sparseState, sparse.get(0).__internalLoadState());
+        var sparseRestored = mapper.treeToValue(sparseJson.get(0), School.class);
+        assertEquals(first, E.school(sparseRestored).getName().eval());
+        assertFalse(sparseRestored.isPropertyLoaded("address"));
+        assertFalse(sparseRestored.__internalHasMutationLedger());
+        assertTrue(sparseRestored.getUpdatedProperties().isEmpty());
+        var sparseSecondRestored = mapper.treeToValue(sparseJson.get(1), School.class);
+        assertSame(sparseRestored.__internalLoadState(), sparseSecondRestored.__internalLoadState());
+        assertEquals(sparseJson.get(0), mapper.readTree(mapper.writeValueAsString(sparseRestored)));
         var fullJson = mapper.readTree(mapper.writeValueAsString(full));
         assertEquals("1995-09-01", fullJson.get(0).get("establishedDate").asText());
         assertEquals(0, fullJson.get(0).get("studentCapacity").asInt());
         assertFalse(fullJson.get(0).get("active").asBoolean());
         assertSame(snapshot, full.get(0).__internalLoadState());
+        var fullRestored = mapper.treeToValue(fullJson.get(0), School.class);
+        assertEquals(0, E.school(fullRestored).getStudentCapacity().eval());
+        assertEquals(false, E.school(fullRestored).isActive().eval());
+        assertEquals(LocalDate.of(1995, 9, 1), fullRestored.getEstablishedDate());
+        assertEquals(1001L, fullRestored.getSchoolType().getId());
+        assertFalse(fullRestored.__internalHasMutationLedger());
+        assertTrue(fullRestored.getUpdatedProperties().isEmpty());
+        assertEquals(fullJson.get(0), mapper.readTree(mapper.writeValueAsString(fullRestored)));
+        System.out.println("PASS generated Java typed native JSON roundtrip and snapshot sharing " + round);
         if (wide) {
             for (int index : new int[]{31, 32, 63, 64, 65, 129}) {
                 String name = School.__TEAQL_FIXED_FIELD_INDEXES.entrySet().stream()

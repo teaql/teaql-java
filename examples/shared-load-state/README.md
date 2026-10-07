@@ -50,6 +50,15 @@ Loaded empty lists serialize as arrays; unselected lists stay absent. A target
 filter cannot erase the source's known FK or invent loaded target detail.
 These cases are required in both retained rounds, not optional smoke output.
 
+The mapper uses `new TeaQLModule(context)` for indexed, strongly typed JSON
+reads through installed suppliers rather than bean reflection. Both rounds
+roundtrip full and minimal School projections, nested forward/reverse graphs,
+and loaded empty versus omitted reverse lists. Missing target details stay
+NotLoaded, actual NULL stays loaded, and compatible decoded rows share state
+without creating mutation intent. This does not certify arbitrary polymorphic
+or persistent `#` JSON input: those require their own contract. Decoded data is
+not a substitute for loading authoritative state before mutation.
+
 - Repeated schema bootstrap preserves Platform 1 and SchoolType 1001/1002.
 - Generated indexes and revision match the installed type layout.
 - Compatible full and sparse lists share exact immutable snapshot references

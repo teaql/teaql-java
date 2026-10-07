@@ -67,6 +67,8 @@ for round in first second; do
       exit 1
     }
   rg -F "PASS generated Java indexed Q/E/Checker/create/update/delete and snapshot sharing $round" "$run_dir/$round.log"
+  rg -F "PASS generated Java typed native JSON roundtrip and snapshot sharing $round" "$run_dir/$round.log"
+  rg -F "PASS generated Java typed JSON graph roundtrip and Empty/NotLoaded isolation" "$run_dir/$round.log"
   rg -F "PASS generated Java dynamic storage provenance and retry" "$run_dir/$round.log"
   rg -F "PASS generated Java namespace serialization and NotLoaded boundary" "$run_dir/$round.log"
   rg -F "PASS generated Java nested/reverse graph Q/E/JSON and Empty/NotLoaded isolation" "$run_dir/$round.log"

@@ -12,8 +12,12 @@
     <artifactId>teaql-jackson</artifactId>
     <name>teaql-jackson</name>
     <description>Jackson integration for TeaQL serialization</description>
+    <properties><argLine/></properties>
 
     <dependencies>
+        <dependency>
+            <groupId>io.teaql</groupId><artifactId>teaql-runtime</artifactId><scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>io.teaql</groupId>
             <artifactId>teaql-core</artifactId>
@@ -29,4 +33,16 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- Context fixtures use runtime only in tests; production keeps its core-only dependency. -->
+                    <argLine>@{argLine} --add-reads io.teaql.jackson=io.teaql.runtime</argLine>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

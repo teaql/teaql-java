@@ -370,7 +370,9 @@ The main entity construction, JSON, and SQL row-mapping paths are designed to
 avoid reflection-heavy bean mutation:
 
 - `teaql-jackson` registers explicit entity serializers and deserializers
-  through `TeaQLModule`.
+  through `TeaQLModule`. For indexed domain-entity reads, bind a mapper to the
+  installed model with `new TeaQLModule(context)`; the legacy singleton retains
+  generic BaseEntity reading and entity serialization compatibility.
 - `teaql-sql-portable` creates entities through
   `EntityDescriptor.createEntity()`.
 - Generated or hand-written metadata registers an `entitySupplier`, such as
@@ -379,6 +381,21 @@ avoid reflection-heavy bean mutation:
 Dynamic and additional values should remain JSON-friendly: scalars, maps,
 lists, or other explicitly serializable values. Arbitrary application objects
 may still trigger Jackson's default bean introspection.
+
+The context-bound reader uses registered entity suppliers and typed internal
+hydration, preserving loaded NULL versus omitted NotLoaded without dirtying a
+Mutation Ledger. Compatible JSON shapes share immutable state; the reader's
+value-free shape cache is bounded to 128 entries. Unknown model types, fields,
+internal state and duplicate aliases reject instead of invoking bean setters.
+Keep one configured mapper/model binding per context metadata snapshot; do not
+switch models on a mapper that has already cached readers.
+
+JSON hydration does not make client data authoritative or authorize a save.
+Load the governed database object before applying business mutations and retain
+whole-object Checker and audited-save requirements. Readonly `_` properties may
+roundtrip as data; persistent `#` fields require a separately trusted definition
+and storage-provenance contract and currently reject in the typed JSON reader.
+See the [generated shared-state example](examples/shared-load-state/README.md).
 
 See the [Native Image Reflection Guide](NATIVE_IMAGE_REFLECTION_GUIDE.md) for
 the baseline and coding rules.
