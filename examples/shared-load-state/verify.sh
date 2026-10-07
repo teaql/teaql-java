@@ -86,6 +86,7 @@ for round in first second; do
   rg -F "PASS generated Java LF17 dynamic metadata shared without fixed slots" "$run_dir/$round.log"
   rg -F "PASS generated Java LF19 fixed derived and persistent same-name namespace isolation" "$run_dir/$round.log"
   rg -F "PASS generated Java LF23 dynamic availability detaches only one view" "$run_dir/$round.log"
+  rg -F "PASS generated Java value-only dynamic mutation retains shared snapshot and sibling payload" "$run_dir/$round.log"
   rg -F "PASS generated Java LF20 readonly total persists only through modeled materialization" "$run_dir/$round.log"
   rg -F "PASS generated Java LF11 native readback rollback retains loaded state and retry intent" "$run_dir/$round.log"
   rg -F "PASS generated Java authoritative missing column rolls back without turning absence into null" "$run_dir/$round.log"

@@ -24,6 +24,16 @@ final class GeneratedNamespaceCowAcceptance {
         var shared=rows.get(0).__internalLoadState();assertSame(shared,rows.get(1).__internalLoadState());
         var first=rows.get(0);assertEquals(id,first.getId());
         assertEquals(DynamicFieldValue.State.NOT_LOADED,first.dynamicFields().field("name").state());
+        assertEquals(DynamicFieldValue.State.VALUE,first.dynamicFields().field(note).state());
+        Object siblingNote=rows.get(1).dynamicFields().field(note).value();
+        first.updateDynamicField(note,"value-only private control");
+        assertSame(shared,first.__internalLoadState());
+        assertSame(shared,rows.get(1).__internalLoadState());
+        assertEquals("value-only private control",first.dynamicFields().field(note).value());
+        assertEquals(siblingNote,rows.get(1).dynamicFields().field(note).value());
+        assertTrue(rows.get(1).getUpdatedProperties().isEmpty());
+        assertTrue(rows.get(1).__internalDynamicMutations().isEmpty());
+        System.out.println("PASS generated Java value-only dynamic mutation retains shared snapshot and sibling payload");
         first.addDynamicProperty("name","readonly same name");
         first.updateDynamicField("name","persistent same name");
         assertNotSame(shared,first.__internalLoadState());assertSame(shared,rows.get(1).__internalLoadState());
