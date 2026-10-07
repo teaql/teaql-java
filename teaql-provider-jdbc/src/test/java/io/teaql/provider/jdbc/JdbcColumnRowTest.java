@@ -48,4 +48,14 @@ public class JdbcColumnRowTest {
         assertTrue(row.entrySet().remove(new AbstractMap.SimpleEntry<>("x",3)));
         row.entrySet().clear();assertTrue(row.isEmpty());
     }
+    @Test public void geometryChangesReleaseTheOldPayloadArray() throws Exception {
+        var values=JdbcColumnRow.class.getDeclaredField("values");values.setAccessible(true);
+        for(String operation:List.of("add","remove","clear")) {
+            var row=new JdbcColumnRow(new JdbcColumnRow.Layout(new String[]{"id","payload"}),new Object[]{1,new byte[4096]});
+            assertNotNull(values.get(row));
+            switch(operation){case "add"->row.put("extra",2);case "remove"->row.remove("payload");case "clear"->row.clear();}
+            assertNull(values.get(row));
+            if(!operation.equals("clear"))assertEquals(1,row.get("id"));
+        }
+    }
 }

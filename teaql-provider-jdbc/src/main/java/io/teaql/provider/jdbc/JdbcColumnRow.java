@@ -17,7 +17,7 @@ final class JdbcColumnRow extends AbstractMap<String,Object> {
         }
     }
     private final Layout layout;
-    private final Object[] values;
+    private Object[] values;
     private Map<String,Object> expanded;
     private int modifications;
     JdbcColumnRow(Layout layout,Object[] ownedValues) {
@@ -35,6 +35,9 @@ final class JdbcColumnRow extends AbstractMap<String,Object> {
         if(expanded==null) {
             expanded=new HashMap<>();
             for(String key:layout.keys)expanded.put(key,getOriginal(key));
+            // After geometry changes the private map owns the surviving
+            // payloads. Do not retain removed/replaced values through the array.
+            values=null;
         }
         return expanded;
     }
@@ -54,6 +57,7 @@ final class JdbcColumnRow extends AbstractMap<String,Object> {
     @Override public void clear() {
         if(isEmpty())return;
         if(expanded==null)expanded=new HashMap<>();else expanded.clear();
+        values=null;
         modifications++;
     }
     @Override public Set<Entry<String,Object>> entrySet() {
