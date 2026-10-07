@@ -128,3 +128,24 @@ This checks shared overflow snapshots, COW isolation and lazy ledgers, requires
 unchanged generated-source hashes, and rejects a non-wide artifact. Prepared
 inputs, JDBC and logging remain outside the measured hydration region. These
 are not whole-query latency, retained heap, CPU saturation or ORM comparisons.
+
+The no-op probe preserves every bounded attempt, including JVM transient bytes,
+and requires three consecutive zero-allocation samples within twenty attempts.
+An allocating positive control must remain visible. This is a warmed-window
+claim, not a guarantee of zero allocation for every JVM observation.
+
+## Matched driver logging modes
+
+```bash
+bash examples/shared-load-state/benchmark-driver.sh
+bash examples/shared-load-state/benchmark-driver.sh --default-log
+```
+
+Run these sequentially. Both modes retain six sparse/full cases, identical
+native SQL/binds and typed-result/load-state checks over 31 alternating samples.
+Default mode uses the unchanged stderr sink and privacy policy; off mode
+disables query logging. The scripts reject plaintext opt-in. Query samples
+exclude setup and correctness checks; the CPU receipt includes Maven/JIT.
+Native-driver drift between processes prevents treating an absolute latency
+difference as pure logging cost. Different Rust connection and output strategies
+prohibit a language ranking. No publication occurs.
