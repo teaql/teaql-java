@@ -28,7 +28,8 @@ overflow copy-on-write. A requested wide run rejects a narrow artifact; an
 existing wide artifact automatically keeps the wide assertions enabled.
 
 Add `--inheritance` during generation to append one Academy subtype with a
-campus code. The normal three-object model remains unchanged. The producer
+campus code. The base model has Platform, SchoolType, School and a small
+SchoolCapacitySummary reporting target. The producer
 retains a separate inheritance marker and the verifier selects an additional
 Maven test source only for that generated artifact. A requested inherited run
 rejects a flat artifact; replay preserves the inherited gate automatically.
@@ -43,6 +44,15 @@ runtime, JDBC, SQLite and the generated School: every one must resolve to local
 reactor `target/classes`, not an installed jar.
 
 ## Acceptance
+
+`GeneratedMaterializationAcceptance` calculates a capacity total over two
+bounded School Q results using E. The readonly `_total_capacity` result gets
+no fixed slot and must not persist when the source is saved. Persistence is
+explicit: create a modeled SchoolCapacitySummary with its generated Mutation
+API, attach an audit reason, save, and query it back through Q/E. The expected
+total is 37 and contributor count is 2. The source sibling retains its original
+shared snapshot and clean mutation state. This is application-side calculation
+and modeled storage, not a database aggregate-query performance claim.
 
 `GeneratedNestedGraphAssertions` also verifies a bounded Platform-to-Schools
 view and School-to-Platform-to-Schools graph through generated Q/E and JSON.
