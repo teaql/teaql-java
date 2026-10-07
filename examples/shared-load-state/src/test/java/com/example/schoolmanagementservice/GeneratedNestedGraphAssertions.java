@@ -144,14 +144,23 @@ final class GeneratedNestedGraphAssertions {
         assertEquals(1001L, filtered.getSchoolType().getId());
         assertTrue(filtered.getSchoolType().isPropertyLoaded("id"), "FK identity cannot become NotLoaded with excluded details");
         assertFalse(filtered.getSchoolType().isPropertyLoaded("code"));
-        assertThrows(RuntimeException.class, () -> E.school(filtered).getSchoolType().getCode().eval());
+        var missing = assertThrows(io.teaql.core.value.TeaQLNotLoadedException.class,
+                () -> E.school(filtered).getSchoolType().getCode().eval());
+        assertEquals("schoolType.code", missing.getAccessPath());
+        assertEquals("code", missing.getBreakPoint());
+        assertEquals("School(id=" + schoolId + ")", missing.getRoot());
         var filteredJson = mapper.readTree(mapper.writeValueAsString(filtered));
         assertFalse(filteredJson.get("schoolType").has("code"));
         var restoredFiltered = mapper.treeToValue(filteredJson, filtered.getClass());
         assertEquals(1001L, restoredFiltered.getSchoolType().getId());
         assertFalse(restoredFiltered.getSchoolType().isPropertyLoaded("code"));
-        assertThrows(RuntimeException.class, () -> E.school(restoredFiltered).getSchoolType().getCode().eval());
+        var restoredMissing = assertThrows(io.teaql.core.value.TeaQLNotLoadedException.class,
+                () -> E.school(restoredFiltered).getSchoolType().getCode().eval());
+        assertEquals("schoolType.code", restoredMissing.getAccessPath());
+        assertEquals("code", restoredMissing.getBreakPoint());
+        assertEquals("School(id=" + schoolId + ")", restoredMissing.getRoot());
         assertFalse(restoredFiltered.__internalHasMutationLedger());
+        System.out.println("PASS generated Java LF08 exact NotLoaded type and path in Q and typed JSON");
         System.out.println("PASS generated Java LF08 loaded FK and excluded forward details stay distinct");
         System.out.println("PASS generated Java typed JSON graph roundtrip and Empty/NotLoaded isolation");
         System.out.println("PASS generated Java nested/reverse graph Q/E/JSON and Empty/NotLoaded isolation");
