@@ -17,9 +17,15 @@ final class GeneratedDynamicRollbackAcceptance {
         def.setScope(DynamicFieldScope.global()); def.setOwnerType("School");
         def.setCode(unused); def.setName(unused); def.setDataType(DynamicDataType.STRING);
         provider.registerFieldDef(definitionContext, def);
-        var selection = new DynamicFieldSelection().selectString(code).selectString(unused);
-        original.updateDynamicField(code, "matrix baseline");
-        original.auditAs("seed the combined-state value control").save(context);
+        var allFields = new DynamicFieldSelection().selectString(code).selectString(unused);
+        var seedRequest = Q.schools().withIdIs(original.getId());
+        seedRequest.selectDynamicFieldsWith(allFields);
+        var seed = seedRequest.limit(1).comment("what: load metadata for the hidden stored extension")
+                .purpose("why: seed both fields through governed mutation").executeForOne(context);
+        seed.updateDynamicField(code, "matrix baseline");
+        seed.updateDynamicField(unused, "keep unselected");
+        seed.auditAs("seed the combined-state value and hidden controls").save(context);
+        var selection = new DynamicFieldSelection().selectString(code);
         var companionRequest = Q.schools().withNameIn(secondName);
         companionRequest.selectDynamicFieldsWith(selection);
         var companion = companionRequest.limit(1).comment("what: select companion extension metadata")
@@ -50,9 +56,13 @@ final class GeneratedDynamicRollbackAcceptance {
         assertSame(state, held.get(0).__internalLoadState());
         assertSame(state, held.get(1).__internalLoadState());
         School pending = held.get(0);
+        pending.addDynamicProperty("matrix_total", 17);
+        assertEquals(17, (int) pending.getProperty("_matrix_total"));
         Long version = pending.getVersion(), companionVersion = held.get(1).getVersion();
         String nextName = firstName + " retry";
         pending.updateName(nextName); pending.updateDynamicField(code, "matrix retry");
+        assertFalse(pending.getUpdatedProperties().contains("_matrix_total"));
+        assertFalse(pending.__internalDynamicMutations().containsKey(unused));
         assertSame(state, pending.__internalLoadState());
         long[] before = sql.counts();
         sql.failNextDynamicReadbackAfterWrite();
@@ -61,6 +71,7 @@ final class GeneratedDynamicRollbackAcceptance {
         assertTrue(sql.readbackFailureObserved(), "the fault must happen after actual extension DML");
         assertTrue(sql.counts()[1] > before[1]); assertTrue(sql.counts()[2] > before[2]);
         assertEquals(version, pending.getVersion());
+        assertEquals(17, (int) pending.getProperty("_matrix_total"));
         assertFalse(pending.__internalDynamicMutations().isEmpty());
         assertSame(state, pending.__internalLoadState());
         assertEquals(companionVersion, held.get(1).getVersion());
@@ -69,13 +80,15 @@ final class GeneratedDynamicRollbackAcceptance {
         assertEquals("matrix baseline", held.get(2).dynamicFields().field(code).value());
         assertFalse(held.get(2).isPropertyLoaded("address"));
         var inspect = Q.schools().withNameIn(firstName, secondName);
-        inspect.selectDynamicFieldsWith(selection);
+        inspect.selectDynamicFieldsWith(allFields);
         var stored = inspect.orderByIdAscending().limit(2).comment("what: inspect both stores after readback failure")
                 .purpose("why: failure must roll back native and extension DML atomically").executeForList(context);
         assertEquals(2, stored.size()); assertEquals(version, stored.get(0).getVersion());
         assertEquals(firstName, E.school(stored.get(0)).getName().eval());
         assertEquals("matrix baseline", stored.get(0).dynamicFields().field(code).value());
         assertEquals(companionVersion, stored.get(1).getVersion());
+        assertEquals("keep unselected", stored.get(0).dynamicFields().field(unused).value());
+        assertNull(stored.get(0).getProperty("_matrix_total"));
         assertEquals(DynamicFieldValue.State.NULL, stored.get(1).dynamicFields().field(code).state());
         pending.auditAs("retry the original native and extension intent").save(context);
         assertEquals(version + 1, pending.getVersion());
@@ -85,9 +98,16 @@ final class GeneratedDynamicRollbackAcceptance {
         assertSame(state, pending.__internalLoadState());
         assertTrue(pending.__internalDynamicMutations().isEmpty());
         assertTrue(pending.getUpdatedProperties().isEmpty());
+        var verifyHidden = Q.schools().withIdIs(pending.getId());
+        verifyHidden.selectDynamicFieldsWith(allFields);
+        var inspected = verifyHidden.limit(1).comment("what: inspect the hidden extension after retry")
+                .purpose("why: NotLoaded must not become erase intent").executeForOne(context);
+        assertEquals("keep unselected", inspected.dynamicFields().field(unused).value());
+        assertNull(inspected.getProperty("_matrix_total"));
         assertEquals(companionVersion, held.get(1).getVersion());
         assertSame(state, held.get(1).__internalLoadState());
         System.out.println("PASS generated Java mixed dynamic Value/Null/NotLoaded list lifetime readback rollback and retry");
+        System.out.println("PASS generated Java stored unselected extension survives rollback retry and readonly property is not persisted");
         return pending;
     }
 }
