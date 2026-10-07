@@ -124,6 +124,53 @@ public class LoadStateTest {
 
     static final class LateLayoutEntity extends BaseEntity { }
 
+    private static final java.util.concurrent.atomic.AtomicInteger COLD_INSTALLATIONS =
+            new java.util.concurrent.atomic.AtomicInteger();
+
+    // Only the cold-start control touches this class; the other fixture is warmed in BeforeClass.
+    static final class ColdLayoutEntity extends BaseEntity {
+        static final FieldLayout LAYOUT = install();
+        private static FieldLayout install() {
+            COLD_INSTALLATIONS.incrementAndGet();
+            return FieldLayout.installGenerated(FieldLayout.generated(ColdLayoutEntity.class, "cold-v1",
+                    Map.of("id", 0, "version", 1, "base_url", 2),
+                    Map.of("id", List.of("id", "id"), "version", List.of("version", "version"),
+                            "base_url", List.of("baseUrl", "legacy_url")), Set.of()));
+        }
+    }
+
+    @Test
+    public void coldConcurrentTypeInitializationInstallsOneGeneratedLayout() throws Exception {
+        assertEquals(0, COLD_INSTALLATIONS.get());
+        var executor = java.util.concurrent.Executors.newFixedThreadPool(16);
+        var start = new java.util.concurrent.CyclicBarrier(16);
+        try {
+            List<java.util.concurrent.Future<FieldLayout>> futures = new ArrayList<>();
+            for (int i = 0; i < 16; i++) {
+                futures.add(executor.submit(() -> {
+                    start.await(10, java.util.concurrent.TimeUnit.SECONDS);
+                    var installed = ColdLayoutEntity.LAYOUT;
+                    assertSame(installed, FieldLayout.forType(ColdLayoutEntity.class));
+                    assertTrue(installed.isGenerated());
+                    assertEquals(Integer.valueOf(2), installed.findIndex("base_url"));
+                    assertEquals(Integer.valueOf(2), installed.findIndex("baseUrl"));
+                    assertEquals(Integer.valueOf(2), installed.findIndex("legacy_url"));
+                    return installed;
+                }));
+            }
+            FieldLayout first = futures.get(0).get(15, java.util.concurrent.TimeUnit.SECONDS);
+            for (var future : futures) {
+                var current = future.get(15, java.util.concurrent.TimeUnit.SECONDS);
+                assertSame(first, current);
+                assertSame(first.emptyState(), current.emptyState());
+            }
+            assertEquals(1, COLD_INSTALLATIONS.get());
+        } finally {
+            executor.shutdownNow();
+            assertTrue(executor.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS));
+        }
+    }
+
     @Test
     public void explicitInstallationIsSharedAndCannotReplaceAnAlreadyUsedLayout() {
         var installed = IndexedEntity.__TEAQL_FIELD_LAYOUT;
