@@ -57,6 +57,47 @@ public class LoadStateAllocationTest {
     }
 
     @Test
+    public void freshProjectionSnapshotCostDoesNotGrowWithRows() {
+        var bean=(com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
+        assertTrue(bean.isThreadAllocatedMemorySupported());bean.setThreadAllocatedMemoryEnabled(true);
+        assertTrue(measure(bean,1,() -> consumed=new byte[128]).bytes()>=128);
+        new SharingProbe();
+        var layout=FieldLayout.forType(SharingProbe.class);
+        for(int width:new int[]{4,64,130}) {
+            List<String> fields=new ArrayList<>();
+            for(int i=0;i<width;i++)fields.add(i==0?"id":i==1?"version":"field_"+i);
+            Long baseline=null;
+            for(int count:new int[]{1,100,10_000}) {
+                List<SharingProbe> rows=new ArrayList<>(count);
+                for(int i=0;i<count;i++)rows.add(new SharingProbe());
+                Runnable bind=()->{
+                    var snapshot=LoadState.projection(layout,fields);
+                    for(var row:rows)row.__internalUseLoadState(snapshot);
+                    consumed=snapshot;
+                };
+                // Warm the JVM code path, never reuse the measured snapshot.
+                for(int i=0;i<1000;i++)bind.run();
+                var previous=rows.get(0).__internalLoadState();
+                var sample=measure(bean,1,bind);
+                var snapshot=rows.get(0).__internalLoadState();
+                assertNotSame(previous,snapshot,"new projection must not be a cached no-op");
+                assertEquals(width>64,!snapshot.overflow().isEmpty());
+                for(var row:rows) {
+                    assertSame(snapshot,row.__internalLoadState());
+                    for(var field:fields)assertTrue(row.isPropertyLoaded(field));
+                    assertFalse(row.__internalHasMutationLedger());
+                }
+                assertTrue(sample.bytes()>0,"a fresh snapshot must allocate");
+                System.out.printf("fresh_projection,%d,%d,%d,%d%n",width,count,sample.bytes(),sample.nanos());
+                // JIT may eliminate the one list iterator as the loop gets hot.
+                // More rows may therefore allocate less, never more state.
+                if(baseline!=null)assertTrue(sample.bytes()<=baseline,"state allocation grew with row count");
+                else baseline=sample.bytes();
+            }
+        }
+    }
+
+    @Test
     public void homogeneousListFinalizationAllocationProbe() {
         var bean=(com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
         assertTrue(bean.isThreadAllocatedMemorySupported());bean.setThreadAllocatedMemoryEnabled(true);

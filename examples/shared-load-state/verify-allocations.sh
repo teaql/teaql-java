@@ -38,7 +38,7 @@ mvn -q -f "$runtime_dir/pom.xml" -Pshared-load-state-example \
     exit 1
   }
 printf 'case,width,iterations,allocated_bytes,elapsed_ns\n' >"$run_dir/allocations.csv"
-rg '^(loaded_|reference_)' "$run_dir/probe.log" >>"$run_dir/allocations.csv"
+rg '^(fresh_projection|loaded_|reference_)' "$run_dir/probe.log" >>"$run_dir/allocations.csv"
 printf 'case,projection,rows,allocated_bytes,elapsed_ns\n' >"$run_dir/hydration.csv"
 rg '^(compiled_hydration|map_hydration|plain_hydration),' "$run_dir/probe.log" >>"$run_dir/hydration.csv"
 printf 'case,lane,projection,rows,allocated_bytes\n' >"$run_dir/stream-hydration.csv"
