@@ -71,8 +71,8 @@ public class MainstreamMapperBenchmarkTest {
             connection.setAutoCommit(false);
             try(PreparedStatement insert=connection.prepareStatement("INSERT INTO probe_data(id,version,name,note) VALUES(?,?,?,?)")) {
                 for(long id=1;id<=10_002;id++) {
-                    insert.setLong(1,id);insert.setLong(2,id==10_001?-1:1);
-                    insert.setString(3,id==10_002?"not-selected":"row-"+id);
+                    insert.setLong(1,id);insert.setLong(2,id==1?-1:1);
+                    insert.setString(3,id==2?"not-selected":"row-"+id);
                     insert.setString(4,id%2==0?null:"nullable note");insert.addBatch();
                 }
                 insert.executeBatch();
@@ -105,7 +105,7 @@ public class MainstreamMapperBenchmarkTest {
                 var state=typed.value().get(0).__internalLoadState();
                 for(int index=0;index<count;index++) {
                     var row=typed.value().get(index);Object other=mapped.value().get(index);
-                    long id=index+1;String note=full&&id%2!=0?"nullable note":null;
+                    long id=index+3;String note=full&&id%2!=0?"nullable note":null;
                     if(other instanceof Full value)assertEquals(new Full(id,1L,"row-"+id,note),value);
                     else assertEquals(new Sparse(id,1L,"row-"+id),other);
                     assertEquals(id,row.getId());assertEquals(1L,row.getVersion());
