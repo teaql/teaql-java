@@ -68,7 +68,7 @@ class GeneratedSchoolLoadStateTest {
         String round = System.getenv("TEAQL_LOAD_STATE_ROUND");
         SQLiteDataSource dataSource = new SQLiteDataSource();
         dataSource.setUrl("jdbc:sqlite:" + System.getenv("TEAQL_LOAD_STATE_DATABASE"));
-        JdbcSqlExecutor sql = new JdbcSqlExecutor(dataSource);
+        ObservedJdbcExecutor sql = new ObservedJdbcExecutor(dataSource);
         IdSpaceIdGenerator ids = new IdSpaceIdGenerator(new DatabaseBridge(sql));
         ids.ensureIdSpaceTable();
         var service = new SqliteDataServiceExecutor("sqlite", sql, dataSource);
@@ -192,8 +192,11 @@ class GeneratedSchoolLoadStateTest {
         assertNotSame(sparseState, sparse.get(0).__internalLoadState());
         assertSame(sparseState, sparse.get(1).__internalLoadState());
         assertFalse(sparse.get(1).isPropertyLoaded("address"));
+        long[] beforeRejectedSave = sql.counts();
         assertThrows(CheckException.class, () -> sparse.get(0)
                 .auditAs("Reject sparse whole-object update").save(context));
+        assertArrayEquals(beforeRejectedSave, sql.counts(),
+                "Checker must reject before read, write or transaction provider entry");
 
         var changed = full.get(0);
         Long originalVersion = changed.getVersion();
@@ -202,6 +205,11 @@ class GeneratedSchoolLoadStateTest {
         assertSame(snapshot, changed.__internalLoadState());
         assertEquals(second, full.get(1).getName());
         changed.auditAs("Rename only one independently loaded row").save(context);
+        long[] afterAcceptedSave = sql.counts();
+        assertTrue(afterAcceptedSave[0] > beforeRejectedSave[0], "accepted save must exercise observed reads");
+        assertTrue(afterAcceptedSave[1] > beforeRejectedSave[1], "accepted save must exercise observed writes");
+        assertTrue(afterAcceptedSave[2] > beforeRejectedSave[2], "accepted save must exercise observed transactions");
+        System.out.println("PASS generated Java sparse Checker rejects before provider entry; positive save observed");
         assertEquals(originalVersion + 1, changed.getVersion());
         var related = Q.schools().withIdIs(changed.getId())
                 .selectPlatformWith(Q.platformsWithMinimalFields().selectName())
