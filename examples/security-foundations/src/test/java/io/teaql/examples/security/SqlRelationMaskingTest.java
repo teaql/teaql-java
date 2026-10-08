@@ -131,7 +131,11 @@ public class SqlRelationMaskingTest {
                     .purpose("inspect Riverside RELATION-PASSWORD-CANARY relations").executeForList(context);
             assertEquals(1, rows.size());
             assertEquals("Riverside", rows.get(0).getProperty("name"));
-            if (shape.equals("aggregate")) assertEquals(1, ((Number) rows.get(0).getProperty("childCount")).intValue());
+            if (shape.equals("aggregate")) {
+                assertEquals(1, ((Number) rows.get(0).getDynamicProperty("childCount")).intValue());
+                assertEquals(1, ((Number) rows.get(0).getProperty("_childCount")).intValue());
+                assertNull("Aggregate results must not overwrite the native namespace", rows.get(0).getProperty("childCount"));
+            }
             else if (shape.equals("facet")) {
                 SmartList<Entity> parents = rows.getFacet("parentFacet");
                 assertEquals(1, parents.size());
