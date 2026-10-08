@@ -48,6 +48,12 @@ public interface Checker<T extends BaseEntity> {
         if (entity.get$status() == EntityStatus.REFER) {
             return false;
         }
+        CheckerInvocation invocation = CheckerInvocation.current(context);
+        if (invocation != null && invocation.mutationOnly()
+                && (entity.get$status() == EntityStatus.PERSISTED
+                    || entity.get$status() == EntityStatus.PERSISTED_DELETED)) {
+            return false;
+        }
         return true;
     }
 

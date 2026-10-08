@@ -91,6 +91,9 @@ import io.teaql.core.utils.StrUtil;
  * Reuses SQLRepository's SQL building logic (buildDataSQL, etc.).
  */
 public class PortableSQLRepository<T extends Entity> implements SqlCompilerDelegate {
+    // Value-free, bounded hints for repeated authoritative reads of this fixed type.
+    // Neither row values, actor policy nor mutation ownership enters this cache.
+    private final MapProjection[] nativeReadbackProjections = new MapProjection[16];
 
     private static final Pattern NAMED_PARAM = Pattern.compile(":(\\w+)");
     public static final String CONTINUOUS_PAGE_PLAN = "teaql.continuousPage.plan";
@@ -749,16 +752,12 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             }
             psql = toPositional(sql, params);
             if (shape != null && psql.args.length == shape.arguments().length) {
-                if (compiledQueryPlans.size() >= MAX_COMPILED_QUERY_PLANS) {
-                    compiledQueryPlans.clear();
-                }
                 CompiledQueryPlan candidate = new CompiledQueryPlan(
                         psql.sql,
                         psql.args.length,
                         psql.logBindings,
                         compileRowMapper(executedRequest));
-                CompiledQueryPlan existing = compiledQueryPlans.putIfAbsent(shape.key(), candidate);
-                plan = existing == null ? candidate : existing;
+                plan = cacheCompiledQueryPlan(shape.key(), candidate);
             }
         }
         // Attach only after inserting the reusable plan: no original values enter the plan cache.
@@ -788,9 +787,16 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 return SmartList.empty(request.returnType());
             }
             smartList = new SmartList<>(rows.size());
+            MapProjection[] projections = new MapProjection[16];
+            SimpleNamedExpression[] dynamicProperties = executedRequest.getSimpleDynamicProperties().toArray(SimpleNamedExpression[]::new);
             for (Map<String, Object> row : rows) {
-                smartList.add(mapRowToEntity(userContext, executedRequest, row));
+                MapProjection projection = resolveMapProjection(executedRequest.returnType(), row, projections);
+                smartList.add(mapRowToEntity(userContext, executedRequest, row, projection, dynamicProperties));
             }
+        }
+        if (request.getDynamicPropertyMetadata() != null) {
+            Map<io.teaql.core.LoadState, io.teaql.core.LoadState> states = new HashMap<>();
+            for (T entity : smartList.getData()) attachPropertyMetadata(entity, request.getDynamicPropertyMetadata(), states);
         }
         registerContinuousPage(userContext, request, pageExecution, smartList.getData());
         if (idSetExecution.optimized()) {
@@ -876,6 +882,18 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         return smartList;
     }
 
+    private CompiledQueryPlan cacheCompiledQueryPlan(String key, CompiledQueryPlan candidate) {
+        // Misses compile outside the lock; only admission/eviction is atomic.
+        // ConcurrentHashMap keeps the much more common hit path lock-free.
+        synchronized (compiledQueryPlans) {
+            CompiledQueryPlan existing = compiledQueryPlans.get(key);
+            if (existing != null) return existing;
+            if (compiledQueryPlans.size() >= MAX_COMPILED_QUERY_PLANS) compiledQueryPlans.clear();
+            compiledQueryPlans.put(key, candidate);
+            return candidate;
+        }
+    }
+
     private io.teaql.core.CompiledRowMapper<T> compileRowMapper(SearchRequest<T> request) {
         // Subtype discriminators and dynamic projections carry values that are not entity properties.
         // Keep those uncommon shapes on the generic mapper until their binding model is explicit.
@@ -919,11 +937,17 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                             property.getName())));
         }
 
+        io.teaql.core.LoadState loadedShape = io.teaql.core.LoadState.projection(
+                io.teaql.core.FieldLayout.forType(resultDescriptor.getTargetType()),
+                selected.stream().map(PropertyDescriptor::getName).toList());
+        ColumnBinding[] columns = bindings.toArray(ColumnBinding[]::new);
+
         return row -> {
             @SuppressWarnings("unchecked")
             T entity = (T) resultDescriptor.createEntity();
             BaseEntity base = (BaseEntity) entity;
-            for (ColumnBinding binding : bindings) {
+            base.__internalUseLoadState(loadedShape);
+            for (ColumnBinding binding : columns) {
                 PropertyDescriptor property = binding.property();
                 Object value;
                 if (binding.relationDescriptor() == null) {
@@ -1089,18 +1113,53 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 ? thisPrimaryTableName : tableName(entityDescriptor.getType());
         String sql = "SELECT * FROM " + escapeIdentifier(primaryTable)
                 + " WHERE " + escapeIdentifier("id") + " = ?";
-        List<Map<String, Object>> rows = database.query(userContext, sql, new Object[] {id},
-                new SqlLogBindings(List.of(parameterLogPolicy("id")), true, null, intent, trace));
+        Object[] arguments = new Object[]{id};
+        var bindings = new SqlLogBindings(List.of(parameterLogPolicy("id")), true, null, intent, trace);
+        if (types.size() > 1) {
+            // An authoritative inherited view needs all participating tables,
+            // including the root version and tombstones. Reuse the normal AST
+            // compiler rather than copying the proposed values into readback.
+            var readback = new io.teaql.core.internal.TempRequest(entityDescriptor.getTargetType(), entityDescriptor.getType()) {
+                { withDeletedRows(); }
+            };
+            for (PropertyDescriptor property : allProperties) {
+                if (shouldHandle(property)) readback.selectProperty(property.getName());
+            }
+            readback.appendSearchCriteria(new io.teaql.core.criteria.EQ(
+                    new io.teaql.core.PropertyReference("id"), new io.teaql.core.Parameter("readbackId", id, io.teaql.core.criteria.Operator.EQUAL)));
+            // Explicit version intent prevents the compiler's normal visible-row
+            // default from hiding the negative tombstone we just committed.
+            readback.appendSearchCriteria(readback.createBasicSearchCriteria("version", io.teaql.core.criteria.Operator.IS_NOT_NULL));
+            readback.setSize(1);
+            Map<String, Object> parameters = new io.teaql.core.sql.SqlParameters();
+            var statement = toPositional(buildDataSQL(userContext, readback, parameters), parameters);
+            sql = statement.sql;
+            arguments = statement.args;
+            bindings = new SqlLogBindings(statement.logBindings.policies(), true, null, intent, trace);
+        }
+        List<Map<String, Object>> rows = database.query(userContext, sql, arguments, bindings);
         if (rows.size() != 1) {
             throw new TeaQLRuntimeException(
                     "Persisted " + entityDescriptor.getType() + "(" + id + ") could not be read back");
         }
         T entity = (T) entityDescriptor.createEntity();
         Map<String, Object> row = rows.get(0);
+        // SELECT * returns physical column names, unlike the aliased normal Q path.
+        // Install the actual geometry once before setters hydrate native values.
+        MapProjection projection;
+        synchronized (nativeReadbackProjections) {
+            projection = resolveMapProjection(entityDescriptor.getTargetType(), row, nativeReadbackProjections);
+        }
+        if (entity instanceof BaseEntity base && projection.loadedState() != null) {
+            base.__internalUseLoadState(projection.loadedState());
+        }
         for (PropertyDescriptor property : this.allProperties) {
             if (!shouldHandle(property)) continue;
-            String columnKey = findColumnKey(row, property.getName());
-            if (columnKey == null) continue;
+            String columnKey = findColumnKey(row, property);
+            if (columnKey == null) {
+                throw new TeaQLRuntimeException("Authoritative readback missing mapped field "
+                        + entityDescriptor.getType() + "." + property.getName());
+            }
             Object value = row.get(columnKey);
             if (!(property instanceof Relation)) {
                 Class targetType = property.getType().javaType();
@@ -1131,18 +1190,91 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         if (ObjectUtil.isEmpty(sql)) return Stream.empty();
         PositionalSQL psql = withQueryIntent(toPositional(sql, params),
                 intent, request);
-        return database.queryForStream(userContext, psql.sql, psql.args, psql.logBindings)
-                .map(row -> mapRowToEntity(userContext, request, row));
+        if (database.supportsCompiledStreamMapping()) {
+            Object extension = request.getExtension(COMPILED_ROW_MAPPER);
+            @SuppressWarnings("unchecked")
+            io.teaql.core.CompiledRowMapper<T> mapper = extension instanceof io.teaql.core.CompiledRowMapper<?> supplied
+                    ? (io.teaql.core.CompiledRowMapper<T>) supplied : compileRowMapper(request);
+            if (mapper != null) {
+                return withPropertyMetadata(database.queryForStream(userContext, psql.sql, psql.args, mapper, psql.logBindings), request.getDynamicPropertyMetadata());
+            }
+        }
+        MapProjection[] projections = new MapProjection[16];
+        SimpleNamedExpression[] dynamicProperties = request.getSimpleDynamicProperties().toArray(SimpleNamedExpression[]::new);
+        return withPropertyMetadata(database.queryForStream(userContext, psql.sql, psql.args, psql.logBindings)
+                .map(row -> {
+                    MapProjection shape = resolveMapProjection(request.returnType(), row, projections);
+                    return mapRowToEntity(userContext, request, row, shape, dynamicProperties);
+                }), request.getDynamicPropertyMetadata());
     }
 
-    private T mapRowToEntity(UserContext userContext, SearchRequest<T> request, Map<String, Object> row) {
+    private void attachPropertyMetadata(T entity, io.teaql.core.DynamicPropertyMetadata metadata,
+            Map<io.teaql.core.LoadState, io.teaql.core.LoadState> states) {
+        if (!(entity instanceof BaseEntity base)) {
+            throw new TeaQLRuntimeException("Readonly property metadata requires a runtime-owned entity carrier");
+        }
+        base.__internalUseLoadState(states.computeIfAbsent(base.__internalLoadState(),
+            shape -> shape.withDynamicPropertyMetadata(metadata)));
+    }
+
+    private Stream<T> withPropertyMetadata(Stream<T> source, io.teaql.core.DynamicPropertyMetadata metadata) {
+        if (metadata == null) return source;
+        Map<io.teaql.core.LoadState, io.teaql.core.LoadState> states = new HashMap<>();
+        return source.map(entity -> { attachPropertyMetadata(entity, metadata, states); return entity; });
+    }
+
+    private record MapBinding(PropertyDescriptor property, String column) {}
+
+    private record MapProjection(String[] columns, io.teaql.core.LoadState loadedState, MapBinding[] bindings) {
+        boolean matches(Map<String, Object> row) {
+            if (row.size() != columns.length) return false;
+            for (String column : columns) if (!row.containsKey(column)) return false;
+            return true;
+        }
+    }
+
+    private MapProjection resolveMapProjection(Class<? extends Entity> type, Map<String, Object> row,
+            MapProjection[] projections) {
+        int empty = -1;
+        for (int i = 0; i < projections.length; i++) {
+            MapProjection shape = projections[i];
+            if (shape != null && shape.matches(row)) return shape;
+            if (shape == null && empty < 0) empty = i;
+        }
+        MapProjection shape = mapProjection(type, row);
+        // Query-owned, bounded, value-free hints. Concurrent stream writes may
+        // replace a hint, but each row keeps its own validated local shape.
+        projections[empty < 0 ? projections.length - 1 : empty] = shape;
+        return shape;
+    }
+
+    private MapProjection mapProjection(Class<? extends Entity> type, Map<String, Object> row) {
+        io.teaql.core.LoadState loaded = null;
+        List<String> selected = new ArrayList<>();
+        List<MapBinding> bindings = new ArrayList<>();
+        for (PropertyDescriptor property : allProperties) {
+            if (!shouldHandle(property)) continue;
+            String column = findColumnKey(row, property);
+            if (column != null) {
+                selected.add(property.getName());
+                bindings.add(new MapBinding(property, column));
+            }
+        }
+        if (BaseEntity.class.isAssignableFrom(type)) {
+            loaded = io.teaql.core.LoadState.projection(io.teaql.core.FieldLayout.forType(type), selected);
+        }
+        return new MapProjection(row.keySet().toArray(String[]::new), loaded, bindings.toArray(MapBinding[]::new));
+    }
+
+    private T mapRowToEntity(UserContext userContext, SearchRequest<T> request, Map<String, Object> row,
+            MapProjection projection, SimpleNamedExpression[] dynamicProperties) {
         Class<? extends T> returnType = request.returnType();
         T entity = createEntity(returnType);
-        for (PropertyDescriptor property : this.allProperties) {
-            if (!shouldHandle(property)) continue;
+        if (entity instanceof BaseEntity base && projection.loadedState() != null) base.__internalUseLoadState(projection.loadedState());
+        for (MapBinding binding : projection.bindings()) {
+            PropertyDescriptor property = binding.property();
+            String columnKey = binding.column();
             if (!(property instanceof Relation)) {
-                String columnKey = findColumnKey(row, property.getName());
-                if (columnKey == null) continue;
                 Object value = row.get(columnKey);
                 Class targetType = property.getType().javaType();
                 entity.setProperty(
@@ -1151,8 +1283,6 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                                 ? null
                                 : convertColumnValue(targetType, value));
             } else if (property instanceof Relation) {
-                String columnKey = findColumnKey(row, property.getName());
-                if (columnKey == null) continue;
                 Object value = row.get(columnKey);
                 if (value == null) {
                     entity.setProperty(property.getName(), null);
@@ -1184,13 +1314,19 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             be.set$status(status);
         }
         // Dynamic properties
-        List<SimpleNamedExpression> simpleDynamicProperties = request.getSimpleDynamicProperties();
-        for (SimpleNamedExpression dp : simpleDynamicProperties) {
+        for (SimpleNamedExpression dp : dynamicProperties) {
             Object value = row.get(dp.name());
-            if (value != null) entity.addDynamicProperty(dp.name(), value);
+            if (row.containsKey(dp.name())) entity.addDynamicProperty(dp.name(), value);
         }
 
         return entity;
+    }
+
+    private String findColumnKey(Map<String, Object> row, PropertyDescriptor property) {
+        String member = findColumnKey(row, property.getName());
+        if (member != null) return member;
+        SQLColumn column = getSqlColumn(property);
+        return column == null ? null : findColumnKey(row, column.getColumnName());
     }
 
     private String findColumnKey(Map<String, Object> row, String propertyName) {
@@ -1202,6 +1338,10 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     static Object convertTemporalColumnValue(Class<?> targetType, Object value) {
+        if ((targetType == java.time.LocalDateTime.class || targetType == java.time.LocalDate.class
+                || targetType == java.time.LocalTime.class) && targetType.isInstance(value)) {
+            return value;
+        }
         if (targetType == java.time.LocalDateTime.class
                 && value instanceof java.sql.Timestamp timestamp) {
             return timestamp.toLocalDateTime();
@@ -1218,9 +1358,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 return timestamp.toLocalDateTime().toLocalDate();
             }
             String text = String.valueOf(value);
-            if (text.length() >= 10) {
-                return java.time.LocalDate.parse(text.substring(0, 10));
-            }
+            return java.time.LocalDate.parse(text.substring(0, Math.min(10, text.length())));
         }
         if (targetType == java.time.LocalTime.class) {
             if (value instanceof java.sql.Time time) return time.toLocalTime();
@@ -1468,7 +1606,10 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         if (ObjectUtil.isEmpty(sqlEntities)) return;
 
         for (SQLEntity sqlEntity : sqlEntities) {
-            if (sqlEntity.isEmpty()) continue;
+            // A version-only graph participant (for example a dynamic-field
+            // edit) still needs the optimistic guard below, even without native
+            // column assignments. Null conversions, not empty column maps,
+            // represent entities with no update intent.
             Map<String, List<String>> tableColumnNames = sqlEntity.getTableColumnNames();
             Map<String, List> tableColumnValues = sqlEntity.getTableColumnValues();
 
@@ -2033,7 +2174,13 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     public boolean shouldHandle(Relation relation) {
-        return relation.getRelationKeeper() == this.entityDescriptor;
+        // Only the declaring side stores the FK. A subclass also persists its
+        // ancestor's declaring fields; the reverse side must never become a column.
+        if (relation.getRelationKeeper() != relation.getOwner()) return false;
+        for (EntityDescriptor owner = this.entityDescriptor; owner != null; owner = owner.getParent()) {
+            if (relation.getOwner() == owner) return true;
+        }
+        return false;
     }
 
     private void initSQLMeta(EntityDescriptor entityDescriptor) {

@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.teaql</groupId>
         <artifactId>teaql-java-parent</artifactId>
-        <version>1.553-RELEASE</version>
+        <version>1.554-RELEASE</version>
     </parent>
     <artifactId>teaql-sqlite</artifactId>
     <name>teaql-sqlite</name>
@@ -34,6 +34,12 @@
             <version>${project.version}</version>
         </dependency>
         <!-- Testing dependencies -->
+        <dependency>
+            <groupId>io.teaql</groupId>
+            <artifactId>teaql-dynamic-fields-jdbc</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>io.teaql</groupId>
             <artifactId>teaql-query-json</artifactId>
@@ -64,6 +70,7 @@
                         --add-reads io.teaql.sqlite=io.teaql.query.json
                         --add-reads io.teaql.sqlite=com.fasterxml.jackson.databind
                         --add-opens io.teaql.sqlite/io.teaql.sqlite=io.teaql.utils
+                        --add-opens io.teaql.sqlite/io.teaql.sqlite=io.teaql.core
                         --add-opens io.teaql.core/io.teaql.core=io.teaql.utils
                     </argLine>
                 </configuration>

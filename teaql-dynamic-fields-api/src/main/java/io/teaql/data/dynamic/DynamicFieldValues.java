@@ -8,9 +8,39 @@ import java.util.Map;
 public final class DynamicFieldValues {
 
     private final Map<String, DynamicFieldValue> values;
+    private final DynamicFieldMetadata metadata;
+    private final java.util.Set<String> selectedCodes;
 
     public DynamicFieldValues(Map<String, DynamicFieldValue> values) {
-        this.values = new LinkedHashMap<>(values);
+        this(inferMetadata(values), values);
+    }
+
+    public DynamicFieldValues(DynamicFieldMetadata metadata, Map<String, DynamicFieldValue> values) {
+        this.metadata = java.util.Objects.requireNonNull(metadata, "metadata");
+        this.values = values.isEmpty() ? Collections.emptyMap() : Collections.unmodifiableMap(new LinkedHashMap<>(values));
+        for (Map.Entry<String, DynamicFieldValue> entry : this.values.entrySet()) {
+            if (!entry.getKey().equals(entry.getValue().fieldCode())) throw new IllegalArgumentException("Dynamic field key/code mismatch");
+            DynamicDataType declared = metadata.requireType(entry.getKey());
+            if (declared != entry.getValue().dataType()) throw DynamicFieldException.typeMismatch(entry.getKey(), declared, entry.getValue().dataType());
+        }
+        // Presence is a view of the private payload map, not a copied field-name set per row.
+        if (this.values.values().stream().allMatch(DynamicFieldValue::isLoaded)) {
+            selectedCodes = this.values.keySet();
+        } else {
+            selectedCodes = Collections.unmodifiableSet(new java.util.AbstractSet<>() {
+                @Override public java.util.Iterator<String> iterator() {
+                    return DynamicFieldValues.this.values.entrySet().stream()
+                            .filter(entry -> entry.getValue().isLoaded()).map(Map.Entry::getKey).iterator();
+                }
+                @Override public int size() {
+                    return (int) DynamicFieldValues.this.values.values().stream().filter(DynamicFieldValue::isLoaded).count();
+                }
+                @Override public boolean contains(Object code) {
+                    DynamicFieldValue value = DynamicFieldValues.this.values.get(code);
+                    return value != null && value.isLoaded();
+                }
+            });
+        }
     }
 
     public static DynamicFieldValues empty() {
@@ -42,16 +72,28 @@ public final class DynamicFieldValues {
     }
 
     public boolean isSelected(String fieldCode) {
-        return values.containsKey(fieldCode);
+        DynamicFieldValue value = values.get(fieldCode);
+        return value != null && value.isLoaded();
     }
 
     public boolean isNull(String fieldCode) {
         DynamicFieldValue v = values.get(fieldCode);
-        return v != null && v.value() == null;
+        return v != null && v.state() == DynamicFieldValue.State.NULL;
     }
 
+    /** Unlike strict typed getters, this wrapper exposes NotLoaded without I/O or an invented NULL. */
+    public DynamicFieldValue field(String fieldCode) {
+        DynamicFieldValue value = values.get(fieldCode);
+        return value == null ? metadata.notLoaded(fieldCode) : value;
+    }
+
+    public DynamicFieldMetadata metadata() { return metadata; }
+
+    /** Immutable loaded-code view; NULL counts as loaded, NotLoaded does not. */
+    public java.util.Set<String> selectedCodes() { return selectedCodes; }
+
     public Map<String, DynamicFieldValue> toMap() {
-        return Collections.unmodifiableMap(values);
+        return values;
     }
 
     public int size() {
@@ -60,9 +102,15 @@ public final class DynamicFieldValues {
 
     private DynamicFieldValue requireSelected(String fieldCode) {
         DynamicFieldValue v = values.get(fieldCode);
-        if (v == null) {
+        if (v == null || !v.isLoaded()) {
             throw DynamicFieldException.notSelected(fieldCode);
         }
         return v;
+    }
+
+    private static DynamicFieldMetadata inferMetadata(Map<String, DynamicFieldValue> values) {
+        Map<String, DynamicDataType> types = new LinkedHashMap<>();
+        values.forEach((code, value) -> types.put(code, value.dataType()));
+        return new DynamicFieldMetadata(types);
     }
 }

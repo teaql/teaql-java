@@ -447,13 +447,44 @@ public class TeaQLRuntime {
             MutationPlan mutationPlan = buildMutationPlan(entity, entityMutationLedger, realEntities, intent);
             requireSingleMutationRoute(mutationPlan, route);
             MutationGovernanceSnapshot governance = reviewMutationPlan(context, mutationPlan);
+            var dynamicChanges = entityMutationLedger.currentChangeSet().dynamicChanges();
+            var dynamicRequests = new ArrayList<io.teaql.data.dynamic.DynamicGraphMutation>();
+            dynamicChanges.forEach((key, mutations) -> {
+                if (!entityMutationLedger.deletedKeys().contains(key)) mutations.values().forEach(mutation -> dynamicRequests.add(
+                        new io.teaql.data.dynamic.DynamicGraphMutation(io.teaql.data.dynamic.DynamicOwnerRef.of(key.entity(), key.id()), mutation,
+                                realEntities.get(key).dynamicFields().metadata())));
+            });
+            Map<EntityKey, io.teaql.data.dynamic.DynamicFieldValues> dynamicReadbacks = dynamicRequests.isEmpty() ? Collections.emptyMap() : new HashMap<>();
             List<PendingMutation> completed;
             try {
                 if (mutationExecutor instanceof TransactionExecutor transactionExecutor) {
-                    completed = transactionExecutor.executeInTransaction(context, () ->
-                            executeLedgerPlan(context, entityMutationLedger, mutationExecutor,
-                                    realEntities, governance, intent, traceScopes, graphScope));
+                    completed = transactionExecutor.executeInTransaction(context, () -> {
+                        io.teaql.data.dynamic.DynamicFieldsFacade dynamic = null;
+                        if (!dynamicRequests.isEmpty()) {
+                            dynamic = context.dynamicFields().comment(intent.comment()).purpose("runtime: persist audited graph extensions");
+                            dynamic.prepareGraphMutations(transactionExecutor.transactionResource(), dynamicRequests);
+                        }
+                        List<PendingMutation> results = executeLedgerPlan(context, entityMutationLedger, mutationExecutor,
+                                realEntities, governance, intent, traceScopes, graphScope);
+                        if (dynamic != null) {
+                            dynamic.applyGraphMutations(transactionExecutor.transactionResource(), dynamicRequests);
+                            for (var entry : dynamicChanges.entrySet()) {
+                                if (entityMutationLedger.deletedKeys().contains(entry.getKey())) continue;
+                                BaseEntity target = realEntities.get(entry.getKey());
+                                if (target == null) throw new TeaQLRuntimeException("Dynamic mutation has no materialized target");
+                                var selection = new io.teaql.data.dynamic.DynamicFieldSelection();
+                                Set<String> codes = new TreeSet<>(target.dynamicFields().selectedCodes());
+                                codes.addAll(entry.getValue().keySet());
+                                for (String code : codes) selection.select(code, target.dynamicFields().metadata().requireType(code));
+                                var value = dynamic.owner(entry.getKey().entity(), entry.getKey().id()).readAll(selection);
+                                if (value == null) throw new TeaQLRuntimeException("Dynamic mutation readback omitted owner");
+                                dynamicReadbacks.put(entry.getKey(), value);
+                            }
+                        }
+                        return results;
+                    });
                 } else {
+                    if (!dynamicRequests.isEmpty()) throw new TeaQLRuntimeException("DYNAMIC_FIELD_TRANSACTION_BINDING_REQUIRED: native graph executor has no transaction");
                     completed = executeLedgerPlan(
                             context, entityMutationLedger, mutationExecutor, realEntities, governance, intent, traceScopes, graphScope);
                 }
@@ -465,6 +496,10 @@ public class TeaQLRuntime {
                         Collections.newSetFromMap(new IdentityHashMap<>()));
                 throw failure;
             }
+            dynamicReadbacks.forEach((key, values) -> {
+                BaseEntity target = realEntities.get(key);
+                target.__internalHydrateDynamicFields(values, target.__internalLoadState().withDynamicSelection(values.selectedCodes()));
+            });
             completeLedgerPlan(context, completed);
             entityMutationLedger.clearCurrentChangeSet();
             telemetryScope.success();
@@ -512,23 +547,52 @@ public class TeaQLRuntime {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private void checkAndFix(UserContext context, Entity entity) {
-        Checker checker = checkers.get(entity.runtimeType());
-        if (checker == null) {
-            checker = checkers.get(entity.typeName());
-        }
-        if (checker == null) {
-            return;
-        }
-        try (var invocation = io.teaql.core.checker.internal.CheckerInvocation.open(context)) {
+        if (checkers.isEmpty()) return;
+        try (var invocation = io.teaql.core.checker.internal.CheckerInvocation.openMutation(context)) {
             context.beginFixEvidence();
             try {
-                checker.checkAndFix(context, (BaseEntity) entity);
+                checkGraphMutations(context, entity, null,
+                        Collections.newSetFromMap(new IdentityHashMap<>()));
                 List<CheckResult> violations = (List<CheckResult>) invocation.attribute(Checker.TEAQL_DATA_CHECK_RESULT);
                 if (violations != null && !violations.isEmpty()) {
                     throw new CheckException(new ArrayList<>(violations));
                 }
             } finally {
                 context.finishFixEvidence();
+            }
+        }
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private void checkGraphMutations(UserContext context, Entity entity,
+            io.teaql.core.checker.ObjectLocation location, Set<Entity> visited) {
+        if (!(entity instanceof BaseEntity base) || !visited.add(entity)) return;
+        Checker checker = checkers.get(entity.runtimeType());
+        if (checker == null) checker = checkers.get(entity.typeName());
+        if (checker != null && checker.needCheck(context, base)) {
+            checker.checkAndFix(context, base, location);
+        }
+        // An untouched partial parent must not hide a dirty descendant. Generated
+        // Checkers may stop at that parent, so persistence walks the graph itself.
+        EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());
+        for (EntityDescriptor current = descriptor; current != null; current = current.getParent()) {
+            for (PropertyDescriptor property : current.getProperties()) {
+                if (!(property instanceof io.teaql.core.meta.Relation)) continue;
+                String member = io.teaql.core.utils.NamingCase.toUnderlineCase(property.getName());
+                var childLocation = location == null
+                        ? io.teaql.core.checker.ObjectLocation.hashRoot(member) : location.member(member);
+                Object value = entity.getProperty(property.getName());
+                if (value instanceof Entity child) {
+                    checkGraphMutations(context, child, childLocation, visited);
+                } else if (value instanceof Iterable<?> children) {
+                    int index = 0;
+                    for (Object child : children) {
+                        if (child instanceof Entity related) {
+                            checkGraphMutations(context, related, childLocation.element(index), visited);
+                        }
+                        index++;
+                    }
+                }
             }
         }
     }
@@ -588,6 +652,7 @@ public class TeaQLRuntime {
             for (String property : baseEntity.getUpdatedProperties()) {
                 targetRoot.set(key, property, baseEntity.__internalGet(property));
             }
+            if (!targetRoot.isMarkedAsDelete(key)) baseEntity.__internalDynamicMutations().values().forEach(mutation -> targetRoot.setDynamic(key, mutation));
         }
         visitRelatedEntities(
                 entity, related -> recordGraphChanges(related, targetRoot, visited));
@@ -599,21 +664,23 @@ public class TeaQLRuntime {
         EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());
         if (descriptor == null) return;
 
-        for (PropertyDescriptor prop : descriptor.getProperties()) {
-            if (!(prop instanceof io.teaql.core.meta.Relation)) continue;
-            Object value = entity.getProperty(prop.getName());
-            if (value instanceof Entity relEntity) {
-                visitor.accept(relEntity);
-            } else if (value instanceof Collection<?> collection) {
-                for (Object item : collection) {
-                    if (item instanceof Entity relEntity) {
-                        visitor.accept(relEntity);
+        for (EntityDescriptor current = descriptor; current != null; current = current.getParent()) {
+            for (PropertyDescriptor prop : current.getProperties()) {
+                if (!(prop instanceof io.teaql.core.meta.Relation)) continue;
+                Object value = entity.getProperty(prop.getName());
+                if (value instanceof Entity relEntity) {
+                    visitor.accept(relEntity);
+                } else if (value instanceof Collection<?> collection) {
+                    for (Object item : collection) {
+                        if (item instanceof Entity relEntity) {
+                            visitor.accept(relEntity);
+                        }
                     }
-                }
-            } else if (value instanceof Iterable<?> iterable) {
-                for (Object item : iterable) {
-                    if (item instanceof Entity relEntity) {
-                        visitor.accept(relEntity);
+                } else if (value instanceof Iterable<?> iterable) {
+                    for (Object item : iterable) {
+                        if (item instanceof Entity relEntity) {
+                            visitor.accept(relEntity);
+                        }
                     }
                 }
             }
@@ -671,6 +738,7 @@ public class TeaQLRuntime {
         Set<EntityKey> created = ledger.newKeys();
         Set<EntityKey> keys = new TreeSet<>();
         keys.addAll(changeSet.changes().keySet());
+        keys.addAll(changeSet.dynamicChanges().keySet());
         keys.addAll(deleted);
         keys.addAll(ledger.recoveredKeys());
 
@@ -683,7 +751,7 @@ public class TeaQLRuntime {
                 kind = MutationOperationKind.DELETE;
                 changes = Map.of();
             } else {
-                changes = changeSet.changes().getOrDefault(key, Map.of());
+                changes = changesWithDynamic(changeSet, key);
                 if (created.contains(key) || key.id() == null) {
                     kind = MutationOperationKind.CREATE;
                 } else if (ledger.recoveredKeys().contains(key)) {
@@ -786,10 +854,24 @@ public class TeaQLRuntime {
         var graphRedactions = new SqlIntentRedactions();
         realEntities.values().forEach(value -> graphRedactions.captureEntity(
                 value, metadata.resolveEntityDescriptor(value.typeName())));
+        realEntities.values().forEach(entity -> {
+            var descriptor = metadata.resolveEntityDescriptor(entity.typeName());
+            if (entity.getDynamicFieldValues() != null) entity.getDynamicFieldValues().toMap().forEach((field, value) ->
+                    graphRedactions.capture(List.of(SqlFieldLogPolicy.resolve(descriptor, "#" + field)), new Object[]{value.value()}));
+            entity.__internalDynamicOriginalValues().forEach((field, value) -> graphRedactions.capture(
+                    List.of(SqlFieldLogPolicy.resolve(descriptor, "#" + field)), new Object[]{value.value()}));
+        });
         changeSet.changes().forEach((key, values) -> {
             var descriptor = metadata.resolveEntityDescriptor(key.entity());
             values.forEach((field, value) -> graphRedactions.capture(
                     List.of(SqlFieldLogPolicy.resolve(descriptor, field)), new Object[]{value}));
+        });
+        // Extension intents are not reflected in the predefined-field descriptor.
+        // Capture their actual operands, not the mutation's deliberately safe toString.
+        changeSet.dynamicChanges().forEach((key, values) -> {
+            var descriptor = metadata.resolveEntityDescriptor(key.entity());
+            values.forEach((field, mutation) -> graphRedactions.capture(
+                    List.of(SqlFieldLogPolicy.resolve(descriptor, "#" + field)), new Object[]{mutation.value()}));
         });
 
         // 1. Execute Deletes
@@ -833,6 +915,7 @@ public class TeaQLRuntime {
         Map<String, List<EntityKey>> updateBatches = new TreeMap<>();
 
         Set<EntityKey> changedKeys = new TreeSet<>(changeSet.changes().keySet());
+        changedKeys.addAll(changeSet.dynamicChanges().keySet());
         changedKeys.addAll(root.recoveredKeys());
         for (EntityKey key : changedKeys) {
             if (deletedKeys.contains(key)) continue;
@@ -858,8 +941,7 @@ public class TeaQLRuntime {
             List<Map<String, Object>> snapshots = new ArrayList<>();
             Collections.sort(keys);
             for (EntityKey key : keys) {
-                Map<String, Object> changes = changeSet.changes().get(key);
-                if (changes == null) continue;
+                Map<String, Object> changes = changeSet.changes().getOrDefault(key, Map.of());
                 BaseEntity target = realEntities.get(key);
                 BaseEntity entity = mutationEntity(descriptor, target);
                 entity.__internalSet("id", key.id());
@@ -868,7 +950,7 @@ public class TeaQLRuntime {
                     entity.__internalSet("version", version);
                 }
                 for (Map.Entry<String, Object> change : changes.entrySet()) {
-                    entity.updateProperty(change.getKey(), change.getValue());
+                    entity.__internalApplyRecordedMutation(change.getKey(), change.getValue());
                 }
                 if (root.getComment() != null) entity.setComment(root.getComment());
 
@@ -876,7 +958,7 @@ public class TeaQLRuntime {
                     entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(root, key, traceScopes, graphScope), target, graphRedactions);
                 requests.add(mutationRequest);
                 targets.add(target == null ? entity : target);
-                snapshots.add(snapshotChanges(changes));
+                snapshots.add(snapshotChanges(changesWithDynamic(changeSet, key)));
             }
             List<MutationResult> results = mutateBatchWithTelemetry(
                     context, mutationExecutor, intent, requests, entityName, "save");
@@ -913,8 +995,9 @@ public class TeaQLRuntime {
                         entity.__internalSet("version", version);
                     }
                     for (Map.Entry<String, Object> change : changes.entrySet()) {
-                        entity.updateProperty(change.getKey(), change.getValue());
+                        entity.__internalApplyRecordedMutation(change.getKey(), change.getValue());
                     }
+                    if (changeSet.dynamicChanges().containsKey(key)) entity.__internalRequireVersionUpdate();
                     entity.set$status(recovering ? io.teaql.core.EntityStatus.UPDATED_RECOVER : io.teaql.core.EntityStatus.UPDATED);
                     if (root.getComment() != null) entity.setComment(root.getComment());
 
@@ -922,7 +1005,7 @@ public class TeaQLRuntime {
                         entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(root, key, traceScopes, graphScope), target, graphRedactions);
                     requests.add(mutationRequest);
                     targets.add(target == null ? entity : target);
-                    snapshots.add(snapshotChanges(changes));
+                    snapshots.add(snapshotChanges(changesWithDynamic(changeSet, key)));
                 }
                 MutationAuditKind auditKind = recovering ? MutationAuditKind.RECOVERED : MutationAuditKind.UPDATED;
                 List<MutationResult> results = mutateBatchWithTelemetry(
@@ -943,11 +1026,19 @@ public class TeaQLRuntime {
                     context, mutation.target(), mutation.auditKind(), mutation.changedValues(),
                     mutation.governance(), mutation.intent(), mutation.traceChain(), mutation.redactions());
             mutation.target().clearUpdatedProperties();
+            // A committed delete supersedes any staged extension edits too.
+            mutation.target().__internalClearDynamicMutations();
         }
     }
 
     private Map<String, Object> snapshotChanges(Map<String, Object> changes) {
         return Collections.unmodifiableMap(new LinkedHashMap<>(changes));
+    }
+
+    private Map<String, Object> changesWithDynamic(EntityChangeSet changes, EntityKey key) {
+        Map<String, Object> fields = new LinkedHashMap<>(changes.changes().getOrDefault(key, Map.of()));
+        changes.dynamicChanges().getOrDefault(key, Map.of()).forEach((code, mutation) -> fields.put("#" + code, mutation));
+        return fields;
     }
 
     private BaseEntity mutationEntity(EntityDescriptor descriptor, BaseEntity target) {
@@ -998,9 +1089,11 @@ public class TeaQLRuntime {
                             + descriptor.getType());
         }
         BaseEntity persisted = (BaseEntity) result.persistedEntity();
-        for (PropertyDescriptor property : descriptor.getProperties()) {
-            if (!persisted.isPropertyLoaded(property.getName())) continue;
-            target.__internalSet(property.getName(), persisted.getProperty(property.getName()));
+        for (EntityDescriptor current = descriptor; current != null; current = current.getParent()) {
+            for (PropertyDescriptor property : current.getProperties()) {
+                if (!persisted.isPropertyLoaded(property.getName())) continue;
+                target.__internalSet(property.getName(), persisted.getProperty(property.getName()));
+            }
         }
         target.set$status(((BaseEntity) persisted).get$status());
         target.clearUpdatedProperties();
@@ -1082,7 +1175,19 @@ public class TeaQLRuntime {
         if (changedValues != null) {
             for (Map.Entry<String, Object> entry : changedValues.entrySet()) {
                 if (entry.getKey() == null || entry.getKey().startsWith("_")) continue;
-                changes.add(new AuditFieldChange(entry.getKey(), null, entry.getValue()));
+                Object value = entry.getValue();
+                Object previous = null;
+                if (value instanceof io.teaql.data.dynamic.DynamicFieldMutation mutation) {
+                    if (entity instanceof BaseEntity base) {
+                        var original = base.__internalDynamicOriginalValues().get(mutation.code());
+                        if (original != null && original.isLoaded()) previous = original.value();
+                    }
+                    var details = new LinkedHashMap<String, Object>();
+                    details.put("operation", mutation.kind().name());
+                    if (mutation.kind() == io.teaql.data.dynamic.DynamicFieldMutation.Kind.SET) details.put("value", mutation.value());
+                    value = Collections.unmodifiableMap(details);
+                }
+                changes.add(new AuditFieldChange(entry.getKey(), previous, value));
             }
         }
         changes.sort(Comparator.comparing(AuditFieldChange::field));
@@ -1134,7 +1239,7 @@ public class TeaQLRuntime {
         boolean allowPlaintext = LogPrivacy.plaintextEnabled();
         redactions.appendTo(sensitiveValues, allowPlaintext);
         for (AuditFieldChange change : event.changes()) {
-            if ((!allowPlaintext && maskFields.contains(change.field())) || LogPrivacy.credential(change.field())
+            if ((!allowPlaintext && (maskFields.contains(change.field()) || change.field().startsWith("#"))) || LogPrivacy.credential(change.field())
                     || LogPrivacy.hasCredentials(change.oldValue()) || LogPrivacy.hasCredentials(change.newValue())) {
                 sensitiveValues.add(change.oldValue());
                 sensitiveValues.add(change.newValue());
@@ -1143,7 +1248,7 @@ public class TeaQLRuntime {
         for (AuditFieldChange change : event.changes()) {
             Object value = change.newValue() != null ? change.newValue() : change.oldValue();
             String raw = value == null ? null : String.valueOf(value);
-            boolean masked = raw != null && ((!allowPlaintext && maskFields.contains(change.field()))
+            boolean masked = raw != null && ((!allowPlaintext && (maskFields.contains(change.field()) || change.field().startsWith("#")))
                     || LogPrivacy.credential(change.field()) || LogPrivacy.hasCredentials(change.oldValue())
                     || LogPrivacy.hasCredentials(change.newValue()));
             boolean credential = LogPrivacy.credential(change.field())

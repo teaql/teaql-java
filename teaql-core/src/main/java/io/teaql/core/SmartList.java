@@ -41,6 +41,7 @@ public class SmartList<T extends Entity> implements Iterable<T> {
         this(data == null ? 0 : data.size());
         if (data != null) {
             this.data.addAll(data);
+            __internalShareLoadStates();
         }
     }
 
@@ -59,6 +60,7 @@ public class SmartList<T extends Entity> implements Iterable<T> {
     public static <T extends Entity> SmartList<T> takeOwnership(List<T> data) {
         SmartList<T> result = new SmartList<>();
         result.data = data == null ? new ArrayList<>() : data;
+        result.__internalShareLoadStates();
         return result;
     }
 
@@ -97,11 +99,13 @@ public class SmartList<T extends Entity> implements Iterable<T> {
 
     public void add(T pValue) {
         ensureMutable();
+        shareExistingState(pValue);
         data.add(pValue);
     }
 
     public void set(int index, T pValue) {
         ensureMutable();
+        shareExistingState(pValue);
         data.set(index, pValue);
     }
 
@@ -112,6 +116,52 @@ public class SmartList<T extends Entity> implements Iterable<T> {
     public void setData(List<T> pData) {
         ensureMutable();
         data = pData;
+        __internalShareLoadStates();
+    }
+
+    /** Group by exact availability, not by a union of requested fields. The temporary
+     * index is discarded: a long-lived list does not retain historical COW states. */
+    @FrameworkInternal("Hydration result finalization only")
+    public void __internalShareLoadStates() {
+        if (data == null || data.size() < 2) return;
+        LoadState first = null;
+        Map<LoadState, LoadState> shapes = null;
+        // Indexed traversal avoids an iterator allocation on the normal ArrayList
+        // result, while non-random-access lists retain linear traversal.
+        Iterator<T> iterator = data instanceof java.util.RandomAccess ? null : data.iterator();
+        int index = 0;
+        while (iterator == null ? index < data.size() : iterator.hasNext()) {
+            T entity = iterator == null ? data.get(index++) : iterator.next();
+            if (!(entity instanceof BaseEntity base)) continue;
+            LoadState state = base.__internalLoadState();
+            if (first == null) { first = state; continue; }
+            // Compiled hydration already supplies the same immutable snapshot.
+            // No grouping index is needed unless another reference appears.
+            if (state == first) continue;
+            if (shapes == null) {
+                shapes = new HashMap<>();
+                shapes.put(first, first);
+            }
+            LoadState shared = shapes.putIfAbsent(state, state);
+            if (shared != null && shared != state) base.__internalUseLoadState(shared);
+        }
+    }
+
+    private void shareExistingState(T entity) {
+        if (!(entity instanceof BaseEntity base) || data == null || data.isEmpty()) return;
+        LoadState state = base.__internalLoadState();
+        // Homogeneous hydration/append is the usual case and only checks the tail.
+        T tail = data.get(data.size() - 1);
+        if (tail instanceof BaseEntity previous && state.equals(previous.__internalLoadState())) {
+            base.__internalUseLoadState(previous.__internalLoadState());
+            return;
+        }
+        for (T existing : data) {
+            if (existing instanceof BaseEntity previous && state.equals(previous.__internalLoadState())) {
+                base.__internalUseLoadState(previous.__internalLoadState());
+                return;
+            }
+        }
     }
 
     public void addAggregationResult(UserContext userContext, AggregationResult aggregationResult) {

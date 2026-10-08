@@ -84,6 +84,31 @@ public class CheckerTest {
     }
     
     @Test
+    public void mutationScopeChecksOnlyPendingObjectsAndRestoresExplicitValidation() {
+        var checker = new DummyChecker();
+        var context = createDummyContext();
+        var entity = new DummyEntity();
+        entity.set$status(EntityStatus.PERSISTED);
+        assertTrue("explicit validation still checks unchanged objects", checker.needCheck(context, entity));
+        try (var scope = io.teaql.core.checker.internal.CheckerInvocation.openMutation(context)) {
+            assertFalse(checker.needCheck(context, entity));
+            entity.set$status(EntityStatus.PERSISTED_DELETED);
+            assertFalse(checker.needCheck(context, entity));
+            for (var status : List.of(EntityStatus.NEW, EntityStatus.UPDATED,
+                    EntityStatus.UPDATED_DELETED, EntityStatus.UPDATED_RECOVER)) {
+                entity.set$status(status);
+                assertTrue(status.toString(), checker.needCheck(context, entity));
+            }
+            entity.set$status(EntityStatus.PERSISTED);
+            try (var explicit = io.teaql.core.checker.internal.CheckerInvocation.open(context)) {
+                assertTrue(checker.needCheck(context, entity));
+            }
+            assertFalse(checker.needCheck(context, entity));
+        }
+        assertTrue(checker.needCheck(context, entity));
+    }
+
+    @Test
     public void testNewLocation() {
         DummyChecker checker = new DummyChecker();
         ObjectLocation loc1 = checker.newLocation(null, "member1");

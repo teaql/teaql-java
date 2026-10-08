@@ -24,6 +24,24 @@ public class EntityChangeSetTest {
     }
 
     @Test
+    public void dynamicIntentsHaveDistinctNamesAndStayTypeQualified() {
+        var changes = new EntityChangeSet();
+        var otherType = new EntityKey("Invoice", 1L);
+        changes.set(ORDER, "status", "PAID");
+        changes.setDynamic(ORDER, io.teaql.data.dynamic.DynamicFieldMutation.set("status", io.teaql.data.dynamic.DynamicDataType.STRING, null));
+        changes.setDynamic(otherType, io.teaql.data.dynamic.DynamicFieldMutation.delete("status", io.teaql.data.dynamic.DynamicDataType.STRING));
+        assertEquals(Set.of("status", "#status"), changes.fieldNames(ORDER));
+        assertEquals(Set.of("#status"), changes.fieldNames(otherType));
+        assertThrows(UnsupportedOperationException.class, () -> changes.dynamicChanges().get(ORDER).clear());
+        assertEquals(io.teaql.data.dynamic.DynamicFieldMutation.Kind.SET, changes.dynamicChanges().get(ORDER).get("status").kind());
+        assertNull(changes.dynamicChanges().get(ORDER).get("status").value());
+        changes.clearEntity(ORDER);
+        assertFalse(changes.isEmpty());
+        assertTrue(changes.fieldNames(ORDER).isEmpty());
+        assertEquals(io.teaql.data.dynamic.DynamicFieldMutation.Kind.DELETE, changes.dynamicChanges().get(otherType).get("status").kind());
+    }
+
+    @Test
     public void setMakesFieldValueReadable() {
         EntityChangeSet changeSet = new EntityChangeSet();
 

@@ -5,6 +5,9 @@ import io.teaql.data.dynamic.DynamicFieldValues;
 
 // the super interface in TEAQL repository
 public interface Entity {
+    /** Optional readonly result-schema information, not an availability or persistence contract. */
+    default Class<?> getDynamicPropertyType(String name) { return null; }
+
     Long getId();
 
     Long getVersion();

@@ -81,6 +81,7 @@ public class TeaQLRuntimeTest {
 
     public static class DummyEntity extends BaseEntity {
         private String name;
+        private DummyEntity child;
 
         @Override
         public String typeName() {
@@ -98,7 +99,9 @@ public class TeaQLRuntimeTest {
         
         @Override
         public Object __internalGet(String property) {
-            if ("name".equals(property)) {
+            if ("child".equals(property)) {
+                return child;
+            } else if ("name".equals(property)) {
                 return this.name;
             } else {
                 return super.__internalGet(property);
@@ -447,6 +450,43 @@ public class TeaQLRuntimeTest {
                 .metadata(new DummyMetaFactory())
                 .build();
         Assert.assertNotNull(runtime);
+    }
+
+    @Test
+    public void modifiedDescendantIsCheckedThroughUntouchedPartialParent() {
+        RecordingMutationExecutor executor = new RecordingMutationExecutor();
+        DummyChecker checker = new DummyChecker() {
+            @Override public void checkAndFix(UserContext context, DummyEntity entity, ObjectLocation location) {
+                if (!needCheck(context, entity)) return;
+                markAsChecked(context, entity);
+                requiredCheck(context, newLocation(location, "name"), entity.name);
+                checkAndFix(context, entity.child, newLocation(location, "child"));
+            }
+        };
+        DummyMetaFactory metadata = new DummyMetaFactory() {
+            @Override public EntityDescriptor resolveEntityDescriptor(String type) {
+                var descriptor = super.resolveEntityDescriptor(type);
+                var relation = new io.teaql.core.meta.Relation();
+                relation.setName("child");
+                descriptor.getProperties().add(relation);
+                return descriptor;
+            }
+        };
+        TeaQLRuntime runtime = TeaQLRuntime.builder().metadata(metadata)
+                .dataService("dummy", executor).build()
+                .install(RuntimeModule.of().withCheckers(checker));
+        var context = new DefaultUserContext(runtime);
+        var root = new DummyEntity(); root.name = "complete parent";
+        root.set$status(EntityStatus.UPDATED); root.setComment("check modified descendants");
+        root.child = new DummyEntity(); root.child.set$status(EntityStatus.PERSISTED);
+        root.child.child = new DummyEntity(); root.child.child.set$status(EntityStatus.UPDATED);
+        // Cycle exercises the independent persistence walk's identity boundary.
+        root.child.child.child = root;
+        var error = Assert.assertThrows(CheckException.class, () -> runtime.saveGraph(context, root));
+        Assert.assertEquals(1, error.getViolates().size());
+        Assert.assertEquals("child.child.name", error.getViolates().get(0).getLocation().modelPath());
+        Assert.assertTrue(executor.requests.isEmpty());
+        Assert.assertEquals(EntityStatus.PERSISTED, root.child.get$status());
     }
 
     @Test

@@ -20,6 +20,60 @@ public class JdbcDynamicFieldsProviderTest {
 
     private JdbcDynamicFieldsProvider provider;
 
+    @Test
+    public void newEntityMetadataNeedsNoOwnerDataReadAndBindsToExecutorNotProvider() {
+        DataSource dataSource = new SimpleDataSource("jdbc:h2:mem:metadata_" + System.nanoTime() + ";DB_CLOSE_DELAY=-1");
+        var executor = new JdbcSqlExecutor(dataSource) {
+            @Override public List<Map<String, Object>> queryForList(String sql, Object[] parameters) {
+                if (sql.contains("teaql_dynamic_field_value")) fail("metadata preparation read owner data");
+                return super.queryForList(sql, parameters);
+            }
+        };
+        var first = new JdbcDynamicFieldsProvider(executor);
+        first.ensureSchema();
+        first.registerFieldDef(globalCtx(), createStringField("note", "Note"));
+        var metadata = new DefaultDynamicFieldsFacade(first).metadata("Platform");
+        assertEquals(DynamicDataType.STRING, metadata.requireType("note"));
+        var rebuilt = new JdbcDynamicFieldsProvider(executor).metadata(globalCtx(), "Platform");
+        assertTrue(metadata.matchesStorage(executor.storageIdentity(), "GLOBAL", "default", "Platform"));
+        assertTrue(rebuilt.matchesStorage(executor.storageIdentity(), "GLOBAL", "default", "Platform"));
+        assertFalse(metadata.matchesStorage(new JdbcSqlExecutor(dataSource).storageIdentity(), "GLOBAL", "default", "Platform"));
+    }
+
+    @Test
+    public void adapterWithoutAnOpaqueStorageIdentityCannotCreateWritableViews() {
+        var executor = new JdbcSqlExecutor(new SimpleDataSource("jdbc:h2:mem:unbound_" + System.nanoTime() + ";DB_CLOSE_DELAY=-1")) {
+            @Override public Object storageIdentity() { return null; }
+        };
+        var unsupported = new JdbcDynamicFieldsProvider(executor);
+        unsupported.ensureSchema();
+        var error = assertThrows(DynamicFieldException.class, () -> unsupported.metadata(globalCtx(), "Platform"));
+        assertEquals("DYNAMIC_FIELD_STORAGE_IDENTITY_REQUIRED", error.errorCode());
+    }
+
+    @Test
+    public void metadataIsSharedForBatchButOwnerTypesAndPayloadsRemainIsolated() {
+        DynamicFieldContext context = globalCtx();
+        provider.registerFieldDef(context, createStringField("note", "Note"));
+        DynamicFieldDef schoolField = createStringField("note", "School note");
+        schoolField.setOwnerType("School");
+        provider.registerFieldDef(context, schoolField);
+        DynamicOwnerRef first = DynamicOwnerRef.of("Platform", 1L);
+        DynamicOwnerRef second = DynamicOwnerRef.of("Platform", 2L);
+        DynamicOwnerRef school = DynamicOwnerRef.of("School", 1L);
+        provider.saveValue(context, DynamicSetCommand.of(first, "note", DynamicDataType.STRING, "platform", "verify", "set platform"));
+        provider.saveValue(context, DynamicSetCommand.of(second, "note", DynamicDataType.STRING, null, "verify", "set known null"));
+        provider.saveValue(context, DynamicSetCommand.of(school, "note", DynamicDataType.STRING, "school", "verify", "set school"));
+        Map<DynamicOwnerRef, DynamicFieldValues> batch = provider.loadValues(context, List.of(first, second, school), new DynamicFieldSelection().selectString("note"));
+        assertSame(batch.get(first).metadata(), batch.get(second).metadata());
+        assertEquals("platform", batch.get(first).getString("note"));
+        assertEquals("school", batch.get(school).getString("note"));
+        assertEquals(DynamicFieldValue.State.NULL, batch.get(second).field("note").state());
+        DynamicFieldValues omitted = provider.loadValues(context, first, new DynamicFieldSelection().selectString("other"));
+        assertEquals(DynamicFieldValue.State.NOT_LOADED, omitted.field("note").state());
+        assertThrows(DynamicFieldException.class, () -> omitted.field("undefined"));
+    }
+
     @Before
     public void setUp() {
         // H2 in-memory database

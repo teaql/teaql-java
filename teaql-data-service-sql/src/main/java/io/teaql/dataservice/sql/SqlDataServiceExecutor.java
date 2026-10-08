@@ -76,6 +76,8 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
         return getPortableService(context).executeInTransaction(context, action);
     }
 
+    @Override public Object transactionResource() { return executionAdapter; }
+
     @Override
     public void ensureSchema(UserContext context, io.teaql.core.SchemaExecutor.Invocation invocation) {
         io.teaql.core.SchemaExecutor.Invocation.requireContextOwned(invocation);
@@ -144,6 +146,17 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     return true;
                 }
 
+                @Override public boolean supportsCompiledStreamMapping() {
+                    return executionAdapter.supportsCompiledStreamMapping();
+                }
+
+                @Override public <T extends io.teaql.core.Entity> java.util.stream.Stream<T> queryForStream(
+                        io.teaql.core.UserContext context, String sql, Object[] args,
+                        io.teaql.core.CompiledRowMapper<T> mapper, io.teaql.core.sql.portable.SqlLogBindings bindings) {
+                    return observedQueryStream(context, sql, args, bindings,
+                            () -> executionAdapter.queryForStream(sql, args, mapper));
+                }
+
                 @Override
                 public java.util.List<java.util.Map<String, Object>> query(String sql, Object[] args) {
                     return executionAdapter.queryForList(sql, args);
@@ -155,23 +168,8 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                 @Override
                 public java.util.stream.Stream<java.util.Map<String, Object>> queryForStream(io.teaql.core.UserContext context,
                         String sql, Object[] args, io.teaql.core.sql.portable.SqlLogBindings bindings) {
-                    boolean logging = context.isQueryExecutionLoggingEnabled();
-                    boolean collecting = logging || bindings.collectsStatements();
-                    long start = collecting ? System.nanoTime() : 0L;
-                    io.teaql.core.ExecutionMetadata meta = null;
-                    if (collecting) {
-                        meta = statementMetadata(context, sql, args, bindings, io.teaql.core.DataServiceOperation.QUERY);
-                        // Snapshot before request trace scopes are popped; lazy consumption may happen later.
-                        if (bindings.executionTrace() == null) {
-                            var trace = context.getTraceChain();
-                            meta.setTraceChain(trace == null || trace.isEmpty()
-                                    ? java.util.List.of(new io.teaql.core.TraceNode(io.teaql.core.TraceKind.OPERATION, "stream", "query"))
-                                    : java.util.List.copyOf(trace));
-                        }
-                    }
-                    var stream = diagnosed(context, sql, args, bindings, io.teaql.core.DataServiceOperation.QUERY,
-                            logging, start, () -> executionAdapter.queryForStream(sql, args));
-                    return SqlDiagnosticStream.wrap(context, stream, meta, start, bindings, logging);
+                    return observedQueryStream(context, sql, args, bindings,
+                            () -> executionAdapter.queryForStream(sql, args));
                 }
                 @Override
                 public int executeUpdate(String sql, Object[] args) {
@@ -338,6 +336,27 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
         portableService.setDialect(this.dialect);
         portableService.setTopNRelationPlanPolicy(this.topNRelationPlanPolicy);
         return portableService;
+    }
+
+    private <T> java.util.stream.Stream<T> observedQueryStream(UserContext context, String sql, Object[] args,
+            io.teaql.core.sql.portable.SqlLogBindings bindings, java.util.function.Supplier<java.util.stream.Stream<T>> action) {
+        boolean logging = context.isQueryExecutionLoggingEnabled();
+        boolean collecting = logging || bindings.collectsStatements();
+        long start = collecting ? System.nanoTime() : 0L;
+        io.teaql.core.ExecutionMetadata meta = null;
+        if (collecting) {
+            meta = statementMetadata(context, sql, args, bindings, io.teaql.core.DataServiceOperation.QUERY);
+            // Snapshot before request trace scopes are popped; consumption is lazy.
+            if (bindings.executionTrace() == null) {
+                var trace = context.getTraceChain();
+                meta.setTraceChain(trace == null || trace.isEmpty()
+                        ? java.util.List.of(new io.teaql.core.TraceNode(io.teaql.core.TraceKind.OPERATION, "stream", "query"))
+                        : java.util.List.copyOf(trace));
+            }
+        }
+        var stream = diagnosed(context, sql, args, bindings, io.teaql.core.DataServiceOperation.QUERY,
+                logging, start, action);
+        return SqlDiagnosticStream.wrap(context, stream, meta, start, bindings, logging);
     }
 
     private io.teaql.core.ExecutionMetadata statementMetadata(UserContext context, String sql, Object[] args,

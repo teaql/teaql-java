@@ -153,7 +153,17 @@ public class IdSpaceIdGenerator implements InternalIdGenerationService {
 
     @Override
     public Long generateId(io.teaql.core.UserContext context, io.teaql.core.Entity entity) {
-        return nextId(entity.typeName());
+        // Joined inheritance inserts the same ID into ancestor tables, so its
+        // family must allocate from the root space rather than a child counter.
+        var descriptor = io.teaql.core.meta.EntityMetaFactory.requireFrom(context)
+                .resolveEntityDescriptor(entity.typeName());
+        var visited = java.util.Collections.newSetFromMap(
+                new java.util.IdentityHashMap<io.teaql.core.meta.EntityDescriptor, Boolean>());
+        while (descriptor.getParent() != null) {
+            if (!visited.add(descriptor)) throw new IllegalArgumentException("Cyclic ID-space inheritance metadata");
+            descriptor = descriptor.getParent();
+        }
+        return nextId(descriptor.getType());
     }
 
     /**

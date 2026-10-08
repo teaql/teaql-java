@@ -10,8 +10,14 @@ import io.teaql.core.sqlite.SqliteDataServiceExecutor;
 import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import io.teaql.dataservice.sql.SqlDataServiceExecutor;
 import io.teaql.runtime.DefaultUserContext;
+import io.teaql.runtime.DefaultQueryRequest;
 import io.teaql.runtime.RuntimeLogSink;
 import io.teaql.runtime.TeaQLRuntime;
+import io.teaql.runtime.RawAuditEvent;
+import io.teaql.runtime.SafeAuditEvent;
+import io.teaql.runtime.AppAuditEventSink;
+import io.teaql.data.dynamic.*;
+import io.teaql.data.dynamic.jdbc.JdbcDynamicFieldsProvider;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -35,6 +41,516 @@ import java.util.logging.Logger;
 import static org.junit.Assert.*;
 
 public class SqliteIntegrationTest {
+
+    private static final AtomicLong dynamicDefinitionIds = new AtomicLong(100_000);
+    private static final DynamicFieldContext definitionContext = new DynamicFieldContext() {
+        public String scopeType() { return "GLOBAL"; }
+        public String scopeId() { return "default"; }
+        public String userId() { return "sqlite-regression"; }
+        public String purpose() { return "register isolated regression definitions"; }
+        public String comment() { return "what: prepare dynamic field metadata"; }
+        public boolean strictIntent() { return true; }
+        public long nextId(String type) { return dynamicDefinitionIds.getAndIncrement(); }
+    };
+
+    private record DynamicFixture(DefaultUserContext context, List<RawAuditEvent> audits,
+                                  List<SafeAuditEvent> appAudits, List<ExecutionMetadata> logs) {}
+
+    private DynamicFixture dynamicFixture(JdbcDynamicFieldsProvider provider) {
+        provider.ensureSchema();
+        var audits = new ArrayList<RawAuditEvent>();
+        var appAudits = new ArrayList<SafeAuditEvent>();
+        var logs = new ArrayList<ExecutionMetadata>();
+        var local = new DefaultUserContext(TeaQLRuntime.builder().metadata(runtime.getMetadata())
+                .dataService("sqlite", runtime.getRegistry().resolve("sqlite"))
+                .idGenerationService(runtime.getIdGenerationService()).logSink(new RuntimeLogSink() {
+                    @Override public void writeExecutionLog(UserContext caller, ExecutionMetadata value) { logs.add(value); }
+                    @Override public void writeAuditEvent(UserContext caller, RawAuditEvent value) { audits.add(value); }
+                }).build());
+        local.putAttribute(DynamicFieldsFacade.class.getName(), new DefaultDynamicFieldsFacade(provider));
+        local.putAttribute(AppAuditEventSink.class.getName(), (AppAuditEventSink) (caller, value) -> appAudits.add(value));
+        return new DynamicFixture(local, audits, appAudits, logs);
+    }
+
+    private DynamicFieldDef define(JdbcDynamicFieldsProvider provider, String code, DynamicDataType type) {
+        return define(provider, code, type, definitionContext);
+    }
+
+    private DynamicFieldDef define(JdbcDynamicFieldsProvider provider, String code, DynamicDataType type, DynamicFieldContext context) {
+        var field = new DynamicFieldDef();
+        field.setScope(DynamicFieldScope.of(context.scopeType(), context.scopeId()));
+        field.setOwnerType("Task");
+        field.setCode(code);
+        field.setName(code);
+        field.setDataType(type);
+        return provider.registerFieldDef(context, field);
+    }
+
+    private DynamicFieldContext alternateScopeContext() {
+        return new DynamicFieldContext() {
+            public String scopeType() { return "PROFILE"; }
+            public String scopeId() { return "other"; }
+            public String userId() { return definitionContext.userId(); }
+            public String purpose() { return definitionContext.purpose(); }
+            public String comment() { return definitionContext.comment(); }
+            public boolean strictIntent() { return true; }
+            public long nextId(String type) { return definitionContext.nextId(type); }
+        };
+    }
+
+    @Test
+    public void loadedDynamicViewCannotFollowAChangedStorageScope() {
+        var provider = new JdbcDynamicFieldsProvider(jdbcSqlExecutor);
+        var fixture = dynamicFixture(provider);
+        define(provider, "profile_note", DynamicDataType.STRING);
+        Task task = dynamicTask(fixture, "PROFILE-ORIGIN", new DynamicFieldSelection().selectString("profile_note"));
+        var alternate = alternateScopeContext();
+        define(provider, "profile_note", DynamicDataType.STRING, alternate);
+        provider.saveValue(alternate, DynamicSetCommand.of(DynamicOwnerRef.of("Task", task.getId()),
+                "profile_note", DynamicDataType.STRING, "other profile value", alternate.purpose(), alternate.comment()));
+        task.updateTitle("must-not-cross-provider");
+        task.updateDynamicField("profile_note", "private held value");
+        fixture.context().putAttribute(DynamicFieldsFacade.class.getName(),
+                new DefaultDynamicFieldsFacade(provider, DynamicFieldScope.of("PROFILE", "other")));
+        try {
+            task.auditAs("reject changed provider provenance").save(fixture.context());
+            fail("held metadata was accepted by a different storage scope");
+        } catch (DynamicFieldException expected) {
+            assertEquals("DYNAMIC_FIELD_STORAGE_PROVENANCE_MISMATCH", expected.errorCode());
+        }
+        assertEquals("initial", nativeColumn(task, "title"));
+        assertEquals(Long.valueOf(1), task.getVersion());
+        assertEquals(1, dynamicRowCount(task, "profile_note"));
+        assertEquals("other profile value", provider.loadValues(alternate, DynamicOwnerRef.of("Task", task.getId()),
+                new DynamicFieldSelection().selectString("profile_note")).getString("profile_note"));
+        assertFalse(task.__internalDynamicMutations().isEmpty());
+        assertEquals(1, fixture.audits().size());
+        fixture.context().putAttribute(DynamicFieldsFacade.class.getName(), new DefaultDynamicFieldsFacade(provider));
+        task.auditAs("retry with original provider").save(fixture.context());
+        assertEquals("must-not-cross-provider", nativeColumn(task, "title"));
+        assertEquals("private held value", task.dynamicFields().getString("profile_note"));
+        assertEquals("other profile value", provider.loadValues(alternate, DynamicOwnerRef.of("Task", task.getId()),
+                new DynamicFieldSelection().selectString("profile_note")).getString("profile_note"));
+        assertTrue(task.__internalDynamicMutations().isEmpty());
+    }
+
+    @Test
+    public void replacingProviderOverTheSameExecutorPreservesStorageProvenance() {
+        var provider = new JdbcDynamicFieldsProvider(jdbcSqlExecutor);
+        var fixture = dynamicFixture(provider);
+        define(provider, "same_source_note", DynamicDataType.STRING);
+        Task task = dynamicTask(fixture, "PROFILE-SAME", new DynamicFieldSelection().selectString("same_source_note"));
+        task.updateDynamicField("same_source_note", "same storage");
+        fixture.context().putAttribute(DynamicFieldsFacade.class.getName(),
+                new DefaultDynamicFieldsFacade(new JdbcDynamicFieldsProvider(jdbcSqlExecutor)));
+        task.auditAs("keep same executor provenance").save(fixture.context());
+        assertEquals("same storage", task.dynamicFields().getString("same_source_note"));
+        assertEquals(Long.valueOf(2), task.getVersion());
+        assertEquals(2, fixture.audits().size());
+    }
+
+    private Task dynamicTask(DynamicFixture fixture, String status, DynamicFieldSelection selection) {
+        var task = new Task().updateTitle("initial").updateStatus(status);
+        task.auditAs("seed atomic dynamic regression").save(fixture.context());
+        return loadDynamicTask(fixture, status, selection);
+    }
+
+    private Task loadDynamicTask(DynamicFixture fixture, String status, DynamicFieldSelection selection) {
+        var request = new TaskRequest().filterByStatus(status);
+        request.setSize(1);
+        request.selectDynamicFieldsWith(selection);
+        return request.comment("load fixed and dynamic regression fields").purpose("verify graph mutation isolation")
+                .executeForList(fixture.context()).get(0);
+    }
+
+    private Object nativeColumn(Task task, String column) {
+        return jdbcSqlExecutor.queryForList("SELECT " + column + " FROM task_data WHERE id=?", new Object[]{task.getId()})
+                .get(0).get(column);
+    }
+
+    private long dynamicRowCount(Task task, String code) {
+        return ((Number) jdbcSqlExecutor.queryForList("SELECT COUNT(*) AS n FROM teaql_dynamic_field_value v "
+                + "JOIN teaql_dynamic_field_def d ON d.id=v.field_id WHERE v.owner_type='Task' AND v.owner_id=? AND d.code=?",
+                new Object[]{task.getId(), code}).get(0).get("n")).longValue();
+    }
+
+    @Test
+    public void dynamicGraphSavePersistsNullAndDeleteDistinctlyAndAuditsAfterCommit() {
+        var provider = new JdbcDynamicFieldsProvider(jdbcSqlExecutor);
+        var fixture = dynamicFixture(provider);
+        define(provider, "atomic_note", DynamicDataType.STRING);
+        define(provider, "atomic_untouched", DynamicDataType.STRING);
+        var selection = new DynamicFieldSelection().selectString("atomic_note");
+        Task task = dynamicTask(fixture, "DYNAMIC-ATOMIC", selection);
+        assertEquals(DynamicFieldValue.State.NOT_LOADED, task.dynamicFields().field("atomic_note").state());
+        fixture.context().dynamicFields().comment("seed unselected extension").purpose("verify save does not clear it")
+                .owner("Task", task.getId()).string("atomic_untouched").set("preserved");
+        LoadState before = task.__internalLoadState();
+        task.updateTitle("updated");
+        task.updateDynamicField("atomic_note", "PRIVATE-DYNAMIC-CANARY");
+        assertNotSame(before, task.__internalLoadState());
+        task.addDynamicProperty("atomic_note", "readonly-derived");
+        task.auditAs("save extension PRIVATE-DYNAMIC-CANARY").save(fixture.context());
+        assertEquals("updated", nativeColumn(task, "title"));
+        assertEquals(Long.valueOf(2), task.getVersion());
+        assertEquals("PRIVATE-DYNAMIC-CANARY", task.dynamicFields().getString("atomic_note"));
+        assertTrue(task.__internalDynamicMutations().isEmpty());
+        assertTrue(task.getEntityMutationLedger().currentChangeSet().isEmpty());
+        assertEquals("readonly-derived", task.getProperty("_atomic_note"));
+        assertEquals("preserved", fixture.context().dynamicFields().comment("read untouched extension").purpose("verify isolation")
+                .owner("Task", task.getId()).string("atomic_untouched").get());
+        assertEquals(2, fixture.audits().size());
+        var audit = fixture.audits().get(1);
+        assertTrue(audit.changes().stream().anyMatch(change -> change.field().equals("#atomic_note")));
+        assertFalse(audit.toString().contains("PRIVATE-DYNAMIC-CANARY"));
+        assertFalse(fixture.appAudits().toString().contains("PRIVATE-DYNAMIC-CANARY"));
+        assertTrue(fixture.appAudits().get(1).fields().stream().anyMatch(field -> field.name().equals("#atomic_note") && field.masked()));
+        assertTrue(fixture.logs().stream().noneMatch(log -> String.valueOf(log.getDebugQuery()).contains("PRIVATE-DYNAMIC-CANARY")));
+
+        LoadState loaded = task.__internalLoadState();
+        task.updateDynamicField("atomic_note", null);
+        assertSame("value to NULL preserves loaded geometry", loaded, task.__internalLoadState());
+        task.auditAs("persist explicit dynamic null after PRIVATE-DYNAMIC-CANARY").save(fixture.context());
+        assertEquals(Long.valueOf(3), task.getVersion());
+        assertEquals(1, dynamicRowCount(task, "atomic_note"));
+        assertEquals(DynamicFieldValue.State.NULL, task.dynamicFields().field("atomic_note").state());
+        assertEquals(DynamicFieldValue.State.NULL, loadDynamicTask(fixture, "DYNAMIC-ATOMIC", selection).dynamicFields().field("atomic_note").state());
+        assertFalse("overwritten extension values must also be scrubbed from reasons", fixture.audits().toString().contains("PRIVATE-DYNAMIC-CANARY"));
+        assertFalse(fixture.appAudits().toString().contains("PRIVATE-DYNAMIC-CANARY"));
+        assertTrue(task.__internalDynamicOriginalValues().isEmpty());
+        task.deleteDynamicField("atomic_note");
+        task.auditAs("delete dynamic field without deleting entity").save(fixture.context());
+        assertEquals(Long.valueOf(4), task.getVersion());
+        assertEquals(0, dynamicRowCount(task, "atomic_note"));
+        assertEquals(DynamicFieldValue.State.NOT_LOADED, task.dynamicFields().field("atomic_note").state());
+        assertFalse(task.isPropertyLoaded("#atomic_note"));
+    }
+
+    @Test
+    public void dynamicFailureAfterWritingRollsBackNativeAndExtensionAndRetainsRetryIntent() {
+        class FailingProvider extends JdbcDynamicFieldsProvider {
+            boolean fail;
+            FailingProvider() { super(jdbcSqlExecutor); }
+            @Override public void saveValue(DynamicFieldContext caller, DynamicSetCommand command) {
+                super.saveValue(caller, command);
+                if (fail) throw new IllegalStateException("injected failure after extension DML");
+            }
+        }
+        var provider = new FailingProvider();
+        var fixture = dynamicFixture(provider);
+        define(provider, "rollback_note", DynamicDataType.STRING);
+        Task task = dynamicTask(fixture, "DYNAMIC-ROLLBACK", new DynamicFieldSelection().selectString("rollback_note"));
+        task.updateTitle("retry-title");
+        task.updateDynamicField("rollback_note", "retry-value");
+        provider.fail = true;
+        assertThrows(IllegalStateException.class, () -> task.auditAs("rollback both writes").save(fixture.context()));
+        assertEquals("initial", nativeColumn(task, "title"));
+        assertEquals(1L, ((Number) nativeColumn(task, "version")).longValue());
+        assertEquals(0, dynamicRowCount(task, "rollback_note"));
+        assertEquals(Long.valueOf(1), task.getVersion());
+        assertEquals(EntityStatus.UPDATED, task.get$status());
+        assertEquals("retry-value", task.dynamicFields().getString("rollback_note"));
+        assertFalse(task.__internalDynamicMutations().isEmpty());
+        assertFalse(task.getEntityMutationLedger().currentChangeSet().isEmpty());
+        assertEquals("failed transaction must not emit committed audit", 1, fixture.audits().size());
+        provider.fail = false;
+        task.auditAs("retry original graph intent").save(fixture.context());
+        assertEquals("retry-title", nativeColumn(task, "title"));
+        assertEquals(Long.valueOf(2), task.getVersion());
+        assertEquals(1, dynamicRowCount(task, "rollback_note"));
+        assertEquals(2, fixture.audits().size());
+    }
+
+    @Test
+    public void dynamicProviderMustShareExecutorNotMerelyDataSource() {
+        var provider = new JdbcDynamicFieldsProvider(nativeDataSource);
+        var fixture = dynamicFixture(provider);
+        define(provider, "wrong_executor", DynamicDataType.STRING);
+        Task task = dynamicTask(fixture, "DYNAMIC-WRONG-EXECUTOR", new DynamicFieldSelection().selectString("wrong_executor"));
+        task.updateTitle("must-not-commit");
+        task.updateDynamicField("wrong_executor", "must-not-commit");
+        var error = assertThrows(DynamicFieldException.class, () -> task.auditAs("reject split transaction").save(fixture.context()));
+        assertTrue(error.getMessage().contains("exact active graph executor"));
+        assertEquals("initial", nativeColumn(task, "title"));
+        assertEquals(1L, ((Number) nativeColumn(task, "version")).longValue());
+        assertEquals(0, dynamicRowCount(task, "wrong_executor"));
+        assertEquals(1, fixture.audits().size());
+    }
+
+    @Test
+    public void staleNativeVersionRejectsExtensionOnlyUpdate() {
+        var provider = new JdbcDynamicFieldsProvider(jdbcSqlExecutor);
+        var fixture = dynamicFixture(provider);
+        define(provider, "stale_note", DynamicDataType.STRING);
+        var selection = new DynamicFieldSelection().selectString("stale_note");
+        Task current = dynamicTask(fixture, "DYNAMIC-STALE", selection);
+        Task stale = loadDynamicTask(fixture, "DYNAMIC-STALE", selection);
+        current.updateDynamicField("stale_note", "current");
+        current.auditAs("advance optimistic version").save(fixture.context());
+        stale.updateDynamicField("stale_note", "stale");
+        assertThrows(RuntimeException.class, () -> stale.auditAs("reject stale extension-only write").save(fixture.context()));
+        assertEquals("current", loadDynamicTask(fixture, "DYNAMIC-STALE", selection).dynamicFields().getString("stale_note"));
+        assertEquals(Long.valueOf(1), stale.getVersion());
+        assertFalse(stale.__internalDynamicMutations().isEmpty());
+        assertEquals(2, fixture.audits().size());
+    }
+
+    @Test
+    public void dynamicReadbackUsesDatabaseAuthoritativeValueInSameTransaction() {
+        var provider = new JdbcDynamicFieldsProvider(jdbcSqlExecutor);
+        var fixture = dynamicFixture(provider);
+        DynamicFieldDef field = define(provider, "trigger_note", DynamicDataType.STRING);
+        jdbcSqlExecutor.execute("CREATE TRIGGER normalize_dynamic_note AFTER INSERT ON teaql_dynamic_field_value "
+                + "WHEN NEW.field_id=" + field.getId() + " BEGIN UPDATE teaql_dynamic_field_value SET string_value=UPPER(NEW.string_value) "
+                + "WHERE field_id=NEW.field_id AND owner_id=NEW.owner_id AND owner_type=NEW.owner_type; END");
+        Task task = dynamicTask(fixture, "DYNAMIC-READBACK", new DynamicFieldSelection().selectString("trigger_note"));
+        task.updateDynamicField("trigger_note", "canonicalize me");
+        task.auditAs("read authoritative extension payload").save(fixture.context());
+        assertEquals("CANONICALIZE ME", task.dynamicFields().getString("trigger_note"));
+        assertTrue(task.__internalDynamicMutations().isEmpty());
+    }
+
+    @Test
+    public void unboundNewEntityDefinitionsCannotBeSilentlyAssignedToCurrentStorage() {
+        var provider = new JdbcDynamicFieldsProvider(jdbcSqlExecutor);
+        var fixture = dynamicFixture(provider);
+        define(provider, "unbound_note", DynamicDataType.STRING);
+        var task = new Task().updateTitle("must-not-insert").updateStatus("DYNAMIC-UNBOUND");
+        task.setDynamicFieldValues(new DynamicFieldValues(
+                DynamicFieldMetadata.fromDefinitions(provider.listFieldDefs(definitionContext, "Task")), java.util.Map.of()));
+        task.updateDynamicField("unbound_note", "unbound value");
+        var rejected = assertThrows(DynamicFieldException.class,
+                () -> task.auditAs("reject unbound definition source").save(fixture.context()));
+        assertEquals("DYNAMIC_FIELD_STORAGE_PROVENANCE_MISMATCH", rejected.errorCode());
+        assertTrue(jdbcSqlExecutor.queryForList("SELECT id FROM task_data WHERE status=?",
+                new Object[]{"DYNAMIC-UNBOUND"}).isEmpty());
+        assertFalse(task.__internalDynamicMutations().isEmpty());
+        assertTrue(fixture.audits().isEmpty());
+    }
+
+    @Test
+    public void newEntityDynamicIntentSurvivesIdAssignment() {
+        var provider = new JdbcDynamicFieldsProvider(jdbcSqlExecutor);
+        var fixture = dynamicFixture(provider);
+        define(provider, "created_note", DynamicDataType.STRING);
+        var task = new Task().updateTitle("new graph").updateStatus("DYNAMIC-CREATE");
+        task.setDynamicFieldValues(new DynamicFieldValues(fixture.context().dynamicFields().metadata("Task"), java.util.Map.of()));
+        task.updateDynamicField("created_note", "before-id");
+        assertNull(task.getId());
+        task.auditAs("create entity and extension together").save(fixture.context());
+        assertNotNull(task.getId());
+        assertEquals(Long.valueOf(1), task.getVersion());
+        assertEquals(1, dynamicRowCount(task, "created_note"));
+        assertEquals("before-id", task.dynamicFields().getString("created_note"));
+        assertEquals(1, fixture.audits().size());
+    }
+
+    @Test
+    public void unsupportedDynamicNumberPrecisionIsRejectedBeforeAnyGraphDml() {
+        var provider = new JdbcDynamicFieldsProvider(jdbcSqlExecutor);
+        var fixture = dynamicFixture(provider);
+        define(provider, "integer_storage", DynamicDataType.NUMBER);
+        Task task = dynamicTask(fixture, "DYNAMIC-PRECISION", new DynamicFieldSelection().selectNumber("integer_storage"));
+        task.updateTitle("must-not-commit");
+        task.updateDynamicField("integer_storage", new java.math.BigDecimal("1.25"));
+        assertThrows(DynamicFieldException.class, () -> task.auditAs("reject lossy numeric persistence").save(fixture.context()));
+        assertEquals("initial", nativeColumn(task, "title"));
+        assertEquals(1L, ((Number) nativeColumn(task, "version")).longValue());
+        assertEquals(0, dynamicRowCount(task, "integer_storage"));
+        assertEquals(1, fixture.audits().size());
+    }
+
+    @Test
+    public void dynamicPermissionChangeIsRevalidatedBeforeNativeWrite() {
+        var provider = new JdbcDynamicFieldsProvider(jdbcSqlExecutor);
+        var fixture = dynamicFixture(provider);
+        var field = define(provider, "revoked_edit", DynamicDataType.STRING);
+        Task task = dynamicTask(fixture, "DYNAMIC-PERMISSION", new DynamicFieldSelection().selectString("revoked_edit"));
+        task.updateTitle("must-not-commit");
+        task.updateDynamicField("revoked_edit", "pending");
+        jdbcSqlExecutor.update("UPDATE teaql_dynamic_field_def SET editable=0 WHERE id=?", new Object[]{field.getId()});
+        assertThrows(DynamicFieldException.class, () -> task.auditAs("respect updated write permission").save(fixture.context()));
+        assertEquals("initial", nativeColumn(task, "title"));
+        assertEquals(0, dynamicRowCount(task, "revoked_edit"));
+        assertEquals(1, fixture.audits().size());
+    }
+
+    @Test
+    public void explicitFixedNullAndDynamicValuePersistTogether() {
+        var provider = new JdbcDynamicFieldsProvider(jdbcSqlExecutor);
+        var fixture = dynamicFixture(provider);
+        define(provider, "fixed_null_note", DynamicDataType.STRING);
+        Task task = dynamicTask(fixture, "DYNAMIC-FIXED-NULL", new DynamicFieldSelection().selectString("fixed_null_note"));
+        task.updateTitle(null);
+        task.updateDynamicField("fixed_null_note", "stored");
+        task.auditAs("persist explicit fixed null alongside dynamic edit").save(fixture.context());
+        assertNull(nativeColumn(task, "title"));
+        assertNull(task.getTitle());
+        assertEquals("stored", task.dynamicFields().getString("fixed_null_note"));
+    }
+
+    @Test
+    public void multiEntityDynamicGraphRollsBackAsOneUnitAndDoesNotAdoptUnrelatedContextEntity() {
+        class FailingProvider extends JdbcDynamicFieldsProvider {
+            int calls;
+            boolean fail;
+            FailingProvider() { super(jdbcSqlExecutor); }
+            @Override public void saveValue(DynamicFieldContext caller, DynamicSetCommand command) {
+                super.saveValue(caller, command);
+                if (++calls == 2 && fail) throw new IllegalStateException("second extension write failed");
+            }
+        }
+        var provider = new FailingProvider();
+        var fixture = dynamicFixture(provider);
+        define(provider, "graph_note", DynamicDataType.STRING);
+        var selection = new DynamicFieldSelection().selectString("graph_note");
+        Task parent = dynamicTask(fixture, "DYNAMIC-PARENT", selection);
+        Task child = dynamicTask(fixture, "DYNAMIC-CHILD", selection);
+        Task unrelated = dynamicTask(fixture, "DYNAMIC-UNRELATED", selection);
+        LoadState shared = LoadState.projection(parent.__internalLoadState().layout(), List.of("id", "version", "title", "status"));
+        parent.__internalUseLoadState(shared);
+        child.__internalUseLoadState(shared);
+        assertSame(parent.__internalLoadState(), child.__internalLoadState());
+        parent.children = new SmartList<>();
+        parent.children.add(child);
+        parent.updateTitle("parent-pending");
+        child.updateTitle("child-pending");
+        parent.updateDynamicField("graph_note", "parent-extension");
+        child.updateDynamicField("graph_note", "child-extension");
+        unrelated.updateDynamicField("graph_note", "unrelated-pending");
+        provider.calls = 0;
+        provider.fail = true;
+        assertThrows(IllegalStateException.class, () -> parent.auditAs("rollback complete related graph").save(fixture.context()));
+        for (Task task : List.of(parent, child)) {
+            assertEquals("initial", nativeColumn(task, "title"));
+            assertEquals(1L, ((Number) nativeColumn(task, "version")).longValue());
+            assertEquals(0, dynamicRowCount(task, "graph_note"));
+            assertEquals(Long.valueOf(1), task.getVersion());
+            assertFalse(task.__internalDynamicMutations().isEmpty());
+        }
+        assertEquals(3, fixture.audits().size());
+        provider.fail = false;
+        provider.calls = 0;
+        parent.auditAs("retry related graph only").save(fixture.context());
+        assertEquals(Long.valueOf(2), parent.getVersion());
+        assertEquals(Long.valueOf(2), child.getVersion());
+        assertEquals("parent-extension", parent.dynamicFields().getString("graph_note"));
+        assertEquals("child-extension", child.dynamicFields().getString("graph_note"));
+        assertEquals(5, fixture.audits().size());
+        assertEquals(0, dynamicRowCount(unrelated, "graph_note"));
+        assertFalse(unrelated.getEntityMutationLedger().currentChangeSet().isEmpty());
+    }
+
+    @Test
+    public void dynamicFieldQueryBatchesThroughContextAndSharesOnlyActualLoadedShapes() {
+        class ObservedProvider extends io.teaql.data.dynamic.InMemoryDynamicFieldsProvider {
+            int batches;
+            io.teaql.data.dynamic.DynamicFieldContext lastContext;
+            List<io.teaql.data.dynamic.DynamicOwnerRef> lastOwners;
+            @Override public java.util.Map<io.teaql.data.dynamic.DynamicOwnerRef, io.teaql.data.dynamic.DynamicFieldValues> loadValues(
+                    io.teaql.data.dynamic.DynamicFieldContext caller, List<io.teaql.data.dynamic.DynamicOwnerRef> owners,
+                    io.teaql.data.dynamic.DynamicFieldSelection selection) {
+                batches++;
+                lastContext = caller;
+                lastOwners = List.copyOf(owners);
+                return super.loadValues(caller, owners, selection);
+            }
+        }
+        var provider = new ObservedProvider();
+        for (String code : List.of("title", "extra")) {
+            var def = new io.teaql.data.dynamic.DynamicFieldDef();
+            def.setScope(io.teaql.data.dynamic.DynamicFieldScope.global());
+            def.setOwnerType("Task");
+            def.setCode(code);
+            def.setDataType(io.teaql.data.dynamic.DynamicDataType.STRING);
+            provider.registerFieldDef(def);
+        }
+        var local = new DefaultUserContext(runtime);
+        local.putAttribute(io.teaql.data.dynamic.DynamicFieldsFacade.class.getName(),
+                new io.teaql.data.dynamic.DefaultDynamicFieldsFacade(provider));
+        var tasks = new ArrayList<Task>();
+        for (int i = 0; i < 3; i++) {
+            var task = new Task().updateTitle("fixed-" + i).updateStatus("DYNAMIC-LOAD-SHAPE");
+            task.auditAs("seed dynamic query shape counterexamples").save(local);
+            tasks.add(task);
+        }
+        var writer = local.dynamicFields().purpose("prepare stored extensions").comment("write value and explicit null");
+        writer.owner("Task", tasks.get(0).getId()).string("title").set("extension");
+        writer.owner("Task", tasks.get(1).getId()).string("title").set(null);
+
+        TaskRequest request = new TaskRequest().filterByStatus("DYNAMIC-LOAD-SHAPE");
+        request.setSize(3);
+        request.addOrderBy("id", true);
+        request.selectDynamicFieldsWith(new io.teaql.data.dynamic.DynamicFieldSelection().selectString("title"));
+        var rows = request.comment("load dynamic availability counterexamples")
+                .purpose("verify batch state isolation").executeForList(local);
+        assertEquals(3, rows.size());
+        assertEquals(1, provider.batches);
+        assertEquals(3, provider.lastOwners.size());
+        assertEquals("load dynamic availability counterexamples", provider.lastContext.comment());
+        assertEquals("verify batch state isolation", provider.lastContext.purpose());
+        Task value = rows.get(0), nil = rows.get(1), missing = rows.get(2);
+        assertSame(value.__internalLoadState(), nil.__internalLoadState());
+        assertNotSame(nil.__internalLoadState(), missing.__internalLoadState());
+        assertSame(value.dynamicFields().metadata(), missing.dynamicFields().metadata());
+        assertEquals("fixed-0", value.getTitle());
+        assertEquals("extension", value.getProperty("#title"));
+        assertTrue(nil.isPropertyLoaded("#title"));
+        assertNull(nil.getProperty("#title"));
+        assertEquals(io.teaql.data.dynamic.DynamicFieldValue.State.NULL, nil.dynamicFields().field("title").state());
+        assertEquals(io.teaql.data.dynamic.DynamicFieldValue.State.NOT_LOADED, missing.dynamicFields().field("title").state());
+        assertFalse(missing.isPropertyLoaded("#title"));
+        assertEquals(io.teaql.data.dynamic.DynamicFieldValue.State.NOT_LOADED, value.dynamicFields().field("extra").state());
+        assertTrue(rows.stream().allMatch(row -> row.getUpdatedProperties().isEmpty()));
+        assertNotSame(value.getEntityMutationLedger(), nil.getEntityMutationLedger());
+        LoadState shared = nil.__internalLoadState();
+        value.putAdditional("#extra", "private");
+        assertSame(shared, nil.__internalLoadState());
+        assertNotSame(shared, value.__internalLoadState());
+        assertFalse(nil.isPropertyLoaded("#extra"));
+        value.addDynamicProperty("title", "derived");
+        assertEquals("derived", value.getProperty("_title"));
+        assertEquals("extension", value.getProperty("#title"));
+        assertEquals("fixed-0", value.getProperty("title"));
+
+        TaskRequest wrongType = new TaskRequest().filterByStatus("DYNAMIC-LOAD-SHAPE");
+        wrongType.setSize(3);
+        wrongType.selectDynamicFieldsWith(new io.teaql.data.dynamic.DynamicFieldSelection().selectNumber("title"));
+        assertThrows(io.teaql.data.dynamic.DynamicFieldException.class, () -> wrongType
+                .comment("reject incompatible extension projection").purpose("verify type boundary").executeForList(local));
+        assertEquals("provider must not receive a rejected projection", 1, provider.batches);
+
+        TaskRequest streamed = new TaskRequest().filterByStatus("DYNAMIC-LOAD-SHAPE");
+        streamed.setSize(3);
+        streamed.addOrderBy("id", true);
+        streamed.selectDynamicFieldsWith(new io.teaql.data.dynamic.DynamicFieldSelection().selectString("title"));
+        streamed.comment("stream persistent extension availability").purpose("preserve sparse wrappers after cursor cleanup");
+        var streaming = (StreamingQueryExecutor) runtime.getRegistry().resolve("sqlite");
+        List<Task> streamedRows;
+        try (var cursor = streaming.<Task>queryForCursor(local, new DefaultQueryRequest(streamed))) {
+            assertEquals("cursor creation must not hydrate extensions", 1, provider.batches);
+            streamedRows = cursor.stream().toList();
+        }
+        assertEquals(3, streamedRows.size());
+        assertEquals(2, provider.batches);
+        assertEquals("stream persistent extension availability", provider.lastContext.comment());
+        assertEquals("preserve sparse wrappers after cursor cleanup", provider.lastContext.purpose());
+        assertSame(streamedRows.get(0).__internalLoadState(), streamedRows.get(1).__internalLoadState());
+        assertNotSame(streamedRows.get(1).__internalLoadState(), streamedRows.get(2).__internalLoadState());
+        assertEquals("extension", streamedRows.get(0).dynamicFields().field("title").value());
+        assertEquals(DynamicFieldValue.State.NULL, streamedRows.get(1).dynamicFields().field("title").state());
+        assertEquals(DynamicFieldValue.State.NOT_LOADED, streamedRows.get(2).dynamicFields().field("title").state());
+        for (Task row : streamedRows) {
+            assertFalse(row.__internalHasMutationLedger());
+            assertEquals(DynamicFieldValue.State.NOT_LOADED, row.dynamicFields().field("extra").state());
+            assertTrue(row.getUpdatedProperties().isEmpty());
+        }
+        // Invalid type projections still fail before invoking the provider, even on streams.
+        try (var cursor = streaming.<Task>queryForCursor(local, new DefaultQueryRequest(wrongType))) {
+            assertThrows(DynamicFieldException.class, () -> cursor.stream().toList());
+        }
+        assertEquals("rejected stream projection must not reach provider", 2, provider.batches);
+    }
 
     @Test
     public void realSqliteFailureRetainsSafeIntentAndRecoversAfterSchemaInitialization() throws Exception {
@@ -201,10 +717,20 @@ public class SqliteIntegrationTest {
     private static UserContext context;
     private static TeaQLRuntime runtime;
     private static JdbcSqlExecutor jdbcSqlExecutor;
+    private static DataSource nativeDataSource;
 
     public static class Task extends BaseEntity {
+        public static final String __TEAQL_FIELD_LAYOUT_REVISION = "sqlite-task-fixture-v1";
+        public static final java.util.Map<String, Integer> __TEAQL_FIXED_FIELD_INDEXES =
+                java.util.Map.of("id", 0, "version", 1, "title", 2, "status", 3);
+        public static final java.util.Map<String, List<String>> __TEAQL_FIXED_FIELD_MAPPINGS =
+                java.util.Map.of("id", List.of("id", "id"), "version", List.of("version", "version"),
+                        "title", List.of("title", "title"), "status", List.of("status", "status"));
+        public static final java.util.Set<String> __TEAQL_FIXED_RELATION_NAMES = java.util.Set.of("children");
         public String title;
         public String status;
+        public SmartList<Task> children;
+        public SmartList<Task> getChildren() { return children; }
 
         public String getTitle() { return title; }
         public Task updateTitle(String title) {
@@ -228,6 +754,7 @@ public class SqliteIntegrationTest {
             switch (property) {
                 case "title": this.title = (String) value; break;
                 case "status": this.status = (String) value; break;
+                case "children": this.children = (SmartList<Task>) value; break;
                 default: super.__internalSet(property, value);
             }
         }
@@ -237,13 +764,17 @@ public class SqliteIntegrationTest {
             switch (property) {
                 case "title": return this.title;
                 case "status": return this.status;
+                case "children": return this.children;
                 default: return super.__internalGet(property);
             }
         }
     }
 
     public static class TaskRequest extends BaseRequest<Task> {
-        public TaskRequest() { super(Task.class); }
+        public TaskRequest() {
+            super(Task.class);
+            for (String field : List.of("id", "version", "title", "status")) selectProperty(field);
+        }
 
         @Override
         public String getTypeName() { return "Task"; }
@@ -320,10 +851,18 @@ public class SqliteIntegrationTest {
         statusProp.setColumnType("VARCHAR(50)");
         
         taskDescriptor.with("table_name", "task_data");
+        var children = new io.teaql.core.meta.Relation();
+        children.setName("children");
+        children.setOwner(taskDescriptor);
+        children.setType(new io.teaql.core.meta.SimplePropertyType(SmartList.class));
+        var properties = new ArrayList<>(taskDescriptor.getProperties());
+        properties.add(children);
+        taskDescriptor.setProperties(properties);
         metaFactory.register(taskDescriptor);
         EntityMetaFactory.registerGlobal(metaFactory);
 
         DataSource ds = new SimpleDataSource(url, user, password);
+        nativeDataSource = ds;
         jdbcSqlExecutor = new JdbcSqlExecutor(ds);
         io.teaql.core.sqlite.SqliteDataServiceExecutor sqliteExecutor = new io.teaql.core.sqlite.SqliteDataServiceExecutor("sqlite", jdbcSqlExecutor, ds);
 

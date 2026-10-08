@@ -4,14 +4,22 @@ import java.util.Objects;
 
 public final class DynamicFieldValue {
 
+    public enum State { VALUE, NULL, NOT_LOADED }
+
     private final String fieldCode;
     private final DynamicDataType dataType;
     private final Object value;
+    private final State state;
 
     private DynamicFieldValue(String fieldCode, DynamicDataType dataType, Object value) {
+        this(fieldCode, dataType, value, value == null ? State.NULL : State.VALUE);
+    }
+
+    private DynamicFieldValue(String fieldCode, DynamicDataType dataType, Object value, State state) {
         this.fieldCode = Objects.requireNonNull(fieldCode, "fieldCode");
         this.dataType = dataType;
         this.value = value;
+        this.state = state;
     }
 
     public static DynamicFieldValue ofString(String code, String value) {
@@ -37,6 +45,13 @@ public final class DynamicFieldValue {
     public static DynamicFieldValue ofNull(String code, DynamicDataType dataType) {
         return new DynamicFieldValue(code, dataType, null);
     }
+
+    public static DynamicFieldValue notLoaded(String code, DynamicDataType dataType) {
+        return new DynamicFieldValue(code, dataType, null, State.NOT_LOADED);
+    }
+
+    public State state() { return state; }
+    public boolean isLoaded() { return state != State.NOT_LOADED; }
 
     public String fieldCode() {
         return fieldCode;
@@ -68,16 +83,17 @@ public final class DynamicFieldValue {
         if (!(o instanceof DynamicFieldValue that)) return false;
         return fieldCode.equals(that.fieldCode)
                 && dataType == that.dataType
+                && state == that.state
                 && Objects.equals(value, that.value);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(fieldCode, dataType, value);
+        return Objects.hash(fieldCode, dataType, value, state);
     }
 
     @Override
     public String toString() {
-        return "DynamicFieldValue{" + fieldCode + '=' + value + " (" + dataType + ")}";
+        return "DynamicFieldValue{" + fieldCode + '=' + value + " (" + dataType + ", " + state + ")}";
     }
 }

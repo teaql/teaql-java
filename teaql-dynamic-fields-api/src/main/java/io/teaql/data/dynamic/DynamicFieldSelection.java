@@ -49,6 +49,11 @@ public final class DynamicFieldSelection {
         return this;
     }
 
+    public DynamicFieldSelection select(String code, DynamicDataType type) {
+        entries.add(new DynamicFieldSelectionEntry(java.util.Objects.requireNonNull(code), java.util.Objects.requireNonNull(type)));
+        return this;
+    }
+
     public boolean isSelectAll() {
         return selectAll;
     }

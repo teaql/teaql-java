@@ -1,0 +1,174 @@
+package com.example.schoolmanagementservice;
+
+import com.example.schoolmanagementservice.school.School;
+import io.teaql.core.SmartList;
+import io.teaql.core.UserContext;
+import io.teaql.core.checker.CheckException;
+import io.teaql.data.dynamic.*;
+import io.teaql.data.dynamic.jdbc.JdbcDynamicFieldsProvider;
+import static org.junit.jupiter.api.Assertions.*;
+
+/** Real transaction/readback failure plus mixed-projection list lifetime. */
+final class GeneratedDynamicRollbackAcceptance {
+    static School verify(UserContext context, ObservedJdbcExecutor sql, School original,
+            String firstName, String secondName, String code, JdbcDynamicFieldsProvider provider,
+            DynamicFieldContext definitionContext) {
+        String unused = code + "_unused";
+        DynamicFieldDef def = new DynamicFieldDef();
+        def.setScope(DynamicFieldScope.global()); def.setOwnerType("School");
+        def.setCode(unused); def.setName(unused); def.setDataType(DynamicDataType.STRING);
+        provider.registerFieldDef(definitionContext, def);
+        var allFields = new DynamicFieldSelection().selectString(code).selectString(unused);
+        var seedRequest = Q.schools().withIdIs(original.getId());
+        seedRequest.selectDynamicFieldsWith(allFields);
+        var seed = seedRequest.limit(1).comment("what: load metadata for the hidden stored extension")
+                .purpose("why: seed both fields through governed mutation").executeForOne(context);
+        seed.updateDynamicField(code, "matrix baseline");
+        seed.updateDynamicField(unused, "keep unselected");
+        seed.auditAs("seed the combined-state value and hidden controls").save(context);
+        var selection = new DynamicFieldSelection().selectString(code);
+        var companionRequest = Q.schools().withNameIn(secondName);
+        companionRequest.selectDynamicFieldsWith(selection);
+        var companion = companionRequest.limit(1).comment("what: select companion extension metadata")
+                .purpose("why: seed an explicit NULL through audited mutation").executeForOne(context);
+        companion.updateDynamicField(code, null);
+        companion.auditAs("seed the combined-state null control").save(context);
+        var streamRequest = Q.schoolsWithMinimalFields().withNameIn(firstName, secondName).selectName();
+        streamRequest.selectDynamicFieldsWith(selection);
+        java.util.List<School> streamed;
+        try (var stream = streamRequest.orderByIdAscending().limit(2)
+                .comment("what: stream sparse Schools with selected persistent extensions")
+                .purpose("why: retain Value NULL and NotLoaded after cursor cleanup").executeForStream(context)) {
+            streamed = stream.toList();
+        }
+        assertEquals(2, streamed.size());
+        assertSame(streamed.get(0).__internalLoadState(), streamed.get(1).__internalLoadState());
+        assertEquals("matrix baseline", streamed.get(0).dynamicFields().field(code).value());
+        assertEquals(DynamicFieldValue.State.NULL, streamed.get(1).dynamicFields().field(code).state());
+        for (var row : streamed) {
+            assertFalse(row.isPropertyLoaded("address"));
+            assertEquals(DynamicFieldValue.State.NOT_LOADED, row.dynamicFields().field(unused).state());
+            assertFalse(row.__internalHasMutationLedger());
+        }
+        System.out.println("PASS generated Java dynamic stream Value/Null/NotLoaded and shared snapshots");
+        var streamedState = streamed.get(0).__internalLoadState();
+        long[] beforeStreamRejection = sql.counts();
+        streamed.get(0).updateDynamicField(code, "must-not-persist");
+        assertThrows(CheckException.class, () -> streamed.get(0)
+                .auditAs("reject extension mutation on an incomplete streamed object").save(context));
+        assertArrayEquals(beforeStreamRejection, sql.counts(), "incomplete stream mutation must reject before provider entry");
+        // The declared timestamp Fix may detach only this modified row's state.
+        assertNotSame(streamedState, streamed.get(0).__internalLoadState());
+        assertTrue(streamed.get(0).isPropertyLoaded("updateTime"));
+        assertSame(streamedState, streamed.get(1).__internalLoadState());
+        assertFalse(streamedState.isLoaded("updateTime"));
+        assertFalse(streamed.get(0).isPropertyLoaded("address"));
+        assertFalse(streamed.get(0).__internalDynamicMutations().isEmpty());
+        assertEquals(DynamicFieldValue.State.NULL, streamed.get(1).dynamicFields().field(code).state());
+        assertFalse(streamed.get(1).__internalHasMutationLedger());
+        var completeStreamRequest = Q.schools().withNameIn(firstName, secondName).selectSelfFields();
+        completeStreamRequest.selectDynamicFieldsWith(selection);
+        java.util.List<School> completeStreamed;
+        try (var stream = completeStreamRequest.orderByIdAscending().limit(2)
+                .comment("what: stream complete Schools with durable extensions")
+                .purpose("why: preserve fixed slots and overflow during enhancement").executeForStream(context)) {
+            completeStreamed = stream.toList();
+        }
+        assertEquals(2, completeStreamed.size());
+        var completeStreamState = completeStreamed.get(0).__internalLoadState();
+        assertSame(completeStreamState, completeStreamed.get(1).__internalLoadState());
+        for (var row : completeStreamed) {
+            for (var field : School.__TEAQL_FIXED_FIELD_INDEXES.entrySet()) {
+                assertTrue(row.isPropertyLoaded(field.getKey()), "complete stream omitted " + field.getKey());
+                if (field.getValue() >= 64) assertTrue(row.__internalLoadState().overflow().contains(field.getValue()));
+            }
+            if (Boolean.parseBoolean(System.getenv("TEAQL_LOAD_STATE_WIDE"))) {
+                for (int slot : new int[]{63,64,65,129}) {
+                    String field = School.__TEAQL_FIXED_FIELD_INDEXES.entrySet().stream()
+                            .filter(e -> e.getValue() == slot).findFirst().orElseThrow().getKey();
+                    assertNull(row.__internalGet(School.__TEAQL_FIXED_FIELD_MAPPINGS.get(field).get(0)));
+                }
+            }
+            assertFalse(row.__internalHasMutationLedger());
+            assertEquals(DynamicFieldValue.State.NOT_LOADED, row.dynamicFields().field(unused).state());
+        }
+        System.out.println("PASS generated Java dynamic stream full/overflow/sparse state and Checker-before-provider");
+        var all = Q.schools().withNameIn(firstName, secondName);
+        all.selectDynamicFieldsWith(selection);
+        var rows = all.orderByIdAscending().limit(2).comment("what: load value and null extensions together")
+                .purpose("why: combine shared geometry with private row payloads").executeForList(context);
+        assertEquals(2, rows.size());
+        var state = rows.get(0).__internalLoadState();
+        assertSame(state, rows.get(1).__internalLoadState());
+        if (Boolean.parseBoolean(System.getenv("TEAQL_LOAD_STATE_WIDE"))) assertFalse(state.overflow().isEmpty());
+        assertEquals(DynamicFieldValue.State.VALUE, rows.get(0).dynamicFields().field(code).state());
+        assertEquals(DynamicFieldValue.State.NULL, rows.get(1).dynamicFields().field(code).state());
+        for (var row : rows.getData()) assertEquals(DynamicFieldValue.State.NOT_LOADED, row.dynamicFields().field(unused).state());
+        var sparseRequest = Q.schoolsWithMinimalFields().withNameIn(firstName).selectName();
+        sparseRequest.selectDynamicFieldsWith(selection);
+        var sparse = sparseRequest.limit(1).comment("what: append the same identity with a sparse projection")
+                .purpose("why: mixed lists must not union native loaded fields").executeForOne(context);
+        var sparseState = sparse.__internalLoadState();
+        SmartList<School> held = new SmartList<>();
+        held.add(rows.get(0)); held.add(rows.get(1)); held.add(sparse);
+        rows = null;
+        assertFalse(held.get(2).isPropertyLoaded("address"));
+        assertSame(sparseState, held.get(2).__internalLoadState());
+        assertSame(state, held.get(0).__internalLoadState());
+        assertSame(state, held.get(1).__internalLoadState());
+        School pending = held.get(0);
+        pending.addDynamicProperty("matrix_total", 17);
+        assertEquals(17, (int) pending.getProperty("_matrix_total"));
+        Long version = pending.getVersion(), companionVersion = held.get(1).getVersion();
+        String nextName = firstName + " retry";
+        pending.updateName(nextName); pending.updateDynamicField(code, "matrix retry");
+        assertFalse(pending.getUpdatedProperties().contains("_matrix_total"));
+        assertFalse(pending.__internalDynamicMutations().containsKey(unused));
+        assertSame(state, pending.__internalLoadState());
+        long[] before = sql.counts();
+        sql.failNextDynamicReadbackAfterWrite();
+        try { assertThrows(RuntimeException.class, () -> pending.auditAs("rollback a failed extension readback").save(context)); }
+        finally { sql.clearReadbackFailure(); }
+        assertTrue(sql.readbackFailureObserved(), "the fault must happen after actual extension DML");
+        assertTrue(sql.counts()[1] > before[1]); assertTrue(sql.counts()[2] > before[2]);
+        assertEquals(version, pending.getVersion());
+        assertEquals(17, (int) pending.getProperty("_matrix_total"));
+        assertFalse(pending.__internalDynamicMutations().isEmpty());
+        assertSame(state, pending.__internalLoadState());
+        assertEquals(companionVersion, held.get(1).getVersion());
+        assertTrue(held.get(1).getUpdatedProperties().isEmpty());
+        assertEquals(DynamicFieldValue.State.NULL, held.get(1).dynamicFields().field(code).state());
+        assertEquals("matrix baseline", held.get(2).dynamicFields().field(code).value());
+        assertFalse(held.get(2).isPropertyLoaded("address"));
+        var inspect = Q.schools().withNameIn(firstName, secondName);
+        inspect.selectDynamicFieldsWith(allFields);
+        var stored = inspect.orderByIdAscending().limit(2).comment("what: inspect both stores after readback failure")
+                .purpose("why: failure must roll back native and extension DML atomically").executeForList(context);
+        assertEquals(2, stored.size()); assertEquals(version, stored.get(0).getVersion());
+        assertEquals(firstName, E.school(stored.get(0)).getName().eval());
+        assertEquals("matrix baseline", stored.get(0).dynamicFields().field(code).value());
+        assertEquals(companionVersion, stored.get(1).getVersion());
+        assertEquals("keep unselected", stored.get(0).dynamicFields().field(unused).value());
+        assertNull(stored.get(0).getProperty("_matrix_total"));
+        assertEquals(DynamicFieldValue.State.NULL, stored.get(1).dynamicFields().field(code).state());
+        pending.auditAs("retry the original native and extension intent").save(context);
+        assertEquals(version + 1, pending.getVersion());
+        assertEquals(nextName, E.school(pending).getName().eval());
+        assertEquals("matrix retry", pending.dynamicFields().field(code).value());
+        assertEquals(DynamicFieldValue.State.NOT_LOADED, pending.dynamicFields().field(unused).state());
+        assertSame(state, pending.__internalLoadState());
+        assertTrue(pending.__internalDynamicMutations().isEmpty());
+        assertTrue(pending.getUpdatedProperties().isEmpty());
+        var verifyHidden = Q.schools().withIdIs(pending.getId());
+        verifyHidden.selectDynamicFieldsWith(allFields);
+        var inspected = verifyHidden.limit(1).comment("what: inspect the hidden extension after retry")
+                .purpose("why: NotLoaded must not become erase intent").executeForOne(context);
+        assertEquals("keep unselected", inspected.dynamicFields().field(unused).value());
+        assertNull(inspected.getProperty("_matrix_total"));
+        assertEquals(companionVersion, held.get(1).getVersion());
+        assertSame(state, held.get(1).__internalLoadState());
+        System.out.println("PASS generated Java mixed dynamic Value/Null/NotLoaded list lifetime readback rollback and retry");
+        System.out.println("PASS generated Java stored unselected extension survives rollback retry and readonly property is not persisted");
+        return pending;
+    }
+}

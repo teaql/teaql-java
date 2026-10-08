@@ -86,6 +86,32 @@ public class JdbcSqlExecutorTest {
     }
 
     @Test
+    public void testListRowMutationCannotChangeSiblingColumnsOrValues() {
+        var rows = sqlExecutor.queryForList("SELECT 1 AS id, NULL AS note UNION ALL SELECT 2, 'private'", new Object[0]);
+        assertTrue(rows.get(0) instanceof JdbcColumnRow);
+        assertTrue(rows.get(0).containsKey("note"));
+        rows.get(0).put("note", "changed");
+        rows.get(0).remove("id");
+        rows.get(0).put("extra", null);
+        assertEquals(2, ((Number) rows.get(1).get("id")).intValue());
+        assertEquals("private", rows.get(1).get("note"));
+        assertTrue(!rows.get(1).containsKey("extra"));
+    }
+
+    @Test
+    public void testMapStreamRowsSurviveCloseAndDuplicateAliasesKeepLastValue() {
+        List<Map<String, Object>> rows;
+        try (var stream = sqlExecutor.queryForStream("SELECT 1 AS \"Name\", 2 AS \"NAME\" UNION ALL SELECT 3, 4", new Object[0])) {
+            rows = stream.toList();
+        }
+        assertTrue(rows.get(0) instanceof JdbcColumnRow);
+        assertEquals(1, rows.get(0).size());
+        assertEquals(2, ((Number) rows.get(0).get("name")).intValue());
+        rows.get(0).put("name", 5);
+        assertEquals(4, ((Number) rows.get(1).get("name")).intValue());
+    }
+
+    @Test
     public void testNullParameterUsesSqlNull() {
         sqlExecutor.update(
                 "INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
@@ -208,6 +234,57 @@ public class JdbcSqlExecutorTest {
             assertTrue("failed stream leaked its connection", acquired.get(0).isClosed());
         } finally {
             for (var connection : acquired) connection.close();
+        }
+    }
+
+    private static final class TypedRow extends io.teaql.core.BaseEntity {
+        String name;
+        Integer age;
+    }
+
+    @Test
+    public void compiledStreamIsLazyTypedAndClosesOnExhaustionEarlyCloseAndMapperFailure() throws Exception {
+        sqlExecutor.update("INSERT INTO test_user (id,name,age) VALUES (?,?,?)", new Object[]{1,"typed",null});
+        sqlExecutor.update("INSERT INTO test_user (id,name,age) VALUES (?,?,?)", new Object[]{2,"second",20});
+        for (String outcome : List.of("exhaustion", "early", "runtime", "error")) {
+            var acquired = new ArrayList<Connection>();
+            var tracking = (DataSource) java.lang.reflect.Proxy.newProxyInstance(
+                    DataSource.class.getClassLoader(), new Class<?>[]{DataSource.class}, (proxy, method, args) -> {
+                        try {
+                            Object value = method.invoke(dataSource,args);
+                            if (value instanceof Connection connection) acquired.add(connection);
+                            return value;
+                        } catch (java.lang.reflect.InvocationTargetException error) { throw error.getCause(); }
+                    });
+            var adapter = new JdbcSqlExecutor(tracking);
+            var calls = new java.util.concurrent.atomic.AtomicInteger();
+            io.teaql.core.CompiledRowMapper<TypedRow> mapper = row -> {
+                calls.incrementAndGet();
+                if (outcome.equals("runtime")) throw new IllegalStateException("mapper failed");
+                if (outcome.equals("error")) throw new AssertionError("mapper error");
+                TypedRow value = new TypedRow();
+                value.__internalSet("id",row.get(1,Long.class));
+                value.name=row.get(2,String.class); value.age=row.get(3,Integer.class);
+                return value;
+            };
+            var stream = adapter.queryForStream("SELECT id,name,age FROM test_user ORDER BY id",new Object[0],mapper);
+            assertTrue(adapter.supportsCompiledStreamMapping());
+            assertEquals(0,calls.get()); assertEquals(1,acquired.size());
+            if (outcome.equals("runtime")) org.junit.Assert.assertThrows(IllegalStateException.class,stream::findFirst);
+            else if (outcome.equals("error")) org.junit.Assert.assertThrows(AssertionError.class,stream::findFirst);
+            else if (outcome.equals("early")) {
+                TypedRow first=stream.findFirst().orElseThrow();
+                assertEquals(1L,first.getId().longValue()); assertEquals("typed",first.name);
+                org.junit.Assert.assertNull(first.age); assertEquals(1,calls.get());
+                assertTrue(!acquired.get(0).isClosed());
+            } else {
+                var rows=stream.toList(); assertEquals(2,rows.size());
+                assertEquals(Integer.valueOf(20),rows.get(1).age);
+                assertTrue(acquired.get(0).isClosed());
+            }
+            if (outcome.equals("runtime") || outcome.equals("error")) assertTrue(acquired.get(0).isClosed());
+            stream.close(); stream.close();
+            assertTrue(acquired.get(0).isClosed());
         }
     }
 

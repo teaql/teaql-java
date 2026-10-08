@@ -45,6 +45,10 @@ public class EntityMutationLedger {
         changeSets.set(key, field, value);
     }
 
+    public void setDynamic(EntityKey key, io.teaql.data.dynamic.DynamicFieldMutation mutation) {
+        changeSets.currentMut().setDynamic(key, mutation);
+    }
+
     public Object get(EntityKey key, String field) {
         return changeSets.get(key, field);
     }
@@ -139,10 +143,12 @@ public class EntityMutationLedger {
     public boolean mergeEntityFrom(EntityMutationLedger other, EntityKey key) {
         if (other == null || other == this) return false;
         Map<String, Object> fields = other.currentChangeSet().changes().get(key);
+        var dynamic = other.currentChangeSet().dynamicChanges().get(key);
         boolean pending = (fields != null && !fields.isEmpty()) || other.newKeys.contains(key)
-                || other.deletedKeys.contains(key) || other.recoveredKeys.contains(key);
+                || other.deletedKeys.contains(key) || other.recoveredKeys.contains(key) || (dynamic != null && !dynamic.isEmpty());
         if (!pending) return false;
         if (fields != null) fields.forEach((field, value) -> set(key, field, value));
+        if (dynamic != null) dynamic.values().forEach(mutation -> setDynamic(key, mutation));
         if (other.deletedKeys.contains(key)) markAsDelete(key);
         if (other.recoveredKeys.contains(key)) markAsRecover(key);
         if (other.newKeys.contains(key)) markAsNew(key);
@@ -160,6 +166,7 @@ public class EntityMutationLedger {
         
         // Merge change sets
         EntityChangeSet otherChangeSet = other.currentChangeSet();
+        otherChangeSet.dynamicChanges().forEach((key, mutations) -> mutations.values().forEach(mutation -> setDynamic(key, mutation)));
         for (Map.Entry<EntityKey, Map<String, Object>> entry : otherChangeSet.changes().entrySet()) {
             EntityKey key = entry.getKey();
             for (Map.Entry<String, Object> fieldEntry : entry.getValue().entrySet()) {

@@ -6,7 +6,7 @@
 
     <groupId>io.teaql</groupId>
     <artifactId>teaql-java-parent</artifactId>
-    <version>1.553-RELEASE</version>
+    <version>1.554-RELEASE</version>
     <packaging>pom</packaging>
 
     <name>teaql-java-parent</name>
@@ -360,6 +360,13 @@
     </build>
 
     <profiles>
+        <profile>
+            <id>shared-load-state-example</id>
+            <modules>
+                <module>examples/shared-load-state/target/generated/lib</module>
+                <module>examples/shared-load-state</module>
+            </modules>
+        </profile>
         <profile>
             <id>runtime-examples</id>
             <modules>

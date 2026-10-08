@@ -93,8 +93,42 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             enhanceRelations(context, (SmartList<Entity>) result, searchRequest, intent);
         }
         attachDynamicAggregations(context, (SmartList<Entity>) result, searchRequest, intent);
+        attachDynamicFields(context, result, searchRequest);
+        result.__internalShareLoadStates();
         
         return new DefaultQueryResult((SmartList<Entity>) result, null, statements);
+    }
+
+    private void attachDynamicFields(UserContext context, SmartList<?> results, SearchRequest<?> request) {
+        attachDynamicFields(context, results, request, new java.util.HashMap<>());
+    }
+
+    private void attachDynamicFields(UserContext context, SmartList<?> results, SearchRequest<?> request,
+            Map<LoadState, Map<Set<String>, LoadState>> shapes) {
+        var selection = request.getDynamicFieldSelection();
+        if (selection == null || results.isEmpty()) return;
+        var owners = new java.util.ArrayList<io.teaql.data.dynamic.DynamicOwnerRef>(results.size());
+        for (Entity entity : results) owners.add(io.teaql.data.dynamic.DynamicOwnerRef.of(entity.typeName(), entity.getId()));
+        var batch = context.dynamicFields().purpose(request.purpose()).comment(request.comment()).readAll(owners, selection);
+        // Validate every owner/carrier before changing any entity in the batch.
+        for (var owner : owners) {
+            if (batch.get(owner) == null) throw new TeaQLRuntimeException("Dynamic field batch omitted owner " + owner);
+        }
+        for (Entity entity : results) {
+            if (!(entity instanceof BaseEntity)) throw new TeaQLRuntimeException("Dynamic fields require a runtime-owned entity carrier");
+        }
+        // One named-selection set per actual loaded shape, not one copy per row.
+        int index = 0;
+        for (Entity entity : results) {
+            var owner = owners.get(index++);
+            var values = batch.get(owner);
+            if (values == null) throw new TeaQLRuntimeException("Dynamic field batch omitted owner " + owner);
+            if (!(entity instanceof io.teaql.core.BaseEntity base)) throw new TeaQLRuntimeException("Dynamic fields require a runtime-owned entity carrier");
+            var codes = values.selectedCodes();
+            var state = shapes.computeIfAbsent(base.__internalLoadState(), ignored -> new java.util.HashMap<>())
+                    .computeIfAbsent(codes, base.__internalLoadState()::withDynamicSelection);
+            base.__internalHydrateDynamicFields(values, state);
+        }
     }
 
     @Override
@@ -117,8 +151,13 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         if (scoped.hasSimpleAgg() || !scoped.enhanceRelations().isEmpty() || !scoped.enhanceChildren().isEmpty()) {
             throw new TeaQLRuntimeException("Streaming aggregation/relation enhancement is not supported; stream root rows only");
         }
-        return new QueryCursor<>(this.<T>getRepository(scoped.getTypeName()).streamInternal(context, scoped),
-                () -> statements);
+        var stream = this.<T>getRepository(scoped.getTypeName()).streamInternal(context, scoped);
+        if (scoped.getDynamicFieldSelection() != null) {
+            var shapes = new HashMap<LoadState, Map<Set<String>, LoadState>>();
+            stream = BatchedRootStream.enhance(stream, 128,
+                    batch -> attachDynamicFields(context, batch, scoped, shapes));
+        }
+        return new QueryCursor<>(stream, () -> statements);
     }
 
     private void attachDynamicAggregations(
@@ -390,6 +429,17 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             userContext.internalExecuteForList(childTempRequest).forEach(children::add);
         }
 
+        // All successful reverse selections have a view, including empty ones.
+        // Build each resulting shape once, rather than copying its named set
+        // independently for every parent as setters mark the relation loaded.
+        Map<io.teaql.core.LoadState, io.teaql.core.LoadState> loadedViews = new HashMap<>();
+        for (Entity parent : dataSet) {
+            if (parent instanceof BaseEntity base) {
+                var shared = loadedViews.computeIfAbsent(base.__internalLoadState(),
+                        state -> state.withLoaded(relation.getName(), true));
+                base.__internalUseLoadState(shared);
+            }
+        }
         Map<Long, Entity> longTMap = dataSet.mapById();
         for (Entity childEntity : children) {
             Object parent = childEntity.getProperty(reverseProperty.getName());
@@ -397,6 +447,17 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                 Entity parentEntity = longTMap.get(((Entity) parent).getId());
                 if (parentEntity != null) {
                     attachRelation(parentEntity, relation, childEntity);
+                }
+            }
+        }
+        // A successful explicit selection must materialize even an empty list.
+        // Use the shared typed empty payload; availability stays in the parent's
+        // private view, and no mutation ledger is created by this hydration.
+        if (relation.getType() != null && SmartList.class.isAssignableFrom(relation.getType().javaType())) {
+            Class<? extends Entity> childType = reverseProperty.getOwner().getTargetType();
+            for (Entity parent : dataSet) {
+                if (parent.getProperty(relation.getName()) == null) {
+                    parent.setProperty(relation.getName(), SmartList.empty(childType));
                 }
             }
         }
@@ -408,7 +469,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         Class<?> relationType = relation.getType().javaType();
         if (SmartList.class.isAssignableFrom(relationType)) {
             SmartList existing = target.getProperty(relation.getName());
-            if (existing == null) {
+            if (existing == null || existing.isSharedEmpty()) {
                 existing = new SmartList<>();
                 target.setProperty(relation.getName(), existing);
             }
@@ -598,21 +659,16 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
     @SuppressWarnings("unchecked")
     public <T> T executeInTransaction(UserContext context, TransactionCallback<T> action) {
         final Object[] resultHolder = new Object[1];
-        final Exception[] exceptionHolder = new Exception[1];
         database.executeInTransaction(() -> {
             try {
                 resultHolder[0] = action.doInTransaction();
+            } catch (RuntimeException e) {
+                // Preserve structured failures while the adapter rolls back.
+                throw e;
             } catch (Exception e) {
-                exceptionHolder[0] = e;
                 throw new TeaQLRuntimeException("Transaction failed", e);
             }
         });
-        if (exceptionHolder[0] != null) {
-            if (exceptionHolder[0] instanceof RuntimeException) {
-                throw (RuntimeException) exceptionHolder[0];
-            }
-            throw new TeaQLRuntimeException("Transaction failed", exceptionHolder[0]);
-        }
         return (T) resultHolder[0];
     }
 

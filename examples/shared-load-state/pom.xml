@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.teaql</groupId><artifactId>teaql-java-parent</artifactId><version>1.554-RELEASE</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+  <artifactId>shared-load-state-example</artifactId>
+  <properties><maven.compiler.release>21</maven.compiler.release></properties>
+  <dependencies>
+    <dependency><groupId>com.example</groupId><artifactId>school-management-service-core</artifactId><version>0.0.1-SNAPSHOT</version></dependency>
+    <dependency><groupId>io.teaql</groupId><artifactId>teaql-sqlite</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>io.teaql</groupId><artifactId>teaql-provider-jdbc</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>io.teaql</groupId><artifactId>teaql-dynamic-fields-jdbc</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>io.teaql</groupId><artifactId>teaql-jackson</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>com.fasterxml.jackson.datatype</groupId><artifactId>jackson-datatype-jsr310</artifactId><scope>test</scope></dependency>
+    <dependency><groupId>org.xerial</groupId><artifactId>sqlite-jdbc</artifactId><version>3.53.2.1</version></dependency>
+    <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>
+    <dependency><groupId>org.mybatis</groupId><artifactId>mybatis</artifactId><version>3.5.19</version><scope>test</scope></dependency>
+  </dependencies>
+  <profiles>
+    <profile>
+      <id>inherited-load-state-example</id>
+      <activation><property><name>teaql.loadState.inheritance</name><value>true</value></property></activation>
+      <build><plugins><plugin>
+        <groupId>org.codehaus.mojo</groupId><artifactId>build-helper-maven-plugin</artifactId><version>3.6.1</version>
+        <executions><execution><id>inherited-test-source</id><phase>generate-test-sources</phase>
+          <goals><goal>add-test-source</goal></goals>
+          <configuration><sources><source>src/inheritance/java</source></sources></configuration>
+        </execution></executions>
+      </plugin></plugins></build>
+    </profile>
+  </profiles>
+</project>

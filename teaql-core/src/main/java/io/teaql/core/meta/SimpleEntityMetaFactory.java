@@ -23,6 +23,17 @@ public class SimpleEntityMetaFactory implements EntityMetaFactory {
         if (entityDescriptor == null) {
             return;
         }
+        if (entityDescriptor.getTargetType() != null
+                && io.teaql.core.BaseEntity.class.isAssignableFrom(entityDescriptor.getTargetType())) {
+            io.teaql.core.FieldLayout layout = io.teaql.core.FieldLayout.forType(entityDescriptor.getTargetType());
+            if (layout.isGenerated()) {
+                java.util.Set<String> members = new java.util.HashSet<>();
+                for (EntityDescriptor current = entityDescriptor; current != null; current = current.getParent()) {
+                    for (PropertyDescriptor property : current.getOwnProperties()) members.add(property.getName());
+                }
+                layout.validateExpectedMembers(members);
+            }
+        }
         registeredEntities.put(entityDescriptor.getType(), entityDescriptor);
     }
 

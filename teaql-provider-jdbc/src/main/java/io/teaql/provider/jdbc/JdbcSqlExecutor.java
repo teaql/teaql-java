@@ -18,12 +18,17 @@ import java.util.function.Consumer;
 public class JdbcSqlExecutor implements SqlExecutionAdapter {
 
     private final DataSource dataSource;
+    // A held view retains only this token, not the executor, connection or DataSource.
+    private final Object storageIdentity = new Object();
     private final ThreadLocal<Connection> transactionConnection = new ThreadLocal<>();
     private final List<Consumer<Connection>> connectionInitializers = new CopyOnWriteArrayList<>();
 
     public JdbcSqlExecutor(DataSource dataSource) {
         this.dataSource = dataSource;
     }
+
+    @Override
+    public Object storageIdentity() { return storageIdentity; }
 
     public JdbcSqlExecutor addConnectionInitializer(Consumer<Connection> initializer) {
         connectionInitializers.add(initializer);
@@ -54,6 +59,28 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
 
     @Override
     public Stream<Map<String, Object>> queryForStream(String sql, Object[] params) {
+        return streamQuery(sql, params, rows -> {
+            String[] columnLabels = columnLabels(rows);
+            JdbcColumnRow.Layout layout = new JdbcColumnRow.Layout(columnLabels);
+            return () -> readColumnRow(rows, layout, columnLabels.length);
+        });
+    }
+
+    @Override public boolean supportsCompiledStreamMapping() { return true; }
+
+    @Override
+    public <T extends io.teaql.core.Entity> Stream<T> queryForStream(
+            String sql, Object[] params, io.teaql.core.CompiledRowMapper<T> mapper) {
+        return streamQuery(sql, params, rows -> {
+            io.teaql.core.DataRow row = new JdbcDataRow(rows);
+            return () -> mapper.map(row);
+        });
+    }
+
+    @FunctionalInterface private interface RowReader<T> { T read() throws SQLException; }
+    @FunctionalInterface private interface RowReaderFactory<T> { RowReader<T> create(ResultSet rows) throws SQLException; }
+
+    private <T> Stream<T> streamQuery(String sql, Object[] params, RowReaderFactory<T> factory) {
         StreamResources resources = new StreamResources();
         try {
             Connection connection = resources.connection = openConnection();
@@ -65,8 +92,8 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 }
             }
             ResultSet rs = resources.resultSet = ps.executeQuery();
-            String[] columnLabels = columnLabels(rs);
-            java.util.Iterator<Map<String, Object>> iterator = new java.util.Iterator<>() {
+            RowReader<T> reader = factory.create(rs);
+            java.util.Iterator<T> iterator = new java.util.Iterator<>() {
                 private boolean ready;
                 private boolean hasNext;
 
@@ -86,18 +113,17 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 }
 
                 @Override
-                public Map<String, Object> next() {
+                public T next() {
                     if (!hasNext()) throw new java.util.NoSuchElementException();
                     ready = false;
                     try {
-                        Map<String, Object> row = new java.util.HashMap<>();
-                        for (int i = 0; i < columnLabels.length; i++) {
-                            row.put(columnLabels[i], rs.getObject(i + 1));
-                        }
-                        return row;
+                        return reader.read();
                     } catch (SQLException e) {
                         resources.close();
                         throw new RuntimeException(e);
+                    } catch (RuntimeException | Error failure) {
+                        resources.close();
+                        throw failure;
                     }
                 }
             };
@@ -149,12 +175,9 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             }
             try (ResultSet rs = ps.executeQuery()) {
                 String[] columnLabels = columnLabels(rs);
+                JdbcColumnRow.Layout layout = new JdbcColumnRow.Layout(columnLabels);
                 while (rs.next()) {
-                    java.util.Map<String, Object> row = new java.util.HashMap<>();
-                    for (int i = 0; i < columnLabels.length; i++) {
-                        row.put(columnLabels[i], rs.getObject(i + 1));
-                    }
-                    result.add(row);
+                    result.add(readColumnRow(rs, layout, columnLabels.length));
                 }
             }
                 return result;
@@ -261,6 +284,13 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             throw new IllegalArgumentException("Cannot convert JDBC value " + value.getClass().getName()
                     + " to " + type.getName());
         }
+    }
+
+    private static JdbcColumnRow readColumnRow(ResultSet resultSet, JdbcColumnRow.Layout layout, int width)
+            throws SQLException {
+        Object[] values = new Object[width];
+        for (int i = 0; i < width; i++) values[i] = resultSet.getObject(i + 1);
+        return new JdbcColumnRow(layout, values);
     }
 
     private static String[] columnLabels(ResultSet resultSet) throws SQLException {
@@ -373,6 +403,8 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             throw new RuntimeException("JDBC transaction failed", e);
         }
     }
+
+    @Override public boolean hasActiveTransaction() { return transactionConnection.get() != null; }
 
     static void bind(PreparedStatement statement, int index, Object value) throws SQLException {
         if (value == null) {
