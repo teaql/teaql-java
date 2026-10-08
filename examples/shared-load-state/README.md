@@ -86,9 +86,11 @@ not a substitute for loading authoritative state before mutation.
 - Readonly `_name` coexists with native `name`; a missing dynamic property reads
   null, and ordinary save does not persist derived properties.
 
-Partial child projections are valid for E reads, but the whole-graph Checker
-does not accept them as complete writable objects. The example reloads the full
-School before deletion rather than disabling that validation.
+Partial child projections are valid for E reads and do not block saving a
+complete parent when those children are untouched. Every actually modified
+object must itself be fully loaded; modified descendants cannot hide behind an
+untouched parent. The example reloads the full School before deletion rather
+than disabling that validation.
 
 The persistent ID allocator uses its framework database bridge. Application
 business data is created through generated mutation APIs, not handwritten SQL.
@@ -138,6 +140,24 @@ The no-op probe preserves every bounded attempt, including JVM transient bytes,
 and requires three consecutive zero-allocation samples within twenty attempts.
 An allocating positive control must remain visible. This is a warmed-window
 claim, not a guarantee of zero allocation for every JVM observation.
+
+## Process cold startup probe
+
+```bash
+bash examples/shared-load-state/benchmark-cold.sh
+bash examples/shared-load-state/benchmark-cold.sh --default-log
+```
+
+Run the local verifier once before this probe to provide a reactor-resolved
+test classpath. The probe requires `xmllint`. It prepares two Schools using
+generated audited mutations in a separate JVM, then launches seven fresh JVMs.
+Each records Context initialization and its first sparse two-row Q query
+separately, with E/name/version, shared snapshot and local class-location checks.
+No schema writes or query warmup occur in measured JVMs. Database and generated
+source hashes must stay unchanged. The external CPU receipt includes JVM startup,
+class loading, validation and output, not Maven compilation or fixture setup.
+OS page caches are not cleared. Byte counters report gross requested thread
+allocations, not retained heap or allocation-call counts.
 
 ## Matched driver logging modes
 
