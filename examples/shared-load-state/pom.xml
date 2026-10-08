@@ -3,7 +3,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>io.teaql</groupId><artifactId>teaql-java-parent</artifactId><version>1.553-RELEASE</version>
+    <groupId>io.teaql</groupId><artifactId>teaql-java-parent</artifactId><version>1.554-RELEASE</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
   <artifactId>shared-load-state-example</artifactId>
