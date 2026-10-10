@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+<rect width="100%" height="100%" fill="white"/>
+<text x="40" y="44" fill="#183247" font-family="Arial, sans-serif" font-size="30" font-weight="700" text-anchor="start">1. Extract the platform boundary</text>
+<text x="40" y="80" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="start">Conceptual dependency view: arrows point from consumers to the contracts or APIs they use.</text>
+<text x="215" y="130" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">Before: Spring-oriented persistence</text>
+<text x="805" y="130" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">After: explicit contracts and adapters</text>
+<rect x="50" y="165" width="330" height="95" rx="10" fill="#e8f2fb" stroke="#536b7c" stroke-width="1.5"/>
+<text x="215.0" y="197" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">Business operation</text>
+<text x="215.0" y="226" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Domain query and entity API</text>
+<rect x="50" y="315" width="330" height="120" rx="10" fill="#fff3dc" stroke="#536b7c" stroke-width="1.5"/>
+<text x="215.0" y="347" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">SQLRepository</text>
+<text x="215.0" y="376" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">SQL translation + execution</text>
+<text x="215.0" y="401" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Transaction integration</text>
+<rect x="50" y="490" width="330" height="120" rx="10" fill="#f0f3f5" stroke="#536b7c" stroke-width="1.5"/>
+<text x="215.0" y="522" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">Spring infrastructure</text>
+<text x="215.0" y="551" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">NamedParameterJdbcTemplate</text>
+<text x="215.0" y="576" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">TransactionTemplate</text>
+<polyline points="215,260 215,315" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="215,315 209.78041359066523,304.1946347717679 220.21958640933477,304.1946347717679" fill="#536b7c"/>
+<polyline points="215,435 215,490" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="215,490 209.78041359066523,479.1946347717679 220.21958640933477,479.1946347717679" fill="#536b7c"/>
+<polyline points="410,375 500,375" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="500,375 489.1946347717679,380.21958640933474 489.1946347717679,369.78041359066526" fill="#536b7c"/>
+<text x="455" y="350" fill="#183247" font-family="Arial, sans-serif" font-size="18" font-weight="400" text-anchor="middle">refactor</text>
+<rect x="560" y="165" width="510" height="95" rx="10" fill="#e8f2fb" stroke="#536b7c" stroke-width="1.5"/>
+<text x="815.0" y="197" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">Business operation</text>
+<text x="815.0" y="226" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Generated domain API + execution context</text>
+<rect x="560" y="315" width="510" height="120" rx="10" fill="#e8f2fb" stroke="#536b7c" stroke-width="1.5"/>
+<text x="815.0" y="347" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">Shared TeaQL contracts and runtime</text>
+<text x="815.0" y="376" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Metadata, policy, data-service contracts</text>
+<text x="815.0" y="401" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Portable SQL translation</text>
+<polyline points="815,260 815,315" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="815,315 809.7804135906653,304.1946347717679 820.2195864093347,304.1946347717679" fill="#536b7c"/>
+<rect x="545" y="490" width="255" height="120" rx="10" fill="#eaf5ef" stroke="#536b7c" stroke-width="1.5"/>
+<text x="672.5" y="522" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">JDBC provider</text>
+<text x="672.5" y="551" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Connections, rows,</text>
+<text x="672.5" y="576" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">transactions</text>
+<rect x="830" y="490" width="315" height="120" rx="10" fill="#eaf5ef" stroke="#536b7c" stroke-width="1.5"/>
+<text x="987.5" y="522" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">Android SQLite adapter</text>
+<text x="987.5" y="551" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Native database, cursors,</text>
+<text x="987.5" y="576" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">statements, transactions</text>
+<polyline points="672,490 672,435" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="672,435 677.2195864093347,445.8053652282321 666.7804135906653,445.8053652282321" fill="#536b7c"/>
+<polyline points="987,490 987,435" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="987,435 992.2195864093347,445.8053652282321 981.7804135906653,445.8053652282321" fill="#536b7c"/>
+<rect x="545" y="660" width="255" height="85" rx="10" fill="#f0f3f5" stroke="#536b7c" stroke-width="1.5"/>
+<text x="672.5" y="692" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">JDBC APIs</text>
+<text x="672.5" y="721" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">DataSource / driver</text>
+<rect x="830" y="660" width="315" height="85" rx="10" fill="#f0f3f5" stroke="#536b7c" stroke-width="1.5"/>
+<text x="987.5" y="692" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">Android APIs</text>
+<text x="987.5" y="721" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">SQLiteDatabase / Cursor</text>
+<polyline points="672,610 672,660" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="672,660 666.7804135906653,649.1946347717678 677.2195864093347,649.1946347717678" fill="#536b7c"/>
+<polyline points="987,610 987,660" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="987,660 981.7804135906653,649.1946347717678 992.2195864093347,649.1946347717678" fill="#536b7c"/>
+<text x="40" y="780" fill="#183247" font-family="Arial, sans-serif" font-size="18" font-weight="400" text-anchor="start">Responsibility view; selected components shown, not the complete JPMS dependency graph.</text>
+</svg>

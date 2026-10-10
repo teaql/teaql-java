@@ -1,0 +1,1243 @@
+Compiled from "RedissonObjectBuilder.java"
+public class org.redisson.liveobject.core.RedissonObjectBuilder$CodecMethodRef {
+  java.lang.reflect.Method defaultCodecMethod;
+
+  java.lang.reflect.Method customCodecMethod;
+
+  public org.redisson.liveobject.core.RedissonObjectBuilder$CodecMethodRef();
+    Code:
+         0: aload_0
+         1: invokespecial #1                  // Method java/lang/Object."<init>":()V
+         4: return
+
+  java.lang.reflect.Method get(boolean);
+    Code:
+         0: iload_1
+         1: ifeq          9
+         4: aload_0
+         5: getfield      #7                  // Field defaultCodecMethod:Ljava/lang/reflect/Method;
+         8: areturn
+         9: aload_0
+        10: getfield      #13                 // Field customCodecMethod:Ljava/lang/reflect/Method;
+        13: areturn
+}
+Compiled from "RedissonObjectBuilder.java"
+public class org.redisson.liveobject.core.RedissonObjectBuilder {
+  private static final java.util.Map<java.lang.Class<?>, java.lang.Class<? extends org.redisson.api.RObject>> SUPPORTED_CLASS_MAPPING;
+
+  private static final java.util.Map<java.lang.Class<?>, org.redisson.liveobject.core.RedissonObjectBuilder$CodecMethodRef> REFERENCES;
+
+  private final org.redisson.config.Config config;
+
+  private org.redisson.api.RedissonClient redisson;
+
+  private org.redisson.api.RedissonReactiveClient redissonReactive;
+
+  private org.redisson.api.RedissonRxClient redissonRx;
+
+  private final org.redisson.codec.ReferenceCodecProvider codecProvider;
+
+  public org.redisson.liveobject.core.RedissonObjectBuilder(org.redisson.api.RedissonClient);
+    Code:
+         0: aload_0
+         1: invokespecial #1                  // Method java/lang/Object."<init>":()V
+         4: aload_0
+         5: new           #7                  // class org/redisson/codec/DefaultReferenceCodecProvider
+         8: dup
+         9: invokespecial #9                  // Method org/redisson/codec/DefaultReferenceCodecProvider."<init>":()V
+        12: putfield      #10                 // Field codecProvider:Lorg/redisson/codec/ReferenceCodecProvider;
+        15: aload_0
+        16: aload_1
+        17: invokeinterface #16,  1           // InterfaceMethod org/redisson/api/RedissonClient.getConfig:()Lorg/redisson/config/Config;
+        22: putfield      #22                 // Field config:Lorg/redisson/config/Config;
+        25: aload_0
+        26: aload_1
+        27: putfield      #26                 // Field redisson:Lorg/redisson/api/RedissonClient;
+        30: aload_0
+        31: getfield      #22                 // Field config:Lorg/redisson/config/Config;
+        34: invokevirtual #30                 // Method org/redisson/config/Config.getCodec:()Lorg/redisson/client/codec/Codec;
+        37: astore_2
+        38: aload_0
+        39: getfield      #10                 // Field codecProvider:Lorg/redisson/codec/ReferenceCodecProvider;
+        42: aload_2
+        43: invokevirtual #36                 // Method java/lang/Object.getClass:()Ljava/lang/Class;
+        46: aload_2
+        47: invokeinterface #40,  3           // InterfaceMethod org/redisson/codec/ReferenceCodecProvider.registerCodec:(Ljava/lang/Class;Lorg/redisson/client/codec/Codec;)V
+        52: return
+
+  public org.redisson.liveobject.core.RedissonObjectBuilder(org.redisson.api.RedissonReactiveClient);
+    Code:
+         0: aload_0
+         1: invokespecial #1                  // Method java/lang/Object."<init>":()V
+         4: aload_0
+         5: new           #7                  // class org/redisson/codec/DefaultReferenceCodecProvider
+         8: dup
+         9: invokespecial #9                  // Method org/redisson/codec/DefaultReferenceCodecProvider."<init>":()V
+        12: putfield      #10                 // Field codecProvider:Lorg/redisson/codec/ReferenceCodecProvider;
+        15: aload_0
+        16: aload_1
+        17: invokeinterface #46,  1           // InterfaceMethod org/redisson/api/RedissonReactiveClient.getConfig:()Lorg/redisson/config/Config;
+        22: putfield      #22                 // Field config:Lorg/redisson/config/Config;
+        25: aload_0
+        26: aload_1
+        27: putfield      #49                 // Field redissonReactive:Lorg/redisson/api/RedissonReactiveClient;
+        30: aload_0
+        31: getfield      #22                 // Field config:Lorg/redisson/config/Config;
+        34: invokevirtual #30                 // Method org/redisson/config/Config.getCodec:()Lorg/redisson/client/codec/Codec;
+        37: astore_2
+        38: aload_0
+        39: getfield      #10                 // Field codecProvider:Lorg/redisson/codec/ReferenceCodecProvider;
+        42: aload_2
+        43: invokevirtual #36                 // Method java/lang/Object.getClass:()Ljava/lang/Class;
+        46: aload_2
+        47: invokeinterface #40,  3           // InterfaceMethod org/redisson/codec/ReferenceCodecProvider.registerCodec:(Ljava/lang/Class;Lorg/redisson/client/codec/Codec;)V
+        52: return
+
+  public org.redisson.liveobject.core.RedissonObjectBuilder(org.redisson.api.RedissonRxClient);
+    Code:
+         0: aload_0
+         1: invokespecial #1                  // Method java/lang/Object."<init>":()V
+         4: aload_0
+         5: new           #7                  // class org/redisson/codec/DefaultReferenceCodecProvider
+         8: dup
+         9: invokespecial #9                  // Method org/redisson/codec/DefaultReferenceCodecProvider."<init>":()V
+        12: putfield      #10                 // Field codecProvider:Lorg/redisson/codec/ReferenceCodecProvider;
+        15: aload_0
+        16: aload_1
+        17: invokeinterface #53,  1           // InterfaceMethod org/redisson/api/RedissonRxClient.getConfig:()Lorg/redisson/config/Config;
+        22: putfield      #22                 // Field config:Lorg/redisson/config/Config;
+        25: aload_0
+        26: aload_1
+        27: putfield      #56                 // Field redissonRx:Lorg/redisson/api/RedissonRxClient;
+        30: aload_0
+        31: getfield      #22                 // Field config:Lorg/redisson/config/Config;
+        34: invokevirtual #30                 // Method org/redisson/config/Config.getCodec:()Lorg/redisson/client/codec/Codec;
+        37: astore_2
+        38: aload_0
+        39: getfield      #10                 // Field codecProvider:Lorg/redisson/codec/ReferenceCodecProvider;
+        42: aload_2
+        43: invokevirtual #36                 // Method java/lang/Object.getClass:()Ljava/lang/Class;
+        46: aload_2
+        47: invokeinterface #40,  3           // InterfaceMethod org/redisson/codec/ReferenceCodecProvider.registerCodec:(Ljava/lang/Class;Lorg/redisson/client/codec/Codec;)V
+        52: return
+
+  public void storeAsync(org.redisson.api.RObject, java.lang.String, org.redisson.api.RMap<java.lang.String, java.lang.Object>);
+    Code:
+         0: aload_1
+         1: invokeinterface #60,  1           // InterfaceMethod org/redisson/api/RObject.getCodec:()Lorg/redisson/client/codec/Codec;
+         6: astore        4
+         8: aload         4
+        10: ifnull        29
+        13: aload_0
+        14: getfield      #10                 // Field codecProvider:Lorg/redisson/codec/ReferenceCodecProvider;
+        17: aload         4
+        19: invokevirtual #36                 // Method java/lang/Object.getClass:()Ljava/lang/Class;
+        22: aload         4
+        24: invokeinterface #40,  3           // InterfaceMethod org/redisson/codec/ReferenceCodecProvider.registerCodec:(Ljava/lang/Class;Lorg/redisson/client/codec/Codec;)V
+        29: aload_3
+        30: aload_2
+        31: new           #63                 // class org/redisson/RedissonReference
+        34: dup
+        35: aload_1
+        36: invokevirtual #36                 // Method java/lang/Object.getClass:()Ljava/lang/Class;
+        39: aload_1
+        40: invokeinterface #65,  1           // InterfaceMethod org/redisson/api/RObject.getName:()Ljava/lang/String;
+        45: aload         4
+        47: invokespecial #69                 // Method org/redisson/RedissonReference."<init>":(Ljava/lang/Class;Ljava/lang/String;Lorg/redisson/client/codec/Codec;)V
+        50: invokeinterface #72,  3           // InterfaceMethod org/redisson/api/RMap.fastPutAsync:(Ljava/lang/Object;Ljava/lang/Object;)Lorg/redisson/api/RFuture;
+        55: pop
+        56: return
+
+  public void store(org.redisson.api.RObject, java.lang.String, org.redisson.api.RMap<java.lang.String, java.lang.Object>);
+    Code:
+         0: aload_1
+         1: invokeinterface #60,  1           // InterfaceMethod org/redisson/api/RObject.getCodec:()Lorg/redisson/client/codec/Codec;
+         6: astore        4
+         8: aload         4
+        10: ifnull        29
+        13: aload_0
+        14: getfield      #10                 // Field codecProvider:Lorg/redisson/codec/ReferenceCodecProvider;
+        17: aload         4
+        19: invokevirtual #36                 // Method java/lang/Object.getClass:()Ljava/lang/Class;
+        22: aload         4
+        24: invokeinterface #40,  3           // InterfaceMethod org/redisson/codec/ReferenceCodecProvider.registerCodec:(Ljava/lang/Class;Lorg/redisson/client/codec/Codec;)V
+        29: aload_3
+        30: aload_2
+        31: new           #63                 // class org/redisson/RedissonReference
+        34: dup
+        35: aload_1
+        36: invokevirtual #36                 // Method java/lang/Object.getClass:()Ljava/lang/Class;
+        39: aload_1
+        40: invokeinterface #65,  1           // InterfaceMethod org/redisson/api/RObject.getName:()Ljava/lang/String;
+        45: aload         4
+        47: invokespecial #69                 // Method org/redisson/RedissonReference."<init>":(Ljava/lang/Class;Ljava/lang/String;Lorg/redisson/client/codec/Codec;)V
+        50: invokeinterface #78,  3           // InterfaceMethod org/redisson/api/RMap.fastPut:(Ljava/lang/Object;Ljava/lang/Object;)Z
+        55: pop
+        56: return
+
+  public org.redisson.api.RObject createObject(java.lang.Object, java.lang.Class<?>, java.lang.Class<?>, java.lang.String);
+    Code:
+         0: aload_0
+         1: aload_3
+         2: invokespecial #82                 // Method getMappedClass:(Ljava/lang/Class;)Ljava/lang/Class;
+         5: astore        5
+         7: aload         5
+         9: ifnull        62
+        12: aload_0
+        13: aload_2
+        14: aload         5
+        16: aload         4
+        18: invokespecial #86                 // Method getFieldCodec:(Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/String;)Lorg/redisson/client/codec/Codec;
+        21: astore        6
+        23: aload_0
+        24: aload_2
+        25: aload         6
+        27: invokevirtual #90                 // Method getNamingScheme:(Ljava/lang/Class;Lorg/redisson/client/codec/Codec;)Lorg/redisson/liveobject/resolver/NamingScheme;
+        30: astore        7
+        32: aload         7
+        34: aload_2
+        35: aload_1
+        36: aload         5
+        38: aload         4
+        40: invokeinterface #94,  5           // InterfaceMethod org/redisson/liveobject/resolver/NamingScheme.getFieldReferenceName:(Ljava/lang/Class;Ljava/lang/Object;Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/String;
+        45: astore        8
+        47: aload_0
+        48: aload_0
+        49: getfield      #26                 // Field redisson:Lorg/redisson/api/RedissonClient;
+        52: aload         5
+        54: aload         8
+        56: aload         6
+        58: invokespecial #100                // Method createRObject:(Lorg/redisson/api/RedissonClient;Ljava/lang/Class;Ljava/lang/String;Lorg/redisson/client/codec/Codec;)Lorg/redisson/api/RObject;
+        61: areturn
+        62: goto          77
+        65: astore        6
+        67: new           #106                // class java/lang/IllegalArgumentException
+        70: dup
+        71: aload         6
+        73: invokespecial #108                // Method java/lang/IllegalArgumentException."<init>":(Ljava/lang/Throwable;)V
+        76: athrow
+        77: aconst_null
+        78: areturn
+      Exception table:
+         from    to  target type
+             7    61    65   Class java/lang/Exception
+
+  private org.redisson.client.codec.Codec getFieldCodec(java.lang.Class<?>, java.lang.Class<? extends org.redisson.api.RObject>, java.lang.String) throws java.lang.ReflectiveOperationException;
+    Code:
+         0: aload_1
+         1: aload_3
+         2: invokestatic  #111                // Method org/redisson/liveobject/misc/ClassUtils.getDeclaredField:(Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/reflect/Field;
+         5: astore        4
+         7: aload         4
+         9: ldc           #117                // class org/redisson/api/annotation/RObjectField
+        11: invokevirtual #119                // Method java/lang/reflect/Field.isAnnotationPresent:(Ljava/lang/Class;)Z
+        14: ifeq          48
+        17: aload         4
+        19: ldc           #117                // class org/redisson/api/annotation/RObjectField
+        21: invokevirtual #125                // Method java/lang/reflect/Field.getAnnotation:(Ljava/lang/Class;)Ljava/lang/annotation/Annotation;
+        24: checkcast     #117                // class org/redisson/api/annotation/RObjectField
+        27: astore        5
+        29: aload_0
+        30: getfield      #10                 // Field codecProvider:Lorg/redisson/codec/ReferenceCodecProvider;
+        33: aload         5
+        35: aload_1
+        36: aload_2
+        37: aload_3
+        38: aload_0
+        39: getfield      #22                 // Field config:Lorg/redisson/config/Config;
+        42: invokeinterface #129,  6          // InterfaceMethod org/redisson/codec/ReferenceCodecProvider.getCodec:(Lorg/redisson/api/annotation/RObjectField;Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/String;Lorg/redisson/config/Config;)Lorg/redisson/client/codec/Codec;
+        47: areturn
+        48: aload_1
+        49: ldc           #132                // class org/redisson/api/annotation/REntity
+        51: invokestatic  #134                // Method org/redisson/liveobject/misc/ClassUtils.getAnnotation:(Ljava/lang/Class;Ljava/lang/Class;)Ljava/lang/annotation/Annotation;
+        54: checkcast     #132                // class org/redisson/api/annotation/REntity
+        57: astore        5
+        59: aload_0
+        60: getfield      #10                 // Field codecProvider:Lorg/redisson/codec/ReferenceCodecProvider;
+        63: aload         5
+        65: aload_1
+        66: aload_0
+        67: getfield      #22                 // Field config:Lorg/redisson/config/Config;
+        70: invokeinterface #137,  4          // InterfaceMethod org/redisson/codec/ReferenceCodecProvider.getCodec:(Lorg/redisson/api/annotation/REntity;Ljava/lang/Class;Lorg/redisson/config/Config;)Lorg/redisson/client/codec/Codec;
+        75: areturn
+
+  public org.redisson.liveobject.resolver.NamingScheme getNamingScheme(java.lang.Class<?>);
+    Code:
+         0: aload_1
+         1: ldc           #132                // class org/redisson/api/annotation/REntity
+         3: invokestatic  #134                // Method org/redisson/liveobject/misc/ClassUtils.getAnnotation:(Ljava/lang/Class;Ljava/lang/Class;)Ljava/lang/annotation/Annotation;
+         6: checkcast     #132                // class org/redisson/api/annotation/REntity
+         9: astore_2
+        10: aload_0
+        11: getfield      #10                 // Field codecProvider:Lorg/redisson/codec/ReferenceCodecProvider;
+        14: aload_2
+        15: aload_1
+        16: aload_0
+        17: getfield      #22                 // Field config:Lorg/redisson/config/Config;
+        20: invokeinterface #137,  4          // InterfaceMethod org/redisson/codec/ReferenceCodecProvider.getCodec:(Lorg/redisson/api/annotation/REntity;Ljava/lang/Class;Lorg/redisson/config/Config;)Lorg/redisson/client/codec/Codec;
+        25: astore_3
+        26: aload_0
+        27: aload_1
+        28: aload_3
+        29: invokevirtual #90                 // Method getNamingScheme:(Ljava/lang/Class;Lorg/redisson/client/codec/Codec;)Lorg/redisson/liveobject/resolver/NamingScheme;
+        32: areturn
+
+  public org.redisson.liveobject.resolver.NamingScheme getNamingScheme(java.lang.Class<?>, org.redisson.client.codec.Codec);
+    Code:
+         0: aload_1
+         1: ldc           #132                // class org/redisson/api/annotation/REntity
+         3: invokestatic  #134                // Method org/redisson/liveobject/misc/ClassUtils.getAnnotation:(Ljava/lang/Class;Ljava/lang/Class;)Ljava/lang/annotation/Annotation;
+         6: checkcast     #132                // class org/redisson/api/annotation/REntity
+         9: astore_3
+        10: aload_3
+        11: invokeinterface #140,  1          // InterfaceMethod org/redisson/api/annotation/REntity.namingScheme:()Ljava/lang/Class;
+        16: iconst_1
+        17: anewarray     #143                // class java/lang/Class
+        20: dup
+        21: iconst_0
+        22: ldc           #145                // class org/redisson/client/codec/Codec
+        24: aastore
+        25: invokevirtual #147                // Method java/lang/Class.getDeclaredConstructor:([Ljava/lang/Class;)Ljava/lang/reflect/Constructor;
+        28: iconst_1
+        29: anewarray     #2                  // class java/lang/Object
+        32: dup
+        33: iconst_0
+        34: aload_2
+        35: aastore
+        36: invokevirtual #151                // Method java/lang/reflect/Constructor.newInstance:([Ljava/lang/Object;)Ljava/lang/Object;
+        39: checkcast     #95                 // class org/redisson/liveobject/resolver/NamingScheme
+        42: areturn
+        43: astore        4
+        45: new           #106                // class java/lang/IllegalArgumentException
+        48: dup
+        49: aload         4
+        51: invokespecial #108                // Method java/lang/IllegalArgumentException."<init>":(Ljava/lang/Throwable;)V
+        54: athrow
+      Exception table:
+         from    to  target type
+            10    42    43   Class java/lang/Exception
+
+  private java.lang.Class<? extends org.redisson.api.RObject> getMappedClass(java.lang.Class<?>);
+    Code:
+         0: getstatic     #157                // Field SUPPORTED_CLASS_MAPPING:Ljava/util/Map;
+         3: invokeinterface #161,  1          // InterfaceMethod java/util/Map.entrySet:()Ljava/util/Set;
+         8: invokeinterface #167,  1          // InterfaceMethod java/util/Set.iterator:()Ljava/util/Iterator;
+        13: astore_2
+        14: aload_2
+        15: invokeinterface #173,  1          // InterfaceMethod java/util/Iterator.hasNext:()Z
+        20: ifeq          62
+        23: aload_2
+        24: invokeinterface #179,  1          // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+        29: checkcast     #183                // class java/util/Map$Entry
+        32: astore_3
+        33: aload_3
+        34: invokeinterface #185,  1          // InterfaceMethod java/util/Map$Entry.getKey:()Ljava/lang/Object;
+        39: checkcast     #143                // class java/lang/Class
+        42: aload_1
+        43: invokevirtual #188                // Method java/lang/Class.isAssignableFrom:(Ljava/lang/Class;)Z
+        46: ifeq          59
+        49: aload_3
+        50: invokeinterface #191,  1          // InterfaceMethod java/util/Map$Entry.getValue:()Ljava/lang/Object;
+        55: checkcast     #143                // class java/lang/Class
+        58: areturn
+        59: goto          14
+        62: aconst_null
+        63: areturn
+
+  private static void fillCodecMethods(java.util.Map<java.lang.Class<?>, org.redisson.liveobject.core.RedissonObjectBuilder$CodecMethodRef>, java.lang.Class<?>, java.lang.Class<?>);
+    Code:
+         0: aload_1
+         1: invokevirtual #194                // Method java/lang/Class.getDeclaredMethods:()[Ljava/lang/reflect/Method;
+         4: astore_3
+         5: aload_3
+         6: arraylength
+         7: istore        4
+         9: iconst_0
+        10: istore        5
+        12: iload         5
+        14: iload         4
+        16: if_icmpge     169
+        19: aload_3
+        20: iload         5
+        22: aaload
+        23: astore        6
+        25: aload         6
+        27: invokevirtual #198                // Method java/lang/reflect/Method.getReturnType:()Ljava/lang/Class;
+        30: getstatic     #203                // Field java/lang/Void.TYPE:Ljava/lang/Class;
+        33: invokevirtual #209                // Method java/lang/Object.equals:(Ljava/lang/Object;)Z
+        36: ifne          163
+        39: aload_2
+        40: aload         6
+        42: invokevirtual #198                // Method java/lang/reflect/Method.getReturnType:()Ljava/lang/Class;
+        45: invokevirtual #188                // Method java/lang/Class.isAssignableFrom:(Ljava/lang/Class;)Z
+        48: ifeq          163
+        51: aload         6
+        53: invokevirtual #213                // Method java/lang/reflect/Method.getName:()Ljava/lang/String;
+        56: ldc           #214                // String get
+        58: invokevirtual #216                // Method java/lang/String.startsWith:(Ljava/lang/String;)Z
+        61: ifeq          163
+        64: aload         6
+        66: invokevirtual #198                // Method java/lang/reflect/Method.getReturnType:()Ljava/lang/Class;
+        69: astore        7
+        71: aload_0
+        72: aload         7
+        74: invokeinterface #222,  2          // InterfaceMethod java/util/Map.containsKey:(Ljava/lang/Object;)Z
+        79: ifne          98
+        82: aload_0
+        83: aload         7
+        85: new           #225                // class org/redisson/liveobject/core/RedissonObjectBuilder$CodecMethodRef
+        88: dup
+        89: invokespecial #227                // Method org/redisson/liveobject/core/RedissonObjectBuilder$CodecMethodRef."<init>":()V
+        92: invokeinterface #228,  3          // InterfaceMethod java/util/Map.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+        97: pop
+        98: aload_0
+        99: aload         7
+       101: invokeinterface #232,  2          // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+       106: checkcast     #225                // class org/redisson/liveobject/core/RedissonObjectBuilder$CodecMethodRef
+       109: astore        8
+       111: aload         6
+       113: invokevirtual #235                // Method java/lang/reflect/Method.getParameterTypes:()[Ljava/lang/Class;
+       116: arraylength
+       117: iconst_2
+       118: if_icmpne     146
+       121: ldc           #145                // class org/redisson/client/codec/Codec
+       123: aload         6
+       125: invokevirtual #235                // Method java/lang/reflect/Method.getParameterTypes:()[Ljava/lang/Class;
+       128: iconst_1
+       129: aaload
+       130: invokevirtual #188                // Method java/lang/Class.isAssignableFrom:(Ljava/lang/Class;)Z
+       133: ifeq          146
+       136: aload         8
+       138: aload         6
+       140: putfield      #239                // Field org/redisson/liveobject/core/RedissonObjectBuilder$CodecMethodRef.customCodecMethod:Ljava/lang/reflect/Method;
+       143: goto          163
+       146: aload         6
+       148: invokevirtual #235                // Method java/lang/reflect/Method.getParameterTypes:()[Ljava/lang/Class;
+       151: arraylength
+       152: iconst_1
+       153: if_icmpne     163
+       156: aload         8
+       158: aload         6
+       160: putfield      #243                // Field org/redisson/liveobject/core/RedissonObjectBuilder$CodecMethodRef.defaultCodecMethod:Ljava/lang/reflect/Method;
+       163: iinc          5, 1
+       166: goto          12
+       169: return
+
+  public java.lang.Object fromReference(org.redisson.RedissonReference, org.redisson.liveobject.core.RedissonObjectBuilder$ReferenceType) throws java.lang.ReflectiveOperationException;
+    Code:
+         0: aload_2
+         1: getstatic     #246                // Field org/redisson/liveobject/core/RedissonObjectBuilder$ReferenceType.REACTIVE:Lorg/redisson/liveobject/core/RedissonObjectBuilder$ReferenceType;
+         4: if_acmpne     17
+         7: aload_0
+         8: aload_0
+         9: getfield      #49                 // Field redissonReactive:Lorg/redisson/api/RedissonReactiveClient;
+        12: aload_1
+        13: invokespecial #252                // Method fromReference:(Lorg/redisson/api/RedissonReactiveClient;Lorg/redisson/RedissonReference;)Ljava/lang/Object;
+        16: areturn
+        17: aload_2
+        18: getstatic     #256                // Field org/redisson/liveobject/core/RedissonObjectBuilder$ReferenceType.RXJAVA:Lorg/redisson/liveobject/core/RedissonObjectBuilder$ReferenceType;
+        21: if_acmpne     34
+        24: aload_0
+        25: aload_0
+        26: getfield      #56                 // Field redissonRx:Lorg/redisson/api/RedissonRxClient;
+        29: aload_1
+        30: invokespecial #259                // Method fromReference:(Lorg/redisson/api/RedissonRxClient;Lorg/redisson/RedissonReference;)Ljava/lang/Object;
+        33: areturn
+        34: aload_0
+        35: aload_0
+        36: getfield      #26                 // Field redisson:Lorg/redisson/api/RedissonClient;
+        39: aload_1
+        40: invokespecial #262                // Method fromReference:(Lorg/redisson/api/RedissonClient;Lorg/redisson/RedissonReference;)Ljava/lang/Object;
+        43: areturn
+
+  private java.lang.Object fromReference(org.redisson.api.RedissonClient, org.redisson.RedissonReference) throws java.lang.ReflectiveOperationException;
+    Code:
+         0: aload_2
+         1: invokevirtual #265                // Method org/redisson/RedissonReference.getType:()Ljava/lang/Class;
+         4: astore_3
+         5: aload_3
+         6: ifnull        58
+         9: aload_3
+        10: ldc           #132                // class org/redisson/api/annotation/REntity
+        12: invokestatic  #268                // Method org/redisson/liveobject/misc/ClassUtils.isAnnotationPresent:(Ljava/lang/Class;Ljava/lang/Class;)Z
+        15: ifeq          58
+        18: aload_1
+        19: invokeinterface #271,  1          // InterfaceMethod org/redisson/api/RedissonClient.getLiveObjectService:()Lorg/redisson/api/RLiveObjectService;
+        24: checkcast     #275                // class org/redisson/RedissonLiveObjectService
+        27: astore        4
+        29: aload_0
+        30: aload_3
+        31: invokevirtual #277                // Method getNamingScheme:(Ljava/lang/Class;)Lorg/redisson/liveobject/resolver/NamingScheme;
+        34: astore        5
+        36: aload         5
+        38: aload_2
+        39: invokevirtual #280                // Method org/redisson/RedissonReference.getKeyName:()Ljava/lang/String;
+        42: invokeinterface #283,  2          // InterfaceMethod org/redisson/liveobject/resolver/NamingScheme.resolveId:(Ljava/lang/String;)Ljava/lang/Object;
+        47: astore        6
+        49: aload         4
+        51: aload_3
+        52: aload         6
+        54: invokevirtual #287                // Method org/redisson/RedissonLiveObjectService.createLiveObject:(Ljava/lang/Class;Ljava/lang/Object;)Ljava/lang/Object;
+        57: areturn
+        58: aload_0
+        59: aload_1
+        60: aload_2
+        61: aload_3
+        62: aload_0
+        63: getfield      #10                 // Field codecProvider:Lorg/redisson/codec/ReferenceCodecProvider;
+        66: invokespecial #291                // Method getObject:(Ljava/lang/Object;Lorg/redisson/RedissonReference;Ljava/lang/Class;Lorg/redisson/codec/ReferenceCodecProvider;)Ljava/lang/Object;
+        69: areturn
+
+  private java.lang.Object getObject(java.lang.Object, org.redisson.RedissonReference, java.lang.Class<? extends java.lang.Object>, org.redisson.codec.ReferenceCodecProvider) throws java.lang.ReflectiveOperationException;
+    Code:
+         0: aload_3
+         1: ifnull        127
+         4: getstatic     #295                // Field REFERENCES:Ljava/util/Map;
+         7: aload_3
+         8: invokeinterface #232,  2          // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+        13: checkcast     #225                // class org/redisson/liveobject/core/RedissonObjectBuilder$CodecMethodRef
+        16: astore        5
+        18: aload         5
+        20: ifnonnull     38
+        23: aload_3
+        24: invokevirtual #298                // Method java/lang/Class.getInterfaces:()[Ljava/lang/Class;
+        27: arraylength
+        28: ifle          38
+        31: aload_3
+        32: invokevirtual #298                // Method java/lang/Class.getInterfaces:()[Ljava/lang/Class;
+        35: iconst_0
+        36: aaload
+        37: astore_3
+        38: getstatic     #295                // Field REFERENCES:Ljava/util/Map;
+        41: aload_3
+        42: invokeinterface #232,  2          // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+        47: checkcast     #225                // class org/redisson/liveobject/core/RedissonObjectBuilder$CodecMethodRef
+        50: astore        5
+        52: aload         5
+        54: ifnull        127
+        57: aload         5
+        59: aload_0
+        60: aload_2
+        61: invokespecial #301                // Method isDefaultCodec:(Lorg/redisson/RedissonReference;)Z
+        64: invokevirtual #305                // Method org/redisson/liveobject/core/RedissonObjectBuilder$CodecMethodRef.get:(Z)Ljava/lang/reflect/Method;
+        67: astore        6
+        69: aload_0
+        70: aload_2
+        71: invokespecial #301                // Method isDefaultCodec:(Lorg/redisson/RedissonReference;)Z
+        74: ifeq          95
+        77: aload         6
+        79: aload_1
+        80: iconst_1
+        81: anewarray     #2                  // class java/lang/Object
+        84: dup
+        85: iconst_0
+        86: aload_2
+        87: invokevirtual #280                // Method org/redisson/RedissonReference.getKeyName:()Ljava/lang/String;
+        90: aastore
+        91: invokevirtual #308                // Method java/lang/reflect/Method.invoke:(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;
+        94: areturn
+        95: aload         6
+        97: aload_1
+        98: iconst_2
+        99: anewarray     #2                  // class java/lang/Object
+       102: dup
+       103: iconst_0
+       104: aload_2
+       105: invokevirtual #280                // Method org/redisson/RedissonReference.getKeyName:()Ljava/lang/String;
+       108: aastore
+       109: dup
+       110: iconst_1
+       111: aload         4
+       113: aload_2
+       114: invokevirtual #312                // Method org/redisson/RedissonReference.getCodecType:()Ljava/lang/Class;
+       117: invokeinterface #315,  2          // InterfaceMethod org/redisson/codec/ReferenceCodecProvider.getCodec:(Ljava/lang/Class;)Lorg/redisson/client/codec/Codec;
+       122: aastore
+       123: invokevirtual #308                // Method java/lang/reflect/Method.invoke:(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;
+       126: areturn
+       127: new           #318                // class java/lang/ClassNotFoundException
+       130: dup
+       131: new           #320                // class java/lang/StringBuilder
+       134: dup
+       135: invokespecial #322                // Method java/lang/StringBuilder."<init>":()V
+       138: ldc_w         #323                // String No RObject is found to match class type of
+       141: invokevirtual #325                // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+       144: aload_2
+       145: invokevirtual #329                // Method org/redisson/RedissonReference.getTypeName:()Ljava/lang/String;
+       148: invokevirtual #325                // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+       151: ldc_w         #332                // String  with codec type of
+       154: invokevirtual #325                // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+       157: aload_2
+       158: invokevirtual #334                // Method org/redisson/RedissonReference.getCodec:()Ljava/lang/String;
+       161: invokevirtual #325                // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+       164: invokevirtual #336                // Method java/lang/StringBuilder.toString:()Ljava/lang/String;
+       167: invokespecial #339                // Method java/lang/ClassNotFoundException."<init>":(Ljava/lang/String;)V
+       170: athrow
+
+  private boolean isDefaultCodec(org.redisson.RedissonReference);
+    Code:
+         0: aload_1
+         1: invokevirtual #334                // Method org/redisson/RedissonReference.getCodec:()Ljava/lang/String;
+         4: ifnonnull     11
+         7: iconst_1
+         8: goto          12
+        11: iconst_0
+        12: ireturn
+
+  private java.lang.Object fromReference(org.redisson.api.RedissonRxClient, org.redisson.RedissonReference) throws java.lang.ReflectiveOperationException;
+    Code:
+         0: aload_2
+         1: invokevirtual #342                // Method org/redisson/RedissonReference.getRxJavaType:()Ljava/lang/Class;
+         4: astore_3
+         5: aload_0
+         6: aload_1
+         7: aload_2
+         8: aload_3
+         9: aload_0
+        10: getfield      #10                 // Field codecProvider:Lorg/redisson/codec/ReferenceCodecProvider;
+        13: invokespecial #291                // Method getObject:(Ljava/lang/Object;Lorg/redisson/RedissonReference;Ljava/lang/Class;Lorg/redisson/codec/ReferenceCodecProvider;)Ljava/lang/Object;
+        16: areturn
+
+  private java.lang.Object fromReference(org.redisson.api.RedissonReactiveClient, org.redisson.RedissonReference) throws java.lang.ReflectiveOperationException;
+    Code:
+         0: aload_2
+         1: invokevirtual #345                // Method org/redisson/RedissonReference.getReactiveType:()Ljava/lang/Class;
+         4: astore_3
+         5: aload_0
+         6: aload_1
+         7: aload_2
+         8: aload_3
+         9: aload_0
+        10: getfield      #10                 // Field codecProvider:Lorg/redisson/codec/ReferenceCodecProvider;
+        13: invokespecial #291                // Method getObject:(Ljava/lang/Object;Lorg/redisson/RedissonReference;Ljava/lang/Class;Lorg/redisson/codec/ReferenceCodecProvider;)Ljava/lang/Object;
+        16: areturn
+
+  public org.redisson.RedissonReference toReference(java.lang.Object);
+    Code:
+         0: aload_1
+         1: ifnull        27
+         4: aload_1
+         5: invokevirtual #36                 // Method java/lang/Object.getClass:()Ljava/lang/Class;
+         8: ldc           #132                // class org/redisson/api/annotation/REntity
+        10: invokestatic  #268                // Method org/redisson/liveobject/misc/ClassUtils.isAnnotationPresent:(Ljava/lang/Class;Ljava/lang/Class;)Z
+        13: ifeq          27
+        16: new           #106                // class java/lang/IllegalArgumentException
+        19: dup
+        20: ldc_w         #348                // String REntity should be attached to Redisson before save
+        23: invokespecial #350                // Method java/lang/IllegalArgumentException."<init>":(Ljava/lang/String;)V
+        26: athrow
+        27: aload_1
+        28: instanceof    #61                 // class org/redisson/api/RObject
+        31: ifeq          110
+        34: aload_1
+        35: instanceof    #351                // class org/redisson/api/RLiveObject
+        38: ifne          110
+        41: aload_1
+        42: invokevirtual #36                 // Method java/lang/Object.getClass:()Ljava/lang/Class;
+        45: invokevirtual #298                // Method java/lang/Class.getInterfaces:()[Ljava/lang/Class;
+        48: iconst_0
+        49: aaload
+        50: astore_2
+        51: aload_1
+        52: checkcast     #61                 // class org/redisson/api/RObject
+        55: astore_3
+        56: aload_3
+        57: invokeinterface #60,  1           // InterfaceMethod org/redisson/api/RObject.getCodec:()Lorg/redisson/client/codec/Codec;
+        62: ifnull        89
+        65: aload_0
+        66: getfield      #10                 // Field codecProvider:Lorg/redisson/codec/ReferenceCodecProvider;
+        69: aload_3
+        70: invokeinterface #60,  1           // InterfaceMethod org/redisson/api/RObject.getCodec:()Lorg/redisson/client/codec/Codec;
+        75: invokevirtual #36                 // Method java/lang/Object.getClass:()Ljava/lang/Class;
+        78: aload_3
+        79: invokeinterface #60,  1           // InterfaceMethod org/redisson/api/RObject.getCodec:()Lorg/redisson/client/codec/Codec;
+        84: invokeinterface #40,  3           // InterfaceMethod org/redisson/codec/ReferenceCodecProvider.registerCodec:(Ljava/lang/Class;Lorg/redisson/client/codec/Codec;)V
+        89: new           #63                 // class org/redisson/RedissonReference
+        92: dup
+        93: aload_2
+        94: aload_3
+        95: invokeinterface #65,  1           // InterfaceMethod org/redisson/api/RObject.getName:()Ljava/lang/String;
+       100: aload_3
+       101: invokeinterface #60,  1           // InterfaceMethod org/redisson/api/RObject.getCodec:()Lorg/redisson/client/codec/Codec;
+       106: invokespecial #69                 // Method org/redisson/RedissonReference."<init>":(Ljava/lang/Class;Ljava/lang/String;Lorg/redisson/client/codec/Codec;)V
+       109: areturn
+       110: aload_1
+       111: instanceof    #353                // class org/redisson/api/RObjectReactive
+       114: ifeq          193
+       117: aload_1
+       118: instanceof    #351                // class org/redisson/api/RLiveObject
+       121: ifne          193
+       124: aload_1
+       125: invokevirtual #36                 // Method java/lang/Object.getClass:()Ljava/lang/Class;
+       128: invokevirtual #298                // Method java/lang/Class.getInterfaces:()[Ljava/lang/Class;
+       131: iconst_0
+       132: aaload
+       133: astore_2
+       134: aload_1
+       135: checkcast     #353                // class org/redisson/api/RObjectReactive
+       138: astore_3
+       139: aload_3
+       140: invokeinterface #355,  1          // InterfaceMethod org/redisson/api/RObjectReactive.getCodec:()Lorg/redisson/client/codec/Codec;
+       145: ifnull        172
+       148: aload_0
+       149: getfield      #10                 // Field codecProvider:Lorg/redisson/codec/ReferenceCodecProvider;
+       152: aload_3
+       153: invokeinterface #355,  1          // InterfaceMethod org/redisson/api/RObjectReactive.getCodec:()Lorg/redisson/client/codec/Codec;
+       158: invokevirtual #36                 // Method java/lang/Object.getClass:()Ljava/lang/Class;
+       161: aload_3
+       162: invokeinterface #355,  1          // InterfaceMethod org/redisson/api/RObjectReactive.getCodec:()Lorg/redisson/client/codec/Codec;
+       167: invokeinterface #40,  3           // InterfaceMethod org/redisson/codec/ReferenceCodecProvider.registerCodec:(Ljava/lang/Class;Lorg/redisson/client/codec/Codec;)V
+       172: new           #63                 // class org/redisson/RedissonReference
+       175: dup
+       176: aload_2
+       177: aload_3
+       178: invokeinterface #356,  1          // InterfaceMethod org/redisson/api/RObjectReactive.getName:()Ljava/lang/String;
+       183: aload_3
+       184: invokeinterface #355,  1          // InterfaceMethod org/redisson/api/RObjectReactive.getCodec:()Lorg/redisson/client/codec/Codec;
+       189: invokespecial #69                 // Method org/redisson/RedissonReference."<init>":(Ljava/lang/Class;Ljava/lang/String;Lorg/redisson/client/codec/Codec;)V
+       192: areturn
+       193: aload_1
+       194: instanceof    #357                // class org/redisson/api/RObjectRx
+       197: ifeq          276
+       200: aload_1
+       201: instanceof    #351                // class org/redisson/api/RLiveObject
+       204: ifne          276
+       207: aload_1
+       208: invokevirtual #36                 // Method java/lang/Object.getClass:()Ljava/lang/Class;
+       211: invokevirtual #298                // Method java/lang/Class.getInterfaces:()[Ljava/lang/Class;
+       214: iconst_0
+       215: aaload
+       216: astore_2
+       217: aload_1
+       218: checkcast     #357                // class org/redisson/api/RObjectRx
+       221: astore_3
+       222: aload_3
+       223: invokeinterface #359,  1          // InterfaceMethod org/redisson/api/RObjectRx.getCodec:()Lorg/redisson/client/codec/Codec;
+       228: ifnull        255
+       231: aload_0
+       232: getfield      #10                 // Field codecProvider:Lorg/redisson/codec/ReferenceCodecProvider;
+       235: aload_3
+       236: invokeinterface #359,  1          // InterfaceMethod org/redisson/api/RObjectRx.getCodec:()Lorg/redisson/client/codec/Codec;
+       241: invokevirtual #36                 // Method java/lang/Object.getClass:()Ljava/lang/Class;
+       244: aload_3
+       245: invokeinterface #359,  1          // InterfaceMethod org/redisson/api/RObjectRx.getCodec:()Lorg/redisson/client/codec/Codec;
+       250: invokeinterface #40,  3           // InterfaceMethod org/redisson/codec/ReferenceCodecProvider.registerCodec:(Ljava/lang/Class;Lorg/redisson/client/codec/Codec;)V
+       255: new           #63                 // class org/redisson/RedissonReference
+       258: dup
+       259: aload_2
+       260: aload_3
+       261: invokeinterface #360,  1          // InterfaceMethod org/redisson/api/RObjectRx.getName:()Ljava/lang/String;
+       266: aload_3
+       267: invokeinterface #359,  1          // InterfaceMethod org/redisson/api/RObjectRx.getCodec:()Lorg/redisson/client/codec/Codec;
+       272: invokespecial #69                 // Method org/redisson/RedissonReference."<init>":(Ljava/lang/Class;Ljava/lang/String;Lorg/redisson/client/codec/Codec;)V
+       275: areturn
+       276: aload_1
+       277: instanceof    #351                // class org/redisson/api/RLiveObject
+       280: ifeq          322
+       283: aload_1
+       284: invokevirtual #36                 // Method java/lang/Object.getClass:()Ljava/lang/Class;
+       287: invokevirtual #361                // Method java/lang/Class.getSuperclass:()Ljava/lang/Class;
+       290: astore_2
+       291: aload_0
+       292: aload_2
+       293: invokevirtual #277                // Method getNamingScheme:(Ljava/lang/Class;)Lorg/redisson/liveobject/resolver/NamingScheme;
+       296: astore_3
+       297: new           #63                 // class org/redisson/RedissonReference
+       300: dup
+       301: aload_2
+       302: aload_3
+       303: aload_2
+       304: aload_1
+       305: checkcast     #351                // class org/redisson/api/RLiveObject
+       308: invokeinterface #364,  1          // InterfaceMethod org/redisson/api/RLiveObject.getLiveObjectId:()Ljava/lang/Object;
+       313: invokeinterface #367,  3          // InterfaceMethod org/redisson/liveobject/resolver/NamingScheme.getName:(Ljava/lang/Class;Ljava/lang/Object;)Ljava/lang/String;
+       318: invokespecial #370                // Method org/redisson/RedissonReference."<init>":(Ljava/lang/Class;Ljava/lang/String;)V
+       321: areturn
+       322: goto          335
+       325: astore_2
+       326: new           #106                // class java/lang/IllegalArgumentException
+       329: dup
+       330: aload_2
+       331: invokespecial #108                // Method java/lang/IllegalArgumentException."<init>":(Ljava/lang/Throwable;)V
+       334: athrow
+       335: aconst_null
+       336: areturn
+      Exception table:
+         from    to  target type
+           276   321   325   Class java/lang/Exception
+
+  private <T extends org.redisson.api.RObject, K extends org.redisson.client.codec.Codec> T createRObject(org.redisson.api.RedissonClient, java.lang.Class<T>, java.lang.String, K) throws java.lang.ReflectiveOperationException;
+    Code:
+         0: aload_2
+         1: invokevirtual #298                // Method java/lang/Class.getInterfaces:()[Ljava/lang/Class;
+         4: astore        5
+         6: aload         5
+         8: astore        6
+        10: aload         6
+        12: arraylength
+        13: istore        7
+        15: iconst_0
+        16: istore        8
+        18: iload         8
+        20: iload         7
+        22: if_icmpge     125
+        25: aload         6
+        27: iload         8
+        29: aaload
+        30: astore        9
+        32: getstatic     #295                // Field REFERENCES:Ljava/util/Map;
+        35: aload         9
+        37: invokeinterface #222,  2          // InterfaceMethod java/util/Map.containsKey:(Ljava/lang/Object;)Z
+        42: ifeq          119
+        45: getstatic     #295                // Field REFERENCES:Ljava/util/Map;
+        48: aload         9
+        50: invokeinterface #232,  2          // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+        55: checkcast     #225                // class org/redisson/liveobject/core/RedissonObjectBuilder$CodecMethodRef
+        58: aload         4
+        60: ifnull        67
+        63: iconst_1
+        64: goto          68
+        67: iconst_0
+        68: invokevirtual #305                // Method org/redisson/liveobject/core/RedissonObjectBuilder$CodecMethodRef.get:(Z)Ljava/lang/reflect/Method;
+        71: astore        10
+        73: aload         4
+        75: ifnull        96
+        78: aload         10
+        80: aload_1
+        81: iconst_1
+        82: anewarray     #2                  // class java/lang/Object
+        85: dup
+        86: iconst_0
+        87: aload_3
+        88: aastore
+        89: invokevirtual #308                // Method java/lang/reflect/Method.invoke:(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;
+        92: checkcast     #61                 // class org/redisson/api/RObject
+        95: areturn
+        96: aload         10
+        98: aload_1
+        99: iconst_2
+       100: anewarray     #2                  // class java/lang/Object
+       103: dup
+       104: iconst_0
+       105: aload_3
+       106: aastore
+       107: dup
+       108: iconst_1
+       109: aload         4
+       111: aastore
+       112: invokevirtual #308                // Method java/lang/reflect/Method.invoke:(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;
+       115: checkcast     #61                 // class org/redisson/api/RObject
+       118: areturn
+       119: iinc          8, 1
+       122: goto          18
+       125: aconst_null
+       126: astore        6
+       128: aload         4
+       130: ifnull        143
+       133: aload         4
+       135: invokevirtual #36                 // Method java/lang/Object.getClass:()Ljava/lang/Class;
+       138: invokevirtual #373                // Method java/lang/Class.getName:()Ljava/lang/String;
+       141: astore        6
+       143: new           #318                // class java/lang/ClassNotFoundException
+       146: dup
+       147: new           #320                // class java/lang/StringBuilder
+       150: dup
+       151: invokespecial #322                // Method java/lang/StringBuilder."<init>":()V
+       154: ldc_w         #323                // String No RObject is found to match class type of
+       157: invokevirtual #325                // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+       160: aload_2
+       161: invokevirtual #373                // Method java/lang/Class.getName:()Ljava/lang/String;
+       164: invokevirtual #325                // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+       167: ldc_w         #332                // String  with codec type of
+       170: invokevirtual #325                // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+       173: aload         6
+       175: invokevirtual #325                // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+       178: invokevirtual #336                // Method java/lang/StringBuilder.toString:()Ljava/lang/String;
+       181: invokespecial #339                // Method java/lang/ClassNotFoundException."<init>":(Ljava/lang/String;)V
+       184: athrow
+
+  public java.lang.Object tryHandleReference(java.lang.Object, org.redisson.liveobject.core.RedissonObjectBuilder$ReferenceType) throws java.lang.ReflectiveOperationException;
+    Code:
+         0: iconst_0
+         1: istore_3
+         2: aload_1
+         3: instanceof    #374                // class java/util/List
+         6: ifeq          80
+         9: aload_1
+        10: checkcast     #374                // class java/util/List
+        13: astore        4
+        15: iconst_0
+        16: istore        5
+        18: iload         5
+        20: aload         4
+        22: invokeinterface #376,  1          // InterfaceMethod java/util/List.size:()I
+        27: if_icmpge     78
+        30: aload_0
+        31: aload         4
+        33: iload         5
+        35: invokeinterface #380,  2          // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;
+        40: aload_2
+        41: invokespecial #383                // Method tryHandleReference0:(Ljava/lang/Object;Lorg/redisson/liveobject/core/RedissonObjectBuilder$ReferenceType;)Ljava/lang/Object;
+        44: astore        6
+        46: aload         6
+        48: aload         4
+        50: iload         5
+        52: invokeinterface #380,  2          // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;
+        57: if_acmpeq     72
+        60: aload         4
+        62: iload         5
+        64: aload         6
+        66: invokeinterface #387,  3          // InterfaceMethod java/util/List.set:(ILjava/lang/Object;)Ljava/lang/Object;
+        71: pop
+        72: iinc          5, 1
+        75: goto          18
+        78: aload_1
+        79: areturn
+        80: aload_1
+        81: instanceof    #168                // class java/util/Set
+        84: ifeq          283
+        87: aload_1
+        88: checkcast     #168                // class java/util/Set
+        91: astore        5
+        93: aload_1
+        94: instanceof    #391                // class java/util/LinkedHashSet
+        97: istore        6
+        99: aload_1
+       100: invokevirtual #36                 // Method java/lang/Object.getClass:()Ljava/lang/Class;
+       103: iconst_0
+       104: anewarray     #143                // class java/lang/Class
+       107: invokevirtual #393                // Method java/lang/Class.getConstructor:([Ljava/lang/Class;)Ljava/lang/reflect/Constructor;
+       110: iconst_0
+       111: anewarray     #2                  // class java/lang/Object
+       114: invokevirtual #151                // Method java/lang/reflect/Constructor.newInstance:([Ljava/lang/Object;)Ljava/lang/Object;
+       117: checkcast     #168                // class java/util/Set
+       120: astore        4
+       122: goto          136
+       125: astore        7
+       127: new           #391                // class java/util/LinkedHashSet
+       130: dup
+       131: invokespecial #396                // Method java/util/LinkedHashSet."<init>":()V
+       134: astore        4
+       136: aload         5
+       138: invokeinterface #167,  1          // InterfaceMethod java/util/Set.iterator:()Ljava/util/Iterator;
+       143: astore        7
+       145: aload         7
+       147: invokeinterface #173,  1          // InterfaceMethod java/util/Iterator.hasNext:()Z
+       152: ifeq          247
+       155: aload         7
+       157: invokeinterface #179,  1          // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+       162: astore        8
+       164: aload_0
+       165: aload         8
+       167: aload_2
+       168: invokespecial #383                // Method tryHandleReference0:(Ljava/lang/Object;Lorg/redisson/liveobject/core/RedissonObjectBuilder$ReferenceType;)Ljava/lang/Object;
+       171: astore        9
+       173: iload         6
+       175: ifeq          191
+       178: aload         4
+       180: aload         9
+       182: invokeinterface #397,  2          // InterfaceMethod java/util/Set.add:(Ljava/lang/Object;)Z
+       187: pop
+       188: goto          229
+       191: aload         5
+       193: aload         9
+       195: invokeinterface #397,  2          // InterfaceMethod java/util/Set.add:(Ljava/lang/Object;)Z
+       200: pop
+       201: aload         4
+       203: aload         8
+       205: invokeinterface #397,  2          // InterfaceMethod java/util/Set.add:(Ljava/lang/Object;)Z
+       210: pop
+       211: goto          229
+       214: astore        10
+       216: iconst_1
+       217: istore        6
+       219: aload         4
+       221: aload         9
+       223: invokeinterface #397,  2          // InterfaceMethod java/util/Set.add:(Ljava/lang/Object;)Z
+       228: pop
+       229: iload_3
+       230: aload         9
+       232: aload         8
+       234: if_acmpeq     241
+       237: iconst_1
+       238: goto          242
+       241: iconst_0
+       242: ior
+       243: istore_3
+       244: goto          145
+       247: iload_3
+       248: ifne          253
+       251: aload_1
+       252: areturn
+       253: iload         6
+       255: ifeq          261
+       258: aload         4
+       260: areturn
+       261: aload         4
+       263: invokeinterface #400,  1          // InterfaceMethod java/util/Set.isEmpty:()Z
+       268: ifne          281
+       271: aload         5
+       273: aload         4
+       275: invokeinterface #403,  2          // InterfaceMethod java/util/Set.removeAll:(Ljava/util/Collection;)Z
+       280: pop
+       281: aload_1
+       282: areturn
+       283: aload_1
+       284: instanceof    #162                // class java/util/Map
+       287: ifeq          468
+       290: aload_1
+       291: checkcast     #162                // class java/util/Map
+       294: astore        4
+       296: aload         4
+       298: invokeinterface #161,  1          // InterfaceMethod java/util/Map.entrySet:()Ljava/util/Set;
+       303: invokeinterface #167,  1          // InterfaceMethod java/util/Set.iterator:()Ljava/util/Iterator;
+       308: astore        5
+       310: aload         5
+       312: invokeinterface #173,  1          // InterfaceMethod java/util/Iterator.hasNext:()Z
+       317: ifeq          466
+       320: aload         5
+       322: invokeinterface #179,  1          // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+       327: checkcast     #183                // class java/util/Map$Entry
+       330: astore        6
+       332: aload         6
+       334: invokeinterface #185,  1          // InterfaceMethod java/util/Map$Entry.getKey:()Ljava/lang/Object;
+       339: instanceof    #63                 // class org/redisson/RedissonReference
+       342: ifne          358
+       345: aload         6
+       347: invokeinterface #191,  1          // InterfaceMethod java/util/Map$Entry.getValue:()Ljava/lang/Object;
+       352: instanceof    #63                 // class org/redisson/RedissonReference
+       355: ifeq          463
+       358: aload         6
+       360: invokeinterface #185,  1          // InterfaceMethod java/util/Map$Entry.getKey:()Ljava/lang/Object;
+       365: astore        7
+       367: aload         6
+       369: invokeinterface #191,  1          // InterfaceMethod java/util/Map$Entry.getValue:()Ljava/lang/Object;
+       374: astore        8
+       376: aload         6
+       378: invokeinterface #185,  1          // InterfaceMethod java/util/Map$Entry.getKey:()Ljava/lang/Object;
+       383: instanceof    #63                 // class org/redisson/RedissonReference
+       386: ifeq          421
+       389: aload_0
+       390: aload         6
+       392: invokeinterface #185,  1          // InterfaceMethod java/util/Map$Entry.getKey:()Ljava/lang/Object;
+       397: checkcast     #63                 // class org/redisson/RedissonReference
+       400: aload_2
+       401: invokevirtual #407                // Method fromReference:(Lorg/redisson/RedissonReference;Lorg/redisson/liveobject/core/RedissonObjectBuilder$ReferenceType;)Ljava/lang/Object;
+       404: astore        7
+       406: aload         4
+       408: aload         6
+       410: invokeinterface #185,  1          // InterfaceMethod java/util/Map$Entry.getKey:()Ljava/lang/Object;
+       415: invokeinterface #410,  2          // InterfaceMethod java/util/Map.remove:(Ljava/lang/Object;)Ljava/lang/Object;
+       420: pop
+       421: aload         6
+       423: invokeinterface #191,  1          // InterfaceMethod java/util/Map$Entry.getValue:()Ljava/lang/Object;
+       428: instanceof    #63                 // class org/redisson/RedissonReference
+       431: ifeq          451
+       434: aload_0
+       435: aload         6
+       437: invokeinterface #191,  1          // InterfaceMethod java/util/Map$Entry.getValue:()Ljava/lang/Object;
+       442: checkcast     #63                 // class org/redisson/RedissonReference
+       445: aload_2
+       446: invokevirtual #407                // Method fromReference:(Lorg/redisson/RedissonReference;Lorg/redisson/liveobject/core/RedissonObjectBuilder$ReferenceType;)Ljava/lang/Object;
+       449: astore        8
+       451: aload         4
+       453: aload         7
+       455: aload         8
+       457: invokeinterface #228,  3          // InterfaceMethod java/util/Map.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       462: pop
+       463: goto          310
+       466: aload_1
+       467: areturn
+       468: aload_1
+       469: instanceof    #413                // class org/redisson/client/protocol/decoder/ListScanResult
+       472: ifeq          490
+       475: aload_0
+       476: aload_1
+       477: checkcast     #413                // class org/redisson/client/protocol/decoder/ListScanResult
+       480: invokevirtual #415                // Method org/redisson/client/protocol/decoder/ListScanResult.getValues:()Ljava/util/List;
+       483: aload_2
+       484: invokevirtual #419                // Method tryHandleReference:(Ljava/lang/Object;Lorg/redisson/liveobject/core/RedissonObjectBuilder$ReferenceType;)Ljava/lang/Object;
+       487: pop
+       488: aload_1
+       489: areturn
+       490: aload_1
+       491: instanceof    #422                // class org/redisson/client/protocol/decoder/MapScanResult
+       494: ifeq          562
+       497: aload_1
+       498: checkcast     #422                // class org/redisson/client/protocol/decoder/MapScanResult
+       501: astore        4
+       503: aload_1
+       504: checkcast     #422                // class org/redisson/client/protocol/decoder/MapScanResult
+       507: invokevirtual #424                // Method org/redisson/client/protocol/decoder/MapScanResult.getMap:()Ljava/util/Map;
+       510: astore        5
+       512: aload_0
+       513: aload         5
+       515: aload_2
+       516: invokevirtual #419                // Method tryHandleReference:(Ljava/lang/Object;Lorg/redisson/liveobject/core/RedissonObjectBuilder$ReferenceType;)Ljava/lang/Object;
+       519: checkcast     #162                // class java/util/Map
+       522: astore        6
+       524: aload         6
+       526: aload         5
+       528: if_acmpeq     560
+       531: new           #422                // class org/redisson/client/protocol/decoder/MapScanResult
+       534: dup
+       535: aload         4
+       537: invokevirtual #428                // Method org/redisson/client/protocol/decoder/MapScanResult.getPos:()J
+       540: aload         6
+       542: invokespecial #432                // Method org/redisson/client/protocol/decoder/MapScanResult."<init>":(JLjava/util/Map;)V
+       545: astore        7
+       547: aload         7
+       549: aload         4
+       551: invokevirtual #435                // Method org/redisson/client/protocol/decoder/MapScanResult.getRedisClient:()Lorg/redisson/client/RedisClient;
+       554: invokevirtual #439                // Method org/redisson/client/protocol/decoder/MapScanResult.setRedisClient:(Lorg/redisson/client/RedisClient;)V
+       557: aload         7
+       559: areturn
+       560: aload_1
+       561: areturn
+       562: aload_0
+       563: aload_1
+       564: aload_2
+       565: invokespecial #383                // Method tryHandleReference0:(Ljava/lang/Object;Lorg/redisson/liveobject/core/RedissonObjectBuilder$ReferenceType;)Ljava/lang/Object;
+       568: areturn
+      Exception table:
+         from    to  target type
+            99   122   125   Class java/lang/Exception
+           191   211   214   Class java/lang/Exception
+
+  private java.lang.Object tryHandleReference0(java.lang.Object, org.redisson.liveobject.core.RedissonObjectBuilder$ReferenceType) throws java.lang.ReflectiveOperationException;
+    Code:
+         0: aload_1
+         1: instanceof    #63                 // class org/redisson/RedissonReference
+         4: ifeq          17
+         7: aload_0
+         8: aload_1
+         9: checkcast     #63                 // class org/redisson/RedissonReference
+        12: aload_2
+        13: invokevirtual #407                // Method fromReference:(Lorg/redisson/RedissonReference;Lorg/redisson/liveobject/core/RedissonObjectBuilder$ReferenceType;)Ljava/lang/Object;
+        16: areturn
+        17: aload_1
+        18: instanceof    #443                // class org/redisson/client/protocol/ScoredEntry
+        21: ifeq          66
+        24: aload_1
+        25: checkcast     #443                // class org/redisson/client/protocol/ScoredEntry
+        28: invokevirtual #445                // Method org/redisson/client/protocol/ScoredEntry.getValue:()Ljava/lang/Object;
+        31: instanceof    #63                 // class org/redisson/RedissonReference
+        34: ifeq          66
+        37: aload_1
+        38: checkcast     #443                // class org/redisson/client/protocol/ScoredEntry
+        41: astore_3
+        42: new           #443                // class org/redisson/client/protocol/ScoredEntry
+        45: dup
+        46: aload_3
+        47: invokevirtual #446                // Method org/redisson/client/protocol/ScoredEntry.getScore:()Ljava/lang/Double;
+        50: aload_0
+        51: aload_3
+        52: invokevirtual #445                // Method org/redisson/client/protocol/ScoredEntry.getValue:()Ljava/lang/Object;
+        55: checkcast     #63                 // class org/redisson/RedissonReference
+        58: aload_2
+        59: invokevirtual #407                // Method fromReference:(Lorg/redisson/RedissonReference;Lorg/redisson/liveobject/core/RedissonObjectBuilder$ReferenceType;)Ljava/lang/Object;
+        62: invokespecial #450                // Method org/redisson/client/protocol/ScoredEntry."<init>":(Ljava/lang/Double;Ljava/lang/Object;)V
+        65: areturn
+        66: aload_1
+        67: instanceof    #183                // class java/util/Map$Entry
+        70: ifeq          138
+        73: aload_1
+        74: checkcast     #183                // class java/util/Map$Entry
+        77: astore_3
+        78: aload_0
+        79: aload_3
+        80: invokeinterface #185,  1          // InterfaceMethod java/util/Map$Entry.getKey:()Ljava/lang/Object;
+        85: aload_2
+        86: invokespecial #383                // Method tryHandleReference0:(Ljava/lang/Object;Lorg/redisson/liveobject/core/RedissonObjectBuilder$ReferenceType;)Ljava/lang/Object;
+        89: astore        4
+        91: aload_0
+        92: aload_3
+        93: invokeinterface #191,  1          // InterfaceMethod java/util/Map$Entry.getValue:()Ljava/lang/Object;
+        98: aload_2
+        99: invokespecial #383                // Method tryHandleReference0:(Ljava/lang/Object;Lorg/redisson/liveobject/core/RedissonObjectBuilder$ReferenceType;)Ljava/lang/Object;
+       102: astore        5
+       104: aload         5
+       106: aload_3
+       107: invokeinterface #191,  1          // InterfaceMethod java/util/Map$Entry.getValue:()Ljava/lang/Object;
+       112: if_acmpne     126
+       115: aload         4
+       117: aload_3
+       118: invokeinterface #185,  1          // InterfaceMethod java/util/Map$Entry.getKey:()Ljava/lang/Object;
+       123: if_acmpeq     138
+       126: new           #453                // class java/util/AbstractMap$SimpleEntry
+       129: dup
+       130: aload         4
+       132: aload         5
+       134: invokespecial #455                // Method java/util/AbstractMap$SimpleEntry."<init>":(Ljava/lang/Object;Ljava/lang/Object;)V
+       137: areturn
+       138: aload_1
+       139: areturn
+
+  static {};
+    Code:
+         0: new           #458                // class java/util/LinkedHashMap
+         3: dup
+         4: invokespecial #460                // Method java/util/LinkedHashMap."<init>":()V
+         7: putstatic     #157                // Field SUPPORTED_CLASS_MAPPING:Ljava/util/Map;
+        10: new           #461                // class java/util/HashMap
+        13: dup
+        14: invokespecial #463                // Method java/util/HashMap."<init>":()V
+        17: putstatic     #295                // Field REFERENCES:Ljava/util/Map;
+        20: getstatic     #157                // Field SUPPORTED_CLASS_MAPPING:Ljava/util/Map;
+        23: ldc_w         #464                // class java/util/SortedSet
+        26: ldc_w         #466                // class org/redisson/RedissonSortedSet
+        29: invokeinterface #228,  3          // InterfaceMethod java/util/Map.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+        34: pop
+        35: getstatic     #157                // Field SUPPORTED_CLASS_MAPPING:Ljava/util/Map;
+        38: ldc           #168                // class java/util/Set
+        40: ldc_w         #468                // class org/redisson/RedissonSet
+        43: invokeinterface #228,  3          // InterfaceMethod java/util/Map.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+        48: pop
+        49: getstatic     #157                // Field SUPPORTED_CLASS_MAPPING:Ljava/util/Map;
+        52: ldc_w         #470                // class java/util/concurrent/ConcurrentMap
+        55: ldc_w         #472                // class org/redisson/RedissonMap
+        58: invokeinterface #228,  3          // InterfaceMethod java/util/Map.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+        63: pop
+        64: getstatic     #157                // Field SUPPORTED_CLASS_MAPPING:Ljava/util/Map;
+        67: ldc           #162                // class java/util/Map
+        69: ldc_w         #472                // class org/redisson/RedissonMap
+        72: invokeinterface #228,  3          // InterfaceMethod java/util/Map.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+        77: pop
+        78: getstatic     #157                // Field SUPPORTED_CLASS_MAPPING:Ljava/util/Map;
+        81: ldc_w         #474                // class java/util/concurrent/BlockingDeque
+        84: ldc_w         #476                // class org/redisson/RedissonBlockingDeque
+        87: invokeinterface #228,  3          // InterfaceMethod java/util/Map.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+        92: pop
+        93: getstatic     #157                // Field SUPPORTED_CLASS_MAPPING:Ljava/util/Map;
+        96: ldc_w         #478                // class java/util/Deque
+        99: ldc_w         #480                // class org/redisson/RedissonDeque
+       102: invokeinterface #228,  3          // InterfaceMethod java/util/Map.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       107: pop
+       108: getstatic     #157                // Field SUPPORTED_CLASS_MAPPING:Ljava/util/Map;
+       111: ldc_w         #482                // class java/util/concurrent/BlockingQueue
+       114: ldc_w         #484                // class org/redisson/RedissonBlockingQueue
+       117: invokeinterface #228,  3          // InterfaceMethod java/util/Map.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       122: pop
+       123: getstatic     #157                // Field SUPPORTED_CLASS_MAPPING:Ljava/util/Map;
+       126: ldc_w         #486                // class java/util/Queue
+       129: ldc_w         #488                // class org/redisson/RedissonQueue
+       132: invokeinterface #228,  3          // InterfaceMethod java/util/Map.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       137: pop
+       138: getstatic     #157                // Field SUPPORTED_CLASS_MAPPING:Ljava/util/Map;
+       141: ldc_w         #374                // class java/util/List
+       144: ldc_w         #490                // class org/redisson/RedissonList
+       147: invokeinterface #228,  3          // InterfaceMethod java/util/Map.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       152: pop
+       153: getstatic     #295                // Field REFERENCES:Ljava/util/Map;
+       156: ldc           #17                 // class org/redisson/api/RedissonClient
+       158: ldc           #61                 // class org/redisson/api/RObject
+       160: invokestatic  #492                // Method fillCodecMethods:(Ljava/util/Map;Ljava/lang/Class;Ljava/lang/Class;)V
+       163: getstatic     #295                // Field REFERENCES:Ljava/util/Map;
+       166: ldc           #47                 // class org/redisson/api/RedissonReactiveClient
+       168: ldc_w         #353                // class org/redisson/api/RObjectReactive
+       171: invokestatic  #492                // Method fillCodecMethods:(Ljava/util/Map;Ljava/lang/Class;Ljava/lang/Class;)V
+       174: getstatic     #295                // Field REFERENCES:Ljava/util/Map;
+       177: ldc           #54                 // class org/redisson/api/RedissonRxClient
+       179: ldc_w         #357                // class org/redisson/api/RObjectRx
+       182: invokestatic  #492                // Method fillCodecMethods:(Ljava/util/Map;Ljava/lang/Class;Ljava/lang/Class;)V
+       185: return
+}

@@ -1,0 +1,48 @@
+{
+  "runs_per_variant": 30,
+  "settle_seconds": 10,
+  "seed": 20261009,
+  "load_repeats": 5,
+  "poll_interval_seconds": 0.02,
+  "clock": "time.monotonic_ns",
+  "native_flags": [
+    "-Xms128m",
+    "-Xmx512m"
+  ],
+  "platform": [
+    "Linux",
+    "mac03-debian",
+    "6.12.107+deb13-amd64",
+    "#1 SMP PREEMPT_DYNAMIC Debian 6.12.107-1 (2026-08-29)",
+    "x86_64"
+  ],
+  "expected_read": {
+    "name": "Benchmark merchant",
+    "expressionName": "Benchmark merchant",
+    "platformId": 1,
+    "taskLifeHours": 48
+  },
+  "cache_policy": "Fresh native process; OS cache not cleared; schema and fixtures outside timing. No Redis use.",
+  "executables": {
+    "standalone": {
+      "sha256": "5c804bed2ee4a045847cc924be8d5a8b9e1fd54771bea9431051e4010ed464b0",
+      "bytes": 58853696
+    },
+    "spring": {
+      "sha256": "ea4e18bfa74b92407a5c72db275e32072e736cc3a347be3dace55f73fa343ef1",
+      "bytes": 97978688
+    },
+    "quarkus": {
+      "sha256": "cfd74ef13834536a7f707a1375cfc7fe50688be27c413a09d342800acfbf04e6",
+      "bytes": 62392640
+    },
+    "micronaut": {
+      "sha256": "b1c49da0313fe38e7ceb88832e8210655a3ddeed811deaba0a189e7b194865f9",
+      "bytes": 92211520
+    },
+    "legacy": {
+      "sha256": "afc0577e061825ec5e7e96fb189b3f2b86d2d8b295c5cadb665283dbe5e0d4bc",
+      "bytes": 137234752
+    }
+  }
+}

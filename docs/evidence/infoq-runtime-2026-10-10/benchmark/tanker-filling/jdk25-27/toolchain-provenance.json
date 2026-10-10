@@ -1,0 +1,10 @@
+{
+  "25": {
+    "archive_sha256": "dd7e7f51d23bcffe85f1a439577ce1c0190a33417b34afdb338f9b3897bdeaec",
+    "java_version": "java version \"25.0.4.1\" 2026-08-18 LTS\nJava(TM) SE Runtime Environment (build 25.0.4.1+1-LTS-5)\nJava HotSpot(TM) 64-Bit Server VM (build 25.0.4.1+1-LTS-5, mixed mode, sharing)\n"
+  },
+  "27": {
+    "archive_sha256": "0c7bb6c33c7fcc46674054cab734e3ca027ba05323c6c6ecbc8786f76a45b155",
+    "java_version": "java version \"27\" 2026-09-15\nJava(TM) SE Runtime Environment (build 27+35-2325)\nJava HotSpot(TM) 64-Bit Server VM (build 27+35-2325, mixed mode, sharing)\n"
+  }
+}

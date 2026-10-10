@@ -1,0 +1,74 @@
+TeaQL 1.163-RELEASE SQLRepository: javap -p -c excerpt from deployed artifact.
+
+  protected void initExpressionParsers(io.teaql.data.meta.EntityDescriptor, javax.sql.DataSource);
+    Code:
+       0: ldc           #77                 // class io/teaql/data/sql/expression/ExpressionHelper
+       2: invokevirtual #79                 // Method java/lang/Class.getPackageName:()Ljava/lang/String;
+       5: ldc           #85                 // class io/teaql/data/sql/expression/SQLExpressionParser
+       7: invokestatic  #87                 // Method cn/hutool/core/util/ClassUtil.scanPackageBySuper:(Ljava/lang/String;Ljava/lang/Class;)Ljava/util/Set;
+      10: astore_3
+      11: aload_3
+      12: invokeinterface #93,  1           // InterfaceMethod java/util/Set.iterator:()Ljava/util/Iterator;
+      17: astore        4
+      19: aload         4
+      21: invokeinterface #99,  1           // InterfaceMethod java/util/Iterator.hasNext:()Z
+      26: ifeq          80
+      29: aload         4
+      31: invokeinterface #105,  1          // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+      36: checkcast     #80                 // class java/lang/Class
+      39: astore        5
+      41: aload         5
+      43: invokestatic  #109                // Method cn/hutool/core/util/ClassUtil.isInterface:(Ljava/lang/Class;)Z
+      46: ifne          77
+      49: aload         5
+      51: invokestatic  #113                // Method cn/hutool/core/util/ClassUtil.isAbstract:(Ljava/lang/Class;)Z
+      54: ifne          77
+      57: aload         5
+      59: iconst_0
+      60: anewarray     #116                // class java/lang/Object
+      63: invokestatic  #118                // Method cn/hutool/core/util/ReflectUtil.newInstance:(Ljava/lang/Class;[Ljava/lang/Object;)Ljava/lang/Object;
+      66: checkcast     #85                 // class io/teaql/data/sql/expression/SQLExpressionParser
+      69: astore        6
+      71: aload_0
+      72: aload         6
+      74: invokevirtual #124                // Method registerExpressionParser:(Lio/teaql/data/sql/expression/SQLExpressionParser;)V
+      77: goto          19
+      80: return
+
+  public void registerExpressionParser(io.teaql.data.sql.expression.SQLExpressionParser);
+    Code:
+       0: aload_1
+       1: ifnonnull     5
+       4: return
+       5: aload_1
+       6: invokeinterface #128,  1          // InterfaceMethod io/teaql/data/sql/expression/SQLExpressionParser.type:()Ljava/lang/Class;
+      11: astore_2
+      12: aload_2
+      13: ifnull        28
+      16: aload_0
+      17: getfield      #48                 // Field expressionParsers:Ljava/util/Map;
+      20: aload_2
+      21: aload_1
+      22: invokeinterface #132,  3          // InterfaceMethod java/util/Map.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+      27: pop
+      28: return
+
+  public void registerExpressionParser(java.lang.Class<? extends io.teaql.data.sql.expression.SQLExpressionParser>);
+    Code:
+       0: aload_1
+       1: invokestatic  #109                // Method cn/hutool/core/util/ClassUtil.isInterface:(Ljava/lang/Class;)Z
+       4: ifne          31
+       7: aload_1
+       8: invokestatic  #113                // Method cn/hutool/core/util/ClassUtil.isAbstract:(Ljava/lang/Class;)Z
+      11: ifne          31
+      14: aload_1
+      15: iconst_0
+      16: anewarray     #116                // class java/lang/Object
+      19: invokestatic  #118                // Method cn/hutool/core/util/ReflectUtil.newInstance:(Ljava/lang/Class;[Ljava/lang/Object;)Ljava/lang/Object;
+      22: checkcast     #85                 // class io/teaql/data/sql/expression/SQLExpressionParser
+      25: astore_2
+      26: aload_0
+      27: aload_2
+      28: invokevirtual #124                // Method registerExpressionParser:(Lio/teaql/data/sql/expression/SQLExpressionParser;)V
+      31: return
+

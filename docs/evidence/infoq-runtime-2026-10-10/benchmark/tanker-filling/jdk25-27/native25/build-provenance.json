@@ -1,0 +1,3521 @@
+{
+  "app_source_commits": {
+    "current_frameworks": "3a29946",
+    "legacy": "fb1fb9c",
+    "shared_operations": "176a323"
+  },
+  "baseline_jvm_source_commit": "176a323",
+  "native_image_version": "native-image 25.0.4 2026-07-21\nGraalVM Runtime Environment Oracle GraalVM 25.0.4+7.1 (build 25.0.4+7-LTS-jvmci-b01)\nSubstrate VM Oracle GraalVM 25.0.4+7.1 (build 25.0.4+7-LTS, serial gc, compressed references)\n",
+  "gcc": "gcc (Debian 14.2.0-19) 14.2.0\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+  "uname": "Linux mac03-debian 6.12.107+deb13-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.12.107-1 (2026-08-29) x86_64 GNU/Linux\n",
+  "compiler_options": [
+    "-J-Xmx8g",
+    "--parallelism=4",
+    "--no-fallback",
+    "-march=compatibility",
+    "-O2",
+    "--gc=serial"
+  ],
+  "inputs": {
+    "standalone": {
+      "agent-config/jni-config.json": {
+        "bytes": 496,
+        "sha256": "e47e74ab6c2f5f33e5b2cf24a0e97e26cf2dfc7cb1c7daec8bb159e8777168df"
+      },
+      "agent-config/predefined-classes-config.json": {
+        "bytes": 65,
+        "sha256": "95417c9ded690045740dcff27d995fe905d7df481e5e608996e9dc1d02dfa9e4"
+      },
+      "agent-config/proxy-config.json": {
+        "bytes": 53,
+        "sha256": "ef00848dfcc55df51138c6d6c6e1c7243d88254e492e8d987f9d34aa5e990d15"
+      },
+      "agent-config/reachability-metadata.json": {
+        "bytes": 8955,
+        "sha256": "0b144edbd313b53c6b08d6682d966a83ca9eb9c4876876ba119a0eed18c05402"
+      },
+      "agent-config/reflect-config.json": {
+        "bytes": 6113,
+        "sha256": "6e25eb939d90ed11bc4773538a8ab4d1d923c8539940bb1363f043d059a75e7b"
+      },
+      "agent-config/resource-config.json": {
+        "bytes": 1236,
+        "sha256": "32e35326a062ab7044223f7b120a6aaa6bc56077c74b3fd6c5f9e352642decc5"
+      },
+      "agent-config/serialization-config.json": {
+        "bytes": 71,
+        "sha256": "15f2f4c44f0a4195ee07a39279fff5cff2b1f4746133409fed4089b960460a8a"
+      },
+      "standalone": {
+        "bytes": 58853696,
+        "sha256": "5c804bed2ee4a045847cc924be8d5a8b9e1fd54771bea9431051e4010ed464b0"
+      }
+    },
+    "quarkus": {
+      "build-artifacts.json": {
+        "bytes": 106,
+        "sha256": "0baa927c8232051d0717a9c9ba947802541296d0dff40045a45f2f28cfdc701f"
+      },
+      "lib/cn.hutool.hutool-all-5.8.20.jar": {
+        "bytes": 2510096,
+        "sha256": "b16bcec618412849d91526a2685051a3c3827679ce6f2e50fd7de50402d61b2a"
+      },
+      "lib/com.aayushatharva.brotli4j.brotli4j-1.23.0.jar": {
+        "bytes": 47251,
+        "sha256": "5fcf13ad78d07319cc507465dcf61cbc3efee9f45c9ae1c42a9902414696bc0b"
+      },
+      "lib/com.aayushatharva.brotli4j.native-osx-aarch64-1.23.0.jar": {
+        "bytes": 414873,
+        "sha256": "be3bc53688dbaff26d9d554301837de2bfa9ec09090b64d1ebf1fb6b23c28e61"
+      },
+      "lib/com.aayushatharva.brotli4j.service-1.23.0.jar": {
+        "bytes": 3367,
+        "sha256": "7f298d44dbb7688419f0179ee1dfa0e4436633272b05d38a5faf3a2b8d08697b"
+      },
+      "lib/com.fasterxml.jackson.core.jackson-annotations-2.22.jar": {
+        "bytes": 84211,
+        "sha256": "21ddb598807d3a51a876704eb979d9296e1c6a6f47ab1826ff88c6d6a127a2d0"
+      },
+      "lib/com.fasterxml.jackson.core.jackson-core-2.22.3.jar": {
+        "bytes": 594776,
+        "sha256": "8a501126a385b25841915d839508f8a66e2a0dbc8a6709d055ef3b3e852b094c"
+      },
+      "lib/com.fasterxml.jackson.core.jackson-databind-2.22.3.jar": {
+        "bytes": 1709604,
+        "sha256": "556db5439e206114346043f68d200497dc96a0bca62a360a81784092ebd0e0a9"
+      },
+      "lib/com.fasterxml.jackson.datatype.jackson-datatype-jdk8-2.22.3.jar": {
+        "bytes": 36039,
+        "sha256": "f223061a5aaecdc9506458143807c73bcd1a744d6b3bbb8da4703a0abc408f7d"
+      },
+      "lib/com.fasterxml.jackson.datatype.jackson-datatype-jsr310-2.22.3.jar": {
+        "bytes": 136875,
+        "sha256": "ec7052ee48c9d873bb8148338a643f02cf89c01d035dd219411473030d6d2b22"
+      },
+      "lib/com.fasterxml.jackson.module.jackson-module-parameter-names-2.21.7.jar": {
+        "bytes": 10188,
+        "sha256": "ffe66bf4bbb7b4f201aad456294312f13b3649aa392c36d95e786c910a0d513a"
+      },
+      "lib/com.zaxxer.HikariCP-5.0.1.jar": {
+        "bytes": 161902,
+        "sha256": "26d492397e6775b4296737a8919bf04047afe5827fdd2c08b4557595436b3a2b"
+      },
+      "lib/io.netty.netty-buffer-4.1.138.Final.jar": {
+        "bytes": 365379,
+        "sha256": "5bef3ea2b9e80c5e8d03151ca1609bd75fd1e264863bf3e2f8d538392c0f2c38"
+      },
+      "lib/io.netty.netty-codec-4.1.138.Final.jar": {
+        "bytes": 360280,
+        "sha256": "21b9b7717da9ed7034c7a9ef4fcea4a08825e8f52d775da4d898364edf99327f"
+      },
+      "lib/io.netty.netty-codec-dns-4.1.138.Final.jar": {
+        "bytes": 68727,
+        "sha256": "715d8ba984fde2c9ffc35917c8c1dfdea6b10f0460922f4f6f587c92db8f4ef1"
+      },
+      "lib/io.netty.netty-codec-haproxy-4.1.138.Final.jar": {
+        "bytes": 38541,
+        "sha256": "56cc45103a0d24329e3065305c802360beb0c921318222142c333059421f3964"
+      },
+      "lib/io.netty.netty-codec-http-4.1.138.Final.jar": {
+        "bytes": 694763,
+        "sha256": "7d9000e53c8e37504be42b8dd7b646a7d1c73ad2cf801527fe3c6301880fe06f"
+      },
+      "lib/io.netty.netty-codec-http2-4.1.138.Final.jar": {
+        "bytes": 507477,
+        "sha256": "c7521231535c252903d9e424e162f789b5b55b0b0799628ea466a9b3daf49dae"
+      },
+      "lib/io.netty.netty-codec-socks-4.1.138.Final.jar": {
+        "bytes": 121961,
+        "sha256": "bc15ad96188a6eee2d0c5f7f8e443fa916fa30e74a65e220b1ac0a04574dda87"
+      },
+      "lib/io.netty.netty-handler-4.1.138.Final.jar": {
+        "bytes": 588803,
+        "sha256": "a79fb814e029db17da82baea25a0340172af2c59f107fd20b394c1fa28680f21"
+      },
+      "lib/io.netty.netty-handler-proxy-4.1.138.Final.jar": {
+        "bytes": 25837,
+        "sha256": "fd26635e06af15b2dd3f7502a195dc19fcd451264948a8707fb26f60e4d510b9"
+      },
+      "lib/io.netty.netty-resolver-4.1.138.Final.jar": {
+        "bytes": 37904,
+        "sha256": "50c338a0e5c9997513e738f0fcb47d579a9e8852d317ba367f5d141e210187c0"
+      },
+      "lib/io.netty.netty-resolver-dns-4.1.138.Final.jar": {
+        "bytes": 188956,
+        "sha256": "a636815e5bcc9501a7d2c9bdba8b058811ddec5d0c76ec58fc6a165f4facf21c"
+      },
+      "lib/io.netty.netty-tcnative-classes-2.0.84.Final.jar": {
+        "bytes": 37308,
+        "sha256": "7a4437abf98b0cec053af4443fe321177d2cfccfec7bcad4e7d8b75571bbec4d"
+      },
+      "lib/io.netty.netty-transport-native-unix-common-4.1.138.Final.jar": {
+        "bytes": 44328,
+        "sha256": "8d1ada8f185d6f6da4cd79f9daeef39f1db49908cfec8bc2a1fb602458aa2341"
+      },
+      "lib/io.quarkus.arc.arc-3.40.1.jar": {
+        "bytes": 288614,
+        "sha256": "06ef89b8a2da007286342f1855452ae50655d78263e28cc9448d414c4187be54"
+      },
+      "lib/io.quarkus.quarkus-arc-3.40.1.jar": {
+        "bytes": 71107,
+        "sha256": "6e67b61817de34142d2fd97359d9e6b7619cfb8ab2c733f835cb9f85983fb00c"
+      },
+      "lib/io.quarkus.quarkus-bootstrap-runner-3.40.1.jar": {
+        "bytes": 91974,
+        "sha256": "19eb62fe3c60ad3f5c6b5aad4b6b879d79daf95ad2078b14683aba95c3a5be33"
+      },
+      "lib/io.quarkus.quarkus-classloader-commons-3.40.1.jar": {
+        "bytes": 7956,
+        "sha256": "406f021aedcd1ddb4521fe9fa947d00bfe8e55f6f1d87e6904618eb1f83aa78b"
+      },
+      "lib/io.quarkus.quarkus-core-3.40.1.jar": {
+        "bytes": 560357,
+        "sha256": "3f75b567f56ed89f80451176656a78fdcced7571330f7e7c7527f1f3ea987d97"
+      },
+      "lib/io.quarkus.quarkus-credentials-3.40.1.jar": {
+        "bytes": 8465,
+        "sha256": "7ea00fcfeaf26c5bd6c925c1ab5247b06ff4afc8528812cdca741fc34bba641d"
+      },
+      "lib/io.quarkus.quarkus-development-mode-spi-3.40.1.jar": {
+        "bytes": 55228,
+        "sha256": "33638b290e946702730acf6e57aec4e3dd339815c3fa0f0ce5019288dc3367b9"
+      },
+      "lib/io.quarkus.quarkus-fs-util-1.4.2.jar": {
+        "bytes": 72690,
+        "sha256": "a6034133b21de4e3aee4bc9e250f8416abfbdc0c86e6e0737f766415c3866169"
+      },
+      "lib/io.quarkus.quarkus-jackson-3.40.1.jar": {
+        "bytes": 24980,
+        "sha256": "95b89d56a93027a9c3d525edb067ae694d71f0dd5d8c99611316f9c63744a35e"
+      },
+      "lib/io.quarkus.quarkus-jsonp-3.40.1.jar": {
+        "bytes": 7948,
+        "sha256": "01088afd376475fdf91d5abab712519bd23f167aded8713fdebf0b1e3e8344f1"
+      },
+      "lib/io.quarkus.quarkus-mutiny-3.40.1.jar": {
+        "bytes": 13336,
+        "sha256": "eb0c14df189da848ce262920c3315a7ad1d7669f18fb12673e3b9099e69d41b7"
+      },
+      "lib/io.quarkus.quarkus-netty-3.40.1.jar": {
+        "bytes": 71162,
+        "sha256": "c76df5a03a93c634d4a271ca6d8e8a8b352e34bd710782e6d56218c137e966c5"
+      },
+      "lib/io.quarkus.quarkus-rest-3.40.1.jar": {
+        "bytes": 134036,
+        "sha256": "d5c5a4ab594ee9f80a176bfe9150fc16aa437a44ccaf82175a21668e68afb4e7"
+      },
+      "lib/io.quarkus.quarkus-rest-common-3.40.1.jar": {
+        "bytes": 21608,
+        "sha256": "afda6cd5fe96873e2354e4a43266b52c44c06658dd62f472829ba93a1faafd88"
+      },
+      "lib/io.quarkus.quarkus-rest-jackson-3.40.1.jar": {
+        "bytes": 78822,
+        "sha256": "39fe05c33c2be3008f0796e86bdd4f063796e549c4fd530f331e6c61f802080c"
+      },
+      "lib/io.quarkus.quarkus-rest-jackson-common-3.40.1.jar": {
+        "bytes": 14137,
+        "sha256": "98373d60e3e93096a51562c9ab85b69cb3068a290b411161b3b0c8dfe329f725"
+      },
+      "lib/io.quarkus.quarkus-security-runtime-spi-3.40.1.jar": {
+        "bytes": 31882,
+        "sha256": "f155068d9d4fe20ad1e0f2bfc23f1139160a1e53fcc73644d3c0f63faa408668"
+      },
+      "lib/io.quarkus.quarkus-smallrye-context-propagation-3.40.1.jar": {
+        "bytes": 18743,
+        "sha256": "fb47ec4762179cdda80181e53e9574a914325bddee30158cf776e6bc839d8275"
+      },
+      "lib/io.quarkus.quarkus-tls-registry-3.40.1.jar": {
+        "bytes": 102524,
+        "sha256": "d80244e55b66057b9c3e400dfe39dbc57fde7192ea75a5547bc110cd7096a67f"
+      },
+      "lib/io.quarkus.quarkus-tls-registry-spi-3.40.1.jar": {
+        "bytes": 13041,
+        "sha256": "811dd9659d23724fc15109fbcc5754bcbe436705441ce43f771e047b550ab5e1"
+      },
+      "lib/io.quarkus.quarkus-value-registry-3.40.1.jar": {
+        "bytes": 10527,
+        "sha256": "f0ea7643b20999443d2e53dcc490ad308e38ca9473b83abcaa9bb09bbf1b0f14"
+      },
+      "lib/io.quarkus.quarkus-vertx-3.40.1.jar": {
+        "bytes": 147535,
+        "sha256": "8e7399a09a8a235e495ffd2b0c66b9d35d0ce8a280d6827f6a6876d77c0d61bc"
+      },
+      "lib/io.quarkus.quarkus-vertx-http-3.40.1.jar": {
+        "bytes": 780243,
+        "sha256": "49260443ad38c239e6b42e0ff4072b9b77142fdb4a7e2d4cda2aa43b12ca1aa7"
+      },
+      "lib/io.quarkus.quarkus-vertx-latebound-mdc-provider-3.40.1.jar": {
+        "bytes": 9904,
+        "sha256": "3a808a8e3e41d2519de206067a03365407c3e8c4b9801bad28d82ae9dff1c0ad"
+      },
+      "lib/io.quarkus.quarkus-virtual-threads-3.40.1.jar": {
+        "bytes": 25260,
+        "sha256": "eac8ea03397d8849f474c65af22b8348313a77dfa91621c8b54b80cce648321c"
+      },
+      "lib/io.quarkus.resteasy.reactive.resteasy-reactive-common-3.40.1.jar": {
+        "bytes": 322059,
+        "sha256": "a81e52d3f430a8af4f1ec0ffc5f3c1e30d81756561b480bd63aee390e039be2a"
+      },
+      "lib/io.quarkus.resteasy.reactive.resteasy-reactive-common-types-3.40.1.jar": {
+        "bytes": 7097,
+        "sha256": "8e5f04e41ac3fea678a13feed770b4253a71c8b94687761d3e1146008beabaa0"
+      },
+      "lib/io.quarkus.resteasy.reactive.resteasy-reactive-jackson-3.40.1.jar": {
+        "bytes": 10482,
+        "sha256": "e334cc0950bb83a6bea6cd90d8158512041fce8d53037dab8e250471fb9bd54f"
+      },
+      "lib/io.quarkus.resteasy.reactive.resteasy-reactive-vertx-3.40.1.jar": {
+        "bytes": 50380,
+        "sha256": "2825004d47480c9452bb6e0510486020512014e278146aff4a5992e9fb7cda16"
+      },
+      "lib/io.quarkus.security.quarkus-security-2.3.2.jar": {
+        "bytes": 22419,
+        "sha256": "9176a0e5b88d7b29ab28b5137d5702d44a248da3d7e7fa80f1b89d4ec64f929a"
+      },
+      "lib/io.quarkus.vertx.utils.quarkus-vertx-utils-3.40.1.jar": {
+        "bytes": 22824,
+        "sha256": "0f800dc92ea4ade6a3dc0dba32b2f825a1da38b5c8dffaac3a7e1d1be1771381"
+      },
+      "lib/io.smallrye.certs.smallrye-private-key-pem-parser-0.9.4.jar": {
+        "bytes": 19985,
+        "sha256": "2444ab1430505d1a8a9f6c9797fba60e14948bfe27cf8c98ae012c37bf768c15"
+      },
+      "lib/io.smallrye.common.smallrye-common-annotation-2.19.0.jar": {
+        "bytes": 11989,
+        "sha256": "a29ef5d8ed9e306ed683a4d680bb1c03f89c41196aa0a41c95eb0dda8e81e346"
+      },
+      "lib/io.smallrye.common.smallrye-common-classloader-2.19.0.jar": {
+        "bytes": 10942,
+        "sha256": "868c3fcb738281b2b360ba706b9074b674ee6c697d971a52bd77f4099ba2fd5c"
+      },
+      "lib/io.smallrye.common.smallrye-common-constraint-2.19.0.jar": {
+        "bytes": 13614,
+        "sha256": "4454a2f32caeadb47cf6f0565c667f64c21facbee959cf15bcfc8ec8755c471a"
+      },
+      "lib/io.smallrye.common.smallrye-common-cpu-2.19.0.jar": {
+        "bytes": 16749,
+        "sha256": "845825ee711b0e0511c2cd12430680b767c6ee69e60d6b32bb90befd52420927"
+      },
+      "lib/io.smallrye.common.smallrye-common-expression-2.19.0.jar": {
+        "bytes": 21548,
+        "sha256": "27863f0441acd0b003536f63ddfd40f9f8c02f16d97d1fd1e9f616d683541aaa"
+      },
+      "lib/io.smallrye.common.smallrye-common-function-2.19.0.jar": {
+        "bytes": 63506,
+        "sha256": "c78f2661e82821d3ac7153b88bec4aaec375e041aae261832e5e5f4ac17f4800"
+      },
+      "lib/io.smallrye.common.smallrye-common-io-2.19.0.jar": {
+        "bytes": 106898,
+        "sha256": "33d549ed88eb279926706a894459f8fc4ad8a23b1eb01b01b4c72d3e723da877"
+      },
+      "lib/io.smallrye.common.smallrye-common-net-2.19.0.jar": {
+        "bytes": 34716,
+        "sha256": "f3d1be529e43214df263f29703dec41bc9b8d1bd0a4af8678166814ae2da5a96"
+      },
+      "lib/io.smallrye.common.smallrye-common-os-2.19.0.jar": {
+        "bytes": 9548,
+        "sha256": "ac12ba8e86119ebd0a3b14d1053a3b6a4722f63978e9c718fb1ffcbbd4e3a3b5"
+      },
+      "lib/io.smallrye.common.smallrye-common-ref-2.19.0.jar": {
+        "bytes": 16417,
+        "sha256": "56b3173ab124b82559fe6f16bfcbefbe7f904c0e53d2507bb2e3606b43d6d1de"
+      },
+      "lib/io.smallrye.common.smallrye-common-search-2.19.0.jar": {
+        "bytes": 28678,
+        "sha256": "973738a728d8efac3c0ab75d3a54236ce5f9c435b4b4a2f9bc0f16a0c46001ff"
+      },
+      "lib/io.smallrye.common.smallrye-common-vertx-context-2.19.0.jar": {
+        "bytes": 7248,
+        "sha256": "2c3d3326bab62064e7120ad6c1e4f99e267176b2efd74a44b3ab2cd5aa5c69d6"
+      },
+      "lib/io.smallrye.config.smallrye-config-3.17.2.jar": {
+        "bytes": 36119,
+        "sha256": "d93d4fec79674f67391c44fc995c61209ef72e816b0fc40ffd631ab883310c14"
+      },
+      "lib/io.smallrye.config.smallrye-config-common-3.17.2.jar": {
+        "bytes": 15027,
+        "sha256": "ebbb7b03044580440f63788cb743664749e7169b8eb382b3cfc44a4fb328bb85"
+      },
+      "lib/io.smallrye.config.smallrye-config-core-3.17.2.jar": {
+        "bytes": 383541,
+        "sha256": "092050099d3144bcc64b33165b3c2b7d25a519808d3c7618a6e1c1debcc0d832"
+      },
+      "lib/io.smallrye.reactive.mutiny-3.3.0.jar": {
+        "bytes": 946018,
+        "sha256": "468035abda56638307e8dad7d4be3bd818b05725f0559140b32e087be017b83f"
+      },
+      "lib/io.smallrye.reactive.mutiny-smallrye-context-propagation-3.3.0.jar": {
+        "bytes": 21186,
+        "sha256": "e7b20ad3a01d0b0944dfbf86538392621ef38e87e6c69722902fc5bc9af674ff"
+      },
+      "lib/io.smallrye.reactive.mutiny-zero-flow-adapters-1.2.1.jar": {
+        "bytes": 15136,
+        "sha256": "623dc619ec3866c6ce6365ed46cd948fe1b6cae93d64006249294ef8a941d943"
+      },
+      "lib/io.smallrye.reactive.smallrye-mutiny-vertx-auth-common-3.23.1.jar": {
+        "bytes": 41655,
+        "sha256": "d4defd33cf294ac695d7817b764f52626d7690d0bee944ba4b84ffa02278faab"
+      },
+      "lib/io.smallrye.reactive.smallrye-mutiny-vertx-bridge-common-3.23.1.jar": {
+        "bytes": 6427,
+        "sha256": "8b14169047ddbb2e5da91de00b37d62ff8b2ca49ae4553a0742660c50fe91065"
+      },
+      "lib/io.smallrye.reactive.smallrye-mutiny-vertx-core-3.23.1.jar": {
+        "bytes": 341404,
+        "sha256": "dc5578295b8e5dc10f9fd8028ecb3ac3ed8b2ccc54b8b80172181188f577372e"
+      },
+      "lib/io.smallrye.reactive.smallrye-mutiny-vertx-runtime-3.23.1.jar": {
+        "bytes": 28506,
+        "sha256": "ab996413864654f8977a4459154d36b093dabd661e8d17c3854d2ca20616bf8c"
+      },
+      "lib/io.smallrye.reactive.smallrye-mutiny-vertx-uri-template-3.23.1.jar": {
+        "bytes": 7801,
+        "sha256": "95b798fd11f3d199593388c85aea6f9ffbae178a2d48444d9d79b4ca3714fa57"
+      },
+      "lib/io.smallrye.reactive.smallrye-mutiny-vertx-web-3.23.1.jar": {
+        "bytes": 149685,
+        "sha256": "106413b6575604c1eff68a1ad6bbe890d635a7c55ee198858ce4bd8012189da0"
+      },
+      "lib/io.smallrye.reactive.smallrye-mutiny-vertx-web-common-3.23.1.jar": {
+        "bytes": 18928,
+        "sha256": "05e78bf89604a2653ede8cdad2f540aa63e5e97d1304188a86769db9a57e7558"
+      },
+      "lib/io.smallrye.smallrye-context-propagation-api-2.3.0.jar": {
+        "bytes": 8739,
+        "sha256": "da0bc273588cefb478e98c4e137f65cc394a54253e35684d5d917060fdc4147c"
+      },
+      "lib/io.smallrye.smallrye-context-propagation-storage-2.3.0.jar": {
+        "bytes": 8493,
+        "sha256": "0fb685500b833b819c934147f0d2f0ab00397df196442aa3fa0b1a6d962dedd0"
+      },
+      "lib/io.smallrye.smallrye-fault-tolerance-vertx-6.11.4.jar": {
+        "bytes": 9553,
+        "sha256": "70b53bc8d55093b2b5db4482569544ea5849de149d9df84b0094be7b1e217bc1"
+      },
+      "lib/io.teaql.benchmark.liquidfilling-domain-297.jar": {
+        "bytes": 1578671,
+        "sha256": "a896b72c65b1332ff6d183db68e18fb6b014d206d5e4e0a83f7b246cf2641c0a"
+      },
+      "lib/io.teaql.benchmark.operations-1.jar": {
+        "bytes": 6646,
+        "sha256": "027093ef8cd6567d703ef44c52419aebe9c124722b00bb5899c674fb174f8f9c"
+      },
+      "lib/io.teaql.teaql-core-1.554-RELEASE.jar": {
+        "bytes": 276263,
+        "sha256": "3dab475bb6bcba7bc2d3a40afa66891ef8aafcb391077e1ebf2aecef88f96a67"
+      },
+      "lib/io.teaql.teaql-data-service-sql-1.554-RELEASE.jar": {
+        "bytes": 19819,
+        "sha256": "fe99833625d621c5585e219f49eb621ab1f960c456bde10a500f17b1929e4c5c"
+      },
+      "lib/io.teaql.teaql-dynamic-fields-api-1.554-RELEASE.jar": {
+        "bytes": 55520,
+        "sha256": "06e3651d8ba9a9b52baad54c6e4904f244c82ba9eb043a48ddbf4c4a98acb27e"
+      },
+      "lib/io.teaql.teaql-postgres-1.554-RELEASE.jar": {
+        "bytes": 6910,
+        "sha256": "af60762a425abc556f11c5895fa3ae708d88f73aafb4c1d0a90d7ccf53a135e1"
+      },
+      "lib/io.teaql.teaql-provider-jdbc-1.554-RELEASE.jar": {
+        "bytes": 23640,
+        "sha256": "3a4e4fc9071f5bd729c7b7c13e5d6847ff570029533dc7401525c12ad74fc51f"
+      },
+      "lib/io.teaql.teaql-runtime-1.554-RELEASE.jar": {
+        "bytes": 141140,
+        "sha256": "78c664612fb5018d0133b8578f3dd3bb52e0dbbb1b18a5dccd9147a4a6643fc0"
+      },
+      "lib/io.teaql.teaql-sql-portable-1.554-RELEASE.jar": {
+        "bytes": 188955,
+        "sha256": "2025de0fd35f9a2eb8313bdb8d091331c85f52d2083c6c917c85dd93669366b1"
+      },
+      "lib/io.teaql.teaql-utils-1.554-RELEASE.jar": {
+        "bytes": 76155,
+        "sha256": "b7a20685f7bf0d45f6d620f5f7f826e77a3ab5411c549722929d480c2adcdfb0"
+      },
+      "lib/io.vertx.vertx-auth-common-4.5.34.jar": {
+        "bytes": 133613,
+        "sha256": "2fc9f280b2193718db2bde020e8ca9107eff2a78d27389b7c4db63f72980c4de"
+      },
+      "lib/io.vertx.vertx-bridge-common-4.5.34.jar": {
+        "bytes": 10924,
+        "sha256": "b57384bda3c9ebb78cc734ddf0d83bd6b55335ceb259e41d315854f9b737318a"
+      },
+      "lib/io.vertx.vertx-uri-template-4.5.34.jar": {
+        "bytes": 35005,
+        "sha256": "d303e9f044347bc350241dfb2150f05d3b93d6c7f56c74757861ca582e8f62df"
+      },
+      "lib/io.vertx.vertx-web-4.5.34.jar": {
+        "bytes": 363585,
+        "sha256": "14ae3cadbac1d0794cbf5e66fdb3cc61611235ac05f57bfdb65d9c21a6b97add"
+      },
+      "lib/io.vertx.vertx-web-common-4.5.34.jar": {
+        "bytes": 31964,
+        "sha256": "378371867305e73cddcea7027217d9a9fddbd18e57de74021824cb2bf1962019"
+      },
+      "lib/jakarta.activation.jakarta.activation-api-2.1.4.jar": {
+        "bytes": 67380,
+        "sha256": "c9db52100ce6c8aac95cc39075f95720d2e561b11f8051b81c121ad4effd7004"
+      },
+      "lib/jakarta.annotation.jakarta.annotation-api-3.0.0.jar": {
+        "bytes": 26378,
+        "sha256": "b01f55552284cfb149411e64eabca75e942d26d2e1786b32914250e4330afaa2"
+      },
+      "lib/jakarta.el.jakarta.el-api-6.0.1.jar": {
+        "bytes": 93369,
+        "sha256": "7e84b5bed49de32b79cc5e85d90b6f5adb1a953ac67283adbb41c1e297f9c605"
+      },
+      "lib/jakarta.enterprise.jakarta.enterprise.cdi-api-4.1.0.jar": {
+        "bytes": 159576,
+        "sha256": "c42c808f17925129a0800f618febe050d966e181a4c7384c8a5e7a0283d68699"
+      },
+      "lib/jakarta.enterprise.jakarta.enterprise.lang-model-4.1.0.jar": {
+        "bytes": 27518,
+        "sha256": "bb56f571f60d2862b2387d5468fe8f5540f8094727283ed991f89082708095ee"
+      },
+      "lib/jakarta.inject.jakarta.inject-api-2.0.1.jar": {
+        "bytes": 10681,
+        "sha256": "f7dc98062fccf14126abb751b64fab12c312566e8cbdc8483598bffcea93af7c"
+      },
+      "lib/jakarta.interceptor.jakarta.interceptor-api-2.2.0.jar": {
+        "bytes": 24005,
+        "sha256": "d240d72b4dd38a2e431c804079810010cb97903678fa5f987fb7434878b04398"
+      },
+      "lib/jakarta.json.jakarta.json-api-2.1.3.jar": {
+        "bytes": 48629,
+        "sha256": "bc934142805ea1d794f1440563965a3861a2a9fb7414ecd3fe44f26500734414"
+      },
+      "lib/jakarta.transaction.jakarta.transaction-api-2.0.1.jar": {
+        "bytes": 28607,
+        "sha256": "50c0a7c760c13ae6c042acf182b28f0047413db95b4636fb8879bcffab5ba875"
+      },
+      "lib/jakarta.ws.rs.jakarta.ws.rs-api-3.1.0.jar": {
+        "bytes": 154815,
+        "sha256": "6b3b3628b8b4aedda0d24c3354335e985497d8ef3c510b8f3028e920d5b8663d"
+      },
+      "lib/jakarta.xml.bind.jakarta.xml.bind-api-4.0.5.jar": {
+        "bytes": 131219,
+        "sha256": "5e489b6c874c4119e003ff1403db523ee3a8959ec499f3de29e77245efccf216"
+      },
+      "lib/modified-io.netty.netty-common-4.1.138.Final.jar": {
+        "bytes": 727290,
+        "sha256": "bb98329cdf22aba17517ef40edec8ef7723ab4bc52f526fe9c31904ba0d16906"
+      },
+      "lib/modified-io.netty.netty-transport-4.1.138.Final.jar": {
+        "bytes": 513231,
+        "sha256": "29f4b6a7c6effca4066e0bab50d27a2650df02ea97c1b7c03d2ac0c04df3019d"
+      },
+      "lib/modified-io.quarkus.resteasy.reactive.resteasy-reactive-3.40.1.jar": {
+        "bytes": 554906,
+        "sha256": "fd59e87d1e63909f8e2d037c16098d97c2981d2124ed295f39f699d891e9ebf5"
+      },
+      "lib/modified-io.smallrye.smallrye-context-propagation-2.3.0.jar": {
+        "bytes": 86973,
+        "sha256": "30045195739a9c07b027b2b2c43e11521d2b6b02e1db7ab7528fd87ca0c4f61a"
+      },
+      "lib/modified-io.vertx.vertx-core-4.5.34.jar": {
+        "bytes": 1671704,
+        "sha256": "d464be251ec6c2833d8c8eba6658e31a792a11ebe650171ee6905a47e4145df3"
+      },
+      "lib/org.apache.commons.commons-collections4-4.4.jar": {
+        "bytes": 751914,
+        "sha256": "1df8b9430b5c8ed143d7815e403e33ef5371b2400aadbe9bda0883762e0846d1"
+      },
+      "lib/org.apache.commons.commons-lang3-3.20.0.jar": {
+        "bytes": 713862,
+        "sha256": "69e5c9fa35da7a51a5fd2099dfe56a2d8d32cf233e2f6d770e796146440263f4"
+      },
+      "lib/org.crac.crac-1.5.0.jar": {
+        "bytes": 13361,
+        "sha256": "f4426e1641c8f0fa2f025a4cd7c40c285abaf265930e6717adfcaef03d034850"
+      },
+      "lib/org.eclipse.microprofile.config.microprofile-config-api-3.1.1.jar": {
+        "bytes": 17943,
+        "sha256": "0d4eaa7e17730e153b1e0613104a989af7d7a0d4ba4d19c84c71862bff993773"
+      },
+      "lib/org.eclipse.microprofile.context-propagation.microprofile-context-propagation-api-1.3.jar": {
+        "bytes": 16291,
+        "sha256": "69ccc04487e87779d4970aa50c673cc34a9df080c1c0e8d8eab2e8b46f825cf4"
+      },
+      "lib/org.eclipse.parsson.parsson-1.1.9.jar": {
+        "bytes": 126630,
+        "sha256": "03dc4dc834a928730d52a50952de0f30c35e0daf048889132be19ee1e5053a6c"
+      },
+      "lib/org.jboss.logging.commons-logging-jboss-logging-2.0.0.Final.jar": {
+        "bytes": 18899,
+        "sha256": "ce4088809c7512228cb34b54686223dec45532b97366a36830f82926b58a4c6c"
+      },
+      "lib/org.jboss.logging.jboss-logging-3.6.3.Final.jar": {
+        "bytes": 62672,
+        "sha256": "7c12ee575508f81e22b1db9334b969d0ec54ef0fd1dcba24eeab1a44235fc366"
+      },
+      "lib/org.jboss.logmanager.jboss-logmanager-3.2.2.Final.jar": {
+        "bytes": 807587,
+        "sha256": "91d3d76c1e41d403cd717026cd6e8c4495068cb3a4a06461d9d984920fbb856c"
+      },
+      "lib/org.jboss.slf4j.slf4j-jboss-logmanager-2.0.2.Final.jar": {
+        "bytes": 14764,
+        "sha256": "ba469a975e9d1e79f34a8baa1a0afa8b01bbd8cf080537c0e0899476d31db84b"
+      },
+      "lib/org.jboss.threads.jboss-threads-3.9.2.jar": {
+        "bytes": 132694,
+        "sha256": "ac0fd044686122014143267d3688245852ca07c6c4474320c9172062a5af6634"
+      },
+      "lib/org.jctools.jctools-core-4.0.5.jar": {
+        "bytes": 493530,
+        "sha256": "d65e5f38bcd0984e26f87187687f1f70dd52740c4d5e046f8d104e01ab5db95f"
+      },
+      "lib/org.jspecify.jspecify-1.0.0.jar": {
+        "bytes": 3819,
+        "sha256": "1fad6e6be7557781e4d33729d49ae1cdc8fdda6fe477bb0cc68ce351eafdfbab"
+      },
+      "lib/org.postgresql.postgresql-42.6.0.jar": {
+        "bytes": 1081604,
+        "sha256": "b817c67a40c94249fd59d4e686e3327ed0d3d3fae426b20da0f1e75652cfc461"
+      },
+      "lib/org.reactivestreams.reactive-streams-1.0.4.jar": {
+        "bytes": 11640,
+        "sha256": "f75ca597789b3dac58f61857b9ac2e1034a68fa672db35055a8fb4509e325f28"
+      },
+      "lib/org.slf4j.slf4j-api-2.0.18.jar": {
+        "bytes": 69982,
+        "sha256": "44508fd1576500688c790b190acdd16fec4f8c79a3e0b900afd70503cf055f55"
+      },
+      "lib/org.wildfly.common.wildfly-common-2.0.1.jar": {
+        "bytes": 263146,
+        "sha256": "fa4a710db7ae3e598a5f41639eb54e9f7b09de5fd0f58f56bd6070f21d956374"
+      },
+      "native-image.args": {
+        "bytes": 2196,
+        "sha256": "0e881ecfcf49dfff0f7d8bd7594bdac7f8ac705b21ba795e23beacb949e8baca"
+      },
+      "quarkus-probe-1-runner": {
+        "bytes": 62392640,
+        "sha256": "cfd74ef13834536a7f707a1375cfc7fe50688be27c413a09d342800acfbf04e6"
+      },
+      "quarkus-probe-1-runner-build-output-stats.json": {
+        "bytes": 1057,
+        "sha256": "b4f015f36c8c20b64501e258c726cc7d265a56bb0970be1ffc46816b46109933"
+      },
+      "quarkus-probe-1-runner.jar": {
+        "bytes": 513417,
+        "sha256": "bf060757be3eeeb647d1e2bb117f3c9c7f90298330ce44b974a555962c4bbf84"
+      }
+    },
+    "micronaut": {
+      "agent-config/reachability-metadata.json": {
+        "bytes": 77752,
+        "sha256": "199d5a293af7c41f5845b4d36efa00863b5becfd88fa0620864f394c58dd9a51"
+      },
+      "lib/HikariCP-5.0.1.jar": {
+        "bytes": 161902,
+        "sha256": "26d492397e6775b4296737a8919bf04047afe5827fdd2c08b4557595436b3a2b"
+      },
+      "lib/checker-qual-4.2.3.jar": {
+        "bytes": 243215,
+        "sha256": "f868f731f6e37db3e1c2140d06016477989959a2d13fc5bed9c46760cffd5ba0"
+      },
+      "lib/commons-collections4-4.4.jar": {
+        "bytes": 751914,
+        "sha256": "1df8b9430b5c8ed143d7815e403e33ef5371b2400aadbe9bda0883762e0846d1"
+      },
+      "lib/commons-lang3-3.20.0.jar": {
+        "bytes": 713862,
+        "sha256": "69e5c9fa35da7a51a5fd2099dfe56a2d8d32cf233e2f6d770e796146440263f4"
+      },
+      "lib/hutool-all-5.8.20.jar": {
+        "bytes": 2510096,
+        "sha256": "b16bcec618412849d91526a2685051a3c3827679ce6f2e50fd7de50402d61b2a"
+      },
+      "lib/jackson-annotations-2.22.jar": {
+        "bytes": 84211,
+        "sha256": "21ddb598807d3a51a876704eb979d9296e1c6a6f47ab1826ff88c6d6a127a2d0"
+      },
+      "lib/jackson-core-2.22.3.jar": {
+        "bytes": 594776,
+        "sha256": "8a501126a385b25841915d839508f8a66e2a0dbc8a6709d055ef3b3e852b094c"
+      },
+      "lib/jackson-core-3.2.3.jar": {
+        "bytes": 609986,
+        "sha256": "a0c17e7e665a5e95c82f5fb45c0fec2ae3dc556c80f0016452c9c84cd23f3817"
+      },
+      "lib/jackson-databind-2.22.3.jar": {
+        "bytes": 1709604,
+        "sha256": "556db5439e206114346043f68d200497dc96a0bca62a360a81784092ebd0e0a9"
+      },
+      "lib/jackson-databind-3.2.3.jar": {
+        "bytes": 1982578,
+        "sha256": "235b72436af983857e44efa42449f4f0a2c571e69d6c5d9dd1253ae7d192dcf2"
+      },
+      "lib/jackson-datatype-jdk8-2.22.3.jar": {
+        "bytes": 36039,
+        "sha256": "f223061a5aaecdc9506458143807c73bcd1a744d6b3bbb8da4703a0abc408f7d"
+      },
+      "lib/jackson-datatype-jsr310-2.22.3.jar": {
+        "bytes": 136875,
+        "sha256": "ec7052ee48c9d873bb8148338a643f02cf89c01d035dd219411473030d6d2b22"
+      },
+      "lib/jakarta.annotation-api-2.1.1.jar": {
+        "bytes": 26141,
+        "sha256": "5f65fdaf424eee2b55e1d882ba9bb376be93fb09b37b808be6e22e8851c909fe"
+      },
+      "lib/jakarta.inject-api-2.0.1.jar": {
+        "bytes": 10681,
+        "sha256": "f7dc98062fccf14126abb751b64fab12c312566e8cbdc8483598bffcea93af7c"
+      },
+      "lib/jspecify-1.0.0.jar": {
+        "bytes": 3819,
+        "sha256": "1fad6e6be7557781e4d33729d49ae1cdc8fdda6fe477bb0cc68ce351eafdfbab"
+      },
+      "lib/liquidfilling-domain-297.jar": {
+        "bytes": 1578671,
+        "sha256": "a896b72c65b1332ff6d183db68e18fb6b014d206d5e4e0a83f7b246cf2641c0a"
+      },
+      "lib/logback-classic-1.5.37.jar": {
+        "bytes": 287123,
+        "sha256": "fd68ff5aa2760857ac5b7ad301e98bc6c18a74d60d7e016da1a608307c9eead7"
+      },
+      "lib/logback-core-1.5.37.jar": {
+        "bytes": 641094,
+        "sha256": "c142955d757d923c6c626296bd97be2e0db1cfd33adeadbf2e2927403391e0a1"
+      },
+      "lib/micronaut-aop-5.2.15.jar": {
+        "bytes": 112263,
+        "sha256": "b3af04dc11f7c07a6ca7d974e1b2f2db602c27095bd44fdd114933673531be9d"
+      },
+      "lib/micronaut-buffer-netty-5.2.15.jar": {
+        "bytes": 29875,
+        "sha256": "ec35c554e2269c27f06faa87bd8cbbe4d2e1b26eeb29b42609dcce6de4cad566"
+      },
+      "lib/micronaut-context-5.2.15.jar": {
+        "bytes": 332467,
+        "sha256": "dcd4ced33f14633cc51720baaf0b69d5acac77609435d5108235bf4f72557331"
+      },
+      "lib/micronaut-context-propagation-5.2.15.jar": {
+        "bytes": 11423,
+        "sha256": "c426d9dfbc0ce34364f3362603dc248859c49fff011bf34d2658c0ab016ee33d"
+      },
+      "lib/micronaut-core-5.2.15.jar": {
+        "bytes": 701971,
+        "sha256": "625d18c02dfd9c71caa6bc6c4f0e21e97f0e3466134fee339ebe088e0d7088f9"
+      },
+      "lib/micronaut-core-reactive-5.2.15.jar": {
+        "bytes": 67932,
+        "sha256": "03184fbd1adfb779004d6eef098bb1dc1fea910ae1af093396b9d00a1d9c30d8"
+      },
+      "lib/micronaut-http-5.2.15.jar": {
+        "bytes": 883021,
+        "sha256": "fdc90595148c20d2f5096fcf4be69774ea8799b6d89da2d7646dde4854fdfc82"
+      },
+      "lib/micronaut-http-netty-5.2.15.jar": {
+        "bytes": 299471,
+        "sha256": "75f9728d7e5ab2b9a264cdcdf97b739a053037fa84e2c4f62068cc4c06e49bdf"
+      },
+      "lib/micronaut-http-server-5.2.15.jar": {
+        "bytes": 436863,
+        "sha256": "1d4558d2cbc022f61a192effc4c4d4dd7577f8f830021b6d66ca3e6e3073d18e"
+      },
+      "lib/micronaut-http-server-netty-5.2.15.jar": {
+        "bytes": 562660,
+        "sha256": "71ec538256a5a836cd603e62832aa01cec2c3aa693e7c1eb78a73e06cd53f24d"
+      },
+      "lib/micronaut-inject-5.2.15.jar": {
+        "bytes": 1024866,
+        "sha256": "e3f7353c206bd4ff27071be0b3d33a7ecde44edc1d161bb7159268efd114471a"
+      },
+      "lib/micronaut-jackson-core-5.2.15.jar": {
+        "bytes": 43873,
+        "sha256": "81fc724a4afbaa441fb974e71bead736e460a7d040fe82dec64c6a1e1ea99a49"
+      },
+      "lib/micronaut-jackson-databind-5.2.15.jar": {
+        "bytes": 133441,
+        "sha256": "46662e1601b0fcbebacc840a116a245cdb3919f6a6262cc67816ecde111f07a6"
+      },
+      "lib/micronaut-json-core-5.2.15.jar": {
+        "bytes": 72574,
+        "sha256": "153a85d7e2886189b34f9bb27a41807cf1d57f9c2c47743a96259a0531b4e0a0"
+      },
+      "lib/micronaut-router-5.2.15.jar": {
+        "bytes": 216808,
+        "sha256": "350a2b49be35776d63e66ba108da986c3e9608f0e476b02ad703062e3c06f5a3"
+      },
+      "lib/netty-buffer-4.2.19.Final.jar": {
+        "bytes": 378371,
+        "sha256": "863f09b46cfe7d83872c9499086b9681cd9878c30a319d9f1f3a681bbfb0b12f"
+      },
+      "lib/netty-codec-4.2.19.Final.jar": {
+        "bytes": 3953,
+        "sha256": "9da978357522895ed6141e14c81f776173206f6cdd72e92b637c60e6e624735b"
+      },
+      "lib/netty-codec-base-4.2.19.Final.jar": {
+        "bytes": 155753,
+        "sha256": "5702c8097cc81e939dd12e5b39ac2e81f83737c320f6f4d88553577842f9ceb6"
+      },
+      "lib/netty-codec-compression-4.2.19.Final.jar": {
+        "bytes": 237578,
+        "sha256": "8935c51c7217780ae56d178c938b50ea5729b1e088cf3c2568674e331665554c"
+      },
+      "lib/netty-codec-http-4.2.19.Final.jar": {
+        "bytes": 683174,
+        "sha256": "7c28809a4f527746fbce2369f5ac5d5fcef45cfe9da21aa3dd9d3f6bdf00cbe0"
+      },
+      "lib/netty-codec-http2-4.2.19.Final.jar": {
+        "bytes": 503551,
+        "sha256": "f45756b12a75b907e98cd0158dc947308ca463cd3d27b9035d11a025a4fdbc4d"
+      },
+      "lib/netty-codec-marshalling-4.2.19.Final.jar": {
+        "bytes": 20375,
+        "sha256": "5b24976fda31fd52a85fb7f79f2a5867a0416f68f7b03a9d6ea062b2959d50f7"
+      },
+      "lib/netty-codec-multipart-core-1.0.0.Final.jar": {
+        "bytes": 39948,
+        "sha256": "74b2428a2b510766a2cee9a0ef7e7a99cf4b619cc960e0815731772e7c41f330"
+      },
+      "lib/netty-codec-protobuf-4.2.19.Final.jar": {
+        "bytes": 15120,
+        "sha256": "f4d10c51f9237d4cffe78978dee2d2473c0eacdb021f0c04a0cc4f123e01f15d"
+      },
+      "lib/netty-common-4.2.19.Final.jar": {
+        "bytes": 904505,
+        "sha256": "22fa74761f6e35c8c88972f35cf65664566b922dd73d3424528e97c34278fa79"
+      },
+      "lib/netty-handler-4.2.19.Final.jar": {
+        "bytes": 590897,
+        "sha256": "8b469cf23ddf21ba84291f4dff470d2277a28deac95e7084b0ff2ce853e58276"
+      },
+      "lib/netty-resolver-4.2.19.Final.jar": {
+        "bytes": 32977,
+        "sha256": "3ded47536faeb3c4c544a84871d82f461511589afb2a892a180ca425f281363e"
+      },
+      "lib/netty-transport-4.2.19.Final.jar": {
+        "bytes": 552273,
+        "sha256": "d82d4e200456b8c5d8a1647a3724603f80616e5b35b9ada6e7a20d048f175075"
+      },
+      "lib/netty-transport-native-unix-common-4.2.19.Final.jar": {
+        "bytes": 46874,
+        "sha256": "341e91b8e69e6b7d92c353c845ffd91f34e921b7186254c176a64c7089b3e721"
+      },
+      "lib/operations-1.jar": {
+        "bytes": 6646,
+        "sha256": "027093ef8cd6567d703ef44c52419aebe9c124722b00bb5899c674fb174f8f9c"
+      },
+      "lib/postgresql-42.6.0.jar": {
+        "bytes": 1081604,
+        "sha256": "b817c67a40c94249fd59d4e686e3327ed0d3d3fae426b20da0f1e75652cfc461"
+      },
+      "lib/reactive-streams-1.0.4.jar": {
+        "bytes": 11640,
+        "sha256": "f75ca597789b3dac58f61857b9ac2e1034a68fa672db35055a8fb4509e325f28"
+      },
+      "lib/reactor-core-3.8.7.jar": {
+        "bytes": 1938852,
+        "sha256": "9a5f1bfc5ad0416a410ff63beaa279cc30c2da3ae9b111a678c83c99298a1551"
+      },
+      "lib/slf4j-api-2.0.18.jar": {
+        "bytes": 69982,
+        "sha256": "44508fd1576500688c790b190acdd16fec4f8c79a3e0b900afd70503cf055f55"
+      },
+      "lib/teaql-core-1.554-RELEASE.jar": {
+        "bytes": 276263,
+        "sha256": "3dab475bb6bcba7bc2d3a40afa66891ef8aafcb391077e1ebf2aecef88f96a67"
+      },
+      "lib/teaql-data-service-sql-1.554-RELEASE.jar": {
+        "bytes": 19819,
+        "sha256": "fe99833625d621c5585e219f49eb621ab1f960c456bde10a500f17b1929e4c5c"
+      },
+      "lib/teaql-dynamic-fields-api-1.554-RELEASE.jar": {
+        "bytes": 55520,
+        "sha256": "06e3651d8ba9a9b52baad54c6e4904f244c82ba9eb043a48ddbf4c4a98acb27e"
+      },
+      "lib/teaql-postgres-1.554-RELEASE.jar": {
+        "bytes": 6910,
+        "sha256": "af60762a425abc556f11c5895fa3ae708d88f73aafb4c1d0a90d7ccf53a135e1"
+      },
+      "lib/teaql-provider-jdbc-1.554-RELEASE.jar": {
+        "bytes": 23640,
+        "sha256": "3a4e4fc9071f5bd729c7b7c13e5d6847ff570029533dc7401525c12ad74fc51f"
+      },
+      "lib/teaql-runtime-1.554-RELEASE.jar": {
+        "bytes": 141140,
+        "sha256": "78c664612fb5018d0133b8578f3dd3bb52e0dbbb1b18a5dccd9147a4a6643fc0"
+      },
+      "lib/teaql-sql-portable-1.554-RELEASE.jar": {
+        "bytes": 188955,
+        "sha256": "2025de0fd35f9a2eb8313bdb8d091331c85f52d2083c6c917c85dd93669366b1"
+      },
+      "lib/teaql-utils-1.554-RELEASE.jar": {
+        "bytes": 76155,
+        "sha256": "b7a20685f7bf0d45f6d620f5f7f826e77a3ab5411c549722929d480c2adcdfb0"
+      },
+      "micronaut": {
+        "bytes": 92211520,
+        "sha256": "b1c49da0313fe38e7ceb88832e8210655a3ddeed811deaba0a189e7b194865f9"
+      },
+      "micronaut-probe-1.jar": {
+        "bytes": 16509,
+        "sha256": "841293acf0545e5912722f68ce9824f9108af6d1d868b6226878de83f1033bae"
+      }
+    },
+    "spring": {
+      "agent-config/reachability-metadata.json": {
+        "bytes": 75677,
+        "sha256": "c55c57a66e1ec6f0192fce82b0ce5fcbe170a3249e0ebcd570e8a79110cfb2d1"
+      },
+      "aot/META-INF/native-image/io.teaql.benchmark/spring-probe25/native-image.properties": {
+        "bytes": 88,
+        "sha256": "78ba9a9a99f3aa69c8e9b35257f123dae144df0497501f2bb4d1f59105c6c009"
+      },
+      "aot/META-INF/native-image/io.teaql.benchmark/spring-probe25/reachability-metadata.json": {
+        "bytes": 190249,
+        "sha256": "a71afba0ac9d37499be5b58796027bdffdb3947be46586ae5970dcbbe3b11a1e"
+      },
+      "aot/cn/hutool/extra/spring/SpringUtil__BeanDefinitions.class": {
+        "bytes": 1218,
+        "sha256": "26a34a2b4b67098237b461a02682079c0ac1f3525c92888932926d0413f9dbd1"
+      },
+      "aot/com/doublechaintech/liquidfilling/probe/ProbeApplication$$SpringCGLIB$$0.class": {
+        "bytes": 4127,
+        "sha256": "b68aff7d648f2f8c5154ab694d4093fd874107b60db97eedf8540b36162106a6"
+      },
+      "aot/com/doublechaintech/liquidfilling/probe/ProbeApplication$$SpringCGLIB$$FastClass$$0.class": {
+        "bytes": 2861,
+        "sha256": "9d45961f2dd6e1205a204d95e3b99224b92ffcdfb6717047f0159780ed907077"
+      },
+      "aot/com/doublechaintech/liquidfilling/probe/ProbeApplication$$SpringCGLIB$$FastClass$$1.class": {
+        "bytes": 5251,
+        "sha256": "decac096f6055f625fdf648b302edef49898601ec85e7ccbafe1086aae2fb5ac"
+      },
+      "aot/com/doublechaintech/liquidfilling/probe/ProbeApplication__ApplicationContextInitializer.class": {
+        "bytes": 1923,
+        "sha256": "e79ede740686085e43ff4bf213153ad854b5aaab245109e8cfb72bb77239992c"
+      },
+      "aot/com/doublechaintech/liquidfilling/probe/ProbeApplication__BeanDefinitions.class": {
+        "bytes": 3450,
+        "sha256": "b33536f0508ece07ef2aff42da7ed31a0c9cd415b9fb7eef4ca5cf459957a234"
+      },
+      "aot/com/doublechaintech/liquidfilling/probe/ProbeApplication__BeanFactoryRegistrations.class": {
+        "bytes": 49153,
+        "sha256": "8c443d647d9f22c29066bb391f66d836fe5cb3299df0f32690a0dca98d1fea08"
+      },
+      "aot/com/doublechaintech/liquidfilling/probe/ProbeController__BeanDefinitions.class": {
+        "bytes": 2581,
+        "sha256": "335657a2988f500a2a27412e3d96e3acc060d2ccdcbf1db3dd75f1c2062baea1"
+      },
+      "aot/org/springframework/aop/framework/ProxyConfig__BeanDefinitions.class": {
+        "bytes": 1663,
+        "sha256": "bf7f8f2d755dc2900241eea494fad744103b6b2c4fff941917a1b69485d329aa"
+      },
+      "aot/org/springframework/aop/framework/autoproxy/InfrastructureAdvisorAutoProxyCreator__BeanDefinitions.class": {
+        "bytes": 1762,
+        "sha256": "48b5afca27567f0b3eedc218bc57acc9c4b89956be10a1a122fc7a0971ec1013"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/endpoint/EndpointAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 5928,
+        "sha256": "8dccae3c9201c8b72529c860f240d50a64eab667dcae7181c1c4935a3084f428"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/endpoint/jackson/Jackson2EndpointAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3398,
+        "sha256": "21834d2012318e62a3e204c3eda11782c121886ea9a7f159362788d98438031e"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/endpoint/jackson/JacksonEndpointAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3325,
+        "sha256": "0c97000fab05d99798320176ac5c4b5280f0e1d6bfd327148a4f66ee56f4837f"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/endpoint/web/CorsEndpointProperties__BeanDefinitions.class": {
+        "bytes": 1340,
+        "sha256": "af33991e1064fa9bbe2b4ca4c29c66c9d1b91c4821193d13cc8f7dec13b51f6c"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/endpoint/web/WebEndpointAutoConfiguration__BeanDefinitions$WebEndpointServletConfiguration.class": {
+        "bytes": 4225,
+        "sha256": "975813d5ce2542699fc3041998f09b0cc8b926be7c17ea27021747e51521afba"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/endpoint/web/WebEndpointAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 12408,
+        "sha256": "ab8c3d8d3d3a3268c0bf7c0f06c08700f77716edfd9b866f6616d20031bb1bdb"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/endpoint/web/WebEndpointProperties__BeanDefinitions.class": {
+        "bytes": 1336,
+        "sha256": "73dc961bcc3306fe76affa24c3a25dc8863583e1161908cb87158a41d996c0e8"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/info/InfoContributorAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1364,
+        "sha256": "a7ee73ea1d2cd06db1c054fcb53afd94ded0982462bdf4a37a026773d67a9859"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/info/InfoContributorProperties__BeanDefinitions.class": {
+        "bytes": 1336,
+        "sha256": "bd1290e6ac5f86fceac81474e9ef5006b06cd7d0b04d995b40300f52706a22be"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/web/server/ManagementContextAutoConfiguration__BeanDefinitions$SameManagementContextConfiguration$EnableSameManagementContextConfiguration.class": {
+        "bytes": 2169,
+        "sha256": "afbb0220e81f0b96a8e407ac85c3ce1128b5fd59c48ff026bdee3d11f1a7ec40"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/web/server/ManagementContextAutoConfiguration__BeanDefinitions$SameManagementContextConfiguration.class": {
+        "bytes": 3442,
+        "sha256": "a885837482e22695408bf47f0e54b861a7ca3d49e793b4d7201335b821f34db9"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/web/server/ManagementContextAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1847,
+        "sha256": "e0b53210898962df7991e3051eb90eceaa8b20b48c4040a220a3ad2b6c19efe1"
+      },
+      "aot/org/springframework/boot/autoconfigure/AutoConfigurationPackages__BeanDefinitions$BasePackages.class": {
+        "bytes": 3274,
+        "sha256": "5a969b19e81fe7955d1df5c52f66c9651b3d6b1c078a574239ad7a2634ac08db"
+      },
+      "aot/org/springframework/boot/autoconfigure/AutoConfigurationPackages__BeanDefinitions.class": {
+        "bytes": 554,
+        "sha256": "d4314dc8ff60d865ef9b9d5780f3b99b483091e821b117f0dfd99cf4e5450a5e"
+      },
+      "aot/org/springframework/boot/autoconfigure/aop/AopAutoConfiguration__BeanDefinitions$ClassProxyingConfiguration.class": {
+        "bytes": 2773,
+        "sha256": "e458690372c548e193884f348f9c9bd012412baec9fadc466e8865fd61fa1f52"
+      },
+      "aot/org/springframework/boot/autoconfigure/aop/AopAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1472,
+        "sha256": "37a84205cc14a0b27ced876a281ee331372d1e9db15117a809d767714ef24ba7"
+      },
+      "aot/org/springframework/boot/autoconfigure/availability/ApplicationAvailabilityAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3337,
+        "sha256": "0f936d4d96904d297c88cd6127a39410a98eee4ff9578d3ed65ea5c6199aa7cb"
+      },
+      "aot/org/springframework/boot/autoconfigure/context/ConfigurationPropertiesAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1386,
+        "sha256": "352d10b7b94a5b75692598048fba6053bb89d1d75c6c0bdfeed9bf25e622047f"
+      },
+      "aot/org/springframework/boot/autoconfigure/context/LifecycleAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3554,
+        "sha256": "44404901894ced30a6e59cc57046f74fd754804b15176b3077af5e01e2211171"
+      },
+      "aot/org/springframework/boot/autoconfigure/context/LifecycleProperties__BeanDefinitions.class": {
+        "bytes": 1302,
+        "sha256": "2ba02fa3a23171acaafa342537ca5ceda8159e7ae66ebaa953906b40ad251bad"
+      },
+      "aot/org/springframework/boot/autoconfigure/context/PropertyPlaceholderAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 2578,
+        "sha256": "a226ffef69b0efcd997e964ca66b982159146e333bf88ccc1bb78f6346271532"
+      },
+      "aot/org/springframework/boot/autoconfigure/info/ProjectInfoAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 2721,
+        "sha256": "ff799093308900e505a2bb73f3c69827be75643b48cfb577d255132edc763d15"
+      },
+      "aot/org/springframework/boot/autoconfigure/info/ProjectInfoProperties__BeanDefinitions.class": {
+        "bytes": 1304,
+        "sha256": "1ea1c3826ea0792931b08be0c18e5ab2be6dee977ccbbbabb76b7db24e84548a"
+      },
+      "aot/org/springframework/boot/autoconfigure/ssl/SslAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 6418,
+        "sha256": "14a3cd195d71a0e6d53ab3fccaffdb015bf4e970d28f42610390798d4ac20905"
+      },
+      "aot/org/springframework/boot/autoconfigure/ssl/SslProperties__BeanDefinitions.class": {
+        "bytes": 1270,
+        "sha256": "c5a8092e429bfaadc47031cf33a8dd9fdc9a34b04b54531f2a126fb1e2729fa6"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskExecutionAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1340,
+        "sha256": "2fd45bf06a4c7c487933f6a8f0503e3d8a847d4b09fd76bc43c8f6d282b7fe3d"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskExecutionProperties__BeanDefinitions.class": {
+        "bytes": 1312,
+        "sha256": "e4580617ea64e5fd95c3420c4d04e8ca305ababf8eb1720c8a84f91db2c2270b"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskExecutorConfigurations__BeanDefinitions$AsyncConfigurerConfiguration.class": {
+        "bytes": 4141,
+        "sha256": "86ae5631e717d49ed90dd562c4c62abce4990ff763c991a9856aa051b7088e41"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskExecutorConfigurations__BeanDefinitions$BootstrapExecutorConfiguration.class": {
+        "bytes": 2811,
+        "sha256": "ca309da105aad138080aa29e9f6768bc120a172925f1c0ace3fb9ec7cf3b07b9"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskExecutorConfigurations__BeanDefinitions$SimpleAsyncTaskExecutorBuilderConfiguration.class": {
+        "bytes": 5104,
+        "sha256": "f92e2e736cb8986067f896ab21f053fa492615fc06cb61731395552e0e7114b0"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskExecutorConfigurations__BeanDefinitions$TaskExecutorConfiguration.class": {
+        "bytes": 3905,
+        "sha256": "cf824bf4a00f78790bd7c3132c784055475663de8d05673eb943cbbaf5eda4d7"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskExecutorConfigurations__BeanDefinitions$ThreadPoolTaskExecutorBuilderConfiguration.class": {
+        "bytes": 4154,
+        "sha256": "3f7960043554847b2bc2c4163f4f1e8a232faeaf975de09ff0225edc2b88c1ef"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskExecutorConfigurations__BeanDefinitions.class": {
+        "bytes": 1307,
+        "sha256": "68141b87cd11897816f36ba939ad61ed72ced6123d9881b17bb87fea9bd01e51"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskSchedulingAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1344,
+        "sha256": "a964be03aa9871918a23ff2446c020a07cba6e6242c5430eae1b7981c550e4a3"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskSchedulingConfigurations__BeanDefinitions$SimpleAsyncTaskSchedulerBuilderConfiguration.class": {
+        "bytes": 5139,
+        "sha256": "431860e8d6af2167c326e0c954e2f52b1010437f5fe3ed348f8d3bb10be7468b"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskSchedulingConfigurations__BeanDefinitions$ThreadPoolTaskSchedulerBuilderConfiguration.class": {
+        "bytes": 4181,
+        "sha256": "aae5a2dc7190f13f4214c318290bab0d27816b4378c0102bc8376abe87e1755c"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskSchedulingConfigurations__BeanDefinitions.class": {
+        "bytes": 832,
+        "sha256": "f486113d593885d3486336aea0924d7adcec5f0973c099af363a3b9b48d1e6f6"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskSchedulingProperties__BeanDefinitions.class": {
+        "bytes": 1316,
+        "sha256": "be4f5266216c7d070a35c1bbf0148085ebb8ed1281a597fb9cf0cb92de9e2fe5"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/WebProperties__BeanDefinitions.class": {
+        "bytes": 1270,
+        "sha256": "0419f2b922b4df5bf31fe2b9aaeccdcfa9d6e415699f927dc1616cd16aae9917"
+      },
+      "aot/org/springframework/boot/context/properties/BoundConfigurationProperties__BeanDefinitions.class": {
+        "bytes": 1429,
+        "sha256": "02dee065ccc2f2de88dcc00705dac0c77c4c5c451e2c588a64c666f9ebde4836"
+      },
+      "aot/org/springframework/boot/context/properties/ConfigurationPropertiesBinder__BeanDefinitions$ConfigurationPropertiesBinderFactory.class": {
+        "bytes": 1764,
+        "sha256": "f1f3af7d0b840897f7c62b2634c99af31c78f0cd8d45238de1d447e92503304b"
+      },
+      "aot/org/springframework/boot/context/properties/ConfigurationPropertiesBinder__BeanDefinitions.class": {
+        "bytes": 624,
+        "sha256": "83ebb3c075587539cc1a153d6713b50471135df7ade829bc43bb0134a355ffe9"
+      },
+      "aot/org/springframework/boot/context/properties/ConfigurationPropertiesBindingPostProcessor__BeanDefinitions.class": {
+        "bytes": 1489,
+        "sha256": "28887b888db550a88f774609589774e2b25cd601a02170e3d481fa1fcb7582c4"
+      },
+      "aot/org/springframework/boot/health/autoconfigure/actuate/endpoint/AvailabilityProbesAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 6069,
+        "sha256": "89edec8e498aa7a7143ab6e935a261a68a54732e7e4331583889f784028ca6a1"
+      },
+      "aot/org/springframework/boot/health/autoconfigure/actuate/endpoint/HealthEndpointAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1382,
+        "sha256": "989b9640c6cb5101a367747f4ccfa8456460e6da7ba457e860026b7c69d1da63"
+      },
+      "aot/org/springframework/boot/health/autoconfigure/actuate/endpoint/HealthEndpointConfiguration__BeanDefinitions.class": {
+        "bytes": 11178,
+        "sha256": "dca65fa8c9af4ec04cfadc2285561d49ccfb902c79a8e226f47df40ee19f6174"
+      },
+      "aot/org/springframework/boot/health/autoconfigure/actuate/endpoint/HealthEndpointProperties__BeanDefinitions.class": {
+        "bytes": 1354,
+        "sha256": "5eee1b7ff57aa5a00589a61e8c71142ad45d21e782a14275f9259095aada7379"
+      },
+      "aot/org/springframework/boot/health/autoconfigure/actuate/endpoint/HealthEndpointWebExtensionConfiguration__BeanDefinitions.class": {
+        "bytes": 4225,
+        "sha256": "7677a2cda025a0432eb62b85a7804980ba53589192dc81f17322b8f6f24896be"
+      },
+      "aot/org/springframework/boot/health/autoconfigure/application/AvailabilityHealthContributorAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1432,
+        "sha256": "e41ad0af9cf4cd7536ddf169797cad3e21b9d121613b3e7bbbc3f5c946cc6703"
+      },
+      "aot/org/springframework/boot/health/autoconfigure/application/DiskSpaceHealthContributorAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3769,
+        "sha256": "3be9e7e5f1d26aa4626e4b663cbf86576ea75266bc31c0a52e336cf5e0ff5cf8"
+      },
+      "aot/org/springframework/boot/health/autoconfigure/application/DiskSpaceHealthIndicatorProperties__BeanDefinitions.class": {
+        "bytes": 1384,
+        "sha256": "62675ccf4b11bd36a84df9350ae6d26f705dae182491f13c0bd20e5cecca880d"
+      },
+      "aot/org/springframework/boot/health/autoconfigure/application/SslHealthContributorAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 4563,
+        "sha256": "e06db0cae52b3223b387400248cc9d414d33d707ffe8ec1cdf2cbd641a0a5e9f"
+      },
+      "aot/org/springframework/boot/health/autoconfigure/application/SslHealthIndicatorProperties__BeanDefinitions.class": {
+        "bytes": 1360,
+        "sha256": "09a4a5817dc16e57051b23b2089cbd1b5e5c73f65ff3877518dc19dfcfd01b9c"
+      },
+      "aot/org/springframework/boot/health/autoconfigure/contributor/HealthContributorAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3309,
+        "sha256": "1d6be8a7b8a7306cfd4f9ceb31a2e01b6530bca1740d3b473caa8652233b0cc2"
+      },
+      "aot/org/springframework/boot/health/autoconfigure/registry/HealthContributorRegistryAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3791,
+        "sha256": "0604cadbfc95cc094d5b72108f6cbaffa22db42044f26ca5c28aab7795e0b338"
+      },
+      "aot/org/springframework/boot/http/converter/autoconfigure/HttpMessageConvertersAutoConfiguration__BeanDefinitions$StringHttpMessageConverterConfiguration.class": {
+        "bytes": 4477,
+        "sha256": "29338695f1eb8e6deeb3859f3c73c308274520a70975049bff16767e9a286fe5"
+      },
+      "aot/org/springframework/boot/http/converter/autoconfigure/HttpMessageConvertersAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 5189,
+        "sha256": "6bc5587ac644e2b4031be30a361e776a7f057df0bd92df37137b904e8c125c1d"
+      },
+      "aot/org/springframework/boot/http/converter/autoconfigure/HttpMessageConvertersProperties__BeanDefinitions.class": {
+        "bytes": 1364,
+        "sha256": "1f00e8b37f443ac47f155348132e02eeeb58ce5e361f0df8591ccb8447fc04d6"
+      },
+      "aot/org/springframework/boot/http/converter/autoconfigure/Jackson2HttpMessageConvertersConfiguration__BeanDefinitions.class": {
+        "bytes": 1407,
+        "sha256": "0777930a60bcca2a396ce24230133d89983237cf8ca7d32998aca435e6391df6"
+      },
+      "aot/org/springframework/boot/http/converter/autoconfigure/JacksonHttpMessageConvertersConfiguration__BeanDefinitions$JacksonJsonHttpMessageConverterConfiguration.class": {
+        "bytes": 4483,
+        "sha256": "73ab7c300923074f51c7f3137a364994072410944c008d4616080847110d2ca0"
+      },
+      "aot/org/springframework/boot/http/converter/autoconfigure/JacksonHttpMessageConvertersConfiguration__BeanDefinitions.class": {
+        "bytes": 1646,
+        "sha256": "9ac3df7fd9c717ddb92c58f09aecf2891361a560a37a6d1e877b3e7feea2e2aa"
+      },
+      "aot/org/springframework/boot/jackson/JacksonMixinModuleEntries__BeanDefinitions.class": {
+        "bytes": 2088,
+        "sha256": "0c5cc581b6478be030f3679d82ddd1fc63d8080e028799a8b7b5cc77e430b8ab"
+      },
+      "aot/org/springframework/boot/jackson/autoconfigure/JacksonAutoConfiguration__BeanDefinitions$JacksonJsonCustomizerConfiguration.class": {
+        "bytes": 6824,
+        "sha256": "fa934517cf1f3eb0398eff7eea0b7424be55bc010cba666509a76a2d4ccb3997"
+      },
+      "aot/org/springframework/boot/jackson/autoconfigure/JacksonAutoConfiguration__BeanDefinitions$JacksonMixinConfiguration.class": {
+        "bytes": 3909,
+        "sha256": "6b3bf5a6a66ab524bcfaf0f46b933e95bf073d59536ffe90ba669fdc0a71e070"
+      },
+      "aot/org/springframework/boot/jackson/autoconfigure/JacksonAutoConfiguration__BeanDefinitions$JsonProblemDetailsConfiguration.class": {
+        "bytes": 4020,
+        "sha256": "f7b7cd46a17a5b9152de3ef6a3091322199803c5b90b445222be2cd1b6c3f40b"
+      },
+      "aot/org/springframework/boot/jackson/autoconfigure/JacksonAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 6780,
+        "sha256": "16564a8d0dc85b30d14203eaee99021e95588a1de415f56dd1b7eae0fb256bd7"
+      },
+      "aot/org/springframework/boot/jackson/autoconfigure/JacksonProperties__BeanDefinitions.class": {
+        "bytes": 1294,
+        "sha256": "ed0936e901b2996f8125de9ce2d8be0b7430a5cdb6bcdf3c483054515f3c908a"
+      },
+      "aot/org/springframework/boot/micrometer/metrics/autoconfigure/CompositeMeterRegistryAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1404,
+        "sha256": "e579d151d052bfa6d893b83049844ee91b1110de1a39aef91576e79903edd9ed"
+      },
+      "aot/org/springframework/boot/micrometer/metrics/autoconfigure/MetricsAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 9223,
+        "sha256": "c5c751792e324c5c1c5368c64aeda77d4359b37aa220cf4caaf69e687798ee60"
+      },
+      "aot/org/springframework/boot/micrometer/metrics/autoconfigure/MetricsProperties__BeanDefinitions.class": {
+        "bytes": 1316,
+        "sha256": "38dcf1aa707dfef2082b8d34e4aa1bff737f24bf540b79a492b4bfff9a25f6e5"
+      },
+      "aot/org/springframework/boot/micrometer/metrics/autoconfigure/export/simple/SimpleMetricsExportAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 4765,
+        "sha256": "3f1c1e5e0968f151ebdc096efbb7f56d1cb25c4b619e9db7af91456fb54b4fde"
+      },
+      "aot/org/springframework/boot/micrometer/metrics/autoconfigure/export/simple/SimpleProperties__BeanDefinitions.class": {
+        "bytes": 1340,
+        "sha256": "0ec40d49dde8aab706bdc46087c8eef6fe442f15ddcc6b8c33f0ad1976206367"
+      },
+      "aot/org/springframework/boot/micrometer/metrics/autoconfigure/jvm/JvmMetricsAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 8920,
+        "sha256": "941e431199eaf0f27e15cbe006d97f60880487e6206caa97618f3de0af95e34a"
+      },
+      "aot/org/springframework/boot/micrometer/metrics/autoconfigure/logging/logback/LogbackMetricsAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3407,
+        "sha256": "9b1e77910a27b4674bf47985bb9fe23b79b395b60b03517aecad1e2f6387ab3d"
+      },
+      "aot/org/springframework/boot/micrometer/metrics/autoconfigure/ssl/SslMetricsAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3706,
+        "sha256": "da1d0ea4b4a8e92a580ed367993efee0e9bd5f476caf7afa1bcd526865bbff38"
+      },
+      "aot/org/springframework/boot/micrometer/metrics/autoconfigure/startup/StartupTimeMetricsListenerAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3711,
+        "sha256": "97f98d6e5e78c62a91ee48e9aa9dbe59812830b0b63792984d04a10174bdd55f"
+      },
+      "aot/org/springframework/boot/micrometer/metrics/autoconfigure/system/SystemMetricsAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 6502,
+        "sha256": "1a9ff7fb2b34a575c4893f54ffe013e898dad0eb8fbf89c295e25ef53eb7308d"
+      },
+      "aot/org/springframework/boot/micrometer/metrics/autoconfigure/task/TaskExecutorMetricsAutoConfiguration__Autowiring.class": {
+        "bytes": 2728,
+        "sha256": "18c6d2f24d5b086e4c5dbda13964ef8e8b8d6a3c49c4b67324f4cb904de3ffbd"
+      },
+      "aot/org/springframework/boot/micrometer/metrics/autoconfigure/task/TaskExecutorMetricsAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3582,
+        "sha256": "9da2176675867984df162fc7384078191ebbcc0934567583e35c57e1c5026ec3"
+      },
+      "aot/org/springframework/boot/micrometer/observation/autoconfigure/ObservationAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 7275,
+        "sha256": "53c63fa54ca0efc03f3851a5591bfe4a35b4484e569f8036bda66fdb3743bc06"
+      },
+      "aot/org/springframework/boot/micrometer/observation/autoconfigure/ObservationProperties__BeanDefinitions.class": {
+        "bytes": 1340,
+        "sha256": "7a7752f4199525200f659826bcee9717d2cab79ae407329c99d0e869e561008e"
+      },
+      "aot/org/springframework/boot/micrometer/observation/autoconfigure/ScheduledTasksObservationAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 4042,
+        "sha256": "75ae2a70080ac6cbbb475a3483788ab2a77063a9ce9b880857f8e8f7830ace26"
+      },
+      "aot/org/springframework/boot/servlet/autoconfigure/HttpEncodingAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3566,
+        "sha256": "eb0d267dae402be74b8437369f9c90ac26982a12c69fa920e2c982b3a8b56991"
+      },
+      "aot/org/springframework/boot/servlet/autoconfigure/MultipartAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 5151,
+        "sha256": "ed6242e236711f83f143b063cb4307e771c4b407ac024cda6a0f629e97c0ad33"
+      },
+      "aot/org/springframework/boot/servlet/autoconfigure/MultipartProperties__BeanDefinitions.class": {
+        "bytes": 1302,
+        "sha256": "5b944d1024f506f123d9642748608d68cbf1e988068706f7f2917693818d82e7"
+      },
+      "aot/org/springframework/boot/servlet/autoconfigure/ServletEncodingProperties__BeanDefinitions.class": {
+        "bytes": 1326,
+        "sha256": "1bfe56a516879d87ed59c52d358c067d978a410e5a426c08bf9ba96abdb94a90"
+      },
+      "aot/org/springframework/boot/servlet/autoconfigure/actuate/web/ServletEndpointManagementContextConfiguration__BeanDefinitions.class": {
+        "bytes": 4254,
+        "sha256": "8d955580d819da32fc107052b44bad418c4069ae0d3b7dab33c965e2c5c42f56"
+      },
+      "aot/org/springframework/boot/servlet/autoconfigure/actuate/web/ServletManagementContextAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3800,
+        "sha256": "767cf1665475f5fb5f2f52f53d0b5b30a911f93d642354d919468fbf5f9af259"
+      },
+      "aot/org/springframework/boot/tomcat/autoconfigure/TomcatServerProperties__BeanDefinitions.class": {
+        "bytes": 1312,
+        "sha256": "32bd0423938d542a4d97561c3ac715fa6e35778cb8049964ee8a32f9acaba6e9"
+      },
+      "aot/org/springframework/boot/tomcat/autoconfigure/TomcatWebServerConfiguration__BeanDefinitions$TomcatWebSocketConfiguration.class": {
+        "bytes": 3697,
+        "sha256": "c9669777a8d4b3408985fd925a9f8385a33f8ec3af545383a011ee1553a50d84"
+      },
+      "aot/org/springframework/boot/tomcat/autoconfigure/TomcatWebServerConfiguration__BeanDefinitions.class": {
+        "bytes": 4264,
+        "sha256": "ea91fc70d18068a5bde5077a5b26ceb1c8fb00f12024f4faa4ad4eec4f57e54d"
+      },
+      "aot/org/springframework/boot/tomcat/autoconfigure/metrics/TomcatMetricsAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3538,
+        "sha256": "e21779a72597348ae99a955c14aa7c9718a7c8a4b98ef5bbd9163eb88b987ce1"
+      },
+      "aot/org/springframework/boot/tomcat/autoconfigure/servlet/TomcatServletWebServerAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 5840,
+        "sha256": "c708aaf171ef8aa5693fda040ef5fb4f566c89e14bfebb5a5038581b8397cae1"
+      },
+      "aot/org/springframework/boot/validation/beanvalidation/MethodValidationExcludeFilter__BeanDefinitions.class": {
+        "bytes": 3239,
+        "sha256": "0953ffdcefd93046d724efa1bef501fd0bd27ef9b8624f17ade748f07cafc613"
+      },
+      "aot/org/springframework/boot/web/error/ErrorPageRegistrarBeanPostProcessor__BeanDefinitions.class": {
+        "bytes": 1383,
+        "sha256": "a305c71475c1f76ec476772dc1b85f9ad8494217a3e68edb890f526ed00fd928"
+      },
+      "aot/org/springframework/boot/web/server/WebServerFactoryCustomizerBeanPostProcessor__BeanDefinitions.class": {
+        "bytes": 1417,
+        "sha256": "994773387b0eb97ace6c795b1394fb78e78fd23e6e1797ce03ff71aee1d7002c"
+      },
+      "aot/org/springframework/boot/web/server/autoconfigure/ServerProperties__BeanDefinitions.class": {
+        "bytes": 1296,
+        "sha256": "2df944aa90f926db730a5ca108b782c1d48214b40e50297a5963a80daf0e30cc"
+      },
+      "aot/org/springframework/boot/web/server/autoconfigure/servlet/ServletWebServerConfiguration__BeanDefinitions.class": {
+        "bytes": 4024,
+        "sha256": "ea3b75317d7b361dd452100874f931fc9dfec99d55407d21a69467d1b812ad9b"
+      },
+      "aot/org/springframework/boot/webmvc/autoconfigure/DispatcherServletAutoConfiguration__BeanDefinitions$DispatcherServletConfiguration.class": {
+        "bytes": 3870,
+        "sha256": "8e69cc91cd3a8c6e27b9f4eadf2a0f704ad1d2c59ac817a7caf137959fed7050"
+      },
+      "aot/org/springframework/boot/webmvc/autoconfigure/DispatcherServletAutoConfiguration__BeanDefinitions$DispatcherServletRegistrationConfiguration.class": {
+        "bytes": 4338,
+        "sha256": "8e0712e2bb9244023b991b6d07e4baccce7ae7e2418de6d14a485e7aae11de5a"
+      },
+      "aot/org/springframework/boot/webmvc/autoconfigure/DispatcherServletAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1760,
+        "sha256": "472125a3d69ff8675869a6d2ed08a3a6811c3fe632188b379e138edac727b8f9"
+      },
+      "aot/org/springframework/boot/webmvc/autoconfigure/WebMvcAutoConfiguration_EnableWebMvcConfiguration__Autowiring.class": {
+        "bytes": 2582,
+        "sha256": "9865c63b76262fd598ec4df1cc3a65b7ecdf917867eb1f66c29518b1dcb72aa5"
+      },
+      "aot/org/springframework/boot/webmvc/autoconfigure/WebMvcAutoConfiguration__BeanDefinitions$EnableWebMvcConfiguration.class": {
+        "bytes": 20460,
+        "sha256": "fb02f7b70606ba8de5de4f92ed3a8b990a4a8ee14ac34b341c5a4ceeb0e24d3e"
+      },
+      "aot/org/springframework/boot/webmvc/autoconfigure/WebMvcAutoConfiguration__BeanDefinitions$WebMvcAutoConfigurationAdapter.class": {
+        "bytes": 7080,
+        "sha256": "babae0eccd492099606f8a2fc01b0d2a0ef1fb1b78239f26d99d30c0faf86638"
+      },
+      "aot/org/springframework/boot/webmvc/autoconfigure/WebMvcAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3550,
+        "sha256": "69429b194b69936f65a97304ad4129036aa19e6576ac6ccddff1e19b538da08e"
+      },
+      "aot/org/springframework/boot/webmvc/autoconfigure/WebMvcObservationAutoConfiguration__BeanDefinitions$MeterFilterConfiguration.class": {
+        "bytes": 4207,
+        "sha256": "e9ec569e95192961c54efa123194a5975a237e16319957833159b7312f76e05c"
+      },
+      "aot/org/springframework/boot/webmvc/autoconfigure/WebMvcObservationAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 4367,
+        "sha256": "97bdca4ff6b1fa3ea84a0cb62830413a138a62237c5c45993158582f1a7343e0"
+      },
+      "aot/org/springframework/boot/webmvc/autoconfigure/WebMvcProperties__BeanDefinitions.class": {
+        "bytes": 1288,
+        "sha256": "bb02dd4101151682aa3066fe21535ada48633551396744336a1ba689b28c73e7"
+      },
+      "aot/org/springframework/boot/webmvc/autoconfigure/actuate/endpoint/web/WebMvcHealthEndpointExtensionAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 4096,
+        "sha256": "d912fd44918a4652a56d99eb4c6e8b46aeb335eff7a8f906c68723709eb5ad8f"
+      },
+      "aot/org/springframework/boot/webmvc/autoconfigure/actuate/web/WebMvcEndpointManagementContextConfiguration__BeanDefinitions$HealthConfiguration.class": {
+        "bytes": 1729,
+        "sha256": "def5ac0116fb235160dfc43fabee0336540a737130c4885a3a83ec93e73853a9"
+      },
+      "aot/org/springframework/boot/webmvc/autoconfigure/actuate/web/WebMvcEndpointManagementContextConfiguration__BeanDefinitions.class": {
+        "bytes": 10932,
+        "sha256": "6eadd0556d6e8485062b9a111275a329cd85699b08434c3fce8f276d59ff5254"
+      },
+      "aot/org/springframework/boot/webmvc/autoconfigure/error/ErrorMvcAutoConfiguration__BeanDefinitions$DefaultErrorViewResolverConfiguration.class": {
+        "bytes": 5059,
+        "sha256": "f04d20256fc7467989825d483b6e0a4a8a18b596e8c926b3fca04b98aa8ba074"
+      },
+      "aot/org/springframework/boot/webmvc/autoconfigure/error/ErrorMvcAutoConfiguration__BeanDefinitions$WhitelabelErrorViewConfiguration.class": {
+        "bytes": 4247,
+        "sha256": "ce2c37040e164be3892fa9f9f648e133f2be4be30d7e27cfe5d92580aacf315a"
+      },
+      "aot/org/springframework/boot/webmvc/autoconfigure/error/ErrorMvcAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 8027,
+        "sha256": "77826b706cd434dc496a8b4b06fa3dea543424b4e92b7370fca408def2f235a6"
+      },
+      "aot/org/springframework/context/event/DefaultEventListenerFactory__BeanDefinitions.class": {
+        "bytes": 1406,
+        "sha256": "843c5f9fc50e2bbdb0ee23476c3dd900fd2c7aacfd4b4dde134b4d9c44ab6131"
+      },
+      "aot/org/springframework/context/event/EventListenerMethodProcessor__BeanDefinitions.class": {
+        "bytes": 1411,
+        "sha256": "56ca826c39d474c41ecd22f010d0f0e743e26cdd964e4854dad8b8e77dc479b4"
+      },
+      "lib/HdrHistogram-2.2.2.jar": {
+        "bytes": 177206,
+        "sha256": "22d1d4316c4ec13a68b559e98c8256d69071593731da96136640f864fa14fad8"
+      },
+      "lib/HikariCP-7.0.2.jar": {
+        "bytes": 172312,
+        "sha256": "f1e612fa27345be3107a85431e8a8aeb205c15364ab2f2d411e40a9d7bb08095"
+      },
+      "lib/checker-qual-3.31.0.jar": {
+        "bytes": 223971,
+        "sha256": "1cef5f476d22c6fb45387ddd8404f5e821cbd66487be1bdf8ee64871e63451b9"
+      },
+      "lib/commons-collections4-4.4.jar": {
+        "bytes": 751914,
+        "sha256": "1df8b9430b5c8ed143d7815e403e33ef5371b2400aadbe9bda0883762e0846d1"
+      },
+      "lib/commons-lang3-3.20.0.jar": {
+        "bytes": 713862,
+        "sha256": "69e5c9fa35da7a51a5fd2099dfe56a2d8d32cf233e2f6d770e796146440263f4"
+      },
+      "lib/commons-logging-1.3.6.jar": {
+        "bytes": 74010,
+        "sha256": "f8ead8943401081dea0aa824b5b1ba40a0e4ed297a572a0f02258150a0b62357"
+      },
+      "lib/hutool-all-5.8.20.jar": {
+        "bytes": 2510096,
+        "sha256": "b16bcec618412849d91526a2685051a3c3827679ce6f2e50fd7de50402d61b2a"
+      },
+      "lib/jackson-annotations-2.21.jar": {
+        "bytes": 82104,
+        "sha256": "53ca085f4a150f703f49e1aabd935bd03b43e1ea3d55d135438292af22cef56b"
+      },
+      "lib/jackson-core-2.21.5.jar": {
+        "bytes": 594187,
+        "sha256": "b64b5874162b503a0e58a8f7758266e8dd9f91bf49e3a59ae0b5f47589a231b7"
+      },
+      "lib/jackson-core-3.1.5.jar": {
+        "bytes": 598605,
+        "sha256": "9431b7fa2673bbb618c11d865fe15e13222fd182a214ff998cb7e56afd8f35d2"
+      },
+      "lib/jackson-databind-2.21.5.jar": {
+        "bytes": 1705906,
+        "sha256": "507418c0fafd38b2b2cfb704521630da613a8e4cc8381195a6f418017883e2c0"
+      },
+      "lib/jackson-databind-3.1.5.jar": {
+        "bytes": 1944003,
+        "sha256": "3a2338d996fd3056791df8d335fa9ba8a62a706ed4245ecf81b3e583df37d08a"
+      },
+      "lib/jakarta.annotation-api-3.0.0.jar": {
+        "bytes": 26378,
+        "sha256": "b01f55552284cfb149411e64eabca75e942d26d2e1786b32914250e4330afaa2"
+      },
+      "lib/jspecify-1.0.1.jar": {
+        "bytes": 3064,
+        "sha256": "070d75f261fe4c5b8202508366715f7f2d4660f88c8ef7e6d3575e48c9683b66"
+      },
+      "lib/jul-to-slf4j-2.0.18.jar": {
+        "bytes": 6347,
+        "sha256": "cbb7d1aaaa9e871eb1a06594abd911bf97027152976edf1edc315be75239204e"
+      },
+      "lib/liquidfilling-domain-297.jar": {
+        "bytes": 1578671,
+        "sha256": "a896b72c65b1332ff6d183db68e18fb6b014d206d5e4e0a83f7b246cf2641c0a"
+      },
+      "lib/log4j-api-2.25.5.jar": {
+        "bytes": 351427,
+        "sha256": "64777f73ea0b3104c04eb82befbdccc30a425a19e83ad06cb2f93aa303511863"
+      },
+      "lib/log4j-to-slf4j-2.25.5.jar": {
+        "bytes": 24173,
+        "sha256": "b68e8b47342dbc9b35644a14fe2efc0b7bf18da703910cd05ad5501ffe07bba1"
+      },
+      "lib/logback-classic-1.5.38.jar": {
+        "bytes": 287122,
+        "sha256": "afb439c61fa287c9e1925523b13baab03617e724406a389d48b61c2c3e46b700"
+      },
+      "lib/logback-core-1.5.38.jar": {
+        "bytes": 641090,
+        "sha256": "a855a0fc97b1d06f4efb1c3bba5ebd0eb508d8b58e68e89e4bbc23a85135c883"
+      },
+      "lib/micrometer-commons-1.17.1.jar": {
+        "bytes": 51810,
+        "sha256": "f2cee6ef046e72eec8128474c7f58c6217173b45ae373c30de0289f2a56ab0fd"
+      },
+      "lib/micrometer-core-1.17.1.jar": {
+        "bytes": 915235,
+        "sha256": "9ca47dfa831409b40253c8dc98c17b9d3e050ebbde4d1543c5521dca2b95ad56"
+      },
+      "lib/micrometer-jakarta9-1.17.1.jar": {
+        "bytes": 54773,
+        "sha256": "37fbb0a98ba92e185ae7ebe0804fe6c1394bf7fba7573b204fa6fc3998c2e246"
+      },
+      "lib/micrometer-observation-1.17.1.jar": {
+        "bytes": 84311,
+        "sha256": "eb34f0cd84a879393ae5c21160fc06385ccdc74f36a4d1e31b199f59acfdaf71"
+      },
+      "lib/operations-1.jar": {
+        "bytes": 6646,
+        "sha256": "027093ef8cd6567d703ef44c52419aebe9c124722b00bb5899c674fb174f8f9c"
+      },
+      "lib/postgresql-42.6.0.jar": {
+        "bytes": 1081604,
+        "sha256": "b817c67a40c94249fd59d4e686e3327ed0d3d3fae426b20da0f1e75652cfc461"
+      },
+      "lib/slf4j-api-2.0.18.jar": {
+        "bytes": 69982,
+        "sha256": "44508fd1576500688c790b190acdd16fec4f8c79a3e0b900afd70503cf055f55"
+      },
+      "lib/snakeyaml-2.6.jar": {
+        "bytes": 340068,
+        "sha256": "c8f7a98e7394adda02f6317249710e4d1b4c7a25aa8c7eace0c2eea52eb8bf85"
+      },
+      "lib/spring-aop-7.0.9.jar": {
+        "bytes": 426204,
+        "sha256": "b8c5d6bfcb1f4993f2cc124f7ab7fac40edf5256b9e43c2f7250a733cb5510e9"
+      },
+      "lib/spring-beans-7.0.9.jar": {
+        "bytes": 928155,
+        "sha256": "ff218b827a25c9e8929b0cd56dfb56916cea9d5b669ed97dc7cb262508ff548b"
+      },
+      "lib/spring-boot-4.1.1.jar": {
+        "bytes": 1392217,
+        "sha256": "0d92b532b1d4020640e72d78c31af175c23db8e0ddd45b81855b7fdf4c9c70f0"
+      },
+      "lib/spring-boot-actuator-4.1.1.jar": {
+        "bytes": 357191,
+        "sha256": "2bbb38417af25cfc6f57a9b01a85db9b6ccdcadb9e5d40f6b1b2f54a08f8b798"
+      },
+      "lib/spring-boot-actuator-autoconfigure-4.1.1.jar": {
+        "bytes": 141045,
+        "sha256": "bedbd4282a0f0c6a08bd5342d3940b50d8a013420d8a536695aedb1421b5e0f5"
+      },
+      "lib/spring-boot-autoconfigure-4.1.1.jar": {
+        "bytes": 372740,
+        "sha256": "59228756ddd76cea050f95d86deff334789bc53b6688beaa673b1af2b9794592"
+      },
+      "lib/spring-boot-health-4.1.1.jar": {
+        "bytes": 155266,
+        "sha256": "f60151e1f014b40761d0644be1cb04f82df7fc3e9b7bf6e946848547eec399e7"
+      },
+      "lib/spring-boot-http-converter-4.1.1.jar": {
+        "bytes": 54316,
+        "sha256": "52a167430a918c223b2ccd2eb62aff91a8e43e6daebe5a07caa37b9a04c61cb9"
+      },
+      "lib/spring-boot-jackson-4.1.1.jar": {
+        "bytes": 82549,
+        "sha256": "69a9b4d8850a0532a5e44ff7306a03621485b26596e7f9481de7d28e68a2dd42"
+      },
+      "lib/spring-boot-micrometer-metrics-4.1.1.jar": {
+        "bytes": 248317,
+        "sha256": "70dd91dcc319d00998ce5e410b03b841e682aa2f60e4bab159c78ff0ecdb7d0f"
+      },
+      "lib/spring-boot-micrometer-observation-4.1.1.jar": {
+        "bytes": 28846,
+        "sha256": "09ebd9ff7de21d10b1f11c70ca0ea8766a8a727affd19642584bee5a314ea11a"
+      },
+      "lib/spring-boot-servlet-4.1.1.jar": {
+        "bytes": 47081,
+        "sha256": "4dcb156e311a4c1ad5f1ed7eabd94a78ea74510b05c429a4fcfdcf8beb9d5882"
+      },
+      "lib/spring-boot-starter-4.1.1.jar": {
+        "bytes": 4767,
+        "sha256": "de5b2dd28400eda20914fd4a6054d0c201e68d2e4de35a25a4d89f054ccc2e63"
+      },
+      "lib/spring-boot-starter-actuator-4.1.1.jar": {
+        "bytes": 4804,
+        "sha256": "d26bb8461ccc417c97a869fbd2e9f0067ce8a56a9ab6058093097ca16e4cc128"
+      },
+      "lib/spring-boot-starter-jackson-4.1.1.jar": {
+        "bytes": 4740,
+        "sha256": "d30e594a3e0f3a090438fc22000a87ab577a3b80c674180a10544ca331207f24"
+      },
+      "lib/spring-boot-starter-logging-4.1.1.jar": {
+        "bytes": 4742,
+        "sha256": "8eca7d72c8434f5c3b935385c656cd5337f473434bdbcb4913b3b3a34897d178"
+      },
+      "lib/spring-boot-starter-micrometer-metrics-4.1.1.jar": {
+        "bytes": 4748,
+        "sha256": "ad34ce3535a82b3920efea7f9c5d6322de484969f3ab5fa6da05030edd7c14d4"
+      },
+      "lib/spring-boot-starter-tomcat-4.1.1.jar": {
+        "bytes": 4764,
+        "sha256": "f224d8504be3b413825ee85ef549a7b1598ee8512e062c6bd5ddce1043cd388a"
+      },
+      "lib/spring-boot-starter-tomcat-runtime-4.1.1.jar": {
+        "bytes": 4745,
+        "sha256": "580f0d9a9d02a1a6e387640e422af42f9dbdf302836d562ec595fdb2b31a1c29"
+      },
+      "lib/spring-boot-starter-webmvc-4.1.1.jar": {
+        "bytes": 4749,
+        "sha256": "4aec3edbdf6317fefe23db1b989d8bba143a45a51c1fc32346146ecebf67d625"
+      },
+      "lib/spring-boot-tomcat-4.1.1.jar": {
+        "bytes": 125521,
+        "sha256": "17f65629e4eb3c979c0572b69b57d630bb12e64869e9d7520adddaa6734256b6"
+      },
+      "lib/spring-boot-web-server-4.1.1.jar": {
+        "bytes": 171647,
+        "sha256": "6912fb1fdf7f657a61ac050760fa835fb1e7496399291697e2901f82887a4fee"
+      },
+      "lib/spring-boot-webmvc-4.1.1.jar": {
+        "bytes": 175435,
+        "sha256": "9f08c1fb938c45a8693fec5f3065be3aca203948a7ab4d56b06444986f75a6b2"
+      },
+      "lib/spring-context-7.0.9.jar": {
+        "bytes": 1399435,
+        "sha256": "7552a2fcfa30cea53eb14d7a65a7a8e1b1dd82e832a7164fb7e6fb105f438858"
+      },
+      "lib/spring-core-7.0.9.jar": {
+        "bytes": 2035755,
+        "sha256": "5195f4722699b39878d99a832549fe65df2890b159d063b88fff31b1ca65ae36"
+      },
+      "lib/spring-expression-7.0.9.jar": {
+        "bytes": 327140,
+        "sha256": "046434c40f43819729b9b1db0e6c659dfa68184c1c2c2efa5f7b3a5b27c4e2e2"
+      },
+      "lib/spring-probe25-1.jar": {
+        "bytes": 223606,
+        "sha256": "1003c1d9bb9dd38049446355d13919870c7653420a646667004dc14f767d0882"
+      },
+      "lib/spring-web-7.0.9.jar": {
+        "bytes": 2226342,
+        "sha256": "941ced476427bde2533872f293da535fd0258de3f3a650a7f1bfe01ed2927302"
+      },
+      "lib/spring-webmvc-7.0.9.jar": {
+        "bytes": 1107415,
+        "sha256": "8f114c1461692c5e534e82b27de23b7fb23370db8dee7ce0c92d5106906c9555"
+      },
+      "lib/teaql-core-1.554-RELEASE.jar": {
+        "bytes": 276263,
+        "sha256": "3dab475bb6bcba7bc2d3a40afa66891ef8aafcb391077e1ebf2aecef88f96a67"
+      },
+      "lib/teaql-data-service-sql-1.554-RELEASE.jar": {
+        "bytes": 19819,
+        "sha256": "fe99833625d621c5585e219f49eb621ab1f960c456bde10a500f17b1929e4c5c"
+      },
+      "lib/teaql-dynamic-fields-api-1.554-RELEASE.jar": {
+        "bytes": 55520,
+        "sha256": "06e3651d8ba9a9b52baad54c6e4904f244c82ba9eb043a48ddbf4c4a98acb27e"
+      },
+      "lib/teaql-postgres-1.554-RELEASE.jar": {
+        "bytes": 6910,
+        "sha256": "af60762a425abc556f11c5895fa3ae708d88f73aafb4c1d0a90d7ccf53a135e1"
+      },
+      "lib/teaql-provider-jdbc-1.554-RELEASE.jar": {
+        "bytes": 23640,
+        "sha256": "3a4e4fc9071f5bd729c7b7c13e5d6847ff570029533dc7401525c12ad74fc51f"
+      },
+      "lib/teaql-runtime-1.554-RELEASE.jar": {
+        "bytes": 141140,
+        "sha256": "78c664612fb5018d0133b8578f3dd3bb52e0dbbb1b18a5dccd9147a4a6643fc0"
+      },
+      "lib/teaql-sql-portable-1.554-RELEASE.jar": {
+        "bytes": 188955,
+        "sha256": "2025de0fd35f9a2eb8313bdb8d091331c85f52d2083c6c917c85dd93669366b1"
+      },
+      "lib/teaql-utils-1.554-RELEASE.jar": {
+        "bytes": 76155,
+        "sha256": "b7a20685f7bf0d45f6d620f5f7f826e77a3ab5411c549722929d480c2adcdfb0"
+      },
+      "lib/tomcat-embed-core-11.0.24.jar": {
+        "bytes": 3623633,
+        "sha256": "e7b966dcaac8c5ffa4f10e44031ebf5b71f2123560c08ac8b7120028615aea08"
+      },
+      "lib/tomcat-embed-el-11.0.24.jar": {
+        "bytes": 271215,
+        "sha256": "ad0546f12dace008aacce18ba13222137760b310ca719e173d3e13021b9af6c6"
+      },
+      "lib/tomcat-embed-websocket-11.0.24.jar": {
+        "bytes": 288141,
+        "sha256": "825160101f0da4a10e19b5730c2ae2f99f8c2c7a7211ac05562726c5e97ab91e"
+      },
+      "spring": {
+        "bytes": 97978688,
+        "sha256": "ea4e18bfa74b92407a5c72db275e32072e736cc3a347be3dace55f73fa343ef1"
+      }
+    },
+    "legacy": {
+      "agent-config/jni-config.json": {
+        "bytes": 1327,
+        "sha256": "1d950b39986b912075ae7d563df8c93795a3f98c3f3a985ff60d0bbf8dd2d516"
+      },
+      "agent-config/predefined-classes-config.json": {
+        "bytes": 65,
+        "sha256": "95417c9ded690045740dcff27d995fe905d7df481e5e608996e9dc1d02dfa9e4"
+      },
+      "agent-config/proxy-config.json": {
+        "bytes": 1066,
+        "sha256": "05ea6916c6ffc2fe01511c58bfcdd58462eb38a9c5cd9c3222c2350aa24c7868"
+      },
+      "agent-config/reachability-metadata.json": {
+        "bytes": 152475,
+        "sha256": "35ea8df882830934d1236398b3e213b3d3e1fa0afb488180a87bd908f56b844f"
+      },
+      "agent-config/reflect-config.json": {
+        "bytes": 247091,
+        "sha256": "6f55ea62d3d249c7b6c74e86e59182f0c9c42b956ad8ff408c5775e0eebbacb7"
+      },
+      "agent-config/resource-config.json": {
+        "bytes": 8561,
+        "sha256": "9e5ab90668ef13b88d8ef99c0def0592f1362e2d98d17e19f78cdb05485f275b"
+      },
+      "agent-config/serialization-config.json": {
+        "bytes": 968,
+        "sha256": "6d54008b45f8dc78408862b4f4fdf22dafbe6d6e7039935d26c55fdde0100005"
+      },
+      "aot/META-INF/native-image/tanker-filling/legacy-probe/native-image.properties": {
+        "bytes": 169,
+        "sha256": "46ee3f91fa12de41d70586f75f3c7ae05bffe57764f40485340d4f9bc7ea6102"
+      },
+      "aot/META-INF/native-image/tanker-filling/legacy-probe/proxy-config.json": {
+        "bytes": 2561,
+        "sha256": "2cbcb7bc7e31be691e1b6bc848cbe494d145067df8ee7fb3b205befc57f958e7"
+      },
+      "aot/META-INF/native-image/tanker-filling/legacy-probe/reflect-config.json": {
+        "bytes": 323942,
+        "sha256": "8627cc8d827adf20600af586334d984ddccd932a9ceb7ca40ff7ced789938897"
+      },
+      "aot/META-INF/native-image/tanker-filling/legacy-probe/resource-config.json": {
+        "bytes": 3144,
+        "sha256": "954c91f9ec8df6868e467a7942f17494f4c4e73fbef0e38be1ae59f64e241c3e"
+      },
+      "aot/META-INF/native-image/tanker-filling/legacy-probe/serialization-config.json": {
+        "bytes": 1131,
+        "sha256": "f69134aef7ad6886319338d128ab782450b2be1a02c6d59114ee4662fe35b715"
+      },
+      "aot/cn/hutool/extra/spring/SpringUtil__BeanDefinitions.class": {
+        "bytes": 1332,
+        "sha256": "a1a72fdd37f30467e4d7e13db9990e2f3120f4c1a9c31f76c8eca0e3148e0641"
+      },
+      "aot/com/doublechaintech/liquidfilling/Checkers$$SpringCGLIB$$0.class": {
+        "bytes": 49851,
+        "sha256": "ed29bbc0fdfc2d90c7bba7e18d0b0017de600fbdb1f4f47b8afe0f4358428ff9"
+      },
+      "aot/com/doublechaintech/liquidfilling/Checkers$$SpringCGLIB$$FastClass$$0.class": {
+        "bytes": 26224,
+        "sha256": "79e1426af6202f5a8bf0f4e6bf46a26e9ffdf4ef493e9cbf06ebd998961dd74b"
+      },
+      "aot/com/doublechaintech/liquidfilling/Checkers$$SpringCGLIB$$FastClass$$1.class": {
+        "bytes": 44751,
+        "sha256": "6750a8404a9d9467a193d53d674c1b80e050ca4877bef57047a73d13e1144a38"
+      },
+      "aot/com/doublechaintech/liquidfilling/Checkers__BeanDefinitions.class": {
+        "bytes": 68318,
+        "sha256": "5b5e51512f28bd85806100f39c805da5e7e847dacd4d83806d9b23cdb4a15c78"
+      },
+      "aot/com/doublechaintech/liquidfilling/EntityMetaRegistry$$SpringCGLIB$$0.class": {
+        "bytes": 3496,
+        "sha256": "e0e13c9cc17d6e8c2f12aa7e4ff1a90a6572eef15dec5a2c2c47ff2446768b1d"
+      },
+      "aot/com/doublechaintech/liquidfilling/EntityMetaRegistry__Autowiring.class": {
+        "bytes": 1136,
+        "sha256": "6b926fe1cc2b282422be05476ed95fb4f6934d8d5d09840de304c3bbf4fa1ef9"
+      },
+      "aot/com/doublechaintech/liquidfilling/EntityMetaRegistry__BeanDefinitions.class": {
+        "bytes": 2816,
+        "sha256": "5a9547857a06b069301b62a4d39f315f47a9b0edef1ded4d7dac4b63c54f3587"
+      },
+      "aot/com/doublechaintech/liquidfilling/Repositories$$SpringCGLIB$$0.class": {
+        "bytes": 31395,
+        "sha256": "e80ed2081f0c91eecedfaf14fa032fa368015db0a2cafd2b3befaa8a3d3746b8"
+      },
+      "aot/com/doublechaintech/liquidfilling/Repositories$$SpringCGLIB$$FastClass$$0.class": {
+        "bytes": 19223,
+        "sha256": "c364b7f62d251fbf48aec0736ea20ebe1cf6a3510a7bd40278d8208e7b88fcf2"
+      },
+      "aot/com/doublechaintech/liquidfilling/Repositories$$SpringCGLIB$$FastClass$$1.class": {
+        "bytes": 40220,
+        "sha256": "dbb7992bb291e16bf0915a5fecc70cc02e825eb10792b92837f08bd826d982a4"
+      },
+      "aot/com/doublechaintech/liquidfilling/Repositories__BeanDefinitions.class": {
+        "bytes": 36900,
+        "sha256": "61de57b7d98cb96e320ba0641029886e3bc75e00297266b850d432229343c8d4"
+      },
+      "aot/com/doublechaintech/liquidfilling/legacyprobe/LegacyNativeBootstrap__BeanDefinitions.class": {
+        "bytes": 3649,
+        "sha256": "83a826df87497cd4ba726178bf1cf4d68dbe3c16130c7dad12e002bbd2d4fda7"
+      },
+      "aot/com/doublechaintech/liquidfilling/legacyprobe/LegacyProbeApplication$$SpringCGLIB$$0.class": {
+        "bytes": 4049,
+        "sha256": "0c3aa33172fe47e9dff72d02161b899a851db358dec1ecf564f7712e02cc4c8f"
+      },
+      "aot/com/doublechaintech/liquidfilling/legacyprobe/LegacyProbeApplication$$SpringCGLIB$$FastClass$$0.class": {
+        "bytes": 2773,
+        "sha256": "ff3a9a6c1eba0135a8aad0fabf13281bbc43163a321717a2d5f1cd70fd6d5e79"
+      },
+      "aot/com/doublechaintech/liquidfilling/legacyprobe/LegacyProbeApplication$$SpringCGLIB$$FastClass$$1.class": {
+        "bytes": 5133,
+        "sha256": "5896a1c2aae7924b70bef8e9d7fb6fd8c84cbe74b384e69457721af026c6b1dd"
+      },
+      "aot/com/doublechaintech/liquidfilling/legacyprobe/LegacyProbeApplication__ApplicationContextInitializer.class": {
+        "bytes": 4262,
+        "sha256": "f382c77676a444ff5e577ced6246df2d86f8dff1baa8dad935108bdc874caf47"
+      },
+      "aot/com/doublechaintech/liquidfilling/legacyprobe/LegacyProbeApplication__BeanDefinitions.class": {
+        "bytes": 3393,
+        "sha256": "4d50cacbe7ed07172612a6b65cc9aa025dbc2247f37965bf5f5bb487347c2fa9"
+      },
+      "aot/com/doublechaintech/liquidfilling/legacyprobe/LegacyProbeApplication__BeanFactoryRegistrations.class": {
+        "bytes": 83216,
+        "sha256": "ce80b7dc9996a32f011f0e6e8c8fc2bd7a35b382726aea2b8fc179c080ac86a1"
+      },
+      "aot/com/doublechaintech/liquidfilling/legacyprobe/LegacyProbeController__BeanDefinitions.class": {
+        "bytes": 3010,
+        "sha256": "d318e9c94ba3f2bb97efe30f291e32ed320d3943d96360c8f40b863c8cf6aa92"
+      },
+      "aot/io/teaql/data/TQLAutoConfiguration$$SpringCGLIB$$0.class": {
+        "bytes": 9949,
+        "sha256": "01d9a8cc1533d68d5a2a601219cdfccc4745029f6157aa896f12a78b21139bbd"
+      },
+      "aot/io/teaql/data/TQLAutoConfiguration$$SpringCGLIB$$FastClass$$0.class": {
+        "bytes": 5660,
+        "sha256": "0758c8c7d941be25ad618074106c7d37829545ec4b755d3c874779b57a8bcb1c"
+      },
+      "aot/io/teaql/data/TQLAutoConfiguration$$SpringCGLIB$$FastClass$$1.class": {
+        "bytes": 10643,
+        "sha256": "a154a6c4e3263f6d6285f3d7e5f0bc53235294b7e988beb951eba88636a43bb0"
+      },
+      "aot/io/teaql/data/TQLAutoConfiguration$TQLContextResolver$$SpringCGLIB$$0.class": {
+        "bytes": 4397,
+        "sha256": "fb4ca2e88d30dd9b2cfb880bfb0755f8fb926c249c5f3f4fdf422f72b262835d"
+      },
+      "aot/io/teaql/data/TQLAutoConfiguration$TQLContextResolver$$SpringCGLIB$$FastClass$$0.class": {
+        "bytes": 4604,
+        "sha256": "1ae28eef2e03cd444ea57e088ea112cdcd56c11ddbd4d83cd6aefa94a8957471"
+      },
+      "aot/io/teaql/data/TQLAutoConfiguration$TQLContextResolver$$SpringCGLIB$$FastClass$$1.class": {
+        "bytes": 7145,
+        "sha256": "ea66bb5eaf9bcd7a9d386358887d78543a8b15e51a0dd00ac275a0b2c2415c8c"
+      },
+      "aot/io/teaql/data/TQLAutoConfiguration__BeanDefinitions$TQLContextResolver.class": {
+        "bytes": 4808,
+        "sha256": "7965c576e019664e535e2ded0c6086d2c2940cbb9a81f456770e19776b56987f"
+      },
+      "aot/io/teaql/data/TQLAutoConfiguration__BeanDefinitions$TeaQLResponseAdvice.class": {
+        "bytes": 1568,
+        "sha256": "c4910c460f715b7367c1702e849fa61a392944240c54a428075664042ba19386"
+      },
+      "aot/io/teaql/data/TQLAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 12527,
+        "sha256": "e45589514468d707def31fb60c0eae3d8ba241fc50d67ebb20295b69aad44b88"
+      },
+      "aot/io/teaql/data/TQLLogConfiguration$$SpringCGLIB$$0.class": {
+        "bytes": 4931,
+        "sha256": "eacc03fd369c8907fb5a51937b39f2843d990f96700ac3629d43d927dff045f1"
+      },
+      "aot/io/teaql/data/TQLLogConfiguration$$SpringCGLIB$$FastClass$$0.class": {
+        "bytes": 2967,
+        "sha256": "58c6858db60a6a0394e3a81049f4c317173df73a057bfbca079b7e31d72319aa"
+      },
+      "aot/io/teaql/data/TQLLogConfiguration$$SpringCGLIB$$FastClass$$1.class": {
+        "bytes": 5709,
+        "sha256": "138117d1006f16408fd322d8d95035f939fc4798298b3fe7ed5a75e3adf2df1a"
+      },
+      "aot/io/teaql/data/TQLLogConfiguration__BeanDefinitions$LogController.class": {
+        "bytes": 1532,
+        "sha256": "c91ccbaef325d21a1a87719f6ee019addea3d2dafe040d8671e49656c808b4be"
+      },
+      "aot/io/teaql/data/TQLLogConfiguration__BeanDefinitions.class": {
+        "bytes": 4871,
+        "sha256": "62f88239d4d35c9448b769afcca91b26a67336cea73ecf361ec0fe514c62d179"
+      },
+      "aot/io/teaql/data/graphql/GraphQLConfiguration$$SpringCGLIB$$0.class": {
+        "bytes": 4685,
+        "sha256": "af9f6d55a0b28e40f8030b7c22ba36b4853d5bf40ed3b0a971def9c715c73261"
+      },
+      "aot/io/teaql/data/graphql/GraphQLConfiguration$$SpringCGLIB$$FastClass$$0.class": {
+        "bytes": 3128,
+        "sha256": "0db575bcba257bd8c9b652c67ef9060e42452b980a113eb3b06ced66d19e27b6"
+      },
+      "aot/io/teaql/data/graphql/GraphQLConfiguration$$SpringCGLIB$$FastClass$$1.class": {
+        "bytes": 5779,
+        "sha256": "7d7f8e866872b5411299a5a04a490a6a3c5017d1f9eb423be8994b56dcffb1b0"
+      },
+      "aot/io/teaql/data/graphql/GraphQLConfiguration__BeanDefinitions.class": {
+        "bytes": 4616,
+        "sha256": "60f1310ac260b7493f0bbcc6b7f036538670d9051d0d546e29d69ebcc9ccd014"
+      },
+      "aot/org/springframework/aop/framework/autoproxy/InfrastructureAdvisorAutoProxyCreator__BeanDefinitions.class": {
+        "bytes": 2021,
+        "sha256": "e73fd530fe614f7a953b7c528b7d0619353b19f34c9264777c67fd5d5ce62105"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/availability/AvailabilityHealthContributorAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1623,
+        "sha256": "176e487001c203d83db3060f10652992056241f832ef455eb2d31d6c5c1ff6ec"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/endpoint/EndpointAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 5054,
+        "sha256": "2f1f9d19cd118fa59ecd2c76b9b0182c9abb87707e40719801d3bd2669a2c12c"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/endpoint/jackson/JacksonEndpointAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3445,
+        "sha256": "17a3987344e1fd40940b65398c8027c8e5aad99c47becfde07fd9592ae417d29"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/endpoint/web/CorsEndpointProperties__BeanDefinitions.class": {
+        "bytes": 1503,
+        "sha256": "d233779b847beca79eeb73c922114e4e3ee4c52b1371925afb5adefe687cba26"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/endpoint/web/ServletEndpointManagementContextConfiguration__BeanDefinitions$WebMvcServletEndpointManagementContextConfiguration.class": {
+        "bytes": 4795,
+        "sha256": "867c9dbcd12a240b7cc9103760ce0178bc6d47a8e76b05927f242f6fa49c58ae"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/endpoint/web/ServletEndpointManagementContextConfiguration__BeanDefinitions.class": {
+        "bytes": 4705,
+        "sha256": "bdfd384c9ace82da7fa1896ae52454f5a24eb5d269021d3d1d9ba85215086e8f"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/endpoint/web/WebEndpointAutoConfiguration__BeanDefinitions$WebEndpointServletConfiguration.class": {
+        "bytes": 4407,
+        "sha256": "1a93b566c411fdef24e96a33c5c68a3adc9965c737efb422eff2b7d541a83cdc"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/endpoint/web/WebEndpointAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 11495,
+        "sha256": "653ad10820b311c4398943e77d6fd3d7d1934882fa298d387074a99f9d1e10cc"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/endpoint/web/WebEndpointProperties__BeanDefinitions.class": {
+        "bytes": 1498,
+        "sha256": "3bb6890025294fe308e9717f6c65e3d9c6a35c3d7dc3fffa013361697da8aeb2"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/endpoint/web/servlet/WebMvcEndpointManagementContextConfiguration__BeanDefinitions.class": {
+        "bytes": 8040,
+        "sha256": "ecebbe76b3a78f6f4454da86fcbaaa7c8c432890a33e73c2f42296be76e79bf8"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/health/HealthContributorAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3385,
+        "sha256": "d5cbe470ca7afd9206396bc0e86d883f00d164584ee0f2abaaa687ad0963f6a4"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/health/HealthEndpointAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1530,
+        "sha256": "86aee6a5b4df685601c84f939053bfbd481a22b70ee8c595ceabb76ea8f12fe3"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/health/HealthEndpointConfiguration__BeanDefinitions.class": {
+        "bytes": 11042,
+        "sha256": "a65c7be6d57c19201d58941b369b28331cfd0f504810e1c6b1cc8634e308606f"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/health/HealthEndpointProperties__BeanDefinitions.class": {
+        "bytes": 1495,
+        "sha256": "f11968e5e5fc71f62d0b8037cd02689702a25b17a2240524a42c0e23833cefc2"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/health/HealthEndpointWebExtensionConfiguration__BeanDefinitions$MvcAdditionalHealthEndpointPathsConfiguration.class": {
+        "bytes": 4632,
+        "sha256": "7162b4f53b3b59aa3b010c33dc1e7dd9b3102280148926e618b474f8c0c36752"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/health/HealthEndpointWebExtensionConfiguration__BeanDefinitions.class": {
+        "bytes": 4429,
+        "sha256": "3e17e4c279eac1e5c8fab099c2412a89dbe2733920c47dac3cf5fe7103b38b72"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/health/ReactiveHealthEndpointConfiguration__BeanDefinitions.class": {
+        "bytes": 3970,
+        "sha256": "e6af80b32ef4e6f05593b4591800b78535cebe7d37f44888e696d0433fc479ea"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/info/InfoContributorAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1529,
+        "sha256": "78df91548d8db3b32be97eac7169d93f0873f6f319c3907eab625514a11d12c4"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/info/InfoContributorProperties__BeanDefinitions.class": {
+        "bytes": 1494,
+        "sha256": "e4b2c82891383ba4db12cb55a763dd5f5c9e5be9901dbc53de62da2afe5de3fd"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/jdbc/DataSourceHealthContributorAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 4788,
+        "sha256": "f4d96983634c2c6ead4b1bd0b160ff50b2472f4baa8ba53f1967ab7715142c75"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/jdbc/DataSourceHealthIndicatorProperties__BeanDefinitions.class": {
+        "bytes": 1544,
+        "sha256": "af3133029ee743cfb2e1967592457573df611d661d6a3fd8c6b0ac20409ae55b"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/metrics/CompositeMeterRegistryAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1573,
+        "sha256": "946b2e76b3cb9890ba087b4ea85d07a96ca22f79a53c8d56b95854f8ae81b332"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/metrics/JvmMetricsAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 8373,
+        "sha256": "47b3bd513d0bb431e497b1459f73a8301aaebaca63c11fc07e541ecc0129094c"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/metrics/LogbackMetricsAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3454,
+        "sha256": "d8b95d2bdbe62aeb2a1703216115d27f9732bf4758f26cbf4fc05dd452737d1d"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/metrics/MetricsAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 7399,
+        "sha256": "47101d06721d662f267ad3f2b136d6efec9d6b60cad339235bdadf7a231afc99"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/metrics/MetricsProperties__BeanDefinitions.class": {
+        "bytes": 1463,
+        "sha256": "d6b0b7302f1256e6036e3fb94c6c5b96ef02b886f41956a9765a4a42b3c3e735"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/metrics/SystemMetricsAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 6531,
+        "sha256": "e77374987ffa65c10221e9ddfef00ba5f76dc635f46fb3d0f3d749a140f46a79"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/metrics/data/RepositoryMetricsAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 7544,
+        "sha256": "74596a0c78a4022481b3fec652dcc483c6297c581227bd7859033a7002c575b5"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/metrics/export/simple/SimpleMetricsExportAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 4966,
+        "sha256": "cb28a79d4a5ea69089d8341c19eaa742facb8ddfd343df7b70a7ea2e3a13147b"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/metrics/export/simple/SimpleProperties__BeanDefinitions.class": {
+        "bytes": 1500,
+        "sha256": "d761dc14dd3b6716a265f98c5444968a25796acedd3349c00c1bdcf3404709ba"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/metrics/integration/IntegrationMetricsAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1589,
+        "sha256": "7cb91d8c2d27153f51de73e052f16ddd65e70ae6199ccfe09c51039925da2c97"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/metrics/jdbc/DataSourcePoolMetricsAutoConfiguration__BeanDefinitions$DataSourcePoolMetadataMetricsConfiguration.class": {
+        "bytes": 4839,
+        "sha256": "ac5e17e59fcbe3c748814c8dab3487ce1336cbde51382306ebac153cdb1fe4db"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/metrics/jdbc/DataSourcePoolMetricsAutoConfiguration__BeanDefinitions$HikariDataSourceMetricsConfiguration.class": {
+        "bytes": 4682,
+        "sha256": "293617ffcc3c3c707b7219aadf2cca83b6d52cecf27f2362e57fa022db06f2f2"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/metrics/jdbc/DataSourcePoolMetricsAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 2031,
+        "sha256": "4838419af66c7301a663529a4c07c647574bc0f4d38ad5576c9d25ea6bc29ee1"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/metrics/startup/StartupTimeMetricsListenerAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3872,
+        "sha256": "ba0f5844b17e0e2bc04fd636fd338330d7ce9a58913cfd57d60a0db1b4c4334f"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/metrics/task/TaskExecutorMetricsAutoConfiguration__Autowiring.class": {
+        "bytes": 2950,
+        "sha256": "898d9ab1870fb6bbc9b19dd79c902001e2420912f7160ac59d4ffd559728f9d8"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/metrics/task/TaskExecutorMetricsAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 4153,
+        "sha256": "27f3a6a44ec93d016bb81e1a7ea558e04080e7209bec40ebd248406432158257"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/metrics/web/tomcat/TomcatMetricsAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3804,
+        "sha256": "8aebea195d900ca4c2730db87e441ebef7082bb52e925723b3648a9cddb06fa9"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/observation/ObservationAutoConfiguration__BeanDefinitions$MeterObservationHandlerConfiguration$OnlyMetricsMeterObservationHandlerConfiguration.class": {
+        "bytes": 4715,
+        "sha256": "dcb8d72d5fb063e240940c0ec5eb2c67c050b703f6dcfa746a478940c5a22416"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/observation/ObservationAutoConfiguration__BeanDefinitions$MeterObservationHandlerConfiguration.class": {
+        "bytes": 2179,
+        "sha256": "3fd6f43da18757b67a9c8abea06eab0621f0a5b365d9b20f9c3675ec9279aefa"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/observation/ObservationAutoConfiguration__BeanDefinitions$OnlyMetricsConfiguration.class": {
+        "bytes": 3858,
+        "sha256": "bc4995f1d76eaf18af685ca8c6eda7ef25a0e981318e70f982960d12dc7e9f5a"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/observation/ObservationAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 7174,
+        "sha256": "bb637518a09d42d88e651cff6b55d845054ad9fda8850d26eec9e128ed04814a"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/observation/ObservationProperties__BeanDefinitions.class": {
+        "bytes": 1495,
+        "sha256": "b621dfc628ebf87c81e8fac707828e76c2b64ca85629072a00397998080b174c"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/observation/web/client/HttpClientObservationsAutoConfiguration__BeanDefinitions$MeterFilterConfiguration.class": {
+        "bytes": 4419,
+        "sha256": "a067b4ce8e6ec46f4568f765f1c5b8c34686e0074149ef2e6efc694a7f834250"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/observation/web/client/HttpClientObservationsAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1834,
+        "sha256": "f70a8e8eafb5de2a8e977b7a5d3cedb586539f007a347f006527178bf1bf7dee"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/observation/web/client/RestClientObservationConfiguration__BeanDefinitions.class": {
+        "bytes": 4130,
+        "sha256": "e4ac72cce2410be30c764b6148713f70b05c651a9946dfbe785decb1c5036b46"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/observation/web/client/RestTemplateObservationConfiguration__BeanDefinitions.class": {
+        "bytes": 4264,
+        "sha256": "b4f66123787a025976951e04b67b7335a2dbfdac57f205e3ee09830d2e7dcc11"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/observation/web/servlet/WebMvcObservationAutoConfiguration__BeanDefinitions$MeterFilterConfiguration.class": {
+        "bytes": 4394,
+        "sha256": "19f9e6d5233a3ce3142f03c1f1f8f7278643e8625b817f467b280794f79de0a5"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/observation/web/servlet/WebMvcObservationAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 4643,
+        "sha256": "c41e3f30ea05db62e08b9d11630188084badd8916a2c8dc9d5441aa601966565"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/scheduling/ScheduledTasksObservabilityAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 4214,
+        "sha256": "fa8d6d5b89233f04576e066e62b6ae727eda12031eb88cb986e3917462f7158b"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/system/DiskSpaceHealthContributorAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3915,
+        "sha256": "95b9e32c9b6671a2ecf7d398804345d57c8940f69c8711c11e1f7453f714b9df"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/system/DiskSpaceHealthIndicatorProperties__BeanDefinitions.class": {
+        "bytes": 1545,
+        "sha256": "f6f3580091a322dbc13a30ef056dbb1ae9d20943b14d64fe5c86555d5fcd7e72"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/web/server/ManagementContextAutoConfiguration__BeanDefinitions$SameManagementContextConfiguration$EnableSameManagementContextConfiguration.class": {
+        "bytes": 2418,
+        "sha256": "57bf8532772c3a62d15aaa4c2700f37ddf1bd30cd4432acb8732f41e2e4d1b08"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/web/server/ManagementContextAutoConfiguration__BeanDefinitions$SameManagementContextConfiguration.class": {
+        "bytes": 3824,
+        "sha256": "ad38d14826969c1622731e758e15f2054a53129f41f9840ff058932a0a3901c9"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/web/server/ManagementContextAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 2020,
+        "sha256": "948f617e03fa7eb88f026d716b395a56305b54f04ce9325a2cff9aa5ff473310"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/web/server/ManagementServerProperties__BeanDefinitions.class": {
+        "bytes": 1517,
+        "sha256": "f7ebd6dc839576ef604874e73c12b65718c00a2f3a425138be7e12e19923c37a"
+      },
+      "aot/org/springframework/boot/actuate/autoconfigure/web/servlet/ServletManagementContextAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 4907,
+        "sha256": "dccff3cae5107bf327b743c38e5edf213bdf30550da0bf5fe21d31669836680e"
+      },
+      "aot/org/springframework/boot/autoconfigure/AutoConfigurationPackages__BeanDefinitions$BasePackages.class": {
+        "bytes": 3612,
+        "sha256": "036d65741622ecfa6073e27a92949a3a55ea3c49e95adfb29ab498dc6fe89069"
+      },
+      "aot/org/springframework/boot/autoconfigure/AutoConfigurationPackages__BeanDefinitions.class": {
+        "bytes": 599,
+        "sha256": "73414695e727f205b940022d118917327af4ee588eef653eee960de938c6df50"
+      },
+      "aot/org/springframework/boot/autoconfigure/aop/AopAutoConfiguration__BeanDefinitions$ClassProxyingConfiguration.class": {
+        "bytes": 3058,
+        "sha256": "1456acf008ccba5f51b2f072446d932461cf7d769581af80ae8bc424c2a5207a"
+      },
+      "aot/org/springframework/boot/autoconfigure/aop/AopAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1616,
+        "sha256": "48ffc7515a9d0513f2a2fbf42d4eb4710b68b47c280ea6a98711fb9f168aecbf"
+      },
+      "aot/org/springframework/boot/autoconfigure/availability/ApplicationAvailabilityAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3441,
+        "sha256": "62acee03b8e8ee0c2ff178e230b3379f724d08d3f1e7b99c55e4f2f9892416cd"
+      },
+      "aot/org/springframework/boot/autoconfigure/context/ConfigurationPropertiesAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1554,
+        "sha256": "620ebe9ace32cee32256d019ec1cbfbc3d7bc73405b4f288b31c05603ab3b776"
+      },
+      "aot/org/springframework/boot/autoconfigure/context/LifecycleAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3736,
+        "sha256": "68d385581f9c2b88304c01bd74e5f17af3d3f8942df9de95bb1957951efd9faa"
+      },
+      "aot/org/springframework/boot/autoconfigure/context/LifecycleProperties__BeanDefinitions.class": {
+        "bytes": 1449,
+        "sha256": "6223a84f7a42f56f20cdd975ec6f123136944db70add03ba5028cc5fc1d9cfb7"
+      },
+      "aot/org/springframework/boot/autoconfigure/context/PropertyPlaceholderAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 2856,
+        "sha256": "5b7674a43ad34d1fae27d9600e76849921b91f36ba28d53c48045c4b06ad57d0"
+      },
+      "aot/org/springframework/boot/autoconfigure/dao/PersistenceExceptionTranslationAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3667,
+        "sha256": "31f46b67fd2b7cd2bac5c769aefa476861bb184e918e1107477b99fcdba96dc0"
+      },
+      "aot/org/springframework/boot/autoconfigure/data/web/SpringDataWebAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 5598,
+        "sha256": "69e0612b82f8f1057872fb7ef635636ec857463b37f27b753c9f3bc82ee4f018"
+      },
+      "aot/org/springframework/boot/autoconfigure/data/web/SpringDataWebProperties__BeanDefinitions.class": {
+        "bytes": 1472,
+        "sha256": "eb757e9869e9340b766d28491cc48d6ee47f716051af70f8a7edba4d61286b2d"
+      },
+      "aot/org/springframework/boot/autoconfigure/http/HttpMessageConvertersAutoConfiguration__BeanDefinitions$StringHttpMessageConverterConfiguration.class": {
+        "bytes": 4151,
+        "sha256": "76a0a3986d96aa0276f5cd9bbb70f365ccb734c63e678e1135920094ef7db942"
+      },
+      "aot/org/springframework/boot/autoconfigure/http/HttpMessageConvertersAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3975,
+        "sha256": "89735cbab7ac691ac7eb6293beb7da85432309a7498d59cc3dc77e935ae86169"
+      },
+      "aot/org/springframework/boot/autoconfigure/http/JacksonHttpMessageConvertersConfiguration__BeanDefinitions$MappingJackson2HttpMessageConverterConfiguration.class": {
+        "bytes": 4308,
+        "sha256": "71d2d700d831b45a5a8037bdb8832ae27d9ed6dc62984631e782adf904265bf2"
+      },
+      "aot/org/springframework/boot/autoconfigure/http/JacksonHttpMessageConvertersConfiguration__BeanDefinitions.class": {
+        "bytes": 1790,
+        "sha256": "19c51f329ecf13f4a8091df80d3a9baa3c134229bd9fe56912215188e2b4660a"
+      },
+      "aot/org/springframework/boot/autoconfigure/info/ProjectInfoAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3048,
+        "sha256": "e9d7cf566da40ede50bae8092aa1b0c181177ff6aedab02f5d1e865f82afe928"
+      },
+      "aot/org/springframework/boot/autoconfigure/info/ProjectInfoProperties__BeanDefinitions.class": {
+        "bytes": 1450,
+        "sha256": "75796f27d20f769e3da0eaf27d9f06c62d5c73b93ac3f386f11749a8a179989e"
+      },
+      "aot/org/springframework/boot/autoconfigure/jackson/JacksonAutoConfiguration__BeanDefinitions$Jackson2ObjectMapperBuilderCustomizerConfiguration.class": {
+        "bytes": 4859,
+        "sha256": "648f8d89abc630e4bf3a1dc007c4eb4c0fde71d7af98937b851205d1d2013b3c"
+      },
+      "aot/org/springframework/boot/autoconfigure/jackson/JacksonAutoConfiguration__BeanDefinitions$JacksonMixinConfiguration.class": {
+        "bytes": 4061,
+        "sha256": "63c07d24889e754f5ae9abba7d6b18b8e3781bae6ca11811ef721a07f5cb3da9"
+      },
+      "aot/org/springframework/boot/autoconfigure/jackson/JacksonAutoConfiguration__BeanDefinitions$JacksonObjectMapperBuilderConfiguration.class": {
+        "bytes": 4239,
+        "sha256": "75a4ae521cd4fba0c4338fa7cc65a3b2b5362715ec4609387c132102175ccc03"
+      },
+      "aot/org/springframework/boot/autoconfigure/jackson/JacksonAutoConfiguration__BeanDefinitions$JacksonObjectMapperConfiguration.class": {
+        "bytes": 4040,
+        "sha256": "5b348e242796a0646206d8b903a05606074bf06b6b62cd0a3b69cd730af90e65"
+      },
+      "aot/org/springframework/boot/autoconfigure/jackson/JacksonAutoConfiguration__BeanDefinitions$ParameterNamesModuleConfiguration.class": {
+        "bytes": 3667,
+        "sha256": "4b8236b74361adbfff1d69852472d74ce48baaf1f368df45ba93876dcb8e5222"
+      },
+      "aot/org/springframework/boot/autoconfigure/jackson/JacksonAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 4198,
+        "sha256": "6c303dfcee0e836af767056ea4e438b3dc29252a0f8dea9773f9a676450d108a"
+      },
+      "aot/org/springframework/boot/autoconfigure/jackson/JacksonProperties__BeanDefinitions.class": {
+        "bytes": 1439,
+        "sha256": "82c6c7722a699b1aa0a0d79ae1c7ba7200534b414ac650b9f1dc3e9c03388edb"
+      },
+      "aot/org/springframework/boot/autoconfigure/jdbc/DataSourceAutoConfiguration__BeanDefinitions$PooledDataSourceConfiguration.class": {
+        "bytes": 4119,
+        "sha256": "edf6bc19e817ab3642d2e2c655b7f5502a4b8474c4b04a916d705e0e6cf9d4b3"
+      },
+      "aot/org/springframework/boot/autoconfigure/jdbc/DataSourceAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1668,
+        "sha256": "738b405bb37342f256dae225f29ea1a930b48ee6b60b671262de6e4dddedada3"
+      },
+      "aot/org/springframework/boot/autoconfigure/jdbc/DataSourceConfiguration__BeanDefinitions$Hikari.class": {
+        "bytes": 5290,
+        "sha256": "bbbc3a5e4a1f72173123db4cedd47fdb9a5e9352de6444f6add41179a20461c8"
+      },
+      "aot/org/springframework/boot/autoconfigure/jdbc/DataSourceConfiguration__BeanDefinitions.class": {
+        "bytes": 594,
+        "sha256": "a3f864564d944ac47333849a3ebfdca4f90af1075a6b427c45054d3cd796fcfa"
+      },
+      "aot/org/springframework/boot/autoconfigure/jdbc/DataSourceJmxConfiguration__BeanDefinitions$Hikari.class": {
+        "bytes": 3247,
+        "sha256": "f6c802108f8d4f4a42594265621e80e0235020f8061c0e12cdbb912442cfc15f"
+      },
+      "aot/org/springframework/boot/autoconfigure/jdbc/DataSourceJmxConfiguration__BeanDefinitions.class": {
+        "bytes": 1616,
+        "sha256": "3c76b8ca05da554bf114d9c673cf08833f30943391874753181304c62c1c73c7"
+      },
+      "aot/org/springframework/boot/autoconfigure/jdbc/DataSourceProperties__BeanDefinitions.class": {
+        "bytes": 1445,
+        "sha256": "337eb8d994575a4d2e287499727d1d20038fec66fed1d96a4d473665220d1146"
+      },
+      "aot/org/springframework/boot/autoconfigure/jdbc/DataSourceTransactionManagerAutoConfiguration__BeanDefinitions$JdbcTransactionManagerConfiguration.class": {
+        "bytes": 4335,
+        "sha256": "9981c16322c9c5026f7354bf968e2f42c1619ce175c5a7fca8574d97cd7a0ccb"
+      },
+      "aot/org/springframework/boot/autoconfigure/jdbc/DataSourceTransactionManagerAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1788,
+        "sha256": "7e09f5382ba47dc6469126bfc6a83207f9b1bcd6698cb072616d1552800b16d2"
+      },
+      "aot/org/springframework/boot/autoconfigure/jdbc/JdbcClientAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3769,
+        "sha256": "6feed7f5dcf14bbf5b1f503affa14d3044d0cea88b0fd194ff561238bade2b96"
+      },
+      "aot/org/springframework/boot/autoconfigure/jdbc/JdbcProperties__BeanDefinitions.class": {
+        "bytes": 1415,
+        "sha256": "8c9670d0ef14b253d7404f618fc765f4c1c0c6cd23cd6b1852ee210eae17fb60"
+      },
+      "aot/org/springframework/boot/autoconfigure/jdbc/JdbcTemplateAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1490,
+        "sha256": "595e3e5c13ae44f05e51f36c423609913a2d4829a5eac709500ca12d2052fac8"
+      },
+      "aot/org/springframework/boot/autoconfigure/jdbc/JdbcTemplateConfiguration__BeanDefinitions.class": {
+        "bytes": 3831,
+        "sha256": "9156afeb4ab392209a83d5e98904ee2682ff414082aec86089d8dc2c82e9b51c"
+      },
+      "aot/org/springframework/boot/autoconfigure/jdbc/NamedParameterJdbcTemplateConfiguration__BeanDefinitions.class": {
+        "bytes": 3962,
+        "sha256": "20643194125020b3bf76731c422a80d18cff78d5e205e15f5d33e979b3986cae"
+      },
+      "aot/org/springframework/boot/autoconfigure/jdbc/metadata/DataSourcePoolMetadataProvidersConfiguration__BeanDefinitions$HikariPoolDataSourceMetadataProviderConfiguration.class": {
+        "bytes": 3997,
+        "sha256": "3994477c4582ed6cdf645e48253f7f3849c26f6f115f9cd00216978768a7fd74"
+      },
+      "aot/org/springframework/boot/autoconfigure/jdbc/metadata/DataSourcePoolMetadataProvidersConfiguration__BeanDefinitions.class": {
+        "bytes": 1846,
+        "sha256": "ca301604c95b58bc92e36821178839166ecf037e770569a12f4f36761fc19fcb"
+      },
+      "aot/org/springframework/boot/autoconfigure/netty/NettyAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 2989,
+        "sha256": "15819ca9a96c6a7a7d0aad99e0031ce91ef9025e07d1e938f3b6c742336abeba"
+      },
+      "aot/org/springframework/boot/autoconfigure/netty/NettyProperties__BeanDefinitions.class": {
+        "bytes": 1423,
+        "sha256": "70f4593a5aa3cba9a6e4a9c02956afee6f826d628af7fc2e00ea4cbd1f5ccc7c"
+      },
+      "aot/org/springframework/boot/autoconfigure/reactor/ReactorAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3025,
+        "sha256": "b21dfdbe0d674318462ed41e741d30fc2864a1de7e96e0bdc0116934c9932b35"
+      },
+      "aot/org/springframework/boot/autoconfigure/reactor/ReactorProperties__BeanDefinitions.class": {
+        "bytes": 1439,
+        "sha256": "cdabc77fbddb75dc30de7102f97d3e5a64783407fb70879a7de428ddf43f987c"
+      },
+      "aot/org/springframework/boot/autoconfigure/sql/init/DataSourceInitializationConfiguration__BeanDefinitions.class": {
+        "bytes": 4036,
+        "sha256": "e67d22bff7bdb0275f3392c3a6ba43e2df2be36f9e5ca195aa81f0978ed21ff2"
+      },
+      "aot/org/springframework/boot/autoconfigure/sql/init/SqlInitializationAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1527,
+        "sha256": "df5dcd4ce71a3e20964e6a0947c042366c8c9b5106d54c2dccae42d12721c6b2"
+      },
+      "aot/org/springframework/boot/autoconfigure/sql/init/SqlInitializationProperties__BeanDefinitions.class": {
+        "bytes": 1492,
+        "sha256": "e68070d55f84f4dbd219f7608027bcfa057fc6e94c8a28121a13e494700a8133"
+      },
+      "aot/org/springframework/boot/autoconfigure/ssl/SslAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 6579,
+        "sha256": "d0c52544d8da07926e55181a2a477b0fc045808febb6c086853099f9389af40a"
+      },
+      "aot/org/springframework/boot/autoconfigure/ssl/SslProperties__BeanDefinitions.class": {
+        "bytes": 1407,
+        "sha256": "9b208c78bd98fa725bd674d23a5c66a94f79924b278ab294c510c597ae75fece"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskExecutionAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1495,
+        "sha256": "9bb7b1d5fc0e833fe0ef4a874ec754315cea44c39a681a10fedc5efc06872c2b"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskExecutionProperties__BeanDefinitions.class": {
+        "bytes": 1460,
+        "sha256": "2d1bffc614c8e823816006a84251f2f29e26d7a9e24c886c8f2bbda9153f9b15"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskExecutorConfigurations__BeanDefinitions$SimpleAsyncTaskExecutorBuilderConfiguration.class": {
+        "bytes": 5304,
+        "sha256": "b4658e27f422e43489337a7f44d8a71a0518f23ffdf229ef7887f2b12f931d8a"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskExecutorConfigurations__BeanDefinitions$TaskExecutorBuilderConfiguration.class": {
+        "bytes": 4206,
+        "sha256": "908533fe16ae3ea38f9e4a5be606de662d94f078efb1d88c025f3685d50d8c53"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskExecutorConfigurations__BeanDefinitions$TaskExecutorConfiguration.class": {
+        "bytes": 4186,
+        "sha256": "4547b2bfa64979ba7a939f4f33e942385e924bb6c413c9e162129f2d16d2bf55"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskExecutorConfigurations__BeanDefinitions$ThreadPoolTaskExecutorBuilderConfiguration.class": {
+        "bytes": 4401,
+        "sha256": "390850d0c946312e8a02d4df52aa2da5e17f10afefcda8f3d40d8127c1ac6b60"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskExecutorConfigurations__BeanDefinitions.class": {
+        "bytes": 1199,
+        "sha256": "1de97e37d0bac208267cbb7fc7eb6329c0bb1778d17682a637533f9262b8769a"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskSchedulingAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1500,
+        "sha256": "46ba443503bf6c20e1f50a90458a68b5e3d9d21a8fba71ec8b1a93ca527e110b"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskSchedulingConfigurations__BeanDefinitions$SimpleAsyncTaskSchedulerBuilderConfiguration.class": {
+        "bytes": 5274,
+        "sha256": "c3d6ade24112dda7ac49f3eaf5764d1b26ada20876fe554fd19b7b1e9d300c35"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskSchedulingConfigurations__BeanDefinitions$TaskSchedulerBuilderConfiguration.class": {
+        "bytes": 4168,
+        "sha256": "e28df4e5a828991d09d908d0837b688173229a56ed0f20222a60bf9a4c2f408a"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskSchedulingConfigurations__BeanDefinitions$ThreadPoolTaskSchedulerBuilderConfiguration.class": {
+        "bytes": 4363,
+        "sha256": "0e3111cadd8df07d4c6daba849a0fd6f0b0574a7595d924d56247a009f6d5b8a"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskSchedulingConfigurations__BeanDefinitions.class": {
+        "bytes": 1060,
+        "sha256": "a4c6039b041388b8cff5f237912f0a3b263430a509304d2cec59fb1aca7f689a"
+      },
+      "aot/org/springframework/boot/autoconfigure/task/TaskSchedulingProperties__BeanDefinitions.class": {
+        "bytes": 1465,
+        "sha256": "9949eb64daa110c27bed8bc9b31974cadd640de3f3d2dd6a2f73a9f5617f072a"
+      },
+      "aot/org/springframework/boot/autoconfigure/transaction/TransactionAutoConfiguration__BeanDefinitions$EnableTransactionManagementConfiguration$CglibAutoProxyConfiguration.class": {
+        "bytes": 2292,
+        "sha256": "419a83bf72132fc877edc0297e796971ab9f55aa9443918dc5d43573a7557f42"
+      },
+      "aot/org/springframework/boot/autoconfigure/transaction/TransactionAutoConfiguration__BeanDefinitions$EnableTransactionManagementConfiguration.class": {
+        "bytes": 2115,
+        "sha256": "8991c485fe24b9cdbc8ce81d720c6ebcf6a59f06f5e762ed48b7712a57cd3d9f"
+      },
+      "aot/org/springframework/boot/autoconfigure/transaction/TransactionAutoConfiguration__BeanDefinitions$TransactionTemplateConfiguration.class": {
+        "bytes": 4091,
+        "sha256": "63ee49a1d1f9d0d36ff2fcaa84b67ae97864d0b8004e0474dd11cf79bc9d922b"
+      },
+      "aot/org/springframework/boot/autoconfigure/transaction/TransactionAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 2115,
+        "sha256": "d2e77618e1f3745eae7222e02c7d06ef40a156b2392821ac995ccbdb2be53a04"
+      },
+      "aot/org/springframework/boot/autoconfigure/transaction/TransactionManagerCustomizationAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 5123,
+        "sha256": "c650e311d8fbc7d1cd687b8266ff5b98a43e7246a4639e4c22e5d4421de5370e"
+      },
+      "aot/org/springframework/boot/autoconfigure/transaction/TransactionProperties__BeanDefinitions.class": {
+        "bytes": 1471,
+        "sha256": "ad0134aa53f758c7a557db064c2a6c790888c1443c22871deb1c29ef40cad8ad"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/ServerProperties__BeanDefinitions.class": {
+        "bytes": 1422,
+        "sha256": "43b059d536dbf784a029db3056add0885fb5664e5ff484cba3700556163988a4"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/WebProperties__BeanDefinitions.class": {
+        "bytes": 1407,
+        "sha256": "1e46080b3fc300be28b1302d29dc4ca877fa2097cb79130c84f1e47524df7130"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/client/RestClientAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 7115,
+        "sha256": "f99e817bd68114c1c0c718d504fbedc86c582ac03cc43b0ce435d0a5a2a597bf"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/client/RestTemplateAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 4991,
+        "sha256": "2f652db1dd126c2eeca0cd39b81b88210be38485ae3c34e079119898fb510589"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/embedded/EmbeddedWebServerFactoryCustomizerAutoConfiguration__BeanDefinitions$TomcatWebServerFactoryCustomizerConfiguration.class": {
+        "bytes": 4556,
+        "sha256": "8740ce1361add6a2c05f5b0e0069b9b63e1318070c8dc49993452a1eaf930467"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/embedded/EmbeddedWebServerFactoryCustomizerAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1876,
+        "sha256": "ba1859f90ab9feb7ec4255225bf4df0426dd737a805ec20ea016e4592c1c153e"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/servlet/DispatcherServletAutoConfiguration__BeanDefinitions$DispatcherServletConfiguration.class": {
+        "bytes": 4087,
+        "sha256": "5c697c691bda962826a70eb6f1044f377bbf931833d23bd54983a20e1e25e97e"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/servlet/DispatcherServletAutoConfiguration__BeanDefinitions$DispatcherServletRegistrationConfiguration.class": {
+        "bytes": 4575,
+        "sha256": "bddd0ab3d0d51d99ffbfd0eb65e0c1752e24d1d67a08d7b29fbf3175a96a0b71"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/servlet/DispatcherServletAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1946,
+        "sha256": "aa7d00e907674d80db947c7fc76823a608f61bd7648d2ce0073074468f938b4f"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/servlet/HttpEncodingAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 5726,
+        "sha256": "a8291bfea7469f5c4616e40a0782ec90774f731ed8168e617a9885c867acd667"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/servlet/MultipartAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 5403,
+        "sha256": "b20767062cb3551f4f625a791a2a8ceb5cb3f32015ac9b8b3a3fcc8bc3b54c99"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/servlet/MultipartProperties__BeanDefinitions.class": {
+        "bytes": 1461,
+        "sha256": "9b97857d4957620428607a2a6ec2c3dd966668d991f28e9808904abd4535c730"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/servlet/ServletWebServerFactoryAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 5377,
+        "sha256": "3a8786ccc323199508b9802cb28b6d4591a2cf0d13a67876cf388f46512efd5d"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/servlet/ServletWebServerFactoryConfiguration__BeanDefinitions$EmbeddedTomcat.class": {
+        "bytes": 4259,
+        "sha256": "0a7a212897a5593ee2f4a18d43c75955fae0b116275eaa42d22c4b59de256c8d"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/servlet/ServletWebServerFactoryConfiguration__BeanDefinitions.class": {
+        "bytes": 683,
+        "sha256": "cfcfb9addc366dce65bff4d454de20ff364a3a815d70521331bb46ede85609ad"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/servlet/WebMvcAutoConfiguration_EnableWebMvcConfiguration__Autowiring.class": {
+        "bytes": 2983,
+        "sha256": "bb8ad14aa1c37415581182b21c8170b29f9ce9a0af0eee77593a496e05e7d043"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/servlet/WebMvcAutoConfiguration__BeanDefinitions$EnableWebMvcConfiguration.class": {
+        "bytes": 12852,
+        "sha256": "b39a3228f5d35d5e85cb1c7f2b7aba083b7f754d687487db59069be3d20184fb"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/servlet/WebMvcAutoConfiguration__BeanDefinitions$WebMvcAutoConfigurationAdapter.class": {
+        "bytes": 7194,
+        "sha256": "cbf46bf0c556b7e5949fc597a79c1fc76df5145257b47103ba5140831601fb6f"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/servlet/WebMvcAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 3695,
+        "sha256": "c41a2790f9ac049d7334515f3df69794607d4d50c5a6ddf35729e455800e7c22"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/servlet/WebMvcProperties__BeanDefinitions.class": {
+        "bytes": 1446,
+        "sha256": "962987bcbdc045c92030def65b6457b2da6e3adfe79fe3b2c7cfd9d39472b5a5"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/servlet/error/ErrorMvcAutoConfiguration__BeanDefinitions$DefaultErrorViewResolverConfiguration.class": {
+        "bytes": 5314,
+        "sha256": "0b51e6f8f8d77529730d3cd326ce6eeaf39d52a465e606e547626103fb8d5790"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/servlet/error/ErrorMvcAutoConfiguration__BeanDefinitions$WhitelabelErrorViewConfiguration.class": {
+        "bytes": 4400,
+        "sha256": "a2809a83a69ab6eaeb54cfd3af5ece4f1ef07ba290033bf43a2dd3a5487ecea3"
+      },
+      "aot/org/springframework/boot/autoconfigure/web/servlet/error/ErrorMvcAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 8467,
+        "sha256": "8b1d552f1cbcc550eaab37c2a4d5c7f0d97cfae97c88e3bfc606b0831bbc2ee7"
+      },
+      "aot/org/springframework/boot/autoconfigure/websocket/servlet/WebSocketServletAutoConfiguration__BeanDefinitions$TomcatWebSocketConfiguration.class": {
+        "bytes": 3958,
+        "sha256": "75d19c54635db4bc59aa7c8da6da75ebd4ec4fd9b377c628a048683cb041d00f"
+      },
+      "aot/org/springframework/boot/autoconfigure/websocket/servlet/WebSocketServletAutoConfiguration__BeanDefinitions.class": {
+        "bytes": 1754,
+        "sha256": "2e5cb6b076e4bff83b5c2415a07e4049c7815dbba3c295cff9572b7c0f019e06"
+      },
+      "aot/org/springframework/boot/context/properties/BoundConfigurationProperties__BeanDefinitions.class": {
+        "bytes": 1582,
+        "sha256": "dfd48d50621c35432619cb06528d8be2e514f3e38ad5cb2090137b0195330f66"
+      },
+      "aot/org/springframework/boot/context/properties/ConfigurationPropertiesBinder__BeanDefinitions$ConfigurationPropertiesBinderFactory.class": {
+        "bytes": 1955,
+        "sha256": "9e5a2fbadf39015dbcde6df8199b39bbf059515f3513704d12a6d56de75ff885"
+      },
+      "aot/org/springframework/boot/context/properties/ConfigurationPropertiesBinder__BeanDefinitions.class": {
+        "bytes": 678,
+        "sha256": "dea10f9d0593766631d27ad5148f3f462a5b8fafcc340a80261cd63ce2db6ef1"
+      },
+      "aot/org/springframework/boot/context/properties/ConfigurationPropertiesBindingPostProcessor__BeanDefinitions.class": {
+        "bytes": 1657,
+        "sha256": "56ec1cecdbe0799b7db4191c59cb93727b38f38e0f09d8566624fce0b7043698"
+      },
+      "aot/org/springframework/boot/jackson/JsonMixinModuleEntries__BeanDefinitions.class": {
+        "bytes": 2289,
+        "sha256": "62fdede7be4633ac064b51494f3c8abbf51919ef4f31cfbdc093f46b13fd1705"
+      },
+      "aot/org/springframework/boot/sql/init/dependency/DatabaseInitializationDependencyConfigurer__BeanDefinitions$DependsOnDatabaseInitializationPostProcessor.class": {
+        "bytes": 1980,
+        "sha256": "fd1ecec69b14a159bfcdbc56f0a962cceba792571d1080991717aa1fe6605a73"
+      },
+      "aot/org/springframework/boot/sql/init/dependency/DatabaseInitializationDependencyConfigurer__BeanDefinitions.class": {
+        "bytes": 749,
+        "sha256": "a179e6720108093631c0bb4e65b77d8b5b3327905454fcc3543a987ce7cfeea9"
+      },
+      "aot/org/springframework/boot/validation/beanvalidation/MethodValidationExcludeFilter__BeanDefinitions.class": {
+        "bytes": 3574,
+        "sha256": "91135ddcd482247d556cb4206620c8d988c6ca9e6caef16888020ee1b305437b"
+      },
+      "aot/org/springframework/boot/web/server/ErrorPageRegistrarBeanPostProcessor__BeanDefinitions.class": {
+        "bytes": 1537,
+        "sha256": "ecc91964a66d5371b3b4209049d18e17b9cc1e7df137e559fd6e435284c2131d"
+      },
+      "aot/org/springframework/boot/web/server/WebServerFactoryCustomizerBeanPostProcessor__BeanDefinitions.class": {
+        "bytes": 1577,
+        "sha256": "96801b3d14a0bbbdbd4303b463fae1f73fb80f57987c7b878466d906cb792f92"
+      },
+      "aot/org/springframework/context/event/DefaultEventListenerFactory__BeanDefinitions.class": {
+        "bytes": 1548,
+        "sha256": "ed4388ecc14d2b85fb40decc1051c23fb683a75219fa338c64116f52c87e968f"
+      },
+      "aot/org/springframework/context/event/EventListenerMethodProcessor__BeanDefinitions.class": {
+        "bytes": 1554,
+        "sha256": "a3b5bd6969a331af63c4a9dbe0b8d09cb8da1d38086e83088ef368fb6c19b6cd"
+      },
+      "aot/org/springframework/data/web/config/ProjectingArgumentResolverRegistrar__BeanDefinitions.class": {
+        "bytes": 3789,
+        "sha256": "46ec6864ee2b0a72e245f3798627706a4ed4336800f889e958f43e002c861936"
+      },
+      "aot/org/springframework/data/web/config/SpringDataJacksonConfiguration__BeanDefinitions.class": {
+        "bytes": 3207,
+        "sha256": "73b6651ad6cb6e6c12f141d148f8e90dc8115e6b7d5b9043da2495e71d9d627c"
+      },
+      "aot/org/springframework/data/web/config/SpringDataWebConfiguration__BeanDefinitions.class": {
+        "bytes": 6304,
+        "sha256": "c07c45a6b211998a52899347343e4a6d9093fd809afad2bb79d0e6dc2105d6f5"
+      },
+      "aot/org/springframework/transaction/annotation/AbstractTransactionManagementConfiguration__BeanDefinitions.class": {
+        "bytes": 2821,
+        "sha256": "0bb4677a9d8d4ccdbd52107e62b5514cc1defb6ec722c49180453db51a0f9517"
+      },
+      "aot/org/springframework/transaction/annotation/ProxyTransactionManagementConfiguration__Autowiring.class": {
+        "bytes": 2725,
+        "sha256": "e11b5b829c3e93c78c63007c0b74d567bd27b85ee0463e11b6d4a9f2ecc3a879"
+      },
+      "aot/org/springframework/transaction/annotation/ProxyTransactionManagementConfiguration__BeanDefinitions.class": {
+        "bytes": 7367,
+        "sha256": "f2d86871d79605e07ad7ca45da608e296d6c272fb6f4a96f6e3adb3d3aecb592"
+      },
+      "aot/org/springframework/web/servlet/config/annotation/WebMvcConfigurationSupport__BeanDefinitions.class": {
+        "bytes": 20580,
+        "sha256": "bfa95f3367f14c08b41a2d04fb6be4576925685e17fbc7f898e66ab4b24035b2"
+      },
+      "legacy": {
+        "bytes": 137234752,
+        "sha256": "afc0577e061825ec5e7e96fb189b3f2b86d2d8b295c5cadb665283dbe5e0d4bc"
+      },
+      "lib/HdrHistogram-2.1.12.jar": {
+        "bytes": 173763,
+        "sha256": "9b47fbae444feaac4b7e04f0ea294569e4bc282bc69d8c2ce2ac3f23577281e2"
+      },
+      "lib/HikariCP-5.0.1.jar": {
+        "bytes": 161902,
+        "sha256": "26d492397e6775b4296737a8919bf04047afe5827fdd2c08b4557595436b3a2b"
+      },
+      "lib/LatencyUtils-2.0.3.jar": {
+        "bytes": 29779,
+        "sha256": "a32a9ffa06b2f4e01c5360f8f9df7bc5d9454a5d373cd8f361347fa5a57165ec"
+      },
+      "lib/byte-buddy-1.14.10.jar": {
+        "bytes": 4212599,
+        "sha256": "30e6e0446437a67db37e2b7f7d33f50787ddfd970359319dfd05469daa2dcbce"
+      },
+      "lib/cache-api-1.1.1.jar": {
+        "bytes": 51281,
+        "sha256": "9f34e007edfa82a7b2a2e1b969477dcf5099ce7f4f926fb54ce7e27c4a0cd54b"
+      },
+      "lib/checker-qual-3.31.0.jar": {
+        "bytes": 223971,
+        "sha256": "1cef5f476d22c6fb45387ddd8404f5e821cbd66487be1bdf8ee64871e63451b9"
+      },
+      "lib/graphql-java-21.3.jar": {
+        "bytes": 3627286,
+        "sha256": "e177266fc3e9b12761aff146a568197f57684da27dec49f977ff7713101f8cee"
+      },
+      "lib/graphql-java-extended-scalars-21.0.jar": {
+        "bytes": 75906,
+        "sha256": "2647d68573ac008cfc4af1e72d81b824d30d4dd2a9b749de4b5d89926f5659a8"
+      },
+      "lib/hutool-all-5.8.20.jar": {
+        "bytes": 2510096,
+        "sha256": "b16bcec618412849d91526a2685051a3c3827679ce6f2e50fd7de50402d61b2a"
+      },
+      "lib/hutool-core-5.8.20.jar": {
+        "bytes": 1420550,
+        "sha256": "a042a0e36f503ff8490eb52e23caadf72459e044e363f2146c21e3c3316034ec"
+      },
+      "lib/jackson-annotations-2.22.jar": {
+        "bytes": 84211,
+        "sha256": "21ddb598807d3a51a876704eb979d9296e1c6a6f47ab1826ff88c6d6a127a2d0"
+      },
+      "lib/jackson-core-2.22.3.jar": {
+        "bytes": 594776,
+        "sha256": "8a501126a385b25841915d839508f8a66e2a0dbc8a6709d055ef3b3e852b094c"
+      },
+      "lib/jackson-databind-2.22.3.jar": {
+        "bytes": 1709604,
+        "sha256": "556db5439e206114346043f68d200497dc96a0bca62a360a81784092ebd0e0a9"
+      },
+      "lib/jackson-dataformat-yaml-2.15.3.jar": {
+        "bytes": 54629,
+        "sha256": "2dd70a080e8542dc5ee727387abed963fc24122cd784ab38355f87d0e08d9772"
+      },
+      "lib/jackson-datatype-jdk8-2.15.3.jar": {
+        "bytes": 36110,
+        "sha256": "29995d3677f72dde74bf32bbf268b96beb952492b742d93f4c70af6c44b2156e"
+      },
+      "lib/jackson-datatype-jsr310-2.15.3.jar": {
+        "bytes": 122937,
+        "sha256": "bea1d78009ebc4e5d54918a3f7aec5da9fbd09f662c191a217ffcf37e8527c5e"
+      },
+      "lib/jackson-module-parameter-names-2.15.3.jar": {
+        "bytes": 10346,
+        "sha256": "baf1a3156a23cb407e05374161a07ed8560f78a7ae249955de04a9a2fa2d0f2b"
+      },
+      "lib/jakarta.annotation-api-2.1.1.jar": {
+        "bytes": 26141,
+        "sha256": "5f65fdaf424eee2b55e1d882ba9bb376be93fb09b37b808be6e22e8851c909fe"
+      },
+      "lib/java-dataloader-3.2.1.jar": {
+        "bytes": 72500,
+        "sha256": "a4651ccfa60507fb9ac13d3511e79ab565aa2867ddf6c6ee5676704acd871683"
+      },
+      "lib/jboss-marshalling-2.0.11.Final.jar": {
+        "bytes": 223990,
+        "sha256": "93d6257e1ac0f93ba6ff85827c9ef65b5efabf7bd2241fb3b4caf6c426f4f149"
+      },
+      "lib/jboss-marshalling-river-2.0.11.Final.jar": {
+        "bytes": 88893,
+        "sha256": "f3fa6545d15163468e1639fe3087de22234a9fd027a52be6e532bfe7bde6c554"
+      },
+      "lib/jodd-bean-5.1.6.jar": {
+        "bytes": 125529,
+        "sha256": "d07d805fe0d59b5d2dbc85d0ebfcf30f52d7fd5a3ff89ff4fbea1e46b1319705"
+      },
+      "lib/jodd-core-5.1.6.jar": {
+        "bytes": 348094,
+        "sha256": "4b504519263a98202480d3cf73562dff8245edc582350cc5f37d5965a0298122"
+      },
+      "lib/jul-to-slf4j-2.0.9.jar": {
+        "bytes": 6345,
+        "sha256": "69b4e5f8d3bd3f6f54367d19f2c1ee95dd5877802f12d868282e218dd76b00bf"
+      },
+      "lib/kryo-5.5.0.jar": {
+        "bytes": 371528,
+        "sha256": "4b902a21d99f7b4c32e6f7400e91f9284fd184db881bb9e18328e14d8127f7f9"
+      },
+      "lib/legacy-probe.jar": {
+        "bytes": 9650,
+        "sha256": "748d1de57ca5478e47ea68093c9b9d13fe03d0e51c3852291a678c55cd2d6ef0"
+      },
+      "lib/liquidfilling-core-296.jar": {
+        "bytes": 1437202,
+        "sha256": "2d5496f77a858d5b9216f70a33f9b42e309479107101964e64bd6e2ac7e5bd01"
+      },
+      "lib/log4j-api-2.21.1.jar": {
+        "bytes": 317479,
+        "sha256": "1db48e180881bef1deb502022006a025a248d8f6a26186789b0c7ce487c602d6"
+      },
+      "lib/log4j-to-slf4j-2.21.1.jar": {
+        "bytes": 22978,
+        "sha256": "de143c565ba78b0f2c0be58f132c7aec75e6e1a10845ebda5a4f17c2a35d9990"
+      },
+      "lib/logback-classic-1.4.11.jar": {
+        "bytes": 282793,
+        "sha256": "05850fca185dfa652969ed1e3864e365c0d724737a0f4ec68574baad1d855a0e"
+      },
+      "lib/logback-core-1.4.11.jar": {
+        "bytes": 597931,
+        "sha256": "37ee7367bd24ca87ef77430119a1cb814a76b240afab5c17f802ea383f58aca1"
+      },
+      "lib/micrometer-commons-1.12.0.jar": {
+        "bytes": 47275,
+        "sha256": "f4b8ecae3c8ef40fd9b9da82582aada1cf764b8bb93f4a2a2126575e3f67de47"
+      },
+      "lib/micrometer-core-1.12.0.jar": {
+        "bytes": 881640,
+        "sha256": "f79b0f75f5231559999e5a8ce95837e320aeb1465a024416f716535f2f9a65b9"
+      },
+      "lib/micrometer-jakarta9-1.12.0.jar": {
+        "bytes": 32222,
+        "sha256": "8c6e47a4afc03a19cf82da24734e08ef395874b9a52557b2f2d1d7942ccface9"
+      },
+      "lib/micrometer-observation-1.12.0.jar": {
+        "bytes": 71751,
+        "sha256": "3f160a849da81d2520bbdfe1d6976d1f72568256479576a16bf95babb6520085"
+      },
+      "lib/minlog-1.3.1.jar": {
+        "bytes": 5923,
+        "sha256": "5d4d632cfbebfe0a7644501cc303570b691406181bee65e9916b921c767d7c72"
+      },
+      "lib/named-data-lib-1.0.4.jar": {
+        "bytes": 14055,
+        "sha256": "e9d1a8315d48d109811514dba9061af713ded53f123db21a255d2c153d308ac8"
+      },
+      "lib/netty-buffer-4.1.101.Final.jar": {
+        "bytes": 306738,
+        "sha256": "d8fb397501ed59b046f69123c6d12a656066c534c564f7ba8fc3389497521c93"
+      },
+      "lib/netty-codec-4.1.101.Final.jar": {
+        "bytes": 345293,
+        "sha256": "982ebe55d12e5ba1a9f37a0d16d30a0baed22b9f67268fbeead3c23093864c81"
+      },
+      "lib/netty-codec-dns-4.1.101.Final.jar": {
+        "bytes": 66905,
+        "sha256": "e85d0929d017f0f625495e5ce1c033b1ba6f30d53b1fb5f403cac0a7e996babe"
+      },
+      "lib/netty-common-4.1.101.Final.jar": {
+        "bytes": 660512,
+        "sha256": "aa8d1d5187d17cfbe1b668a3f3f9f6740c6fa5c96ae3bbabced4ca16b1ca14eb"
+      },
+      "lib/netty-handler-4.1.101.Final.jar": {
+        "bytes": 561452,
+        "sha256": "afc62522b09160f4aedba1d5f498629067750abc0864242877f9debf6ef117ca"
+      },
+      "lib/netty-resolver-4.1.101.Final.jar": {
+        "bytes": 37791,
+        "sha256": "75af5bfa8d582962d66dabbc2e71abfa0cb1d3e7a3b06e252bbe560d4f2ec063"
+      },
+      "lib/netty-resolver-dns-4.1.101.Final.jar": {
+        "bytes": 171804,
+        "sha256": "a1b7fef032fce3446a7307e5aeb02126d92c0b38f00aae4f2f0de65d3215cd90"
+      },
+      "lib/netty-transport-4.1.101.Final.jar": {
+        "bytes": 497114,
+        "sha256": "5bf8f47b3d4612dbb1e94bcabcad92d7b37b8be64bfe744cddc790a1f7278c74"
+      },
+      "lib/netty-transport-native-unix-common-4.1.101.Final.jar": {
+        "bytes": 43968,
+        "sha256": "d2165ec2544411d451a57e0dc269692deec2a56bd7f57a38705dbf276b3a6752"
+      },
+      "lib/objenesis-3.3.jar": {
+        "bytes": 49423,
+        "sha256": "02dfd0b0439a5591e35b708ed2f5474eb0948f53abf74637e959b8e4ef69bfeb"
+      },
+      "lib/postgresql-42.6.0.jar": {
+        "bytes": 1081604,
+        "sha256": "b817c67a40c94249fd59d4e686e3327ed0d3d3fae426b20da0f1e75652cfc461"
+      },
+      "lib/reactive-streams-1.0.4.jar": {
+        "bytes": 11640,
+        "sha256": "f75ca597789b3dac58f61857b9ac2e1034a68fa672db35055a8fb4509e325f28"
+      },
+      "lib/reactor-core-3.6.0.jar": {
+        "bytes": 1867872,
+        "sha256": "1b37779edf618eb526d27986329740fa5c25c61568ca812812d0cca127ceeac1"
+      },
+      "lib/redisson-3.23.1.jar": {
+        "bytes": 2354760,
+        "sha256": "3ceb7d74f8426af92bd90ca48f8ab2d193628a24f26f3927c6a87469d8a6ccf1"
+      },
+      "lib/redisson-spring-boot-starter-3.23.1.jar": {
+        "bytes": 10521,
+        "sha256": "e1837e78f5c34987551e562230c80dc3475f7918cea1114aff5e698fb17bb4ff"
+      },
+      "lib/redisson-spring-data-31-3.23.1.jar": {
+        "bytes": 236727,
+        "sha256": "f27e3ee8a8ba59c99cf789705ccdcce3659941e582b9b6535a5d739fb1dadf0d"
+      },
+      "lib/reflectasm-1.11.9.jar": {
+        "bytes": 72265,
+        "sha256": "712b44da79a5b7f47a28cbfcb3d8ecfc872fae349c48aa4d3e38a5d69956afce"
+      },
+      "lib/rxjava-3.1.8.jar": {
+        "bytes": 2665230,
+        "sha256": "6890becbd4646347928746a4421cc559fca9f34d06ef2a7a947bd7adf7473246"
+      },
+      "lib/slf4j-api-2.0.9.jar": {
+        "bytes": 64579,
+        "sha256": "0818930dc8d7debb403204611691da58e49d42c50b6ffcfdce02dadb7c3c2b6c"
+      },
+      "lib/snakeyaml-2.2.jar": {
+        "bytes": 334352,
+        "sha256": "1467931448a0817696ae2805b7b8b20bfb082652bf9c4efaed528930dc49389b"
+      },
+      "lib/spring-aop-6.1.1.jar": {
+        "bytes": 414065,
+        "sha256": "a3d5a8e7f7f1dc231c25d1d80669b67c3a306294bc9e36cdd002453e76a481b1"
+      },
+      "lib/spring-beans-6.1.1.jar": {
+        "bytes": 872714,
+        "sha256": "2bca4b8cdeeb81121db76cc423e4d952e251f708e9abc319c8e3f38511c43b86"
+      },
+      "lib/spring-boot-3.2.0.jar": {
+        "bytes": 1593655,
+        "sha256": "768ce558b6a998d203666d9647ed60a5ec8a6e0cd4598a6a7f6bdf226ff5e5d6"
+      },
+      "lib/spring-boot-actuator-3.2.0.jar": {
+        "bytes": 649298,
+        "sha256": "f65b7b5bda49fa567acf19f5957082ade4a625b49f8cc8f698b5b872efff163a"
+      },
+      "lib/spring-boot-actuator-autoconfigure-3.2.0.jar": {
+        "bytes": 748311,
+        "sha256": "3d38bfc413b96673ffeb96775d800c1ff2dd2b116c716957d9ad57cc7543528f"
+      },
+      "lib/spring-boot-autoconfigure-3.2.0.jar": {
+        "bytes": 1925181,
+        "sha256": "c317b3c218da4fa2f1715e06a5c22432f508cfd64dff0d83946c39092e6848a6"
+      },
+      "lib/spring-boot-starter-3.2.0.jar": {
+        "bytes": 4765,
+        "sha256": "18b46cf89609455b34ecd13d95ac8d0cccf88d4d7935249ae4a6f79c6deb43e6"
+      },
+      "lib/spring-boot-starter-actuator-3.2.0.jar": {
+        "bytes": 4803,
+        "sha256": "304dd4b405530e5a55e17e0a755d1f3a11791fb762875e83b2e04fa5660f5ed8"
+      },
+      "lib/spring-boot-starter-data-redis-3.2.0.jar": {
+        "bytes": 4782,
+        "sha256": "e41eb3fbe2f36c19adc29e2706a4c4995902806c5aac0cdeedd86cc01dd03961"
+      },
+      "lib/spring-boot-starter-json-3.2.0.jar": {
+        "bytes": 4744,
+        "sha256": "fa8fd66d636a7b7a9aa1f4487ace4bb2261f620d50ac2410bef30f305cc8c958"
+      },
+      "lib/spring-boot-starter-logging-3.2.0.jar": {
+        "bytes": 4754,
+        "sha256": "3bce47ba84854cd6d37d91eadedae2d40a43c5c5069cc19ab9ca11d7ecc2e65d"
+      },
+      "lib/spring-boot-starter-tomcat-3.2.0.jar": {
+        "bytes": 4789,
+        "sha256": "ff9ad38027481119a715f9e4344039de189c6f99259b6699df89e5413657b222"
+      },
+      "lib/spring-boot-starter-web-3.2.0.jar": {
+        "bytes": 4800,
+        "sha256": "a822294f646f14bdae888bd50081ed8f2f164c1e2338c50631df3955dedeaf3c"
+      },
+      "lib/spring-context-6.1.1.jar": {
+        "bytes": 1279385,
+        "sha256": "b46807c32546320560078dddd95f3b2e6a42b7a643830b323f45b0573bdbfaad"
+      },
+      "lib/spring-context-support-6.1.1.jar": {
+        "bytes": 174054,
+        "sha256": "f90ae45bf493a545d9cbec84c6c31708e4c6cf51357e4a819f87bcb50260cab7"
+      },
+      "lib/spring-core-6.1.1.jar": {
+        "bytes": 1854464,
+        "sha256": "a2ef6992edc54d3380ba95c56d86d1baf64afb0eda9296518be21a483318d93f"
+      },
+      "lib/spring-data-commons-3.2.0.jar": {
+        "bytes": 1429152,
+        "sha256": "53705bfd09657c71c1a56334dfde8aa574166ccbcf429c7e94cd3db06a6bda53"
+      },
+      "lib/spring-data-keyvalue-3.2.0.jar": {
+        "bytes": 118192,
+        "sha256": "d51a5951d1ad152f0d4f7bec4a74b2b510430420d75728d78dc28b32fa025a06"
+      },
+      "lib/spring-data-redis-3.2.0.jar": {
+        "bytes": 2189245,
+        "sha256": "4966d37c73b571f3962727857bfc95a7b8bac0a251a4303eda10a48add29d111"
+      },
+      "lib/spring-expression-6.1.1.jar": {
+        "bytes": 301024,
+        "sha256": "a787dc92f1f9959069f5be206d5adbd6c1efb2444d458d279f02eda6b0e6b26f"
+      },
+      "lib/spring-jcl-6.1.1.jar": {
+        "bytes": 24537,
+        "sha256": "df17daa5812222a83795065dcc920a494dad423171265f8fa392628961c92317"
+      },
+      "lib/spring-jdbc-6.1.1.jar": {
+        "bytes": 455710,
+        "sha256": "0a4aa6dba9c48b9b534dd675ec99e09572f42d181289757be5342bfbc9db01f5"
+      },
+      "lib/spring-oxm-6.1.1.jar": {
+        "bytes": 59804,
+        "sha256": "66c4ca2ae655570977023536206a0f98e9fdaf057a0f2bc444b7849816efdbe6"
+      },
+      "lib/spring-tx-6.1.1.jar": {
+        "bytes": 284248,
+        "sha256": "240c59b56dd85a8c658dc27d42ae89b8a6b78450b0bb573c92a6ce62bcd6a6e5"
+      },
+      "lib/spring-web-6.1.1.jar": {
+        "bytes": 1862017,
+        "sha256": "9aead203936fc3508217ca833b58c2ce65d8b8162133dfea5f3e03cbf8be3d26"
+      },
+      "lib/spring-webmvc-6.1.1.jar": {
+        "bytes": 1032090,
+        "sha256": "2474c7b3ee933268afaa06220e07166bac3cc8a9303845df9aec8526a29850c8"
+      },
+      "lib/teaql-1.163-RELEASE.jar": {
+        "bytes": 227219,
+        "sha256": "5c38c36d239c7aebdf9e45f956084b4e84b1731a7dbf634345a9cc6f0eeb2a72"
+      },
+      "lib/teaql-autoconfigure-1.163-RELEASE.jar": {
+        "bytes": 46296,
+        "sha256": "73c7103b3ca93fb878b5fbb9df8b16d2bb49af5be9f81b8a041ec44ac2fd61a6"
+      },
+      "lib/teaql-graphql-1.163-RELEASE.jar": {
+        "bytes": 17839,
+        "sha256": "45068992917051849038341715c24725f0a40740aaf73261fee55df452017fce"
+      },
+      "lib/teaql-spring-boot-starter-1.163-RELEASE.jar": {
+        "bytes": 261,
+        "sha256": "1002616c1c123c54c927a8c9782b800c0e5413a8258f5a0583efa3fd7be2a03e"
+      },
+      "lib/teaql-sql-1.163-RELEASE.jar": {
+        "bytes": 80198,
+        "sha256": "3a6826193f4fe8e2fd127acdf45c46191cfa7eac98274e48bd855488c2357146"
+      },
+      "lib/tomcat-embed-core-10.1.16.jar": {
+        "bytes": 3511092,
+        "sha256": "0e10a073e143b338ddb3d57dfabb62169f61b3f3127733df8111a635b3fb799f"
+      },
+      "lib/tomcat-embed-el-10.1.16.jar": {
+        "bytes": 260727,
+        "sha256": "4b00097753037c7e4fb8217d6bb951db022a6c9a45af11d7bb087ed17f8d21d2"
+      },
+      "lib/tomcat-embed-websocket-10.1.16.jar": {
+        "bytes": 280677,
+        "sha256": "2ca8e769b76284b3c52fd8c7c15bb12cf2a1d4b9cc3309db525cdfec84dc9b3b"
+      }
+    }
+  },
+  "cpu_model": "model name\t: Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz",
+  "mem_total": "MemTotal:       16256000 kB",
+  "dynamic_linkage": {
+    "standalone": "\tlinux-vdso.so.1 (0x00007f618dd62000)\n\tlibz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007f618a4fb000)\n\tlibc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f618a307000)\n\t/lib64/ld-linux-x86-64.so.2 (0x00007f618dd64000)\n",
+    "spring": "\tlinux-vdso.so.1 (0x00007f4eae384000)\n\tlibz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007f4ea85cb000)\n\tlibc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f4ea83d7000)\n\t/lib64/ld-linux-x86-64.so.2 (0x00007f4eae386000)\n",
+    "legacy": "\tlinux-vdso.so.1 (0x00007f588db8c000)\n\tlibz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007f588586b000)\n\tlibc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f5885677000)\n\t/lib64/ld-linux-x86-64.so.2 (0x00007f588db8e000)\n",
+    "quarkus": "\tlinux-vdso.so.1 (0x00007f14472b1000)\n\tlibz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007f14436eb000)\n\tlibc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f14434f7000)\n\t/lib64/ld-linux-x86-64.so.2 (0x00007f14472b3000)\n",
+    "micronaut": "\tlinux-vdso.so.1 (0x00007f7047d48000)\n\tlibz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007f704251b000)\n\tlibc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f7042327000)\n\t/lib64/ld-linux-x86-64.so.2 (0x00007f7047d4a000)\n"
+  },
+  "common_config": {
+    "serialization-config.json": "15f2f4c44f0a4195ee07a39279fff5cff2b1f4746133409fed4089b960460a8a",
+    "reflect-config.json": "9ce936292996df5bf882b7808edf61513afcb9958f2b377132cb21f8aad37bda",
+    "resource-config.json": "32e35326a062ab7044223f7b120a6aaa6bc56077c74b3fd6c5f9e352642decc5",
+    "proxy-config.json": "ef00848dfcc55df51138c6d6c6e1c7243d88254e492e8d987f9d34aa5e990d15",
+    "predefined-classes-config.json": "95417c9ded690045740dcff27d995fe905d7df481e5e608996e9dc1d02dfa9e4",
+    "reachability-metadata.json": "0b144edbd313b53c6b08d6682d966a83ca9eb9c4876876ba119a0eed18c05402",
+    "jni-config.json": "e47e74ab6c2f5f33e5b2cf24a0e97e26cf2dfc7cb1c7daec8bb159e8777168df"
+  },
+  "observed_reflection": {
+    "standalone": {
+      "format": "reachability-metadata.json",
+      "total_entries": 64,
+      "class_entries": 63,
+      "structured_types": [
+        {
+          "proxy": [
+            "java.sql.Connection"
+          ]
+        }
+      ],
+      "proxy_interfaces": [
+        [
+          "java.sql.Connection"
+        ]
+      ],
+      "retained_classic_entries": 61,
+      "teaql_package_types": [],
+      "application_package_types": []
+    },
+    "spring": {
+      "format": "reachability-metadata.json",
+      "total_entries": 568,
+      "class_entries": 560,
+      "structured_types": [
+        {
+          "proxy": [
+            "java.lang.reflect.ParameterizedType",
+            "org.springframework.core.SerializableTypeWrapper$SerializableTypeProxy",
+            "java.io.Serializable"
+          ]
+        },
+        {
+          "proxy": [
+            "java.lang.reflect.TypeVariable",
+            "org.springframework.core.SerializableTypeWrapper$SerializableTypeProxy",
+            "java.io.Serializable"
+          ]
+        },
+        {
+          "proxy": [
+            "java.lang.reflect.WildcardType",
+            "org.springframework.core.SerializableTypeWrapper$SerializableTypeProxy",
+            "java.io.Serializable"
+          ]
+        },
+        {
+          "proxy": [
+            "java.sql.Connection"
+          ]
+        },
+        {
+          "proxy": [
+            "org.springframework.boot.actuate.endpoint.annotation.EndpointExtension"
+          ]
+        },
+        {
+          "proxy": [
+            "org.springframework.boot.context.properties.ConfigurationProperties"
+          ]
+        },
+        {
+          "proxy": [
+            "org.springframework.web.bind.annotation.RequestMapping"
+          ]
+        },
+        {
+          "proxy": [
+            "org.springframework.web.bind.annotation.RequestParam"
+          ]
+        }
+      ],
+      "proxy_interfaces": [
+        [
+          "java.lang.reflect.ParameterizedType",
+          "org.springframework.core.SerializableTypeWrapper$SerializableTypeProxy",
+          "java.io.Serializable"
+        ],
+        [
+          "java.lang.reflect.TypeVariable",
+          "org.springframework.core.SerializableTypeWrapper$SerializableTypeProxy",
+          "java.io.Serializable"
+        ],
+        [
+          "java.lang.reflect.WildcardType",
+          "org.springframework.core.SerializableTypeWrapper$SerializableTypeProxy",
+          "java.io.Serializable"
+        ],
+        [
+          "java.sql.Connection"
+        ],
+        [
+          "org.springframework.boot.actuate.endpoint.annotation.EndpointExtension"
+        ],
+        [
+          "org.springframework.boot.context.properties.ConfigurationProperties"
+        ],
+        [
+          "org.springframework.web.bind.annotation.RequestMapping"
+        ],
+        [
+          "org.springframework.web.bind.annotation.RequestParam"
+        ]
+      ],
+      "retained_classic_entries": 0,
+      "teaql_package_types": [],
+      "application_package_types": [
+        "com.doublechaintech.liquidfilling.probe.ProbeApplication",
+        "com.doublechaintech.liquidfilling.probe.ProbeApplication$$SpringCGLIB$$0",
+        "com.doublechaintech.liquidfilling.probe.ProbeApplication$$SpringCGLIB$$FastClass$$0",
+        "com.doublechaintech.liquidfilling.probe.ProbeApplication$$SpringCGLIB$$FastClass$$1",
+        "com.doublechaintech.liquidfilling.probe.ProbeApplication__ApplicationContextInitializer",
+        "com.doublechaintech.liquidfilling.probe.ProbeApplication__EnvironmentPostProcessor",
+        "com.doublechaintech.liquidfilling.probe.ProbeController",
+        "com.doublechaintech.liquidfilling.probe.ProbeOperations"
+      ]
+    },
+    "legacy": {
+      "format": "reachability-metadata.json",
+      "total_entries": 1137,
+      "class_entries": 1116,
+      "structured_types": [
+        {
+          "proxy": [
+            "java.lang.reflect.ParameterizedType",
+            "org.springframework.core.SerializableTypeWrapper$SerializableTypeProxy",
+            "java.io.Serializable"
+          ]
+        },
+        {
+          "proxy": [
+            "java.lang.reflect.TypeVariable",
+            "org.springframework.core.SerializableTypeWrapper$SerializableTypeProxy",
+            "java.io.Serializable"
+          ]
+        },
+        {
+          "proxy": [
+            "java.lang.reflect.WildcardType",
+            "org.springframework.core.SerializableTypeWrapper$SerializableTypeProxy",
+            "java.io.Serializable"
+          ]
+        },
+        {
+          "proxy": [
+            "java.sql.Connection"
+          ]
+        },
+        {
+          "proxy": [
+            "org.springframework.boot.actuate.endpoint.annotation.EndpointExtension"
+          ]
+        },
+        {
+          "proxy": [
+            "org.springframework.boot.context.properties.ConfigurationProperties"
+          ]
+        },
+        {
+          "proxy": [
+            "org.springframework.web.bind.annotation.ControllerAdvice"
+          ]
+        },
+        {
+          "proxy": [
+            "org.springframework.web.bind.annotation.PathVariable"
+          ]
+        },
+        {
+          "proxy": [
+            "org.springframework.web.bind.annotation.RequestMapping"
+          ]
+        },
+        {
+          "proxy": [
+            "org.springframework.web.bind.annotation.RequestParam"
+          ]
+        },
+        {
+          "lambda": {
+            "declaringClass": "com.doublechaintech.liquidfilling.legacyprobe.LegacyNativeBootstrap",
+            "interfaces": [
+              "org.springframework.beans.factory.SmartInitializingSingleton"
+            ]
+          }
+        },
+        {
+          "lambda": {
+            "declaringClass": "io.teaql.data.TQLAutoConfiguration",
+            "interfaces": [
+              "org.redisson.spring.starter.RedissonAutoConfigurationCustomizer"
+            ]
+          }
+        },
+        {
+          "lambda": {
+            "declaringClass": "io.teaql.data.TQLAutoConfiguration",
+            "interfaces": [
+              "org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer"
+            ]
+          }
+        },
+        {
+          "lambda": {
+            "declaringClass": "io.teaql.data.translation.Translator",
+            "interfaces": [
+              "io.teaql.data.translation.Translator"
+            ]
+          }
+        },
+        {
+          "lambda": {
+            "declaringClass": "org.springframework.boot.LazyInitializationExcludeFilter",
+            "interfaces": [
+              "org.springframework.boot.LazyInitializationExcludeFilter"
+            ]
+          }
+        },
+        {
+          "lambda": {
+            "declaringClass": "org.springframework.boot.actuate.autoconfigure.endpoint.jackson.JacksonEndpointAutoConfiguration",
+            "interfaces": [
+              "org.springframework.boot.actuate.endpoint.jackson.EndpointObjectMapper"
+            ]
+          }
+        },
+        {
+          "lambda": {
+            "declaringClass": "org.springframework.boot.actuate.autoconfigure.web.servlet.ServletManagementContextAutoConfiguration",
+            "interfaces": [
+              "org.springframework.boot.actuate.autoconfigure.web.servlet.ManagementServletContext"
+            ]
+          }
+        },
+        {
+          "lambda": {
+            "declaringClass": "org.springframework.boot.autoconfigure.data.web.SpringDataWebAutoConfiguration",
+            "interfaces": [
+              "org.springframework.data.web.config.PageableHandlerMethodArgumentResolverCustomizer"
+            ]
+          }
+        },
+        {
+          "lambda": {
+            "declaringClass": "org.springframework.boot.autoconfigure.data.web.SpringDataWebAutoConfiguration",
+            "interfaces": [
+              "org.springframework.data.web.config.SortHandlerMethodArgumentResolverCustomizer"
+            ]
+          }
+        },
+        {
+          "lambda": {
+            "declaringClass": "org.springframework.boot.autoconfigure.jdbc.metadata.DataSourcePoolMetadataProvidersConfiguration$HikariPoolDataSourceMetadataProviderConfiguration",
+            "interfaces": [
+              "org.springframework.boot.jdbc.metadata.DataSourcePoolMetadataProvider"
+            ]
+          }
+        },
+        {
+          "lambda": {
+            "declaringClass": "org.springframework.boot.validation.beanvalidation.MethodValidationExcludeFilter",
+            "interfaces": [
+              "org.springframework.boot.validation.beanvalidation.MethodValidationExcludeFilter"
+            ]
+          }
+        }
+      ],
+      "proxy_interfaces": [
+        [
+          "java.lang.reflect.ParameterizedType",
+          "org.springframework.core.SerializableTypeWrapper$SerializableTypeProxy",
+          "java.io.Serializable"
+        ],
+        [
+          "java.lang.reflect.TypeVariable",
+          "org.springframework.core.SerializableTypeWrapper$SerializableTypeProxy",
+          "java.io.Serializable"
+        ],
+        [
+          "java.lang.reflect.WildcardType",
+          "org.springframework.core.SerializableTypeWrapper$SerializableTypeProxy",
+          "java.io.Serializable"
+        ],
+        [
+          "java.sql.Connection"
+        ],
+        [
+          "org.springframework.boot.actuate.endpoint.annotation.EndpointExtension"
+        ],
+        [
+          "org.springframework.boot.context.properties.ConfigurationProperties"
+        ],
+        [
+          "org.springframework.web.bind.annotation.ControllerAdvice"
+        ],
+        [
+          "org.springframework.web.bind.annotation.PathVariable"
+        ],
+        [
+          "org.springframework.web.bind.annotation.RequestMapping"
+        ],
+        [
+          "org.springframework.web.bind.annotation.RequestParam"
+        ]
+      ],
+      "retained_classic_entries": 1092,
+      "teaql_package_types": [
+        "io.teaql.data.BaseEntity",
+        "io.teaql.data.DataConfigProperties",
+        "io.teaql.data.DataStore",
+        "io.teaql.data.GraphQLService",
+        "io.teaql.data.Repository",
+        "io.teaql.data.TQLAutoConfiguration",
+        "io.teaql.data.TQLAutoConfiguration$$SpringCGLIB$$0",
+        "io.teaql.data.TQLAutoConfiguration$$SpringCGLIB$$FastClass$$0",
+        "io.teaql.data.TQLAutoConfiguration$$SpringCGLIB$$FastClass$$1",
+        "io.teaql.data.TQLAutoConfiguration$1",
+        "io.teaql.data.TQLAutoConfiguration$TQLContextResolver",
+        "io.teaql.data.TQLAutoConfiguration$TQLContextResolver$$SpringCGLIB$$0",
+        "io.teaql.data.TQLAutoConfiguration$TQLContextResolver$$SpringCGLIB$$FastClass$$0",
+        "io.teaql.data.TQLAutoConfiguration$TQLContextResolver$$SpringCGLIB$$FastClass$$1",
+        "io.teaql.data.TQLAutoConfiguration$TQLContextResolver$1",
+        "io.teaql.data.TQLAutoConfiguration$TeaQLResponseAdvice",
+        "io.teaql.data.TQLContext",
+        "io.teaql.data.TQLLogConfiguration",
+        "io.teaql.data.TQLLogConfiguration$$SpringCGLIB$$0",
+        "io.teaql.data.TQLLogConfiguration$$SpringCGLIB$$FastClass$$0",
+        "io.teaql.data.TQLLogConfiguration$$SpringCGLIB$$FastClass$$1",
+        "io.teaql.data.TQLLogConfiguration$LogController",
+        "io.teaql.data.TQLResolver",
+        "io.teaql.data.UserContext",
+        "io.teaql.data.checker.Checker",
+        "io.teaql.data.graphql.BaseQueryContainer[]",
+        "io.teaql.data.graphql.GraphQLConfiguration",
+        "io.teaql.data.graphql.GraphQLConfiguration$$SpringCGLIB$$0",
+        "io.teaql.data.graphql.GraphQLConfiguration$$SpringCGLIB$$FastClass$$0",
+        "io.teaql.data.graphql.GraphQLConfiguration$$SpringCGLIB$$FastClass$$1",
+        "io.teaql.data.graphql.GraphQLService",
+        "io.teaql.data.graphql.GraphQLSupport",
+        "io.teaql.data.graphql.SimpleGraphQLFactory",
+        "io.teaql.data.lock.LockService",
+        "io.teaql.data.lock.LockServiceImpl",
+        "io.teaql.data.log.LogConfiguration",
+        "io.teaql.data.log.LogFilter",
+        "io.teaql.data.log.RequestLogger",
+        "io.teaql.data.log.UserTraceIdInitializer",
+        "io.teaql.data.meta.EntityDescriptor",
+        "io.teaql.data.meta.EntityMetaFactory",
+        "io.teaql.data.meta.PropertyDescriptor",
+        "io.teaql.data.meta.Relation",
+        "io.teaql.data.meta.SimpleEntityMetaFactory",
+        "io.teaql.data.repository.AbstractRepository",
+        "io.teaql.data.sql.GenericSQLProperty",
+        "io.teaql.data.sql.GenericSQLRelation",
+        "io.teaql.data.sql.JsonMeProperty",
+        "io.teaql.data.sql.SQLColumnResolver",
+        "io.teaql.data.sql.SQLConstraint",
+        "io.teaql.data.sql.SQLEntityDescriptor",
+        "io.teaql.data.sql.SQLRepository",
+        "io.teaql.data.sql.expression.ANDExpressionParser",
+        "io.teaql.data.sql.expression.AggrExpressionParser",
+        "io.teaql.data.sql.expression.AggrExpressionParser$1",
+        "io.teaql.data.sql.expression.BetweenParser",
+        "io.teaql.data.sql.expression.ExpressionHelper",
+        "io.teaql.data.sql.expression.FunctionApplyParser",
+        "io.teaql.data.sql.expression.NOTExpressionParser",
+        "io.teaql.data.sql.expression.NamedExpressionParser",
+        "io.teaql.data.sql.expression.ORExpressionParser",
+        "io.teaql.data.sql.expression.OneOperatorExpressionParser",
+        "io.teaql.data.sql.expression.OneOperatorExpressionParser$1",
+        "io.teaql.data.sql.expression.OrderByExpressionParser",
+        "io.teaql.data.sql.expression.OrderBysParser",
+        "io.teaql.data.sql.expression.ParameterParser",
+        "io.teaql.data.sql.expression.ParameterParser$1",
+        "io.teaql.data.sql.expression.PropertyParser",
+        "io.teaql.data.sql.expression.RawSqlParser",
+        "io.teaql.data.sql.expression.SQLExpressionParser",
+        "io.teaql.data.sql.expression.SubQueryParser",
+        "io.teaql.data.sql.expression.TwoOperatorExpressionParser",
+        "io.teaql.data.sql.expression.TwoOperatorExpressionParser$1",
+        "io.teaql.data.sql.expression.TypeCriteriaParser",
+        "io.teaql.data.sql.expression.VersionSearchCriteriaParser",
+        "io.teaql.data.translation.Translator",
+        "io.teaql.data.web.BlobObjectMessageConverter",
+        "io.teaql.data.web.MultiReadFilter",
+        "io.teaql.data.web.ServletUserContextInitializer",
+        "io.teaql.data.web.UITemplateRender",
+        "io.teaql.data.web.UserContextInitializer"
+      ],
+      "application_package_types": [
+        "com.doublechaintech.liquidfilling.Checkers",
+        "com.doublechaintech.liquidfilling.Checkers$$SpringCGLIB$$0",
+        "com.doublechaintech.liquidfilling.Checkers$$SpringCGLIB$$FastClass$$0",
+        "com.doublechaintech.liquidfilling.Checkers$$SpringCGLIB$$FastClass$$1",
+        "com.doublechaintech.liquidfilling.EntityMetaRegistry",
+        "com.doublechaintech.liquidfilling.EntityMetaRegistry$$SpringCGLIB$$0",
+        "com.doublechaintech.liquidfilling.Repositories",
+        "com.doublechaintech.liquidfilling.Repositories$$SpringCGLIB$$0",
+        "com.doublechaintech.liquidfilling.Repositories$$SpringCGLIB$$FastClass$$0",
+        "com.doublechaintech.liquidfilling.Repositories$$SpringCGLIB$$FastClass$$1",
+        "com.doublechaintech.liquidfilling.analysedevice.AnalyseDeviceChecker",
+        "com.doublechaintech.liquidfilling.analysedeviceitem.AnalyseDeviceItemChecker",
+        "com.doublechaintech.liquidfilling.analysiscomponent.AnalysisComponentChecker",
+        "com.doublechaintech.liquidfilling.analysisdetail.AnalysisDetailChecker",
+        "com.doublechaintech.liquidfilling.analysisform.AnalysisFormChecker",
+        "com.doublechaintech.liquidfilling.analysisitem.AnalysisItemChecker",
+        "com.doublechaintech.liquidfilling.analysisreport.AnalysisReportChecker",
+        "com.doublechaintech.liquidfilling.analysisreportitem.AnalysisReportItemChecker",
+        "com.doublechaintech.liquidfilling.analysisstandard.AnalysisStandardChecker",
+        "com.doublechaintech.liquidfilling.analysistask.AnalysisTaskChecker",
+        "com.doublechaintech.liquidfilling.analysistype.AnalysisTypeChecker",
+        "com.doublechaintech.liquidfilling.attachmenttype.AttachmentTypeChecker",
+        "com.doublechaintech.liquidfilling.batchrule.BatchRuleChecker",
+        "com.doublechaintech.liquidfilling.camera.CameraChecker",
+        "com.doublechaintech.liquidfilling.certificationtype.CertificationTypeChecker",
+        "com.doublechaintech.liquidfilling.checkafterfill.CheckAfterFillChecker",
+        "com.doublechaintech.liquidfilling.checkbeforefill.CheckBeforeFillChecker",
+        "com.doublechaintech.liquidfilling.checkfilling.CheckFillingChecker",
+        "com.doublechaintech.liquidfilling.checkitem.CheckItemChecker",
+        "com.doublechaintech.liquidfilling.checkreport.CheckReportChecker",
+        "com.doublechaintech.liquidfilling.checkreportitem.CheckReportItemChecker",
+        "com.doublechaintech.liquidfilling.checkstandard.CheckStandardChecker",
+        "com.doublechaintech.liquidfilling.concessionacceptanceproduct.ConcessionAcceptanceProductChecker",
+        "com.doublechaintech.liquidfilling.confirmcreatetask.ConfirmCreateTaskChecker",
+        "com.doublechaintech.liquidfilling.confirmfinishfilltask.ConfirmFinishFillTaskChecker",
+        "com.doublechaintech.liquidfilling.confirmfinishfilltaskexception.ConfirmFinishFillTaskExceptionChecker",
+        "com.doublechaintech.liquidfilling.confirmstartnewtask.ConfirmStartNewTaskChecker",
+        "com.doublechaintech.liquidfilling.containerattachment.ContainerAttachmentChecker",
+        "com.doublechaintech.liquidfilling.createtask.CreateTaskChecker",
+        "com.doublechaintech.liquidfilling.device.DeviceChecker",
+        "com.doublechaintech.liquidfilling.employee.EmployeeChecker",
+        "com.doublechaintech.liquidfilling.employeecard.EmployeeCardChecker",
+        "com.doublechaintech.liquidfilling.employeecertification.EmployeeCertificationChecker",
+        "com.doublechaintech.liquidfilling.employeepermission.EmployeePermissionChecker",
+        "com.doublechaintech.liquidfilling.fillcheck.FillCheckChecker",
+        "com.doublechaintech.liquidfilling.fillcheckdetail.FillCheckDetailChecker",
+        "com.doublechaintech.liquidfilling.fillquantitatecheckdetail.FillQuantitateCheckDetailChecker",
+        "com.doublechaintech.liquidfilling.fillrecord.FillRecordChecker",
+        "com.doublechaintech.liquidfilling.fillreport.FillReportChecker",
+        "com.doublechaintech.liquidfilling.fillstation.FillStationChecker",
+        "com.doublechaintech.liquidfilling.fillstationbinding.FillStationBindingChecker",
+        "com.doublechaintech.liquidfilling.fillstationdevice.FillStationDeviceChecker",
+        "com.doublechaintech.liquidfilling.fillstationproduct.FillStationProductChecker",
+        "com.doublechaintech.liquidfilling.finishfilltask.FinishFillTaskChecker",
+        "com.doublechaintech.liquidfilling.finishnofilltask.FinishNoFillTaskChecker",
+        "com.doublechaintech.liquidfilling.legacyprobe.LegacyNativeBootstrap",
+        "com.doublechaintech.liquidfilling.legacyprobe.LegacyProbeApplication",
+        "com.doublechaintech.liquidfilling.legacyprobe.LegacyProbeApplication$$SpringCGLIB$$0",
+        "com.doublechaintech.liquidfilling.legacyprobe.LegacyProbeApplication$$SpringCGLIB$$FastClass$$0",
+        "com.doublechaintech.liquidfilling.legacyprobe.LegacyProbeApplication$$SpringCGLIB$$FastClass$$1",
+        "com.doublechaintech.liquidfilling.legacyprobe.LegacyProbeApplication$LocalStore",
+        "com.doublechaintech.liquidfilling.legacyprobe.LegacyProbeApplication__ApplicationContextInitializer",
+        "com.doublechaintech.liquidfilling.legacyprobe.LegacyProbeController",
+        "com.doublechaintech.liquidfilling.liquidcontainer.LiquidContainerChecker",
+        "com.doublechaintech.liquidfilling.makecard.MakeCardChecker",
+        "com.doublechaintech.liquidfilling.measureunit.MeasureUnitChecker",
+        "com.doublechaintech.liquidfilling.merchant.Merchant",
+        "com.doublechaintech.liquidfilling.merchant.MerchantChecker",
+        "com.doublechaintech.liquidfilling.merchantconfiguration.MerchantConfigurationChecker",
+        "com.doublechaintech.liquidfilling.merchantproperty.MerchantPropertyChecker",
+        "com.doublechaintech.liquidfilling.merchanttasktype.MerchantTaskTypeChecker",
+        "com.doublechaintech.liquidfilling.permissiontype.PermissionTypeChecker",
+        "com.doublechaintech.liquidfilling.plantask.PlanTaskChecker",
+        "com.doublechaintech.liquidfilling.platform.Platform",
+        "com.doublechaintech.liquidfilling.platform.PlatformChecker",
+        "com.doublechaintech.liquidfilling.plcmock.PlcMockChecker",
+        "com.doublechaintech.liquidfilling.product.ProductChecker",
+        "com.doublechaintech.liquidfilling.productmedium.ProductMediumChecker",
+        "com.doublechaintech.liquidfilling.productstatus.ProductStatusChecker",
+        "com.doublechaintech.liquidfilling.relatedtruck.RelatedTruckChecker",
+        "com.doublechaintech.liquidfilling.relatedtrucklog.RelatedTruckLogChecker",
+        "com.doublechaintech.liquidfilling.requesttype.RequestTypeChecker",
+        "com.doublechaintech.liquidfilling.screen.ScreenChecker",
+        "com.doublechaintech.liquidfilling.servicerequest.ServiceRequestChecker",
+        "com.doublechaintech.liquidfilling.subtask.SubTaskChecker",
+        "com.doublechaintech.liquidfilling.subtaskreport.SubTaskReportChecker",
+        "com.doublechaintech.liquidfilling.subtaskstatus.SubTaskStatusChecker",
+        "com.doublechaintech.liquidfilling.task.TaskChecker",
+        "com.doublechaintech.liquidfilling.taskstatus.TaskStatusChecker",
+        "com.doublechaintech.liquidfilling.tasktype.TaskTypeChecker",
+        "com.doublechaintech.liquidfilling.truck.TruckChecker",
+        "com.doublechaintech.liquidfilling.truckmanager.TruckManagerChecker",
+        "com.doublechaintech.liquidfilling.truckstatus.TruckStatusChecker",
+        "com.doublechaintech.liquidfilling.weightbridge.WeightBridgeChecker",
+        "com.doublechaintech.liquidfilling.weightreport.WeightReportChecker"
+      ]
+    },
+    "micronaut": {
+      "format": "reachability-metadata.json",
+      "total_entries": 409,
+      "class_entries": 408,
+      "structured_types": [
+        {
+          "proxy": [
+            "java.sql.Connection"
+          ]
+        }
+      ],
+      "proxy_interfaces": [
+        [
+          "java.sql.Connection"
+        ]
+      ],
+      "retained_classic_entries": 0,
+      "teaql_package_types": [],
+      "application_package_types": []
+    }
+  },
+  "builds": {
+    "standalone": {
+      "build-configured.log": {
+        "sha256": "a08b3f0c36021dcb6d9afa92859dd30542e914c9fc388883debd96acc184cb23",
+        "elapsed": "3:21.85",
+        "peak_rss_kib": "4357036",
+        "exit_status": "0"
+      }
+    },
+    "spring": {
+      "build-configured.log": {
+        "sha256": "8d4df749692fab31dc93250d3792cbfe558dbfb5cb3af0d8c86a559baeade458",
+        "elapsed": "5:00.24",
+        "peak_rss_kib": "5503236",
+        "exit_status": "0"
+      }
+    },
+    "legacy": {
+      "build-configured.log": {
+        "sha256": "86e7209eb4ed0b9a05ac556a002d998b25803bff122ae1cc06ef0256dc7a1ef0",
+        "elapsed": "6:09.11",
+        "peak_rss_kib": "6826260",
+        "exit_status": "0"
+      },
+      "build-failed-redisson-codec-initialization.log": {
+        "sha256": "fa82f989141ea33d13eb1c4c9ac4ad2c8943bbec2c9857922f1637ba86010c0b",
+        "elapsed": "1:16.62",
+        "peak_rss_kib": "4038248",
+        "exit_status": "1"
+      },
+      "build-failed-redisson-initialization.log": {
+        "sha256": "fda7bb50b3043f7926112baab7828cd0422f1004740f08d1178d3e2f02511123",
+        "elapsed": "1:20.79",
+        "peak_rss_kib": "4043332",
+        "exit_status": "1"
+      }
+    },
+    "quarkus": {
+      "build-configured.log": {
+        "sha256": "d635d9245ca456dccd13d684529061f4a7401d1bb1ff9b1a5a37c64f560b5813",
+        "elapsed": "3:32.62",
+        "peak_rss_kib": "3771596",
+        "exit_status": "0"
+      }
+    },
+    "micronaut": {
+      "build-configured.log": {
+        "sha256": "c474dbd687e769801c7d50dcc33a095b4fcd977daff1c68e7208dd0b6abed054",
+        "elapsed": "4:26.25",
+        "peak_rss_kib": "4639396",
+        "exit_status": "0"
+      },
+      "build-without-shared-arena.log": {
+        "sha256": "90e4bb4196d29f159203bda5e0a06157dd71b9069a7a03dbf1fbf183f42794f1",
+        "elapsed": "4:24.62",
+        "peak_rss_kib": "4899152",
+        "exit_status": "0"
+      },
+      "build-failed-netty-initialization.log": {
+        "sha256": "229f8c0d271f8735472e6e33a72a3c7bb1a9c987d3fb6db054e46afdc65fa568",
+        "elapsed": "0:20.34",
+        "peak_rss_kib": "1140008",
+        "exit_status": "1"
+      }
+    }
+  },
+  "standalone_input": "../../matched-six/modern/lib (see JVM environment.json hashes)",
+  "variant_options": {
+    "legacy": [
+      "--initialize-at-build-time=org.redisson.misc.BiHashMap,org.redisson.liveobject.core.RedissonObjectBuilder$CodecMethodRef"
+    ],
+    "micronaut": [
+      "-H:+SharedArenaSupport",
+      "--initialize-at-run-time=io.netty,org.slf4j,ch.qos.logback",
+      "--exclude-config netty-codec-http-.* /META-INF/native-image/io.netty/netty-codec-http/native-image\\.properties",
+      "--exclude-config netty-codec-http2-.* /META-INF/native-image/io.netty/netty-codec-http2/native-image\\.properties"
+    ],
+    "quarkus": [
+      "--link-at-build-time=io.quarkus,io.teaql",
+      "-H:+UseServiceLoaderFeature"
+    ]
+  },
+  "metadata_training": "Fresh GraalVM 25 agent output uses reachability-metadata.json. Classic baseline configuration is additionally retained for standalone and legacy. Counts describe fresh unified agent output, not all compiler reflection registrations.",
+  "script_sha256": {
+    "start-native.sh": "4a61b60f106d19315513a06aaa88fa81180cc7a22a9014b2bf011e1433f0beab",
+    "build-native.sh": "6841551dbf3f465a743e336a25ceae8bcd310b243ad0bdbc4973cbedcabcf8f0"
+  }
+}

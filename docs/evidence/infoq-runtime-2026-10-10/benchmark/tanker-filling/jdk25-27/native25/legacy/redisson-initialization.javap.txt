@@ -1,0 +1,640 @@
+Compiled from "BiHashMap.java"
+public class org.redisson.misc.BiHashMap<K, V> implements java.util.Map<K, V> {
+  private java.util.Map<K, V> keyValueMap;
+
+  private java.util.Map<V, K> valueKeyMap;
+
+  public org.redisson.misc.BiHashMap();
+    Code:
+         0: aload_0
+         1: invokespecial #1                  // Method java/lang/Object."<init>":()V
+         4: aload_0
+         5: new           #7                  // class java/util/HashMap
+         8: dup
+         9: invokespecial #9                  // Method java/util/HashMap."<init>":()V
+        12: putfield      #10                 // Field keyValueMap:Ljava/util/Map;
+        15: aload_0
+        16: new           #7                  // class java/util/HashMap
+        19: dup
+        20: invokespecial #9                  // Method java/util/HashMap."<init>":()V
+        23: putfield      #16                 // Field valueKeyMap:Ljava/util/Map;
+        26: return
+
+  public int size();
+    Code:
+         0: aload_0
+         1: getfield      #10                 // Field keyValueMap:Ljava/util/Map;
+         4: invokeinterface #19,  1           // InterfaceMethod java/util/Map.size:()I
+         9: ireturn
+
+  public boolean isEmpty();
+    Code:
+         0: aload_0
+         1: getfield      #10                 // Field keyValueMap:Ljava/util/Map;
+         4: invokeinterface #25,  1           // InterfaceMethod java/util/Map.isEmpty:()Z
+         9: ireturn
+
+  public boolean containsKey(java.lang.Object);
+    Code:
+         0: aload_0
+         1: getfield      #10                 // Field keyValueMap:Ljava/util/Map;
+         4: aload_1
+         5: invokeinterface #29,  2           // InterfaceMethod java/util/Map.containsKey:(Ljava/lang/Object;)Z
+        10: ireturn
+
+  public boolean containsValue(java.lang.Object);
+    Code:
+         0: aload_0
+         1: getfield      #16                 // Field valueKeyMap:Ljava/util/Map;
+         4: aload_1
+         5: invokeinterface #29,  2           // InterfaceMethod java/util/Map.containsKey:(Ljava/lang/Object;)Z
+        10: ireturn
+
+  public V get(java.lang.Object);
+    Code:
+         0: aload_0
+         1: getfield      #10                 // Field keyValueMap:Ljava/util/Map;
+         4: aload_1
+         5: invokeinterface #33,  2           // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+        10: areturn
+
+  public K reverseGet(java.lang.Object);
+    Code:
+         0: aload_0
+         1: getfield      #16                 // Field valueKeyMap:Ljava/util/Map;
+         4: aload_1
+         5: invokeinterface #33,  2           // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+        10: areturn
+
+  public V put(K, V);
+    Code:
+         0: aload_0
+         1: getfield      #10                 // Field keyValueMap:Ljava/util/Map;
+         4: aload_1
+         5: invokeinterface #29,  2           // InterfaceMethod java/util/Map.containsKey:(Ljava/lang/Object;)Z
+        10: ifeq          33
+        13: aload_0
+        14: getfield      #16                 // Field valueKeyMap:Ljava/util/Map;
+        17: aload_0
+        18: getfield      #10                 // Field keyValueMap:Ljava/util/Map;
+        21: aload_1
+        22: invokeinterface #33,  2           // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+        27: invokeinterface #37,  2           // InterfaceMethod java/util/Map.remove:(Ljava/lang/Object;)Ljava/lang/Object;
+        32: pop
+        33: aload_0
+        34: getfield      #16                 // Field valueKeyMap:Ljava/util/Map;
+        37: aload_2
+        38: aload_1
+        39: invokeinterface #40,  3           // InterfaceMethod java/util/Map.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+        44: pop
+        45: aload_0
+        46: getfield      #10                 // Field keyValueMap:Ljava/util/Map;
+        49: aload_1
+        50: aload_2
+        51: invokeinterface #40,  3           // InterfaceMethod java/util/Map.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+        56: areturn
+
+  public V remove(java.lang.Object);
+    Code:
+         0: aload_0
+         1: getfield      #10                 // Field keyValueMap:Ljava/util/Map;
+         4: aload_1
+         5: invokeinterface #37,  2           // InterfaceMethod java/util/Map.remove:(Ljava/lang/Object;)Ljava/lang/Object;
+        10: astore_2
+        11: aload_2
+        12: ifnull        26
+        15: aload_0
+        16: getfield      #16                 // Field valueKeyMap:Ljava/util/Map;
+        19: aload_2
+        20: invokeinterface #37,  2           // InterfaceMethod java/util/Map.remove:(Ljava/lang/Object;)Ljava/lang/Object;
+        25: pop
+        26: aload_2
+        27: areturn
+
+  public void putAll(java.util.Map<? extends K, ? extends V>);
+    Code:
+         0: aload_1
+         1: invokeinterface #44,  1           // InterfaceMethod java/util/Map.entrySet:()Ljava/util/Set;
+         6: invokeinterface #48,  1           // InterfaceMethod java/util/Set.iterator:()Ljava/util/Iterator;
+        11: astore_2
+        12: aload_2
+        13: invokeinterface #54,  1           // InterfaceMethod java/util/Iterator.hasNext:()Z
+        18: ifeq          51
+        21: aload_2
+        22: invokeinterface #59,  1           // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+        27: checkcast     #63                 // class java/util/Map$Entry
+        30: astore_3
+        31: aload_0
+        32: aload_3
+        33: invokeinterface #65,  1           // InterfaceMethod java/util/Map$Entry.getKey:()Ljava/lang/Object;
+        38: aload_3
+        39: invokeinterface #68,  1           // InterfaceMethod java/util/Map$Entry.getValue:()Ljava/lang/Object;
+        44: invokevirtual #71                 // Method put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+        47: pop
+        48: goto          12
+        51: return
+
+  public void clear();
+    Code:
+         0: aload_0
+         1: getfield      #10                 // Field keyValueMap:Ljava/util/Map;
+         4: invokeinterface #72,  1           // InterfaceMethod java/util/Map.clear:()V
+         9: aload_0
+        10: getfield      #16                 // Field valueKeyMap:Ljava/util/Map;
+        13: invokeinterface #72,  1           // InterfaceMethod java/util/Map.clear:()V
+        18: return
+
+  public java.util.Set<K> keySet();
+    Code:
+         0: aload_0
+         1: getfield      #10                 // Field keyValueMap:Ljava/util/Map;
+         4: invokeinterface #75,  1           // InterfaceMethod java/util/Map.keySet:()Ljava/util/Set;
+         9: areturn
+
+  public java.util.Set<V> valueSet();
+    Code:
+         0: aload_0
+         1: getfield      #16                 // Field valueKeyMap:Ljava/util/Map;
+         4: invokeinterface #75,  1           // InterfaceMethod java/util/Map.keySet:()Ljava/util/Set;
+         9: areturn
+
+  public java.util.Collection<V> values();
+    Code:
+         0: aload_0
+         1: getfield      #10                 // Field keyValueMap:Ljava/util/Map;
+         4: invokeinterface #78,  1           // InterfaceMethod java/util/Map.values:()Ljava/util/Collection;
+         9: areturn
+
+  public java.util.Collection<K> keys();
+    Code:
+         0: aload_0
+         1: getfield      #16                 // Field valueKeyMap:Ljava/util/Map;
+         4: invokeinterface #78,  1           // InterfaceMethod java/util/Map.values:()Ljava/util/Collection;
+         9: areturn
+
+  public java.util.Set<java.util.Map$Entry<K, V>> entrySet();
+    Code:
+         0: aload_0
+         1: getfield      #10                 // Field keyValueMap:Ljava/util/Map;
+         4: invokeinterface #44,  1           // InterfaceMethod java/util/Map.entrySet:()Ljava/util/Set;
+         9: areturn
+
+  public java.util.Set<java.util.Map$Entry<V, K>> reverseEntrySet();
+    Code:
+         0: aload_0
+         1: getfield      #16                 // Field valueKeyMap:Ljava/util/Map;
+         4: invokeinterface #44,  1           // InterfaceMethod java/util/Map.entrySet:()Ljava/util/Set;
+         9: areturn
+
+  public void makeImmutable();
+    Code:
+         0: aload_0
+         1: aload_0
+         2: getfield      #10                 // Field keyValueMap:Ljava/util/Map;
+         5: invokestatic  #82                 // Method java/util/Collections.unmodifiableMap:(Ljava/util/Map;)Ljava/util/Map;
+         8: putfield      #10                 // Field keyValueMap:Ljava/util/Map;
+        11: aload_0
+        12: aload_0
+        13: getfield      #16                 // Field valueKeyMap:Ljava/util/Map;
+        16: invokestatic  #82                 // Method java/util/Collections.unmodifiableMap:(Ljava/util/Map;)Ljava/util/Map;
+        19: putfield      #16                 // Field valueKeyMap:Ljava/util/Map;
+        22: return
+}
+Compiled from "RedissonReference.java"
+public class org.redisson.RedissonReference implements java.io.Serializable {
+  private static final long serialVersionUID;
+
+  private static final org.redisson.misc.BiHashMap<java.lang.String, java.lang.String> REACTIVE_MAP;
+
+  private static final org.redisson.misc.BiHashMap<java.lang.String, java.lang.String> RXJAVA_MAP;
+
+  private java.lang.String type;
+
+  private java.lang.String keyName;
+
+  private java.lang.String codec;
+
+  public static void warmUp();
+    Code:
+         0: return
+
+  public org.redisson.RedissonReference();
+    Code:
+         0: aload_0
+         1: invokespecial #1                  // Method java/lang/Object."<init>":()V
+         4: return
+
+  public org.redisson.RedissonReference(java.lang.Class<?>, java.lang.String);
+    Code:
+         0: aload_0
+         1: aload_1
+         2: aload_2
+         3: aconst_null
+         4: invokespecial #7                  // Method "<init>":(Ljava/lang/Class;Ljava/lang/String;Lorg/redisson/client/codec/Codec;)V
+         7: return
+
+  public org.redisson.RedissonReference(java.lang.Class<?>, java.lang.String, org.redisson.client.codec.Codec);
+    Code:
+         0: aload_0
+         1: invokespecial #1                  // Method java/lang/Object."<init>":()V
+         4: aload_1
+         5: ldc           #12                 // class org/redisson/api/annotation/REntity
+         7: invokestatic  #14                 // Method org/redisson/liveobject/misc/ClassUtils.isAnnotationPresent:(Ljava/lang/Class;Ljava/lang/Class;)Z
+        10: ifne          50
+        13: ldc           #20                 // class org/redisson/api/RObject
+        15: aload_1
+        16: invokevirtual #22                 // Method java/lang/Class.isAssignableFrom:(Ljava/lang/Class;)Z
+        19: ifne          50
+        22: ldc           #28                 // class org/redisson/api/RObjectReactive
+        24: aload_1
+        25: invokevirtual #22                 // Method java/lang/Class.isAssignableFrom:(Ljava/lang/Class;)Z
+        28: ifne          50
+        31: ldc           #30                 // class org/redisson/api/RObjectRx
+        33: aload_1
+        34: invokevirtual #22                 // Method java/lang/Class.isAssignableFrom:(Ljava/lang/Class;)Z
+        37: ifne          50
+        40: new           #32                 // class java/lang/IllegalArgumentException
+        43: dup
+        44: ldc           #34                 // String Class reference has to be a type of either RObject/RLiveObject/RObjectReactive/RObjectRx
+        46: invokespecial #36                 // Method java/lang/IllegalArgumentException."<init>":(Ljava/lang/String;)V
+        49: athrow
+        50: ldc           #28                 // class org/redisson/api/RObjectReactive
+        52: aload_1
+        53: invokevirtual #22                 // Method java/lang/Class.isAssignableFrom:(Ljava/lang/Class;)Z
+        56: ifeq          110
+        59: aload_0
+        60: getstatic     #39                 // Field REACTIVE_MAP:Lorg/redisson/misc/BiHashMap;
+        63: aload_1
+        64: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+        67: invokevirtual #47                 // Method org/redisson/misc/BiHashMap.get:(Ljava/lang/Object;)Ljava/lang/Object;
+        70: checkcast     #53                 // class java/lang/String
+        73: putfield      #55                 // Field type:Ljava/lang/String;
+        76: aload_0
+        77: getfield      #55                 // Field type:Ljava/lang/String;
+        80: ifnonnull     178
+        83: new           #32                 // class java/lang/IllegalArgumentException
+        86: dup
+        87: new           #59                 // class java/lang/StringBuilder
+        90: dup
+        91: invokespecial #61                 // Method java/lang/StringBuilder."<init>":()V
+        94: ldc           #62                 // String There is no Reactive compatible type for
+        96: invokevirtual #64                 // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+        99: aload_1
+       100: invokevirtual #68                 // Method java/lang/StringBuilder.append:(Ljava/lang/Object;)Ljava/lang/StringBuilder;
+       103: invokevirtual #71                 // Method java/lang/StringBuilder.toString:()Ljava/lang/String;
+       106: invokespecial #36                 // Method java/lang/IllegalArgumentException."<init>":(Ljava/lang/String;)V
+       109: athrow
+       110: ldc           #30                 // class org/redisson/api/RObjectRx
+       112: aload_1
+       113: invokevirtual #22                 // Method java/lang/Class.isAssignableFrom:(Ljava/lang/Class;)Z
+       116: ifeq          170
+       119: aload_0
+       120: getstatic     #74                 // Field RXJAVA_MAP:Lorg/redisson/misc/BiHashMap;
+       123: aload_1
+       124: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       127: invokevirtual #47                 // Method org/redisson/misc/BiHashMap.get:(Ljava/lang/Object;)Ljava/lang/Object;
+       130: checkcast     #53                 // class java/lang/String
+       133: putfield      #55                 // Field type:Ljava/lang/String;
+       136: aload_0
+       137: getfield      #55                 // Field type:Ljava/lang/String;
+       140: ifnonnull     178
+       143: new           #32                 // class java/lang/IllegalArgumentException
+       146: dup
+       147: new           #59                 // class java/lang/StringBuilder
+       150: dup
+       151: invokespecial #61                 // Method java/lang/StringBuilder."<init>":()V
+       154: ldc           #77                 // String There is no RxJava compatible type for
+       156: invokevirtual #64                 // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+       159: aload_1
+       160: invokevirtual #68                 // Method java/lang/StringBuilder.append:(Ljava/lang/Object;)Ljava/lang/StringBuilder;
+       163: invokevirtual #71                 // Method java/lang/StringBuilder.toString:()Ljava/lang/String;
+       166: invokespecial #36                 // Method java/lang/IllegalArgumentException."<init>":(Ljava/lang/String;)V
+       169: athrow
+       170: aload_0
+       171: aload_1
+       172: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       175: putfield      #55                 // Field type:Ljava/lang/String;
+       178: aload_0
+       179: aload_2
+       180: putfield      #79                 // Field keyName:Ljava/lang/String;
+       183: aload_3
+       184: ifnull        198
+       187: aload_0
+       188: aload_3
+       189: invokevirtual #82                 // Method java/lang/Object.getClass:()Ljava/lang/Class;
+       192: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       195: putfield      #86                 // Field codec:Ljava/lang/String;
+       198: return
+
+  public java.lang.Class<?> getType() throws java.lang.ClassNotFoundException;
+    Code:
+         0: aload_0
+         1: getfield      #55                 // Field type:Ljava/lang/String;
+         4: invokestatic  #89                 // Method java/lang/Class.forName:(Ljava/lang/String;)Ljava/lang/Class;
+         7: areturn
+
+  public java.lang.Class<?> getRxJavaType() throws java.lang.ClassNotFoundException;
+    Code:
+         0: getstatic     #74                 // Field RXJAVA_MAP:Lorg/redisson/misc/BiHashMap;
+         3: aload_0
+         4: getfield      #55                 // Field type:Ljava/lang/String;
+         7: invokevirtual #93                 // Method org/redisson/misc/BiHashMap.containsValue:(Ljava/lang/Object;)Z
+        10: ifeq          30
+        13: getstatic     #74                 // Field RXJAVA_MAP:Lorg/redisson/misc/BiHashMap;
+        16: aload_0
+        17: getfield      #55                 // Field type:Ljava/lang/String;
+        20: invokevirtual #97                 // Method org/redisson/misc/BiHashMap.reverseGet:(Ljava/lang/Object;)Ljava/lang/Object;
+        23: checkcast     #53                 // class java/lang/String
+        26: invokestatic  #89                 // Method java/lang/Class.forName:(Ljava/lang/String;)Ljava/lang/Class;
+        29: areturn
+        30: new           #100                // class java/lang/ClassNotFoundException
+        33: dup
+        34: new           #59                 // class java/lang/StringBuilder
+        37: dup
+        38: invokespecial #61                 // Method java/lang/StringBuilder."<init>":()V
+        41: ldc           #77                 // String There is no RxJava compatible type for
+        43: invokevirtual #64                 // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+        46: aload_0
+        47: getfield      #55                 // Field type:Ljava/lang/String;
+        50: invokevirtual #64                 // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+        53: invokevirtual #71                 // Method java/lang/StringBuilder.toString:()Ljava/lang/String;
+        56: invokespecial #102                // Method java/lang/ClassNotFoundException."<init>":(Ljava/lang/String;)V
+        59: athrow
+
+  public java.lang.Class<?> getReactiveType() throws java.lang.ClassNotFoundException;
+    Code:
+         0: getstatic     #39                 // Field REACTIVE_MAP:Lorg/redisson/misc/BiHashMap;
+         3: aload_0
+         4: getfield      #55                 // Field type:Ljava/lang/String;
+         7: invokevirtual #93                 // Method org/redisson/misc/BiHashMap.containsValue:(Ljava/lang/Object;)Z
+        10: ifeq          30
+        13: getstatic     #39                 // Field REACTIVE_MAP:Lorg/redisson/misc/BiHashMap;
+        16: aload_0
+        17: getfield      #55                 // Field type:Ljava/lang/String;
+        20: invokevirtual #97                 // Method org/redisson/misc/BiHashMap.reverseGet:(Ljava/lang/Object;)Ljava/lang/Object;
+        23: checkcast     #53                 // class java/lang/String
+        26: invokestatic  #89                 // Method java/lang/Class.forName:(Ljava/lang/String;)Ljava/lang/Class;
+        29: areturn
+        30: new           #100                // class java/lang/ClassNotFoundException
+        33: dup
+        34: new           #59                 // class java/lang/StringBuilder
+        37: dup
+        38: invokespecial #61                 // Method java/lang/StringBuilder."<init>":()V
+        41: ldc           #62                 // String There is no Reactive compatible type for
+        43: invokevirtual #64                 // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+        46: aload_0
+        47: getfield      #55                 // Field type:Ljava/lang/String;
+        50: invokevirtual #64                 // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+        53: invokevirtual #71                 // Method java/lang/StringBuilder.toString:()Ljava/lang/String;
+        56: invokespecial #102                // Method java/lang/ClassNotFoundException."<init>":(Ljava/lang/String;)V
+        59: athrow
+
+  public java.lang.String getTypeName();
+    Code:
+         0: aload_0
+         1: getfield      #55                 // Field type:Ljava/lang/String;
+         4: areturn
+
+  public java.lang.String getKeyName();
+    Code:
+         0: aload_0
+         1: getfield      #79                 // Field keyName:Ljava/lang/String;
+         4: areturn
+
+  public void setKeyName(java.lang.String);
+    Code:
+         0: aload_0
+         1: aload_1
+         2: putfield      #79                 // Field keyName:Ljava/lang/String;
+         5: return
+
+  public java.lang.String getCodec();
+    Code:
+         0: aload_0
+         1: getfield      #86                 // Field codec:Ljava/lang/String;
+         4: areturn
+
+  public java.lang.Class<? extends org.redisson.client.codec.Codec> getCodecType() throws java.lang.ClassNotFoundException;
+    Code:
+         0: aload_0
+         1: getfield      #86                 // Field codec:Ljava/lang/String;
+         4: ifnull        15
+         7: aload_0
+         8: getfield      #86                 // Field codec:Ljava/lang/String;
+        11: invokestatic  #89                 // Method java/lang/Class.forName:(Ljava/lang/String;)Ljava/lang/Class;
+        14: areturn
+        15: aconst_null
+        16: areturn
+
+  static {};
+    Code:
+         0: new           #48                 // class org/redisson/misc/BiHashMap
+         3: dup
+         4: invokespecial #103                // Method org/redisson/misc/BiHashMap."<init>":()V
+         7: putstatic     #39                 // Field REACTIVE_MAP:Lorg/redisson/misc/BiHashMap;
+        10: new           #48                 // class org/redisson/misc/BiHashMap
+        13: dup
+        14: invokespecial #103                // Method org/redisson/misc/BiHashMap."<init>":()V
+        17: putstatic     #74                 // Field RXJAVA_MAP:Lorg/redisson/misc/BiHashMap;
+        20: getstatic     #39                 // Field REACTIVE_MAP:Lorg/redisson/misc/BiHashMap;
+        23: ldc           #104                // class org/redisson/api/RAtomicLongReactive
+        25: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+        28: ldc           #106                // class org/redisson/api/RAtomicLong
+        30: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+        33: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+        36: pop
+        37: getstatic     #39                 // Field REACTIVE_MAP:Lorg/redisson/misc/BiHashMap;
+        40: ldc           #112                // class org/redisson/api/RBitSetReactive
+        42: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+        45: ldc           #114                // class org/redisson/api/RBitSet
+        47: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+        50: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+        53: pop
+        54: getstatic     #39                 // Field REACTIVE_MAP:Lorg/redisson/misc/BiHashMap;
+        57: ldc           #116                // class org/redisson/api/RBlockingQueueReactive
+        59: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+        62: ldc           #118                // class org/redisson/api/RBlockingQueue
+        64: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+        67: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+        70: pop
+        71: getstatic     #39                 // Field REACTIVE_MAP:Lorg/redisson/misc/BiHashMap;
+        74: ldc           #120                // class org/redisson/api/RBucketReactive
+        76: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+        79: ldc           #122                // class org/redisson/api/RBucket
+        81: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+        84: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+        87: pop
+        88: getstatic     #39                 // Field REACTIVE_MAP:Lorg/redisson/misc/BiHashMap;
+        91: ldc           #124                // class org/redisson/api/RDequeReactive
+        93: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+        96: ldc           #126                // class org/redisson/api/RDeque
+        98: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       101: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       104: pop
+       105: getstatic     #39                 // Field REACTIVE_MAP:Lorg/redisson/misc/BiHashMap;
+       108: ldc           #128                // class org/redisson/api/RHyperLogLogReactive
+       110: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       113: ldc           #130                // class org/redisson/api/RHyperLogLog
+       115: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       118: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       121: pop
+       122: getstatic     #39                 // Field REACTIVE_MAP:Lorg/redisson/misc/BiHashMap;
+       125: ldc           #132                // class org/redisson/api/RLexSortedSetReactive
+       127: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       130: ldc           #134                // class org/redisson/api/RLexSortedSet
+       132: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       135: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       138: pop
+       139: getstatic     #39                 // Field REACTIVE_MAP:Lorg/redisson/misc/BiHashMap;
+       142: ldc           #136                // class org/redisson/api/RListReactive
+       144: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       147: ldc           #138                // class org/redisson/api/RList
+       149: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       152: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       155: pop
+       156: getstatic     #39                 // Field REACTIVE_MAP:Lorg/redisson/misc/BiHashMap;
+       159: ldc           #140                // class org/redisson/api/RMapCacheReactive
+       161: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       164: ldc           #142                // class org/redisson/api/RMapCache
+       166: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       169: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       172: pop
+       173: getstatic     #39                 // Field REACTIVE_MAP:Lorg/redisson/misc/BiHashMap;
+       176: ldc           #144                // class org/redisson/api/RMapReactive
+       178: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       181: ldc           #146                // class org/redisson/api/RMap
+       183: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       186: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       189: pop
+       190: getstatic     #39                 // Field REACTIVE_MAP:Lorg/redisson/misc/BiHashMap;
+       193: ldc           #148                // class org/redisson/api/RQueueReactive
+       195: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       198: ldc           #150                // class org/redisson/api/RQueue
+       200: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       203: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       206: pop
+       207: getstatic     #39                 // Field REACTIVE_MAP:Lorg/redisson/misc/BiHashMap;
+       210: ldc           #152                // class org/redisson/api/RScoredSortedSetReactive
+       212: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       215: ldc           #154                // class org/redisson/api/RScoredSortedSet
+       217: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       220: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       223: pop
+       224: getstatic     #39                 // Field REACTIVE_MAP:Lorg/redisson/misc/BiHashMap;
+       227: ldc           #156                // class org/redisson/api/RSetCacheReactive
+       229: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       232: ldc           #158                // class org/redisson/api/RSetCache
+       234: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       237: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       240: pop
+       241: getstatic     #39                 // Field REACTIVE_MAP:Lorg/redisson/misc/BiHashMap;
+       244: ldc           #160                // class org/redisson/api/RSetReactive
+       246: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       249: ldc           #162                // class org/redisson/api/RSet
+       251: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       254: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       257: pop
+       258: getstatic     #39                 // Field REACTIVE_MAP:Lorg/redisson/misc/BiHashMap;
+       261: invokevirtual #164                // Method org/redisson/misc/BiHashMap.makeImmutable:()V
+       264: getstatic     #74                 // Field RXJAVA_MAP:Lorg/redisson/misc/BiHashMap;
+       267: ldc           #167                // class org/redisson/api/RAtomicLongRx
+       269: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       272: ldc           #106                // class org/redisson/api/RAtomicLong
+       274: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       277: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       280: pop
+       281: getstatic     #74                 // Field RXJAVA_MAP:Lorg/redisson/misc/BiHashMap;
+       284: ldc           #169                // class org/redisson/api/RBitSetRx
+       286: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       289: ldc           #114                // class org/redisson/api/RBitSet
+       291: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       294: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       297: pop
+       298: getstatic     #74                 // Field RXJAVA_MAP:Lorg/redisson/misc/BiHashMap;
+       301: ldc           #171                // class org/redisson/api/RBlockingQueueRx
+       303: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       306: ldc           #118                // class org/redisson/api/RBlockingQueue
+       308: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       311: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       314: pop
+       315: getstatic     #74                 // Field RXJAVA_MAP:Lorg/redisson/misc/BiHashMap;
+       318: ldc           #173                // class org/redisson/api/RBucketRx
+       320: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       323: ldc           #122                // class org/redisson/api/RBucket
+       325: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       328: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       331: pop
+       332: getstatic     #74                 // Field RXJAVA_MAP:Lorg/redisson/misc/BiHashMap;
+       335: ldc           #175                // class org/redisson/api/RDequeRx
+       337: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       340: ldc           #126                // class org/redisson/api/RDeque
+       342: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       345: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       348: pop
+       349: getstatic     #74                 // Field RXJAVA_MAP:Lorg/redisson/misc/BiHashMap;
+       352: ldc           #177                // class org/redisson/api/RHyperLogLogRx
+       354: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       357: ldc           #130                // class org/redisson/api/RHyperLogLog
+       359: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       362: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       365: pop
+       366: getstatic     #74                 // Field RXJAVA_MAP:Lorg/redisson/misc/BiHashMap;
+       369: ldc           #179                // class org/redisson/api/RLexSortedSetRx
+       371: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       374: ldc           #134                // class org/redisson/api/RLexSortedSet
+       376: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       379: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       382: pop
+       383: getstatic     #74                 // Field RXJAVA_MAP:Lorg/redisson/misc/BiHashMap;
+       386: ldc           #181                // class org/redisson/api/RListRx
+       388: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       391: ldc           #138                // class org/redisson/api/RList
+       393: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       396: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       399: pop
+       400: getstatic     #74                 // Field RXJAVA_MAP:Lorg/redisson/misc/BiHashMap;
+       403: ldc           #183                // class org/redisson/api/RMapCacheRx
+       405: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       408: ldc           #142                // class org/redisson/api/RMapCache
+       410: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       413: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       416: pop
+       417: getstatic     #74                 // Field RXJAVA_MAP:Lorg/redisson/misc/BiHashMap;
+       420: ldc           #185                // class org/redisson/api/RMapRx
+       422: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       425: ldc           #146                // class org/redisson/api/RMap
+       427: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       430: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       433: pop
+       434: getstatic     #74                 // Field RXJAVA_MAP:Lorg/redisson/misc/BiHashMap;
+       437: ldc           #187                // class org/redisson/api/RQueueRx
+       439: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       442: ldc           #150                // class org/redisson/api/RQueue
+       444: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       447: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       450: pop
+       451: getstatic     #74                 // Field RXJAVA_MAP:Lorg/redisson/misc/BiHashMap;
+       454: ldc           #189                // class org/redisson/api/RScoredSortedSetRx
+       456: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       459: ldc           #154                // class org/redisson/api/RScoredSortedSet
+       461: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       464: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       467: pop
+       468: getstatic     #74                 // Field RXJAVA_MAP:Lorg/redisson/misc/BiHashMap;
+       471: ldc           #191                // class org/redisson/api/RSetCacheRx
+       473: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       476: ldc           #158                // class org/redisson/api/RSetCache
+       478: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       481: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       484: pop
+       485: getstatic     #74                 // Field RXJAVA_MAP:Lorg/redisson/misc/BiHashMap;
+       488: ldc           #193                // class org/redisson/api/RSetRx
+       490: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       493: ldc           #162                // class org/redisson/api/RSet
+       495: invokevirtual #43                 // Method java/lang/Class.getName:()Ljava/lang/String;
+       498: invokevirtual #108                // Method org/redisson/misc/BiHashMap.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+       501: pop
+       502: getstatic     #74                 // Field RXJAVA_MAP:Lorg/redisson/misc/BiHashMap;
+       505: invokevirtual #164                // Method org/redisson/misc/BiHashMap.makeImmutable:()V
+       508: return
+}

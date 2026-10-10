@@ -1,0 +1,3 @@
+native-image 25.0.4 2026-07-21
+GraalVM Runtime Environment Oracle GraalVM 25.0.4+7.1 (build 25.0.4+7-LTS-jvmci-b01)
+Substrate VM Oracle GraalVM 25.0.4+7.1 (build 25.0.4+7-LTS, serial gc, compressed references)

@@ -1,0 +1,86 @@
+TeaQL 1.554-RELEASE PortableSQLRepository: javap -p -c excerpt from deployed artifact.
+
+  private void initExpressionParsers();
+    Code:
+       0: aload_0
+       1: new           #120                // class io/teaql/core/sql/expression/ANDExpressionParser
+       4: dup
+       5: invokespecial #122                // Method io/teaql/core/sql/expression/ANDExpressionParser."<init>":()V
+       8: invokevirtual #123                // Method registerExpressionParser:(Lio/teaql/core/sql/expression/SQLExpressionParser;)V
+      11: aload_0
+      12: new           #127                // class io/teaql/core/sql/expression/AggrExpressionParser
+      15: dup
+      16: invokespecial #129                // Method io/teaql/core/sql/expression/AggrExpressionParser."<init>":()V
+      19: invokevirtual #123                // Method registerExpressionParser:(Lio/teaql/core/sql/expression/SQLExpressionParser;)V
+      22: aload_0
+      23: new           #130                // class io/teaql/core/sql/expression/BetweenParser
+      26: dup
+      27: invokespecial #132                // Method io/teaql/core/sql/expression/BetweenParser."<init>":()V
+      30: invokevirtual #123                // Method registerExpressionParser:(Lio/teaql/core/sql/expression/SQLExpressionParser;)V
+      33: aload_0
+      34: new           #133                // class io/teaql/core/sql/expression/FunctionApplyParser
+      37: dup
+      38: invokespecial #135                // Method io/teaql/core/sql/expression/FunctionApplyParser."<init>":()V
+      41: invokevirtual #123                // Method registerExpressionParser:(Lio/teaql/core/sql/expression/SQLExpressionParser;)V
+      44: aload_0
+      45: new           #136                // class io/teaql/core/sql/expression/NOTExpressionParser
+      48: dup
+      49: invokespecial #138                // Method io/teaql/core/sql/expression/NOTExpressionParser."<init>":()V
+      52: invokevirtual #123                // Method registerExpressionParser:(Lio/teaql/core/sql/expression/SQLExpressionParser;)V
+      55: aload_0
+      56: new           #139                // class io/teaql/core/sql/expression/NamedExpressionParser
+      59: dup
+      60: invokespecial #141                // Method io/teaql/core/sql/expression/NamedExpressionParser."<init>":()V
+      63: invokevirtual #123                // Method registerExpressionParser:(Lio/teaql/core/sql/expression/SQLExpressionParser;)V
+      66: aload_0
+      67: new           #142                // class io/teaql/core/sql/expression/ORExpressionParser
+      70: dup
+      71: invokespecial #144                // Method io/teaql/core/sql/expression/ORExpressionParser."<init>":()V
+      74: invokevirtual #123                // Method registerExpressionParser:(Lio/teaql/core/sql/expression/SQLExpressionParser;)V
+      77: aload_0
+      78: new           #145                // class io/teaql/core/sql/expression/OneOperatorExpressionParser
+      81: dup
+      82: invokespecial #147                // Method io/teaql/core/sql/expression/OneOperatorExpressionParser."<init>":()V
+      85: invokevirtual #123                // Method registerExpressionParser:(Lio/teaql/core/sql/expression/SQLExpressionParser;)V
+      88: aload_0
+      89: new           #148                // class io/teaql/core/sql/expression/OrderByExpressionParser
+      92: dup
+      93: invokespecial #150                // Method io/teaql/core/sql/expression/OrderByExpressionParser."<init>":()V
+      96: invokevirtual #123                // Method registerExpressionParser:(Lio/teaql/core/sql/expression/SQLExpressionParser;)V
+      99: aload_0
+     100: new           #151                // class io/teaql/core/sql/expression/OrderBysParser
+     103: dup
+     104: invokespecial #153                // Method io/teaql/core/sql/expression/OrderBysParser."<init>":()V
+     107: invokevirtual #123                // Method registerExpressionParser:(Lio/teaql/core/sql/expression/SQLExpressionParser;)V
+     110: aload_0
+     111: new           #154                // class io/teaql/core/sql/expression/ParameterParser
+     114: dup
+     115: invokespecial #156                // Method io/teaql/core/sql/expression/ParameterParser."<init>":()V
+     118: invokevirtual #123                // Method registerExpressionParser:(Lio/teaql/core/sql/expression/SQLExpressionParser;)V
+     121: aload_0
+     122: new           #157                // class io/teaql/core/sql/expression/PropertyParser
+     125: dup
+     126: invokespecial #159                // Method io/teaql/core/sql/expression/PropertyParser."<init>":()V
+     129: invokevirtual #123                // Method registerExpressionParser:(Lio/teaql/core/sql/expression/SQLExpressionParser;)V
+     132: aload_0
+     133: new           #160                // class io/teaql/core/sql/expression/SubQueryParser
+     136: dup
+     137: invokespecial #162                // Method io/teaql/core/sql/expression/SubQueryParser."<init>":()V
+     140: invokevirtual #123                // Method registerExpressionParser:(Lio/teaql/core/sql/expression/SQLExpressionParser;)V
+     143: aload_0
+     144: new           #163                // class io/teaql/core/sql/expression/TwoOperatorExpressionParser
+     147: dup
+     148: invokespecial #165                // Method io/teaql/core/sql/expression/TwoOperatorExpressionParser."<init>":()V
+     151: invokevirtual #123                // Method registerExpressionParser:(Lio/teaql/core/sql/expression/SQLExpressionParser;)V
+     154: aload_0
+     155: new           #166                // class io/teaql/core/sql/expression/TypeCriteriaParser
+     158: dup
+     159: invokespecial #168                // Method io/teaql/core/sql/expression/TypeCriteriaParser."<init>":()V
+     162: invokevirtual #123                // Method registerExpressionParser:(Lio/teaql/core/sql/expression/SQLExpressionParser;)V
+     165: aload_0
+     166: new           #169                // class io/teaql/core/sql/expression/VersionSearchCriteriaParser
+     169: dup
+     170: invokespecial #171                // Method io/teaql/core/sql/expression/VersionSearchCriteriaParser."<init>":()V
+     173: invokevirtual #123                // Method registerExpressionParser:(Lio/teaql/core/sql/expression/SQLExpressionParser;)V
+     176: return
+

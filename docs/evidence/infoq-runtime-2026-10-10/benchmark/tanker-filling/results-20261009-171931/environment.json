@@ -1,0 +1,24 @@
+{
+  "runs": 30,
+  "settle_seconds": 10.0,
+  "poll_interval_seconds": 0.05,
+  "clock": "time.monotonic_ns",
+  "jdk": "openjdk version \"17.0.20.1\" 2026-08-18 LTS\nOpenJDK Runtime Environment Corretto-17.0.20.12.1 (build 17.0.20.1+12-LTS)\nOpenJDK 64-Bit Server VM Corretto-17.0.20.12.1 (build 17.0.20.1+12-LTS, mixed mode, sharing)",
+  "platform": [
+    "Linux",
+    "mac03-debian",
+    "6.12.107+deb13-amd64",
+    "#1 SMP PREEMPT_DYNAMIC Debian 6.12.107-1 (2026-08-29)",
+    "x86_64"
+  ],
+  "jar_sha256": "594e9fd43e74efdfc21e09cbc5bc75dd098501a860e16236e40f5733cb339214",
+  "cpu_model": "Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz",
+  "mem_total": "MemTotal:       16256000 kB",
+  "jvm_flags": [
+    "-Xms128m",
+    "-Xmx512m"
+  ],
+  "conditions": "Fresh JVM per run; OS cache not cleared; database schema preinitialized, empty business tables; PostgreSQL and Redis remain running; no JFR/NMT.",
+  "web_ready_definition": "Spring Started App marker observed and /version returns expected version JSON.",
+  "query_definition": "/testS returns resultCode=0, status=YES and recordCount=0; exercises an empty-result database query, not full business workflow."
+}

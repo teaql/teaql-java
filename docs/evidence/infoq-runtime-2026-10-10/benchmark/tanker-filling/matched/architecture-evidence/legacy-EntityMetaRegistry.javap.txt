@@ -1,0 +1,162 @@
+Compiled from "EntityMetaRegistry.java"
+public class com.doublechaintech.liquidfilling.EntityMetaRegistry implements org.springframework.beans.factory.InitializingBean {
+  public com.doublechaintech.liquidfilling.EntityMetaRegistry();
+    Code:
+       0: aload_0
+       1: invokespecial #1                  // Method java/lang/Object."<init>":()V
+       4: return
+
+  public void afterPropertiesSet() throws java.lang.Exception;
+    Code:
+       0: aload_0
+       1: invokevirtual #7                  // Method registerPlatform:()V
+       4: aload_0
+       5: invokevirtual #12                 // Method registerRequestType:()V
+       8: aload_0
+       9: invokevirtual #15                 // Method registerServiceRequest:()V
+      12: aload_0
+      13: invokevirtual #18                 // Method registerMerchant:()V
+      16: aload_0
+      17: invokevirtual #21                 // Method registerMerchantProperty:()V
+      20: aload_0
+      21: invokevirtual #24                 // Method registerTaskType:()V
+      24: aload_0
+      25: invokevirtual #27                 // Method registerMerchantTaskType:()V
+      28: aload_0
+      29: invokevirtual #30                 // Method registerEmployee:()V
+      32: aload_0
+      33: invokevirtual #33                 // Method registerTruckManager:()V
+      36: aload_0
+      37: invokevirtual #36                 // Method registerPermissionType:()V
+      40: aload_0
+      41: invokevirtual #39                 // Method registerEmployeePermission:()V
+      44: aload_0
+      45: invokevirtual #42                 // Method registerCheckStandard:()V
+      48: aload_0
+      49: invokevirtual #45                 // Method registerMeasureUnit:()V
+      52: aload_0
+      53: invokevirtual #48                 // Method registerCheckItem:()V
+      56: aload_0
+      57: invokevirtual #51                 // Method registerAnalysisStandard:()V
+      60: aload_0
+      61: invokevirtual #54                 // Method registerAnalysisComponent:()V
+      64: aload_0
+      65: invokevirtual #57                 // Method registerAnalysisType:()V
+      68: aload_0
+      69: invokevirtual #60                 // Method registerAnalysisItem:()V
+      72: aload_0
+      73: invokevirtual #63                 // Method registerEmployeeCard:()V
+      76: aload_0
+      77: invokevirtual #66                 // Method registerCertificationType:()V
+      80: aload_0
+      81: invokevirtual #69                 // Method registerEmployeeCertification:()V
+      84: aload_0
+      85: invokevirtual #72                 // Method registerTruckStatus:()V
+      88: aload_0
+      89: invokevirtual #75                 // Method registerTruck:()V
+      92: aload_0
+      93: invokevirtual #78                 // Method registerProductMedium:()V
+      96: aload_0
+      97: invokevirtual #81                 // Method registerLiquidContainer:()V
+     100: aload_0
+     101: invokevirtual #84                 // Method registerAttachmentType:()V
+     104: aload_0
+     105: invokevirtual #87                 // Method registerContainerAttachment:()V
+     108: aload_0
+     109: invokevirtual #90                 // Method registerRelatedTruck:()V
+     112: aload_0
+     113: invokevirtual #93                 // Method registerRelatedTruckLog:()V
+     116: aload_0
+     117: invokevirtual #96                 // Method registerSubTaskStatus:()V
+     120: aload_0
+     121: invokevirtual #99                 // Method registerTaskStatus:()V
+     124: aload_0
+     125: invokevirtual #102                // Method registerBatchRule:()V
+     128: aload_0
+     129: invokevirtual #105                // Method registerProductStatus:()V
+     132: aload_0
+     133: invokevirtual #108                // Method registerProduct:()V
+     136: aload_0
+     137: invokevirtual #111                // Method registerTask:()V
+     140: aload_0
+     141: invokevirtual #114                // Method registerSubTask:()V
+     144: aload_0
+     145: invokevirtual #117                // Method registerAnalysisTask:()V
+     148: aload_0
+     149: invokevirtual #120                // Method registerCamera:()V
+     152: aload_0
+     153: invokevirtual #123                // Method registerFillStation:()V
+     156: aload_0
+     157: invokevirtual #126                // Method registerSubTaskReport:()V
+     160: aload_0
+     161: invokevirtual #129                // Method registerWeightReport:()V
+     164: aload_0
+     165: invokevirtual #132                // Method registerCheckReport:()V
+     168: aload_0
+     169: invokevirtual #135                // Method registerCheckReportItem:()V
+     172: aload_0
+     173: invokevirtual #138                // Method registerAnalysisReport:()V
+     176: aload_0
+     177: invokevirtual #141                // Method registerAnalysisReportItem:()V
+     180: aload_0
+     181: invokevirtual #144                // Method registerFillReport:()V
+     184: aload_0
+     185: invokevirtual #147                // Method registerFillRecord:()V
+     188: aload_0
+     189: invokevirtual #150                // Method registerConcessionAcceptanceProduct:()V
+     192: aload_0
+     193: invokevirtual #153                // Method registerFillStationProduct:()V
+     196: aload_0
+     197: invokevirtual #156                // Method registerScreen:()V
+     200: aload_0
+     201: invokevirtual #159                // Method registerDevice:()V
+     204: aload_0
+     205: invokevirtual #162                // Method registerFillStationDevice:()V
+     208: aload_0
+     209: invokevirtual #165                // Method registerWeightBridge:()V
+     212: aload_0
+     213: invokevirtual #168                // Method registerAnalyseDevice:()V
+     216: aload_0
+     217: invokevirtual #171                // Method registerAnalyseDeviceItem:()V
+     220: aload_0
+     221: invokevirtual #174                // Method registerFillStationBinding:()V
+     224: aload_0
+     225: invokevirtual #177                // Method registerMerchantConfiguration:()V
+     228: aload_0
+     229: invokevirtual #180                // Method registerCreateTask:()V
+     232: aload_0
+     233: invokevirtual #183                // Method registerConfirmCreateTask:()V
+     236: aload_0
+     237: invokevirtual #186                // Method registerFillCheck:()V
+     240: aload_0
+     241: invokevirtual #189                // Method registerFillQuantitateCheckDetail:()V
+     244: aload_0
+     245: invokevirtual #192                // Method registerFillCheckDetail:()V
+     248: aload_0
+     249: invokevirtual #195                // Method registerCheckBeforeFill:()V
+     252: aload_0
+     253: invokevirtual #198                // Method registerCheckAfterFill:()V
+     256: aload_0
+     257: invokevirtual #201                // Method registerAnalysisForm:()V
+     260: aload_0
+     261: invokevirtual #204                // Method registerAnalysisDetail:()V
+     264: aload_0
+     265: invokevirtual #207                // Method registerPlcMock:()V
+     268: aload_0
+     269: invokevirtual #210                // Method registerFinishFillTask:()V
+     272: aload_0
+     273: invokevirtual #213                // Method registerConfirmStartNewTask:()V
+     276: aload_0
+     277: invokevirtual #216                // Method registerConfirmFinishFillTask:()V
+     280: aload_0
+     281: invokevirtual #219                // Method registerConfirmFinishFillTaskException:()V
+     284: aload_0
+     285: invokevirtual #222                // Method registerFinishNoFillTask:()V
+     288: aload_0
+     289: invokevirtual #225                // Method registerCheckFilling:()V
+     292: aload_0
+     293: invokevirtual #228                // Method registerPlanTask:()V
+     296: aload_0
+     297: invokevirtual #231                // Method registerMakeCard:()V
+     300: return
+}

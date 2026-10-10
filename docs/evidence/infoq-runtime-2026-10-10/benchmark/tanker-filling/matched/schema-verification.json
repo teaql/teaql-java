@@ -1,0 +1,103 @@
+{
+  "method": "Retained facts from PostgreSQL information_schema inspection during the final campaign; no whole-schema equivalence claimed.",
+  "databases": [
+    {
+      "database": "teaql_benchmark_matched_old",
+      "public_tables": 56,
+      "merchant_rows": 1,
+      "merchant_columns": [
+        {
+          "column_name": "id",
+          "data_type": "bigint",
+          "character_maximum_length": null,
+          "is_nullable": "NO"
+        },
+        {
+          "column_name": "name",
+          "data_type": "character varying",
+          "character_maximum_length": 100,
+          "is_nullable": "YES"
+        },
+        {
+          "column_name": "code",
+          "data_type": "integer",
+          "character_maximum_length": null,
+          "is_nullable": "YES"
+        },
+        {
+          "column_name": "external_id",
+          "data_type": "character varying",
+          "character_maximum_length": 100,
+          "is_nullable": "YES"
+        },
+        {
+          "column_name": "task_life_hours",
+          "data_type": "integer",
+          "character_maximum_length": null,
+          "is_nullable": "YES"
+        },
+        {
+          "column_name": "platform",
+          "data_type": "bigint",
+          "character_maximum_length": null,
+          "is_nullable": "YES"
+        },
+        {
+          "column_name": "version",
+          "data_type": "bigint",
+          "character_maximum_length": null,
+          "is_nullable": "YES"
+        }
+      ]
+    },
+    {
+      "database": "teaql_benchmark_matched_new",
+      "public_tables": 76,
+      "merchant_rows": 1,
+      "merchant_columns": [
+        {
+          "column_name": "id",
+          "data_type": "bigint",
+          "character_maximum_length": null,
+          "is_nullable": "NO"
+        },
+        {
+          "column_name": "name",
+          "data_type": "character varying",
+          "character_maximum_length": 100,
+          "is_nullable": "NO"
+        },
+        {
+          "column_name": "code",
+          "data_type": "integer",
+          "character_maximum_length": null,
+          "is_nullable": "YES"
+        },
+        {
+          "column_name": "external_id",
+          "data_type": "character varying",
+          "character_maximum_length": 100,
+          "is_nullable": "NO"
+        },
+        {
+          "column_name": "task_life_hours",
+          "data_type": "integer",
+          "character_maximum_length": null,
+          "is_nullable": "YES"
+        },
+        {
+          "column_name": "platform",
+          "data_type": "bigint",
+          "character_maximum_length": null,
+          "is_nullable": "NO"
+        },
+        {
+          "column_name": "version",
+          "data_type": "bigint",
+          "character_maximum_length": null,
+          "is_nullable": "NO"
+        }
+      ]
+    }
+  ]
+}

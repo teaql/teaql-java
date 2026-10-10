@@ -1,0 +1,27 @@
+{
+  "collected_at_utc": "2026-10-10T06:14:54Z",
+  "collection_scope": "Post-campaign read-only host inventory; free space is a follow-up snapshot, not a campaign-time measurement.",
+  "os": "Debian GNU/Linux 13 (trixie), Debian version 13.7",
+  "kernel": "6.12.107+deb13-amd64",
+  "architecture": "x86_64",
+  "cpu": "Intel Core i7-4770HQ @ 2.20 GHz",
+  "sockets": 1,
+  "physical_cores": 4,
+  "logical_cpus": 8,
+  "memory_bytes": 16646144000,
+  "disk_model": "APPLE SSD SM0256G",
+  "disk_bytes": 251000193024,
+  "rotational": false,
+  "benchmark_filesystem": "ext4 on /dev/sda6, mounted at /home",
+  "filesystem_bytes": 203220729856,
+  "available_bytes_at_inventory": 178698829824,
+  "sources": [
+    "/etc/os-release",
+    "uname -r",
+    "lscpu",
+    "/proc/meminfo",
+    "lsblk -b -d -o NAME,MODEL,SIZE,ROTA",
+    "findmnt -T /home/philip/teaql-startup-benchmark",
+    "df -B1 /home/philip/teaql-startup-benchmark"
+  ]
+}

@@ -1,0 +1,428 @@
+{
+  "reflection": [
+    {
+      "type": "ch.qos.logback.classic.encoder.PatternLayoutEncoder",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.classic.joran.SerializedModelConfigurator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.classic.pattern.DateConverter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.classic.pattern.LevelConverter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.classic.pattern.LineSeparatorConverter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.classic.pattern.LoggerConverter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.classic.pattern.MessageConverter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.classic.spi.LogbackServiceProvider"
+    },
+    {
+      "type": "ch.qos.logback.classic.util.DefaultJoranConfigurator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.core.ConsoleAppender",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.core.OutputStreamAppender",
+      "methods": [
+        {
+          "name": "setEncoder",
+          "parameterTypes": [
+            "ch.qos.logback.core.encoder.Encoder"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.core.encoder.Encoder"
+    },
+    {
+      "type": "ch.qos.logback.core.encoder.LayoutWrappingEncoder",
+      "methods": [
+        {
+          "name": "setParent",
+          "parameterTypes": [
+            "ch.qos.logback.core.spi.ContextAware"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.core.pattern.PatternLayoutEncoderBase",
+      "methods": [
+        {
+          "name": "setPattern",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.core.spi.ContextAware"
+    },
+    {
+      "type": "com.fasterxml.jackson.databind.ext.Java7SupportImpl",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.sun.crypto.provider.HmacCore$HmacSHA256",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.sun.crypto.provider.PBKDF2Core$HmacSHA256",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.zaxxer.hikari.pool.PoolBase"
+    },
+    {
+      "type": "com.zaxxer.hikari.pool.PoolEntry"
+    },
+    {
+      "type": "com.zaxxer.hikari.util.ConcurrentBag$IConcurrentBagEntry[]"
+    },
+    {
+      "type": "java.io.Serializable"
+    },
+    {
+      "type": "java.lang.Boolean",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "getBoolean",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Class",
+      "methods": [
+        {
+          "name": "isRecord",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Iterable"
+    },
+    {
+      "type": "java.lang.Object[]"
+    },
+    {
+      "type": "java.lang.SecurityManager",
+      "methods": [
+        {
+          "name": "checkPermission",
+          "parameterTypes": [
+            "java.security.Permission"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.System",
+      "methods": [
+        {
+          "name": "getSecurityManager",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.security.AccessController",
+      "methods": [
+        {
+          "name": "doPrivileged",
+          "parameterTypes": [
+            "java.security.PrivilegedExceptionAction"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.sql.SQLException"
+    },
+    {
+      "type": "java.sql.Statement[]"
+    },
+    {
+      "type": "java.util.AbstractCollection"
+    },
+    {
+      "type": "java.util.AbstractMap"
+    },
+    {
+      "type": "java.util.Collection"
+    },
+    {
+      "type": "java.util.ImmutableCollections$AbstractImmutableCollection"
+    },
+    {
+      "type": "java.util.ImmutableCollections$AbstractImmutableList"
+    },
+    {
+      "type": "java.util.ImmutableCollections$AbstractImmutableMap"
+    },
+    {
+      "type": "java.util.ImmutableCollections$ListN"
+    },
+    {
+      "type": "java.util.ImmutableCollections$Map1"
+    },
+    {
+      "type": "java.util.ImmutableCollections$MapN"
+    },
+    {
+      "type": "java.util.List"
+    },
+    {
+      "type": "java.util.Map"
+    },
+    {
+      "type": "java.util.RandomAccess"
+    },
+    {
+      "type": "org.postgresql.Driver"
+    },
+    {
+      "type": "org.postgresql.core.QueryExecutorCloseAction"
+    },
+    {
+      "type": "org.postgresql.jdbc.PgStatement"
+    },
+    {
+      "type": "org.springframework.boot.logging.logback.RootLogLevelConfigurator"
+    },
+    {
+      "type": "sun.management.VMManagementImpl",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "compTimeMonitoringSupport"
+        },
+        {
+          "name": "currentThreadCpuTimeSupport"
+        },
+        {
+          "name": "objectMonitorUsageSupport"
+        },
+        {
+          "name": "otherThreadCpuTimeSupport"
+        },
+        {
+          "name": "remoteDiagnosticCommandsSupport"
+        },
+        {
+          "name": "synchronizerUsageSupport"
+        },
+        {
+          "name": "threadAllocatedMemorySupport"
+        },
+        {
+          "name": "threadContentionMonitoringSupport"
+        }
+      ]
+    },
+    {
+      "type": "sun.security.provider.NativePRNG",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.security.SecureRandomParameters"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.security.provider.SHA",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "sun.security.provider.SHA2$SHA256",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "sun.text.resources.FormatData"
+    },
+    {
+      "type": "sun.text.resources.FormatData_en"
+    },
+    {
+      "type": "sun.text.resources.FormatData_en_US"
+    },
+    {
+      "type": "sun.text.resources.JavaTimeSupplementary"
+    },
+    {
+      "type": "sun.text.resources.cldr.FormatData"
+    },
+    {
+      "type": "sun.text.resources.cldr.FormatData_en"
+    },
+    {
+      "type": "sun.text.resources.cldr.FormatData_en_US"
+    },
+    {
+      "type": "sun.util.resources.cldr.CalendarData"
+    },
+    {
+      "type": "sun.util.resources.cldr.TimeZoneNames"
+    },
+    {
+      "type": "sun.util.resources.cldr.TimeZoneNames_en"
+    },
+    {
+      "type": "sun.util.resources.cldr.TimeZoneNames_en_US"
+    },
+    {
+      "type": {
+        "proxy": [
+          "java.sql.Connection"
+        ]
+      }
+    }
+  ],
+  "resources": [
+    {
+      "glob": "/home/philip/teaql-startup-benchmark/matched-six/logback.xml"
+    },
+    {
+      "glob": "META-INF/services/ch.qos.logback.classic.spi.Configurator"
+    },
+    {
+      "glob": "META-INF/services/com.sun.net.httpserver.spi.HttpServerProvider"
+    },
+    {
+      "glob": "META-INF/services/java.net.spi.URLStreamHandlerProvider"
+    },
+    {
+      "glob": "META-INF/services/java.nio.channels.spi.SelectorProvider"
+    },
+    {
+      "glob": "META-INF/services/java.sql.Driver"
+    },
+    {
+      "glob": "META-INF/services/java.time.zone.ZoneRulesProvider"
+    },
+    {
+      "glob": "META-INF/services/javax.xml.parsers.SAXParserFactory"
+    },
+    {
+      "glob": "META-INF/services/org.slf4j.spi.SLF4JServiceProvider"
+    },
+    {
+      "glob": "logback-test.scmo"
+    },
+    {
+      "glob": "logback.scmo"
+    },
+    {
+      "glob": "org/postgresql/driverconfig.properties"
+    },
+    {
+      "module": "java.base",
+      "glob": "jdk/internal/icu/impl/data/icudt76b/nfkc.nrm"
+    }
+  ]
+}

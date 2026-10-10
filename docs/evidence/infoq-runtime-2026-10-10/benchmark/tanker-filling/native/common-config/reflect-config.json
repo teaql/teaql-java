@@ -1,0 +1,438 @@
+[
+  {
+    "name": "[Lcom.zaxxer.hikari.util.ConcurrentBag$IConcurrentBagEntry;"
+  },
+  {
+    "name": "[Ljava.lang.Object;"
+  },
+  {
+    "name": "[Ljava.sql.Statement;"
+  },
+  {
+    "name": "ch.qos.logback.classic.encoder.PatternLayoutEncoder",
+    "queryAllPublicMethods": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "ch.qos.logback.classic.joran.SerializedModelConfigurator",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "ch.qos.logback.classic.pattern.DateConverter",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "ch.qos.logback.classic.pattern.LevelConverter",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "ch.qos.logback.classic.pattern.LineSeparatorConverter",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "ch.qos.logback.classic.pattern.LoggerConverter",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "ch.qos.logback.classic.pattern.MessageConverter",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "ch.qos.logback.classic.util.DefaultJoranConfigurator",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "ch.qos.logback.core.ConsoleAppender",
+    "queryAllPublicMethods": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "ch.qos.logback.core.OutputStreamAppender",
+    "methods": [
+      {
+        "name": "setEncoder",
+        "parameterTypes": [
+          "ch.qos.logback.core.encoder.Encoder"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "ch.qos.logback.core.encoder.Encoder",
+    "methods": [
+      {
+        "name": "valueOf",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "ch.qos.logback.core.encoder.LayoutWrappingEncoder",
+    "methods": [
+      {
+        "name": "setParent",
+        "parameterTypes": [
+          "ch.qos.logback.core.spi.ContextAware"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "ch.qos.logback.core.pattern.PatternLayoutEncoderBase",
+    "methods": [
+      {
+        "name": "setPattern",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "ch.qos.logback.core.spi.ContextAware",
+    "methods": [
+      {
+        "name": "valueOf",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "com.fasterxml.jackson.databind.ext.Java7SupportImpl",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.sun.crypto.provider.HmacCore$HmacSHA256",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.sun.crypto.provider.PBKDF2Core$HmacSHA256",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.zaxxer.hikari.pool.PoolBase",
+    "fields": [
+      {
+        "name": "catalog"
+      }
+    ]
+  },
+  {
+    "name": "com.zaxxer.hikari.pool.PoolEntry",
+    "fields": [
+      {
+        "name": "state"
+      }
+    ]
+  },
+  {
+    "name": "java.io.FilePermission"
+  },
+  {
+    "name": "java.io.Serializable",
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "java.lang.Class",
+    "methods": [
+      {
+        "name": "isRecord",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "java.lang.Iterable",
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "java.lang.RuntimePermission"
+  },
+  {
+    "name": "java.lang.SecurityManager",
+    "methods": [
+      {
+        "name": "checkPermission",
+        "parameterTypes": [
+          "java.security.Permission"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "java.lang.System",
+    "methods": [
+      {
+        "name": "getSecurityManager",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "java.net.NetPermission"
+  },
+  {
+    "name": "java.net.SocketPermission"
+  },
+  {
+    "name": "java.net.URLPermission",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "java.lang.String",
+          "java.lang.String"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "java.security.AccessController",
+    "methods": [
+      {
+        "name": "doPrivileged",
+        "parameterTypes": [
+          "java.security.PrivilegedExceptionAction"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "java.security.AllPermission"
+  },
+  {
+    "name": "java.security.SecureRandomParameters"
+  },
+  {
+    "name": "java.security.SecurityPermission"
+  },
+  {
+    "name": "java.sql.SQLException",
+    "fields": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  {
+    "name": "java.util.AbstractCollection",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "java.util.AbstractMap",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "java.util.Collection",
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "java.util.ImmutableCollections$AbstractImmutableCollection",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "java.util.ImmutableCollections$AbstractImmutableList",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "java.util.ImmutableCollections$AbstractImmutableMap",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "java.util.ImmutableCollections$ListN",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "java.util.ImmutableCollections$Map1",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "java.util.ImmutableCollections$MapN",
+    "allDeclaredFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "java.util.List",
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "java.util.Map",
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "java.util.PropertyPermission"
+  },
+  {
+    "name": "java.util.RandomAccess",
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "java.util.concurrent.atomic.AtomicBoolean",
+    "fields": [
+      {
+        "name": "value"
+      }
+    ]
+  },
+  {
+    "name": "java.util.concurrent.atomic.AtomicMarkableReference",
+    "fields": [
+      {
+        "name": "pair"
+      }
+    ]
+  },
+  {
+    "name": "java.util.concurrent.atomic.AtomicReference",
+    "fields": [
+      {
+        "name": "value"
+      }
+    ]
+  },
+  {
+    "name": "javax.smartcardio.CardPermission"
+  },
+  {
+    "name": "org.postgresql.Driver",
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "org.postgresql.core.QueryExecutorCloseAction",
+    "fields": [
+      {
+        "name": "pgStream"
+      }
+    ]
+  },
+  {
+    "name": "org.postgresql.jdbc.PgStatement",
+    "fields": [
+      {
+        "name": "cancelTimerTask"
+      },
+      {
+        "name": "isClosed"
+      },
+      {
+        "name": "statementState"
+      }
+    ]
+  },
+  {
+    "name": "sun.security.provider.NativePRNG",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      },
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "java.security.SecureRandomParameters"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "sun.security.provider.SHA",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "sun.security.provider.SHA2$SHA256",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  }
+]

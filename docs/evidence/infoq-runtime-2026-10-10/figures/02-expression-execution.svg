@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1000" viewBox="0 0 1200 1000">
+<rect width="100%" height="100%" fill="white"/>
+<text x="40" y="44" fill="#183247" font-family="Arial, sans-serif" font-size="30" font-weight="700" text-anchor="start">2. Keep expressions stable; supply local execution resources</text>
+<text x="40" y="80" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="start">Conceptual operation flow: each application assembles its own context and storage provider.</text>
+<rect x="300" y="115" width="600" height="95" rx="10" fill="#e8f2fb" stroke="#536b7c" stroke-width="1.5"/>
+<text x="600.0" y="147" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">Q: generated query expression</text>
+<text x="600.0" y="176" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Describe data, relations, and operation intent</text>
+<rect x="60" y="265" width="510" height="115" rx="10" fill="#eaf5ef" stroke="#536b7c" stroke-width="1.5"/>
+<text x="315.0" y="297" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">Server application</text>
+<text x="315.0" y="326" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Spring Boot / Quarkus / Micronaut</text>
+<text x="315.0" y="351" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Application-configured UserContext</text>
+<rect x="630" y="265" width="510" height="115" rx="10" fill="#eaf5ef" stroke="#536b7c" stroke-width="1.5"/>
+<text x="885.0" y="297" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">Android application</text>
+<text x="885.0" y="326" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Gradle + desugaring + D8 -&gt; DEX / ART</text>
+<text x="885.0" y="351" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Application-configured UserContext</text>
+<polyline points="450,210 450,235 315,235 315,265" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="315,265 309.78041359066526,254.19463477176788 320.21958640933474,254.19463477176788" fill="#536b7c"/>
+<polyline points="750,210 750,235 885,235 885,265" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="885,265 879.7804135906653,254.19463477176788 890.2195864093347,254.19463477176788" fill="#536b7c"/>
+<rect x="60" y="435" width="510" height="95" rx="10" fill="#e8f2fb" stroke="#536b7c" stroke-width="1.5"/>
+<text x="315.0" y="467" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">TeaQL runtime + portable SQL</text>
+<text x="315.0" y="496" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Policy, query translation, data-service execution</text>
+<rect x="630" y="435" width="510" height="95" rx="10" fill="#e8f2fb" stroke="#536b7c" stroke-width="1.5"/>
+<text x="885.0" y="467" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">TeaQL runtime + portable SQL</text>
+<text x="885.0" y="496" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Policy, query translation, data-service execution</text>
+<polyline points="315,380 315,435" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="315,435 309.78041359066526,424.1946347717679 320.21958640933474,424.1946347717679" fill="#536b7c"/>
+<polyline points="885,380 885,435" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="885,435 879.7804135906653,424.1946347717679 890.2195864093347,424.1946347717679" fill="#536b7c"/>
+<rect x="60" y="580" width="510" height="95" rx="10" fill="#f0f3f5" stroke="#536b7c" stroke-width="1.5"/>
+<text x="315.0" y="612" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">JDBC execution</text>
+<text x="315.0" y="641" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">DataSource -&gt; Connection -&gt; ResultSet</text>
+<rect x="630" y="580" width="510" height="95" rx="10" fill="#f0f3f5" stroke="#536b7c" stroke-width="1.5"/>
+<text x="885.0" y="612" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">Native SQLite execution</text>
+<text x="885.0" y="641" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">SQLiteDatabase -&gt; Cursor / SQLiteStatement</text>
+<polyline points="315,530 315,580" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="315,580 309.78041359066526,569.1946347717678 320.21958640933474,569.1946347717678" fill="#536b7c"/>
+<polyline points="885,530 885,580" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="885,580 879.7804135906653,569.1946347717678 890.2195864093347,569.1946347717678" fill="#536b7c"/>
+<rect x="300" y="745" width="600" height="100" rx="10" fill="#e8f2fb" stroke="#536b7c" stroke-width="1.5"/>
+<text x="600.0" y="777" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">Materialized domain values</text>
+<text x="600.0" y="806" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Hydrated entities + loaded-property state</text>
+<polyline points="315,675 315,710 450,710 450,745" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="450,745 444.78041359066526,734.1946347717678 455.21958640933474,734.1946347717678" fill="#536b7c"/>
+<polyline points="885,675 885,710 750,710 750,745" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="750,745 744.7804135906653,734.1946347717678 755.2195864093347,734.1946347717678" fill="#536b7c"/>
+<rect x="300" y="890" width="600" height="75" rx="10" fill="#e8f2fb" stroke="#536b7c" stroke-width="1.5"/>
+<text x="600.0" y="922" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">E: typed value traversal</text>
+<polyline points="600,845 600,890" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="600,890 594.7804135906653,879.1946347717678 605.2195864093347,879.1946347717678" fill="#536b7c"/>
+<text x="40" y="990" fill="#183247" font-family="Arial, sans-serif" font-size="17" font-weight="400" text-anchor="start">JPMS enforces boundaries on the JVM module path. Android does not execute JPMS. E does not fetch unloaded relations.</text>
+</svg>

@@ -1,0 +1,1419 @@
+[
+{
+  "name":"[Lcom.fasterxml.jackson.databind.deser.BeanDeserializerModifier;"
+},
+{
+  "name":"[Lcom.fasterxml.jackson.databind.deser.Deserializers;"
+},
+{
+  "name":"[Lcom.fasterxml.jackson.databind.deser.KeyDeserializers;"
+},
+{
+  "name":"[Lcom.fasterxml.jackson.databind.deser.ValueInstantiators;"
+},
+{
+  "name":"[Lcom.fasterxml.jackson.databind.ser.BeanSerializerModifier;"
+},
+{
+  "name":"[Lcom.fasterxml.jackson.databind.ser.Serializers;"
+},
+{
+  "name":"[Lcom.zaxxer.hikari.util.ConcurrentBag$IConcurrentBagEntry;"
+},
+{
+  "name":"[Lio.micronaut.http.HttpMethod;"
+},
+{
+  "name":"[Ljava.sql.Statement;"
+},
+{
+  "name":"ch.qos.logback.classic.encoder.PatternLayoutEncoder",
+  "queryAllPublicMethods":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"ch.qos.logback.classic.joran.SerializedModelConfigurator",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"ch.qos.logback.classic.pattern.DateConverter",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"ch.qos.logback.classic.pattern.LevelConverter",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"ch.qos.logback.classic.pattern.LineSeparatorConverter",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"ch.qos.logback.classic.pattern.LoggerConverter",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"ch.qos.logback.classic.pattern.MessageConverter",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"ch.qos.logback.classic.util.DefaultJoranConfigurator",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"ch.qos.logback.core.ConsoleAppender",
+  "queryAllPublicMethods":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"ch.qos.logback.core.OutputStreamAppender",
+  "methods":[{"name":"setEncoder","parameterTypes":["ch.qos.logback.core.encoder.Encoder"] }]
+},
+{
+  "name":"ch.qos.logback.core.encoder.Encoder",
+  "methods":[{"name":"valueOf","parameterTypes":["java.lang.String"] }]
+},
+{
+  "name":"ch.qos.logback.core.encoder.LayoutWrappingEncoder",
+  "methods":[{"name":"setParent","parameterTypes":["ch.qos.logback.core.spi.ContextAware"] }]
+},
+{
+  "name":"ch.qos.logback.core.pattern.PatternLayoutEncoderBase",
+  "methods":[{"name":"setPattern","parameterTypes":["java.lang.String"] }]
+},
+{
+  "name":"ch.qos.logback.core.spi.ContextAware",
+  "methods":[{"name":"valueOf","parameterTypes":["java.lang.String"] }]
+},
+{
+  "name":"com.aayushatharva.brotli4j.Brotli4jLoader"
+},
+{
+  "name":"com.fasterxml.jackson.databind.ext.Java7SupportImpl",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.github.luben.zstd.Zstd"
+},
+{
+  "name":"com.sun.crypto.provider.HmacCore$HmacSHA256",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.crypto.provider.PBKDF2Core$HmacSHA256",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.zaxxer.hikari.pool.PoolBase",
+  "fields":[{"name":"catalog"}]
+},
+{
+  "name":"com.zaxxer.hikari.pool.PoolEntry",
+  "fields":[{"name":"state"}]
+},
+{
+  "name":"io.methvin.watchservice.MacOSXListeningWatchService"
+},
+{
+  "name":"io.micronaut.aop.internal.InterceptorRegistryBean",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.buffer.netty.$DefaultByteBufAllocatorConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.buffer.netty.$NettyByteBufferFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.context.annotation.Prototype"
+},
+{
+  "name":"io.micronaut.context.env.PropertiesPropertySourceLoader",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.context.env.exp.RandomPropertyExpressionResolver",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.context.env.yaml.YamlPropertySourceLoader",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.context.event.ApplicationEventPublisherFactory",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.context.propagation.instrument.execution.$ExecutorServiceInstrumenter$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.core.async.converters.ReactiveTypeConverterRegistrar",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.core.async.publisher.CompletableFuturePublisher"
+},
+{
+  "name":"io.micronaut.core.async.publisher.Publishers$JustPublisher"
+},
+{
+  "name":"io.micronaut.core.async.publisher.Publishers$JustThrowPublisher"
+},
+{
+  "name":"io.micronaut.core.async.subscriber.Completable"
+},
+{
+  "name":"io.micronaut.http.HttpTypeConverterRegistrar",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.bind.$DefaultRequestBinderRegistry$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.bind.binders.$DefaultBodyAnnotationBinder$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.body.$CharSequenceBodyWriter$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.body.$ConversionTextPlainHandler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.body.$DefaultMessageBodyHandlerRegistry$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.body.$RawMessageBodyHandlerRegistry$RawByteArrayHandler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.body.$RawMessageBodyHandlerRegistry$RawByteBufferHandler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.body.$RawMessageBodyHandlerRegistry$RawStringHandler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.body.$TextPlainHandler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.body.$TextStreamBodyWriter$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.body.$WritableBodyWriter$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.codec.$CodecConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.converters.$HttpConverterRegistrar$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.converters.SharedHttpConvertersRegistrar",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.expression.$RequestConditionContext$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.hateoas.$AbstractResource$IntrospectionRef",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.hateoas.$DefaultLink$IntrospectionRef",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.hateoas.$GenericResource$IntrospectionRef",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.hateoas.$JsonError$IntrospectionRef",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.hateoas.$Resource$IntrospectionRef",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.hateoas.$VndError$IntrospectionRef",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.hateoas.AbstractResource",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true
+},
+{
+  "name":"io.micronaut.http.hateoas.DefaultLink",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true
+},
+{
+  "name":"io.micronaut.http.hateoas.JsonError",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true
+},
+{
+  "name":"io.micronaut.http.hateoas.Link",
+  "queryAllDeclaredMethods":true
+},
+{
+  "name":"io.micronaut.http.hateoas.Link$Builder",
+  "queryAllDeclaredMethods":true
+},
+{
+  "name":"io.micronaut.http.hateoas.Resource",
+  "queryAllDeclaredMethods":true
+},
+{
+  "name":"io.micronaut.http.netty.body.$ByteBufRawMessageBodyHandler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.body.$NettyJsonHandler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.body.$NettyJsonStreamHandler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.body.$NettyTextPlainHandler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.body.$NettyWritableBodyWriter$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.channel.$DefaultEventLoopGroupConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.channel.$DefaultEventLoopGroupFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.channel.$DefaultEventLoopGroupRegistry$DefaultEventLoopGroup1$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.channel.$DefaultEventLoopGroupRegistry$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.channel.$DefaultEventLoopGroupRegistry$EventLoopGroup0$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.channel.$EpollAvailabilityCondition$IntrospectionRef",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.channel.$EpollEventLoopGroupFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.channel.$IoUringAvailabilityCondition$IntrospectionRef",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.channel.$IoUringEventLoopGroupFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.channel.$KQueueAvailabilityCondition$IntrospectionRef",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.channel.$KQueueEventLoopGroupFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.channel.$NettyThreadFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.channel.$NettyThreadFactory$NettyThreadFactory0$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.channel.$NioEventLoopGroupFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.channel.converters.$DefaultChannelOptionFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.channel.converters.$EpollChannelOptionFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.channel.converters.$KQueueChannelOptionFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.configuration.$NettyGlobalConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.websocket.$NettyServerWebSocketBroadcaster$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.netty.websocket.$WebSocketMessageEncoder$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.resource.$ResourceLoaderFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.resource.$ResourceLoaderFactory$FileSystemResourceLoader1$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.resource.$ResourceLoaderFactory$GetClassPathResourceLoader0$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.resource.$ResourceLoaderFactory$ResourceResolver2$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.$CoroutineHelper$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.$HttpServerConfiguration$CorsConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.$HttpServerConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.$HttpServerConfiguration$HostResolutionConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.$HttpServerConfiguration$HttpLocaleResolutionConfigurationProperties$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.$HttpServerConfiguration$MultipartConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.$OptionsFilter$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.$RouteExecutor$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.HttpServerTypeConvertersRegistrar",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.binding.$BasicAuthArgumentBinder$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.binding.$LocaleArgumentBinder$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.binding.$RequestArgumentSatisfier$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.codec.$TextStreamCodec$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.cors.$CorsFilter$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.exceptions.$ContentLengthExceededHandler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.exceptions.$ConversionErrorHandler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.exceptions.$DuplicateRouteHandler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.exceptions.$HttpStatusHandler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.exceptions.$JacksonExceptionHandler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.exceptions.$JsonExceptionHandler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.exceptions.$URISyntaxHandler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.exceptions.$UnsatisfiedArgumentHandler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.exceptions.$UnsatisfiedRouteHandler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.exceptions.response.$HateoasErrorResponseProcessor$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.$DefaultHttpCompressionStrategy$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.$DefaultHttpContentProcessorResolver$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.$DefaultNettyEmbeddedServerFactory$BuildDefaultServer0$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.$DefaultNettyEmbeddedServerFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.$NettyRequestArgumentSatisfier$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.NettyHttpResponseFactory",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.NettyHttpServer$1"
+},
+{
+  "name":"io.micronaut.http.server.netty.NettyHttpServer$Listener"
+},
+{
+  "name":"io.micronaut.http.server.netty.binders.$NettyServerRequestBinderRegistry$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.body.$FileBodyWriter$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.body.$InputStreamBodyWriter$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.body.$StreamFileBodyWriter$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.body.$SystemFileBodyWriter$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.configuration.$NettyHttpServerConfiguration$AccessLogger$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.configuration.$NettyHttpServerConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.configuration.$NettyHttpServerConfiguration$FileTypeHandlerConfiguration$CacheControlConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.configuration.$NettyHttpServerConfiguration$FileTypeHandlerConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.configuration.$NettyHttpServerConfiguration$Http2Settings$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.configuration.$NettyHttpServerConfiguration$Http3Settings$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.configuration.$NettyHttpServerConfiguration$NettyListenerConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.configuration.$NettyHttpServerConfiguration$Parent$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.configuration.$NettyHttpServerConfiguration$Worker$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.converters.$NettyConverters$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.converters.NettyConvertersSpi",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.discovery.$NettyEmbeddedServerInstance$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.discovery.$NettyServiceDiscovery$ApplicationEventListener$onStart1$Intercepted$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.discovery.$NettyServiceDiscovery$ApplicationEventListener$onStop2$Intercepted$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.discovery.$NettyServiceDiscovery$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.handler.PipeliningServerHandler",
+  "methods":[{"name":"channelRead","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Object"] }, {"name":"channelReadComplete","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelWritabilityChanged","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"exceptionCaught","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Throwable"] }, {"name":"userEventTriggered","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Object"] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.jackson.$JsonHttpContentSubscriberFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.jackson.$JsonViewMediaTypeCodecFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.jackson.$JsonViewServerFilter$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.ssl.$BuildSelfSignedCondition$IntrospectionRef",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.ssl.$CertificateProvidedSslBuilder$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.ssl.$CertificateProvidedSslBuilder$SelfSignedNotConfigured$IntrospectionRef",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.ssl.$SelfSignedSslBuilder$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.ssl.$SelfSignedSslBuilder$SelfSignedConfigured$IntrospectionRef",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.ssl.$SslEnabledCondition$IntrospectionRef",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.netty.websocket.$WebSocketUpgradeHandlerFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.util.$DefaultHttpClientAddressResolver$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.util.$DefaultHttpHostResolver$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.util.locale.$CompositeHttpLocaleResolver$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.util.locale.$CookieLocaleResolver$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.util.locale.$HttpFixedLocaleResolver$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.util.locale.$HttpLocalizedMessageSource$Definition$Intercepted$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.util.locale.$HttpLocalizedMessageSource$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.util.locale.$RequestLocaleResolver$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.server.websocket.$ServerWebSocketProcessor$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.ssl.$ClientSslConfiguration$DefaultKeyConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.ssl.$ClientSslConfiguration$DefaultKeyStoreConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.ssl.$ClientSslConfiguration$DefaultTrustStoreConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.ssl.$ClientSslConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.ssl.$DefaultSslConfiguration$DefaultKeyConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.ssl.$DefaultSslConfiguration$DefaultKeyStoreConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.ssl.$DefaultSslConfiguration$DefaultTrustStoreConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.ssl.$DefaultSslConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.ssl.$ServerSslConfiguration$DefaultKeyConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.ssl.$ServerSslConfiguration$DefaultKeyStoreConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.ssl.$ServerSslConfiguration$DefaultTrustStoreConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.ssl.$ServerSslConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.http.util.$OutgoingHttpRequestProcessorImpl$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.inject.annotation.AnnotationConvertersRegistrar",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.inject.provider.BeanProviderDefinition",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.inject.provider.JakartaProviderBeanDefinition",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.inject.provider.JavaxProviderBeanDefinition",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.$BeanConfiguration",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.$JacksonConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.$ObjectMapperFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.$ObjectMapperFactory$JsonFactory0$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.$ObjectMapperFactory$ObjectMapper1$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.codec.$JsonMediaTypeCodec$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.codec.$JsonStreamMediaTypeCodec$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.core.env.CloudFoundryVcapApplicationPropertySourceLoader",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.core.env.CloudFoundryVcapServicesPropertySourceLoader",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.core.env.EnvJsonPropertySourceLoader",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.core.env.JsonPropertySourceLoader",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.databind.$DatabindPropertyBinderExceptionHandler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.databind.$JacksonDatabindMapper$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.databind.convert.$JacksonConverterRegistrar$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.modules.$BeanIntrospectionModule$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.serialize.$ConvertibleMultiValuesSerializer$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.serialize.$ConvertibleValuesSerializer$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.serialize.$JacksonObjectSerializer$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.serialize.$JsonNodeDeserializer$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.serialize.$JsonNodeSerializer$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.serialize.$OptionalValuesSerializer$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.serialize.$ResourceModule$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.serialize.$ResourceSerializerModifier$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.jackson.validation.$ValidationJacksonDeserializationPreInstantiateCallback$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.json.$JsonObjectSerializer$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.json.bind.$JsonBeanPropertyBinder$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.json.body.$JsonMessageHandler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.json.codec.$JsonMediaTypeCodec$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.json.codec.$JsonStreamMediaTypeCodec$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.json.convert.$JsonConverterRegistrar$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.logging.$LogLevel$IntrospectionRef",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.logging.$PropertiesLoggingLevelsConfigurer$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.logging.LoggingConverterRegistrar",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.logging.impl.$Log4jLoggingSystem$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.logging.impl.$LogbackLoggingSystem$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.runtime.$ApplicationConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.runtime.$ApplicationConfiguration$InstanceConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.runtime.beans.$MapperIntroduction$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.runtime.beans.$MapperMethodProcessor$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.runtime.context.$CompositeMessageSource$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.runtime.context.env.$ConfigurationIntroductionAdvice$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.runtime.context.scope.$ThreadLocalCustomScope$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.runtime.context.scope.refresh.$RefreshInterceptor$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.runtime.context.scope.refresh.$RefreshScope$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.runtime.context.scope.refresh.$RefreshScopeCondition$IntrospectionRef",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.runtime.converters.time.TimeConverterRegistrar",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.runtime.http.codec.$MediaTypeCodecRegistryFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.runtime.http.codec.$MediaTypeCodecRegistryFactory$MediaTypeCodecRegistry0$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.runtime.http.codec.$TextPlainCodec$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.runtime.http.scope.$RequestCustomScope$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.runtime.server.watch.event.$FileWatchRestartListener$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.$DefaultTaskExceptionHandler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.$LoomSupport$LoomCondition$IntrospectionRef",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.$ScheduledExecutorTaskScheduler$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.async.$AsyncInterceptor$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.executor.$DefaultExecutorSelector$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.executor.$DefaultThreadFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.executor.$DefaultThreadFactory$ThreadFactory0$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.executor.$ExecutorFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.executor.$ExecutorFactory$EventLoopGroupThreadFactory0$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.executor.$ExecutorFactory$ExecutorService1$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.executor.$IOExecutorServiceConfig$Blocking2$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.executor.$IOExecutorServiceConfig$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.executor.$IOExecutorServiceConfig$Io0$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.executor.$IOExecutorServiceConfig$Virtual1$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.executor.$ScheduledExecutorServiceConfig$Configuration0$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.executor.$ScheduledExecutorServiceConfig$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.executor.$UserExecutorConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.io.watch.$DefaultWatchThread$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.io.watch.$FileWatchCondition$IntrospectionRef",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.io.watch.$FileWatchConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.io.watch.$WatchServiceFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.io.watch.$WatchServiceFactory$WatchService0$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.scheduling.processor.$ScheduledMethodProcessor$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.web.router.$AnnotatedFilterRouteBuilder$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.web.router.$AnnotatedMethodRouteBuilder$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.web.router.$DefaultRouter$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.web.router.$ServerFilterRouteBuilder$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.web.router.naming.$ConfigurableUriNamingStrategy$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.web.router.naming.$HyphenatedUriNamingStrategy$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.web.router.resource.$StaticResourceConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.web.router.resource.$StaticResourceResolverFactory$Build0$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.web.router.resource.$StaticResourceResolverFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.web.router.version.$ConfigurationDefaultVersionProvider$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.web.router.version.$RouteVersionFilter$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.web.router.version.$RoutesVersioningConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.web.router.version.$VersionAwareRouterListener$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.web.router.version.resolution.$HeaderVersionResolver$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.web.router.version.resolution.$HeaderVersionResolverConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.web.router.version.resolution.$ParameterVersionResolver$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.micronaut.web.router.version.resolution.$ParameterVersionResolverConfiguration$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.netty.bootstrap.ServerBootstrap$1"
+},
+{
+  "name":"io.netty.bootstrap.ServerBootstrap$ServerBootstrapAcceptor",
+  "methods":[{"name":"channelRead","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Object"] }, {"name":"exceptionCaught","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Throwable"] }]
+},
+{
+  "name":"io.netty.buffer.AbstractByteBufAllocator",
+  "queryAllDeclaredMethods":true
+},
+{
+  "name":"io.netty.buffer.AbstractReferenceCountedByteBuf",
+  "fields":[{"name":"refCnt"}]
+},
+{
+  "name":"io.netty.channel.AbstractChannelHandlerContext",
+  "fields":[{"name":"handlerState"}]
+},
+{
+  "name":"io.netty.channel.ChannelDuplexHandler",
+  "methods":[{"name":"bind","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.net.SocketAddress","io.netty.channel.ChannelPromise"] }, {"name":"close","parameterTypes":["io.netty.channel.ChannelHandlerContext","io.netty.channel.ChannelPromise"] }, {"name":"connect","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.net.SocketAddress","java.net.SocketAddress","io.netty.channel.ChannelPromise"] }, {"name":"deregister","parameterTypes":["io.netty.channel.ChannelHandlerContext","io.netty.channel.ChannelPromise"] }, {"name":"disconnect","parameterTypes":["io.netty.channel.ChannelHandlerContext","io.netty.channel.ChannelPromise"] }, {"name":"flush","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"read","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }]
+},
+{
+  "name":"io.netty.channel.ChannelInboundHandlerAdapter",
+  "methods":[{"name":"channelActive","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelInactive","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelRead","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Object"] }, {"name":"channelReadComplete","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelRegistered","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelUnregistered","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelWritabilityChanged","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"exceptionCaught","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Throwable"] }, {"name":"userEventTriggered","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Object"] }]
+},
+{
+  "name":"io.netty.channel.ChannelInitializer",
+  "methods":[{"name":"channelRegistered","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"exceptionCaught","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Throwable"] }]
+},
+{
+  "name":"io.netty.channel.ChannelOutboundBuffer",
+  "fields":[{"name":"totalPendingSize"}, {"name":"unwritable"}]
+},
+{
+  "name":"io.netty.channel.CombinedChannelDuplexHandler",
+  "methods":[{"name":"bind","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.net.SocketAddress","io.netty.channel.ChannelPromise"] }, {"name":"channelActive","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelInactive","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelRead","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Object"] }, {"name":"channelReadComplete","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelRegistered","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelUnregistered","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelWritabilityChanged","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"close","parameterTypes":["io.netty.channel.ChannelHandlerContext","io.netty.channel.ChannelPromise"] }, {"name":"connect","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.net.SocketAddress","java.net.SocketAddress","io.netty.channel.ChannelPromise"] }, {"name":"deregister","parameterTypes":["io.netty.channel.ChannelHandlerContext","io.netty.channel.ChannelPromise"] }, {"name":"disconnect","parameterTypes":["io.netty.channel.ChannelHandlerContext","io.netty.channel.ChannelPromise"] }, {"name":"exceptionCaught","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Throwable"] }, {"name":"flush","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"read","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"userEventTriggered","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Object"] }, {"name":"write","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Object","io.netty.channel.ChannelPromise"] }]
+},
+{
+  "name":"io.netty.channel.DefaultChannelConfig",
+  "fields":[{"name":"autoRead"}, {"name":"writeBufferWaterMark"}]
+},
+{
+  "name":"io.netty.channel.DefaultChannelPipeline",
+  "fields":[{"name":"estimatorHandle"}]
+},
+{
+  "name":"io.netty.channel.DefaultChannelPipeline$HeadContext",
+  "methods":[{"name":"bind","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.net.SocketAddress","io.netty.channel.ChannelPromise"] }, {"name":"channelActive","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelInactive","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelRead","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Object"] }, {"name":"channelReadComplete","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelRegistered","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelUnregistered","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelWritabilityChanged","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"close","parameterTypes":["io.netty.channel.ChannelHandlerContext","io.netty.channel.ChannelPromise"] }, {"name":"connect","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.net.SocketAddress","java.net.SocketAddress","io.netty.channel.ChannelPromise"] }, {"name":"deregister","parameterTypes":["io.netty.channel.ChannelHandlerContext","io.netty.channel.ChannelPromise"] }, {"name":"disconnect","parameterTypes":["io.netty.channel.ChannelHandlerContext","io.netty.channel.ChannelPromise"] }, {"name":"exceptionCaught","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Throwable"] }, {"name":"flush","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"read","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"userEventTriggered","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Object"] }, {"name":"write","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Object","io.netty.channel.ChannelPromise"] }]
+},
+{
+  "name":"io.netty.channel.DefaultChannelPipeline$TailContext",
+  "methods":[{"name":"channelActive","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelInactive","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelRead","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Object"] }, {"name":"channelReadComplete","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelRegistered","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelUnregistered","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelWritabilityChanged","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"exceptionCaught","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Throwable"] }, {"name":"userEventTriggered","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Object"] }]
+},
+{
+  "name":"io.netty.handler.codec.http.HttpServerCodec"
+},
+{
+  "name":"io.netty.handler.timeout.IdleStateHandler",
+  "methods":[{"name":"channelActive","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelInactive","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelRead","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Object"] }, {"name":"channelReadComplete","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"channelRegistered","parameterTypes":["io.netty.channel.ChannelHandlerContext"] }, {"name":"write","parameterTypes":["io.netty.channel.ChannelHandlerContext","java.lang.Object","io.netty.channel.ChannelPromise"] }]
+},
+{
+  "name":"io.netty.util.DefaultAttributeMap",
+  "fields":[{"name":"attributes"}]
+},
+{
+  "name":"io.netty.util.DefaultAttributeMap$DefaultAttribute",
+  "fields":[{"name":"attributeMap"}]
+},
+{
+  "name":"io.netty.util.Recycler$DefaultHandle",
+  "fields":[{"name":"state"}]
+},
+{
+  "name":"io.netty.util.ReferenceCountUtil",
+  "queryAllDeclaredMethods":true
+},
+{
+  "name":"io.netty.util.concurrent.DefaultPromise",
+  "fields":[{"name":"result"}]
+},
+{
+  "name":"io.netty.util.concurrent.SingleThreadEventExecutor",
+  "fields":[{"name":"state"}, {"name":"threadProperties"}]
+},
+{
+  "name":"io.netty.util.internal.shaded.org.jctools.queues.BaseMpscLinkedArrayQueueColdProducerFields",
+  "fields":[{"name":"producerLimit"}]
+},
+{
+  "name":"io.netty.util.internal.shaded.org.jctools.queues.BaseMpscLinkedArrayQueueConsumerFields",
+  "fields":[{"name":"consumerIndex"}]
+},
+{
+  "name":"io.netty.util.internal.shaded.org.jctools.queues.BaseMpscLinkedArrayQueueProducerFields",
+  "fields":[{"name":"producerIndex"}]
+},
+{
+  "name":"io.netty.util.internal.shaded.org.jctools.queues.MpscArrayQueueConsumerIndexField",
+  "fields":[{"name":"consumerIndex"}]
+},
+{
+  "name":"io.netty.util.internal.shaded.org.jctools.queues.MpscArrayQueueProducerIndexField",
+  "fields":[{"name":"producerIndex"}]
+},
+{
+  "name":"io.netty.util.internal.shaded.org.jctools.queues.MpscArrayQueueProducerLimitField",
+  "fields":[{"name":"producerLimit"}]
+},
+{
+  "name":"io.reactivex.Completable"
+},
+{
+  "name":"io.reactivex.Maybe"
+},
+{
+  "name":"io.reactivex.Observable"
+},
+{
+  "name":"io.reactivex.Single"
+},
+{
+  "name":"io.reactivex.rxjava3.core.Completable"
+},
+{
+  "name":"io.reactivex.rxjava3.core.Flowable"
+},
+{
+  "name":"io.reactivex.rxjava3.core.Maybe"
+},
+{
+  "name":"io.reactivex.rxjava3.core.Observable"
+},
+{
+  "name":"io.reactivex.rxjava3.core.Single"
+},
+{
+  "name":"io.teaql.benchmark.micronaut.$OperationsFactory$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.teaql.benchmark.micronaut.$OperationsFactory$Operations0$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.teaql.benchmark.micronaut.$ProbeController$Definition$Reference",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"java.io.FilePermission"
+},
+{
+  "name":"java.lang.ProcessHandle",
+  "methods":[{"name":"current","parameterTypes":[] }, {"name":"pid","parameterTypes":[] }]
+},
+{
+  "name":"java.lang.RuntimePermission"
+},
+{
+  "name":"java.lang.SecurityManager",
+  "methods":[{"name":"checkPermission","parameterTypes":["java.security.Permission"] }]
+},
+{
+  "name":"java.lang.System",
+  "methods":[{"name":"getSecurityManager","parameterTypes":[] }]
+},
+{
+  "name":"java.lang.Thread",
+  "fields":[{"name":"threadLocalRandomProbe"}],
+  "methods":[{"name":"ofVirtual","parameterTypes":[] }]
+},
+{
+  "name":"java.lang.Thread$Builder",
+  "methods":[{"name":"factory","parameterTypes":[] }, {"name":"name","parameterTypes":["java.lang.String","long"] }]
+},
+{
+  "name":"java.lang.Thread$Builder$OfVirtual"
+},
+{
+  "name":"java.net.NetPermission"
+},
+{
+  "name":"java.net.SocketPermission"
+},
+{
+  "name":"java.net.URLPermission",
+  "methods":[{"name":"<init>","parameterTypes":["java.lang.String","java.lang.String"] }]
+},
+{
+  "name":"java.nio.Bits",
+  "fields":[{"name":"MAX_MEMORY"}, {"name":"UNALIGNED"}]
+},
+{
+  "name":"java.nio.Buffer",
+  "fields":[{"name":"address"}]
+},
+{
+  "name":"java.nio.ByteBuffer",
+  "methods":[{"name":"alignedSlice","parameterTypes":["int"] }]
+},
+{
+  "name":"java.nio.DirectByteBuffer",
+  "methods":[{"name":"<init>","parameterTypes":["long","long"] }]
+},
+{
+  "name":"java.nio.channels.spi.SelectorProvider",
+  "methods":[{"name":"openServerSocketChannel","parameterTypes":["java.net.ProtocolFamily"] }, {"name":"openSocketChannel","parameterTypes":["java.net.ProtocolFamily"] }]
+},
+{
+  "name":"java.security.AccessController",
+  "methods":[{"name":"doPrivileged","parameterTypes":["java.security.PrivilegedExceptionAction"] }]
+},
+{
+  "name":"java.security.AllPermission"
+},
+{
+  "name":"java.security.SecureRandomParameters"
+},
+{
+  "name":"java.security.SecurityPermission"
+},
+{
+  "name":"java.sql.SQLException",
+  "fields":[{"name":"next"}]
+},
+{
+  "name":"java.util.PropertyPermission"
+},
+{
+  "name":"java.util.concurrent.Executors",
+  "methods":[{"name":"newThreadPerTaskExecutor","parameterTypes":["java.util.concurrent.ThreadFactory"] }]
+},
+{
+  "name":"java.util.concurrent.ForkJoinTask",
+  "fields":[{"name":"aux"}, {"name":"status"}]
+},
+{
+  "name":"java.util.concurrent.atomic.AtomicBoolean",
+  "fields":[{"name":"value"}]
+},
+{
+  "name":"java.util.concurrent.atomic.AtomicReference",
+  "fields":[{"name":"value"}]
+},
+{
+  "name":"java.util.concurrent.atomic.Striped64",
+  "fields":[{"name":"base"}, {"name":"cellsBusy"}]
+},
+{
+  "name":"javax.smartcardio.CardPermission"
+},
+{
+  "name":"jdk.internal.misc.Unsafe",
+  "methods":[{"name":"getUnsafe","parameterTypes":[] }]
+},
+{
+  "name":"kotlinx.coroutines.flow.Flow"
+},
+{
+  "name":"org.postgresql.Driver"
+},
+{
+  "name":"org.postgresql.core.QueryExecutorCloseAction",
+  "fields":[{"name":"pgStream"}]
+},
+{
+  "name":"org.postgresql.jdbc.PgStatement",
+  "fields":[{"name":"cancelTimerTask"}, {"name":"isClosed"}, {"name":"statementState"}]
+},
+{
+  "name":"reactor.core.publisher.Flux"
+},
+{
+  "name":"reactor.core.publisher.Mono"
+},
+{
+  "name":"sun.misc.Unsafe",
+  "fields":[{"name":"theUnsafe"}],
+  "methods":[{"name":"copyMemory","parameterTypes":["java.lang.Object","long","java.lang.Object","long","long"] }, {"name":"getAndAddLong","parameterTypes":["java.lang.Object","long","long"] }, {"name":"getAndSetObject","parameterTypes":["java.lang.Object","long","java.lang.Object"] }, {"name":"invokeCleaner","parameterTypes":["java.nio.ByteBuffer"] }, {"name":"storeFence","parameterTypes":[] }]
+},
+{
+  "name":"sun.nio.ch.SelectorImpl",
+  "fields":[{"name":"publicSelectedKeys"}, {"name":"selectedKeys"}]
+},
+{
+  "name":"sun.security.provider.NativePRNG",
+  "methods":[{"name":"<init>","parameterTypes":[] }, {"name":"<init>","parameterTypes":["java.security.SecureRandomParameters"] }]
+},
+{
+  "name":"sun.security.provider.SHA",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"sun.security.provider.SHA2$SHA256",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+}
+]

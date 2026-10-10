@@ -1,0 +1,1 @@
+Initial legacy build superseded after analysis: complete AOT proxy inputs and observed reflection metadata are required; no performance result from this attempt.

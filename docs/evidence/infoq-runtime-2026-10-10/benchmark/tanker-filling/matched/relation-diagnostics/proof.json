@@ -1,0 +1,12 @@
+{
+  "legacy": {
+    "relatedName": "液体充装系统",
+    "directName": "液体充装系统",
+    "ok": true
+  },
+  "modern": {
+    "ok": true,
+    "relatedName": "液体业务平台",
+    "directName": "液体业务平台"
+  }
+}

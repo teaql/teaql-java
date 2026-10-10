@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1020" viewBox="0 0 1200 1020">
+<rect width="100%" height="100%" fill="white"/>
+<text x="40" y="44" fill="#183247" font-family="Arial, sans-serif" font-size="30" font-weight="700" text-anchor="start">3. Explicit mapping and separate output boundaries</text>
+<text x="40" y="80" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="start">Arrows show information flow or configuration; output policies apply at their own boundaries.</text>
+<rect x="40" y="115" width="345" height="120" rx="10" fill="#e8f2fb" stroke="#536b7c" stroke-width="1.5"/>
+<text x="212.5" y="147" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">EntityDescriptor</text>
+<text x="212.5" y="176" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Registered constructor supplier</text>
+<text x="212.5" y="201" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Property and relation metadata</text>
+<rect x="460" y="115" width="700" height="120" rx="10" fill="#e8f2fb" stroke="#536b7c" stroke-width="1.5"/>
+<text x="810.0" y="147" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">Selected row-mapping path</text>
+<text x="810.0" y="176" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Projection -&gt; ColumnBindings -&gt; CompiledRowMapper</text>
+<text x="810.0" y="201" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">DataRow supplies typed column values</text>
+<polyline points="385,175 460,175" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="460,175 449.1946347717679,180.21958640933477 449.1946347717679,169.78041359066523" fill="#536b7c"/>
+<rect x="300" y="295" width="600" height="115" rx="10" fill="#e8f2fb" stroke="#536b7c" stroke-width="1.5"/>
+<text x="600.0" y="327" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">Hydrated domain entity</text>
+<text x="600.0" y="356" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">createEntity() + generated access / __internalHydrate</text>
+<text x="600.0" y="381" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Loaded state preserved; hydration is not a user mutation</text>
+<polyline points="810,235 810,295" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="810,295 804.7804135906653,284.1946347717679 815.2195864093347,284.1946347717679" fill="#536b7c"/>
+<polyline points="212,235 212,352 300,352" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="300,352 289.1946347717679,357.21958640933474 289.1946347717679,346.78041359066526" fill="#536b7c"/>
+<rect x="40" y="510" width="345" height="145" rx="10" fill="#f0f3f5" stroke="#536b7c" stroke-width="1.5"/>
+<text x="212.5" y="542" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">BaseEntity JSON codec</text>
+<text x="212.5" y="571" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Explicit base identity fields</text>
+<text x="212.5" y="596" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">and additional values</text>
+<text x="212.5" y="621" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Raw id / version when present</text>
+<rect x="425" y="510" width="345" height="145" rx="10" fill="#eaf5ef" stroke="#536b7c" stroke-width="1.5"/>
+<text x="597.5" y="542" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">Audit construction</text>
+<text x="597.5" y="571" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Descriptor mask fields</text>
+<text x="597.5" y="596" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Credential protection</text>
+<text x="597.5" y="621" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Value limits and trace scrubbing</text>
+<rect x="810" y="510" width="350" height="145" rx="10" fill="#fff3dc" stroke="#536b7c" stroke-width="1.5"/>
+<text x="985.0" y="542" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">Round-trip reference codec</text>
+<text x="985.0" y="571" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Entity identity + trusted actor</text>
+<text x="985.0" y="596" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Document / aggregate scope</text>
+<text x="985.0" y="621" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Provider authorization</text>
+<polyline points="450,410 450,460 212,460 212,510" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="212,510 206.78041359066523,499.1946347717679 217.21958640933477,499.1946347717679" fill="#536b7c"/>
+<polyline points="600,410 600,510" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="600,510 594.7804135906653,499.1946347717679 605.2195864093347,499.1946347717679" fill="#536b7c"/>
+<polyline points="750,410 750,460 985,460 985,510" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="985,510 979.7804135906653,499.1946347717679 990.2195864093347,499.1946347717679" fill="#536b7c"/>
+<rect x="40" y="720" width="345" height="115" rx="10" fill="#f0f3f5" stroke="#536b7c" stroke-width="1.5"/>
+<text x="212.5" y="752" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">Low-level JSON</text>
+<text x="212.5" y="781" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Additional object values may</text>
+<text x="212.5" y="806" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">need Jackson native metadata</text>
+<rect x="425" y="720" width="345" height="115" rx="10" fill="#eaf5ef" stroke="#536b7c" stroke-width="1.5"/>
+<text x="597.5" y="752" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">Safe audit fields</text>
+<text x="597.5" y="781" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Masking and truncation</text>
+<text x="597.5" y="806" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">apply to audit output</text>
+<rect x="810" y="720" width="350" height="115" rx="10" fill="#fff3dc" stroke="#536b7c" stroke-width="1.5"/>
+<text x="985.0" y="752" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">Protected token</text>
+<text x="985.0" y="781" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">AES-GCM + fresh nonce</text>
+<text x="985.0" y="806" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Scope, expiry, authorization</text>
+<polyline points="212,655 212,720" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="212,720 206.78041359066523,709.1946347717678 217.21958640933477,709.1946347717678" fill="#536b7c"/>
+<polyline points="597,655 597,720" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="597,720 591.7804135906653,709.1946347717678 602.2195864093347,709.1946347717678" fill="#536b7c"/>
+<polyline points="985,655 985,720" fill="none" stroke="#536b7c" stroke-width="2.5"/>
+<polygon points="985,720 979.7804135906653,709.1946347717678 990.2195864093347,709.1946347717678" fill="#536b7c"/>
+<rect x="40" y="890" width="1120" height="85" rx="10" fill="#f0f3f5" stroke="#536b7c" stroke-width="1.5"/>
+<text x="600.0" y="922" fill="#183247" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">Scope of the implemented protection</text>
+<text x="600.0" y="951" fill="#183247" font-family="Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle">Document ID is bound inside the reference token; a full protected-document protocol remains separate.</text>
+<text x="40" y="1005" fill="#183247" font-family="Arial, sans-serif" font-size="18" font-weight="400" text-anchor="start">These are separate paths. The base JSON codec does not automatically apply audit masking or protected-reference encoding.</text>
+</svg>

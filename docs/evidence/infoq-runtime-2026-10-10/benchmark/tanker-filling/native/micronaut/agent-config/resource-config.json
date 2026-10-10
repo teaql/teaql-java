@@ -1,0 +1,112 @@
+{
+  "resources": {
+    "includes": [
+      {
+        "pattern": "\\QMETA-INF/micronaut/io.micronaut.context.ApplicationContextConfigurer\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/micronaut/io.micronaut.context.env.PropertyExpressionResolver\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/micronaut/io.micronaut.context.env.PropertySourceLoader\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/micronaut/io.micronaut.core.beans.BeanIntrospectionReference\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/micronaut/io.micronaut.core.convert.TypeConverterRegistrar\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/micronaut/io.micronaut.http.HttpResponseFactory\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/micronaut/io.micronaut.inject.BeanConfiguration\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/micronaut/io.micronaut.inject.BeanDefinitionReference\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/ch.qos.logback.classic.spi.Configurator\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/com.fasterxml.jackson.databind.Module\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/io.micronaut.context.ApplicationContextConfigurer\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/io.micronaut.context.env.PropertyExpressionResolver\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/io.micronaut.context.env.PropertySourceLoader\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/io.micronaut.core.beans.BeanIntrospectionReference\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/io.micronaut.core.convert.TypeConverterRegistrar\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/io.micronaut.core.optim.StaticOptimizations$Loader\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/io.micronaut.core.type.TypeInformationProvider\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/io.micronaut.http.HttpResponseFactory\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/io.micronaut.inject.BeanConfiguration\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/io.micronaut.inject.BeanDefinitionReference\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/java.lang.System$LoggerFinder\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/java.net.spi.URLStreamHandlerProvider\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/java.nio.channels.spi.SelectorProvider\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/java.nio.file.spi.FileSystemProvider\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/java.sql.Driver\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/java.time.zone.ZoneRulesProvider\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/javax.xml.parsers.SAXParserFactory\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/org.slf4j.spi.SLF4JServiceProvider\\E"
+      },
+      {
+        "pattern": "\\Qapplication.json\\E"
+      },
+      {
+        "pattern": "\\Qapplication.properties\\E"
+      },
+      {
+        "pattern": "\\Qlogback-test.scmo\\E"
+      },
+      {
+        "pattern": "\\Qlogback.scmo\\E"
+      },
+      {
+        "pattern": "\\Qmicronaut-banner.txt\\E"
+      },
+      {
+        "pattern": "\\Qorg/postgresql/driverconfig.properties\\E"
+      },
+      {
+        "pattern": "java.base:\\Qjdk/internal/icu/impl/data/icudt72b/nfkc.nrm\\E"
+      }
+    ]
+  },
+  "bundles": []
+}

@@ -1,0 +1,866 @@
+{
+  "legacy-spring-jdk25": [
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/setup",
+      "response": {
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 48
+      }
+    },
+    {
+      "path": "/read",
+      "response": {
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 48
+      }
+    },
+    {
+      "path": "/write?hours=49",
+      "response": {
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 49
+      }
+    },
+    {
+      "path": "/write?hours=48",
+      "response": {
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 48
+      }
+    },
+    {
+      "path": "/testS",
+      "response": {
+        "data": [],
+        "resultCode": 0,
+        "status": "YES",
+        "recordCount": 0
+      }
+    },
+    {
+      "path": "/write?hours=47",
+      "status": 500
+    },
+    {
+      "path": "/read after rejected write",
+      "response": {
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 48
+      }
+    }
+  ],
+  "modern-spring-jdk25": [
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/setup",
+      "response": {
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 48
+      }
+    },
+    {
+      "path": "/read",
+      "response": {
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 48
+      }
+    },
+    {
+      "path": "/write?hours=49",
+      "response": {
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 49
+      }
+    },
+    {
+      "path": "/write?hours=48",
+      "response": {
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 48
+      }
+    },
+    {
+      "path": "/testS",
+      "response": {
+        "data": [],
+        "resultCode": 0,
+        "status": "YES",
+        "recordCount": 0
+      }
+    },
+    {
+      "path": "/write?hours=47",
+      "status": 500
+    },
+    {
+      "path": "/read after rejected write",
+      "response": {
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 48
+      }
+    }
+  ],
+  "modern-classpath-jdk25": [
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/setup",
+      "response": {
+        "taskLifeHours": 48,
+        "platformId": 1,
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant"
+      }
+    },
+    {
+      "path": "/read",
+      "response": {
+        "taskLifeHours": 48,
+        "platformId": 1,
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant"
+      }
+    },
+    {
+      "path": "/write?hours=49",
+      "response": {
+        "taskLifeHours": 49,
+        "platformId": 1,
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant"
+      }
+    },
+    {
+      "path": "/write?hours=48",
+      "response": {
+        "taskLifeHours": 48,
+        "platformId": 1,
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant"
+      }
+    },
+    {
+      "path": "/testS",
+      "response": {
+        "recordCount": 0,
+        "status": "YES",
+        "resultCode": 0,
+        "data": []
+      }
+    },
+    {
+      "path": "/write?hours=47",
+      "status": 500
+    },
+    {
+      "path": "/read after rejected write",
+      "response": {
+        "taskLifeHours": 48,
+        "platformId": 1,
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant"
+      }
+    }
+  ],
+  "modern-jpms-jdk25": [
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/setup",
+      "response": {
+        "name": "Benchmark merchant",
+        "taskLifeHours": 48,
+        "platformId": 1,
+        "expressionName": "Benchmark merchant"
+      }
+    },
+    {
+      "path": "/read",
+      "response": {
+        "name": "Benchmark merchant",
+        "taskLifeHours": 48,
+        "platformId": 1,
+        "expressionName": "Benchmark merchant"
+      }
+    },
+    {
+      "path": "/write?hours=49",
+      "response": {
+        "name": "Benchmark merchant",
+        "taskLifeHours": 49,
+        "platformId": 1,
+        "expressionName": "Benchmark merchant"
+      }
+    },
+    {
+      "path": "/write?hours=48",
+      "response": {
+        "name": "Benchmark merchant",
+        "taskLifeHours": 48,
+        "platformId": 1,
+        "expressionName": "Benchmark merchant"
+      }
+    },
+    {
+      "path": "/testS",
+      "response": {
+        "resultCode": 0,
+        "data": [],
+        "recordCount": 0,
+        "status": "YES"
+      }
+    },
+    {
+      "path": "/write?hours=47",
+      "status": 500
+    },
+    {
+      "path": "/read after rejected write",
+      "response": {
+        "name": "Benchmark merchant",
+        "taskLifeHours": 48,
+        "platformId": 1,
+        "expressionName": "Benchmark merchant"
+      }
+    }
+  ],
+  "modern-quarkus-jdk25": [
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/setup",
+      "response": {
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 48
+      }
+    },
+    {
+      "path": "/read",
+      "response": {
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 48
+      }
+    },
+    {
+      "path": "/write?hours=49",
+      "response": {
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 49
+      }
+    },
+    {
+      "path": "/write?hours=48",
+      "response": {
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 48
+      }
+    },
+    {
+      "path": "/testS",
+      "response": {
+        "data": [],
+        "resultCode": 0,
+        "status": "YES",
+        "recordCount": 0
+      }
+    },
+    {
+      "path": "/write?hours=47",
+      "status": 500
+    },
+    {
+      "path": "/read after rejected write",
+      "response": {
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 48
+      }
+    }
+  ],
+  "modern-micronaut-jdk25": [
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/setup",
+      "response": {
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 48,
+        "name": "Benchmark merchant"
+      }
+    },
+    {
+      "path": "/read",
+      "response": {
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 48,
+        "name": "Benchmark merchant"
+      }
+    },
+    {
+      "path": "/write?hours=49",
+      "response": {
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 49,
+        "name": "Benchmark merchant"
+      }
+    },
+    {
+      "path": "/write?hours=48",
+      "response": {
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 48,
+        "name": "Benchmark merchant"
+      }
+    },
+    {
+      "path": "/testS",
+      "response": {
+        "status": "YES",
+        "recordCount": 0,
+        "data": [],
+        "resultCode": 0
+      }
+    },
+    {
+      "path": "/write?hours=47",
+      "status": 500
+    },
+    {
+      "path": "/read after rejected write",
+      "response": {
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 48,
+        "name": "Benchmark merchant"
+      }
+    }
+  ],
+  "legacy-spring-jdk27": [
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/setup",
+      "response": {
+        "taskLifeHours": 48,
+        "platformId": 1,
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant"
+      }
+    },
+    {
+      "path": "/read",
+      "response": {
+        "taskLifeHours": 48,
+        "platformId": 1,
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant"
+      }
+    },
+    {
+      "path": "/write?hours=49",
+      "response": {
+        "taskLifeHours": 49,
+        "platformId": 1,
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant"
+      }
+    },
+    {
+      "path": "/write?hours=48",
+      "response": {
+        "taskLifeHours": 48,
+        "platformId": 1,
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant"
+      }
+    },
+    {
+      "path": "/testS",
+      "response": {
+        "recordCount": 0,
+        "status": "YES",
+        "resultCode": 0,
+        "data": []
+      }
+    },
+    {
+      "path": "/write?hours=47",
+      "status": 500
+    },
+    {
+      "path": "/read after rejected write",
+      "response": {
+        "taskLifeHours": 48,
+        "platformId": 1,
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant"
+      }
+    }
+  ],
+  "modern-spring-jdk27": [
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/setup",
+      "response": {
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant",
+        "taskLifeHours": 48,
+        "platformId": 1
+      }
+    },
+    {
+      "path": "/read",
+      "response": {
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant",
+        "taskLifeHours": 48,
+        "platformId": 1
+      }
+    },
+    {
+      "path": "/write?hours=49",
+      "response": {
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant",
+        "taskLifeHours": 49,
+        "platformId": 1
+      }
+    },
+    {
+      "path": "/write?hours=48",
+      "response": {
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant",
+        "taskLifeHours": 48,
+        "platformId": 1
+      }
+    },
+    {
+      "path": "/testS",
+      "response": {
+        "status": "YES",
+        "resultCode": 0,
+        "data": [],
+        "recordCount": 0
+      }
+    },
+    {
+      "path": "/write?hours=47",
+      "status": 500
+    },
+    {
+      "path": "/read after rejected write",
+      "response": {
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant",
+        "taskLifeHours": 48,
+        "platformId": 1
+      }
+    }
+  ],
+  "modern-classpath-jdk27": [
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/setup",
+      "response": {
+        "taskLifeHours": 48,
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1
+      }
+    },
+    {
+      "path": "/read",
+      "response": {
+        "taskLifeHours": 48,
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1
+      }
+    },
+    {
+      "path": "/write?hours=49",
+      "response": {
+        "taskLifeHours": 49,
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1
+      }
+    },
+    {
+      "path": "/write?hours=48",
+      "response": {
+        "taskLifeHours": 48,
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1
+      }
+    },
+    {
+      "path": "/testS",
+      "response": {
+        "data": [],
+        "resultCode": 0,
+        "status": "YES",
+        "recordCount": 0
+      }
+    },
+    {
+      "path": "/write?hours=47",
+      "status": 500
+    },
+    {
+      "path": "/read after rejected write",
+      "response": {
+        "taskLifeHours": 48,
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1
+      }
+    }
+  ],
+  "modern-jpms-jdk27": [
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/setup",
+      "response": {
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 48
+      }
+    },
+    {
+      "path": "/read",
+      "response": {
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 48
+      }
+    },
+    {
+      "path": "/write?hours=49",
+      "response": {
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 49
+      }
+    },
+    {
+      "path": "/write?hours=48",
+      "response": {
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 48
+      }
+    },
+    {
+      "path": "/testS",
+      "response": {
+        "data": [],
+        "resultCode": 0,
+        "status": "YES",
+        "recordCount": 0
+      }
+    },
+    {
+      "path": "/write?hours=47",
+      "status": 500
+    },
+    {
+      "path": "/read after rejected write",
+      "response": {
+        "name": "Benchmark merchant",
+        "expressionName": "Benchmark merchant",
+        "platformId": 1,
+        "taskLifeHours": 48
+      }
+    }
+  ],
+  "modern-quarkus-jdk27": [
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/setup",
+      "response": {
+        "taskLifeHours": 48,
+        "platformId": 1,
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant"
+      }
+    },
+    {
+      "path": "/read",
+      "response": {
+        "taskLifeHours": 48,
+        "platformId": 1,
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant"
+      }
+    },
+    {
+      "path": "/write?hours=49",
+      "response": {
+        "taskLifeHours": 49,
+        "platformId": 1,
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant"
+      }
+    },
+    {
+      "path": "/write?hours=48",
+      "response": {
+        "taskLifeHours": 48,
+        "platformId": 1,
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant"
+      }
+    },
+    {
+      "path": "/testS",
+      "response": {
+        "recordCount": 0,
+        "status": "YES",
+        "resultCode": 0,
+        "data": []
+      }
+    },
+    {
+      "path": "/write?hours=47",
+      "status": 500
+    },
+    {
+      "path": "/read after rejected write",
+      "response": {
+        "taskLifeHours": 48,
+        "platformId": 1,
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant"
+      }
+    }
+  ],
+  "modern-micronaut-jdk27": [
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/ensureDB",
+      "response": {
+        "ok": true
+      }
+    },
+    {
+      "path": "/setup",
+      "response": {
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant",
+        "taskLifeHours": 48,
+        "platformId": 1
+      }
+    },
+    {
+      "path": "/read",
+      "response": {
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant",
+        "taskLifeHours": 48,
+        "platformId": 1
+      }
+    },
+    {
+      "path": "/write?hours=49",
+      "response": {
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant",
+        "taskLifeHours": 49,
+        "platformId": 1
+      }
+    },
+    {
+      "path": "/write?hours=48",
+      "response": {
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant",
+        "taskLifeHours": 48,
+        "platformId": 1
+      }
+    },
+    {
+      "path": "/testS",
+      "response": {
+        "status": "YES",
+        "resultCode": 0,
+        "data": [],
+        "recordCount": 0
+      }
+    },
+    {
+      "path": "/write?hours=47",
+      "status": 500
+    },
+    {
+      "path": "/read after rejected write",
+      "response": {
+        "expressionName": "Benchmark merchant",
+        "name": "Benchmark merchant",
+        "taskLifeHours": 48,
+        "platformId": 1
+      }
+    }
+  ]
+}
