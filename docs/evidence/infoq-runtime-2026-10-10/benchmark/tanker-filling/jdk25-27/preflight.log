@@ -1,0 +1,12 @@
+legacy-spring-jdk25 contract passed
+modern-spring-jdk25 contract passed
+modern-classpath-jdk25 contract passed
+modern-jpms-jdk25 contract passed
+modern-quarkus-jdk25 contract passed
+modern-micronaut-jdk25 contract passed
+legacy-spring-jdk27 contract passed
+modern-spring-jdk27 contract passed
+modern-classpath-jdk27 contract passed
+modern-jpms-jdk27 contract passed
+modern-quarkus-jdk27 contract passed
+modern-micronaut-jdk27 contract passed

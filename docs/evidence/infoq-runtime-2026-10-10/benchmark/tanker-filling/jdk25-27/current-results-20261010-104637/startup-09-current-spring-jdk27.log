@@ -1,0 +1,12 @@
+2026-10-10 10:57:30,521 WARN  o.s.b.l.logback.LogbackLoggingSystem - Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.1.1)
+
+[TeaQL MUTATION GOVERNANCE][MUTATION-POLICY-001] request=Merchant.saveGraph execution=675f7074-0d33-4802-9997-c112a0dd41b2 policy=none approval=NOT_APPLICABLE

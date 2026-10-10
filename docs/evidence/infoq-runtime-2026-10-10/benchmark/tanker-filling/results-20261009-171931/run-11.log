@@ -1,0 +1,35 @@
+Standard Commons Logging discovery in action with spring-jcl: please remove commons-logging.jar from classpath in order to avoid potential conflicts
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.0)
+
+2026-10-09 17:22:15,248-[]---INFO -App:50- Starting App v0.0.1-SNAPSHOT using Java 17.0.20.1 with PID 235805 (/home/philip/teaql-startup-benchmark/spring-baseline/app.jar started by philip in /home/philip/teaql-startup-benchmark/spring-baseline)
+2026-10-09 17:22:15,253-[]---INFO -App:659- The following 1 profile is active: "benchmark"
+2026-10-09 17:22:16,346-[]---INFO -RepositoryConfigurationDelegate:292- Multiple Spring Data modules found, entering strict repository configuration mode
+2026-10-09 17:22:16,348-[]---INFO -RepositoryConfigurationDelegate:139- Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-10-09 17:22:16,414-[]---INFO -RepositoryConfigurationDelegate:208- Finished Spring Data repository scanning in 45 ms. Found 0 Redis repository interfaces.
+2026-10-09 17:22:17,267-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18880 (http)
+2026-10-09 17:22:17,276-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-09 17:22:17,277-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-09 17:22:17,329-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-09 17:22:17,330-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 1979 ms
+Standard Commons Logging discovery in action with spring-jcl: please remove commons-logging.jar from classpath in order to avoid potential conflicts
+2026-10-09 17:22:18,572-[]---INFO -Version:43- Redisson 3.43.0
+2026-10-09 17:22:18,652-[]---WARN -SequentialDnsAddressResolverFactory:111- DNS TCP fallback on UDP query timeout disabled. Upgrade Netty to 4.1.105 or higher.
+2026-10-09 17:22:18,819-[]---INFO -ConnectionsHolder:132- 1 connections initialized for 127.0.0.1/127.0.0.1:16379
+2026-10-09 17:22:18,883-[]---INFO -ConnectionsHolder:132- 24 connections initialized for 127.0.0.1/127.0.0.1:16379
+2026-10-09 17:22:19,616-[]---INFO -TomcatWebServer:221- Tomcat started on port 18880 (http) with context path ''
+2026-10-09 17:22:19,647-[]---INFO -App:56- Started App in 5.024 seconds (process running for 5.547)
+2026-10-09 17:22:19,734-[]---INFO -[/]:173- Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-10-09 17:22:19,735-[]---INFO -DispatcherServlet:532- Initializing Servlet 'dispatcherServlet'
+2026-10-09 17:22:19,736-[]---INFO -DispatcherServlet:554- Completed initialization in 1 ms
+2026-10-09 17:22:19,827-[T2108488218682490880]---INFO -HikariDataSource:110- HikariPool-1 - Starting...
+2026-10-09 17:22:19,973-[T2108488218682490880]---INFO -HikariPool:565- HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@782bd5f0
+2026-10-09 17:22:19,974-[T2108488218682490880]---INFO -HikariDataSource:123- HikariPool-1 - Start completed.
+2026-10-09 17:22:30,051-[]---INFO -HikariDataSource:350- HikariPool-1 - Shutdown initiated...
+2026-10-09 17:22:30,054-[]---INFO -HikariDataSource:352- HikariPool-1 - Shutdown completed.

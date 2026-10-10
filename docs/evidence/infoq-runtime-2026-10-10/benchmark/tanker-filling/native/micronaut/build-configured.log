@@ -1,0 +1,90 @@
+========================================================================================================================
+GraalVM Native Image: Generating 'micronaut' (executable)...
+========================================================================================================================
+For detailed information and explanations on the build output, visit:
+https://github.com/oracle/graal/blob/master/docs/reference-manual/native-image/BuildOutput.md
+------------------------------------------------------------------------------------------------------------------------
+[1/8] Initializing...                                                                                    (5.8s @ 0.17GB)
+ Java version: 21.0.12+7-LTS, vendor version: Oracle GraalVM 21.0.12+7.1
+ Graal compiler: optimization level: 2, target machine: compatibility, PGO: ML-inferred
+ C compiler: gcc (linux, x86_64, 14.2.0)
+ Garbage collector: Serial GC (max heap size: 80% of RAM)
+ 3 user-specific feature(s):
+ - com.oracle.svm.thirdparty.gson.GsonFeature
+ - io.micronaut.core.io.service.ServiceLoaderFeature
+ - io.micronaut.jackson.JacksonDatabindFeature
+------------------------------------------------------------------------------------------------------------------------
+Build resources:
+ - 7.11GB of memory (45.9% of 15.50GB system memory, set via '-Xmx8g')
+ - 4 thread(s) (50.0% of 8 available processor(s), set via '--parallelism=4')
+[2/8] Performing analysis...  [*****]                                                                   (58.9s @ 1.95GB)
+   16,486 reachable types   (88.6% of   18,615 total)
+   25,788 reachable fields  (59.4% of   43,442 total)
+   92,766 reachable methods (60.3% of  153,813 total)
+    5,503 types,   649 fields, and 5,138 methods registered for reflection
+       64 types,    74 fields, and    55 methods registered for JNI access
+        4 native libraries: dl, pthread, rt, z
+[3/8] Building universe...                                                                              (10.2s @ 2.16GB)
+[4/8] Parsing methods...      [*****]                                                                   (28.1s @ 1.84GB)
+[5/8] Inlining methods...     [***]                                                                      (3.1s @ 1.53GB)
+[6/8] Compiling methods...    [***********]                                                            (136.9s @ 3.55GB)
+[7/8] Laying out methods...   [***]                                                                      (8.5s @ 2.64GB)
+[8/8] Creating image...       [***]                                                                      (7.5s @ 3.35GB)
+  48.05MB (51.88%) for code area:    54,231 compilation units
+  34.48MB (37.23%) for image heap:  408,746 objects and 364 resources
+  10.09MB (10.89%) for other data
+  92.61MB in total
+------------------------------------------------------------------------------------------------------------------------
+Top 10 origins of code area:                                Top 10 object types in image heap:
+  14.88MB java.base                                           13.89MB byte[] for code metadata
+   4.40MB svm.jar (Native Image)                               5.67MB byte[] for java.lang.String
+   3.87MB java.xml                                             3.48MB java.lang.Class
+   2.55MB liquidfilling-domain-297.jar                         2.94MB java.lang.String
+   2.45MB jackson-databind-2.16.1.jar                          1.67MB byte[] for general heap data
+   1.34MB netty-buffer-4.1.108.Final.jar                       1.08MB byte[] for reflection metadata
+   1.24MB postgresql-42.6.0.jar                              772.78kB com.oracle.svm.core.hub.DynamicHubCompanion
+   1.15MB micronaut-inject-4.3.14.jar                        479.94kB c.o.svm.core.hub.DynamicHub$ReflectionMetadata
+   1.07MB micronaut-http-server-netty-4.3.14.jar             458.63kB java.util.HashMap$Node
+ 908.76kB micronaut-http-4.3.14.jar                          417.96kB java.lang.String[]
+  13.82MB for 69 more packages                                 3.66MB for 3299 more object types
+                              Use '-H:+BuildReport' to create a report with more details.
+------------------------------------------------------------------------------------------------------------------------
+Security report:
+ - Binary includes Java deserialization.
+ - Use '--enable-sbom' to embed a Software Bill of Materials (SBOM) in the binary.
+------------------------------------------------------------------------------------------------------------------------
+Recommendations:
+ G1GC: Use the G1 GC ('--gc=G1') for improved latency and throughput.
+ PGO:  Use Profile-Guided Optimizations ('--pgo') for improved throughput.
+ HEAP: Set max heap for improved and more predictable memory usage.
+ QBM:  Use the quick build mode ('-Ob') to speed up builds during development.
+------------------------------------------------------------------------------------------------------------------------
+                       21.5s (8.2% of total time) in 221 GCs | Peak RSS: 4.86GB | CPU load: 4.83
+------------------------------------------------------------------------------------------------------------------------
+Produced artifacts:
+ /home/philip/teaql-startup-benchmark/native/micronaut/micronaut (executable)
+========================================================================================================================
+Finished generating 'micronaut' in 4m 20s.
+	Command being timed: "native-image -J-Xmx8g --parallelism=4 --no-fallback -march=compatibility -H:ConfigurationFileDirectories=../common-config,agent-config --strict-image-heap --initialize-at-run-time=io.netty,org.slf4j,ch.qos.logback --exclude-config netty-codec-http-.* /META-INF/native-image/io.netty/netty-codec-http/native-image\.properties --exclude-config netty-codec-http2-.* /META-INF/native-image/io.netty/netty-codec-http2/native-image\.properties -cp micronaut-probe-1.jar:lib/* io.teaql.benchmark.micronaut.Application micronaut"
+	User time (seconds): 1243.91
+	System time (seconds): 17.39
+	Percent of CPU this job got: 482%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 4:21.42
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 5092944
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 92
+	Minor (reclaiming a frame) page faults: 391858
+	Voluntary context switches: 198749
+	Involuntary context switches: 33510
+	Swaps: 0
+	File system inputs: 212672
+	File system outputs: 770488
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

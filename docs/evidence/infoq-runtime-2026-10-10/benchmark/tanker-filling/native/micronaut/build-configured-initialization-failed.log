@@ -1,0 +1,339 @@
+========================================================================================================================
+GraalVM Native Image: Generating 'micronaut' (executable)...
+========================================================================================================================
+For detailed information and explanations on the build output, visit:
+https://github.com/oracle/graal/blob/master/docs/reference-manual/native-image/BuildOutput.md
+------------------------------------------------------------------------------------------------------------------------
+[1/8] Initializing...                                                                                    (5.5s @ 0.13GB)
+ Java version: 21.0.12+7-LTS, vendor version: Oracle GraalVM 21.0.12+7.1
+ Graal compiler: optimization level: 2, target machine: compatibility, PGO: ML-inferred
+ C compiler: gcc (linux, x86_64, 14.2.0)
+ Garbage collector: Serial GC (max heap size: 80% of RAM)
+ 3 user-specific feature(s):
+ - com.oracle.svm.thirdparty.gson.GsonFeature
+ - io.micronaut.core.io.service.ServiceLoaderFeature
+ - io.micronaut.jackson.JacksonDatabindFeature
+------------------------------------------------------------------------------------------------------------------------
+Build resources:
+ - 7.11GB of memory (45.9% of 15.50GB system memory, set via '-Xmx8g')
+ - 4 thread(s) (50.0% of 8 available processor(s), set via '--parallelism=4')
+00:05:41.344 [main] DEBUG io.netty.util.internal.logging.InternalLoggerFactory -- Using SLF4J as the default logging framework
+00:05:41.378 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.internal.InternalThreadLocalMap -- -Dio.netty.threadLocalMap.stringBuilder.initialSize: 1024
+00:05:41.378 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.internal.InternalThreadLocalMap -- -Dio.netty.threadLocalMap.stringBuilder.maxSize: 4096
+00:05:41.396 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.internal.PlatformDependent0 -- -Dio.netty.noUnsafe: false
+00:05:41.396 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.internal.PlatformDependent0 -- Java version: 21
+00:05:41.396 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.internal.PlatformDependent0 -- sun.misc.Unsafe.theUnsafe: available
+00:05:41.396 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.internal.PlatformDependent0 -- sun.misc.Unsafe.copyMemory: available
+00:05:41.396 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.internal.PlatformDependent0 -- sun.misc.Unsafe.storeFence: available
+00:05:41.396 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.internal.PlatformDependent0 -- java.nio.Buffer.address: available
+00:05:41.397 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.internal.PlatformDependent0 -- direct buffer constructor: unavailable: Unable to make private java.nio.DirectByteBuffer(long,long) accessible: module java.base does not "opens java.nio" to unnamed module @769ac18e
+00:05:41.397 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.internal.PlatformDependent0 -- java.nio.Bits.unaligned: unavailable, true, Unable to make static boolean java.nio.Bits.unaligned() accessible: module java.base does not "opens java.nio" to unnamed module @769ac18e
+00:05:41.398 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.internal.PlatformDependent0 -- jdk.internal.misc.Unsafe.allocateUninitializedArray(int): unavailable: class io.netty.util.internal.PlatformDependent0$7 cannot access class jdk.internal.misc.Unsafe (in module java.base) because module java.base does not export jdk.internal.misc to unnamed module @769ac18e
+00:05:41.398 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.internal.PlatformDependent0 -- java.nio.DirectByteBuffer.<init>(long, {int,long}): unavailable
+00:05:41.398 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.internal.PlatformDependent -- sun.misc.Unsafe: available
+00:05:41.399 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.internal.PlatformDependent -- maxDirectMemory: 7635730432 bytes (maybe)
+00:05:41.399 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.internal.PlatformDependent -- -Dio.netty.tmpdir: /tmp (java.io.tmpdir)
+00:05:41.399 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.internal.PlatformDependent -- -Dio.netty.bitMode: 64 (sun.arch.data.model)
+00:05:41.399 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.internal.PlatformDependent -- -Dio.netty.maxDirectMemory: -1 bytes
+00:05:41.399 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.internal.PlatformDependent -- -Dio.netty.uninitializedArrayAllocationThreshold: -1
+00:05:41.400 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.internal.CleanerJava9 -- java.nio.ByteBuffer.cleaner(): available
+00:05:41.400 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.internal.PlatformDependent -- -Dio.netty.noPreferDirect: false
+00:05:43.263 [main] DEBUG io.netty.util.ResourceLeakDetector -- -Dio.netty.leakDetection.level: simple
+00:05:43.264 [main] DEBUG io.netty.util.ResourceLeakDetector -- -Dio.netty.leakDetection.targetRecords: 4
+00:05:43.268 [ForkJoinPool-2-worker-2] DEBUG io.netty.buffer.AbstractByteBuf -- -Dio.netty.buffer.checkAccessible: true
+00:05:43.268 [ForkJoinPool-2-worker-2] DEBUG io.netty.buffer.AbstractByteBuf -- -Dio.netty.buffer.checkBounds: true
+00:05:43.271 [ForkJoinPool-2-worker-2] DEBUG io.netty.util.ResourceLeakDetectorFactory -- Loaded default ResourceLeakDetector: io.netty.util.ResourceLeakDetector@43e8475c
+00:05:43.467 [ForkJoinPool-2-worker-2] DEBUG io.netty.util.Recycler -- -Dio.netty.recycler.maxCapacityPerThread: 4096
+00:05:43.467 [ForkJoinPool-2-worker-2] DEBUG io.netty.util.Recycler -- -Dio.netty.recycler.ratio: 8
+00:05:43.467 [ForkJoinPool-2-worker-2] DEBUG io.netty.util.Recycler -- -Dio.netty.recycler.chunkSize: 32
+00:05:43.468 [ForkJoinPool-2-worker-2] DEBUG io.netty.util.Recycler -- -Dio.netty.recycler.blocking: false
+00:05:43.468 [ForkJoinPool-2-worker-2] DEBUG io.netty.util.Recycler -- -Dio.netty.recycler.batchFastThreadLocalOnly: true
+00:05:47.302 [ForkJoinPool-2-worker-1] DEBUG io.netty.channel.DefaultChannelId -- -Dio.netty.processId: 469719 (auto-detected)
+00:05:47.303 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.NetUtil -- -Djava.net.preferIPv4Stack: false
+00:05:47.303 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.NetUtil -- -Djava.net.preferIPv6Addresses: false
+00:05:47.303 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.NetUtilInitializations -- Loopback interface: lo (lo, 0:0:0:0:0:0:0:1%lo)
+00:05:47.303 [ForkJoinPool-2-worker-1] DEBUG io.netty.util.NetUtil -- /proc/sys/net/core/somaxconn: 4096
+00:05:47.304 [ForkJoinPool-2-worker-1] DEBUG io.netty.channel.DefaultChannelId -- -Dio.netty.machineId: 1c:36:bb:ff:fe:ec:6f:f5 (auto-detected)
+00:05:48.588 [ForkJoinPool-2-worker-3] DEBUG io.netty.channel.nio.NioEventLoop -- -Dio.netty.noKeySetOptimization: false
+00:05:48.589 [ForkJoinPool-2-worker-3] DEBUG io.netty.channel.nio.NioEventLoop -- -Dio.netty.selectorAutoRebuildThreshold: 512
+00:06:01.620 [ForkJoinPool-2-worker-3] DEBUG io.netty.util.internal.PlatformDependent -- org.jctools-core.MpscChunkedArrayQueue: available
+00:06:02.608 [ForkJoinPool-2-worker-2] DEBUG io.netty.buffer.AdvancedLeakAwareByteBuf -- -Dio.netty.leakDetection.acquireAndReleaseOnly: false
+00:06:13.240 [ForkJoinPool-2-worker-3] DEBUG io.netty.channel.MultithreadEventLoopGroup -- -Dio.netty.eventLoopThreads: 16
+00:06:25.742 [ForkJoinPool-2-worker-3] DEBUG io.netty.handler.ssl.OpenSsl -- netty-tcnative not in the classpath; OpenSslEngine will be unavailable.
+00:06:25.865 [ForkJoinPool-2-worker-3] DEBUG io.netty.handler.ssl.util.OpenJdkSelfSignedCertGenerator -- OpenJdkSelfSignedCertGenerator not supported
+java.lang.IllegalAccessError: class io.netty.handler.ssl.util.OpenJdkSelfSignedCertGenerator$1 (in unnamed module @0x769ac18e) cannot access class sun.security.x509.X509CertInfo (in module java.base) because module java.base does not export sun.security.x509 to unnamed module @0x769ac18e
+	at io.netty.handler.ssl.util.OpenJdkSelfSignedCertGenerator$1.run(OpenJdkSelfSignedCertGenerator.java:72)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:319)
+	at io.netty.handler.ssl.util.OpenJdkSelfSignedCertGenerator.<clinit>(OpenJdkSelfSignedCertGenerator.java:68)
+	at java.base/jdk.internal.misc.Unsafe.ensureClassInitialized0(Native Method)
+	at java.base/jdk.internal.misc.Unsafe.ensureClassInitialized(Unsafe.java:1160)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ClassInitializationSupport.ensureClassInitialized(ClassInitializationSupport.java:177)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ProvenSafeClassInitializationSupport.computeInitKindAndMaybeInitializeClass(ProvenSafeClassInitializationSupport.java:348)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ProvenSafeClassInitializationSupport.computeInitKindAndMaybeInitializeClass(ProvenSafeClassInitializationSupport.java:76)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ClassInitializationSupport.maybeInitializeAtBuildTime(ClassInitializationSupport.java:161)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ClassInitializationSupport.maybeInitializeAtBuildTime(ClassInitializationSupport.java:150)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.SVMHost.isInitialized(SVMHost.java:320)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.meta.AnalysisType.isInitialized(AnalysisType.java:911)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.maybeEagerlyInitialize(BytecodeParser.java:4427)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.genInvokeStatic(BytecodeParser.java:1680)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.genInvokeStatic(BytecodeParser.java:1673)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.processBytecode(BytecodeParser.java:5420)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.iterateBytecodesForBlock(BytecodeParser.java:3429)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.phases.SharedGraphBuilderPhase$SharedBytecodeParser.iterateBytecodesForBlock(SharedGraphBuilderPhase.java:751)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.handleBytecodeBlock(BytecodeParser.java:3389)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.processBlock(BytecodeParser.java:3231)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.build(BytecodeParser.java:1138)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.phases.SharedGraphBuilderPhase$SharedBytecodeParser.build(SharedGraphBuilderPhase.java:162)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.buildRootMethod(BytecodeParser.java:1030)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.GraphBuilderPhase$Instance.run(GraphBuilderPhase.java:101)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.phases.SharedGraphBuilderPhase.run(SharedGraphBuilderPhase.java:116)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.phases.Phase.run(Phase.java:49)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.phases.BasePhase.apply(BasePhase.java:434)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.phases.Phase.apply(Phase.java:42)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.phases.Phase.apply(Phase.java:38)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.flow.AnalysisParsedGraph.parseBytecode(AnalysisParsedGraph.java:146)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.meta.AnalysisMethod.parseGraph(AnalysisMethod.java:895)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.meta.AnalysisMethod.ensureGraphParsedHelper(AnalysisMethod.java:860)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.meta.AnalysisMethod.ensureGraphParsed(AnalysisMethod.java:843)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.phases.InlineBeforeAnalysisGraphDecoder.lookupEncodedGraph(InlineBeforeAnalysisGraphDecoder.java:198)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.replacements.PEGraphDecoder.doInline(PEGraphDecoder.java:1211)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.replacements.PEGraphDecoder.tryInline(PEGraphDecoder.java:1194)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.replacements.PEGraphDecoder.trySimplifyInvoke(PEGraphDecoder.java:1049)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.replacements.PEGraphDecoder.handleInvokeWithCallTarget(PEGraphDecoder.java:1001)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.replacements.PEGraphDecoder.handleInvoke(PEGraphDecoder.java:987)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.nodes.GraphDecoder.processNextNode(GraphDecoder.java:921)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.phases.InlineBeforeAnalysisGraphDecoder.processNextNode(InlineBeforeAnalysisGraphDecoder.java:378)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.nodes.GraphDecoder.decode(GraphDecoder.java:650)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.replacements.PEGraphDecoder.decode(PEGraphDecoder.java:892)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.phases.InlineBeforeAnalysis.decodeGraph(InlineBeforeAnalysis.java:76)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.flow.MethodTypeFlowBuilder.parse(MethodTypeFlowBuilder.java:195)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.flow.MethodTypeFlowBuilder.apply(MethodTypeFlowBuilder.java:621)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.flow.MethodTypeFlow.createFlowsGraph(MethodTypeFlow.java:167)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.flow.MethodTypeFlow.ensureFlowsGraphCreated(MethodTypeFlow.java:153)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.flow.MethodTypeFlow.getOrCreateMethodFlowsGraphInfo(MethodTypeFlow.java:111)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.typestate.DefaultSpecialInvokeTypeFlow.lambda$onObservedUpdate$0(DefaultSpecialInvokeTypeFlow.java:88)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.util.LightImmutableCollection.forEach(LightImmutableCollection.java:90)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.typestate.DefaultSpecialInvokeTypeFlow.onObservedUpdate(DefaultSpecialInvokeTypeFlow.java:87)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.flow.TypeFlow.update(TypeFlow.java:620)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.PointsToAnalysis$1.run(PointsToAnalysis.java:491)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.util.CompletionExecutor.executeCommand(CompletionExecutor.java:187)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.util.CompletionExecutor.lambda$executeService$0(CompletionExecutor.java:171)
+	at java.base/java.util.concurrent.ForkJoinTask$RunnableExecuteAction.exec(ForkJoinTask.java:1423)
+	at java.base/java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:387)
+	at java.base/java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1310)
+	at java.base/java.util.concurrent.ForkJoinPool.scan(ForkJoinPool.java:1841)
+	at java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1806)
+	at java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:188)
+00:06:28.408 [ForkJoinPool-2-worker-3] DEBUG io.netty.handler.codec.compression.Brotli -- brotli4j not in the classpath; Brotli support will be unavailable.
+00:06:28.409 [ForkJoinPool-2-worker-3] DEBUG io.netty.handler.codec.compression.Zstd -- zstd-jni not in the classpath; Zstd support will be unavailable.
+00:06:28.431 [ForkJoinPool-2-worker-3] DEBUG io.netty.handler.codec.compression.ZlibCodecFactory -- -Dio.netty.noJdkZlibDecoder: false
+00:06:28.431 [ForkJoinPool-2-worker-3] DEBUG io.netty.handler.codec.compression.ZlibCodecFactory -- -Dio.netty.noJdkZlibEncoder: false
+00:06:29.277 [ForkJoinPool-2-worker-2] DEBUG io.netty.handler.ssl.JdkSslContext -- Default protocols (JDK): [TLSv1.3, TLSv1.2] 
+00:06:29.277 [ForkJoinPool-2-worker-2] DEBUG io.netty.handler.ssl.JdkSslContext -- Default cipher suites (JDK): [TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_AES_128_GCM_SHA256, TLS_AES_256_GCM_SHA384]
+00:06:29.278 [ForkJoinPool-2-worker-2] DEBUG io.netty.buffer.PooledByteBufAllocator -- -Dio.netty.allocator.numHeapArenas: 16
+00:06:29.278 [ForkJoinPool-2-worker-2] DEBUG io.netty.buffer.PooledByteBufAllocator -- -Dio.netty.allocator.numDirectArenas: 16
+00:06:29.278 [ForkJoinPool-2-worker-2] DEBUG io.netty.buffer.PooledByteBufAllocator -- -Dio.netty.allocator.pageSize: 8192
+00:06:29.278 [ForkJoinPool-2-worker-2] DEBUG io.netty.buffer.PooledByteBufAllocator -- -Dio.netty.allocator.maxOrder: 9
+00:06:29.278 [ForkJoinPool-2-worker-2] DEBUG io.netty.buffer.PooledByteBufAllocator -- -Dio.netty.allocator.chunkSize: 4194304
+00:06:29.278 [ForkJoinPool-2-worker-2] DEBUG io.netty.buffer.PooledByteBufAllocator -- -Dio.netty.allocator.smallCacheSize: 256
+00:06:29.278 [ForkJoinPool-2-worker-2] DEBUG io.netty.buffer.PooledByteBufAllocator -- -Dio.netty.allocator.normalCacheSize: 64
+00:06:29.278 [ForkJoinPool-2-worker-2] DEBUG io.netty.buffer.PooledByteBufAllocator -- -Dio.netty.allocator.maxCachedBufferCapacity: 32768
+00:06:29.278 [ForkJoinPool-2-worker-2] DEBUG io.netty.buffer.PooledByteBufAllocator -- -Dio.netty.allocator.cacheTrimInterval: 8192
+00:06:29.278 [ForkJoinPool-2-worker-2] DEBUG io.netty.buffer.PooledByteBufAllocator -- -Dio.netty.allocator.cacheTrimIntervalMillis: 0
+00:06:29.278 [ForkJoinPool-2-worker-2] DEBUG io.netty.buffer.PooledByteBufAllocator -- -Dio.netty.allocator.useCacheForAllThreads: false
+00:06:29.278 [ForkJoinPool-2-worker-2] DEBUG io.netty.buffer.PooledByteBufAllocator -- -Dio.netty.allocator.maxCachedByteBuffersPerChunk: 1023
+00:06:29.279 [ForkJoinPool-2-worker-2] DEBUG io.netty.buffer.ByteBufUtil -- -Dio.netty.allocator.type: pooled
+00:06:29.279 [ForkJoinPool-2-worker-2] DEBUG io.netty.buffer.ByteBufUtil -- -Dio.netty.threadLocalDirectBufferSize: 0
+00:06:29.279 [ForkJoinPool-2-worker-2] DEBUG io.netty.buffer.ByteBufUtil -- -Dio.netty.maxThreadLocalCharBufferSize: 16384
+00:06:29.280 [ForkJoinPool-2-worker-2] DEBUG io.netty.handler.ssl.BouncyCastlePemReader -- Cannot load Bouncy Castle provider
+java.lang.ClassNotFoundException: org.bouncycastle.jce.provider.BouncyCastleProvider
+	at java.base/jdk.internal.loader.BuiltinClassLoader.loadClass(BuiltinClassLoader.java:641)
+	at java.base/jdk.internal.loader.ClassLoaders$AppClassLoader.loadClass(ClassLoaders.java:188)
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:526)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.NativeImageClassLoader.loadClass(NativeImageClassLoader.java:637)
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:526)
+	at java.base/java.lang.Class.forName0(Native Method)
+	at java.base/java.lang.Class.forName(Class.java:536)
+	at java.base/java.lang.Class.forName(Class.java:515)
+	at io.netty.handler.ssl.BouncyCastlePemReader$1.run(BouncyCastlePemReader.java:80)
+	at io.netty.handler.ssl.BouncyCastlePemReader$1.run(BouncyCastlePemReader.java:73)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:319)
+	at io.netty.handler.ssl.BouncyCastlePemReader.tryLoading(BouncyCastlePemReader.java:73)
+	at io.netty.handler.ssl.BouncyCastlePemReader.isAvailable(BouncyCastlePemReader.java:60)
+	at io.netty.handler.ssl.SslContext.toPrivateKey(SslContext.java:1180)
+	at io.netty.handler.ssl.JdkSslServerContext.checkIfWrappingTrustManagerIsSupported(JdkSslServerContext.java:82)
+	at io.netty.handler.ssl.JdkSslServerContext.<clinit>(JdkSslServerContext.java:65)
+	at java.base/jdk.internal.misc.Unsafe.ensureClassInitialized0(Native Method)
+	at java.base/jdk.internal.misc.Unsafe.ensureClassInitialized(Unsafe.java:1160)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ClassInitializationSupport.ensureClassInitialized(ClassInitializationSupport.java:177)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ProvenSafeClassInitializationSupport.computeInitKindAndMaybeInitializeClass(ProvenSafeClassInitializationSupport.java:348)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ProvenSafeClassInitializationSupport.computeInitKindAndMaybeInitializeClass(ProvenSafeClassInitializationSupport.java:76)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ClassInitializationSupport.maybeInitializeAtBuildTime(ClassInitializationSupport.java:161)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ClassInitializationSupport.maybeInitializeAtBuildTime(ClassInitializationSupport.java:150)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.SVMHost.isInitialized(SVMHost.java:320)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.meta.AnalysisType.isInitialized(AnalysisType.java:911)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.maybeEagerlyInitialize(BytecodeParser.java:4427)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.genNewInstance(BytecodeParser.java:4633)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.genNewInstance(BytecodeParser.java:4622)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.genNewInstance(BytecodeParser.java:4617)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.processBytecode(BytecodeParser.java:5423)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.iterateBytecodesForBlock(BytecodeParser.java:3429)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.phases.SharedGraphBuilderPhase$SharedBytecodeParser.iterateBytecodesForBlock(SharedGraphBuilderPhase.java:751)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.handleBytecodeBlock(BytecodeParser.java:3389)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.processBlock(BytecodeParser.java:3231)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.build(BytecodeParser.java:1138)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.phases.SharedGraphBuilderPhase$SharedBytecodeParser.build(SharedGraphBuilderPhase.java:162)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.buildRootMethod(BytecodeParser.java:1030)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.GraphBuilderPhase$Instance.run(GraphBuilderPhase.java:101)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.phases.SharedGraphBuilderPhase.run(SharedGraphBuilderPhase.java:116)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.phases.Phase.run(Phase.java:49)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.phases.BasePhase.apply(BasePhase.java:434)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.phases.Phase.apply(Phase.java:42)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.phases.Phase.apply(Phase.java:38)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.flow.AnalysisParsedGraph.parseBytecode(AnalysisParsedGraph.java:146)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.meta.AnalysisMethod.parseGraph(AnalysisMethod.java:895)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.meta.AnalysisMethod.ensureGraphParsedHelper(AnalysisMethod.java:860)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.meta.AnalysisMethod.ensureGraphParsed(AnalysisMethod.java:843)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.phases.InlineBeforeAnalysisGraphDecoder.lookupEncodedGraph(InlineBeforeAnalysisGraphDecoder.java:198)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.replacements.PEGraphDecoder.doInline(PEGraphDecoder.java:1211)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.replacements.PEGraphDecoder.tryInline(PEGraphDecoder.java:1194)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.replacements.PEGraphDecoder.trySimplifyInvoke(PEGraphDecoder.java:1049)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.replacements.PEGraphDecoder.handleInvokeWithCallTarget(PEGraphDecoder.java:1001)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.replacements.PEGraphDecoder.handleInvoke(PEGraphDecoder.java:987)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.nodes.GraphDecoder.processNextNode(GraphDecoder.java:921)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.phases.InlineBeforeAnalysisGraphDecoder.processNextNode(InlineBeforeAnalysisGraphDecoder.java:378)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.nodes.GraphDecoder.decode(GraphDecoder.java:650)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.replacements.PEGraphDecoder.decode(PEGraphDecoder.java:892)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.phases.InlineBeforeAnalysis.decodeGraph(InlineBeforeAnalysis.java:76)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.flow.MethodTypeFlowBuilder.parse(MethodTypeFlowBuilder.java:195)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.flow.MethodTypeFlowBuilder.apply(MethodTypeFlowBuilder.java:621)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.flow.MethodTypeFlow.createFlowsGraph(MethodTypeFlow.java:167)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.flow.MethodTypeFlow.ensureFlowsGraphCreated(MethodTypeFlow.java:153)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.flow.MethodTypeFlow.getOrCreateMethodFlowsGraphInfo(MethodTypeFlow.java:111)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.typestate.DefaultSpecialInvokeTypeFlow.lambda$onObservedUpdate$0(DefaultSpecialInvokeTypeFlow.java:88)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.util.LightImmutableCollection.forEach(LightImmutableCollection.java:90)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.typestate.DefaultSpecialInvokeTypeFlow.onObservedUpdate(DefaultSpecialInvokeTypeFlow.java:87)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.flow.TypeFlow.update(TypeFlow.java:620)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.PointsToAnalysis$1.run(PointsToAnalysis.java:491)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.util.CompletionExecutor.executeCommand(CompletionExecutor.java:187)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.util.CompletionExecutor.lambda$executeService$0(CompletionExecutor.java:171)
+	at java.base/java.util.concurrent.ForkJoinTask$RunnableExecuteAction.exec(ForkJoinTask.java:1423)
+	at java.base/java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:387)
+	at java.base/java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1310)
+	at java.base/java.util.concurrent.ForkJoinPool.scan(ForkJoinPool.java:1841)
+	at java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1806)
+	at java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:188)
+00:06:30.413 [ForkJoinPool-2-worker-1] ERROR io.netty.handler.ssl.BouncyCastleAlpnSslUtils -- Unable to initialize BouncyCastleAlpnSslUtils.
+java.lang.ClassNotFoundException: org.bouncycastle.jsse.BCSSLEngine
+	at java.base/jdk.internal.loader.BuiltinClassLoader.loadClass(BuiltinClassLoader.java:641)
+	at java.base/jdk.internal.loader.ClassLoaders$AppClassLoader.loadClass(ClassLoaders.java:188)
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:526)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.NativeImageClassLoader.loadClass(NativeImageClassLoader.java:637)
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:526)
+	at java.base/java.lang.Class.forName0(Native Method)
+	at java.base/java.lang.Class.forName(Class.java:423)
+	at java.base/java.lang.Class.forName(Class.java:414)
+	at io.netty.handler.ssl.BouncyCastleAlpnSslUtils.<clinit>(BouncyCastleAlpnSslUtils.java:63)
+	at java.base/jdk.internal.misc.Unsafe.ensureClassInitialized0(Native Method)
+	at java.base/jdk.internal.misc.Unsafe.ensureClassInitialized(Unsafe.java:1160)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ClassInitializationSupport.ensureClassInitialized(ClassInitializationSupport.java:177)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ProvenSafeClassInitializationSupport.computeInitKindAndMaybeInitializeClass(ProvenSafeClassInitializationSupport.java:348)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ProvenSafeClassInitializationSupport.computeInitKindAndMaybeInitializeClass(ProvenSafeClassInitializationSupport.java:76)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ClassInitializationSupport.maybeInitializeAtBuildTime(ClassInitializationSupport.java:161)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ClassInitializationSupport.maybeInitializeAtBuildTime(ClassInitializationSupport.java:150)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.SVMHost.isInitialized(SVMHost.java:320)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.meta.AnalysisType.isInitialized(AnalysisType.java:911)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.maybeEagerlyInitialize(BytecodeParser.java:4427)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.genInvokeStatic(BytecodeParser.java:1680)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.genInvokeStatic(BytecodeParser.java:1673)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.processBytecode(BytecodeParser.java:5420)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.iterateBytecodesForBlock(BytecodeParser.java:3429)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.phases.SharedGraphBuilderPhase$SharedBytecodeParser.iterateBytecodesForBlock(SharedGraphBuilderPhase.java:751)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.handleBytecodeBlock(BytecodeParser.java:3389)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.processBlock(BytecodeParser.java:3231)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.build(BytecodeParser.java:1138)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.phases.SharedGraphBuilderPhase$SharedBytecodeParser.build(SharedGraphBuilderPhase.java:162)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.BytecodeParser.buildRootMethod(BytecodeParser.java:1030)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.java.GraphBuilderPhase$Instance.run(GraphBuilderPhase.java:101)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.phases.SharedGraphBuilderPhase.run(SharedGraphBuilderPhase.java:116)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.phases.Phase.run(Phase.java:49)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.phases.BasePhase.apply(BasePhase.java:434)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.phases.Phase.apply(Phase.java:42)
+	at jdk.internal.vm.compiler/org.graalvm.compiler.phases.Phase.apply(Phase.java:38)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.flow.AnalysisParsedGraph.parseBytecode(AnalysisParsedGraph.java:146)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.meta.AnalysisMethod.parseGraph(AnalysisMethod.java:895)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.meta.AnalysisMethod.ensureGraphParsedHelper(AnalysisMethod.java:860)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.meta.AnalysisMethod.ensureGraphParsed(AnalysisMethod.java:843)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.flow.MethodTypeFlowBuilder.parse(MethodTypeFlowBuilder.java:186)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.flow.MethodTypeFlowBuilder.apply(MethodTypeFlowBuilder.java:621)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.flow.MethodTypeFlow.createFlowsGraph(MethodTypeFlow.java:167)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.flow.MethodTypeFlow.ensureFlowsGraphCreated(MethodTypeFlow.java:153)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.flow.MethodTypeFlow.getOrCreateMethodFlowsGraphInfo(MethodTypeFlow.java:111)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.typestate.DefaultVirtualInvokeTypeFlow.onObservedUpdate(DefaultVirtualInvokeTypeFlow.java:114)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.flow.TypeFlow.update(TypeFlow.java:620)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.PointsToAnalysis$1.run(PointsToAnalysis.java:491)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.util.CompletionExecutor.executeCommand(CompletionExecutor.java:187)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.util.CompletionExecutor.lambda$executeService$0(CompletionExecutor.java:171)
+	at java.base/java.util.concurrent.ForkJoinTask$RunnableExecuteAction.exec(ForkJoinTask.java:1423)
+	at java.base/java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:387)
+	at java.base/java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1310)
+	at java.base/java.util.concurrent.ForkJoinPool.scan(ForkJoinPool.java:1841)
+	at java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1806)
+	at java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:188)
+00:06:31.000 [ForkJoinPool-2-worker-1] DEBUG io.netty.handler.codec.compression.JdkZlibEncoder -- -Dio.netty.jdkzlib.encoder.maxInitialOutputBufferSize=65536
+00:06:31.000 [ForkJoinPool-2-worker-1] DEBUG io.netty.handler.codec.compression.JdkZlibEncoder -- -Dio.netty.jdkzlib.encoder.maxInputBufferSize=65536
+00:06:32.224 [main] DEBUG io.netty.util.ResourceLeakDetectorFactory -- Loaded default ResourceLeakDetector: io.netty.util.ResourceLeakDetector@1238fa2e
+[2/8] Performing analysis...  []                                                                        (56.4s @ 1.93GB)
+   16,253 reachable types   (88.2% of   18,418 total)
+   24,948 reachable fields  (59.6% of   41,843 total)
+   90,234 reachable methods (59.6% of  151,356 total)
+    5,308 types,   638 fields, and 4,926 methods registered for reflection
+
+Error: Classes that should be initialized at run time got initialized during image building:
+ ch.qos.logback.classic.Level was unintentionally initialized at build time. To see why ch.qos.logback.classic.Level got initialized use --trace-class-initialization=ch.qos.logback.classic.Level
+ch.qos.logback.classic.Logger was unintentionally initialized at build time. To see why ch.qos.logback.classic.Logger got initialized use --trace-class-initialization=ch.qos.logback.classic.Logger
+io.netty.buffer.UnpooledHeapByteBuf the class was requested to be initialized at run time (subtype of io.netty.buffer.AbstractReferenceCountedByteBuf). To see why io.netty.buffer.UnpooledHeapByteBuf got initialized use --trace-class-initialization=io.netty.buffer.UnpooledHeapByteBuf
+io.netty.buffer.UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf the class was requested to be initialized at run time (subtype of io.netty.buffer.AbstractReferenceCountedByteBuf). To see why io.netty.buffer.UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf got initialized use --trace-class-initialization=io.netty.buffer.UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf
+io.netty.buffer.AbstractReferenceCountedByteBuf the class was requested to be initialized at run time (from 'META-INF/native-image/io.netty/netty-buffer/native-image.properties' in 'file:///home/philip/teaql-startup-benchmark/native/micronaut/lib/netty-buffer-4.1.108.Final.jar' with 'io.netty.buffer.AbstractReferenceCountedByteBuf'). To see why io.netty.buffer.AbstractReferenceCountedByteBuf got initialized use --trace-class-initialization=io.netty.buffer.AbstractReferenceCountedByteBuf
+ch.qos.logback.core.status.InfoStatus was unintentionally initialized at build time. To see why ch.qos.logback.core.status.InfoStatus got initialized use --trace-class-initialization=ch.qos.logback.core.status.InfoStatus
+io.netty.buffer.UnpooledUnsafeDirectByteBuf the class was requested to be initialized at run time (subtype of io.netty.buffer.AbstractReferenceCountedByteBuf). To see why io.netty.buffer.UnpooledUnsafeDirectByteBuf got initialized use --trace-class-initialization=io.netty.buffer.UnpooledUnsafeDirectByteBuf
+io.netty.buffer.UnpooledDirectByteBuf the class was requested to be initialized at run time (subtype of io.netty.buffer.AbstractReferenceCountedByteBuf). To see why io.netty.buffer.UnpooledDirectByteBuf got initialized use --trace-class-initialization=io.netty.buffer.UnpooledDirectByteBuf
+io.netty.buffer.PooledByteBufAllocator the class was requested to be initialized at run time (from 'META-INF/native-image/io.netty/netty-buffer/native-image.properties' in 'file:///home/philip/teaql-startup-benchmark/native/micronaut/lib/netty-buffer-4.1.108.Final.jar' with 'io.netty.buffer.PooledByteBufAllocator'). To see why io.netty.buffer.PooledByteBufAllocator got initialized use --trace-class-initialization=io.netty.buffer.PooledByteBufAllocator
+org.slf4j.LoggerFactory was unintentionally initialized at build time. To see why org.slf4j.LoggerFactory got initialized use --trace-class-initialization=org.slf4j.LoggerFactory
+ch.qos.logback.core.util.StatusPrinter was unintentionally initialized at build time. To see why ch.qos.logback.core.util.StatusPrinter got initialized use --trace-class-initialization=ch.qos.logback.core.util.StatusPrinter
+io.netty.buffer.UnpooledUnsafeHeapByteBuf the class was requested to be initialized at run time (subtype of io.netty.buffer.AbstractReferenceCountedByteBuf). To see why io.netty.buffer.UnpooledUnsafeHeapByteBuf got initialized use --trace-class-initialization=io.netty.buffer.UnpooledUnsafeHeapByteBuf
+io.netty.handler.codec.http2.Http2CodecUtil the class was requested to be initialized at run time (from 'META-INF/native-image/io.netty/netty-codec-http2/native-image.properties' in 'file:///home/philip/teaql-startup-benchmark/native/micronaut/lib/netty-codec-http2-4.1.108.Final.jar' with 'io.netty.handler.codec.http2.Http2CodecUtil'). To see why io.netty.handler.codec.http2.Http2CodecUtil got initialized use --trace-class-initialization=io.netty.handler.codec.http2.Http2CodecUtil
+ch.qos.logback.core.util.Loader was unintentionally initialized at build time. To see why ch.qos.logback.core.util.Loader got initialized use --trace-class-initialization=ch.qos.logback.core.util.Loader
+io.netty.buffer.ByteBufUtil the class was requested to be initialized at run time (from 'META-INF/native-image/io.netty/netty-buffer/native-image.properties' in 'file:///home/philip/teaql-startup-benchmark/native/micronaut/lib/netty-buffer-4.1.108.Final.jar' with 'io.netty.buffer.ByteBufUtil'). To see why io.netty.buffer.ByteBufUtil got initialized use --trace-class-initialization=io.netty.buffer.ByteBufUtil
+io.netty.buffer.UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeDirectByteBuf the class was requested to be initialized at run time (subtype of io.netty.buffer.AbstractReferenceCountedByteBuf). To see why io.netty.buffer.UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeDirectByteBuf got initialized use --trace-class-initialization=io.netty.buffer.UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeDirectByteBuf
+ch.qos.logback.core.status.StatusBase was unintentionally initialized at build time. To see why ch.qos.logback.core.status.StatusBase got initialized use --trace-class-initialization=ch.qos.logback.core.status.StatusBase
+ch.qos.logback.core.CoreConstants was unintentionally initialized at build time. To see why ch.qos.logback.core.CoreConstants got initialized use --trace-class-initialization=ch.qos.logback.core.CoreConstants
+To see how the classes got initialized, use --trace-class-initialization=ch.qos.logback.classic.Level,ch.qos.logback.classic.Logger,io.netty.buffer.UnpooledHeapByteBuf,io.netty.buffer.UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf,io.netty.buffer.AbstractReferenceCountedByteBuf,ch.qos.logback.core.status.InfoStatus,io.netty.buffer.UnpooledUnsafeDirectByteBuf,io.netty.buffer.UnpooledDirectByteBuf,io.netty.buffer.PooledByteBufAllocator,org.slf4j.LoggerFactory,ch.qos.logback.core.util.StatusPrinter,io.netty.buffer.UnpooledUnsafeHeapByteBuf,io.netty.handler.codec.http2.Http2CodecUtil,ch.qos.logback.core.util.Loader,io.netty.buffer.ByteBufUtil,io.netty.buffer.UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeDirectByteBuf,ch.qos.logback.core.status.StatusBase,ch.qos.logback.core.CoreConstants
+------------------------------------------------------------------------------------------------------------------------
+                        8.1s (12.9% of total time) in 99 GCs | Peak RSS: 3.04GB | CPU load: 4.99
+========================================================================================================================
+Finished generating 'micronaut' in 1m 2s.
+Command exited with non-zero status 1
+	Command being timed: "native-image -J-Xmx8g --parallelism=4 --no-fallback -march=compatibility -H:ConfigurationFileDirectories=../common-config,agent-config -cp micronaut-probe-1.jar:lib/* io.teaql.benchmark.micronaut.Application micronaut"
+	User time (seconds): 307.04
+	System time (seconds): 7.85
+	Percent of CPU this job got: 495%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:03.55
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 3187764
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 2
+	Minor (reclaiming a frame) page faults: 207132
+	Voluntary context switches: 117161
+	Involuntary context switches: 14831
+	Swaps: 0
+	File system inputs: 40816
+	File system outputs: 3152
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1

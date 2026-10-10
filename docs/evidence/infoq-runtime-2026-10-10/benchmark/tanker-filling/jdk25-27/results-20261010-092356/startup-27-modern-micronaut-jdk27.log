@@ -1,0 +1,10 @@
+ __  __ _                                  _   
+|  \/  (_) ___ _ __ ___  _ __   __ _ _   _| |_ 
+| |\/| | |/ __| '__/ _ \| '_ \ / _` | | | | __|
+| |  | | | (__| | | (_) | | | | (_| | |_| | |_ 
+|_|  |_|_|\___|_|  \___/|_| |_|\__,_|\__,_|\__|
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by io.netty.util.internal.PlatformDependent0$4 (file:/home/philip/teaql-startup-benchmark/matched-six/micronaut/lib/netty-common-4.1.108.Final.jar)
+WARNING: Please consider reporting this to the maintainers of class io.netty.util.internal.PlatformDependent0$4
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+[TeaQL MUTATION GOVERNANCE][MUTATION-POLICY-001] request=Merchant.saveGraph execution=8126d65e-2399-4bce-beeb-179df6722c22 policy=none approval=NOT_APPLICABLE

@@ -1,0 +1,14 @@
+Started StandaloneProbe in 0.442 seconds
+[TeaQL MUTATION GOVERNANCE][MUTATION-POLICY-001] request=Merchant.saveGraph execution=13d2677f-a9b8-4ff9-99c0-3c56d23459f3 policy=none approval=NOT_APPLICABLE
+java.lang.IllegalArgumentException: Fixture value only
+	at modern.probe/com.doublechaintech.liquidfilling.probe.ProbeOperations.write(ProbeOperations.java:100)
+	at modern.probe/com.doublechaintech.liquidfilling.probe.StandaloneProbe.lambda$main$0(StandaloneProbe.java:21)
+	at jdk.httpserver/com.sun.net.httpserver.Filter$Chain.doFilter(Filter.java:98)
+	at jdk.httpserver/sun.net.httpserver.AuthFilter.doFilter(AuthFilter.java:76)
+	at jdk.httpserver/com.sun.net.httpserver.Filter$Chain.doFilter(Filter.java:101)
+	at jdk.httpserver/sun.net.httpserver.ServerImpl$Exchange$LinkHandler.handle(ServerImpl.java:924)
+	at jdk.httpserver/com.sun.net.httpserver.Filter$Chain.doFilter(Filter.java:98)
+	at jdk.httpserver/sun.net.httpserver.ServerImpl$Exchange.run(ServerImpl.java:900)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)

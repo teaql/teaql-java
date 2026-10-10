@@ -1,0 +1,19 @@
+Traceback (most recent call last):
+  File "/home/philip/teaql-startup-benchmark/native/verify_contract.py", line 24, in <module>
+    got=req(path);assert got==value,(variant,path,got);steps.append({'path':path,'response':got})
+  File "/home/philip/teaql-startup-benchmark/native/verify_contract.py", line 9, in req
+    with urllib.request.build_opener(urllib.request.ProxyHandler({})).open('http://127.0.0.1:18884'+path,timeout=120) as r:return json.load(r)
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/urllib/request.py", line 495, in open
+    response = meth(req, response)
+  File "/usr/lib/python3.13/urllib/request.py", line 604, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "/usr/lib/python3.13/urllib/request.py", line 533, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "/usr/lib/python3.13/urllib/request.py", line 466, in _call_chain
+    result = func(*args)
+  File "/usr/lib/python3.13/urllib/request.py", line 613, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 500: 

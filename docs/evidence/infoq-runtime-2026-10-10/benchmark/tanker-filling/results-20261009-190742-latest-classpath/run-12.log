@@ -1,0 +1,12 @@
+Started StandaloneProbe in 0.378 seconds
+19:09:44.140 [pool-1-thread-2] INFO com.zaxxer.hikari.HikariDataSource -- HikariPool-1 - Starting...
+19:09:44.355 [pool-1-thread-2] INFO com.zaxxer.hikari.pool.HikariPool -- HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@615c3bca
+19:09:44.356 [pool-1-thread-2] INFO com.zaxxer.hikari.HikariDataSource -- HikariPool-1 - Start completed.
+[TeaQL SQL][query][233806us] 0 rows returned outcome=success batchOutcome=not_applicable comment=what: execute the original weight-report query purpose=why: verify latest-runtime SQL readiness auditReason= tracePath=[0:OPERATION:WeightReport=query -> 1:REQUEST:WeightReport= -> 2:RELATION:subTask=WeightReport.subTask -> 3:PROVIDER:postgresql= -> 4:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT subTaskData.id AS id, subTaskData.name AS name, subTaskData.status AS status, subTaskData.sequence AS sequence, subTaskData.max_snapshot_number AS maxSnapshotNumber, subTaskData.task AS task, subTaskData.version AS version, _child_type AS _type_ FROM sub_task_data AS subTaskData WHERE (subTaskData.version > 0) AND (subTaskData.sequence = 2) AND (subTaskData.task = 26001) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][2197us] 0 rows returned outcome=success batchOutcome=not_applicable comment=what: execute the original weight-report query purpose=why: verify latest-runtime SQL readiness auditReason= tracePath=[0:OPERATION:WeightReport=query -> 1:REQUEST:WeightReport= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT weightReportData.id AS id, subTaskReportData.name AS name, subTaskReportData.tractor AS tractor, subTaskReportData.trailer AS trailer, subTaskReportData.fill_station AS fillStation, subTaskReportData.executor AS executor, subTaskReportData.execute_time AS executeTime, subTaskReportData.snapshot_number AS snapshotNumber, subTaskReportData.sub_task AS subTask, subTaskReportData.task AS task, subTaskReportData.merchant AS merchant, subTaskReportData.version AS version, weightReportData.weight AS weight FROM weight_report_data AS weightReportData INNER JOIN sub_task_report_data AS subTaskReportData ON subTaskReportData.id = weightReportData.id WHERE (subTaskReportData.version > 0) AND (subTaskReportData.sub_task IN (NULL)) ORDER BY subTaskReportData.execute_time DESC LIMIT 1000 OFFSET 0
+19:09:54.400 [Thread-1] INFO com.zaxxer.hikari.HikariDataSource -- HikariPool-1 - Shutdown initiated...
+19:09:54.406 [Thread-1] INFO com.zaxxer.hikari.HikariDataSource -- HikariPool-1 - Shutdown completed.

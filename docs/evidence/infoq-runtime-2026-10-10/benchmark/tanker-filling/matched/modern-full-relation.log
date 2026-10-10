@@ -1,0 +1,10 @@
+[TeaQL SQL][query][282938us] 1 rows returned outcome=success batchOutcome=not_applicable comment=diagnostic full relation purpose=verify relation hydration auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, external_id AS externalId, task_life_hours AS taskLifeHours, version, platform FROM merchant_data WHERE (version > 0) AND (external_id = 'matched-merchant') LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][2390us] 1 rows returned outcome=success batchOutcome=not_applicable comment=diagnostic full relation purpose=verify relation hydration auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:RELATION:platform=Merchant.platform -> 3:PROVIDER:postgresql= -> 4:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, create_time AS createTime, last_update_time AS lastUpdateTime, name, version FROM platform_data WHERE (version > 0) AND (id = 1) LIMIT 1 OFFSET 0
+[TeaQL SQL][query][959us] 1 rows returned outcome=success batchOutcome=not_applicable comment=diagnostic direct root purpose=compare relation hydration auditReason= tracePath=[0:OPERATION:Platform=query -> 1:REQUEST:Platform= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, create_time AS createTime, last_update_time AS lastUpdateTime, name, version FROM platform_data WHERE (version > 0) AND (id = 1) LIMIT 1000 OFFSET 0
+RELATION_PROOF {"ok":true,"relatedName":"液体业务平台","directName":"液体业务平台"}

@@ -1,0 +1,27 @@
+Started StandaloneProbe in 0.011 seconds
+java.lang.IllegalStateException: Unable to ensure persistent ID-space table teaql_id_space; verify database connectivity and schema permissions
+	at io.teaql.core.sql.portable.IdSpaceIdGenerator.ensureIdSpaceTable(IdSpaceIdGenerator.java:179)
+	at com.doublechaintech.liquidfilling.probe.ProbeOperations.ensureDB(ProbeOperations.java:49)
+	at com.doublechaintech.liquidfilling.probe.StandaloneProbe.lambda$main$0(StandaloneProbe.java:23)
+	at jdk.httpserver@21.0.12/com.sun.net.httpserver.Filter$Chain.doFilter(Filter.java:98)
+	at jdk.httpserver@21.0.12/sun.net.httpserver.AuthFilter.doFilter(AuthFilter.java:82)
+	at jdk.httpserver@21.0.12/com.sun.net.httpserver.Filter$Chain.doFilter(Filter.java:101)
+	at jdk.httpserver@21.0.12/sun.net.httpserver.ServerImpl$Exchange$LinkHandler.handle(ServerImpl.java:932)
+	at jdk.httpserver@21.0.12/com.sun.net.httpserver.Filter$Chain.doFilter(Filter.java:98)
+	at jdk.httpserver@21.0.12/sun.net.httpserver.ServerImpl$Exchange.run(ServerImpl.java:908)
+	at java.base@21.0.12/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base@21.0.12/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base@21.0.12/java.lang.Thread.runWith(Thread.java:1596)
+	at java.base@21.0.12/java.lang.Thread.run(Thread.java:1583)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.core.thread.PlatformThreads.threadStartRoutine(PlatformThreads.java:896)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.core.thread.PlatformThreads.threadStartRoutine(PlatformThreads.java:872)
+Caused by: java.lang.NullPointerException
+	at com.zaxxer.hikari.pool.HikariPool.throwPoolInitializationException(HikariPool.java:596)
+	at com.zaxxer.hikari.pool.HikariPool.checkFailFast(HikariPool.java:582)
+	at com.zaxxer.hikari.pool.HikariPool.<init>(HikariPool.java:100)
+	at com.zaxxer.hikari.HikariDataSource.getConnection(HikariDataSource.java:112)
+	at io.teaql.provider.jdbc.JdbcSqlExecutor.openConnection(JdbcSqlExecutor.java:39)
+	at io.teaql.provider.jdbc.JdbcSqlExecutor.execute(JdbcSqlExecutor.java:323)
+	at com.doublechaintech.liquidfilling.probe.ProbeOperations$IdDatabase.execute(ProbeOperations.java:111)
+	at io.teaql.core.sql.portable.IdSpaceIdGenerator.ensureIdSpaceTable(IdSpaceIdGenerator.java:175)
+	... 14 more

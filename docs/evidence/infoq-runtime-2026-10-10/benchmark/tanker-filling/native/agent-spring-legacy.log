@@ -1,0 +1,6 @@
+spring contract passed
+Traceback (most recent call last):
+  File "/home/philip/teaql-startup-benchmark/native/verify_contract.py", line 16, in <module>
+    if p.poll() is not None:raise RuntimeError(variant+' exited')
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: legacy exited

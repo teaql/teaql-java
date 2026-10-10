@@ -1,0 +1,619 @@
+2026-10-09 20:10:28,294 WARN  o.s.b.l.logback.LogbackLoggingSystem - Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.0)
+
+[TeaQL SQL][query][4229us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated Domain Root purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:Platform=query -> 1:REQUEST:Platform= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, create_time AS createTime, last_update_time AS lastUpdateTime, name, version FROM platform_data WHERE (version > 0) AND (id = 1) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][787us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 10001) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][500us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 10002) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][501us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 1) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][510us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 2) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][563us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 3) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][485us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 4) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][542us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 5) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][471us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 6) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][485us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 7) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][481us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 8) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][383us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 9) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][333us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 10) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][359us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 11) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][311us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 12) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][777us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:PermissionType=query -> 1:REQUEST:PermissionType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM permission_type_data WHERE (version > 0) AND (id = 1) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][447us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:PermissionType=query -> 1:REQUEST:PermissionType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM permission_type_data WHERE (version > 0) AND (id = 2) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][427us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:PermissionType=query -> 1:REQUEST:PermissionType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM permission_type_data WHERE (version > 0) AND (id = 3) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][615us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:PermissionType=query -> 1:REQUEST:PermissionType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM permission_type_data WHERE (version > 0) AND (id = 4) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][491us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:PermissionType=query -> 1:REQUEST:PermissionType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM permission_type_data WHERE (version > 0) AND (id = 5) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][478us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:PermissionType=query -> 1:REQUEST:PermissionType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM permission_type_data WHERE (version > 0) AND (id = 6) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][932us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:MeasureUnit=query -> 1:REQUEST:MeasureUnit= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM measure_unit_data WHERE (version > 0) AND (id = 1) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][578us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:MeasureUnit=query -> 1:REQUEST:MeasureUnit= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM measure_unit_data WHERE (version > 0) AND (id = 2) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][592us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:MeasureUnit=query -> 1:REQUEST:MeasureUnit= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM measure_unit_data WHERE (version > 0) AND (id = 3) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][652us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:MeasureUnit=query -> 1:REQUEST:MeasureUnit= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM measure_unit_data WHERE (version > 0) AND (id = 4) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][537us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:MeasureUnit=query -> 1:REQUEST:MeasureUnit= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM measure_unit_data WHERE (version > 0) AND (id = 5) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][745us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 1) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][448us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 2) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][410us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 3) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][393us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 4) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][384us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 5) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][329us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 6) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][305us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 7) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][365us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 8) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][364us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 9) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][360us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 10) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][282us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 11) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][276us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 12) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][309us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 13) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][292us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 14) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][308us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 15) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][307us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 16) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][688us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisType=query -> 1:REQUEST:AnalysisType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_type_data WHERE (version > 0) AND (id = 10001) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][465us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisType=query -> 1:REQUEST:AnalysisType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_type_data WHERE (version > 0) AND (id = 1) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][503us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisType=query -> 1:REQUEST:AnalysisType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_type_data WHERE (version > 0) AND (id = 2) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][461us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisType=query -> 1:REQUEST:AnalysisType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_type_data WHERE (version > 0) AND (id = 3) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][495us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisType=query -> 1:REQUEST:AnalysisType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_type_data WHERE (version > 0) AND (id = 4) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][723us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:CertificationType=query -> 1:REQUEST:CertificationType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM certification_type_data WHERE (version > 0) AND (id = 1001) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][473us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:CertificationType=query -> 1:REQUEST:CertificationType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM certification_type_data WHERE (version > 0) AND (id = 1002) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][715us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TruckStatus=query -> 1:REQUEST:TruckStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM truck_status_data WHERE (version > 0) AND (id = 1001) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][466us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TruckStatus=query -> 1:REQUEST:TruckStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM truck_status_data WHERE (version > 0) AND (id = 1002) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][703us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AttachmentType=query -> 1:REQUEST:AttachmentType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM attachment_type_data WHERE (version > 0) AND (id = 1001) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][450us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AttachmentType=query -> 1:REQUEST:AttachmentType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM attachment_type_data WHERE (version > 0) AND (id = 1002) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][456us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AttachmentType=query -> 1:REQUEST:AttachmentType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM attachment_type_data WHERE (version > 0) AND (id = 1003) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][711us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:SubTaskStatus=query -> 1:REQUEST:SubTaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM sub_task_status_data WHERE (version > 0) AND (id = 1001) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][472us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:SubTaskStatus=query -> 1:REQUEST:SubTaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM sub_task_status_data WHERE (version > 0) AND (id = 1002) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][489us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:SubTaskStatus=query -> 1:REQUEST:SubTaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM sub_task_status_data WHERE (version > 0) AND (id = 1003) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][482us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:SubTaskStatus=query -> 1:REQUEST:SubTaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM sub_task_status_data WHERE (version > 0) AND (id = 1004) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][544us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:SubTaskStatus=query -> 1:REQUEST:SubTaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM sub_task_status_data WHERE (version > 0) AND (id = 1005) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][722us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 1001) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][523us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 1002) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][453us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 1003) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][496us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 1004) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][503us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 1005) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][335us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 10001) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][323us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 10002) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][378us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 1) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][384us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 2) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][391us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 3) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][331us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 4) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][264us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 5) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][1081us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskType=query -> 1:REQUEST:TaskType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_type_data WHERE (version > 0) AND (id = 1) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][570us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskType=query -> 1:REQUEST:TaskType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_type_data WHERE (version > 0) AND (id = 2) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][624us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskType=query -> 1:REQUEST:TaskType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_type_data WHERE (version > 0) AND (id = 3) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][660us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskType=query -> 1:REQUEST:TaskType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_type_data WHERE (version > 0) AND (id = 4) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][657us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskType=query -> 1:REQUEST:TaskType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_type_data WHERE (version > 0) AND (id = 5) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][527us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskType=query -> 1:REQUEST:TaskType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_type_data WHERE (version > 0) AND (id = 6) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][392us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskType=query -> 1:REQUEST:TaskType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_type_data WHERE (version > 0) AND (id = 7) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][393us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskType=query -> 1:REQUEST:TaskType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_type_data WHERE (version > 0) AND (id = 8) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][401us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskType=query -> 1:REQUEST:TaskType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_type_data WHERE (version > 0) AND (id = 10) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][677us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:ProductStatus=query -> 1:REQUEST:ProductStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM product_status_data WHERE (version > 0) AND (id = 1) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][433us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:ProductStatus=query -> 1:REQUEST:ProductStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM product_status_data WHERE (version > 0) AND (id = 2) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][770us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated Domain Root purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:Platform=query -> 1:REQUEST:Platform= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, create_time AS createTime, last_update_time AS lastUpdateTime, name, version FROM platform_data WHERE (version > 0) AND (id = 1) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][284us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 10001) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][285us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 10002) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][301us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 1) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][290us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 2) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][271us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 3) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][291us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 4) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][282us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 5) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][287us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 6) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][274us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 7) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][280us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 8) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][296us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 9) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][293us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 10) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][328us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 11) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][312us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:RequestType=query -> 1:REQUEST:RequestType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT code, entrance_view AS entranceView, id, name, platform, version FROM request_type_data WHERE (version > 0) AND (id = 12) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][358us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:PermissionType=query -> 1:REQUEST:PermissionType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM permission_type_data WHERE (version > 0) AND (id = 1) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][308us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:PermissionType=query -> 1:REQUEST:PermissionType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM permission_type_data WHERE (version > 0) AND (id = 2) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][303us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:PermissionType=query -> 1:REQUEST:PermissionType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM permission_type_data WHERE (version > 0) AND (id = 3) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][330us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:PermissionType=query -> 1:REQUEST:PermissionType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM permission_type_data WHERE (version > 0) AND (id = 4) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][284us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:PermissionType=query -> 1:REQUEST:PermissionType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM permission_type_data WHERE (version > 0) AND (id = 5) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][272us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:PermissionType=query -> 1:REQUEST:PermissionType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM permission_type_data WHERE (version > 0) AND (id = 6) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][368us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:MeasureUnit=query -> 1:REQUEST:MeasureUnit= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM measure_unit_data WHERE (version > 0) AND (id = 1) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][293us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:MeasureUnit=query -> 1:REQUEST:MeasureUnit= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM measure_unit_data WHERE (version > 0) AND (id = 2) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][306us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:MeasureUnit=query -> 1:REQUEST:MeasureUnit= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM measure_unit_data WHERE (version > 0) AND (id = 3) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][277us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:MeasureUnit=query -> 1:REQUEST:MeasureUnit= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM measure_unit_data WHERE (version > 0) AND (id = 4) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][308us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:MeasureUnit=query -> 1:REQUEST:MeasureUnit= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM measure_unit_data WHERE (version > 0) AND (id = 5) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][278us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 1) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][307us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 2) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][272us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 3) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][338us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 4) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][295us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 5) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][318us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 6) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][259us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 7) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][308us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 8) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][280us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 9) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][318us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 10) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][309us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 11) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][318us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 12) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][271us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 13) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][300us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 14) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][289us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 15) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][277us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisComponent=query -> 1:REQUEST:AnalysisComponent= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_component_data WHERE (version > 0) AND (id = 16) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][398us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisType=query -> 1:REQUEST:AnalysisType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_type_data WHERE (version > 0) AND (id = 10001) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][342us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisType=query -> 1:REQUEST:AnalysisType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_type_data WHERE (version > 0) AND (id = 1) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][329us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisType=query -> 1:REQUEST:AnalysisType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_type_data WHERE (version > 0) AND (id = 2) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][323us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisType=query -> 1:REQUEST:AnalysisType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_type_data WHERE (version > 0) AND (id = 3) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][285us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AnalysisType=query -> 1:REQUEST:AnalysisType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM analysis_type_data WHERE (version > 0) AND (id = 4) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][472us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:CertificationType=query -> 1:REQUEST:CertificationType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM certification_type_data WHERE (version > 0) AND (id = 1001) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][395us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:CertificationType=query -> 1:REQUEST:CertificationType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM certification_type_data WHERE (version > 0) AND (id = 1002) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][389us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TruckStatus=query -> 1:REQUEST:TruckStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM truck_status_data WHERE (version > 0) AND (id = 1001) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][360us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TruckStatus=query -> 1:REQUEST:TruckStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM truck_status_data WHERE (version > 0) AND (id = 1002) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][363us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AttachmentType=query -> 1:REQUEST:AttachmentType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM attachment_type_data WHERE (version > 0) AND (id = 1001) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][413us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AttachmentType=query -> 1:REQUEST:AttachmentType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM attachment_type_data WHERE (version > 0) AND (id = 1002) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][312us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:AttachmentType=query -> 1:REQUEST:AttachmentType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM attachment_type_data WHERE (version > 0) AND (id = 1003) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][296us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:SubTaskStatus=query -> 1:REQUEST:SubTaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM sub_task_status_data WHERE (version > 0) AND (id = 1001) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][286us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:SubTaskStatus=query -> 1:REQUEST:SubTaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM sub_task_status_data WHERE (version > 0) AND (id = 1002) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][283us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:SubTaskStatus=query -> 1:REQUEST:SubTaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM sub_task_status_data WHERE (version > 0) AND (id = 1003) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][290us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:SubTaskStatus=query -> 1:REQUEST:SubTaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM sub_task_status_data WHERE (version > 0) AND (id = 1004) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][334us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:SubTaskStatus=query -> 1:REQUEST:SubTaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM sub_task_status_data WHERE (version > 0) AND (id = 1005) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][306us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 1001) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][285us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 1002) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][323us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 1003) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][288us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 1004) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][262us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 1005) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][284us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 10001) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][287us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 10002) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][224us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 1) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][226us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 2) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][274us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 3) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][244us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 4) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][237us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskStatus=query -> 1:REQUEST:TaskStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_status_data WHERE (version > 0) AND (id = 5) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][338us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskType=query -> 1:REQUEST:TaskType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_type_data WHERE (version > 0) AND (id = 1) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][264us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskType=query -> 1:REQUEST:TaskType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_type_data WHERE (version > 0) AND (id = 2) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][283us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskType=query -> 1:REQUEST:TaskType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_type_data WHERE (version > 0) AND (id = 3) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][256us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskType=query -> 1:REQUEST:TaskType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_type_data WHERE (version > 0) AND (id = 4) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][260us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskType=query -> 1:REQUEST:TaskType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_type_data WHERE (version > 0) AND (id = 5) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][256us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskType=query -> 1:REQUEST:TaskType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_type_data WHERE (version > 0) AND (id = 6) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][244us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskType=query -> 1:REQUEST:TaskType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_type_data WHERE (version > 0) AND (id = 7) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][223us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskType=query -> 1:REQUEST:TaskType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_type_data WHERE (version > 0) AND (id = 8) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][227us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:TaskType=query -> 1:REQUEST:TaskType= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM task_type_data WHERE (version > 0) AND (id = 10) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][422us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:ProductStatus=query -> 1:REQUEST:ProductStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM product_status_data WHERE (version > 0) AND (id = 1) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][376us] 1 rows returned outcome=success batchOutcome=not_applicable comment=what: locate generated constant purpose=why: idempotent runtime bootstrap auditReason= tracePath=[0:OPERATION:ProductStatus=query -> 1:REQUEST:ProductStatus= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, platform, version FROM product_status_data WHERE (version > 0) AND (id = 2) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][850us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched fixture root purpose=benchmark fixture auditReason= tracePath=[0:OPERATION:Platform=query -> 1:REQUEST:Platform= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, create_time AS createTime, last_update_time AS lastUpdateTime, name, version FROM platform_data WHERE (version > 0) AND (id = 1) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][1226us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched fixture lookup purpose=benchmark fixture auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, external_id AS externalId, task_life_hours AS taskLifeHours, platform, version FROM merchant_data WHERE (version > 0) AND (external_id = 'matched-merchant') LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][800us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched merchant read with relation purpose=matched benchmark read auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, external_id AS externalId, task_life_hours AS taskLifeHours, version, platform FROM merchant_data WHERE (version > 0) AND (external_id = 'matched-merchant') LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][852us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched merchant read with relation purpose=matched benchmark read auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:RELATION:platform=Merchant.platform -> 3:PROVIDER:postgresql= -> 4:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, create_time AS createTime, last_update_time AS lastUpdateTime, name, version FROM platform_data WHERE (version > 0) AND (id = 1) LIMIT 1 OFFSET 0
+[TeaQL SQL][query][746us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched merchant read with relation purpose=matched benchmark read auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, external_id AS externalId, task_life_hours AS taskLifeHours, version, platform FROM merchant_data WHERE (version > 0) AND (external_id = 'matched-merchant') LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][853us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched merchant read with relation purpose=matched benchmark read auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:RELATION:platform=Merchant.platform -> 3:PROVIDER:postgresql= -> 4:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, create_time AS createTime, last_update_time AS lastUpdateTime, name, version FROM platform_data WHERE (version > 0) AND (id = 1) LIMIT 1 OFFSET 0
+[TeaQL SQL][query][775us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched update lookup purpose=matched benchmark write auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, external_id AS externalId, task_life_hours AS taskLifeHours, platform, version FROM merchant_data WHERE (version > 0) AND (external_id = 'matched-merchant') LIMIT 1000 OFFSET 0
+[TeaQL MUTATION GOVERNANCE][MUTATION-POLICY-001] request=Merchant.saveGraph execution=24690df6-ed85-44ba-88cd-35c5226e5ca2 policy=none approval=NOT_APPLICABLE
+[TeaQL SQL][mutation][2283us] 1 rows affected outcome=success batchOutcome=not_applicable comment= purpose= auditReason=matched benchmark update tracePath=[0:OPERATION:Merchant=mutation -> 1:ENTITY:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:update=] mutationLineage=[0:AUDIT_REASON:Merchant#1=matched benchmark update]
+SQL: -- TeaQL PLAIN
+UPDATE merchant_data SET task_life_hours = 49 , version = 1108 WHERE id = 1 AND version = 1107
+[TeaQL SQL][query][984us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched benchmark update purpose=runtime: read authoritative persisted mutation result auditReason=matched benchmark update tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[0:AUDIT_REASON:Merchant#1=matched benchmark update]
+SQL: -- TeaQL PLAIN
+SELECT * FROM merchant_data WHERE id = 1
+[TeaQL SQL][query][567us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched merchant read with relation purpose=matched benchmark read auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, external_id AS externalId, task_life_hours AS taskLifeHours, version, platform FROM merchant_data WHERE (version > 0) AND (external_id = 'matched-merchant') LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][1071us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched merchant read with relation purpose=matched benchmark read auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:RELATION:platform=Merchant.platform -> 3:PROVIDER:postgresql= -> 4:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, create_time AS createTime, last_update_time AS lastUpdateTime, name, version FROM platform_data WHERE (version > 0) AND (id = 1) LIMIT 1 OFFSET 0
+[TeaQL SQL][query][743us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched update lookup purpose=matched benchmark write auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, external_id AS externalId, task_life_hours AS taskLifeHours, platform, version FROM merchant_data WHERE (version > 0) AND (external_id = 'matched-merchant') LIMIT 1000 OFFSET 0
+[TeaQL SQL][mutation][604us] 1 rows affected outcome=success batchOutcome=not_applicable comment= purpose= auditReason=matched benchmark update tracePath=[0:OPERATION:Merchant=mutation -> 1:ENTITY:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:update=] mutationLineage=[0:AUDIT_REASON:Merchant#1=matched benchmark update]
+SQL: -- TeaQL PLAIN
+UPDATE merchant_data SET task_life_hours = 48 , version = 1109 WHERE id = 1 AND version = 1108
+[TeaQL SQL][query][473us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched benchmark update purpose=runtime: read authoritative persisted mutation result auditReason=matched benchmark update tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[0:AUDIT_REASON:Merchant#1=matched benchmark update]
+SQL: -- TeaQL PLAIN
+SELECT * FROM merchant_data WHERE id = 1
+[TeaQL SQL][query][632us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched merchant read with relation purpose=matched benchmark read auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, external_id AS externalId, task_life_hours AS taskLifeHours, version, platform FROM merchant_data WHERE (version > 0) AND (external_id = 'matched-merchant') LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][639us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched merchant read with relation purpose=matched benchmark read auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:RELATION:platform=Merchant.platform -> 3:PROVIDER:postgresql= -> 4:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, create_time AS createTime, last_update_time AS lastUpdateTime, name, version FROM platform_data WHERE (version > 0) AND (id = 1) LIMIT 1 OFFSET 0
+[TeaQL SQL][query][1277us] 0 rows returned outcome=success batchOutcome=not_applicable comment=what: execute the original weight-report query purpose=why: verify latest-runtime SQL readiness auditReason= tracePath=[0:OPERATION:WeightReport=query -> 1:REQUEST:WeightReport= -> 2:RELATION:subTask=WeightReport.subTask -> 3:PROVIDER:postgresql= -> 4:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT subTaskData.id AS id, subTaskData.name AS name, subTaskData.status AS status, subTaskData.sequence AS sequence, subTaskData.max_snapshot_number AS maxSnapshotNumber, subTaskData.task AS task, subTaskData.version AS version, _child_type AS _type_ FROM sub_task_data AS subTaskData WHERE (subTaskData.version > 0) AND (subTaskData.sequence = 2) AND (subTaskData.task = 26001) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][1739us] 0 rows returned outcome=success batchOutcome=not_applicable comment=what: execute the original weight-report query purpose=why: verify latest-runtime SQL readiness auditReason= tracePath=[0:OPERATION:WeightReport=query -> 1:REQUEST:WeightReport= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT weightReportData.id AS id, subTaskReportData.name AS name, subTaskReportData.tractor AS tractor, subTaskReportData.trailer AS trailer, subTaskReportData.fill_station AS fillStation, subTaskReportData.executor AS executor, subTaskReportData.execute_time AS executeTime, subTaskReportData.snapshot_number AS snapshotNumber, subTaskReportData.sub_task AS subTask, subTaskReportData.task AS task, subTaskReportData.merchant AS merchant, subTaskReportData.version AS version, weightReportData.weight AS weight FROM weight_report_data AS weightReportData INNER JOIN sub_task_report_data AS subTaskReportData ON subTaskReportData.id = weightReportData.id WHERE (subTaskReportData.version > 0) AND (subTaskReportData.sub_task IN (NULL)) ORDER BY subTaskReportData.execute_time DESC LIMIT 1000 OFFSET 0
+2026-10-09 20:10:31,051 ERROR o.a.c.c.C.[.[.[.[dispatcherServlet] - Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed: java.lang.IllegalArgumentException: Fixture value only] with root cause
+java.lang.IllegalArgumentException: Fixture value only
+	at com.doublechaintech.liquidfilling.probe.ProbeOperations.write(ProbeOperations.java:100)
+	at com.doublechaintech.liquidfilling.probe.ProbeController.write(ProbeController.java:10)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:254)
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:182)
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:917)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:829)
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089)
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979)
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014)
+	at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:903)
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:564)
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885)
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:205)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.ServerHttpObservationFilter.doFilterInternal(ServerHttpObservationFilter.java:109)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167)
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482)
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115)
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:340)
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391)
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896)
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1744)
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659)
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+[TeaQL SQL][query][804us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched merchant read with relation purpose=matched benchmark read auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, external_id AS externalId, task_life_hours AS taskLifeHours, version, platform FROM merchant_data WHERE (version > 0) AND (external_id = 'matched-merchant') LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][711us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched merchant read with relation purpose=matched benchmark read auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:RELATION:platform=Merchant.platform -> 3:PROVIDER:postgresql= -> 4:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, create_time AS createTime, last_update_time AS lastUpdateTime, name, version FROM platform_data WHERE (version > 0) AND (id = 1) LIMIT 1 OFFSET 0

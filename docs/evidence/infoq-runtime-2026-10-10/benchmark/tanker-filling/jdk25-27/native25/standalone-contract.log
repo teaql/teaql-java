@@ -1,0 +1,17 @@
+Started StandaloneProbe in 0.009 seconds
+[TeaQL MUTATION GOVERNANCE][MUTATION-POLICY-001] request=Merchant.saveGraph execution=3b99c9c3-c4d9-4f29-924c-7dbb4dba3119 policy=none approval=NOT_APPLICABLE
+java.lang.IllegalArgumentException: Fixture value only
+	at com.doublechaintech.liquidfilling.probe.ProbeOperations.write(ProbeOperations.java:100)
+	at com.doublechaintech.liquidfilling.probe.StandaloneProbe.lambda$main$0(StandaloneProbe.java:21)
+	at jdk.httpserver@25.0.4/com.sun.net.httpserver.Filter$Chain.doFilter(Filter.java:98)
+	at jdk.httpserver@25.0.4/sun.net.httpserver.AuthFilter.doFilter(AuthFilter.java:76)
+	at jdk.httpserver@25.0.4/com.sun.net.httpserver.Filter$Chain.doFilter(Filter.java:101)
+	at jdk.httpserver@25.0.4/sun.net.httpserver.ServerImpl$Exchange$LinkHandler.handle(ServerImpl.java:924)
+	at jdk.httpserver@25.0.4/com.sun.net.httpserver.Filter$Chain.doFilter(Filter.java:98)
+	at jdk.httpserver@25.0.4/sun.net.httpserver.ServerImpl$Exchange.run(ServerImpl.java:900)
+	at java.base@25.0.4/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base@25.0.4/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base@25.0.4/java.lang.Thread.runWith(Thread.java:1487)
+	at java.base@25.0.4/java.lang.Thread.run(Thread.java:1474)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.core.thread.PlatformThreads.threadStartRoutine(PlatformThreads.java:832)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.core.thread.PlatformThreads.threadStartRoutine(PlatformThreads.java:808)

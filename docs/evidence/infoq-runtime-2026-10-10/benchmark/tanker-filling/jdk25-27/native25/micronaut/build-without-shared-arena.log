@@ -1,0 +1,90 @@
+========================================================================================================================
+GraalVM Native Image: Generating 'micronaut' (executable)...
+========================================================================================================================
+For detailed information and explanations on the build output, visit:
+https://github.com/oracle/graal/blob/master/docs/reference-manual/native-image/BuildOutput.md
+------------------------------------------------------------------------------------------------------------------------
+[1/8] Initializing...                                                                                    (7.3s @ 0.19GB)
+ Java version: 25.0.4+7-LTS, vendor version: Oracle GraalVM 25.0.4+7.1
+ Graal compiler: optimization level: 2, target machine: compatibility, PGO: ML-inferred
+ C compiler: gcc (linux, x86_64, 14.2.0)
+ Garbage collector: Serial GC (max heap size: 80% of RAM)
+ 3 user-specific feature(s):
+ - com.oracle.svm.thirdparty.gson.GsonFeature
+ - io.micronaut.core.io.service.ServiceLoaderFeature
+ - io.micronaut.jackson.JacksonDatabindFeature
+------------------------------------------------------------------------------------------------------------------------
+Build resources:
+ - 7.64GB of memory (45.9% of system memory, set via '-Xmx8g')
+ - 4 thread(s) (50.0% of 8 available processor(s), set via '--parallelism=4')
+[2/8] Performing analysis...  [*****]                                                                   (56.7s @ 2.47GB)
+   18,290 types,  27,847 fields, and 103,497 methods found reachable
+    6,412 types,   2,732 fields, and  11,734 methods registered for reflection
+       63 types,      71 fields, and      55 methods registered for JNI access
+        0 downcalls and 0 upcalls registered for foreign access
+        4 native libraries: dl, pthread, rt, z
+[3/8] Building universe...                                                                               (8.4s @ 2.75GB)
+[4/8] Parsing methods...      [*****]                                                                   (22.9s @ 1.92GB)
+[5/8] Inlining methods...     [***]                                                                      (3.3s @ 2.09GB)
+[6/8] Compiling methods...    [***********]                                                            (139.5s @ 2.52GB)
+[7/8] Laying out methods...   [****]                                                                    (13.5s @ 3.39GB)
+[8/8] Creating image...       [***]                                                                      (7.5s @ 3.76GB)
+  49.85MB (51.19%) for code area:    61,963 compilation units
+  37.16MB (38.16%) for image heap:  434,081 objects and 454 resources
+  10.37MB (10.65%) for other data
+  97.38MB in total image size, 92.08MB in total file size
+------------------------------------------------------------------------------------------------------------------------
+Top 10 origins of code area:                                Top 10 object types in image heap:
+  14.52MB java.base                                           14.32MB byte[] for code metadata
+   5.92MB svm.jar (Native Image)                               5.44MB byte[] for java.lang.String
+   3.64MB java.xml                                             2.87MB java.lang.Class
+   2.36MB jackson-databind-3.2.3.jar                           2.77MB java.lang.String
+   2.29MB liquidfilling-domain-297.jar                         1.90MB com.oracle.svm.core.hub.DynamicHubCompanion
+   1.59MB micronaut-inject-5.2.15.jar                          1.05MB byte[] for reflection metadata
+   1.53MB jackson-databind-2.22.3.jar                        872.60kB byte[] for general heap data
+   1.24MB netty-buffer-4.2.19.Final.jar                      652.35kB heap alignment
+   1.18MB postgresql-42.6.0.jar                              540.86kB c.o.svm.core.hub.DynamicHub$ReflectionMetadata
+   1.00MB micronaut-http-5.2.15.jar                          538.66kB java.lang.Object[]
+  13.56MB for 71 more packages                                 6.20MB for 3910 more object types
+                            Use '--emit build-report' to create a report with more details.
+------------------------------------------------------------------------------------------------------------------------
+Security report:
+ - Binary includes Java deserialization.
+ - CycloneDX SBOM with 60 component(s) is embedded in binary (2.93kB).
+ - Advanced obfuscation not enabled; enable with '-H:AdvancedObfuscation=""' (experimental support).
+------------------------------------------------------------------------------------------------------------------------
+Recommendations:
+ PGO:  Use Profile-Guided Optimizations ('--pgo') for improved throughput.
+ FUTR: Use '--future-defaults=all' to prepare for future releases.
+ HEAP: Set max heap for improved and more predictable memory usage.
+ QBM:  Use the quick build mode ('-Ob') to speed up builds during development.
+------------------------------------------------------------------------------------------------------------------------
+                       25.6s (9.7% of total time) in 3459 GCs | Peak RSS: 5.02GB | CPU load: 5.31
+------------------------------------------------------------------------------------------------------------------------
+Build artifacts:
+ /home/philip/teaql-startup-benchmark/jdk25-27/native25/micronaut/micronaut (executable)
+========================================================================================================================
+Finished generating 'micronaut' in 4m 23s.
+	Command being timed: "native-image -J-Xmx8g --parallelism=4 --no-fallback -march=compatibility -O2 --gc=serial -H:ConfigurationFileDirectories=../common-config,agent-config --initialize-at-run-time=io.netty,org.slf4j,ch.qos.logback --exclude-config netty-codec-http-.* /META-INF/native-image/io.netty/netty-codec-http/native-image\.properties --exclude-config netty-codec-http2-.* /META-INF/native-image/io.netty/netty-codec-http2/native-image\.properties -cp micronaut-probe-1.jar:lib/* io.teaql.benchmark.micronaut.Application micronaut"
+	User time (seconds): 1388.51
+	System time (seconds): 14.85
+	Percent of CPU this job got: 530%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 4:24.62
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 4899152
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 1
+	Minor (reclaiming a frame) page faults: 1547375
+	Voluntary context switches: 586863
+	Involuntary context switches: 59733
+	Swaps: 0
+	File system inputs: 8
+	File system outputs: 741856
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

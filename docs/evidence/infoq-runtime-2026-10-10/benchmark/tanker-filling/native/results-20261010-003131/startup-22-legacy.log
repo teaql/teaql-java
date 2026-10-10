@@ -1,0 +1,18 @@
+2026-10-10 00:49:22,835-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.0)
+
+2026-10-10 00:49:22,838-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 497278 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:49:22,838-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:49:22,861-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:49:22,862-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:49:22,862-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:49:22,865-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:49:22,865-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:49:23,027-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'

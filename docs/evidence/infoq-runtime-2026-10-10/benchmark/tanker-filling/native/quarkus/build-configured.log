@@ -1,0 +1,98 @@
+Warning: The option '-H:+UseServiceLoaderFeature' is experimental and must be enabled via '-H:+UnlockExperimentalVMOptions' in the future.
+Warning: Please re-evaluate whether any experimental option is required, and either remove or unlock it. The build output lists all active experimental options, including where they come from and possible alternatives. If you think an experimental option should be considered as stable, please file an issue.
+========================================================================================================================
+GraalVM Native Image: Generating 'quarkus-probe-1-runner' (executable)...
+========================================================================================================================
+For detailed information and explanations on the build output, visit:
+https://github.com/oracle/graal/blob/master/docs/reference-manual/native-image/BuildOutput.md
+------------------------------------------------------------------------------------------------------------------------
+[1/8] Initializing...                                                                                    (6.0s @ 0.23GB)
+ Java version: 21.0.12+7-LTS, vendor version: Oracle GraalVM 21.0.12+7.1
+ Graal compiler: optimization level: 2, target machine: compatibility, PGO: ML-inferred
+ C compiler: gcc (linux, x86_64, 14.2.0)
+ Garbage collector: Serial GC (max heap size: 80% of RAM)
+ 3 user-specific feature(s):
+ - com.oracle.svm.thirdparty.gson.GsonFeature
+ - io.quarkus.runner.Feature: Auto-generated class by Quarkus from the existing extensions
+ - io.quarkus.runtime.graal.DisableLoggingFeature: Disables INFO logging during the analysis phase
+------------------------------------------------------------------------------------------------------------------------
+ 3 experimental option(s) unlocked:
+ - '-H:+AllowFoldMethods' (origin(s): command line)
+ - '-H:BuildOutputJSONFile' (origin(s): command line)
+ - '-H:+UseServiceLoaderFeature' (origin(s): command line)
+------------------------------------------------------------------------------------------------------------------------
+Build resources:
+ - 7.11GB of memory (45.9% of 15.50GB system memory, set via '-Xmx8g')
+ - 4 thread(s) (50.0% of 8 available processor(s), set via '--parallelism=4')
+[2/8] Performing analysis...  [*****]                                                                   (64.3s @ 2.27GB)
+   17,803 reachable types   (88.7% of   20,082 total)
+   27,888 reachable fields  (60.1% of   46,413 total)
+   99,310 reachable methods (59.0% of  168,419 total)
+    5,487 types,   327 fields, and 4,789 methods registered for reflection
+       64 types,    74 fields, and    55 methods registered for JNI access
+        4 native libraries: dl, pthread, rt, z
+[3/8] Building universe...                                                                               (9.0s @ 2.70GB)
+[4/8] Parsing methods...      [*****]                                                                   (26.6s @ 1.78GB)
+[5/8] Inlining methods...     [***]                                                                      (3.1s @ 2.46GB)
+[6/8] Compiling methods...    [************]                                                           (146.3s @ 2.05GB)
+[7/8] Laying out methods...   [***]                                                                      (8.8s @ 3.34GB)
+[8/8] Creating image...       [***]                                                                      (9.4s @ 2.32GB)
+  49.42MB (51.00%) for code area:    55,839 compilation units
+  38.49MB (39.72%) for image heap:  470,859 objects and 154 resources
+   8.98MB ( 9.27%) for other data
+  96.89MB in total
+------------------------------------------------------------------------------------------------------------------------
+Top 10 origins of code area:                                Top 10 object types in image heap:
+  15.21MB java.base                                           15.05MB byte[] for code metadata
+   7.18MB jdk.compiler                                         6.10MB byte[] for java.lang.String
+   4.69MB svm.jar (Native Image)                               3.42MB java.lang.Class
+   3.88MB java.xml                                             3.34MB java.lang.String
+   1.65MB modified-io.vertx.vertx-core-4.5.4.jar               2.01MB byte[] for general heap data
+   1.59MB io.teaql.benchmark.liquidfilling-domain-297.jar      1.13MB byte[] for reflection metadata
+   1.32MB io.netty.netty-buffer-4.1.107.Final.jar            834.52kB com.oracle.svm.core.hub.DynamicHubCompanion
+   1.27MB c.f.jackson.core.jackson-databind-2.22.3.jar       539.90kB heap alignment
+   1.01MB org.postgresql.postgresql-42.6.0.jar               515.00kB c.o.svm.core.hub.DynamicHub$ReflectionMetadata
+ 818.31kB quarkus-probe-1-runner.jar                         501.22kB java.util.HashMap$Node
+  10.43MB for 103 more packages                                5.11MB for 4383 more object types
+                              Use '-H:+BuildReport' to create a report with more details.
+------------------------------------------------------------------------------------------------------------------------
+Security report:
+ - Binary includes Java deserialization.
+ - Use '--enable-sbom' to embed a Software Bill of Materials (SBOM) in the binary.
+------------------------------------------------------------------------------------------------------------------------
+Recommendations:
+ G1GC: Use the G1 GC ('--gc=G1') for improved latency and throughput.
+ PGO:  Use Profile-Guided Optimizations ('--pgo') for improved throughput.
+ HEAP: Set max heap for improved and more predictable memory usage.
+ QBM:  Use the quick build mode ('-Ob') to speed up builds during development.
+------------------------------------------------------------------------------------------------------------------------
+                       23.6s (8.5% of total time) in 217 GCs | Peak RSS: 5.05GB | CPU load: 4.89
+------------------------------------------------------------------------------------------------------------------------
+Produced artifacts:
+ /home/philip/teaql-startup-benchmark/native/quarkus/quarkus-probe-1-runner (executable)
+ /home/philip/teaql-startup-benchmark/native/quarkus/quarkus-probe-1-runner-build-output-stats.json (build_info)
+========================================================================================================================
+Finished generating 'quarkus-probe-1-runner' in 4m 34s.
+	Command being timed: "native-image -J-Xmx8g --parallelism=4 --no-fallback -march=compatibility -H:ConfigurationFileDirectories=../common-config @native-image-configured.args -H:+UseServiceLoaderFeature"
+	User time (seconds): 1325.74
+	System time (seconds): 23.38
+	Percent of CPU this job got: 488%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 4:36.06
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 5296052
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 65
+	Minor (reclaiming a frame) page faults: 432159
+	Voluntary context switches: 225956
+	Involuntary context switches: 29890
+	Swaps: 0
+	File system inputs: 20616
+	File system outputs: 805376
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

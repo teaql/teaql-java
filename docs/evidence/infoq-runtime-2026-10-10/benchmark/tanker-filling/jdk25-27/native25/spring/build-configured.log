@@ -1,0 +1,100 @@
+Warning: Option 'DynamicProxyConfigurationResources' is deprecated and might be removed in a future release: This can be caused by a proxy-config.json file in your META-INF directory. Consider including proxy configuration in the reflection section of reachability-metadata.md instead.. Please refer to the GraalVM release notes.
+========================================================================================================================
+GraalVM Native Image: Generating 'spring' (executable)...
+========================================================================================================================
+For detailed information and explanations on the build output, visit:
+https://github.com/oracle/graal/blob/master/docs/reference-manual/native-image/BuildOutput.md
+------------------------------------------------------------------------------------------------------------------------
+[1/8] Initializing...                                                                                    (7.9s @ 0.22GB)
+ Java version: 25.0.4+7-LTS, vendor version: Oracle GraalVM 25.0.4+7.1
+ Graal compiler: optimization level: 2, target machine: compatibility, PGO: ML-inferred
+ C compiler: gcc (linux, x86_64, 14.2.0)
+ Garbage collector: Serial GC (max heap size: 80% of RAM)
+ 2 user-specific feature(s):
+ - com.oracle.svm.thirdparty.gson.GsonFeature
+ - org.springframework.aot.nativex.feature.PreComputeFieldFeature
+------------------------------------------------------------------------------------------------------------------------
+Build resources:
+ - 7.64GB of memory (45.9% of system memory, set via '-Xmx8g')
+ - 4 thread(s) (50.0% of 8 available processor(s), set via '--parallelism=4')
+SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+[2/8] Performing analysis...  [******]                                                                  (64.2s @ 2.72GB)
+   21,617 types,  32,103 fields, and 110,042 methods found reachable
+    7,657 types,   2,903 fields, and  13,641 methods registered for reflection
+       66 types,      72 fields, and      58 methods registered for JNI access
+        0 downcalls and 0 upcalls registered for foreign access
+        4 native libraries: dl, pthread, rt, z
+[3/8] Building universe...                                                                               (8.8s @ 3.02GB)
+[4/8] Parsing methods...      [*****]                                                                   (27.4s @ 2.09GB)
+[5/8] Inlining methods...     [***]                                                                      (4.3s @ 2.30GB)
+[6/8] Compiling methods...    [************]                                                           (159.9s @ 2.78GB)
+[7/8] Laying out methods...   [****]                                                                    (14.3s @ 3.67GB)
+[8/8] Creating image...       [***]                                                                      (7.9s @ 4.04GB)
+  53.42MB (51.71%) for code area:    62,442 compilation units
+  40.30MB (39.01%) for image heap:  477,838 objects and 444 resources
+   9.58MB ( 9.27%) for other data
+ 103.31MB in total image size, 97.98MB in total file size
+------------------------------------------------------------------------------------------------------------------------
+Top 10 origins of code area:                                Top 10 object types in image heap:
+  15.12MB java.base                                           15.25MB byte[] for code metadata
+   6.32MB svm.jar (Native Image)                               6.32MB byte[] for java.lang.String
+   4.39MB tomcat-embed-core-11.0.24.jar                        3.25MB java.lang.String
+   3.69MB java.xml                                             2.86MB java.lang.Class
+   2.29MB liquidfilling-domain-297.jar                         2.25MB com.oracle.svm.core.hub.DynamicHubCompanion
+   2.10MB jackson-databind-3.1.5.jar                           1.22MB byte[] for reflection metadata
+   1.84MB spring-core-7.0.9.jar                                1.02MB byte[] for embedded resources
+   1.71MB spring-boot-4.1.1.jar                              873.17kB byte[] for general heap data
+   1.64MB jackson-databind-2.21.5.jar                        630.34kB c.o.svm.core.hub.DynamicHub$ReflectionMetadata
+   1.18MB postgresql-42.6.0.jar                              513.63kB java.util.concurrent.ConcurrentHashMap$Node
+  12.16MB for 129 more packages                                6.12MB for 4546 more object types
+                            Use '--emit build-report' to create a report with more details.
+------------------------------------------------------------------------------------------------------------------------
+Security report:
+ - Binary includes Java deserialization.
+ - CycloneDX SBOM with 62 component(s) is embedded in binary (2.98kB). 126 type(s) could not be associated to a component.
+ - Advanced obfuscation not enabled; enable with '-H:AdvancedObfuscation=""' (experimental support).
+------------------------------------------------------------------------------------------------------------------------
+Recommendations:
+ PGO:  Use Profile-Guided Optimizations ('--pgo') for improved throughput.
+ FUTR: Use '--future-defaults=all' to prepare for future releases.
+ AWT:  Use the tracing agent to collect metadata for AWT.
+ HEAP: Set max heap for improved and more predictable memory usage.
+ QBM:  Use the quick build mode ('-Ob') to speed up builds during development.
+------------------------------------------------------------------------------------------------------------------------
+                       28.1s (9.4% of total time) in 3079 GCs | Peak RSS: 5.64GB | CPU load: 5.29
+------------------------------------------------------------------------------------------------------------------------
+Build artifacts:
+ /home/philip/teaql-startup-benchmark/jdk25-27/native25/spring/libawt.so (jdk_library)
+ /home/philip/teaql-startup-benchmark/jdk25-27/native25/spring/libawt_headless.so (jdk_library)
+ /home/philip/teaql-startup-benchmark/jdk25-27/native25/spring/libawt_xawt.so (jdk_library)
+ /home/philip/teaql-startup-benchmark/jdk25-27/native25/spring/libjava.so (jdk_library_shim)
+ /home/philip/teaql-startup-benchmark/jdk25-27/native25/spring/libjvm.so (jdk_library_shim)
+ /home/philip/teaql-startup-benchmark/jdk25-27/native25/spring/libmanagement_ext.so (jdk_library)
+ /home/philip/teaql-startup-benchmark/jdk25-27/native25/spring/spring (executable)
+========================================================================================================================
+Finished generating 'spring' in 4m 58s.
+	Command being timed: "native-image -J-Xmx8g --parallelism=4 --no-fallback -march=compatibility -O2 --gc=serial -H:ConfigurationFileDirectories=../common-config,agent-config -cp aot:lib/* com.doublechaintech.liquidfilling.probe.ProbeApplication spring"
+	User time (seconds): 1570.09
+	System time (seconds): 17.68
+	Percent of CPU this job got: 528%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 5:00.24
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 5503236
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 2
+	Minor (reclaiming a frame) page faults: 1914672
+	Voluntary context switches: 582526
+	Involuntary context switches: 62365
+	Swaps: 0
+	File system inputs: 65568
+	File system outputs: 791192
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

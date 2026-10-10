@@ -1,0 +1,33 @@
+ __  __ _                                  _   
+|  \/  (_) ___ _ __ ___  _ __   __ _ _   _| |_ 
+| |\/| | |/ __| '__/ _ \| '_ \ / _` | | | | __|
+| |  | | | (__| | | (_) | | | | (_| | |_| | |_ 
+|_|  |_|_|\___|_|  \___/|_| |_|\__,_|\__,_|\__|
+[TeaQL MUTATION GOVERNANCE][MUTATION-POLICY-001] request=Merchant.saveGraph execution=636df5e5-900d-42d2-8482-abcbbcfcaa54 policy=none approval=NOT_APPLICABLE
+2026-10-10 13:21:57,842 ERROR i.m.http.server.RouteExecutor - Unexpected error occurred: Fixture value only
+java.lang.IllegalArgumentException: Fixture value only
+	at com.doublechaintech.liquidfilling.probe.ProbeOperations.write(ProbeOperations.java:100)
+	at io.teaql.benchmark.micronaut.ProbeController.write(ProbeController.java:15)
+	at io.teaql.benchmark.micronaut.$ProbeController$Definition$Exec.dispatch(Unknown Source)
+	at io.micronaut.context.AbstractExecutableMethodsDefinition$DispatchedExecutableMethod.invokeUnsafe(AbstractExecutableMethodsDefinition.java:565)
+	at io.micronaut.context.DefaultBeanContext$BeanContextUnsafeExecutionHandle.invokeUnsafe(DefaultBeanContext.java:4604)
+	at io.micronaut.web.router.AbstractRouteMatch.execute(AbstractRouteMatch.java:230)
+	at io.micronaut.web.router.DefaultUriRouteMatch.execute(DefaultUriRouteMatch.java:39)
+	at io.micronaut.http.server.RouteExecutor.lambda$executeRouteAndConvertBody$0(RouteExecutor.java:499)
+	at io.micronaut.core.propagation.ThreadContext.propagate(ThreadContext.java:98)
+	at io.micronaut.core.propagation.PropagatedContextImpl.propagate(PropagatedContextImpl.java:91)
+	at io.micronaut.http.server.RouteExecutor.executeRouteAndConvertBody(RouteExecutor.java:493)
+	at io.micronaut.http.server.RouteExecutor.lambda$callRoute$2(RouteExecutor.java:470)
+	at io.micronaut.core.execution.ExecutionFlow.lambda$async$0(ExecutionFlow.java:98)
+	at io.micronaut.core.propagation.ThreadContext.propagate(ThreadContext.java:120)
+	at io.micronaut.core.propagation.PropagatedContextImpl.propagate(PropagatedContextImpl.java:152)
+	at io.micronaut.core.propagation.PropagatedContextImpl.lambda$wrap$2(PropagatedContextImpl.java:172)
+	at io.micronaut.core.propagation.ThreadContext.propagate(ThreadContext.java:125)
+	at io.micronaut.core.propagation.PropagatedContextImpl.propagate(PropagatedContextImpl.java:152)
+	at io.micronaut.core.propagation.PropagatedContextImpl.lambda$wrap$2(PropagatedContextImpl.java:172)
+	at java.base@25.0.4/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base@25.0.4/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base@25.0.4/java.lang.Thread.runWith(Thread.java:1487)
+	at java.base@25.0.4/java.lang.Thread.run(Thread.java:1474)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.core.thread.PlatformThreads.threadStartRoutine(PlatformThreads.java:832)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.core.thread.PlatformThreads.threadStartRoutine(PlatformThreads.java:808)

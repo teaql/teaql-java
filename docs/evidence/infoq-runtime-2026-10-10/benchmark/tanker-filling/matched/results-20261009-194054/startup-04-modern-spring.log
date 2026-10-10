@@ -1,0 +1,53 @@
+2026-10-09 19:43:35,787 WARN  o.s.b.l.logback.LogbackLoggingSystem - Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.0)
+
+[TeaQL SQL][query][162253us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched merchant read with relation purpose=matched benchmark read auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, external_id AS externalId, task_life_hours AS taskLifeHours, version, platform FROM merchant_data WHERE (version > 0) AND (external_id = 'matched-merchant') LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][1658us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched merchant read with relation purpose=matched benchmark read auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:RELATION:platform=Merchant.platform -> 3:PROVIDER:postgresql= -> 4:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, create_time AS createTime, last_update_time AS lastUpdateTime, name, version FROM platform_data WHERE (version > 0) AND (id = 1) LIMIT 1 OFFSET 0
+[TeaQL SQL][query][798us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched update lookup purpose=matched benchmark write auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, external_id AS externalId, task_life_hours AS taskLifeHours, platform, version FROM merchant_data WHERE (version > 0) AND (external_id = 'matched-merchant') LIMIT 1000 OFFSET 0
+[TeaQL MUTATION GOVERNANCE][MUTATION-POLICY-001] request=Merchant.saveGraph execution=80cf7330-696b-404f-876c-cd6bf5a5de8a policy=none approval=NOT_APPLICABLE
+[TeaQL SQL][mutation][1079us] 1 rows affected outcome=success batchOutcome=not_applicable comment= purpose= auditReason=matched benchmark update tracePath=[0:OPERATION:Merchant=mutation -> 1:ENTITY:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:update=] mutationLineage=[0:AUDIT_REASON:Merchant#1=matched benchmark update]
+SQL: -- TeaQL PLAIN
+UPDATE merchant_data SET task_life_hours = 49 , version = 46 WHERE id = 1 AND version = 45
+[TeaQL SQL][query][1864us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched benchmark update purpose=runtime: read authoritative persisted mutation result auditReason=matched benchmark update tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[0:AUDIT_REASON:Merchant#1=matched benchmark update]
+SQL: -- TeaQL PLAIN
+SELECT * FROM merchant_data WHERE id = 1
+[TeaQL SQL][query][687us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched merchant read with relation purpose=matched benchmark read auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, external_id AS externalId, task_life_hours AS taskLifeHours, version, platform FROM merchant_data WHERE (version > 0) AND (external_id = 'matched-merchant') LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][769us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched merchant read with relation purpose=matched benchmark read auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:RELATION:platform=Merchant.platform -> 3:PROVIDER:postgresql= -> 4:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, create_time AS createTime, last_update_time AS lastUpdateTime, name, version FROM platform_data WHERE (version > 0) AND (id = 1) LIMIT 1 OFFSET 0
+[TeaQL SQL][query][652us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched update lookup purpose=matched benchmark write auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, external_id AS externalId, task_life_hours AS taskLifeHours, platform, version FROM merchant_data WHERE (version > 0) AND (external_id = 'matched-merchant') LIMIT 1000 OFFSET 0
+[TeaQL SQL][mutation][512us] 1 rows affected outcome=success batchOutcome=not_applicable comment= purpose= auditReason=matched benchmark update tracePath=[0:OPERATION:Merchant=mutation -> 1:ENTITY:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:update=] mutationLineage=[0:AUDIT_REASON:Merchant#1=matched benchmark update]
+SQL: -- TeaQL PLAIN
+UPDATE merchant_data SET task_life_hours = 48 , version = 47 WHERE id = 1 AND version = 46
+[TeaQL SQL][query][530us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched benchmark update purpose=runtime: read authoritative persisted mutation result auditReason=matched benchmark update tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[0:AUDIT_REASON:Merchant#1=matched benchmark update]
+SQL: -- TeaQL PLAIN
+SELECT * FROM merchant_data WHERE id = 1
+[TeaQL SQL][query][877us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched merchant read with relation purpose=matched benchmark read auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, name, code, external_id AS externalId, task_life_hours AS taskLifeHours, version, platform FROM merchant_data WHERE (version > 0) AND (external_id = 'matched-merchant') LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][1030us] 1 rows returned outcome=success batchOutcome=not_applicable comment=matched merchant read with relation purpose=matched benchmark read auditReason= tracePath=[0:OPERATION:Merchant=query -> 1:REQUEST:Merchant= -> 2:RELATION:platform=Merchant.platform -> 3:PROVIDER:postgresql= -> 4:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT id, create_time AS createTime, last_update_time AS lastUpdateTime, name, version FROM platform_data WHERE (version > 0) AND (id = 1) LIMIT 1 OFFSET 0
+[TeaQL SQL][query][1403us] 0 rows returned outcome=success batchOutcome=not_applicable comment=what: execute the original weight-report query purpose=why: verify latest-runtime SQL readiness auditReason= tracePath=[0:OPERATION:WeightReport=query -> 1:REQUEST:WeightReport= -> 2:RELATION:subTask=WeightReport.subTask -> 3:PROVIDER:postgresql= -> 4:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT subTaskData.id AS id, subTaskData.name AS name, subTaskData.status AS status, subTaskData.sequence AS sequence, subTaskData.max_snapshot_number AS maxSnapshotNumber, subTaskData.task AS task, subTaskData.version AS version, _child_type AS _type_ FROM sub_task_data AS subTaskData WHERE (subTaskData.version > 0) AND (subTaskData.sequence = 2) AND (subTaskData.task = 26001) LIMIT 1000 OFFSET 0
+[TeaQL SQL][query][1862us] 0 rows returned outcome=success batchOutcome=not_applicable comment=what: execute the original weight-report query purpose=why: verify latest-runtime SQL readiness auditReason= tracePath=[0:OPERATION:WeightReport=query -> 1:REQUEST:WeightReport= -> 2:PROVIDER:postgresql= -> 3:SQL:select=] mutationLineage=[]
+SQL: -- TeaQL PLAIN
+SELECT weightReportData.id AS id, subTaskReportData.name AS name, subTaskReportData.tractor AS tractor, subTaskReportData.trailer AS trailer, subTaskReportData.fill_station AS fillStation, subTaskReportData.executor AS executor, subTaskReportData.execute_time AS executeTime, subTaskReportData.snapshot_number AS snapshotNumber, subTaskReportData.sub_task AS subTask, subTaskReportData.task AS task, subTaskReportData.merchant AS merchant, subTaskReportData.version AS version, weightReportData.weight AS weight FROM weight_report_data AS weightReportData INNER JOIN sub_task_report_data AS subTaskReportData ON subTaskReportData.id = weightReportData.id WHERE (subTaskReportData.version > 0) AND (subTaskReportData.sub_task IN (NULL)) ORDER BY subTaskReportData.execute_time DESC LIMIT 1000 OFFSET 0

@@ -1,0 +1,67 @@
+========================================================================================================================
+GraalVM Native Image: Generating 'micronaut' (executable)...
+========================================================================================================================
+For detailed information and explanations on the build output, visit:
+https://github.com/oracle/graal/blob/master/docs/reference-manual/native-image/BuildOutput.md
+------------------------------------------------------------------------------------------------------------------------
+[1/8] Initializing...                                                                                    (5.7s @ 0.21GB)
+ Java version: 21.0.12+7-LTS, vendor version: Oracle GraalVM 21.0.12+7.1
+ Graal compiler: optimization level: 2, target machine: compatibility, PGO: ML-inferred
+ C compiler: gcc (linux, x86_64, 14.2.0)
+ Garbage collector: Serial GC (max heap size: 80% of RAM)
+ 3 user-specific feature(s):
+ - com.oracle.svm.thirdparty.gson.GsonFeature
+ - io.micronaut.core.io.service.ServiceLoaderFeature
+ - io.micronaut.jackson.JacksonDatabindFeature
+------------------------------------------------------------------------------------------------------------------------
+Build resources:
+ - 7.11GB of memory (45.9% of 15.50GB system memory, set via '-Xmx8g')
+ - 4 thread(s) (50.0% of 8 available processor(s), set via '--parallelism=4')
+
+Error: Feature defined by io.micronaut.jackson.JacksonDatabindFeature unexpectedly failed with a(n) java.lang.NoClassDefFoundError. Please report this problem to the authors of io.micronaut.jackson.JacksonDatabindFeature.
+Caused by: java.lang.NoClassDefFoundError: com/fasterxml/jackson/databind/PropertyNamingStrategy$UpperCamelCaseStrategy
+	at io.micronaut.jackson.JacksonDatabindFeature.beforeAnalysis(JacksonDatabindFeature.java:37)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.NativeImageGenerator.lambda$runPointsToAnalysis$9(NativeImageGenerator.java:774)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.FeatureHandler.forEachFeature(FeatureHandler.java:90)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.NativeImageGenerator.runPointsToAnalysis(NativeImageGenerator.java:774)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.NativeImageGenerator.doRun(NativeImageGenerator.java:593)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.NativeImageGenerator.run(NativeImageGenerator.java:551)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.NativeImageGeneratorRunner.buildImage(NativeImageGeneratorRunner.java:538)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.NativeImageGeneratorRunner.build(NativeImageGeneratorRunner.java:727)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.NativeImageGeneratorRunner.start(NativeImageGeneratorRunner.java:142)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.NativeImageGeneratorRunner.main(NativeImageGeneratorRunner.java:97)
+Caused by: java.lang.ClassNotFoundException: com.fasterxml.jackson.databind.PropertyNamingStrategy$UpperCamelCaseStrategy
+	at java.base/jdk.internal.loader.BuiltinClassLoader.loadClass(BuiltinClassLoader.java:641)
+	at java.base/jdk.internal.loader.ClassLoaders$AppClassLoader.loadClass(ClassLoaders.java:188)
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:526)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.NativeImageClassLoader.loadClass(NativeImageClassLoader.java:637)
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:526)
+	... 10 more
+------------------------------------------------------------------------------------------------------------------------
+                        0.5s (7.3% of total time) in 17 GCs | Peak RSS: 0.68GB | CPU load: 3.64
+========================================================================================================================
+Finished generating 'micronaut' in 5.9s.
+Command exited with non-zero status 1
+	Command being timed: "native-image -J-Xmx8g --parallelism=4 --no-fallback -march=compatibility -cp micronaut-probe-1.jar:lib/* io.teaql.benchmark.micronaut.Application micronaut"
+	User time (seconds): 23.97
+	System time (seconds): 1.21
+	Percent of CPU this job got: 346%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:07.26
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 708420
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 4
+	Minor (reclaiming a frame) page faults: 139662
+	Voluntary context switches: 50519
+	Involuntary context switches: 3847
+	Swaps: 0
+	File system inputs: 40648
+	File system outputs: 2992
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1

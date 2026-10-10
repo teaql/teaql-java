@@ -1,0 +1,21 @@
+ __  __ _                                  _   
+|  \/  (_) ___ _ __ ___  _ __   __ _ _   _| |_ 
+| |\/| | |/ __| '__/ _ \| '_ \ / _` | | | | __|
+| |  | | | (__| | | (_) | | | | (_| | |_| | |_ 
+|_|  |_|_|\___|_|  \___/|_| |_|\__,_|\__,_|\__|
+[TeaQL MUTATION GOVERNANCE][MUTATION-POLICY-001] request=Merchant.saveGraph execution=2383de82-2c3d-47d1-926c-0e2834155c6c policy=none approval=NOT_APPLICABLE
+2026-10-09 22:50:40,330 ERROR i.m.http.server.RouteExecutor - Unexpected error occurred: Fixture value only
+java.lang.IllegalArgumentException: Fixture value only
+	at com.doublechaintech.liquidfilling.probe.ProbeOperations.write(ProbeOperations.java:100)
+	at io.teaql.benchmark.micronaut.ProbeController.write(ProbeController.java:15)
+	at io.teaql.benchmark.micronaut.$ProbeController$Definition$Exec.dispatch(Unknown Source)
+	at io.micronaut.context.AbstractExecutableMethodsDefinition$DispatchedExecutableMethod.invokeUnsafe(AbstractExecutableMethodsDefinition.java:461)
+	at io.micronaut.context.DefaultBeanContext$BeanContextUnsafeExecutionHandle.invokeUnsafe(DefaultBeanContext.java:4276)
+	at io.micronaut.web.router.AbstractRouteMatch.execute(AbstractRouteMatch.java:236)
+	at io.micronaut.http.server.RouteExecutor.executeRouteAndConvertBody(RouteExecutor.java:488)
+	at io.micronaut.http.server.RouteExecutor.lambda$callRoute$6(RouteExecutor.java:465)
+	at io.micronaut.core.execution.ExecutionFlow.lambda$async$1(ExecutionFlow.java:87)
+	at io.micronaut.core.propagation.PropagatedContext.lambda$wrap$3(PropagatedContext.java:211)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)

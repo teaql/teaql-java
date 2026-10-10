@@ -1,0 +1,214 @@
+Warning: Using a deprecated option --report-unsupported-elements-at-runtime from 'META-INF/native-image/tanker-filling/legacy-probe/native-image.properties' in 'file:///home/philip/teaql-startup-benchmark/jdk25-27/native25/legacy/aot/'. The option is deprecated and will be removed in the future. The use of unsupported elements is always reported at run time.
+Warning: Using a deprecated option --install-exit-handlers from 'META-INF/native-image/tanker-filling/legacy-probe/native-image.properties' in 'file:///home/philip/teaql-startup-benchmark/jdk25-27/native25/legacy/aot/'. --install-exit-handlers is enabled by default for executables and it can likely be removed. To use this option for the shared libraries, please use -H:+InstallExitHandlers.
+Warning: The option '-H:ReflectionConfigurationResources=META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-websocket/tomcat-reflection.json' is experimental and must be enabled via '-H:+UnlockExperimentalVMOptions' in the future.
+Warning: The option '-H:ReflectionConfigurationResources=META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-el/tomcat-reflection.json' is experimental and must be enabled via '-H:+UnlockExperimentalVMOptions' in the future.
+Warning: The option '-H:ResourceConfigurationResources=META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-core/tomcat-resource.json' is experimental and must be enabled via '-H:+UnlockExperimentalVMOptions' in the future.
+Warning: The option '-H:ReflectionConfigurationResources=META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-core/tomcat-reflection.json' is experimental and must be enabled via '-H:+UnlockExperimentalVMOptions' in the future.
+Warning: The option '-H:ResourceConfigurationResources=META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-el/tomcat-resource.json' is experimental and must be enabled via '-H:+UnlockExperimentalVMOptions' in the future.
+Warning: The option '-H:ReflectionConfigurationResources=META-INF/native-image/io.netty/netty-transport/reflection-config.json' is experimental and must be enabled via '-H:+UnlockExperimentalVMOptions' in the future.
+Warning: The option '-H:ResourceConfigurationResources=META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-websocket/tomcat-resource.json' is experimental and must be enabled via '-H:+UnlockExperimentalVMOptions' in the future.
+Warning: Please re-evaluate whether any experimental option is required, and either remove or unlock it. The build output lists all active experimental options, including where they come from and possible alternatives. If you think an experimental option should be considered as stable, please file an issue.
+Warning: Option 'DynamicProxyConfigurationResources' is deprecated and might be removed in a future release: This can be caused by a proxy-config.json file in your META-INF directory. Consider including proxy configuration in the reflection section of reachability-metadata.md instead.. Please refer to the GraalVM release notes.
+Warning: Option 'DynamicProxyConfigurationResources' is deprecated and might be removed in a future release: This can be caused by a proxy-config.json file in your META-INF directory. Consider including proxy configuration in the reflection section of reachability-metadata.md instead.. Please refer to the GraalVM release notes.
+Warning: Option 'DynamicProxyConfigurationResources' is deprecated and might be removed in a future release: This can be caused by a proxy-config.json file in your META-INF directory. Consider including proxy configuration in the reflection section of reachability-metadata.md instead.. Please refer to the GraalVM release notes.
+========================================================================================================================
+GraalVM Native Image: Generating 'legacy' (executable)...
+========================================================================================================================
+For detailed information and explanations on the build output, visit:
+https://github.com/oracle/graal/blob/master/docs/reference-manual/native-image/BuildOutput.md
+------------------------------------------------------------------------------------------------------------------------
+[1/8] Initializing...                                                                                    (9.9s @ 0.28GB)
+ Java version: 25.0.4+7-LTS, vendor version: Oracle GraalVM 25.0.4+7.1
+ Graal compiler: optimization level: 2, target machine: compatibility, PGO: ML-inferred
+ C compiler: gcc (linux, x86_64, 14.2.0)
+ Garbage collector: Serial GC (max heap size: 80% of RAM)
+ 2 user-specific feature(s):
+ - com.oracle.svm.thirdparty.gson.GsonFeature
+ - org.springframework.aot.nativex.feature.PreComputeFieldFeature
+------------------------------------------------------------------------------------------------------------------------
+ 2 experimental option(s) unlocked:
+ - '-H:ResourceConfigurationResources' (origin(s): 'META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-websocket/native-image.properties' in 'file:///home/philip/teaql-startup-benchmark/jdk25-27/native25/legacy/lib/tomcat-embed-websocket-10.1.16.jar', 'META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-core/native-image.properties' in 'file:///home/philip/teaql-startup-benchmark/jdk25-27/native25/legacy/lib/tomcat-embed-core-10.1.16.jar', 'META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-el/native-image.properties' in 'file:///home/philip/teaql-startup-benchmark/jdk25-27/native25/legacy/lib/tomcat-embed-el-10.1.16.jar')
+ - '-H:ReflectionConfigurationResources' (origin(s): 'META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-websocket/native-image.properties' in 'file:///home/philip/teaql-startup-benchmark/jdk25-27/native25/legacy/lib/tomcat-embed-websocket-10.1.16.jar', 'META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-core/native-image.properties' in 'file:///home/philip/teaql-startup-benchmark/jdk25-27/native25/legacy/lib/tomcat-embed-core-10.1.16.jar', 'META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-el/native-image.properties' in 'file:///home/philip/teaql-startup-benchmark/jdk25-27/native25/legacy/lib/tomcat-embed-el-10.1.16.jar', 'META-INF/native-image/io.netty/netty-transport/native-image.properties' in 'file:///home/philip/teaql-startup-benchmark/jdk25-27/native25/legacy/lib/netty-transport-4.1.101.Final.jar')
+------------------------------------------------------------------------------------------------------------------------
+Build resources:
+ - 7.64GB of memory (45.9% of system memory, set via '-Xmx8g')
+ - 4 thread(s) (50.0% of 8 available processor(s), set via '--parallelism=4')
+SLF4J: No SLF4J providers were found.
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See https://www.slf4j.org/codes.html#noProviders for further details.
+[2/8] Performing analysis...  [*]                                                                       (68.1s @ 3.16GB)
+   27,333 types,  38,740 fields, and 142,638 methods found reachable
+   10,158 types,   3,706 fields, and  28,005 methods registered for reflection
+        0 downcalls and 0 upcalls registered for foreign access
+
+2 fatal errors detected:
+Fatal error: com.oracle.graal.pointsto.constraints.UnsupportedFeatureException: An object of type 'org.redisson.misc.BiHashMap' was found in the image heap. This type, however, is marked for initialization at image run time for the following reason: classes are initialized at run time by default.
+This is not allowed for correctness reasons: All objects that are stored in the image heap must be initialized at build time.
+
+You now have two options to resolve this:
+
+1) If it is intended that objects of type 'org.redisson.misc.BiHashMap' are persisted in the image heap, add 
+
+    '--initialize-at-build-time=org.redisson.misc.BiHashMap'
+
+to the native-image arguments. Note that initializing new types can store additional objects to the heap. It is advised to check the static fields of 'org.redisson.misc.BiHashMap' to see if they are safe for build-time initialization,  and that they do not contain any sensitive data that should not become part of the image.
+
+2) If these objects should not be stored in the image heap, you can use 
+
+    '--trace-object-instantiation=org.redisson.misc.BiHashMap'
+
+to find classes that instantiate these objects. Once you found such a class, you can mark it explicitly for run time initialization with 
+
+    '--initialize-at-run-time=<culprit>'
+
+to prevent the instantiation of the object.
+
+If you are seeing this message after upgrading to a new GraalVM release, this means that some objects ended up in the image heap without their type being marked with --initialize-at-build-time.
+To fix this, include '--initialize-at-build-time=org.redisson.misc.BiHashMap' in your configuration. If the classes do not originate from your code, it is advised to update all library or framework dependencies to the latest version before addressing this error.
+
+The following detailed trace displays from which field in the code the object was reached.
+Object was reached by
+  scanning root org.redisson.misc.BiHashMap@3c3067f8: org.redisson.misc.BiHashMap@3c3067f8 embedded in
+    org.redisson.RedissonReference.<init>(RedissonReference.java:97)
+  parsing method org.redisson.RedissonReference.<init>(RedissonReference.java:89) reachable via the parsing context <no parsing context available> 
+
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.heap.ImageHeapScanner.onObjectReachable(ImageHeapScanner.java:618)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.heap.SVMImageHeapScanner.onObjectReachable(SVMImageHeapScanner.java:127)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.heap.ImageHeapScanner.lambda$markReachable$0(ImageHeapScanner.java:589)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.util.CompletionExecutor.executeCommand(CompletionExecutor.java:166)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.util.CompletionExecutor.lambda$executeService$0(CompletionExecutor.java:152)
+	at java.base/java.util.concurrent.ForkJoinTask$RunnableExecuteAction.compute(ForkJoinTask.java:1753)
+	at java.base/java.util.concurrent.ForkJoinTask$RunnableExecuteAction.compute(ForkJoinTask.java:1745)
+	at java.base/java.util.concurrent.ForkJoinTask$InterruptibleTask.exec(ForkJoinTask.java:1662)
+	at java.base/java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:511)
+	at java.base/java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1450)
+	at java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:2019)
+	at java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:187)
+Caused by: com.oracle.graal.pointsto.constraints.UnsupportedFeatureException: An object of type 'org.redisson.misc.BiHashMap' was found in the image heap. This type, however, is marked for initialization at image run time for the following reason: classes are initialized at run time by default.
+This is not allowed for correctness reasons: All objects that are stored in the image heap must be initialized at build time.
+
+You now have two options to resolve this:
+
+1) If it is intended that objects of type 'org.redisson.misc.BiHashMap' are persisted in the image heap, add 
+
+    '--initialize-at-build-time=org.redisson.misc.BiHashMap'
+
+to the native-image arguments. Note that initializing new types can store additional objects to the heap. It is advised to check the static fields of 'org.redisson.misc.BiHashMap' to see if they are safe for build-time initialization,  and that they do not contain any sensitive data that should not become part of the image.
+
+2) If these objects should not be stored in the image heap, you can use 
+
+    '--trace-object-instantiation=org.redisson.misc.BiHashMap'
+
+to find classes that instantiate these objects. Once you found such a class, you can mark it explicitly for run time initialization with 
+
+    '--initialize-at-run-time=<culprit>'
+
+to prevent the instantiation of the object.
+
+If you are seeing this message after upgrading to a new GraalVM release, this means that some objects ended up in the image heap without their type being marked with --initialize-at-build-time.
+To fix this, include '--initialize-at-build-time=org.redisson.misc.BiHashMap' in your configuration. If the classes do not originate from your code, it is advised to update all library or framework dependencies to the latest version before addressing this error.
+
+The following detailed trace displays from which field in the code the object was reached.
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ClassInitializationFeature.checkImageHeapInstance(ClassInitializationFeature.java:205)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.SVMHost.validateReachableObject(SVMHost.java:371)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.heap.ImageHeapScanner.onObjectReachable(ImageHeapScanner.java:607)
+	... 11 more
+Fatal error: com.oracle.graal.pointsto.constraints.UnsupportedFeatureException: An object of type 'org.redisson.misc.BiHashMap' was found in the image heap. This type, however, is marked for initialization at image run time for the following reason: classes are initialized at run time by default.
+This is not allowed for correctness reasons: All objects that are stored in the image heap must be initialized at build time.
+
+You now have two options to resolve this:
+
+1) If it is intended that objects of type 'org.redisson.misc.BiHashMap' are persisted in the image heap, add 
+
+    '--initialize-at-build-time=org.redisson.misc.BiHashMap'
+
+to the native-image arguments. Note that initializing new types can store additional objects to the heap. It is advised to check the static fields of 'org.redisson.misc.BiHashMap' to see if they are safe for build-time initialization,  and that they do not contain any sensitive data that should not become part of the image.
+
+2) If these objects should not be stored in the image heap, you can use 
+
+    '--trace-object-instantiation=org.redisson.misc.BiHashMap'
+
+to find classes that instantiate these objects. Once you found such a class, you can mark it explicitly for run time initialization with 
+
+    '--initialize-at-run-time=<culprit>'
+
+to prevent the instantiation of the object.
+
+If you are seeing this message after upgrading to a new GraalVM release, this means that some objects ended up in the image heap without their type being marked with --initialize-at-build-time.
+To fix this, include '--initialize-at-build-time=org.redisson.misc.BiHashMap' in your configuration. If the classes do not originate from your code, it is advised to update all library or framework dependencies to the latest version before addressing this error.
+
+The following detailed trace displays from which field in the code the object was reached.
+Object was reached by
+  scanning root org.redisson.misc.BiHashMap@6e90b5d3: org.redisson.misc.BiHashMap@6e90b5d3 embedded in
+    org.redisson.RedissonReference.<init>(RedissonReference.java:102)
+  parsing method org.redisson.RedissonReference.<init>(RedissonReference.java:89) reachable via the parsing context <no parsing context available> 
+
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.heap.ImageHeapScanner.onObjectReachable(ImageHeapScanner.java:618)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.heap.SVMImageHeapScanner.onObjectReachable(SVMImageHeapScanner.java:127)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.heap.ImageHeapScanner.lambda$markReachable$0(ImageHeapScanner.java:589)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.util.CompletionExecutor.executeCommand(CompletionExecutor.java:166)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.util.CompletionExecutor.lambda$executeService$0(CompletionExecutor.java:152)
+	at java.base/java.util.concurrent.ForkJoinTask$RunnableExecuteAction.compute(ForkJoinTask.java:1753)
+	at java.base/java.util.concurrent.ForkJoinTask$RunnableExecuteAction.compute(ForkJoinTask.java:1745)
+	at java.base/java.util.concurrent.ForkJoinTask$InterruptibleTask.exec(ForkJoinTask.java:1662)
+	at java.base/java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:511)
+	at java.base/java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1450)
+	at java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:2019)
+	at java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:187)
+Caused by: com.oracle.graal.pointsto.constraints.UnsupportedFeatureException: An object of type 'org.redisson.misc.BiHashMap' was found in the image heap. This type, however, is marked for initialization at image run time for the following reason: classes are initialized at run time by default.
+This is not allowed for correctness reasons: All objects that are stored in the image heap must be initialized at build time.
+
+You now have two options to resolve this:
+
+1) If it is intended that objects of type 'org.redisson.misc.BiHashMap' are persisted in the image heap, add 
+
+    '--initialize-at-build-time=org.redisson.misc.BiHashMap'
+
+to the native-image arguments. Note that initializing new types can store additional objects to the heap. It is advised to check the static fields of 'org.redisson.misc.BiHashMap' to see if they are safe for build-time initialization,  and that they do not contain any sensitive data that should not become part of the image.
+
+2) If these objects should not be stored in the image heap, you can use 
+
+    '--trace-object-instantiation=org.redisson.misc.BiHashMap'
+
+to find classes that instantiate these objects. Once you found such a class, you can mark it explicitly for run time initialization with 
+
+    '--initialize-at-run-time=<culprit>'
+
+to prevent the instantiation of the object.
+
+If you are seeing this message after upgrading to a new GraalVM release, this means that some objects ended up in the image heap without their type being marked with --initialize-at-build-time.
+To fix this, include '--initialize-at-build-time=org.redisson.misc.BiHashMap' in your configuration. If the classes do not originate from your code, it is advised to update all library or framework dependencies to the latest version before addressing this error.
+
+The following detailed trace displays from which field in the code the object was reached.
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ClassInitializationFeature.checkImageHeapInstance(ClassInitializationFeature.java:205)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.SVMHost.validateReachableObject(SVMHost.java:371)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.heap.ImageHeapScanner.onObjectReachable(ImageHeapScanner.java:607)
+	... 11 more
+------------------------------------------------------------------------------------------------------------------------
+                        6.7s (8.4% of total time) in 726 GCs | Peak RSS: 4.14GB | CPU load: 5.51
+========================================================================================================================
+Failed generating 'legacy' after 1m 19s.
+Command exited with non-zero status 1
+	Command being timed: "native-image -J-Xmx8g --parallelism=4 --no-fallback -march=compatibility -O2 --gc=serial -H:ConfigurationFileDirectories=../common-config,agent-config -cp aot:lib/* com.doublechaintech.liquidfilling.legacyprobe.LegacyProbeApplication legacy"
+	User time (seconds): 437.29
+	System time (seconds): 6.35
+	Percent of CPU this job got: 549%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:20.79
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 4043332
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 1081026
+	Voluntary context switches: 215832
+	Involuntary context switches: 16798
+	Swaps: 0
+	File system inputs: 106640
+	File system outputs: 3248
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1

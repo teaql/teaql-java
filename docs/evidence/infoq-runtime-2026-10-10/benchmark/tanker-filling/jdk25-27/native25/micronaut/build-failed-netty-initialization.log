@@ -1,0 +1,336 @@
+========================================================================================================================
+GraalVM Native Image: Generating 'micronaut' (executable)...
+========================================================================================================================
+For detailed information and explanations on the build output, visit:
+https://github.com/oracle/graal/blob/master/docs/reference-manual/native-image/BuildOutput.md
+------------------------------------------------------------------------------------------------------------------------
+11:41:26.098 [main] DEBUG io.netty.util.internal.logging.InternalLoggerFactory -- Using SLF4J as the default logging framework
+11:41:26.098 [main] DEBUG io.netty.util.internal.PlatformDependent0 -- Java version: 25
+11:41:26.098 [main] DEBUG io.netty.util.internal.PlatformDependent0 -- -Dio.netty.noUnsafe: false
+11:41:26.098 [main] DEBUG io.netty.util.internal.PlatformDependent0 -- sun.misc.Unsafe: unavailable (io.netty.noUnsafe=true by default on Java 25+)
+11:41:26.100 [main] DEBUG io.netty.util.internal.PlatformDependent0 -- java.nio.DirectByteBuffer.<init>(long, {int,long}): unavailable
+11:41:26.100 [main] DEBUG io.netty.util.internal.PlatformDependent -- maxDirectMemory: 7635730432 bytes (maybe)
+11:41:26.100 [main] DEBUG io.netty.util.internal.PlatformDependent -- -Dio.netty.tmpdir: /tmp (java.io.tmpdir)
+11:41:26.100 [main] DEBUG io.netty.util.internal.PlatformDependent -- -Dio.netty.bitMode: 64 (sun.arch.data.model)
+11:41:26.100 [main] DEBUG io.netty.util.internal.PlatformDependent -- -Dio.netty.maxDirectMemory: 7635730432 bytes
+11:41:26.100 [main] DEBUG io.netty.util.internal.CleanerJava9 -- java.nio.ByteBuffer.cleaner(): unavailable
+java.lang.UnsupportedOperationException: sun.misc.Unsafe unavailable
+	at io.netty.util.internal.CleanerJava9.<clinit>(CleanerJava9.java:70)
+	at io.netty.util.internal.PlatformDependent.<clinit>(PlatformDependent.java:212)
+	at io.netty.util.internal.RefCnt.<clinit>(RefCnt.java:40)
+	at java.base/jdk.internal.misc.Unsafe.ensureClassInitialized0(Native Method)
+	at java.base/jdk.internal.misc.Unsafe.ensureClassInitialized(Unsafe.java:1169)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ClassInitializationSupport.ensureClassInitialized(ClassInitializationSupport.java:288)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ClassInitializationSupport.computeInitKindAndMaybeInitializeClass(ClassInitializationSupport.java:537)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ClassInitializationSupport.computeInitKindAndMaybeInitializeClass(ClassInitializationSupport.java:475)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ClassInitializationSupport.maybeInitializeAtBuildTime(ClassInitializationSupport.java:266)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ClassInitializationSupport.maybeInitializeAtBuildTime(ClassInitializationSupport.java:255)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.SVMHost.onTypeReachable(SVMHost.java:415)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.meta.AnalysisUniverse.onTypeReachable(AnalysisUniverse.java:755)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.meta.AnalysisType.lambda$new$0(AnalysisType.java:349)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.util.AnalysisFuture.ensureDone(AnalysisFuture.java:69)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.meta.AnalysisType.ensureOnTypeReachableTaskDone(AnalysisType.java:796)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.meta.AnalysisType.onReachable(AnalysisType.java:648)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.meta.AnalysisType.lambda$registerAsReachable$1(AnalysisType.java:605)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.util.AtomicUtils.atomicSetAndRun(AtomicUtils.java:49)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.meta.AnalysisType.registerAsReachable(AnalysisType.java:605)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.meta.AnalysisField.registerAsAccessed(AnalysisField.java:247)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.meta.AnalysisField.registerAsUnsafeAccessed(AnalysisField.java:326)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.meta.PointsToAnalysisField.registerAsUnsafeAccessed(PointsToAnalysisField.java:85)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.substitute.AnnotationSubstitutionProcessor.registerUnsafeAccessedFields(AnnotationSubstitutionProcessor.java:302)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.NativeImageGenerator.initializeBigBang(NativeImageGenerator.java:1197)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.NativeImageGenerator.setupNativeImage(NativeImageGenerator.java:1105)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.NativeImageGenerator.doRun(NativeImageGenerator.java:567)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.NativeImageGenerator.run(NativeImageGenerator.java:534)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.NativeImageGeneratorRunner.buildImage(NativeImageGeneratorRunner.java:548)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.NativeImageGeneratorRunner.build(NativeImageGeneratorRunner.java:761)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.NativeImageGeneratorRunner.start(NativeImageGeneratorRunner.java:163)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.NativeImageGeneratorRunner.main(NativeImageGeneratorRunner.java:111)
+11:41:26.101 [main] DEBUG io.netty.util.internal.PlatformDependent -- -Dio.netty.noPreferDirect: false
+11:41:26.101 [main] DEBUG io.netty.util.internal.PlatformDependent -- -Dio.netty.ignoreExpensiveClean: false
+11:41:26.103 [main] DEBUG io.netty.util.internal.PlatformDependent -- -Dio.netty.jfr.enabled: true
+[1/8] Initializing...                                                                                    (7.4s @ 0.22GB)
+ Java version: 25.0.4+7-LTS, vendor version: Oracle GraalVM 25.0.4+7.1
+ Graal compiler: optimization level: 2, target machine: compatibility, PGO: ML-inferred
+ C compiler: gcc (linux, x86_64, 14.2.0)
+ Garbage collector: Serial GC (max heap size: 80% of RAM)
+ 3 user-specific feature(s):
+ - com.oracle.svm.thirdparty.gson.GsonFeature
+ - io.micronaut.core.io.service.ServiceLoaderFeature
+ - io.micronaut.jackson.JacksonDatabindFeature
+------------------------------------------------------------------------------------------------------------------------
+Build resources:
+ - 7.64GB of memory (45.9% of system memory, set via '-Xmx8g')
+ - 4 thread(s) (50.0% of 8 available processor(s), set via '--parallelism=4')
+11:41:30.737 [main] DEBUG io.netty.buffer.AbstractByteBuf -- -Dio.netty.buffer.checkAccessible: true
+11:41:30.738 [main] DEBUG io.netty.buffer.AbstractByteBuf -- -Dio.netty.buffer.checkBounds: true
+11:41:30.738 [main] DEBUG io.netty.util.ResourceLeakDetector -- -Dio.netty.leakDetection.level: simple
+11:41:30.738 [main] DEBUG io.netty.util.ResourceLeakDetector -- -Dio.netty.leakDetection.targetRecords: 4
+11:41:30.740 [main] DEBUG io.netty.util.ResourceLeakDetectorFactory -- Loaded default ResourceLeakDetector: io.netty.util.ResourceLeakDetector@100d5018
+11:41:35.901 [ForkJoinPool.commonPool-worker-3] DEBUG io.netty.util.Recycler -- -Dio.netty.recycler.maxCapacityPerThread: 4096
+11:41:35.901 [ForkJoinPool.commonPool-worker-3] DEBUG io.netty.util.Recycler -- -Dio.netty.recycler.ratio: 8
+11:41:35.901 [ForkJoinPool.commonPool-worker-3] DEBUG io.netty.util.Recycler -- -Dio.netty.recycler.chunkSize: 32
+11:41:35.901 [ForkJoinPool.commonPool-worker-3] DEBUG io.netty.util.Recycler -- -Dio.netty.recycler.blocking: false
+11:41:35.901 [ForkJoinPool.commonPool-worker-3] DEBUG io.netty.util.Recycler -- -Dio.netty.recycler.batchFastThreadLocalOnly: true
+11:41:35.901 [ForkJoinPool.commonPool-worker-3] DEBUG io.netty.util.internal.InternalThreadLocalMap -- -Dio.netty.threadLocalMap.stringBuilder.initialSize: 1024
+11:41:35.901 [ForkJoinPool.commonPool-worker-3] DEBUG io.netty.util.internal.InternalThreadLocalMap -- -Dio.netty.threadLocalMap.stringBuilder.maxSize: 4096
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by io.netty.util.internal.shaded.org.jctools.util.UnsafeAccess (file:/home/philip/teaql-startup-benchmark/jdk25-27/native25/micronaut/lib/netty-common-4.2.19.Final.jar)
+WARNING: Please consider reporting this to the maintainers of class io.netty.util.internal.shaded.org.jctools.util.UnsafeAccess
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+11:41:38.534 [ForkJoinPool.commonPool-worker-1] DEBUG io.netty.channel.DefaultChannelId -- -Dio.netty.processId: 872743 (auto-detected)
+11:41:38.534 [ForkJoinPool.commonPool-worker-1] DEBUG io.netty.util.NetUtil -- -Djava.net.preferIPv4Stack: false
+11:41:38.534 [ForkJoinPool.commonPool-worker-1] DEBUG io.netty.util.NetUtil -- -Djava.net.preferIPv6Addresses: false
+11:41:38.535 [ForkJoinPool.commonPool-worker-1] DEBUG io.netty.util.NetUtilInitializations -- Loopback interface: lo (lo, 0:0:0:0:0:0:0:1%lo)
+11:41:38.535 [ForkJoinPool.commonPool-worker-1] DEBUG io.netty.util.NetUtil -- /proc/sys/net/core/somaxconn: 4096
+11:41:38.536 [ForkJoinPool.commonPool-worker-1] DEBUG io.netty.channel.DefaultChannelId -- -Dio.netty.machineId: 1c:36:bb:ff:fe:ec:6f:f5 (auto-detected)
+[2/8] Performing analysis...  []                                                                        (10.7s @ 0.45GB)
+    4,230 types,   2,653 fields, and   9,731 methods found reachable
+    2,230 types,   2,522 fields, and   8,921 methods registered for reflection
+        0 downcalls and 0 upcalls registered for foreign access
+
+3 fatal errors detected:
+Fatal error: com.oracle.graal.pointsto.constraints.UnsupportedFeatureException: An object of type 'ch.qos.logback.classic.Logger' was found in the image heap. This type, however, is marked for initialization at image run time for the following reason: classes are initialized at run time by default.
+This is not allowed for correctness reasons: All objects that are stored in the image heap must be initialized at build time.
+
+You now have two options to resolve this:
+
+1) If it is intended that objects of type 'ch.qos.logback.classic.Logger' are persisted in the image heap, add 
+
+    '--initialize-at-build-time=ch.qos.logback.classic.Logger'
+
+to the native-image arguments. Note that initializing new types can store additional objects to the heap. It is advised to check the static fields of 'ch.qos.logback.classic.Logger' to see if they are safe for build-time initialization,  and that they do not contain any sensitive data that should not become part of the image.
+
+2) If these objects should not be stored in the image heap, you can use 
+
+    '--trace-object-instantiation=ch.qos.logback.classic.Logger'
+
+to find classes that instantiate these objects. Once you found such a class, you can mark it explicitly for run time initialization with 
+
+    '--initialize-at-run-time=<culprit>'
+
+to prevent the instantiation of the object.
+
+If you are seeing this message after upgrading to a new GraalVM release, this means that some objects ended up in the image heap without their type being marked with --initialize-at-build-time.
+To fix this, include '--initialize-at-build-time=ch.qos.logback.classic.Logger' in your configuration. If the classes do not originate from your code, it is advised to update all library or framework dependencies to the latest version before addressing this error.
+
+The following detailed trace displays from which field in the code the object was reached.
+Object was reached by
+  reading field io.netty.util.internal.logging.LocationAwareSlf4JLogger.logger of constant 
+    io.netty.util.internal.logging.LocationAwareSlf4JLogger@49f25b48: LocationAwareSlf4JLogger(io.netty.channel.socket.nio.NioServerSocketChannel)
+  reading static field io.netty.channel.socket.nio.NioServerSocketChannel.logger
+    at <unknown-location>
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.heap.ImageHeapScanner.onObjectReachable(ImageHeapScanner.java:618)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.heap.SVMImageHeapScanner.onObjectReachable(SVMImageHeapScanner.java:127)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.heap.ImageHeapScanner.lambda$markReachable$0(ImageHeapScanner.java:589)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.util.CompletionExecutor.executeCommand(CompletionExecutor.java:166)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.util.CompletionExecutor.lambda$executeService$0(CompletionExecutor.java:152)
+	at java.base/java.util.concurrent.ForkJoinTask$RunnableExecuteAction.compute(ForkJoinTask.java:1753)
+	at java.base/java.util.concurrent.ForkJoinTask$RunnableExecuteAction.compute(ForkJoinTask.java:1745)
+	at java.base/java.util.concurrent.ForkJoinTask$InterruptibleTask.exec(ForkJoinTask.java:1662)
+	at java.base/java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:511)
+	at java.base/java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1450)
+	at java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:2019)
+	at java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:187)
+Caused by: com.oracle.graal.pointsto.constraints.UnsupportedFeatureException: An object of type 'ch.qos.logback.classic.Logger' was found in the image heap. This type, however, is marked for initialization at image run time for the following reason: classes are initialized at run time by default.
+This is not allowed for correctness reasons: All objects that are stored in the image heap must be initialized at build time.
+
+You now have two options to resolve this:
+
+1) If it is intended that objects of type 'ch.qos.logback.classic.Logger' are persisted in the image heap, add 
+
+    '--initialize-at-build-time=ch.qos.logback.classic.Logger'
+
+to the native-image arguments. Note that initializing new types can store additional objects to the heap. It is advised to check the static fields of 'ch.qos.logback.classic.Logger' to see if they are safe for build-time initialization,  and that they do not contain any sensitive data that should not become part of the image.
+
+2) If these objects should not be stored in the image heap, you can use 
+
+    '--trace-object-instantiation=ch.qos.logback.classic.Logger'
+
+to find classes that instantiate these objects. Once you found such a class, you can mark it explicitly for run time initialization with 
+
+    '--initialize-at-run-time=<culprit>'
+
+to prevent the instantiation of the object.
+
+If you are seeing this message after upgrading to a new GraalVM release, this means that some objects ended up in the image heap without their type being marked with --initialize-at-build-time.
+To fix this, include '--initialize-at-build-time=ch.qos.logback.classic.Logger' in your configuration. If the classes do not originate from your code, it is advised to update all library or framework dependencies to the latest version before addressing this error.
+
+The following detailed trace displays from which field in the code the object was reached.
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ClassInitializationFeature.checkImageHeapInstance(ClassInitializationFeature.java:205)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.SVMHost.validateReachableObject(SVMHost.java:371)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.heap.ImageHeapScanner.onObjectReachable(ImageHeapScanner.java:607)
+	... 11 more
+Fatal error: com.oracle.graal.pointsto.constraints.UnsupportedFeatureException: An object of type 'ch.qos.logback.classic.Logger' was found in the image heap. This type, however, is marked for initialization at image run time for the following reason: classes are initialized at run time by default.
+This is not allowed for correctness reasons: All objects that are stored in the image heap must be initialized at build time.
+
+You now have two options to resolve this:
+
+1) If it is intended that objects of type 'ch.qos.logback.classic.Logger' are persisted in the image heap, add 
+
+    '--initialize-at-build-time=ch.qos.logback.classic.Logger'
+
+to the native-image arguments. Note that initializing new types can store additional objects to the heap. It is advised to check the static fields of 'ch.qos.logback.classic.Logger' to see if they are safe for build-time initialization,  and that they do not contain any sensitive data that should not become part of the image.
+
+2) If these objects should not be stored in the image heap, you can use 
+
+    '--trace-object-instantiation=ch.qos.logback.classic.Logger'
+
+to find classes that instantiate these objects. Once you found such a class, you can mark it explicitly for run time initialization with 
+
+    '--initialize-at-run-time=<culprit>'
+
+to prevent the instantiation of the object.
+
+If you are seeing this message after upgrading to a new GraalVM release, this means that some objects ended up in the image heap without their type being marked with --initialize-at-build-time.
+To fix this, include '--initialize-at-build-time=ch.qos.logback.classic.Logger' in your configuration. If the classes do not originate from your code, it is advised to update all library or framework dependencies to the latest version before addressing this error.
+
+The following detailed trace displays from which field in the code the object was reached.
+Object was reached by
+  reading field io.netty.util.internal.logging.LocationAwareSlf4JLogger.logger of constant 
+    io.netty.util.internal.logging.LocationAwareSlf4JLogger@56f6c583: LocationAwareSlf4JLogger(io.netty.channel.nio.AbstractNioChannel)
+  scanning root io.netty.util.internal.logging.LocationAwareSlf4JLogger@56f6c583: LocationAwareSlf4JLogger(io.netty.channel.nio.AbstractNioChannel) embedded in
+    io.netty.channel.nio.AbstractNioChannel.<init>(AbstractNioChannel.java:100)
+  parsing method io.netty.channel.nio.AbstractNioChannel.<init>(AbstractNioChannel.java:90) reachable via the parsing context <no parsing context available> 
+
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.heap.ImageHeapScanner.onObjectReachable(ImageHeapScanner.java:618)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.heap.SVMImageHeapScanner.onObjectReachable(SVMImageHeapScanner.java:127)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.heap.ImageHeapScanner.lambda$markReachable$0(ImageHeapScanner.java:589)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.util.CompletionExecutor.executeCommand(CompletionExecutor.java:166)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.util.CompletionExecutor.lambda$executeService$0(CompletionExecutor.java:152)
+	at java.base/java.util.concurrent.ForkJoinTask$RunnableExecuteAction.compute(ForkJoinTask.java:1753)
+	at java.base/java.util.concurrent.ForkJoinTask$RunnableExecuteAction.compute(ForkJoinTask.java:1745)
+	at java.base/java.util.concurrent.ForkJoinTask$InterruptibleTask.exec(ForkJoinTask.java:1662)
+	at java.base/java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:511)
+	at java.base/java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1450)
+	at java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:2019)
+	at java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:187)
+Caused by: com.oracle.graal.pointsto.constraints.UnsupportedFeatureException: An object of type 'ch.qos.logback.classic.Logger' was found in the image heap. This type, however, is marked for initialization at image run time for the following reason: classes are initialized at run time by default.
+This is not allowed for correctness reasons: All objects that are stored in the image heap must be initialized at build time.
+
+You now have two options to resolve this:
+
+1) If it is intended that objects of type 'ch.qos.logback.classic.Logger' are persisted in the image heap, add 
+
+    '--initialize-at-build-time=ch.qos.logback.classic.Logger'
+
+to the native-image arguments. Note that initializing new types can store additional objects to the heap. It is advised to check the static fields of 'ch.qos.logback.classic.Logger' to see if they are safe for build-time initialization,  and that they do not contain any sensitive data that should not become part of the image.
+
+2) If these objects should not be stored in the image heap, you can use 
+
+    '--trace-object-instantiation=ch.qos.logback.classic.Logger'
+
+to find classes that instantiate these objects. Once you found such a class, you can mark it explicitly for run time initialization with 
+
+    '--initialize-at-run-time=<culprit>'
+
+to prevent the instantiation of the object.
+
+If you are seeing this message after upgrading to a new GraalVM release, this means that some objects ended up in the image heap without their type being marked with --initialize-at-build-time.
+To fix this, include '--initialize-at-build-time=ch.qos.logback.classic.Logger' in your configuration. If the classes do not originate from your code, it is advised to update all library or framework dependencies to the latest version before addressing this error.
+
+The following detailed trace displays from which field in the code the object was reached.
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ClassInitializationFeature.checkImageHeapInstance(ClassInitializationFeature.java:205)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.SVMHost.validateReachableObject(SVMHost.java:371)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.heap.ImageHeapScanner.onObjectReachable(ImageHeapScanner.java:607)
+	... 11 more
+Fatal error: com.oracle.graal.pointsto.constraints.UnsupportedFeatureException: An object of type 'ch.qos.logback.classic.Logger' was found in the image heap. This type, however, is marked for initialization at image run time for the following reason: classes are initialized at run time by default.
+This is not allowed for correctness reasons: All objects that are stored in the image heap must be initialized at build time.
+
+You now have two options to resolve this:
+
+1) If it is intended that objects of type 'ch.qos.logback.classic.Logger' are persisted in the image heap, add 
+
+    '--initialize-at-build-time=ch.qos.logback.classic.Logger'
+
+to the native-image arguments. Note that initializing new types can store additional objects to the heap. It is advised to check the static fields of 'ch.qos.logback.classic.Logger' to see if they are safe for build-time initialization,  and that they do not contain any sensitive data that should not become part of the image.
+
+2) If these objects should not be stored in the image heap, you can use 
+
+    '--trace-object-instantiation=ch.qos.logback.classic.Logger'
+
+to find classes that instantiate these objects. Once you found such a class, you can mark it explicitly for run time initialization with 
+
+    '--initialize-at-run-time=<culprit>'
+
+to prevent the instantiation of the object.
+
+If you are seeing this message after upgrading to a new GraalVM release, this means that some objects ended up in the image heap without their type being marked with --initialize-at-build-time.
+To fix this, include '--initialize-at-build-time=ch.qos.logback.classic.Logger' in your configuration. If the classes do not originate from your code, it is advised to update all library or framework dependencies to the latest version before addressing this error.
+
+The following detailed trace displays from which field in the code the object was reached.
+Object was reached by
+  scanning root ch.qos.logback.classic.Logger@66aa9296: Logger[io.netty.channel.ChannelHandlerMask] embedded in
+    <unknown>
+  at io.netty.channel.ChannelHandlerMask$2.run() [bci: -5]
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.heap.ImageHeapScanner.onObjectReachable(ImageHeapScanner.java:618)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.heap.SVMImageHeapScanner.onObjectReachable(SVMImageHeapScanner.java:127)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.heap.ImageHeapScanner.lambda$markReachable$0(ImageHeapScanner.java:589)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.util.CompletionExecutor.executeCommand(CompletionExecutor.java:166)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.util.CompletionExecutor.lambda$executeService$0(CompletionExecutor.java:152)
+	at java.base/java.util.concurrent.ForkJoinTask$RunnableExecuteAction.compute(ForkJoinTask.java:1753)
+	at java.base/java.util.concurrent.ForkJoinTask$RunnableExecuteAction.compute(ForkJoinTask.java:1745)
+	at java.base/java.util.concurrent.ForkJoinTask$InterruptibleTask.exec(ForkJoinTask.java:1662)
+	at java.base/java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:511)
+	at java.base/java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1450)
+	at java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:2019)
+	at java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:187)
+Caused by: com.oracle.graal.pointsto.constraints.UnsupportedFeatureException: An object of type 'ch.qos.logback.classic.Logger' was found in the image heap. This type, however, is marked for initialization at image run time for the following reason: classes are initialized at run time by default.
+This is not allowed for correctness reasons: All objects that are stored in the image heap must be initialized at build time.
+
+You now have two options to resolve this:
+
+1) If it is intended that objects of type 'ch.qos.logback.classic.Logger' are persisted in the image heap, add 
+
+    '--initialize-at-build-time=ch.qos.logback.classic.Logger'
+
+to the native-image arguments. Note that initializing new types can store additional objects to the heap. It is advised to check the static fields of 'ch.qos.logback.classic.Logger' to see if they are safe for build-time initialization,  and that they do not contain any sensitive data that should not become part of the image.
+
+2) If these objects should not be stored in the image heap, you can use 
+
+    '--trace-object-instantiation=ch.qos.logback.classic.Logger'
+
+to find classes that instantiate these objects. Once you found such a class, you can mark it explicitly for run time initialization with 
+
+    '--initialize-at-run-time=<culprit>'
+
+to prevent the instantiation of the object.
+
+If you are seeing this message after upgrading to a new GraalVM release, this means that some objects ended up in the image heap without their type being marked with --initialize-at-build-time.
+To fix this, include '--initialize-at-build-time=ch.qos.logback.classic.Logger' in your configuration. If the classes do not originate from your code, it is advised to update all library or framework dependencies to the latest version before addressing this error.
+
+The following detailed trace displays from which field in the code the object was reached.
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.classinitialization.ClassInitializationFeature.checkImageHeapInstance(ClassInitializationFeature.java:205)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.hosted.SVMHost.validateReachableObject(SVMHost.java:371)
+	at org.graalvm.nativeimage.pointsto/com.oracle.graal.pointsto.heap.ImageHeapScanner.onObjectReachable(ImageHeapScanner.java:607)
+	... 11 more
+------------------------------------------------------------------------------------------------------------------------
+                        1.1s (5.3% of total time) in 112 GCs | Peak RSS: 1.17GB | CPU load: 5.16
+========================================================================================================================
+Failed generating 'micronaut' after 19.1s.
+Command exited with non-zero status 1
+	Command being timed: "native-image -J-Xmx8g --parallelism=4 --no-fallback -march=compatibility -O2 --gc=serial -H:ConfigurationFileDirectories=../common-config,agent-config -cp micronaut-probe-1.jar:lib/* io.teaql.benchmark.micronaut.Application micronaut"
+	User time (seconds): 102.43
+	System time (seconds): 1.91
+	Percent of CPU this job got: 512%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:20.34
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 1140008
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 277351
+	Voluntary context switches: 69320
+	Involuntary context switches: 3059
+	Swaps: 0
+	File system inputs: 49256
+	File system outputs: 3152
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1

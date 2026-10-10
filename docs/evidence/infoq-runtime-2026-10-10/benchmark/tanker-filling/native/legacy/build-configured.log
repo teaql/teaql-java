@@ -1,0 +1,106 @@
+Warning: The option '-H:ReflectionConfigurationResources=META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-websocket/tomcat-reflection.json' is experimental and must be enabled via '-H:+UnlockExperimentalVMOptions' in the future.
+Warning: The option '-H:ReflectionConfigurationResources=META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-el/tomcat-reflection.json' is experimental and must be enabled via '-H:+UnlockExperimentalVMOptions' in the future.
+Warning: The option '-H:ResourceConfigurationResources=META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-core/tomcat-resource.json' is experimental and must be enabled via '-H:+UnlockExperimentalVMOptions' in the future.
+Warning: The option '-H:ReflectionConfigurationResources=META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-core/tomcat-reflection.json' is experimental and must be enabled via '-H:+UnlockExperimentalVMOptions' in the future.
+Warning: The option '-H:ResourceConfigurationResources=META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-el/tomcat-resource.json' is experimental and must be enabled via '-H:+UnlockExperimentalVMOptions' in the future.
+Warning: The option '-H:ReflectionConfigurationResources=META-INF/native-image/io.netty/netty-transport/reflection-config.json' is experimental and must be enabled via '-H:+UnlockExperimentalVMOptions' in the future.
+Warning: The option '-H:ResourceConfigurationResources=META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-websocket/tomcat-resource.json' is experimental and must be enabled via '-H:+UnlockExperimentalVMOptions' in the future.
+Warning: Please re-evaluate whether any experimental option is required, and either remove or unlock it. The build output lists all active experimental options, including where they come from and possible alternatives. If you think an experimental option should be considered as stable, please file an issue.
+========================================================================================================================
+GraalVM Native Image: Generating 'legacy' (executable)...
+========================================================================================================================
+For detailed information and explanations on the build output, visit:
+https://github.com/oracle/graal/blob/master/docs/reference-manual/native-image/BuildOutput.md
+------------------------------------------------------------------------------------------------------------------------
+[1/8] Initializing...                                                                                    (8.3s @ 0.27GB)
+ Java version: 21.0.12+7-LTS, vendor version: Oracle GraalVM 21.0.12+7.1
+ Graal compiler: optimization level: 2, target machine: compatibility, PGO: ML-inferred
+ C compiler: gcc (linux, x86_64, 14.2.0)
+ Garbage collector: Serial GC (max heap size: 80% of RAM)
+ 2 user-specific feature(s):
+ - com.oracle.svm.thirdparty.gson.GsonFeature
+ - org.springframework.aot.nativex.feature.PreComputeFieldFeature
+------------------------------------------------------------------------------------------------------------------------
+ 2 experimental option(s) unlocked:
+ - '-H:ResourceConfigurationResources' (origin(s): 'META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-websocket/native-image.properties' in 'file:///home/philip/teaql-startup-benchmark/native/legacy/lib/tomcat-embed-websocket-10.1.16.jar', 'META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-core/native-image.properties' in 'file:///home/philip/teaql-startup-benchmark/native/legacy/lib/tomcat-embed-core-10.1.16.jar', 'META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-el/native-image.properties' in 'file:///home/philip/teaql-startup-benchmark/native/legacy/lib/tomcat-embed-el-10.1.16.jar')
+ - '-H:ReflectionConfigurationResources' (origin(s): 'META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-websocket/native-image.properties' in 'file:///home/philip/teaql-startup-benchmark/native/legacy/lib/tomcat-embed-websocket-10.1.16.jar', 'META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-core/native-image.properties' in 'file:///home/philip/teaql-startup-benchmark/native/legacy/lib/tomcat-embed-core-10.1.16.jar', 'META-INF/native-image/org.apache.tomcat.embed/tomcat-embed-el/native-image.properties' in 'file:///home/philip/teaql-startup-benchmark/native/legacy/lib/tomcat-embed-el-10.1.16.jar', 'META-INF/native-image/io.netty/netty-transport/native-image.properties' in 'file:///home/philip/teaql-startup-benchmark/native/legacy/lib/netty-transport-4.1.101.Final.jar')
+------------------------------------------------------------------------------------------------------------------------
+Build resources:
+ - 7.11GB of memory (45.9% of 15.50GB system memory, set via '-Xmx8g')
+ - 4 thread(s) (50.0% of 8 available processor(s), set via '--parallelism=4')
+SLF4J: No SLF4J providers were found.
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See https://www.slf4j.org/codes.html#noProviders for further details.
+[2/8] Performing analysis...  [*****]                                                                  (103.2s @ 2.89GB)
+   31,359 reachable types   (91.1% of   34,435 total)
+   47,347 reachable fields  (58.8% of   80,521 total)
+  167,660 reachable methods (63.8% of  262,986 total)
+    9,868 types, 1,662 fields, and 22,536 methods registered for reflection
+       70 types,    75 fields, and    58 methods registered for JNI access
+        4 native libraries: dl, pthread, rt, z
+[3/8] Building universe...                                                                              (14.8s @ 3.50GB)
+[4/8] Parsing methods...      [******]                                                                  (37.8s @ 2.31GB)
+[5/8] Inlining methods...     [****]                                                                     (4.5s @ 3.29GB)
+[6/8] Compiling methods...    [***************]                                                        (223.4s @ 3.55GB)
+[7/8] Laying out methods...   [****]                                                                    (19.3s @ 3.77GB)
+[8/8] Creating image...       [****]                                                                    (13.1s @ 3.79GB)
+  89.66MB (52.84%) for code area:   103,460 compilation units
+  63.01MB (37.14%) for image heap:  692,714 objects and 324 resources
+  17.00MB (10.02%) for other data
+ 169.67MB in total
+------------------------------------------------------------------------------------------------------------------------
+Top 10 origins of code area:                                Top 10 object types in image heap:
+  17.74MB java.base                                           25.62MB byte[] for code metadata
+   9.78MB redisson-3.23.1.jar                                 10.51MB byte[] for java.lang.String
+   7.40MB svm.jar (Native Image)                               6.08MB java.lang.Class
+   5.29MB tomcat-embed-core-10.1.16.jar                        4.90MB java.lang.String
+   4.27MB jdk.proxy4                                           2.77MB byte[] for reflection metadata
+   4.07MB java.xml                                             2.34MB byte[] for general heap data
+   3.24MB graphql-java-21.3.jar                                1.44MB com.oracle.svm.core.hub.DynamicHubCompanion
+   3.23MB byte-buddy-1.14.10.jar                               1.13MB java.lang.reflect.Method
+   2.71MB spring-data-redis-3.2.0.jar                        908.50kB c.o.svm.core.hub.DynamicHub$ReflectionMetadata
+   2.64MB jackson-databind-2.22.3.jar                        673.78kB java.lang.String[]
+  28.54MB for 160 more packages                                6.68MB for 6215 more object types
+                              Use '-H:+BuildReport' to create a report with more details.
+------------------------------------------------------------------------------------------------------------------------
+Security report:
+ - Binary includes Java deserialization.
+ - Use '--enable-sbom' to embed a Software Bill of Materials (SBOM) in the binary.
+ - The log4j library has been detected, but the version is unavailable. Due to Log4Shell, please ensure log4j is at version 2.17.1 or later.
+------------------------------------------------------------------------------------------------------------------------
+Recommendations:
+ G1GC: Use the G1 GC ('--gc=G1') for improved latency and throughput.
+ PGO:  Use Profile-Guided Optimizations ('--pgo') for improved throughput.
+ INIT: Adopt '--strict-image-heap' to prepare for the next GraalVM release.
+ HEAP: Set max heap for improved and more predictable memory usage.
+ QBM:  Use the quick build mode ('-Ob') to speed up builds during development.
+------------------------------------------------------------------------------------------------------------------------
+                       46.0s (10.8% of total time) in 252 GCs | Peak RSS: 7.16GB | CPU load: 4.81
+------------------------------------------------------------------------------------------------------------------------
+Produced artifacts:
+ /home/philip/teaql-startup-benchmark/native/legacy/legacy (executable)
+========================================================================================================================
+Finished generating 'legacy' in 7m 5s.
+	Command being timed: "native-image -J-Xmx8g --parallelism=4 --no-fallback -march=compatibility -H:ConfigurationFileDirectories=../common-config,agent-config -cp aot:lib/* com.doublechaintech.liquidfilling.legacyprobe.LegacyProbeApplication legacy"
+	User time (seconds): 2031.38
+	System time (seconds): 22.93
+	Percent of CPU this job got: 480%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 7:07.17
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 7509660
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 14
+	Minor (reclaiming a frame) page faults: 761706
+	Voluntary context switches: 288359
+	Involuntary context switches: 50472
+	Swaps: 0
+	File system inputs: 6616
+	File system outputs: 1381544
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

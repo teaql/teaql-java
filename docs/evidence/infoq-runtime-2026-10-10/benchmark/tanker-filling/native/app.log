@@ -1,0 +1,542 @@
+2026-10-10 00:14:58,962-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:14:58,970-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 475303 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:14:58,970-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:14:59,015-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:14:59,016-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:14:59,016-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:14:59,022-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:14:59,022-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 51 ms
+2026-10-10 00:14:59,316-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:14:59,328-[]---INFO -TomcatWebServer:221- Tomcat started on port 18884 (http) with context path ''
+2026-10-10 00:14:59,329-[]---INFO -LegacyProbeApplication:56- Started LegacyProbeApplication in 0.386 seconds (process running for 0.395)
+2026-10-10 00:14:59,361-[]---INFO -[/]:173- Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-10-10 00:14:59,361-[]---INFO -DispatcherServlet:532- Initializing Servlet 'dispatcherServlet'
+2026-10-10 00:14:59,362-[]---INFO -DispatcherServlet:554- Completed initialization in 1 ms
+2026-10-10 00:14:59,383-[]---INFO -HikariDataSource:110- HikariPool-1 - Starting...
+2026-10-10 00:14:59,413-[]---INFO -HikariPool:565- HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@15e18e3f
+2026-10-10 00:14:59,413-[]---INFO -HikariDataSource:123- HikariPool-1 - Start completed.
+2026-10-10 00:15:52,260-[]---INFO -AbstractRepository:210- start execute request: matched fixture root
+2026-10-10 00:15:52,260-[]---ERROR-[dispatcherServlet]:175- Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed: io.teaql.data.RepositoryException: no parse for expression type:class io.teaql.data.criteria.AND] with root cause
+io.teaql.data.RepositoryException: no parse for expression type:class io.teaql.data.criteria.AND
+	at io.teaql.data.sql.expression.ExpressionHelper.toSql(ExpressionHelper.java:38)
+	at io.teaql.data.sql.SQLRepository.prepareCondition(SQLRepository.java:972)
+	at io.teaql.data.sql.SQLRepository.buildDataSQL(SQLRepository.java:756)
+	at io.teaql.data.sql.SQLRepository.loadInternal(SQLRepository.java:534)
+	at io.teaql.data.repository.AbstractRepository.executeForList(AbstractRepository.java:212)
+	at io.teaql.data.Repository.execute(Repository.java:86)
+	at io.teaql.data.RepositoryAdaptor.execute(RepositoryAdaptor.java:165)
+	at io.teaql.data.UserContext.execute(UserContext.java:100)
+	at io.teaql.data.SearchRequest.execute(SearchRequest.java:63)
+	at com.doublechaintech.liquidfilling.legacyprobe.LegacyProbeController.setup(LegacyProbeController.java:21)
+	at java.base@21.0.12/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:254)
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:182)
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:917)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:829)
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089)
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979)
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014)
+	at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:903)
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:564)
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885)
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:205)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at io.teaql.data.web.MultiReadFilter.doFilter(MultiReadFilter.java:34)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.ServerHttpObservationFilter.doFilterInternal(ServerHttpObservationFilter.java:109)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167)
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482)
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115)
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:340)
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391)
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896)
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1744)
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659)
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61)
+	at java.base@21.0.12/java.lang.Thread.runWith(Thread.java:1596)
+	at java.base@21.0.12/java.lang.Thread.run(Thread.java:1583)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.core.thread.PlatformThreads.threadStartRoutine(PlatformThreads.java:896)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.core.thread.PlatformThreads.threadStartRoutine(PlatformThreads.java:872)
+2026-10-10 00:15:52,267-[]---INFO -HikariDataSource:350- HikariPool-1 - Shutdown initiated...
+2026-10-10 00:15:52,267-[]---INFO -HikariDataSource:352- HikariPool-1 - Shutdown completed.
+2026-10-10 00:30:56,308-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:30:56,312-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 483998 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:30:56,312-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:30:56,334-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:30:56,335-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:30:56,335-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:30:56,338-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:30:56,338-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:30:56,503-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:31:28,989-[]---ERROR-[dispatcherServlet]:175- Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed: java.lang.IllegalArgumentException: Fixture value only] with root cause
+java.lang.IllegalArgumentException: Fixture value only
+	at com.doublechaintech.liquidfilling.legacyprobe.LegacyProbeController.write(LegacyProbeController.java:30)
+	at java.base@21.0.12/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:254)
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:182)
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:917)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:829)
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089)
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979)
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014)
+	at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:903)
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:564)
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885)
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:205)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at io.teaql.data.web.MultiReadFilter.doFilter(MultiReadFilter.java:34)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.ServerHttpObservationFilter.doFilterInternal(ServerHttpObservationFilter.java:109)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167)
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482)
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115)
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:340)
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391)
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896)
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1744)
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659)
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61)
+	at java.base@21.0.12/java.lang.Thread.runWith(Thread.java:1596)
+	at java.base@21.0.12/java.lang.Thread.run(Thread.java:1583)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.core.thread.PlatformThreads.threadStartRoutine(PlatformThreads.java:896)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.core.thread.PlatformThreads.threadStartRoutine(PlatformThreads.java:872)
+2026-10-10 00:31:42,704-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:31:42,708-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 484475 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:31:42,708-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:31:42,731-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:31:42,731-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:31:42,731-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:31:42,734-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:31:42,734-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:31:42,897-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:32:23,522-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:32:23,526-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 484958 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:32:23,526-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:32:23,549-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:32:23,549-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:32:23,549-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:32:23,552-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:32:23,552-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:32:23,713-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:33:34,787-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:33:34,791-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 485867 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:33:34,791-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:33:34,814-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:33:34,814-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:33:34,815-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:33:34,818-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:33:34,818-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 27 ms
+2026-10-10 00:33:34,980-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:34:35,948-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:34:35,952-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 486579 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:34:35,952-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:34:35,974-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:34:35,975-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:34:35,975-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:34:35,978-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:34:35,978-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:34:36,144-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:35:26,904-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:35:26,908-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 487158 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:35:26,908-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:35:26,931-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:35:26,931-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:35:26,931-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:35:26,934-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:35:26,934-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:35:27,098-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:36:27,963-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:36:27,967-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 487919 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:36:27,967-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:36:27,990-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:36:27,990-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:36:27,990-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:36:27,993-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:36:27,993-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:36:28,156-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:37:08,773-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:37:08,776-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 488379 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:37:08,776-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:37:08,799-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:37:08,800-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:37:08,800-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:37:08,803-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:37:08,803-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:37:08,974-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:37:39,389-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:37:39,392-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 488760 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:37:39,393-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:37:39,415-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:37:39,416-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:37:39,416-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:37:39,419-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:37:39,419-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:37:39,590-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:38:40,494-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:38:40,498-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 489481 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:38:40,498-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:38:40,521-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:38:40,521-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:38:40,521-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:38:40,524-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:38:40,524-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:38:40,688-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:39:21,299-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:39:21,303-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 489965 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:39:21,303-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:39:21,326-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:39:21,327-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:39:21,327-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:39:21,330-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:39:21,330-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:39:21,500-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:40:32,657-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:40:32,660-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 490892 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:40:32,661-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:40:32,683-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:40:32,683-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:40:32,683-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:40:32,687-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:40:32,687-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:40:32,850-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:41:13,467-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:41:13,471-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 491394 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:41:13,471-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:41:13,493-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:41:13,494-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:41:13,494-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:41:13,497-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:41:13,497-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:41:13,664-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:42:24,708-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:42:24,711-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 492283 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:42:24,711-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:42:24,734-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:42:24,735-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:42:24,735-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:42:24,738-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:42:24,738-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:42:24,906-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:43:15,690-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:43:15,694-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 492899 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:43:15,694-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:43:15,717-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:43:15,717-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:43:15,717-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:43:15,720-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:43:15,720-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:43:15,892-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:44:06,675-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:44:06,679-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 493502 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:44:06,679-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:44:06,702-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:44:06,702-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:44:06,702-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:44:06,706-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:44:06,706-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 27 ms
+2026-10-10 00:44:06,875-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:44:17,016-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:44:17,019-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 493619 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:44:17,019-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:44:17,042-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:44:17,043-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:44:17,043-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:44:17,046-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:44:17,046-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:44:17,208-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:45:18,135-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:45:18,139-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 494356 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:45:18,139-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:45:18,162-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:45:18,162-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:45:18,162-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:45:18,165-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:45:18,165-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:45:18,326-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:45:58,979-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:45:58,983-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 494851 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:45:58,983-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:45:59,006-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:45:59,007-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:45:59,007-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:45:59,010-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:45:59,010-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 27 ms
+2026-10-10 00:45:59,178-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:46:49,932-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:46:49,936-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 495455 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:46:49,936-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:46:49,960-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:46:49,960-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:46:49,960-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:46:49,963-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:46:49,963-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 27 ms
+2026-10-10 00:46:50,126-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:47:40,871-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:47:40,875-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 496057 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:47:40,875-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:47:40,897-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:47:40,898-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:47:40,898-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:47:40,901-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:47:40,901-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:47:41,064-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:48:31,854-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:48:31,857-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 496660 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:48:31,858-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:48:31,880-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:48:31,881-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:48:31,881-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:48:31,884-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:48:31,884-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:48:32,047-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:49:22,835-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:49:22,838-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 497278 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:49:22,838-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:49:22,861-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:49:22,862-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:49:22,862-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:49:22,865-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:49:22,865-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:49:23,027-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:50:34,073-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:50:34,077-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 498126 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:50:34,077-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:50:34,100-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:50:34,100-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:50:34,100-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:50:34,104-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:50:34,104-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 27 ms
+2026-10-10 00:50:34,264-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:51:25,086-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:51:25,089-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 498772 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:51:25,090-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:51:25,112-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:51:25,113-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:51:25,113-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:51:25,116-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:51:25,116-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:51:25,276-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:52:36,405-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:52:36,409-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 499592 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:52:36,409-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:52:36,432-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:52:36,432-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:52:36,432-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:52:36,435-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:52:36,435-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:52:36,597-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:53:27,394-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:53:27,398-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 500212 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:53:27,398-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:53:27,421-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:53:27,421-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:53:27,421-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:53:27,424-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:53:27,425-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 27 ms
+2026-10-10 00:53:27,586-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:53:58,057-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:53:58,061-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 500544 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:53:58,061-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:53:58,084-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:53:58,084-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:53:58,084-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:53:58,088-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:53:58,088-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:53:58,249-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:54:28,719-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:54:28,723-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 500945 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:54:28,723-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:54:28,746-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:54:28,746-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:54:28,746-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:54:28,749-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:54:28,749-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:54:28,911-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:55:50,191-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:55:50,194-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 501931 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:55:50,194-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:55:50,217-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:55:50,217-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:55:50,217-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:55:50,221-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:55:50,221-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:55:50,384-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:56:30,932-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:56:30,936-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 502376 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:56:30,936-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:56:30,959-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:56:30,959-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:56:30,959-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:56:30,962-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:56:30,962-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:56:31,130-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:57:21,954-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:57:21,957-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 503116 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:57:21,958-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:57:21,980-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:57:21,981-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:57:21,981-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:57:21,984-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:57:21,984-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:57:22,145-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:57:27,448-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:57:27,451-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 503194 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:57:27,451-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:57:27,474-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:57:27,474-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:57:27,474-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:57:27,478-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:57:27,478-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:57:27,639-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:57:58,488-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:57:58,492-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 503722 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:57:58,492-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:57:58,514-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:57:58,514-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:57:58,514-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:57:58,518-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:57:58,518-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:57:58,679-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:58:19,507-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:58:19,511-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 504061 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:58:19,511-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:58:19,534-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:58:19,534-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:58:19,534-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:58:19,537-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:58:19,537-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:58:19,698-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 00:58:45,490-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 00:58:45,493-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 504481 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 00:58:45,493-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 00:58:45,516-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 00:58:45,516-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 00:58:45,516-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 00:58:45,519-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 00:58:45,519-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 00:58:45,682-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 01:05:50,072-[]---WARN -LogbackLoggingSystem:195- Ignoring 'logback.configurationFile' system property. Please use 'logging.config' instead.
+2026-10-10 01:05:50,076-[]---INFO -LegacyProbeApplication:50- Starting AOT-processed LegacyProbeApplication using Java 21.0.12 with PID 511549 (/home/philip/teaql-startup-benchmark/native/legacy/legacy started by philip in /home/philip/teaql-startup-benchmark/native)
+2026-10-10 01:05:50,076-[]---INFO -LegacyProbeApplication:653- No active profile set, falling back to 1 default profile: "default"
+2026-10-10 01:05:50,099-[]---INFO -TomcatWebServer:108- Tomcat initialized with port 18884 (http)
+2026-10-10 01:05:50,099-[]---INFO -StandardService:173- Starting service [Tomcat]
+2026-10-10 01:05:50,099-[]---INFO -StandardEngine:173- Starting Servlet engine: [Apache Tomcat/10.1.16]
+2026-10-10 01:05:50,102-[]---INFO -[/]:173- Initializing Spring embedded WebApplicationContext
+2026-10-10 01:05:50,102-[]---INFO -ServletWebServerApplicationContext:296- Root WebApplicationContext: initialization completed in 26 ms
+2026-10-10 01:05:50,266-[]---INFO -EndpointLinksResolver:58- Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-10-10 01:06:22,722-[]---ERROR-[dispatcherServlet]:175- Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed: java.lang.IllegalArgumentException: Fixture value only] with root cause
+java.lang.IllegalArgumentException: Fixture value only
+	at com.doublechaintech.liquidfilling.legacyprobe.LegacyProbeController.write(LegacyProbeController.java:30)
+	at java.base@21.0.12/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:254)
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:182)
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:917)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:829)
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089)
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979)
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014)
+	at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:903)
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:564)
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885)
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:205)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at io.teaql.data.web.MultiReadFilter.doFilter(MultiReadFilter.java:34)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.ServerHttpObservationFilter.doFilterInternal(ServerHttpObservationFilter.java:109)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167)
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482)
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115)
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:340)
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391)
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896)
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1744)
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659)
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61)
+	at java.base@21.0.12/java.lang.Thread.runWith(Thread.java:1596)
+	at java.base@21.0.12/java.lang.Thread.run(Thread.java:1583)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.core.thread.PlatformThreads.threadStartRoutine(PlatformThreads.java:896)
+	at org.graalvm.nativeimage.builder/com.oracle.svm.core.thread.PlatformThreads.threadStartRoutine(PlatformThreads.java:872)
