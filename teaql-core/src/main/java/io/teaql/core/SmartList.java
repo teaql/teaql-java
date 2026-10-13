@@ -22,6 +22,9 @@ public class SmartList<T extends Entity> implements Iterable<T> {
     List<T> data;
 
     List<AggregationResult> aggregationResults;
+    private String pageCountAlias = TeaQLConstants.ROOT_LIST_PARAMETER_NAME;
+    @FrameworkInternal("Named page total metadata, independent of physical count SQL")
+    public void __internalSetPageCountAlias(String alias) { ensureMutable(); pageCountAlias = alias; }
 
     Map<String, SmartList> facets;
 
@@ -200,7 +203,7 @@ public class SmartList<T extends Entity> implements Iterable<T> {
         if (numberProps.isEmpty()) {
             return size();
         }
-        Object count = numberProps.get(TeaQLConstants.ROOT_LIST_PARAMETER_NAME);
+        Object count = numberProps.get(pageCountAlias);
         if (count instanceof Number intCount) {
             return intCount.intValue();
         }

@@ -203,15 +203,15 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
 
     void recordExecutionMetadata(ExecutionMetadata metadata);
 
+    @FrameworkInternal("SQL provider observation only")
+    default SqlStatementObservation startSqlStatement(String backend, DataServiceOperation operation) {
+        return SqlStatementObservation.NOOP;
+    }
+
     // Business-facing API
     <T extends Entity> T executeForOne(ExecutableRequest<T> request);
 
     <T extends Entity> SmartList<T> executeForList(ExecutableRequest<T> request);
-
-    default <T extends Entity> SmartList<T> executeForPage(
-            ExecutableRequest<T> request, int offset, int limit) {
-        throw new TeaQLRuntimeException("Exact paged execution is not supported by this context");
-    }
 
     <T extends Entity> Stream<T> executeForStream(ExecutableRequest<T> request);
 

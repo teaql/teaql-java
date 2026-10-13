@@ -19,7 +19,7 @@ import io.teaql.runtime.businessid.SystemBusinessClock;
 import java.util.*;
 import java.util.stream.Stream;
 
-public class TeaQLRuntime {
+public class TeaQLRuntime implements AutoCloseable {
     private final EntityMetaFactory metadata;
     private final DataServiceRegistry registry;
     private final QueryPolicy queryPolicy;
@@ -30,6 +30,8 @@ public class TeaQLRuntime {
     private final boolean queryExecutionLoggingEnabled;
     private final boolean mutationExecutionLoggingEnabled;
     private final RuntimeTelemetry telemetry;
+    private final boolean ownsTelemetry;
+    private boolean telemetryClosed;
     private final SchemaExecutor schemaExecutor;
     private final BusinessIdService businessIdService;
     private final BusinessIdSchemaContributor businessIdSchemaContributor;
@@ -52,7 +54,9 @@ public class TeaQLRuntime {
         this.logSink = builder.logSink;
         this.queryExecutionLoggingEnabled = builder.queryExecutionLoggingEnabled;
         this.mutationExecutionLoggingEnabled = builder.mutationExecutionLoggingEnabled;
-        this.telemetry = builder.telemetry != null ? builder.telemetry : RuntimeTelemetry.NOOP;
+        this.ownsTelemetry = builder.telemetry == null;
+        this.telemetry = builder.telemetry != null ? builder.telemetry
+                : TelemetryStartup.initialize(System.getenv(), TeaQLRuntime.class.getClassLoader());
         this.schemaExecutor = builder.schemaExecutor;
         this.businessIdService = builder.businessIdService;
         this.businessIdSchemaContributor = builder.businessIdSchemaContributor;
@@ -111,6 +115,14 @@ public class TeaQLRuntime {
         return telemetry;
     }
 
+    @Override
+    public synchronized void close() {
+        if (!ownsTelemetry || telemetryClosed) return;
+        telemetryClosed = true;
+        try { telemetry.shutdown(); }
+        catch (Throwable ignored) { TelemetryStartup.notice("TeaQL telemetry: owned shutdown failed; business outcome unchanged."); }
+    }
+
     SchemaExecutor getSchemaExecutor() {
         return schemaExecutor;
     }
@@ -149,7 +161,16 @@ public class TeaQLRuntime {
     }
 
     public void recordExecutionMetadata(UserContext context, ExecutionMetadata metadata) {
-        if (logSink != null) {
+        if (metadata.getSqlExecutionCorrelation() != null) {
+            try {
+                telemetry.recordDiagnostic(SqlDiagnosticEvent.project(metadata));
+            } catch (Throwable ignored) {
+                // No unsafe fallback: exporting diagnostics never changes business behavior.
+            }
+        }
+        boolean logging = metadata.getOperation() == DataServiceOperation.QUERY
+                ? isQueryExecutionLoggingEnabled() : isMutationExecutionLoggingEnabled();
+        if (logging && logSink != null) {
             try {
                 logSink.writeExecutionLog(context,
                         LogPrivacy.sql(metadata, requiresSensitiveSqlLogData()));
@@ -160,6 +181,23 @@ public class TeaQLRuntime {
         }
     }
 
+    io.teaql.core.SqlStatementObservation startSqlStatement(String backend, DataServiceOperation operation) {
+        try { if (!telemetry.recordsSqlDiagnostics()) return io.teaql.core.SqlStatementObservation.NOOP; }
+        catch (Throwable ignored) { return io.teaql.core.SqlStatementObservation.NOOP; }
+        String family = operation == null ? "unknown" : operation.name().toLowerCase(java.util.Locale.ROOT);
+        var scope = RuntimeTelemetry.startSafely(telemetry, new RuntimeTelemetry.Operation("provider", backend + ".statement",
+                Map.of("teaql.provider.kind", backend, "teaql.provider.operation", family,
+                        "teaql.provider.execution", "statement")));
+        return new io.teaql.core.SqlStatementObservation() {
+            @Override public boolean enabled() { return true; }
+            @Override public io.teaql.core.SqlExecutionCorrelation correlation() { return scope.correlation(); }
+            @Override public void success() { scope.success(); }
+            @Override public void failure(Throwable failure) { scope.failure(failure); }
+            @Override public void detach() { scope.detach(); }
+            @Override public Activation activate() { var activation = scope.activate(); return activation::close; }
+        };
+    }
+
     @SuppressWarnings("unchecked")
     public <T extends Entity> SmartList<T> executeForList(UserContext context, SearchRequest<T> request) {
         RuntimeTelemetry.Scope telemetryScope = RuntimeTelemetry.startSafely(telemetry,
@@ -167,11 +205,39 @@ public class TeaQLRuntime {
                         Map.of("teaql.entity.type", request.getTypeName())));
         try {
         QueryIntent intent = QueryIntent.of(request.comment(), request.purpose());
+        var requestScope = QueryRequestScope.capture(request);
         enforceMaterializedLimit(request, request.hardLimit());
         if (queryPolicy != null) {
             queryPolicy.enforceSelect(context, request);
         }
+        // Existing customer policies may use generated typed request methods.
+        // Freeze their result only after that hook, while the intent header was
+        // captured beforehand and cannot be overwritten by the policy.
+        request = new QueryRequestSnapshot<>(request, requestScope);
+        QueryOperation countOperation = requestedListCount(request);
+        SearchRequest<?> countRequest = null;
+        String countAlias = null;
+        if (countOperation != null) {
+            countAlias = countOperation.alias() == null ? TeaQLConstants.ROOT_LIST_PARAMETER_NAME : countOperation.alias();
+            BaseRequest<?> snapshot = (BaseRequest<?>) request;
+            countRequest = new QueryRequestSnapshot(snapshot.internalCountRequest(countAlias),
+                    requestScope.deriveOperation(request.getTypeName(), countOperation), request);
+            String alias = countAlias;
+            snapshot.getAggregations().getAggregates().removeIf(aggregate -> alias.equals(aggregate.name()));
+        }
         SmartList<T> result = executeForListResolved(context, request, intent);
+        if (countRequest != null && !(result.aggregationNumberProperties().get(countAlias) instanceof Number)) {
+            EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
+            String route = descriptor.getDataService();
+            if (route == null || route.isEmpty()) route = "default";
+            QueryResult count = registry.resolveQueryExecutor(route).query(context, new DefaultQueryRequest(countRequest, intent));
+            if (!(count instanceof DefaultQueryResult counted) || counted.getAggregationResult() == null) {
+                throw new TeaQLRuntimeException("Requested list count is not supported for route: " + route);
+            }
+            if (result.isSharedEmpty()) result = new SmartList<>();
+            result.addAggregationResult(context, counted.getAggregationResult());
+        }
+        if (countRequest != null) result.__internalSetPageCountAlias(countAlias);
         telemetryScope.success(Map.of("teaql.result.cardinality", result.size()));
         return result;
         } catch (RuntimeException | Error error) {
@@ -180,53 +246,37 @@ public class TeaQLRuntime {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    public <T extends Entity> SmartList<T> executeForPage(
-            UserContext context, SearchRequest<T> request, int offset, int limit) {
-        QueryIntent intent = QueryIntent.of(request.comment(), request.purpose());
-        if (!(request instanceof BaseRequest<?> baseRequest)) {
-            throw new TeaQLRuntimeException("Paged execution requires a generated BaseRequest");
-        }
-        baseRequest.offset(offset, limit);
-        SmartList<T> rows = executeForList(context, request);
-        Object idSetAccuracy = context.getAttribute("teaql.idSet.countAccuracy");
-        Object idSetCount = context.getAttribute("teaql.idSet.count");
-        if ("EXACT".equals(idSetAccuracy) && idSetCount instanceof Number exactCount) {
-            if (rows.isSharedEmpty()) rows = new SmartList<>();
-            AggregationItem item = new AggregationItem();
-            item.setValues(Map.of(
-                    new SimpleNamedExpression(TeaQLConstants.ROOT_LIST_PARAMETER_NAME),
-                    exactCount.longValue()));
-            AggregationResult total = new AggregationResult();
-            total.setData(List.of(item));
-            rows.addAggregationResult(context, total);
-            return rows;
-        }
-        SearchRequest<?> countRequest = baseRequest.internalCountRequest();
-        EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
-        String route = descriptor.getDataService();
-        if (route == null || route.isEmpty()) route = "default";
-        QueryExecutor executor = registry.resolveQueryExecutor(route);
-        QueryResult countResult = executor.query(context, new DefaultQueryRequest(countRequest, intent));
-        if (!(countResult instanceof DefaultQueryResult result)
-                || result.getAggregationResult() == null) {
-            throw new TeaQLRuntimeException("Exact page count is not supported for route: " + route);
-        }
-        if (rows.isSharedEmpty()) {
-            rows = new SmartList<>();
-        }
-        rows.addAggregationResult(context, result.getAggregationResult());
-        return rows;
+    /** A declared ungrouped count accompanies rows through the normal list entry.
+     * Grouped/mixed aggregate requests retain their existing aggregate semantics. */
+    private static QueryOperation requestedListCount(SearchRequest<?> request) {
+        QueryOperation operation = request.pageCountOperation();
+        if (operation == null || !(request instanceof BaseRequest<?>)) return null;
+        var aggregations = request.getAggregations();
+        if (aggregations == null || !aggregations.getSimpleDimensions().isEmpty()
+                || !aggregations.getComplexDimensions().isEmpty() || aggregations.getAggregates().size() != 1) return null;
+        String alias = operation.alias() == null ? TeaQLConstants.ROOT_LIST_PARAMETER_NAME : operation.alias();
+        var aggregate = aggregations.getAggregates().get(0);
+        return alias.equals(aggregate.name()) && aggregate.getExpression() instanceof AggrExpression expression
+                && expression.getOperator() == AggrFunction.COUNT ? operation : null;
     }
 
     /** Executes a business-facing streaming query after the same policy gate as list queries. */
     public <T extends Entity> Stream<T> executeForStream(
             UserContext context, SearchRequest<T> request) {
+        RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(telemetry,
+                new RuntimeTelemetry.Operation("query", request.getTypeName() + ".stream",
+                        Map.of("teaql.entity.type", request.getTypeName())));
+        try {
         QueryIntent intent = QueryIntent.of(request.comment(), request.purpose());
+        var requestScope = QueryRequestScope.capture(request);
         if (queryPolicy != null) {
             queryPolicy.enforceSelect(context, request);
         }
-        return executeForStreamResolved(context, request, intent);
+        request = new QueryRequestSnapshot<>(request, requestScope);
+        return RuntimeQueryStream.wrap(executeForStreamResolved(context, request, intent), scope);
+        } catch (RuntimeException | Error failure) {
+            scope.failure(failure); throw failure;
+        }
     }
 
     /**
@@ -236,9 +286,11 @@ public class TeaQLRuntime {
     public <T extends Entity> Stream<T> internalExecuteForStream(
             UserContext context, SearchRequest<T> request) {
         QueryIntent intent = requireInheritedQueryIntent(request);
+        var requestScope = QueryRequestScope.capture(request);
         if (queryPolicy != null) {
             queryPolicy.enforceSelect(context, request);
         }
+        request = new QueryRequestSnapshot<>(request, requestScope);
         return executeForStreamResolved(context, request, intent);
     }
 
@@ -313,6 +365,9 @@ public class TeaQLRuntime {
         Slice slice = request.getSlice();
         if (slice == null) {
             throw new TeaQLRuntimeException("[QUERY HARD LIMIT] An unlimited materialized query is not allowed");
+        }
+        if (slice.getOffset() < 0) {
+            throw new IllegalArgumentException("offset must not be negative");
         }
         int requested = slice.getSize();
         if (requested <= 0) {
@@ -1301,7 +1356,7 @@ public class TeaQLRuntime {
         // excludes bind values and rendered Debug SQL.
         private boolean queryExecutionLoggingEnabled = true;
         private boolean mutationExecutionLoggingEnabled = true;
-        private RuntimeTelemetry telemetry = RuntimeTelemetry.NOOP;
+        private RuntimeTelemetry telemetry;
         private SchemaExecutor schemaExecutor;
         private BusinessIdService businessIdService;
         private BusinessIdSchemaContributor businessIdSchemaContributor;

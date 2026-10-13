@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root name="request-tree-order-service" org="example" data_service="sqlite" _module_key="root"
+      teaql_java_version="1.554-RELEASE">
+  <platform _name="Commerce Platform" _module="Commerce" _module_key="commerce"
+            name="Commerce Test Platform"/>
+  <order_status _name="Order Status" _module="Commerce" _module_key="commerce"
+                platform="platform()" id="id()" name="string()" code="string()"
+                color="string()" display_order="number()" _constant="true" _identifier="code">
+    <_value id="1001" name="New" code="NEW" color="#94A3B8" display_order="1"/>
+    <_value id="1002" name="Paid" code="PAID" color="#22C55E" display_order="2"/>
+    <_value id="1003" name="Cancelled" code="CANCELLED" color="#EF4444" display_order="3"/>
+  </order_status>
+  <customer _name="Customer" _module="Commerce" _module_key="commerce"
+            platform="platform()" name="North Star Retail" _audit_mask_fields="name"/>
+  <customer_order _name="Customer Order" _module="Commerce" _module_key="commerce"
+                  customer="customer()" status="order_status()" _audit_mask_fields="order_number"
+                  order_number="CO-20261011-000001" order_date="2026-10-11"
+                  total_amount="100.00"/>
+  <order_item _name="Order Item" _module="Commerce" _module_key="commerce"
+              customer_order="customer_order()" product_name="Packing Box"
+              quantity="5" unit_price="20.00"/>
+</root>

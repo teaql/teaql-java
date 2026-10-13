@@ -8,6 +8,9 @@ import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.logs.Logger;
 import io.opentelemetry.api.logs.Severity;
 import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanContext;
+import io.opentelemetry.api.trace.TraceFlags;
+import io.opentelemetry.api.trace.TraceState;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.api.GlobalOpenTelemetry;
@@ -100,9 +103,23 @@ public final class OpenTelemetryRuntimeTelemetry implements RuntimeTelemetry {
         Span span = tracer.spanBuilder("teaql." + operation.family())
                 .setAllAttributes(attributes(operation.attributes()))
                 .startSpan();
-        io.opentelemetry.context.Scope activation = span.makeCurrent();
+        Context statementContext = Context.current().with(span);
+        io.opentelemetry.context.Scope initialActivation = statementContext.makeCurrent();
         return new Scope() {
             private boolean ended;
+            private io.opentelemetry.context.Scope activation = initialActivation;
+
+            @Override public io.teaql.core.SqlExecutionCorrelation correlation() {
+                var identity = span.getSpanContext();
+                return identity.isValid() ? new io.teaql.core.SqlExecutionCorrelation(identity.getTraceId(), identity.getSpanId()) : null;
+            }
+            @Override public synchronized void detach() {
+                if (activation != null) { activation.close(); activation = null; }
+            }
+            @Override public PropagationScope activate() {
+                var scope = statementContext.makeCurrent();
+                return scope::close;
+            }
 
             @Override
             public synchronized void success(Map<String, Object> completion) {
@@ -145,6 +162,7 @@ public final class OpenTelemetryRuntimeTelemetry implements RuntimeTelemetry {
                 operations.add(1, dimensions);
                 if (logger != null) {
                     var record = logger.logRecordBuilder()
+                            .setContext(statementContext)
                             .setSeverity(Severity.INFO)
                             .setSeverityText("INFO")
                             .setBody("TeaQL runtime operation completed")
@@ -157,10 +175,23 @@ public final class OpenTelemetryRuntimeTelemetry implements RuntimeTelemetry {
                     }
                     record.emit();
                 }
-                activation.close();
+                detach();
                 span.end();
             }
         };
+    }
+
+    @Override public boolean recordsSqlDiagnostics() { return logger != null; }
+
+    @Override public void recordDiagnostic(Diagnostic event) {
+        if (logger == null || event == null || event.correlation() == null) return;
+        var identity = event.correlation();
+        SpanContext span = SpanContext.create(identity.traceId(), identity.spanId(), TraceFlags.getSampled(), TraceState.getDefault());
+        if (!span.isValid()) return;
+        // A late active span is unrelated. The provider carried this exact identity from execution start.
+        logger.logRecordBuilder().setContext(Context.root().with(Span.wrap(span)))
+                .setSeverity(Severity.INFO).setSeverityText("INFO").setBody("TeaQL SQL execution")
+                .setAllAttributes(attributes(event.attributes())).emit();
     }
 
     @Override

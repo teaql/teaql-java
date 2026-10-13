@@ -35,6 +35,8 @@ import io.teaql.core.Entity;
 import io.teaql.core.Expression;
 import io.teaql.core.OrderBy;
 import io.teaql.core.OrderBys;
+import io.teaql.core.QueryOperation;
+import io.teaql.core.TeaQLConstants;
 
 import io.teaql.core.TeaQLRuntimeException;
 import io.teaql.core.SearchCriteria;
@@ -564,7 +566,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             boolean optimized) {}
 
     private record IdSetExecution<E extends Entity>(
-            SearchRequest<E> request, long[] pageIds, boolean optimized) {}
+            SearchRequest<E> request, long[] pageIds, boolean optimized, Long exactCount) {}
 
     @SuppressWarnings("unchecked")
     private IdSetExecution<T> prepareIdSetPage(UserContext context, SearchRequest<T> original,
@@ -607,7 +609,10 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         }
         String key = idSetQueryKey(context, working, options, idSql, idParams);
         // Capture current bindings even when retained IDs avoid executing the discovery query.
-        PositionalSQL idStatement = withQueryIntent(toPositional(idSql, idParams), intent, idRequest);
+        var helperScope = io.teaql.core.QueryRequestScope.capture(original).deriveHelper(
+                idRequest.getTypeName(), "collect " + idRequest.getTypeName() + " IDs for pagination");
+        var helper = SqlDiagnosticRequest.forOwnedScope(idRequest, intent, original, helperScope, null);
+        PositionalSQL idStatement = withQueryIntent(toPositional(idSql, idParams), intent, helper);
         IdSetStore store = idSetStore(context);
         RetainedIdSet retained;
         try {
@@ -666,7 +671,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         if (pageIds.length > 0) {
             page.appendSearchCriteria(page.createBasicSearchCriteria("id", Operator.IN, pageIds));
         }
-        return new IdSetExecution<>((SearchRequest<T>) page, pageIds, true);
+        return new IdSetExecution<>((SearchRequest<T>) page, pageIds, true, (long) all.length);
     }
 
     private IdSetExecution<T> idSetFallback(UserContext context, SearchRequest<T> request,
@@ -674,7 +679,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         context.putAttribute(ID_SET_PLAN, plan);
         context.putAttribute(ID_SET_COUNT, count);
         context.putAttribute(ID_SET_COUNT_ACCURACY, accuracy);
-        return new IdSetExecution<>(request, new long[0], false);
+        return new IdSetExecution<>(request, new long[0], false, null);
     }
 
     private IdSetStore idSetStore(UserContext context) {
@@ -716,6 +721,21 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         return loadInternal(userContext, intent == null ? request : SqlDiagnosticRequest.forExecution(request, intent));
     }
 
+    private SmartList<T> attachExactIdSetCount(UserContext context, SearchRequest<T> request,
+            IdSetExecution<T> execution, SmartList<T> rows) {
+        QueryOperation operation = request.pageCountOperation();
+        if (operation == null || execution.exactCount() == null) return rows;
+        String alias = operation.alias() == null ? TeaQLConstants.ROOT_LIST_PARAMETER_NAME : operation.alias();
+        if (rows.isSharedEmpty()) rows = new SmartList<>();
+        AggregationItem item = new AggregationItem();
+        item.setValues(Map.of(new SimpleNamedExpression(alias), execution.exactCount()));
+        AggregationResult count = new AggregationResult();
+        count.setData(List.of(item));
+        rows.addAggregationResult(context, count);
+        rows.__internalSetPageCountAlias(alias);
+        return rows;
+    }
+
     private SmartList<T> loadWithIntent(UserContext userContext, SearchRequest<T> request,
             io.teaql.core.SqlIntentRedactions intent) {
         // Inspect the current typed request, including future child predicates, before
@@ -723,7 +743,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         SqlLikeIntent.capture(userContext, request, this, intent);
         IdSetExecution<T> idSetExecution = prepareIdSetPage(userContext, request, intent);
         if (idSetExecution.optimized() && idSetExecution.pageIds().length == 0) {
-            return SmartList.empty(request.returnType());
+            return attachExactIdSetCount(userContext, request, idSetExecution, SmartList.empty(request.returnType()));
         }
         SearchRequest<T> requestedPage = idSetExecution.request();
         QueryShape shape = idSetExecution.optimized() ? null : simpleQueryShape(userContext, request);
@@ -776,7 +796,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             List<T> entities = database.query(userContext, psql.sql, psql.args, mapper, psql.logBindings);
             if (entities.isEmpty() && ObjectUtil.isEmpty(request.getFacetRequests())) {
                 registerContinuousPage(userContext, request, pageExecution, List.of());
-                return SmartList.empty(request.returnType());
+                return attachExactIdSetCount(userContext, request, idSetExecution, SmartList.empty(request.returnType()));
             }
             smartList = SmartList.takeOwnership(entities);
         }
@@ -784,7 +804,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             List<Map<String, Object>> rows = database.query(userContext, psql.sql, psql.args, psql.logBindings);
             if (rows.isEmpty() && ObjectUtil.isEmpty(request.getFacetRequests())) {
                 registerContinuousPage(userContext, request, pageExecution, List.of());
-                return SmartList.empty(request.returnType());
+                return attachExactIdSetCount(userContext, request, idSetExecution, SmartList.empty(request.returnType()));
             }
             smartList = new SmartList<>(rows.size());
             MapProjection[] projections = new MapProjection[16];
@@ -807,44 +827,82 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                     positions.getOrDefault(entity.getId(), Integer.MAX_VALUE)));
         }
         
+        // Bind exact count to this result before nested/facet queries overwrite
+        // context-level optimization diagnostics. Never infer another query's total.
+        smartList = attachExactIdSetCount(userContext, request, idSetExecution, smartList);
         java.util.List<io.teaql.core.FacetRequest> facetRequests = request.getFacetRequests();
         if (facetRequests != null && !facetRequests.isEmpty()) {
             io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
             for (io.teaql.core.FacetRequest facetRequest : facetRequests) {
+                io.teaql.core.SearchRequest<?> relationReq = facetRequest.getRequest();
+                java.util.List<String> countAliases = relationReq == null ? java.util.List.of() : relationReq.getAggregations().getAggregates()
+                        .stream().filter(expression -> expression.getExpression() instanceof io.teaql.core.AggrExpression aggregate
+                            && aggregate.getOperator() == io.teaql.core.AggrFunction.COUNT)
+                        .map(io.teaql.core.SimpleNamedExpression::name).toList();
+                if (countAliases.isEmpty()) countAliases = java.util.List.of("count");
+                var operation = facetRequest.getOperation() == null
+                        ? io.teaql.core.QueryOperation.framework(io.teaql.core.QueryOperation.Kind.FACET,
+                            facetRequest.getFacetName(), facetRequest.getRelationName()) : facetRequest.getOperation();
+                var facetScope = io.teaql.core.QueryRequestScope.capture(request).deriveOperation(request.getTypeName(), operation);
                 io.teaql.core.internal.TempRequest tr =
-                        SqlDiagnosticRequest.forDerived(request, intent, request);
+                        SqlDiagnosticRequest.forOwnedScope(request, intent, request,
+                            facetScope.deriveHelper(request.getTypeName(), "aggregate " + facetRequest.getRelationName()), null);
                 tr.setAggregations(new io.teaql.core.Aggregations());
                 tr.groupBy(facetRequest.getRelationName());
-                tr.count("count");
+                for (String alias : countAliases) tr.count(alias);
                 
                 Map<String, Object> facetParams = new io.teaql.core.sql.SqlParameters();
                 java.util.List<String> facetTables = compiler.collectAggregationTables(this.sqlMetadata, this, userContext, tr);
                 String facetSql = compiler.buildAggregationSQL(this.sqlMetadata, this, userContext, tr, facetParams, facetTables);
                 if (!io.teaql.core.utils.ObjectUtil.isEmpty(facetSql)) {
                     var facetIntent = intent == null ? null : intent.copy();
-                    PositionalSQL psqlFacet = withQueryIntent(toPositional(facetSql, facetParams), facetIntent, request);
+                    PositionalSQL psqlFacet = withQueryIntent(toPositional(facetSql, facetParams), facetIntent, tr);
                     List<Map<String, Object>> facetRows = database.query(userContext, psqlFacet.sql, psqlFacet.args, psqlFacet.logBindings);
                     
                     SmartList<io.teaql.core.Entity> facetEntities = new SmartList<>();
-                    io.teaql.core.SearchRequest<?> relationReq = facetRequest.getRequest();
                     if (relationReq != null) {
                         String relationType = relationReq.getTypeName();
                         PortableSQLRepository relationRepo = resolver.resolve(relationType);
                         if (relationRepo != null) {
                             List<Object> relIds = new ArrayList<>();
-                            Map<Long, Object> idToCount = new HashMap<>();
+                            Map<Long, Map<String, Object>> idToCounts = new HashMap<>();
                             for (Map<String, Object> facetRow : facetRows) {
                                 Object relId = findFacetRelationValue(
                                         facetRow, facetRequest.getRelationName());
-                                Object countVal = findColumnValue(facetRow, "count");
                                 if (relId != null) {
                                     relIds.add(relId);
-                                    idToCount.put(io.teaql.core.utils.Convert.convert(Long.class, relId), countVal);
+                                    Map<String, Object> values = new HashMap<>();
+                                    for (String alias : countAliases) values.put(alias, findColumnValue(facetRow, alias));
+                                    idToCounts.put(io.teaql.core.utils.Convert.convert(Long.class, relId), values);
                                 }
                             }
                             io.teaql.core.internal.TempRequest fetchRelReq =
-                                    SqlDiagnosticRequest.forRelation(
-                                            relationReq, facetIntent, request, facetRequest.getRelationName());
+                                    SqlDiagnosticRequest.forOwnedScope(relationReq, facetIntent, request,
+                                        facetScope.deriveChild(relationType, relationReq.requestScope() == null
+                                            ? relationReq.comment() : relationReq.requestScope().comment()), facetRequest.getRelationName());
+                            // The facet's count expressions describe source membership,
+                            // not an aggregate-only query over the target entity table.
+                            fetchRelReq.setAggregations(new io.teaql.core.Aggregations());
+                            for (Object entry : fetchRelReq.getDynamicAggregateAttributes()) {
+                                io.teaql.core.SimpleAggregation aggregate = (io.teaql.core.SimpleAggregation) entry;
+                                io.teaql.core.SearchRequest<?> child = aggregate.getAggregateRequest();
+                                if (child.getTypeName().equals(request.getTypeName())) {
+                                    // Keep the complete policy/search membership, independent
+                                    // of page offset/size and limited materialized parent rows.
+                                    var membership = new io.teaql.core.internal.TempRequest(request);
+                                    membership.setSlice(null);
+                                    membership.setAggregations(new io.teaql.core.Aggregations());
+                                    membership.getProjections().clear();
+                                    membership.selectProperty(BaseEntity.ID_PROPERTY);
+                                    membership.setOrderBy(new io.teaql.core.OrderBys());
+                                    membership.enhanceRelations().clear();
+                                    membership.enhanceChildren().clear();
+                                    membership.getFacetRequests().clear();
+                                    membership.getDynamicAggregateAttributes().clear();
+                                    child.appendSearchCriteria(new io.teaql.core.SubQuerySearchCriteria(
+                                            BaseEntity.ID_PROPERTY, membership, BaseEntity.ID_PROPERTY));
+                                }
+                            }
                             if (facetRequest.isMergeCriteria()) {
                                 // The count query already applied the source's
                                 // filters. Its FK membership is the only valid
@@ -853,17 +911,16 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                                 fetchRelReq.appendSearchCriteria(fetchRelReq.createBasicSearchCriteria(
                                         BaseEntity.ID_PROPERTY, io.teaql.core.criteria.Operator.IN, relIds));
                             }
-                            SmartList<?> loadedRels = relationRepo.loadInternal(userContext, fetchRelReq, facetIntent);
-                            java.util.List<String> countAliases = relationReq.getAggregations().getAggregates()
-                                    .stream().map(io.teaql.core.SimpleNamedExpression::name).toList();
-                            if (countAliases.isEmpty()) countAliases = java.util.List.of("count");
+                            // Use the normal nested execution boundary so selected relations
+                            // and typed reverse aggregates are hydrated, not silently dropped.
+                            SmartList<?> loadedRels = userContext.internalExecuteForList(fetchRelReq);
                             for (Object obj : loadedRels) {
                                 io.teaql.core.Entity rel = (io.teaql.core.Entity) obj;
-                                Object cnt = idToCount.get(rel.getId());
-                                int countInt = toIntOrZero(cnt);
+                                Map<String, Object> counts = idToCounts.get(rel.getId());
                                 if (rel instanceof io.teaql.core.BaseEntity) {
                                     for (String alias : countAliases) {
-                                        ((io.teaql.core.BaseEntity) rel).addDynamicProperty(alias, countInt);
+                                        ((io.teaql.core.BaseEntity) rel).addDynamicProperty(alias,
+                                                toIntOrZero(counts == null ? null : counts.get(alias)));
                                     }
                                 }
                                 facetEntities.add(rel);

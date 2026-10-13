@@ -17,6 +17,7 @@ public final class ExecutionMetadata {
     private List<Object> parameters = List.of();
     private String debugQuery;
     private List<TraceNode> traceChain;
+    private List<TraceNode> requestTraceChain = List.of();
     private List<TraceNode> mutationLineage = List.of();
     private String statementOperation;
     private String comment;
@@ -29,6 +30,12 @@ public final class ExecutionMetadata {
     private String sqlOmissionReason;
     private String executionOutcome;
     private String batchOutcome;
+    private transient SqlExecutionCorrelation sqlExecutionCorrelation;
+    @FrameworkInternal("Statement-owned telemetry identity")
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public SqlExecutionCorrelation getSqlExecutionCorrelation() { return sqlExecutionCorrelation; }
+    @FrameworkInternal("SQL provider observation only")
+    public void setSqlExecutionCorrelation(SqlExecutionCorrelation correlation) { sqlExecutionCorrelation = correlation; }
     @com.fasterxml.jackson.annotation.JsonIgnore
     private transient SqlIntentRedactions intentRedactions;
 
@@ -99,8 +106,18 @@ public final class ExecutionMetadata {
     public String getDebugQuery() { return debugQuery; }
     public void setDebugQuery(String debugQuery) { this.debugQuery = debugQuery; }
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public List<TraceNode> getTraceChain() { return traceChain; }
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public void setTraceChain(List<TraceNode> traceChain) { this.traceChain = traceChain == null ? List.of() : List.copyOf(traceChain); }
+
+    /** Business ancestry. Legacy getTraceChain is the physical path, not this chain. */
+    @com.fasterxml.jackson.annotation.JsonProperty("traceChain")
+    public List<TraceNode> getRequestTraceChain() { return requestTraceChain; }
+    @com.fasterxml.jackson.annotation.JsonProperty("traceChain")
+    public void setRequestTraceChain(List<TraceNode> trace) { requestTraceChain = trace == null ? List.of() : List.copyOf(trace); }
+    @com.fasterxml.jackson.annotation.JsonProperty("tracePath")
+    public List<TraceNode> getTracePath() { return traceChain == null ? List.of() : traceChain; }
 
     public List<TraceNode> getMutationLineage() { return mutationLineage; }
     public void setMutationLineage(List<TraceNode> lineage) {

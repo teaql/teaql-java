@@ -17,6 +17,7 @@
     <dependency><groupId>io.teaql</groupId><artifactId>teaql-runtime</artifactId></dependency>
     <dependency><groupId>io.teaql</groupId><artifactId>teaql-sqlite</artifactId></dependency>
     <dependency><groupId>io.teaql</groupId><artifactId>teaql-provider-jdbc</artifactId></dependency>
+    <dependency><groupId>io.teaql</groupId><artifactId>teaql-opentelemetry</artifactId><version>${project.version}</version><scope>test</scope></dependency>
     <dependency><groupId>junit</groupId><artifactId>junit</artifactId><scope>test</scope></dependency>
   </dependencies>
   <build><plugins><plugin>

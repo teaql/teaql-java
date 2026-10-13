@@ -625,8 +625,8 @@ public class TeaQLRuntimeTest {
             { internalComment("list active"); internalPurpose("test exact page total"); }
             @Override public String getTypeName() { return "Dummy"; }
         };
-        SmartList<DummyEntity> page = runtime.executeForPage(
-                new DefaultUserContext(runtime), request, 2, 2);
+        request.offset(2, 2).count();
+        SmartList<DummyEntity> page = runtime.executeForList(new DefaultUserContext(runtime), request);
         Assert.assertEquals(List.of(3L, 4L), page.toList(Entity::getId));
         Assert.assertEquals(5, page.getTotalCount());
         Assert.assertEquals(2, executor.requests.size());
@@ -665,8 +665,10 @@ public class TeaQLRuntimeTest {
         }
 
         Assert.assertEquals(1, policyCalls.get());
-        Assert.assertSame(request, executor.request);
+        Assert.assertNotSame(request, executor.request);
         Assert.assertNotNull(executor.request.getSearchCriteria());
+        Assert.assertSame("typed policy enrichment is retained in the frozen execution", request.getSearchCriteria(), executor.request.getSearchCriteria());
+        Assert.assertEquals(request.comment(), executor.request.inheritedQueryIntent().comment());
     }
 
     @Test
@@ -702,7 +704,8 @@ public class TeaQLRuntimeTest {
             context.popTrace();
         }
         Assert.assertEquals(1, policyCalls.get());
-        Assert.assertSame(scoped, executor.request);
+        Assert.assertNotSame(scoped, executor.request);
+        Assert.assertEquals(scoped.inheritedQueryIntent(), executor.request.inheritedQueryIntent());
     }
 
     @Test

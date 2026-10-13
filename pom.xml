@@ -374,6 +374,8 @@
                 <module>examples/school-management</module>
                 <module>examples/trace-chain/lib</module>
                 <module>examples/trace-chain</module>
+                <module>examples/standard-order/generated/lib</module>
+                <module>examples/standard-order</module>
             </modules>
         </profile>
     </profiles>

@@ -1358,8 +1358,9 @@ public class PortableSQLDatabaseTest {
         TaskRequest jumpedRequest = new TaskRequest().filterByStatus("ID-SET-PAGE");
         jumpedRequest.addOrderByDescending("id");
         jumpedRequest.optimizePaginationWithIdSet("id-set-page", 60, 100);
+        jumpedRequest.offset(2, 2).count();
         SmartList<Task> jumped = jumpedRequest.comment("jump to retained ID page")
-                .purpose("verify ID set pagination").executeForPage(context, 2, 2);
+                .purpose("verify ID set pagination").executeForList(context);
 
         assertEquals(2, jumped.size());
         assertEquals(5, jumped.getTotalCount());
@@ -1373,13 +1374,28 @@ public class PortableSQLDatabaseTest {
         TaskRequest firstRequest = new TaskRequest().filterByStatus("ID-SET-PAGE");
         firstRequest.addOrderByDescending("id");
         firstRequest.optimizePaginationWithIdSet("id-set-page", 60, 100);
+        firstRequest.offset(0, 2).count();
         SmartList<Task> first = firstRequest.comment("load retained first page")
-                .purpose("verify ID set cache hit").executeForPage(context, 0, 2);
+                .purpose("verify ID set cache hit").executeForList(context);
         assertEquals(5, first.getTotalCount());
         assertEquals("ID_SET_HIT", context.getAttribute(PortableSQLRepository.ID_SET_PLAN));
         assertEquals(1, sqliteDb.queryTrace().size());
         assertTrue(first.get(0).getId() > first.get(1).getId());
         assertTrue(first.get(1).getId() > jumped.get(0).getId());
+
+        sqliteDb.clearQueryTrace();
+        TaskRequest beyondRequest = new TaskRequest().filterByStatus("ID-SET-PAGE");
+        beyondRequest.addOrderByDescending("id");
+        beyondRequest.optimizePaginationWithIdSet("id-set-page", 60, 100);
+        beyondRequest.offset(10, 2).count("retainedTotal");
+        SmartList<Task> beyond = beyondRequest.comment("load empty retained page")
+                .purpose("preserve exact total after the last page").executeForList(context);
+        assertTrue(beyond.isEmpty());
+        assertEquals(5, beyond.getTotalCount());
+        assertEquals(5L, ((Number) beyond.aggregationNumberProperties().get("retainedTotal")).longValue());
+        assertTrue(sqliteDb.queryTrace().isEmpty());
+        assertEquals(5, first.getTotalCount());
+        assertEquals(5, jumped.getTotalCount());
     }
 
     @Test
@@ -1404,8 +1420,9 @@ public class PortableSQLDatabaseTest {
         TaskRequest overflow = new TaskRequest().filterByStatus("ID-SET-OVERFLOW");
         overflow.addOrderByDescending("id");
         overflow.optimizePaginationWithIdSet("overflow", 60, 3);
+        overflow.offset(0, 2).count();
         SmartList<Task> overflowPage = overflow.comment("overflow fallback")
-                .purpose("preserve ordinary page semantics").executeForPage(context, 0, 2);
+                .purpose("preserve ordinary page semantics").executeForList(context);
         assertEquals(2, overflowPage.size());
         assertEquals(5, overflowPage.getTotalCount());
         assertEquals("ID_SET_FALLBACK_LIMIT_EXCEEDED",

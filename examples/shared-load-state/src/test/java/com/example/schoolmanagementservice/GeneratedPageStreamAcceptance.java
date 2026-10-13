@@ -9,11 +9,13 @@ import static org.junit.jupiter.api.Assertions.*;
 final class GeneratedPageStreamAcceptance {
     static void verify(UserContext context, String first, String second) {
         var left = Q.schoolsWithMinimalFields().withNameIn(first,second).selectName().orderByIdAscending()
+                .offset(0,1).count()
                 .comment("what: load the first matching School page").purpose("why: qualify sparse page hydration")
-                .executeForPage(context,0,1);
+                .executeForList(context);
         var right = Q.schoolsWithMinimalFields().withNameIn(first,second).selectName().orderByIdAscending()
+                .offset(1,1).count()
                 .comment("what: load the second matching School page").purpose("why: qualify adjacent pages and filtered total")
-                .executeForPage(context,1,1);
+                .executeForList(context);
         assertEquals(2,left.getTotalCount());assertEquals(2,right.getTotalCount());
         assertEquals(1,left.size());assertEquals(1,right.size());
         assertNotEquals(left.first().getId(),right.first().getId());

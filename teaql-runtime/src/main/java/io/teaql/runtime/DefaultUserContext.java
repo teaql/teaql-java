@@ -76,12 +76,6 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
     }
 
     @Override
-    public <T extends Entity> SmartList<T> executeForPage(
-            ExecutableRequest<T> request, int offset, int limit) {
-        return runtime.executeForPage(this, request.request(), offset, limit);
-    }
-
-    @Override
     public <T extends Entity> Stream<T> executeForStream(ExecutableRequest<T> request) {
         return runtime.executeForStream(this, request.request());
     }
@@ -310,6 +304,11 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
         if (runtime != null) {
             runtime.recordExecutionMetadata(this, metadata);
         }
+    }
+
+    @Override
+    public io.teaql.core.SqlStatementObservation startSqlStatement(String backend, io.teaql.core.DataServiceOperation operation) {
+        return runtime == null ? io.teaql.core.SqlStatementObservation.NOOP : runtime.startSqlStatement(backend, operation);
     }
 
     private static String sqlOperation(io.teaql.core.ExecutionMetadata metadata) {

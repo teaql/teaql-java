@@ -7,6 +7,35 @@ import static org.junit.Assert.*;
 
 /** #202: derived request factories inherit their explicit parent, never ambient Context. */
 public class SqlDiagnosticRequestTest {
+    @Test public void nativeOperationAndNestedCommentAreIndependentOfThePhysicalRoute() {
+        var parent = new Request("School", "load schools", "render school list");
+        var child = new Request("SchoolType", "load visible types", null);
+        parent.enhanceRelation("schoolType", child, QueryOperation.nativeMethod(
+                QueryOperation.Kind.RELATION_SELECT, "selectSchoolTypeWith", null, "schoolType"));
+        var execution = SqlDiagnosticRequest.forExecution(parent, null);
+        var derived = SqlDiagnosticRequest.forRelation(child, null, execution, "schoolType");
+        assertSame(execution.requestScope(), derived.requestScope().parentRequest().parentRequest());
+        assertEquals(List.of("render school list", "load schools", "selectSchoolTypeWith(...)", "load visible types"),
+                derived.requestScope().traceChain().stream().map(TraceNode::getComment).toList());
+        assertEquals(1, derived.sqlTraceSource().stream().filter(n -> n.getKind() == TraceKind.RELATION).count());
+        assertEquals("load schools", derived.comment());
+        var metadata = new ExecutionMetadata(); metadata.setBackend("sqlite");
+        var trace = SqlExecutionTrace.query(derived); trace.applyTo(metadata); trace.recordStatement(metadata);
+        assertEquals(derived.requestScope().traceChain(), metadata.getRequestTraceChain());
+        assertEquals("load schools", metadata.getComment());
+        assertEquals("render school list", metadata.getPurpose());
+    }
+
+    @Test public void relationDefaultIsLocalAndExplicitBlankFailsBeforeSql() {
+        var parent = new Request("School", "load schools", "render school list");
+        var child = new Request("SchoolType", null, null);
+        assertEquals("load SchoolType", SqlDiagnosticRequest.forRelation(child, null, parent, "schoolType")
+                .requestScope().comment());
+        assertNull(child.comment()); assertNull(child.purpose());
+        assertThrows(RequestIntentException.class, () -> SqlDiagnosticRequest.forRelation(
+                new Request("SchoolType", " \t ", null), null, parent, "schoolType"));
+    }
+
     private static class Request extends BaseRequest<BaseEntity> {
         private final String type;
         Request(String type, String comment, String purpose) {

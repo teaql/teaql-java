@@ -1,6 +1,7 @@
 module io.teaql.runtime {
     requires io.teaql.core;
     requires io.teaql.utils;
+    requires com.fasterxml.jackson.databind;
 
     exports io.teaql.runtime;
     exports io.teaql.runtime.memory;
@@ -9,4 +10,5 @@ module io.teaql.runtime {
     exports io.teaql.runtime.reference;
 
     provides io.teaql.core.spi.ContextAssembler with io.teaql.runtime.boot.CoreAssembler;
+    uses io.teaql.runtime.StandardTelemetryFactory;
 }

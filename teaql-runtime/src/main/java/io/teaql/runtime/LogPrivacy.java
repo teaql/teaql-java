@@ -116,6 +116,7 @@ public final class LogPrivacy {
         safe.setBackendRequestId(scrub(source.getBackendRequestId(), secrets));
         safe.setComment(scrub(source.getComment(), secrets)); safe.setPurpose(scrub(source.getPurpose(), secrets));
         safe.setAuditReason(scrub(source.getAuditReason(), secrets)); safe.setTraceChain(trace(source.getTraceChain(), secrets));
+        safe.setRequestTraceChain(trace(source.getRequestTraceChain(), secrets));
         safe.setMutationLineage(trace(source.getMutationLineage(), secrets));
         safe.setStatementOperation(source.getStatementOperation());
         if (orphanedDebug) {
@@ -127,6 +128,8 @@ public final class LogPrivacy {
             safe.setTraceChain(source.getTraceChain() == null ? List.of() : source.getTraceChain().stream()
                     .map(node -> new TraceNode(node.getKind(), hideIntent(node.getName()), node.getEntityId(), hideIntent(node.getComment()))).toList());
             safe.setMutationLineage(source.getMutationLineage().stream()
+                    .map(node -> new TraceNode(node.getKind(), hideIntent(node.getName()), node.getEntityId(), hideIntent(node.getComment()))).toList());
+            safe.setRequestTraceChain(source.getRequestTraceChain().stream()
                     .map(node -> new TraceNode(node.getKind(), hideIntent(node.getName()), node.getEntityId(), hideIntent(node.getComment()))).toList());
         }
         String sql = source.getParameterizedQuery();

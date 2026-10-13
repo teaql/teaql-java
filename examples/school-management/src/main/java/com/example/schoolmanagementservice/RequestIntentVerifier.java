@@ -41,7 +41,7 @@ final class RequestIntentVerifier {
       required("REQUEST_COMMENT_REQUIRED", () -> runtime.executeForList(context, Q.schools()));
       required("REQUEST_COMMENT_REQUIRED", () -> runtime.executeForStream(context, Q.schools()));
       required("REQUEST_COMMENT_REQUIRED", () -> runtime.aggregation(context, Q.schools()));
-      required("REQUEST_COMMENT_REQUIRED", () -> runtime.executeForPage(context, Q.schools(), 0, 10));
+      required("REQUEST_COMMENT_REQUIRED", () -> runtime.executeForList(context, Q.schools().offset(0, 10).count()));
       required("QUERY_PURPOSE_REQUIRED", () -> runtime.executeForList(context, Q.schools().comment("load schools")));
       require(queryPolicyCalls.get() == 0 && statements.isEmpty(), "Invalid query reached policy or SQL");
       for (String blank : new String[]{"", " \t\r\n", "\u2003", "\u00a0"}) {

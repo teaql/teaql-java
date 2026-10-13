@@ -25,14 +25,336 @@ import static org.junit.Assert.*;
 public class DerivedQueryTraceSqliteTest {
     private static final String PRIVATE_NAME = "PRIVATE-DOCUMENT-NAME";
 
+    private static List<String> businessComments(ExecutionMetadata entry) {
+        return entry.getRequestTraceChain().stream().filter(node -> node.getKind() == TraceKind.COMMENT)
+                .map(TraceNode::getComment).toList();
+    }
+
+    @Test public void selectedRelationSqlCarriesNativeOperationAndExplicitOrDefaultComment() throws Exception {
+        for (boolean logging : List.of(false, true)) {
+        for (String childComment : new String[]{null, "load visible lines"}) {
+            var fixture = new Fixture(logging);
+            fixture.receivedChains.clear();
+            var child = fixture.lines().intent(childComment, null);
+            var root = fixture.documents().where("id", Operator.EQUAL, 100L)
+                    .intent("load documents", "render document details");
+            root.enhanceRelation("lines", child, QueryOperation.nativeMethod(
+                    QueryOperation.Kind.RELATION_SELECT, "selectLinesWith", null, "lines"));
+            var rows = fixture.context.getRuntime().executeForList(fixture.context, root);
+            assertEquals(1, rows.size());
+            assertEquals(2, ((SmartList<?>) rows.get(0).getProperty("lines")).size());
+            assertEquals(2, fixture.receivedChains.size());
+            assertEquals(List.of("load documents", "selectLinesWith(...)", childComment == null ? "load TraceLine" : childComment),
+                    fixture.receivedChains.get(1).stream().filter(node -> node.getKind() == TraceKind.COMMENT)
+                            .map(TraceNode::getComment).toList());
+            assertEquals(logging ? 2 : 0, fixture.sql.size());
+            if (logging) {
+            assertEquals(List.of("load documents"), businessComments(fixture.sql.get(0)));
+            assertEquals(List.of("load documents", "selectLinesWith(...)", childComment == null ? "load TraceLine" : childComment),
+                    businessComments(fixture.sql.get(1)));
+            assertEquals("load documents", fixture.sql.get(1).getComment());
+            assertEquals("render document details", fixture.sql.get(1).getPurpose());
+            }
+            assertEquals(childComment, child.comment()); assertNull(child.requestScope());
+            assertTrue(fixture.context.getTraceChain().isEmpty());
+            System.out.println("RTC_COM_02_PASS logging=" + logging + " explicit=" + (childComment != null));
+        }
+        }
+    }
+
+    @Test public void explicitlyBlankRelationCommentRejectsBeforeChildProviderWithLoggingOnAndOff() throws Exception {
+        for (boolean logging : List.of(false, true)) {
+            for (String blank : List.of("", " \t", "\u0085")) {
+                var fixture = new Fixture(logging);
+                fixture.receivedChains.clear();
+                var child = fixture.lines().intent(blank, null);
+                var root = fixture.documents().where("id", Operator.EQUAL, 100L)
+                        .intent("load documents", "validate nested input");
+                root.enhanceRelation("lines", child, QueryOperation.nativeMethod(
+                        QueryOperation.Kind.RELATION_SELECT, "selectLinesWith", null, "lines"));
+                var error = assertThrows(RequestIntentException.class,
+                        () -> fixture.context.getRuntime().executeForList(fixture.context, root));
+                assertEquals("comment", error.getField());
+                assertTrue("Only a valid root may have entered the provider", fixture.receivedChains.size() <= 1);
+                assertTrue(fixture.receivedChains.stream().allMatch(chain ->
+                        chain.stream().filter(node -> node.getKind() == TraceKind.COMMENT).count() == 1));
+                assertEquals(blank, child.comment());
+                System.out.println("RTC_COM_04_RELATION_PASS logging=" + logging + " invalid_child_provider=0");
+            }
+        }
+    }
+
+    @Test public void explicitlyBlankFacetValueCommentRejectsBeforeValueProviderWithLoggingOnAndOff() throws Exception {
+        for (boolean logging : List.of(false, true)) {
+            for (String blank : List.of("", " \t", "\u0085")) {
+                var fixture = new Fixture(logging);
+                fixture.receivedChains.clear();
+                var child = fixture.documents().intent(blank, null);
+                var root = fixture.lines().intent("load lines", "validate facet input");
+                root.addFacet("documents", "document", child, true, QueryOperation.nativeMethod(
+                        QueryOperation.Kind.FACET, "facetByDocumentAs", "documents", "document"));
+                var error = assertThrows(RequestIntentException.class,
+                        () -> fixture.context.getRuntime().executeForList(fixture.context, root));
+                assertEquals("comment", error.getField());
+                assertTrue(fixture.receivedChains.stream().noneMatch(chain ->
+                        chain.get(chain.size() - 1).getName().equals("TraceDocument")));
+                assertEquals(blank, child.comment());
+                System.out.println("RTC_COM_04_FACET_PASS logging=" + logging + " invalid_value_provider=0");
+            }
+        }
+    }
+
+    @Test public void namedPageCountKeepsAliasAndDoesNotMutateCallerOrInventRelation() throws Exception {
+        for (boolean logging : List.of(true, false)) {
+            var fixture = new Fixture(logging);
+            String alias = "totalDocuments'\\tail";
+            var root = fixture.documents().intent("load documents", "render document page");
+            root.count(alias);
+            root.setPageCountOperation(QueryOperation.nativeMethod(QueryOperation.Kind.NAMED_COUNT, "countAs", alias, null));
+            root.offset(1, 1);
+            int originalSize = root.getSlice().getSize();
+            var rows = fixture.context.getRuntime().executeForList(fixture.context, root);
+            assertEquals(1, rows.size()); assertEquals(2, rows.getTotalCount());
+            assertEquals(2, ((Number) rows.aggregationNumberProperties().get(alias)).intValue());
+            assertEquals(originalSize, root.getSlice().getSize());
+            assertEquals(1, root.getAggregations().getAggregates().size());
+            var raw = fixture.returnedQueries.get(fixture.returnedQueries.size() - 1).statements();
+            assertEquals(1, raw.size());
+            assertEquals(List.of("load documents", "countAs(\"totalDocuments'\\\\tail\")"), businessComments(raw.get(0)));
+            assertFalse(raw.get(0).getTracePath().stream().anyMatch(node -> node.getKind() == TraceKind.RELATION));
+            assertEquals(logging ? 2 : 0, fixture.sql.size());
+            fixture.sql.clear(); fixture.returnedQueries.clear();
+            var unnamed = fixture.documents().intent("load documents", "render document page");
+            unnamed.offset(0, 1).count();
+            var defaultRows = fixture.context.getRuntime().executeForList(fixture.context, unnamed);
+            assertEquals(2, defaultRows.getTotalCount());
+            var defaultCount = fixture.returnedQueries.get(fixture.returnedQueries.size() - 1).statements().get(0);
+            assertEquals(List.of("load documents", "count()"), businessComments(defaultCount));
+            assertTrue(defaultCount.getParameterizedQuery().contains(TeaQLConstants.ROOT_LIST_PARAMETER_NAME));
+            assertFalse(businessComments(defaultCount).toString().contains(TeaQLConstants.ROOT_LIST_PARAMETER_NAME));
+            assertFalse(defaultCount.getTracePath().stream().anyMatch(node -> node.getKind() == TraceKind.RELATION));
+            assertEquals(logging ? 2 : 0, fixture.sql.size());
+            System.out.println("RTC_COM_05_PASS logging=" + logging + " named=true unnamed=true");
+        }
+    }
+
+    @Test public void facetAggregateAndValueSqlShareNativeParentWithoutFakeOperationStatements() throws Exception {
+        var fixture = new Fixture(true);
+        var values = fixture.documents().intent("load document facets", null);
+        var root = fixture.lines().where("state", Operator.EQUAL, "OPEN")
+                .intent("load open lines", "render line facets");
+        root.addFacet("documents", "document", values, true,
+                QueryOperation.nativeMethod(QueryOperation.Kind.FACET, "facetByDocumentAs", "documents", "document"));
+        var rows = fixture.context.getRuntime().executeForList(fixture.context, root);
+        assertEquals(2, rows.size()); assertEquals(2, rows.getFacet("documents").size());
+        assertEquals(3, fixture.sql.size());
+        assertEquals(List.of("load open lines", "facetByDocumentAs(\"documents\")", "aggregate document"), businessComments(fixture.sql.get(1)));
+        assertEquals(List.of("load open lines", "facetByDocumentAs(\"documents\")", "load document facets"), businessComments(fixture.sql.get(2)));
+        assertTrue(fixture.sql.stream().allMatch(entry -> "render line facets".equals(entry.getPurpose())));
+        assertNull(values.purpose()); assertNull(values.requestScope());
+    }
+
+    @Test public void nestedSiblingFacetsRetainOperationParentsAndIndependentComments() throws Exception {
+        for (boolean logging : List.of(false, true)) {
+            var fixture = new Fixture(logging, JdbcSqlExecutor::new, true);
+            fixture.document.updateProperty("peer", fixture.document);
+            fixture.document.auditAs("seed nested facet relation").save(fixture.context);
+            var outer = fixture.lines().where("document", Operator.EQUAL, fixture.document)
+                    .intent("load nested facets", "render facet branches");
+            for (String alias : List.of("left", "right")) {
+                var nested = fixture.documents().intent("load " + alias + " peers", null);
+                nested.count("documentCount");
+                var values = fixture.documents().intent("load " + alias + " documents", null);
+                values.count("lineCount");
+                values.addFacet("peers", "peer", nested, false,
+                        QueryOperation.nativeMethod(QueryOperation.Kind.FACET, "facetByPeerAs", "peers", "peer"));
+                outer.addFacet(alias, "document", values, false,
+                        QueryOperation.nativeMethod(QueryOperation.Kind.FACET, "facetByDocumentAs", alias, "document"));
+            }
+            fixture.sql.clear(); fixture.returnedQueries.clear();
+            var result = fixture.context.getRuntime().executeForList(fixture.context, outer);
+            assertEquals(2, result.size());
+            // The completed root result already carries nested physical
+            // statements. Flattening every intermediate result double-counts.
+            var facts = fixture.returnedQueries.get(fixture.returnedQueries.size() - 1).statements();
+            for (String alias : List.of("left", "right")) {
+                assertEquals(1, result.getFacet(alias).size());
+                assertEquals(1, result.getFacet(alias).getFacet("peers").size());
+                var prefix = List.of("load nested facets", "facetByDocumentAs(\"" + alias + "\")");
+                var statements = facts.stream()
+                        .filter(entry -> businessComments(entry).size() > 1 && businessComments(entry).subList(0,2).equals(prefix)).toList();
+                assertEquals(4, statements.size());
+                var chains = statements.stream().map(DerivedQueryTraceSqliteTest::businessComments).toList();
+                assertTrue(chains.contains(List.of(prefix.get(0), prefix.get(1), "aggregate document")));
+                assertTrue(chains.contains(List.of(prefix.get(0), prefix.get(1), "load " + alias + " documents")));
+                for (String local : List.of("aggregate peer", "load " + alias + " peers"))
+                    assertTrue(chains.contains(List.of(prefix.get(0), prefix.get(1), "load " + alias + " documents", "facetByPeerAs(\"peers\")", local)));
+                assertTrue(statements.stream().allMatch(entry -> entry.getPurpose().equals("render facet branches")));
+            }
+            assertEquals(logging ? 9 : 0, fixture.sql.size());
+            assertEquals(9, facts.size());
+            System.out.println("RTC_COM_06_PASS logging=" + logging + " nested=true siblings=true");
+        }
+    }
+
+    @Test public void prefixesAndFacetAliasEscapingPreserveBindingsUnderPrivacyProjection() throws Exception {
+        for (boolean logging : List.of(false, true)) {
+            var fixture = new Fixture(logging);
+            for (boolean privateInput : List.of(false, true)) {
+                String alias = "choices\"\\\n" + (privateInput ? PRIVATE_NAME : "");
+                String nativeComment = "facetByDocumentAs(\"choices\\\"\\\\\\n" + (privateInput ? PRIVATE_NAME : "") + "\")";
+                String comment = privateInput ? "what: load " + PRIVATE_NAME : "what: load lines";
+                String purpose = privateInput ? "why: inspect " + PRIVATE_NAME : "why: inspect lines";
+                var child = fixture.documents().intent(privateInput ? "load " + PRIVATE_NAME + " facets" : "load document facets", null);
+                child.count("lineCount");
+                if (privateInput) child.where("name", Operator.EQUAL, PRIVATE_NAME);
+                var query = fixture.lines().intent(comment, purpose); query.setSize(10);
+                var operation = QueryOperation.nativeMethod(QueryOperation.Kind.FACET, "facetByDocumentAs", alias, "document");
+                assertEquals(nativeComment, operation.comment());
+                query.addFacet(alias, "document", child, false, operation);
+                fixture.sql.clear(); fixture.returnedQueries.clear();
+                var rows = fixture.context.getRuntime().executeForList(fixture.context, query);
+                assertEquals(3, rows.size());
+                assertEquals(privateInput ? 1 : 2, rows.getFacet(alias).size());
+                if (privateInput) assertEquals(100L, ((Entity) rows.getFacet(alias).get(0)).getId().longValue());
+                assertEquals(comment, query.comment()); assertEquals(purpose, query.purpose());
+                assertEquals(privateInput ? "load " + PRIVATE_NAME + " facets" : "load document facets", child.comment());
+                var facts = fixture.returnedQueries.get(fixture.returnedQueries.size() - 1).statements();
+                assertEquals(3, facts.size()); assertEquals(logging ? 3 : 0, fixture.sql.size());
+                assertEquals(List.of(comment), businessComments(facts.get(0)));
+                // Provider metadata is internal and retains intent. The actual
+                // diagnostic sink (or the same explicit projection when off)
+                // is the privacy boundary, not mutation of the caller's tree.
+                var safeFacts = logging ? fixture.sql : facts.stream().map(entry -> LogPrivacy.sql(entry, false)).toList();
+                String safeComment = privateInput ? "what: load [REDACTED]" : comment;
+                String safePurpose = privateInput ? "why: inspect [REDACTED]" : purpose;
+                assertEquals(List.of(safeComment), businessComments(safeFacts.get(0)));
+                for (String local : List.of("aggregate document", privateInput ? "load [REDACTED] facets" : "load document facets"))
+                    assertTrue(safeFacts.stream().map(DerivedQueryTraceSqliteTest::businessComments).anyMatch(chain -> chain.equals(
+                            List.of(safeComment, nativeComment.replace(PRIVATE_NAME, "[REDACTED]"), local))));
+                assertTrue(safeFacts.stream().allMatch(entry -> safePurpose.equals(entry.getPurpose())));
+                if (privateInput) assertTrue(safeFacts.stream().allMatch(entry -> !entry.getRequestTraceChain().toString().contains(PRIVATE_NAME)));
+            }
+            System.out.println("RTC_COM_09_12_PASS logging=" + logging + " plain=true private=true escaped=true bindings=true");
+        }
+    }
+
+    @Test public void compoundAggregatesEmitOnePhysicalStatementWithLoggingOnAndOff() throws Exception {
+        for (boolean logging : List.of(false, true)) {
+            var fixture = new Fixture(logging);
+            var query = fixture.lines().intent("calculate line totals", "render totals");
+            query.count("lineCount"); query.sum("documentTotal", "documentNumber");
+            var result = (DefaultQueryResult) fixture.provider.query(fixture.context, new DefaultQueryRequest(query));
+            var values = result.getAggregationResult().toList().get(0);
+            assertEquals(3L, ((Number) values.get("lineCount")).longValue());
+            assertEquals(400L, ((Number) values.get("documentTotal")).longValue());
+            assertEquals(1, result.statements().size());
+            var entry = result.statements().get(0);
+            assertTrue(entry.getParameterizedQuery().toUpperCase(Locale.ROOT).contains("COUNT("));
+            assertTrue(entry.getParameterizedQuery().toUpperCase(Locale.ROOT).contains("SUM("));
+            assertEquals(List.of("calculate line totals"), businessComments(entry));
+            assertEquals(logging ? 1 : 0, fixture.sql.size());
+            System.out.println("RTC_COM_07_AGGREGATE_PASS logging=" + logging + " expressions=2 statements=1");
+        }
+    }
+
+    @Test public void idSetDiscoveryOwnsHelperAndRetainedPagesDoNotInventCountSql() throws Exception {
+        for (boolean logging : List.of(true, false)) {
+            var fixture = new Fixture(logging);
+            var root = fixture.documents().intent("load documents", "render document page");
+            root.count("cachedTotal");
+            root.setPageCountOperation(QueryOperation.nativeMethod(QueryOperation.Kind.NAMED_COUNT, "countAs", "cachedTotal", null));
+            root.offset(1, 1); root.optimizePaginationWithIdSet("request-tree-documents", 60, 10);
+            fixture.returnedQueries.clear();
+            var rows = fixture.context.getRuntime().executeForList(fixture.context, root);
+            assertEquals(2, rows.getTotalCount());
+            assertEquals(200L, rows.get(0).getId().longValue());
+            var facts = fixture.returnedQueries.stream().flatMap(result -> result.statements().stream()).toList();
+            assertEquals(2, facts.size());
+            assertEquals(List.of("load documents", "collect TraceDocument IDs for pagination"), businessComments(facts.get(0)));
+            assertEquals(List.of("load documents"), businessComments(facts.get(1)));
+            assertEquals(logging ? 2 : 0, fixture.sql.size());
+            root.offset(0, 1); fixture.returnedQueries.clear(); fixture.sql.clear();
+            root.offset(0, 1);
+            rows = fixture.context.getRuntime().executeForList(fixture.context, root);
+            assertEquals(2, rows.getTotalCount());
+            assertEquals(100L, rows.get(0).getId().longValue());
+            facts = fixture.returnedQueries.stream().flatMap(result -> result.statements().stream()).toList();
+            assertEquals(1, facts.size());
+            assertEquals(List.of("load documents"), businessComments(facts.get(0)));
+            assertFalse(facts.get(0).getTracePath().stream().anyMatch(node -> node.getKind() == TraceKind.RELATION));
+            assertFalse(facts.get(0).getParameterizedQuery().toUpperCase(Locale.ROOT).contains("COUNT("));
+            System.out.println("RTC_COM_07_CACHE_PASS logging=" + logging + " accuracy=EXACT hit_statements=1");
+        }
+    }
+
+    @Test public void nativeRelatedCountOwnsOneOperationNodeAndRetainsPrivacy() throws Exception {
+        var fixture = new Fixture(true);
+        var root = fixture.withOpenCount().where("name", Operator.EQUAL, PRIVATE_NAME)
+                .intent("load " + PRIVATE_NAME, "render counts");
+        root.getDynamicAggregateAttributes().get(0).setOperation(QueryOperation.nativeMethod(
+                QueryOperation.Kind.RELATION_COUNT, "countLinesAs", "openLineCount", "lines"));
+        var rows = fixture.context.getRuntime().executeForList(fixture.context, root);
+        assertEquals(1, ((Number) rows.get(0).getDynamicProperty("openLineCount")).intValue());
+        assertEquals(2, fixture.sql.size());
+        assertEquals(List.of("load [REDACTED]", "countLinesAs(\"openLineCount\")"), businessComments(fixture.sql.get(1)));
+        assertFalse(fixture.sql.stream().flatMap(entry -> entry.getRequestTraceChain().stream())
+                .anyMatch(node -> node.getComment().contains(PRIVATE_NAME)));
+    }
+
+    @Test public void facetReverseSumKeepsExplicitCommentAndRejectsBlankBeforeAggregateSql() throws Exception {
+        for (boolean logging : List.of(true, false)) {
+            for (String comment : List.of("sum visible document numbers", "", " \t", "\u0085")) {
+                var fixture = new Fixture(logging);
+                var sum = fixture.lines().intent(comment, null);
+                var values = fixture.documents().intent("load document facets", null);
+                values.addRelationScalarAggregate("documentTotal", sum, "document", "documentNumber", AggrFunction.SUM,
+                        QueryOperation.nativeMethod(QueryOperation.Kind.AGGREGATE,
+                                "sumDocumentNumberOfLinesAs", "documentTotal", "lines"));
+                var root = fixture.lines().where("state", Operator.EQUAL, "OPEN")
+                        .intent("load open lines", "render line facets");
+                root.addFacet("documents", "document", values, true,
+                        QueryOperation.nativeMethod(QueryOperation.Kind.FACET, "facetByDocumentAs", "documents", "document"));
+                fixture.returnedQueries.clear();
+                if (!comment.equals("sum visible document numbers")) {
+                    assertThrows(RequestIntentException.class,
+                            () -> fixture.context.getRuntime().executeForList(fixture.context, root));
+                    assertTrue("invalid aggregate must not reach SQLite", fixture.returnedQueries.stream()
+                            .flatMap(result -> result.statements().stream())
+                            .noneMatch(entry -> businessComments(entry).contains("sumDocumentNumberOfLinesAs(\"documentTotal\")")
+                                    || businessComments(entry).size() > 3));
+                    continue;
+                }
+                var rows = fixture.context.getRuntime().executeForList(fixture.context, root);
+                var facets = rows.getFacet("documents");
+                assertEquals(2, facets.size());
+                for (var value : facets) {
+                    Entity document = (Entity) value;
+                    assertEquals(document.getId().longValue(),
+                            ((Number) document.getDynamicProperty("documentTotal")).longValue());
+                }
+                // Parent results also embed their descendants' statement metadata.
+                // Count each execution object once, never deduplicate by comment text.
+                Set<ExecutionMetadata> statements = Collections.newSetFromMap(new IdentityHashMap<>());
+                fixture.returnedQueries.forEach(result -> statements.addAll(result.statements()));
+                assertEquals(4, statements.size());
+                var expected = List.of("load open lines", "facetByDocumentAs(\"documents\")",
+                        "aggregate document", comment);
+                assertEquals(1, statements.stream().filter(entry -> businessComments(entry).equals(expected)).count());
+                assertEquals(logging ? 4 : 0, fixture.sql.size());
+                assertEquals(comment, sum.comment()); assertNull(sum.requestScope());
+            }
+        }
+    }
+
     public abstract static class Row extends BaseEntity {
         private final Map<String,Object> values = new HashMap<>();
         @Override public Object __internalGet(String field) {
-            return field.equals("name") || field.equals("state") || field.equals("document") || field.equals("lines") || field.equals("documentNumber")
+            return field.equals("name") || field.equals("state") || field.equals("document") || field.equals("lines") || field.equals("documentNumber") || field.equals("peer") || field.equals("peers")
                     ? values.get(field) : super.__internalGet(field);
         }
         @Override public void __internalSet(String field, Object value) {
-            if (field.equals("name") || field.equals("state") || field.equals("document") || field.equals("lines") || field.equals("documentNumber"))
+            if (field.equals("name") || field.equals("state") || field.equals("document") || field.equals("lines") || field.equals("documentNumber") || field.equals("peer") || field.equals("peers"))
                 values.put(field,value);
             else super.__internalSet(field,value);
         }
@@ -60,6 +382,7 @@ public class DerivedQueryTraceSqliteTest {
     private static final class Fixture {
         final List<ExecutionMetadata> sql = new CopyOnWriteArrayList<>();
         final List<DefaultQueryResult> returnedQueries = new CopyOnWriteArrayList<>();
+        final List<List<TraceNode>> receivedChains = new CopyOnWriteArrayList<>();
         final SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
         final DefaultUserContext context;
         final SqliteDataServiceExecutor provider;
@@ -69,6 +392,9 @@ public class DerivedQueryTraceSqliteTest {
             this(logging, JdbcSqlExecutor::new);
         }
         Fixture(boolean logging, Function<SQLiteDataSource, JdbcSqlExecutor> driverFactory) throws Exception {
+            this(logging, driverFactory, false);
+        }
+        Fixture(boolean logging, Function<SQLiteDataSource, JdbcSqlExecutor> driverFactory, boolean nestedPeers) throws Exception {
             var source = new SQLiteDataSource();
             source.setUrl("jdbc:sqlite:" + Files.createTempFile("teaql-derived-trace-", ".db"));
             var documents = descriptor(TraceDocument.class,TraceDocument::new);
@@ -79,9 +405,15 @@ public class DerivedQueryTraceSqliteTest {
             documentNumber.setColumnType("BIGINT");
             var relation = (GenericSQLRelation) lines.addObjectProperty(metadata,"document", "TraceDocument", "lines",TraceDocument.class);
             relation.setColumnType("BIGINT");
+            if (nestedPeers) {
+                var peer = (GenericSQLRelation) documents.addObjectProperty(metadata,
+                        "peer", "TraceDocument", "peers", TraceDocument.class);
+                peer.setColumnType("BIGINT");
+            }
             var driver = driverFactory.apply(source);
             provider = new SqliteDataServiceExecutor("sqlite",driver,source) {
                 @Override public QueryResult query(UserContext caller, QueryRequest request) {
+                    receivedChains.add(request.businessTraceChain());
                     var result = super.query(caller, request);
                     returnedQueries.add((DefaultQueryResult) result);
                     return result;
@@ -213,6 +545,14 @@ public class DerivedQueryTraceSqliteTest {
     }
 
     @Test public void twoLiveSqliteQueriesOnOneContextKeepPhysicalIntentAndRelationsIsolated() throws Exception {
+        verifyTwoLiveSqliteQueries(false);
+    }
+
+    @Test public void sharedTemplateConcurrentParentsKeepSeparateOwners() throws Exception {
+        verifyTwoLiveSqliteQueries(true);
+    }
+
+    private void verifyTwoLiveSqliteQueries(boolean sharedTemplate) throws Exception {
         for (boolean logging : List.of(false, true)) {
             var driver = new AtomicReference<PausedRoots>();
             var fixture = new Fixture(logging, source -> {
@@ -229,7 +569,8 @@ public class DerivedQueryTraceSqliteTest {
                         .intent("load beta graph", "render beta graph");
                 alpha.setSize(1); beta.setSize(1);
                 var alphaLines = fixture.lines(); alphaLines.setSize(10);
-                var betaLines = fixture.lines(); betaLines.setSize(10);
+                var betaLines = sharedTemplate ? alphaLines : fixture.lines(); betaLines.setSize(10);
+                var templateProjections = List.copyOf(alphaLines.getProjections());
                 alpha.enhanceRelation("lines", alphaLines); beta.enhanceRelation("lines", betaLines);
                 var first = workers.submit(() -> fixture.context.getRuntime().executeForList(fixture.context, alpha));
                 var second = workers.submit(() -> fixture.context.getRuntime().executeForList(fixture.context, beta));
@@ -239,6 +580,8 @@ public class DerivedQueryTraceSqliteTest {
                 assertEquals(2, gate.roots.get()); assertTrue(fixture.sql.isEmpty());
                 assertTrue(fixture.returnedQueries.isEmpty());
                 assertEquals("live requests must not put their frames on Context", baseline, fixture.context.getTraceChain());
+                assertNull(alphaLines.requestScope()); assertNull(alphaLines.comment()); assertNull(alphaLines.purpose());
+                assertEquals(templateProjections, alphaLines.getProjections()); assertEquals(10, alphaLines.getSlice().getSize());
                 System.out.printf("LIVE_SQLITE_BARRIER logging=%s physicalRoots=2 unfinishedQueries=2 contextUnchanged=true logs=0%n", logging);
                 gate.release.countDown();
                 var results = List.of(first.get(10, TimeUnit.SECONDS), second.get(10, TimeUnit.SECONDS));
@@ -279,6 +622,8 @@ public class DerivedQueryTraceSqliteTest {
                     }
                 }
                 assertEquals(baseline, fixture.context.getTraceChain());
+                assertNull(alphaLines.requestScope()); assertNull(alphaLines.comment()); assertNull(alphaLines.purpose());
+                assertEquals(templateProjections, alphaLines.getProjections()); assertEquals(10, alphaLines.getSlice().getSize());
                 System.out.printf("LIVE_SQLITE_RESULT logging=%s physicalStatements=4 inheritedRelations=2 safeLogs=%d contextUnchanged=true%n", logging, fixture.sql.size());
             } finally {
                 gate.release.countDown(); workers.shutdownNow();
@@ -529,6 +874,27 @@ public class DerivedQueryTraceSqliteTest {
                 assertEquals(Integer.valueOf(1), failed.statements().get(0).getResultCount());
             }
             assertEquals(logging ? 3 : 0, fixture.sql.size());
+            assertTrue(fixture.context.getTraceChain().isEmpty());
+        }
+    }
+
+    @Test public void derivedRelationCursorPreservesOperationAndLocalCommentWithLoggingOnAndOff() throws Exception {
+        for (boolean logging : List.of(false, true)) {
+            var fixture = new Fixture(logging);
+            var root = new DefaultQueryRequest(fixture.documents().intent("load documents", "render line stream"));
+            var child = root.derive(fixture.lines().where("document", Operator.EQUAL, 100L)
+                    .intent("stream selected lines", null), QueryOperation.nativeMethod(
+                            QueryOperation.Kind.RELATION_SELECT, "selectLinesWith", null, "lines"));
+            try (var cursor = fixture.provider.<TraceLine>queryForCursor(fixture.context, child)) {
+                assertEquals(2, cursor.stream().toList().size());
+                assertEquals(1, cursor.statements().size());
+                var entry = cursor.statements().get(0);
+                assertEquals(List.of("load documents", "selectLinesWith(...)", "stream selected lines"), businessComments(entry));
+                assertEquals("render line stream", entry.getPurpose());
+                assertEquals("success", entry.getExecutionOutcome());
+                assertFalse(entry.getTracePath().stream().anyMatch(node -> node.getKind() == TraceKind.RELATION));
+            }
+            assertEquals(logging ? 1 : 0, fixture.sql.size());
             assertTrue(fixture.context.getTraceChain().isEmpty());
         }
     }

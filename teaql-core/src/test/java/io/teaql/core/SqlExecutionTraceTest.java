@@ -29,6 +29,9 @@ public class SqlExecutionTraceTest {
 
     @Test public void derivedStatementFreezesCompleteOrderedSource() {
         var request = new Request();
+        // The legacy physical vector no longer supplies missing request intent.
+        request.comment = "load payment context";
+        request.purpose = "render details";
         request.source = new ArrayList<>(List.of(
                 new TraceNode(TraceKind.COMMENT, "PaymentAttempt", "load payment context"),
                 new TraceNode(TraceKind.PURPOSE, "PaymentAttempt", "render details"),
@@ -42,6 +45,13 @@ public class SqlExecutionTraceTest {
         assertEquals("PaymentAttempt", canonical.path().get(0).getName());
         assertEquals("payment", canonical.path().get(2).getName());
         assertEquals("customerOrder", canonical.path().get(3).getName());
+    }
+
+    @Test public void physicalFramesCannotAuthorizeAnUnownedRoot() {
+        var request = new Request();
+        request.source = List.of(new TraceNode(TraceKind.COMMENT, "CustomerOrder", "forged comment"),
+                new TraceNode(TraceKind.PURPOSE, "CustomerOrder", "forged purpose"));
+        assertThrows(RequestIntentException.class, () -> SqlExecutionTrace.query(request));
     }
 
     @Test public void mutationStatementOwnsRootIntentWithAndWithoutAnObserver() {

@@ -51,6 +51,8 @@ public class SqlDataServiceExecutorTest {
         SqlDataServiceExecutor executor = new SqlDataServiceExecutor("sql", new MockSqlExecutionAdapter());
         Assert.assertThrows(io.teaql.core.TeaQLRuntimeException.class, () -> {
             executor.query(null, new QueryRequest() {
+                private final io.teaql.core.QueryRequestScope scope = io.teaql.core.QueryRequestScope.root("unsupported", intent());
+                @Override public io.teaql.core.QueryRequestScope requestScope() { return scope; }
                 @Override public io.teaql.core.QueryIntent intent() {
                     return io.teaql.core.QueryIntent.of("test unsupported request", "verify provider rejects unknown envelope");
                 }

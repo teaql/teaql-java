@@ -200,26 +200,8 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                 @Override
                 public java.util.List<java.util.Map<String, Object>> query(io.teaql.core.UserContext context, String sql, Object[] args,
                         io.teaql.core.sql.portable.SqlLogBindings bindings) {
-                    boolean logging = context.isQueryExecutionLoggingEnabled();
-                    boolean collecting = logging || bindings.collectsStatements();
-                    long start = collecting ? System.nanoTime() : 0L;
-                    java.util.List<java.util.Map<String, Object>> res = diagnosed(context, sql, args, bindings,
-                            io.teaql.core.DataServiceOperation.QUERY, logging, start,
-                            () -> executionAdapter.queryForList(sql, args));
-                    if (!collecting) return res;
-                    long elapsed = (System.nanoTime() - start) / 1000;
-                    io.teaql.core.ExecutionMetadata meta = new io.teaql.core.ExecutionMetadata();
-                    meta.setBackend(debugDatabaseKind.toLowerCase(java.util.Locale.ROOT));
-                    meta.setOperation(io.teaql.core.DataServiceOperation.QUERY);
-                    meta.setElapsedUs(elapsed);
-                    meta.setResultCount(res.size());
-                    meta.setResultSummary("Fetched " + res.size() + " rows");
-                    meta.setExecutionOutcome("success");
-                    meta.setParameterizedQuery(sql);
-                    meta.setParameters(parameters(args));
-                    bindings.applyTo(meta);
-                    recordStatement(context, bindings, meta, logging);
-                    return res;
+                    return observedStatement(context, sql, args, bindings, io.teaql.core.DataServiceOperation.QUERY,
+                            () -> executionAdapter.queryForList(sql, args), (meta, result) -> meta.setResultCount(result.size()));
                 }
 
                 @Override
@@ -233,26 +215,8 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                 public <T extends io.teaql.core.Entity> java.util.List<T> query(
                         io.teaql.core.UserContext context, String sql, Object[] args,
                         io.teaql.core.CompiledRowMapper<T> rowMapper, io.teaql.core.sql.portable.SqlLogBindings bindings) {
-                    boolean logging = context.isQueryExecutionLoggingEnabled();
-                    boolean collecting = logging || bindings.collectsStatements();
-                    long start = collecting ? System.nanoTime() : 0L;
-                    java.util.List<T> res = diagnosed(context, sql, args, bindings,
-                            io.teaql.core.DataServiceOperation.QUERY, logging, start,
-                            () -> executionAdapter.query(sql, args, rowMapper));
-                    if (!collecting) return res;
-                    long elapsed = (System.nanoTime() - start) / 1000;
-                    io.teaql.core.ExecutionMetadata meta = new io.teaql.core.ExecutionMetadata();
-                    meta.setBackend(debugDatabaseKind.toLowerCase(java.util.Locale.ROOT));
-                    meta.setOperation(io.teaql.core.DataServiceOperation.QUERY);
-                    meta.setElapsedUs(elapsed);
-                    meta.setResultCount(res.size());
-                    meta.setResultSummary("Fetched " + res.size() + " typed rows");
-                    meta.setExecutionOutcome("success");
-                    meta.setParameterizedQuery(sql);
-                    meta.setParameters(parameters(args));
-                    bindings.applyTo(meta);
-                    recordStatement(context, bindings, meta, logging);
-                    return res;
+                    return observedStatement(context, sql, args, bindings, io.teaql.core.DataServiceOperation.QUERY,
+                            () -> executionAdapter.query(sql, args, rowMapper), (meta, result) -> meta.setResultCount(result.size()));
                 }
 
                 @Override
@@ -263,26 +227,8 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                 @Override
                 public int executeUpdate(io.teaql.core.UserContext context, String sql, Object[] args,
                         io.teaql.core.sql.portable.SqlLogBindings bindings) {
-                    boolean logging = context.isMutationExecutionLoggingEnabled();
-                    boolean collecting = logging || bindings.collectsStatements();
-                    long start = collecting ? System.nanoTime() : 0L;
-                    int res = diagnosed(context, sql, args, bindings,
-                            io.teaql.core.DataServiceOperation.MUTATION, logging, start,
-                            () -> executionAdapter.update(sql, args));
-                    if (!collecting) return res;
-                    long elapsed = (System.nanoTime() - start) / 1000;
-                    io.teaql.core.ExecutionMetadata meta = new io.teaql.core.ExecutionMetadata();
-                    meta.setBackend(debugDatabaseKind.toLowerCase(java.util.Locale.ROOT));
-                    meta.setOperation(io.teaql.core.DataServiceOperation.MUTATION);
-                    meta.setElapsedUs(elapsed);
-                    meta.setAffectedRows((long) res);
-                    meta.setResultSummary("Affected " + res + " rows");
-                    meta.setExecutionOutcome("success");
-                    meta.setParameterizedQuery(sql);
-                    meta.setParameters(parameters(args));
-                    bindings.applyTo(meta);
-                    recordStatement(context, bindings, meta, logging);
-                    return res;
+                    return observedStatement(context, sql, args, bindings, io.teaql.core.DataServiceOperation.MUTATION,
+                            () -> executionAdapter.update(sql, args), (meta, result) -> meta.setAffectedRows(result.longValue()));
                 }
 
                 @Override
@@ -294,41 +240,37 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                 public int[] batchUpdate(io.teaql.core.UserContext context, String sql, java.util.List<Object[]> batchArgs,
                         io.teaql.core.sql.portable.SqlLogBindings bindings) {
                     bindings.validateBatchSize(batchArgs == null ? 0 : batchArgs.size());
+                    var observation = io.teaql.core.SqlStatementObservation.startSafely(context, debugDatabaseKind,
+                            io.teaql.core.DataServiceOperation.MUTATION);
                     boolean logging = context.isMutationExecutionLoggingEnabled();
-                    boolean collecting = logging || bindings.collectsStatements();
+                    boolean collecting = logging || bindings.collectsStatements() || observation.enabled();
                     long start = collecting ? System.nanoTime() : 0L;
                     int[] res;
                     try {
                         res = executionAdapter.batchUpdate(sql, batchArgs);
                     } catch (RuntimeException failure) {
-                        if (collecting) recordBatch(context, sql, batchArgs, bindings, start, batchCounts(failure), failure, logging);
+                        try {
+                            if (collecting) recordBatch(context, sql, batchArgs, bindings, start, batchCounts(failure), failure,
+                                    logging, observation.correlation());
+                        } finally { observation.failure(failure); }
+                        throw failure;
+                    } catch (Error failure) {
+                        observation.failure(failure);
                         throw failure;
                     }
-                    if (collecting) recordBatch(context, sql, batchArgs, bindings, start,
-                            res == null ? null : java.util.Arrays.stream(res).asLongStream().toArray(), null, logging);
+                    try {
+                        if (collecting) recordBatch(context, sql, batchArgs, bindings, start,
+                                res == null ? null : java.util.Arrays.stream(res).asLongStream().toArray(), null, logging,
+                                observation.correlation());
+                    } finally { observation.success(); }
                     return res;
                 }
 
                 @Override
                 public void execute(io.teaql.core.UserContext context, String sql) {
-                    boolean logging = context.isMutationExecutionLoggingEnabled();
-                    long start = logging ? System.nanoTime() : 0L;
-                    diagnosed(context, sql, null, io.teaql.core.sql.portable.SqlLogBindings.UNKNOWN,
-                            io.teaql.core.DataServiceOperation.SCHEMA, logging, start,
-                            () -> { executionAdapter.execute(sql); return null; });
-                    if (!logging) return;
-                    long elapsed = (System.nanoTime() - start) / 1000;
-                    io.teaql.core.ExecutionMetadata meta = new io.teaql.core.ExecutionMetadata();
-                    meta.setBackend(debugDatabaseKind.toLowerCase(java.util.Locale.ROOT));
-                    meta.setOperation(io.teaql.core.DataServiceOperation.SCHEMA);
-                    meta.setElapsedUs(elapsed);
-                    meta.setResultSummary("Executed");
-                    meta.setExecutionOutcome("success");
-                    meta.setParameterizedQuery(sql);
-                    if (context.requiresSensitiveSqlLogData()) {
-                        meta.setDebugQuery(sql);
-                    }
-                    context.recordExecutionMetadata(meta);
+                    observedStatement(context, sql, null, io.teaql.core.sql.portable.SqlLogBindings.UNKNOWN,
+                            io.teaql.core.DataServiceOperation.SCHEMA,
+                            () -> { executionAdapter.execute(sql); return null; }, (meta, result) -> meta.setResultSummary("Executed"));
                 }
             };
         io.teaql.core.sql.portable.PortableSQLDataService portableService =
@@ -341,11 +283,13 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
     private <T> java.util.stream.Stream<T> observedQueryStream(UserContext context, String sql, Object[] args,
             io.teaql.core.sql.portable.SqlLogBindings bindings, java.util.function.Supplier<java.util.stream.Stream<T>> action) {
         boolean logging = context.isQueryExecutionLoggingEnabled();
-        boolean collecting = logging || bindings.collectsStatements();
+        var observation = io.teaql.core.SqlStatementObservation.startSafely(context, debugDatabaseKind, io.teaql.core.DataServiceOperation.QUERY);
+        boolean collecting = logging || bindings.collectsStatements() || observation.enabled();
         long start = collecting ? System.nanoTime() : 0L;
         io.teaql.core.ExecutionMetadata meta = null;
         if (collecting) {
             meta = statementMetadata(context, sql, args, bindings, io.teaql.core.DataServiceOperation.QUERY);
+            meta.setSqlExecutionCorrelation(observation.correlation());
             // Snapshot before request trace scopes are popped; consumption is lazy.
             if (bindings.executionTrace() == null) {
                 var trace = context.getTraceChain();
@@ -354,9 +298,22 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                         : java.util.List.copyOf(trace));
             }
         }
-        var stream = diagnosed(context, sql, args, bindings, io.teaql.core.DataServiceOperation.QUERY,
-                logging, start, action);
-        return SqlDiagnosticStream.wrap(context, stream, meta, start, bindings, logging);
+        java.util.stream.Stream<T> stream;
+        try { stream = action.get(); }
+        catch (RuntimeException | Error failure) {
+            try {
+                if (meta != null) {
+                    meta.setElapsedUs((System.nanoTime() - start) / 1000);
+                    meta.setExecutionOutcome(failure instanceof java.util.concurrent.CancellationException ? "cancelled" : "failure");
+                    meta.setResultSummary("Statement did not complete; row count unknown");
+                    recordStatement(context, bindings, meta, logging);
+                }
+            } catch (RuntimeException | Error diagnosticFailure) { /* Keep the original driver error. */ }
+            finally { observation.failure(failure); }
+            throw failure;
+        }
+        observation.detach();
+        return SqlDiagnosticStream.wrap(context, stream, meta, start, bindings, logging, observation);
     }
 
     private io.teaql.core.ExecutionMetadata statementMetadata(UserContext context, String sql, Object[] args,
@@ -381,12 +338,13 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
 
     private void recordBatch(UserContext context, String sql, java.util.List<Object[]> batchArgs,
             io.teaql.core.sql.portable.SqlLogBindings bindings, long start, long[] counts, RuntimeException failure,
-            boolean logging) {
+            boolean logging, io.teaql.core.SqlExecutionCorrelation correlation) {
         long elapsed = (System.nanoTime() - start) / 1000;
         int size = batchArgs == null ? 0 : batchArgs.size();
         for (int row = 0; row < Math.max(size, failure == null ? 0 : 1); row++) {
             var meta = statementMetadata(context, sql, row < size ? batchArgs.get(row) : null,
                     row < size ? bindings.forBatchRow(row) : bindings, io.teaql.core.DataServiceOperation.MUTATION);
+            meta.setSqlExecutionCorrelation(correlation);
             meta.setElapsedUs(row == 0 ? elapsed : 0);
             meta.setBatchOutcome(failure == null ? "success"
                     : failure instanceof java.util.concurrent.CancellationException ? "cancelled" : "failure");
@@ -405,41 +363,56 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
         }
     }
 
-    private <T> T diagnosed(UserContext context, String sql, Object[] args,
+    private <T> T observedStatement(UserContext context, String sql, Object[] args,
             io.teaql.core.sql.portable.SqlLogBindings bindings,
-            io.teaql.core.DataServiceOperation operation, boolean logging, long start,
-            java.util.function.Supplier<T> execute) {
+            io.teaql.core.DataServiceOperation operation, java.util.function.Supplier<T> execute,
+            java.util.function.BiConsumer<io.teaql.core.ExecutionMetadata, T> resultMetadata) {
+        var observation = io.teaql.core.SqlStatementObservation.startSafely(context, debugDatabaseKind, operation);
+        boolean logging = operation == io.teaql.core.DataServiceOperation.QUERY
+                ? context.isQueryExecutionLoggingEnabled() : context.isMutationExecutionLoggingEnabled();
+        boolean collecting = logging || bindings.collectsStatements() || observation.enabled();
+        long start = collecting ? System.nanoTime() : 0L;
+        T result;
         try {
-            return execute.get();
-        } catch (RuntimeException failure) {
-            if (logging || bindings.collectsStatements()) {
-                io.teaql.core.ExecutionMetadata meta = new io.teaql.core.ExecutionMetadata();
-                meta.setBackend(debugDatabaseKind.toLowerCase(java.util.Locale.ROOT));
-                meta.setOperation(operation);
+            result = execute.get();
+        } catch (RuntimeException | Error failure) {
+            try {
+              if (collecting) {
+                var meta = statementMetadata(context, sql, args, bindings, operation);
+                meta.setSqlExecutionCorrelation(observation.correlation());
                 meta.setElapsedUs((System.nanoTime() - start) / 1000);
                 meta.setExecutionOutcome(failure instanceof java.util.concurrent.CancellationException
                         ? "cancelled" : "failure");
                 // Driver errors may contain raw bind values. Keep the error for the caller,
                 // never copy its message/cause into diagnostics or invent affected-row counts.
                 meta.setResultSummary("Statement did not complete; row count unknown");
-                meta.setParameterizedQuery(sql);
-                meta.setParameters(parameters(args));
-                bindings.applyTo(meta);
-                try {
-                    recordStatement(context, bindings, meta, logging);
-                } catch (RuntimeException diagnosticFailure) {
-                    // Preserve the original driver error; no unsafe fallback logger.
-                }
-            }
+                recordStatement(context, bindings, meta, logging);
+              }
+            } catch (RuntimeException | Error diagnosticFailure) { /* Preserve the original driver error. */ }
+            finally { observation.failure(failure); }
             throw failure;
         }
+        try {
+            if (collecting) {
+                var meta = statementMetadata(context, sql, args, bindings, operation);
+                meta.setSqlExecutionCorrelation(observation.correlation());
+                meta.setElapsedUs((System.nanoTime() - start) / 1000);
+                meta.setExecutionOutcome("success");
+                resultMetadata.accept(meta, result);
+                meta.setResultSummary(meta.getResultSummary() != null ? meta.getResultSummary()
+                        : meta.getResultCount() != null ? "Fetched " + meta.getResultCount() + " rows"
+                        : "Affected " + meta.getAffectedRows() + " rows");
+                recordStatement(context, bindings, meta, logging);
+            }
+        } finally { observation.success(); }
+        return result;
     }
 
     private static void recordStatement(UserContext context,
             io.teaql.core.sql.portable.SqlLogBindings bindings, io.teaql.core.ExecutionMetadata metadata,
             boolean logging) {
         bindings.recordStatement(metadata);
-        if (logging) context.recordExecutionMetadata(metadata);
+        if (logging || metadata.getSqlExecutionCorrelation() != null) context.recordExecutionMetadata(metadata);
     }
 
     public static String debugSql(String sql, Object[] args) {
