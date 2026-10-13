@@ -23,6 +23,7 @@ final class SqlLikeIntent {
 
     private void request(SearchRequest<?> request, PortableSQLRepository<?> repository) {
         if (request == null || repository == null || !visited.add(request)) return;
+        request(request.diagnosticSource(), repository);
         expression(request.getSearchCriteria(), repository);
         if (request.getProjections() != null)
             for (var projection : request.getProjections()) expression(projection.getExpression(), repository);

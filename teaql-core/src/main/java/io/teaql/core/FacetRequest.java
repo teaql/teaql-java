@@ -14,6 +14,11 @@ public class FacetRequest {
      * the facetName,  like "facetOfStatus"
      */
     private String facetName;
+    private QueryOperation operation;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public QueryOperation getOperation() { return operation; }
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public void setOperation(QueryOperation operation) { this.operation = operation; }
 
     /**
      * the relation name for facet,  `status` in the example

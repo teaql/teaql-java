@@ -20,6 +20,15 @@ public interface RuntimeTelemetry {
 
     Scope start(Operation operation);
 
+    /** Whether statement diagnostics should be collected independently of ordinary logging. */
+    default boolean recordsSqlDiagnostics() { return false; }
+
+    default void recordDiagnostic(Diagnostic event) {}
+
+    record Diagnostic(io.teaql.core.SqlExecutionCorrelation correlation, Map<String, Object> attributes) {
+        public Diagnostic { attributes = Collections.unmodifiableMap(new LinkedHashMap<>(attributes)); }
+    }
+
     default void inject(Map<String, String> carrier) {}
 
     default PropagationScope extractAndActivate(Map<String, String> carrier) {
@@ -37,6 +46,7 @@ public interface RuntimeTelemetry {
 
     static String errorCategory(String errorType) {
         String type = errorType == null ? "unknown" : errorType.toLowerCase(java.util.Locale.ROOT);
+        if (containsAny(type, "cancel")) return "cancelled";
         if (containsAny(type, "timeout", "deadline")) return "timeout";
         if (containsAny(type, "authentication", "authorization", "unauthorized", "forbidden", "permission")) return "authorization";
         if (containsAny(type, "validation", "invalidargument", "valueerror", "parse", "format")) return "validation";
@@ -75,6 +85,10 @@ public interface RuntimeTelemetry {
         void success(Map<String, Object> attributes);
 
         void failure(Throwable error);
+
+        default io.teaql.core.SqlExecutionCorrelation correlation() { return null; }
+        default void detach() {}
+        default PropagationScope activate() { return NoopPropagationScope.INSTANCE; }
 
         default void success() {
             success(Collections.emptyMap());
@@ -160,6 +174,19 @@ public interface RuntimeTelemetry {
 
         private FailOpenScope(Scope delegate) {
             this.delegate = delegate;
+        }
+
+        @Override public io.teaql.core.SqlExecutionCorrelation correlation() {
+            try { return delegate.correlation(); } catch (Throwable ignored) { return null; }
+        }
+        @Override public void detach() {
+            try { delegate.detach(); } catch (Throwable ignored) {}
+        }
+        @Override public PropagationScope activate() {
+            try {
+                var scope = delegate.activate();
+                return scope == null ? NoopPropagationScope.INSTANCE : new FailOpenPropagationScope(scope);
+            } catch (Throwable ignored) { return NoopPropagationScope.INSTANCE; }
         }
 
         @Override

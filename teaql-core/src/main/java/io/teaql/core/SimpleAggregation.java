@@ -4,6 +4,11 @@ import java.util.Objects;
 
 public class SimpleAggregation implements Expression {
     private String name;
+    private QueryOperation operation;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public QueryOperation getOperation() { return operation; }
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public void setOperation(QueryOperation operation) { this.operation = operation; }
     private SearchRequest aggregateRequest;
 
     private boolean singleNumber;

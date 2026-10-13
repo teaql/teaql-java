@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.teaql</groupId>
         <artifactId>teaql-java-parent</artifactId>
-        <version>1.554-RELEASE</version>
+        <version>1.555-RELEASE</version>
     </parent>
 
     <artifactId>teaql-runtime</artifactId>
@@ -24,6 +24,10 @@
         </dependency>
 
         <!-- Testing dependencies -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>

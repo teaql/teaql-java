@@ -16,24 +16,28 @@ final class SqlDiagnosticStream<T> implements Spliterator<T> {
     private final long start;
     private final io.teaql.core.sql.portable.SqlLogBindings bindings;
     private final boolean logging;
+    private final io.teaql.core.SqlStatementObservation observation;
     private Spliterator<T> rows;
     private boolean done;
     private long delivered;
 
     private SqlDiagnosticStream(UserContext context, Stream<T> source, ExecutionMetadata metadata, long start,
-            io.teaql.core.sql.portable.SqlLogBindings bindings, boolean logging) {
+            io.teaql.core.sql.portable.SqlLogBindings bindings, boolean logging,
+            io.teaql.core.SqlStatementObservation observation) {
         this.context = context;
         this.source = source;
         this.metadata = metadata;
         this.start = start;
         this.bindings = bindings;
         this.logging = logging;
+        this.observation = observation;
     }
 
     static <T> Stream<T> wrap(UserContext context, Stream<T> source, ExecutionMetadata metadata, long start,
-            io.teaql.core.sql.portable.SqlLogBindings bindings, boolean logging) {
-        var cursor = new SqlDiagnosticStream<>(context, source, metadata, start, bindings, logging);
-        try {
+            io.teaql.core.sql.portable.SqlLogBindings bindings, boolean logging,
+            io.teaql.core.SqlStatementObservation observation) {
+        var cursor = new SqlDiagnosticStream<>(context, source, metadata, start, bindings, logging, observation);
+        try (var activation = observation.activate()) {
             cursor.rows = source.spliterator();
         } catch (RuntimeException | Error failure) {
             cursor.finish(outcome(failure), failure);
@@ -44,7 +48,7 @@ final class SqlDiagnosticStream<T> implements Spliterator<T> {
 
     @Override public boolean tryAdvance(Consumer<? super T> action) {
         if (done) return false;
-        try {
+        try (var activation = observation.activate()) {
             boolean more = rows.tryAdvance(row -> {
                 // Count rows handed to the caller, not prefetched rows or rows successfully processed.
                 delivered++;
@@ -68,6 +72,7 @@ final class SqlDiagnosticStream<T> implements Spliterator<T> {
             if (failure == null) { failure = closeFailure; outcome = outcome(closeFailure); }
             else if (failure != closeFailure) failure.addSuppressed(closeFailure);
         }
+        Throwable executionFailure = failure;
         if (metadata != null) {
             metadata.setElapsedUs((System.nanoTime() - start) / 1000);
             metadata.setExecutionOutcome(outcome);
@@ -75,11 +80,14 @@ final class SqlDiagnosticStream<T> implements Spliterator<T> {
             metadata.setResultSummary("Cursor " + outcome + "; delivered " + delivered + " rows");
             try {
                 bindings.recordStatement(metadata);
-                if (logging) context.recordExecutionMetadata(metadata);
+                if (logging || metadata.getSqlExecutionCorrelation() != null) context.recordExecutionMetadata(metadata);
             } catch (RuntimeException | Error sinkFailure) {
                 if (failure == null) failure = sinkFailure;
             }
         }
+        if (executionFailure != null) observation.failure(executionFailure);
+        else if ("cancelled".equals(outcome)) observation.failure(new CancellationException());
+        else observation.success();
         // The original traversal exception is rethrown by the caller of finish.
         if (original == null) {
             if (failure instanceof RuntimeException runtimeFailure) throw runtimeFailure;

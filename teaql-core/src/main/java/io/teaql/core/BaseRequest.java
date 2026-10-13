@@ -31,6 +31,13 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
 
     protected String comment;
     protected String purpose;
+    protected Map<String, QueryOperation> queryOperations = new HashMap<>();
+    protected QueryOperation pageCountOperation;
+    @Override public Map<String, QueryOperation> queryOperations() { return Map.copyOf(queryOperations); }
+    @Override public QueryOperation pageCountOperation() { return pageCountOperation; }
+    @FrameworkInternal("Generator supplies the exact native count method and alias")
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public void setPageCountOperation(QueryOperation operation) { pageCountOperation = operation; }
     protected DynamicPropertyMetadata dynamicPropertyMetadata;
 
     @Override public DynamicPropertyMetadata getDynamicPropertyMetadata() { return dynamicPropertyMetadata; }
@@ -210,6 +217,11 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
 
     public void enhanceRelation(String propertyName, SearchRequest request) {
         this.enhanceRelations.put(propertyName, request);
+    }
+
+    public void enhanceRelation(String propertyName, SearchRequest request, QueryOperation operation) {
+        enhanceRelation(propertyName, request);
+        queryOperations.put(propertyName, operation);
     }
 
     @Override
@@ -496,6 +508,32 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         this.addAggregateDynamicProperty(name, subRequest, false);
     }
 
+    @FrameworkInternal("Generator passes relation metadata and native operation, not trace text")
+    public void addRelationAggregate(String name, SearchRequest<?> subRequest, String partition,
+            boolean singleResult, QueryOperation operation) {
+        var snapshot = new QueryRequestSnapshot(subRequest, subRequest.requestScope());
+        snapshot.setPartitionProperty(partition);
+        addAggregateDynamicProperty(name, snapshot, singleResult);
+        dynamicAggregateAttributes.get(dynamicAggregateAttributes.size() - 1).setOperation(operation);
+    }
+
+    @FrameworkInternal("Relation count copies the child template before changing aggregates")
+    public void addRelationCount(String name, SearchRequest<?> subRequest, String partition, QueryOperation operation) {
+        var snapshot = new QueryRequestSnapshot(subRequest, subRequest.requestScope());
+        snapshot.setAggregations(new Aggregations());
+        snapshot.count(name);
+        addRelationAggregate(name, snapshot, partition, true, operation);
+    }
+
+    @FrameworkInternal("Scalar relation aggregates copy a child template before changing its AST")
+    public void addRelationScalarAggregate(String name, SearchRequest<?> subRequest, String partition,
+            String field, AggrFunction function, QueryOperation operation) {
+        var snapshot = new QueryRequestSnapshot(subRequest, subRequest.requestScope());
+        snapshot.setAggregations(new Aggregations());
+        snapshot.addAggregate(name, field, function);
+        addRelationAggregate(name, snapshot, partition, true, operation);
+    }
+
     public void addSingleAggregateDynamicProperty(String name, SearchRequest subRequest) {
         this.addAggregateDynamicProperty(name, subRequest, true);
     }
@@ -642,24 +680,28 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
 
     public BaseRequest<T> count() {
         countProperty(TeaQLConstants.ROOT_LIST_PARAMETER_NAME, BaseEntity.ID_PROPERTY);
+        setPageCountOperation(QueryOperation.nativeMethod(QueryOperation.Kind.NAMED_COUNT, "count", null, null));
         return this;
     }
 
     public BaseRequest<T> count(String retName) {
         countProperty(retName, BaseEntity.ID_PROPERTY);
+        setPageCountOperation(QueryOperation.nativeMethod(QueryOperation.Kind.NAMED_COUNT, "count", retName, null));
         return this;
     }
 
     /** Framework-owned count snapshot created after trusted policy enforcement. */
     public SearchRequest<?> internalCountRequest() {
+        return internalCountRequest(TeaQLConstants.ROOT_LIST_PARAMETER_NAME);
+    }
+    public SearchRequest<?> internalCountRequest(String alias) {
         TempRequest countRequest = new TempRequest(returnType, getTypeName(), entityFactory);
         propagateMetadata(countRequest);
         countRequest.comment = comment;
         countRequest.purpose = purpose;
         countRequest.searchCriteria = searchCriteria;
-        countRequest.partitionProperty = partitionProperty;
         countRequest.extensions.putAll(extensions);
-        countRequest.count();
+        countRequest.count(alias);
         return countRequest;
     }
 
@@ -771,7 +813,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         return boundMetadata != null ? boundMetadata : EntityMetaFactory.get();
     }
 
-    private void propagateMetadata(BaseRequest<?> request) {
+    protected void propagateMetadata(BaseRequest<?> request) {
         if (boundMetadata != null) {
             request.bindMetadata(boundMetadata);
         }
@@ -1012,6 +1054,13 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         facetRequest.setRelationName(relationName);
         facetRequest.setMergeCriteria(!includeAllFacets);
         facetRequests.add(facetRequest);
+        return this;
+    }
+
+    public BaseRequest addFacet(String facetName, String relationName, SearchRequest request,
+            boolean includeAllFacets, QueryOperation operation) {
+        addFacet(facetName, relationName, request, includeAllFacets);
+        facetRequests.get(facetRequests.size() - 1).setOperation(operation);
         return this;
     }
 

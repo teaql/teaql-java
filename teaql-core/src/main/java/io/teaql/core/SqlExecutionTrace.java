@@ -6,7 +6,12 @@ import java.util.List;
 /** Immutable statement-owned source path and separate graph mutation lineage. */
 public record SqlExecutionTrace(List<TraceNode> source, List<TraceNode> mutationLineage, String operation,
         @com.fasterxml.jackson.annotation.JsonIgnore java.util.function.Consumer<ExecutionMetadata> statementObserver,
-        @com.fasterxml.jackson.annotation.JsonIgnore MutationIntent mutationIntent) {
+        @com.fasterxml.jackson.annotation.JsonIgnore MutationIntent mutationIntent,
+        @com.fasterxml.jackson.annotation.JsonIgnore QueryRequestScope queryScope) {
+    public SqlExecutionTrace(List<TraceNode> source, List<TraceNode> mutationLineage, String operation,
+            java.util.function.Consumer<ExecutionMetadata> statementObserver, MutationIntent mutationIntent) {
+        this(source, mutationLineage, operation, statementObserver, mutationIntent, null);
+    }
     public SqlExecutionTrace(List<TraceNode> source, List<TraceNode> mutationLineage, String operation) {
         this(source, mutationLineage, operation, null, null);
     }
@@ -17,7 +22,7 @@ public record SqlExecutionTrace(List<TraceNode> source, List<TraceNode> mutation
 
     /** Invocation-owned collection; never installed on Context or a cached repository. */
     public SqlExecutionTrace collecting(java.util.function.Consumer<ExecutionMetadata> observer) {
-        return new SqlExecutionTrace(source, mutationLineage, operation, observer, mutationIntent);
+        return new SqlExecutionTrace(source, mutationLineage, operation, observer, mutationIntent, queryScope);
     }
 
     public void recordStatement(ExecutionMetadata metadata) {
@@ -25,6 +30,11 @@ public record SqlExecutionTrace(List<TraceNode> source, List<TraceNode> mutation
         metadata.setTraceChain(path.path());
         metadata.setComment(path.comment());
         metadata.setPurpose(path.purpose());
+        if (queryScope != null) {
+            metadata.setRequestTraceChain(queryScope.traceChain());
+            metadata.setComment(queryScope.intent().comment());
+            metadata.setPurpose(queryScope.purpose());
+        }
         // Canonicalization extracts the last local reason for standalone source
         // vectors. Executed mutations instead own their root intent independently
         // of the graph lineage, including write readback and prepared batches.
@@ -52,7 +62,7 @@ public record SqlExecutionTrace(List<TraceNode> source, List<TraceNode> mutation
             source = List.of(new TraceNode(TraceKind.COMMENT, request.getTypeName(), intent.comment()),
                     new TraceNode(TraceKind.PURPOSE, request.getTypeName(), intent.purpose()));
         }
-        return new SqlExecutionTrace(source, List.of(), "select");
+        return new SqlExecutionTrace(source, List.of(), "select", null, null, QueryRequestScope.capture(request));
     }
 
     public SqlExecutionTrace readback(MutationIntent intent) {
@@ -65,6 +75,7 @@ public record SqlExecutionTrace(List<TraceNode> source, List<TraceNode> mutation
 
     public void applyTo(ExecutionMetadata metadata) {
         metadata.setTraceChain(source);
+        if (queryScope != null) metadata.setRequestTraceChain(queryScope.traceChain());
         metadata.setMutationLineage(mutationLineage);
         metadata.setStatementOperation(operation);
     }

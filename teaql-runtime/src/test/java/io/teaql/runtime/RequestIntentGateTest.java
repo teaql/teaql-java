@@ -85,10 +85,15 @@ public class RequestIntentGateTest {
                     String code = missingComment ? "REQUEST_COMMENT_REQUIRED" : "QUERY_PURPOSE_REQUIRED";
                     var query = request(missingComment ? blank : "load SECRET-CANARY",
                             missingComment ? "render SECRET-CANARY" : blank);
+                    var child = request("load related objects", "render related objects");
+                    query.enhanceRelation("related", child);
+                    assertEquals("load related objects", child.comment());
+                    assertEquals("render related objects", child.purpose());
                     requiredIntent(code, "query", () -> runtime.executeForList(context, query));
                     requiredIntent(code, "query", () -> runtime.executeForStream(context, query));
                     requiredIntent(code, "query", () -> runtime.aggregation(context, query));
-                    requiredIntent(code, "query", () -> runtime.executeForPage(context, query, 0, 10));
+                    query.offset(0, 10).count();
+                    requiredIntent(code, "query", () -> runtime.executeForList(context, query));
                 }
                 var entity = new TeaQLRuntimeTest.DummyEntity();
                 entity.setComment(blank);
@@ -100,6 +105,11 @@ public class RequestIntentGateTest {
             assertTrue(sink.executions.isEmpty());
             assertTrue(sink.auditEvents.isEmpty());
             assertTrue(sink.governanceEvents.isEmpty());
+            runtime.executeForList(context, request("load validation control", "verify live provider probes"));
+            assertTrue(queryPolicies.get() > 0);
+            assertEquals(1, provider.calls.get());
+            System.out.println("RTC_COM_01_PASS logging=" + logging
+                    + " fields=comment,purpose invalid_provider=0 invalid_policy=0 annotated_child=true live_control=true");
         }
     }
 
@@ -143,7 +153,8 @@ public class RequestIntentGateTest {
             requiredIntent("REQUEST_COMMENT_REQUIRED", "query", () -> runtime.executeForList(context, query));
             requiredIntent("REQUEST_COMMENT_REQUIRED", "query", () -> runtime.executeForStream(context, query));
             requiredIntent("REQUEST_COMMENT_REQUIRED", "query", () -> runtime.aggregation(context, query));
-            requiredIntent("REQUEST_COMMENT_REQUIRED", "query", () -> runtime.executeForPage(context, query, 0, 10));
+            query.offset(0, 10).count();
+            requiredIntent("REQUEST_COMMENT_REQUIRED", "query", () -> runtime.executeForList(context, query));
 
             var entity = new TeaQLRuntimeTest.DummyEntity();
             entity.__internalSet("id", 801L); entity.__internalSet("version", 1L);
@@ -245,7 +256,7 @@ public class RequestIntentGateTest {
         required("REQUEST_COMMENT_REQUIRED", () -> runtime.executeForList(context, request(null, "render orders")));
         required("REQUEST_COMMENT_REQUIRED", () -> runtime.executeForStream(context, request(null, "render orders")));
         required("REQUEST_COMMENT_REQUIRED", () -> runtime.aggregation(context, request(null, "render orders")));
-        required("REQUEST_COMMENT_REQUIRED", () -> runtime.executeForPage(context, request(null, "render orders"), 0, 10));
+        required("REQUEST_COMMENT_REQUIRED", () -> runtime.executeForList(context, request(null, "render orders").offset(0, 10).count()));
         assertEquals(0, policyCalls.get());
         assertEquals(0, provider.calls.get());
     }

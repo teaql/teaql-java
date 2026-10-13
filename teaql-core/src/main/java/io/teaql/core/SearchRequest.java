@@ -51,6 +51,28 @@ public interface SearchRequest<T extends Entity> {
 
     String comment();
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @FrameworkInternal("Private execution ownership; not query JSON or Context state")
+    default QueryRequestScope requestScope() { return null; }
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    default Map<String, QueryOperation> queryOperations() { return Map.of(); }
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    default QueryOperation pageCountOperation() { return null; }
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @FrameworkInternal("Diagnostic-only removed AST; never an execution owner or wire field")
+    default SearchRequest<?> diagnosticSource() { return null; }
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @FrameworkInternal("Invocation-owned SQL collector, never serialized or stored on Context")
+    default java.util.function.Consumer<ExecutionMetadata> statementObserver() { return null; }
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @FrameworkInternal("Invocation-local privacy provenance, not remote query input")
+    default SqlIntentRedactions sqlIntentSource() { return null; }
+
     /** Explicit originating intent carried only by framework-owned derived queries. */
     @FrameworkInternal("Nested query provenance; never inferred from UserContext trace state")
     default QueryIntent inheritedQueryIntent() { return null; }

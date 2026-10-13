@@ -4,7 +4,7 @@ set -euo pipefail
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 verification_dir="$(mktemp -d)"
 trap 'rm -rf -- "$verification_dir"' EXIT
-expected=(business-id-runtime conformance order-management round-trip-reference-runtime school-management security-foundations shared-load-state trace-chain)
+expected=(business-id-runtime conformance order-management round-trip-reference-runtime school-management security-foundations shared-load-state standard-order trace-chain)
 mapfile -t actual < <(find "$repo/examples" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
 if [[ "${actual[*]}" != "${expected[*]}" ]]; then
   echo "example inventory changed; update scripts/verify-examples.sh: ${actual[*]}" >&2
@@ -32,4 +32,6 @@ mvn -q -f examples/order-management/pom.xml install -DskipTests
 # the developer's retained database while verifying the runtime checkout.
 (cd "$verification_dir" && mvn -q -f "$repo/examples/order-management/pom.xml" exec:java -pl java-app-console)
 bash examples/trace-chain/verify.sh
+bash examples/trace-chain/verify-standard-telemetry.sh
+bash examples/standard-order/verify.sh
 echo "PASS: standard Java examples; shared-load-state has its own generator-backed verify.sh gate"

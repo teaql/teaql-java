@@ -6,7 +6,7 @@
 
     <groupId>io.teaql</groupId>
     <artifactId>teaql-java-parent</artifactId>
-    <version>1.554-RELEASE</version>
+    <version>1.555-RELEASE</version>
     <packaging>pom</packaging>
 
     <name>teaql-java-parent</name>
@@ -374,6 +374,8 @@
                 <module>examples/school-management</module>
                 <module>examples/trace-chain/lib</module>
                 <module>examples/trace-chain</module>
+                <module>examples/standard-order/generated/lib</module>
+                <module>examples/standard-order</module>
             </modules>
         </profile>
     </profiles>
