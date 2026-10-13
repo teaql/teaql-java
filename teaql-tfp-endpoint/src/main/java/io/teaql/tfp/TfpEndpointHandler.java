@@ -87,6 +87,7 @@ public class TfpEndpointHandler {
         }
 
         BaseRequest.TempRequest request = new BaseRequest.TempRequest(descriptor);
+        request.bindMetadata(metadata);
 
         if (root.has("limitValue") && !root.path("limitValue").isNull()) {
             int limit = root.path("limitValue").asInt();
