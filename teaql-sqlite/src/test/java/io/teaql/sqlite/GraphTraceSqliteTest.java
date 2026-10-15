@@ -5,6 +5,9 @@ import io.teaql.core.meta.*;
 import io.teaql.core.sql.GenericSQLProperty;
 import io.teaql.core.sql.SQLEntityDescriptor;
 import io.teaql.core.sqlite.SqliteDataServiceExecutor;
+import io.teaql.core.sqlite.SqliteCommittedMutationRecorder;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import io.teaql.runtime.*;
 import java.nio.file.Files;
@@ -52,10 +55,13 @@ public class GraphTraceSqliteTest {
         final JdbcSqlExecutor driver;
         final SQLiteDataSource dataSource;
         final DefaultUserContext context;
+        final SqliteCommittedMutationRecorder committedRecorder;
         volatile boolean failReadback;
         volatile boolean unknownUpdateCounts;
 
-        Fixture() throws Exception {
+        Fixture() throws Exception { this(false); }
+
+        Fixture(boolean captureCommittedMutations) throws Exception {
             var ds = new SQLiteDataSource();
             dataSource = ds;
             ds.setUrl("jdbc:sqlite:" + Files.createTempFile("teaql-graph-trace-", ".db"));
@@ -86,6 +92,9 @@ public class GraphTraceSqliteTest {
                     return super.queryForList(text, args);
                 }
             };
+            committedRecorder = captureCommittedMutations
+                    ? new SqliteCommittedMutationRecorder(driver, "java-graph-source", "sha256:" + "0".repeat(64))
+                    : null;
             var metadata = new SimpleEntityMetaFactory();
             for (String type : List.of("CustomerOrder", "OrderItem", "Payment", "PaymentAttempt", "Shipment")) {
                 var descriptor = new SQLEntityDescriptor();
@@ -124,9 +133,11 @@ public class GraphTraceSqliteTest {
                 }
             };
             var ids = new AtomicLong(1000);
-            var runtime = TeaQLRuntime.builder().metadata(metadata).dataService("sqlite", provider)
+            var builder = TeaQLRuntime.builder().metadata(metadata).dataService("sqlite", provider)
                     .idGenerationService((caller, entity) -> ids.getAndIncrement())
-                    .logSink((caller, entry) -> sql.add(entry)).build();
+                    .logSink((caller, entry) -> sql.add(entry));
+            if (committedRecorder != null) builder.committedMutationRecorder(committedRecorder);
+            var runtime = builder.build();
             context = new DefaultUserContext(runtime) {
                 @Override public boolean isQueryExecutionLoggingEnabled() { return queryLogging; }
                 @Override public boolean isMutationExecutionLoggingEnabled() { return mutationLogging; }
@@ -443,6 +454,90 @@ public class GraphTraceSqliteTest {
         assertEquals("root value", root.getProperty("name"));
         assertEquals(Long.valueOf(1), root.getVersion());
         assertEquals(Long.valueOf(-2), removed.getVersion());
+    }
+
+    @Test public void graphSaveCapturesAuthoritativeRowsAndOutboxInTheSameTransaction() throws Exception {
+        var fixture = new Fixture(true);
+        assertThrows(SecurityException.class, () -> fixture.committedRecorder.ensureSchema(fixture.context, null));
+        fixture.driver.execute("CREATE TRIGGER order_db_default AFTER INSERT ON customer_order_data "
+                + "BEGIN UPDATE customer_order_data SET memo = 'database trigger value' WHERE id = NEW.id; END");
+        var order = fixture.create("CustomerOrder", 100, "root value");
+        var item = fixture.create("OrderItem", 201, "first item");
+        item.setComment("create item");
+        var payment = fixture.create("Payment", 300, "payment value");
+        order.__internalSet("children", List.of(item, payment));
+        order.auditAs("create complete order graph").save(fixture.context);
+
+        var events = fixture.committedRecorder.eventStore();
+        var first = events.outboxAfter("java-graph-source", 0, 10);
+        assertEquals("one graph save must produce one durable set", 1, first.size());
+        JsonNode created = new ObjectMapper().readTree(first.get(0).payloadJson());
+        assertEquals("create complete order graph", created.path("audit").path("comment").asText());
+        assertEquals(3, created.path("mutations").size());
+        JsonNode orderFact = null;
+        for (JsonNode fact : created.path("mutations")) {
+            assertEquals("create", fact.path("operation").asText());
+            assertTrue(fact.path("base_version").isNull());
+            assertEquals("1", fact.path("committed_version").asText());
+            assertTrue(fact.path("trace_chain").isArray());
+            if (fact.path("entity_type").asText().equals("CustomerOrder")) orderFact = fact;
+        }
+        assertNotNull(orderFact);
+        assertEquals("database trigger value", orderFact.path("fields").path("memo").asText());
+        assertFalse(new CommittedMutationFact("CustomerOrder", "100", "create", null, "1",
+                Map.of("memo", "database trigger value"), List.of()).toString().contains("database trigger value"));
+        assertEquals("database trigger value", fixture.driver.queryForList(
+                "SELECT memo FROM customer_order_data WHERE id = ?", new Object[] {100L})
+                .get(0).get("memo"));
+
+        item.updateProperty("name", "revised item");
+        item.setComment("revise item");
+        order.auditAs("revise order graph").save(fixture.context);
+        var second = events.outboxAfter("java-graph-source", 1, 10);
+        assertEquals(1, second.size());
+        JsonNode changed = new ObjectMapper().readTree(second.get(0).payloadJson());
+        assertEquals(1, changed.path("mutations").size());
+        JsonNode changedItem = changed.path("mutations").get(0);
+        assertEquals("update", changedItem.path("operation").asText());
+        assertEquals("1", changedItem.path("base_version").asText());
+        assertEquals("2", changedItem.path("committed_version").asText());
+        assertEquals("revised item", changedItem.path("fields").path("name").asText());
+
+        payment.markForDeletion();
+        payment.setComment("remove payment");
+        order.auditAs("remove payment from order").save(fixture.context);
+        var third = events.outboxAfter("java-graph-source", 2, 10);
+        assertEquals(1, third.size());
+        JsonNode tombstone = new ObjectMapper().readTree(third.get(0).payloadJson()).path("mutations").get(0);
+        assertEquals("delete", tombstone.path("operation").asText());
+        assertEquals("1", tombstone.path("base_version").asText());
+        assertEquals("-2", tombstone.path("committed_version").asText());
+        assertEquals(0, tombstone.path("fields").size());
+
+        fixture.driver.execute("CREATE UNIQUE INDEX payment_name_unique_for_outbox ON payment_data(name)");
+        var duplicate = fixture.create("Payment", 301, "payment value");
+        order.__internalSet("children", List.of(item, payment, duplicate));
+        assertThrows(RuntimeException.class,
+                () -> order.auditAs("reject duplicate payment graph").save(fixture.context));
+        assertEquals("failed save must leave no publishable set", 3,
+                events.outboxAfter("java-graph-source", 0, 10).size());
+        assertTrue(fixture.driver.queryForList("SELECT id FROM payment_data WHERE id = ?",
+                new Object[] {301L}).isEmpty());
+    }
+
+    @Test public void brokenOutboxRollsBackNormalGraphSaveAndDoesNotDeliverAudit() throws Exception {
+        var fixture = new Fixture(true);
+        fixture.driver.execute("DROP TABLE teaql_event_outbox");
+        var order = fixture.create("CustomerOrder", 100, "must roll back");
+        var item = fixture.create("OrderItem", 201, "must roll back too");
+        order.__internalSet("children", List.of(item));
+        assertThrows(RuntimeException.class,
+                () -> order.auditAs("fail together when outbox unavailable").save(fixture.context));
+        assertTrue(fixture.driver.queryForList("SELECT id FROM customer_order_data WHERE id = ?",
+                new Object[] {100L}).isEmpty());
+        assertTrue(fixture.driver.queryForList("SELECT id FROM order_item_data WHERE id = ?",
+                new Object[] {201L}).isEmpty());
+        assertTrue("no post-commit audit on rolled back save", fixture.audit.isEmpty());
     }
 
     @Test public void realSqliteProviderFailureKeepsAttemptedLineageWithoutCommittedAudit() throws Exception {

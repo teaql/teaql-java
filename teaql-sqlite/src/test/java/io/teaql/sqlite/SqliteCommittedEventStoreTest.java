@@ -148,6 +148,8 @@ public class SqliteCommittedEventStoreTest {
 
             OutboxRecord first = append(source, "change-a", false);
             OutboxRecord second = append(source, "change-b", true);
+            assertFalse("raw facts must not appear in ordinary formatting", first.toString().contains("DRAFT"));
+            assertFalse(first.toString().contains("order_item"));
             assertEquals(1, first.sourceSequence());
             assertEquals(2, second.sourceSequence());
 

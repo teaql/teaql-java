@@ -30,7 +30,12 @@ public final class SqliteCommittedEventStore {
     }
 
     public record OutboxRecord(String sourceRuntimeId, long sourceSequence,
-            String changeSetId, String modelHash, String payloadSha256, String payloadJson) {}
+            String changeSetId, String modelHash, String payloadSha256, String payloadJson) {
+        @Override public String toString() {
+            return "OutboxRecord[sourceRuntimeId=" + sourceRuntimeId
+                    + ", sourceSequence=" + sourceSequence + ", payload=<redacted>]";
+        }
+    }
 
     public record InboxOutcome(boolean duplicate, long checkpoint) {
         public static InboxOutcome applied(long checkpoint) { return new InboxOutcome(false, checkpoint); }

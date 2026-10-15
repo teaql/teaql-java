@@ -37,6 +37,11 @@
             <artifactId>teaql-provider-jdbc</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>io.teaql</groupId>
+            <artifactId>teaql-runtime</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- Testing dependencies -->
         <dependency>
             <groupId>io.teaql</groupId>
@@ -53,12 +58,6 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.teaql</groupId>
-            <artifactId>teaql-runtime</artifactId>
-            <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
