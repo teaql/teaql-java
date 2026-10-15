@@ -320,6 +320,7 @@ Request JSON is not allowed to replace those trusted capabilities.
 - [Runtime design](RUNTIME_DESIGN.md)
 - [Logging design](LOG_DESIGN.md)
 - [Shared load state](examples/shared-load-state/README.md)
+- [Binary object storage and temporary S3 URLs](examples/object-storage/README.md)
 - [Extension points](https://github.com/teaql/teaql-conformance/blob/main/design/runtime-customization-p0-p1-matrix.md)
 
 ## Safe troubleshooting

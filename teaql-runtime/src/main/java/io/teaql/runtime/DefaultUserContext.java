@@ -178,6 +178,9 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
         if (value == null && capabilityType == RoundTripReferenceCodec.class) {
             value = runtime.getRoundTripReferenceCodec();
         }
+        if (value == null && capabilityType == io.teaql.core.storage.ObjectStorageObserver.class) {
+            value = new RuntimeObjectStorageObserver(runtime == null ? RuntimeTelemetry.NOOP : runtime.getTelemetry());
+        }
         if (value == null) {
             return null;
         }
