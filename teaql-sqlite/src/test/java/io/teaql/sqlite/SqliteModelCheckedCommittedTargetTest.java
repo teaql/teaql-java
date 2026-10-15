@@ -50,6 +50,7 @@ public class SqliteModelCheckedCommittedTargetTest {
         order.addSimpleProperty("active", Boolean.class).with("required", "true");
         order.addSimpleProperty("ratio", Double.class).with("required", "true");
         order.addSimpleProperty("optional_note", String.class);
+        order.addSimpleProperty("optional_label", String.class);
         SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
         metadata.register(order);
         EntityDescriptor item = new EntityDescriptor();
@@ -64,7 +65,7 @@ public class SqliteModelCheckedCommittedTargetTest {
                 TeaQLRuntime.builder().metadata(metadata).build());
         sql.execute("CREATE TABLE order_data (id INTEGER PRIMARY KEY, version INTEGER NOT NULL, "
                 + "order_number TEXT NOT NULL, status TEXT NOT NULL, planned_date DATE, amount NUMERIC, "
-                + "active INTEGER NOT NULL, ratio REAL NOT NULL, optional_note TEXT)");
+                + "active INTEGER NOT NULL, ratio REAL NOT NULL, optional_note TEXT, optional_label TEXT)");
         sql.execute("CREATE TABLE order_item_data (id INTEGER PRIMARY KEY, version INTEGER NOT NULL, "
                 + "order_id INTEGER NOT NULL, quantity INTEGER NOT NULL)");
         SqliteModelCheckedCommittedTarget target = new SqliteModelCheckedCommittedTarget(sql, SOURCE, HASH);
@@ -89,7 +90,8 @@ public class SqliteModelCheckedCommittedTargetTest {
                   "base_version":null,"committed_version":"1",
                   "fields":{"order_number":"ORD-0001","status":"DRAFT",
                             "planned_date":"2026-10-16","amount":"0",
-                            "active":true,"ratio":0.5,"optional_note":null},"trace_chain":[]},
+                            "active":true,"ratio":0.5,"optional_note":null,
+                            "optional_label":"initial label"},"trace_chain":[]},
                  {"entity_type":"order_item","entity_id":"9007199254740994","operation":"create",
                   "base_version":null,"committed_version":"1",
                   "fields":{"order":{"entity_type":"order","entity_id":"9007199254740993"},
@@ -100,7 +102,9 @@ public class SqliteModelCheckedCommittedTargetTest {
     private static String submitted() {
         return """
                 [{"entity_type":"order","entity_id":"9007199254740993","operation":"update",
-                  "base_version":"1","committed_version":"2","fields":{"status":"SUBMITTED"},"trace_chain":[]},
+                  "base_version":"1","committed_version":"2",
+                  "fields":{"status":"SUBMITTED","optional_note":"submitted note",
+                            "optional_label":null},"trace_chain":[]},
                  {"entity_type":"order_item","entity_id":"9007199254740994","operation":"delete",
                   "base_version":"1","committed_version":"-2","fields":{},"trace_chain":[]}]
                 """;
@@ -158,11 +162,12 @@ public class SqliteModelCheckedCommittedTargetTest {
                     "SELECT planned_date FROM order_data WHERE id = ?", new Object[] {ORDER_ID})
                     .get(0).get("planned_date"));
             Map<String, Object> scalars = t.sql().queryForList(
-                    "SELECT active, ratio, optional_note FROM order_data WHERE id = ?",
+                    "SELECT active, ratio, optional_note, optional_label FROM order_data WHERE id = ?",
                     new Object[] {ORDER_ID}).get(0);
             assertEquals(1L, ((Number) scalars.get("active")).longValue());
             assertEquals(0.5, ((Number) scalars.get("ratio")).doubleValue(), 0.0);
-            assertNull(scalars.get("optional_note"));
+            assertEquals("submitted note", scalars.get("optional_note"));
+            assertNull(scalars.get("optional_label"));
             assertEquals(-2L, ((Number) t.sql().queryForList(
                     "SELECT version FROM order_item_data WHERE id = ?", new Object[] {ITEM_ID})
                     .get(0).get("version")).longValue());
@@ -351,6 +356,38 @@ public class SqliteModelCheckedCommittedTargetTest {
             assertEquals(1L, ((Number) stored.get("active")).longValue());
             assertEquals(0.5, ((Number) stored.get("ratio")).doubleValue(), 0.0);
             assertNull(stored.get("optional_note"));
+        } finally { Files.deleteIfExists(path); }
+    }
+
+    @Test public void appliesNullableTransitionsWithoutTreatingOmissionAsNull() throws Exception {
+        Path path = Files.createTempFile("teaql-model-target-null-transition-", ".sqlite");
+        try {
+            Target t = target(path);
+            t.target().apply(t.context(), record(1, "created-null-transition", created()));
+            String nullRequired = submitted().replace("\"status\":\"SUBMITTED\"",
+                    "\"status\":\"SUBMITTED\",\"active\":null");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(2, "null-required-update", nullRequired)));
+            String wrongKind = submitted().replace("\"optional_note\":\"submitted note\"",
+                    "\"optional_note\":123");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(2, "wrong-note-kind", wrongKind)));
+            assertEquals(1, count(t.sql(), "teaql_event_inbox"));
+            Map<String, Object> unchanged = t.sql().queryForList(
+                    "SELECT version, optional_note, optional_label FROM order_data WHERE id = ?",
+                    new Object[] {ORDER_ID}).get(0);
+            assertEquals(1L, ((Number) unchanged.get("version")).longValue());
+            assertNull(unchanged.get("optional_note"));
+            assertEquals("initial label", unchanged.get("optional_label"));
+
+            t.target().apply(t.context(), record(2, "changed-null-transition", submitted()));
+            Map<String, Object> stored = t.sql().queryForList(
+                    "SELECT version, active, optional_note, optional_label FROM order_data WHERE id = ?",
+                    new Object[] {ORDER_ID}).get(0);
+            assertEquals(2L, ((Number) stored.get("version")).longValue());
+            assertEquals(1L, ((Number) stored.get("active")).longValue());
+            assertEquals("submitted note", stored.get("optional_note"));
+            assertNull(stored.get("optional_label"));
         } finally { Files.deleteIfExists(path); }
     }
 

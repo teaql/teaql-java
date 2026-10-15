@@ -586,6 +586,34 @@ public class GraphTraceSqliteTest {
         assertEquals(2, fact.path("fields").size());
     }
 
+    @Test public void committedUpdateDistinguishesNullTransitionsFromUnchangedFields() throws Exception {
+        var fixture = new Fixture(true);
+        var order = fixture.create("CustomerOrder", 911, "nullable order");
+        order.updateProperty("optional_note", null);
+        order.auditAs("create nullable order").save(fixture.context);
+
+        order.updateProperty("optional_note", "submitted note");
+        order.auditAs("set optional note").save(fixture.context);
+        var outbox = fixture.committedRecorder.eventStore();
+        JsonNode set = new ObjectMapper().readTree(
+                outbox.outboxAfter("java-graph-source", 1, 10).get(0).payloadJson());
+        JsonNode fields = set.path("mutations").get(0).path("fields");
+        assertEquals("submitted note", fields.path("optional_note").asText());
+        assertEquals(1, fields.size());
+
+        order.updateProperty("optional_note", null);
+        order.auditAs("clear optional note").save(fixture.context);
+        JsonNode cleared = new ObjectMapper().readTree(
+                outbox.outboxAfter("java-graph-source", 2, 10).get(0).payloadJson())
+                .path("mutations").get(0).path("fields");
+        assertTrue(cleared.has("optional_note"));
+        assertTrue(cleared.path("optional_note").isNull());
+        assertEquals(1, cleared.size());
+        assertNull(fixture.driver.queryForList(
+                "SELECT optional_note FROM customer_order_data WHERE id = ?", new Object[] {911L})
+                .get(0).get("optional_note"));
+    }
+
     @Test public void committedRecoveryKeepsPredecessorAndNeedsNoChangedScalarField() throws Exception {
         var fixture = new Fixture(true);
         var order = fixture.create("CustomerOrder", 910, "recoverable");
