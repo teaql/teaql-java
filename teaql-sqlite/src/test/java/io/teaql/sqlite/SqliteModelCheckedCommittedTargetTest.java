@@ -47,6 +47,9 @@ public class SqliteModelCheckedCommittedTargetTest {
         order.addSimpleProperty("status", String.class);
         order.addSimpleProperty("planned_date", java.time.LocalDate.class);
         order.addSimpleProperty("amount", java.math.BigDecimal.class);
+        order.addSimpleProperty("active", Boolean.class).with("required", "true");
+        order.addSimpleProperty("ratio", Double.class).with("required", "true");
+        order.addSimpleProperty("optional_note", String.class);
         SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
         metadata.register(order);
         EntityDescriptor item = new EntityDescriptor();
@@ -60,7 +63,8 @@ public class SqliteModelCheckedCommittedTargetTest {
         DefaultUserContext context = new DefaultUserContext(
                 TeaQLRuntime.builder().metadata(metadata).build());
         sql.execute("CREATE TABLE order_data (id INTEGER PRIMARY KEY, version INTEGER NOT NULL, "
-                + "order_number TEXT NOT NULL, status TEXT NOT NULL, planned_date DATE, amount NUMERIC)");
+                + "order_number TEXT NOT NULL, status TEXT NOT NULL, planned_date DATE, amount NUMERIC, "
+                + "active INTEGER NOT NULL, ratio REAL NOT NULL, optional_note TEXT)");
         sql.execute("CREATE TABLE order_item_data (id INTEGER PRIMARY KEY, version INTEGER NOT NULL, "
                 + "order_id INTEGER NOT NULL, quantity INTEGER NOT NULL)");
         SqliteModelCheckedCommittedTarget target = new SqliteModelCheckedCommittedTarget(sql, SOURCE, HASH);
@@ -84,7 +88,8 @@ public class SqliteModelCheckedCommittedTargetTest {
                 [{"entity_type":"order","entity_id":"9007199254740993","operation":"create",
                   "base_version":null,"committed_version":"1",
                   "fields":{"order_number":"ORD-0001","status":"DRAFT",
-                            "planned_date":"2026-10-16","amount":"0"},"trace_chain":[]},
+                            "planned_date":"2026-10-16","amount":"0",
+                            "active":true,"ratio":0.5,"optional_note":null},"trace_chain":[]},
                  {"entity_type":"order_item","entity_id":"9007199254740994","operation":"create",
                   "base_version":null,"committed_version":"1",
                   "fields":{"order":{"entity_type":"order","entity_id":"9007199254740993"},
@@ -152,6 +157,12 @@ public class SqliteModelCheckedCommittedTargetTest {
             assertEquals("2026-10-16", t.sql().queryForList(
                     "SELECT planned_date FROM order_data WHERE id = ?", new Object[] {ORDER_ID})
                     .get(0).get("planned_date"));
+            Map<String, Object> scalars = t.sql().queryForList(
+                    "SELECT active, ratio, optional_note FROM order_data WHERE id = ?",
+                    new Object[] {ORDER_ID}).get(0);
+            assertEquals(1L, ((Number) scalars.get("active")).longValue());
+            assertEquals(0.5, ((Number) scalars.get("ratio")).doubleValue(), 0.0);
+            assertNull(scalars.get("optional_note"));
             assertEquals(-2L, ((Number) t.sql().queryForList(
                     "SELECT version FROM order_item_data WHERE id = ?", new Object[] {ITEM_ID})
                     .get(0).get("version")).longValue());
@@ -312,6 +323,34 @@ public class SqliteModelCheckedCommittedTargetTest {
                     new Object[] {ORDER_ID}).get(0);
             assertEquals("integer", stored.get("storage_type"));
             assertEquals(0L, ((Number) stored.get("amount")).longValue());
+        } finally { Files.deleteIfExists(path); }
+    }
+
+    @Test public void preservesBooleanFiniteFloatAndExplicitNull() throws Exception {
+        Path path = Files.createTempFile("teaql-model-target-scalar-kinds-", ".sqlite");
+        try {
+            Target t = target(path);
+            String textBoolean = created().replace("\"active\":true", "\"active\":\"true\"");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(1, "text-boolean", textBoolean)));
+            String textFloat = created().replace("\"ratio\":0.5", "\"ratio\":\"0.5\"");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(1, "text-float", textFloat)));
+            String nullBoolean = created().replace("\"active\":true", "\"active\":null");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(1, "null-boolean", nullBoolean)));
+            String omitted = created().replace(",\"optional_note\":null", "");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(1, "omitted-note", omitted)));
+            assertEquals(0, count(t.sql(), "order_data"));
+
+            t.target().apply(t.context(), record(1, "valid-scalar-kinds", created()));
+            Map<String, Object> stored = t.sql().queryForList(
+                    "SELECT active, ratio, optional_note FROM order_data WHERE id = ?",
+                    new Object[] {ORDER_ID}).get(0);
+            assertEquals(1L, ((Number) stored.get("active")).longValue());
+            assertEquals(0.5, ((Number) stored.get("ratio")).doubleValue(), 0.0);
+            assertNull(stored.get("optional_note"));
         } finally { Files.deleteIfExists(path); }
     }
 

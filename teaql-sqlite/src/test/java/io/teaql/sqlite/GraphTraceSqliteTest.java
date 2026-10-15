@@ -35,11 +35,13 @@ public class GraphTraceSqliteTest {
         @Override public Object __internalGet(String field) {
             return field.equals("name") || field.equals("memo") || field.equals("children")
                     || field.equals("business_counter") || field.equals("planned_date")
+                    || field.equals("active") || field.equals("ratio") || field.equals("optional_note")
                     ? values.get(field) : super.__internalGet(field);
         }
         @Override public void __internalSet(String field, Object value) {
             if (field.equals("name") || field.equals("memo") || field.equals("children")
-                    || field.equals("business_counter") || field.equals("planned_date")) values.put(field, value);
+                    || field.equals("business_counter") || field.equals("planned_date")
+                    || field.equals("active") || field.equals("ratio") || field.equals("optional_note")) values.put(field, value);
             else super.__internalSet(field, value);
         }
     }
@@ -118,6 +120,13 @@ public class GraphTraceSqliteTest {
                     var plannedDate = (GenericSQLProperty) descriptor.addSimpleProperty(
                             "planned_date", java.time.LocalDate.class);
                     plannedDate.setColumnType("DATE");
+                    var active = (GenericSQLProperty) descriptor.addSimpleProperty("active", Boolean.class);
+                    active.setColumnType("BOOLEAN");
+                    var ratio = (GenericSQLProperty) descriptor.addSimpleProperty("ratio", Double.class);
+                    ratio.setColumnType("DOUBLE");
+                    var optionalNote = (GenericSQLProperty) descriptor.addSimpleProperty(
+                            "optional_note", String.class);
+                    optionalNote.setColumnType("VARCHAR(255)");
                 }
                 var children = new Relation();
                 children.setName("children");
@@ -474,6 +483,9 @@ public class GraphTraceSqliteTest {
         var order = fixture.create("CustomerOrder", 100, "root value");
         order.updateProperty("business_counter", 9_007_199_254_740_993L);
         order.updateProperty("planned_date", java.time.LocalDate.of(2026, 10, 16));
+        order.updateProperty("active", true);
+        order.updateProperty("ratio", 0.5);
+        order.updateProperty("optional_note", null);
         var item = fixture.create("OrderItem", 201, "first item");
         item.setComment("create item");
         var payment = fixture.create("Payment", 300, "payment value");
@@ -507,6 +519,10 @@ public class GraphTraceSqliteTest {
         assertTrue(orderFact.path("fields").path("business_counter").isTextual());
         assertEquals("9007199254740993", orderFact.path("fields").path("business_counter").asText());
         assertEquals("2026-10-16", orderFact.path("fields").path("planned_date").asText());
+        assertTrue(orderFact.path("fields").path("active").isBoolean());
+        assertTrue(orderFact.path("fields").path("active").booleanValue());
+        assertEquals(0.5, orderFact.path("fields").path("ratio").doubleValue(), 0.0);
+        assertTrue(orderFact.path("fields").path("optional_note").isNull());
         assertFalse(new CommittedMutationFact("CustomerOrder", "100", "create", null, "1",
                 Map.of("memo", "database trigger value"), List.of()).toString().contains("database trigger value"));
         assertEquals("database trigger value", fixture.driver.queryForList(
