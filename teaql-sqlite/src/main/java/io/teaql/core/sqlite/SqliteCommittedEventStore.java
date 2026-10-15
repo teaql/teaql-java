@@ -43,14 +43,14 @@ public final class SqliteCommittedEventStore {
     }
 
     @FunctionalInterface
-    public interface TrustedProjectionWriter {
+    interface TrustedProjectionWriter {
         void apply(SqlExecutionAdapter transaction, JsonNode committedFacts);
     }
 
     public static final class CommittedEventException extends RuntimeException {
         private final String code;
 
-        private CommittedEventException(String code, String message) {
+        CommittedEventException(String code, String message) {
             super(message);
             this.code = code;
         }
@@ -73,6 +73,11 @@ public final class SqliteCommittedEventStore {
                 + "source_runtime_id TEXT NOT NULL, change_set_id TEXT NOT NULL, "
                 + "source_sequence INTEGER NOT NULL CHECK(source_sequence > 0), "
                 + "payload_sha256 TEXT NOT NULL, PRIMARY KEY(source_runtime_id, change_set_id))");
+        sql.execute("CREATE TABLE IF NOT EXISTS teaql_event_applied_payload ("
+                + "source_runtime_id TEXT NOT NULL, source_sequence INTEGER NOT NULL CHECK(source_sequence > 0), "
+                + "change_set_id TEXT NOT NULL, payload_json TEXT NOT NULL, "
+                + "PRIMARY KEY(source_runtime_id, source_sequence), "
+                + "UNIQUE(source_runtime_id, change_set_id))");
         sql.execute("CREATE TABLE IF NOT EXISTS teaql_event_checkpoint ("
                 + "source_runtime_id TEXT PRIMARY KEY, "
                 + "source_sequence INTEGER NOT NULL CHECK(source_sequence >= 0), "
@@ -127,7 +132,7 @@ public final class SqliteCommittedEventStore {
      * Apply one set through a restricted projection writer. The writer must not
      * call normal entity save, Checker/Fix, ID generation or business hooks.
      */
-    public InboxOutcome apply(OutboxRecord record, String expectedModelHash,
+    InboxOutcome apply(OutboxRecord record, String expectedModelHash,
             TrustedProjectionWriter writer) {
         requireTransaction();
         if (record == null || blank(expectedModelHash) || writer == null) {
@@ -157,7 +162,16 @@ public final class SqliteCommittedEventStore {
             Map<String, Object> seen = prior.get(0);
             if (number(seen.get("source_sequence")) == record.sourceSequence()
                     && record.payloadSha256().equals(seen.get("payload_sha256"))) {
-                return InboxOutcome.duplicate(last);
+                List<Map<String, Object>> retained = sql.queryForList(
+                        "SELECT source_sequence, payload_json FROM teaql_event_applied_payload "
+                                + "WHERE source_runtime_id = ? AND change_set_id = ?",
+                        new Object[] {record.sourceRuntimeId(), record.changeSetId()});
+                if (retained.size() != 1
+                        || number(retained.get(0).get("source_sequence")) != record.sourceSequence()
+                        || !record.payloadSha256().equals(digest((String) retained.get(0).get("payload_json")))) {
+                    throw invalid("prior Inbox identity lacks retained source evidence");
+                }
+                return InboxOutcome.duplicate(record.sourceSequence());
             }
             throw new CommittedEventException("DUPLICATE_CONFLICT", "committed-event identity has conflicting content");
         }
@@ -170,6 +184,10 @@ public final class SqliteCommittedEventStore {
         }
         return savepoint("teaql_event_apply", () -> {
             writer.apply(sql, payload);
+            sql.update("INSERT INTO teaql_event_applied_payload "
+                    + "(source_runtime_id, source_sequence, change_set_id, payload_json) VALUES (?, ?, ?, ?)",
+                    new Object[] {record.sourceRuntimeId(), record.sourceSequence(),
+                            record.changeSetId(), record.payloadJson()});
             sql.update("INSERT INTO teaql_event_inbox "
                     + "(source_runtime_id, change_set_id, source_sequence, payload_sha256) VALUES (?, ?, ?, ?)",
                     new Object[] {record.sourceRuntimeId(), record.changeSetId(),

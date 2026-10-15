@@ -1,4 +1,4 @@
-package io.teaql.sqlite;
+package io.teaql.core.sqlite;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.teaql.core.sqlite.SqliteCommittedEventStore;
@@ -206,6 +206,7 @@ public class SqliteCommittedEventStoreTest {
             assertEquals(1L, ((Number) target.driver().queryForList("SELECT version FROM order_items",
                     new Object[0]).get(0).get("version")).longValue());
             assertEquals(1, count(target.driver(), "teaql_event_inbox"));
+            assertEquals(1, count(target.driver(), "teaql_event_applied_payload"));
 
             Database reopened = database(path);
             reopened.driver().executeInTransaction(() -> {
@@ -217,12 +218,18 @@ public class SqliteCommittedEventStoreTest {
                 });
                 assertTrue(duplicate.duplicate());
                 assertEquals(2, duplicate.checkpoint());
+                var olderDuplicate = reopened.events().apply(first, MODEL_HASH, (sql, facts) -> {
+                    throw new AssertionError("an older duplicate must not rematerialize");
+                });
+                assertTrue(olderDuplicate.duplicate());
+                assertEquals(1, olderDuplicate.checkpoint());
             });
             assertEquals("SUBMITTED", reopened.driver().queryForList("SELECT status FROM orders", new Object[0])
                     .get(0).get("status"));
             assertEquals(-2L, ((Number) reopened.driver().queryForList(
                     "SELECT version FROM order_items", new Object[0]).get(0).get("version")).longValue());
             assertEquals(2, count(reopened.driver(), "teaql_event_inbox"));
+            assertEquals(2, count(reopened.driver(), "teaql_event_applied_payload"));
             assertEquals(2L, ((Number) reopened.driver().queryForList(
                     "SELECT source_sequence FROM teaql_event_checkpoint", new Object[0])
                     .get(0).get("source_sequence")).longValue());

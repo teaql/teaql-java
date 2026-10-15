@@ -8,6 +8,7 @@ import io.teaql.core.sql.GenericSQLProperty;
 import io.teaql.core.sql.SQLEntityDescriptor;
 import io.teaql.core.sqlite.SqliteCommittedEventStore;
 import io.teaql.core.sqlite.SqliteCommittedMutationRecorder;
+import io.teaql.core.sqlite.SqliteModelCheckedCommittedTarget;
 import io.teaql.core.sqlite.SqliteDataServiceExecutor;
 import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import io.teaql.runtime.DefaultUserContext;
@@ -88,6 +89,33 @@ public class CommittedEventsExampleTest {
         JsonNode submitted = new ObjectMapper().readTree(durable.get(1).payloadJson());
         assertEquals("1", submitted.path("mutations").get(0).path("base_version").asText());
         assertEquals("2", submitted.path("mutations").get(0).path("committed_version").asText());
+
+        Path replicaPath = Files.createTempFile("teaql-committed-target-example-", ".sqlite");
+        replicaPath.toFile().deleteOnExit();
+        SQLiteDataSource replicaSource = new SQLiteDataSource();
+        replicaSource.setUrl("jdbc:sqlite:" + replicaPath);
+        JdbcSqlExecutor replicaSql = new JdbcSqlExecutor(replicaSource);
+        TeaQLRuntime replicaRuntime = TeaQLRuntime.builder().metadata(metadata)
+                .dataService("sqlite", new SqliteDataServiceExecutor("sqlite", replicaSql, replicaSource))
+                .executionLogging(false).build();
+        DefaultUserContext replicaContext = new DefaultUserContext(replicaRuntime);
+        replicaContext.ensureSchema();
+        SqliteModelCheckedCommittedTarget target = new SqliteModelCheckedCommittedTarget(
+                replicaSql, "example-java-source", "sha256:" + "0".repeat(64));
+        target.ensureSchema();
+        assertEquals(1, target.apply(replicaContext, durable.get(0)).checkpoint());
+        assertEquals(2, target.apply(replicaContext, durable.get(1)).checkpoint());
+        var duplicate = target.apply(replicaContext, durable.get(0));
+        assertTrue(duplicate.duplicate());
+        assertEquals(1, duplicate.checkpoint());
+        var replicated = replicaSql.queryForList("SELECT version, name, memo FROM order_data WHERE id = ?",
+                new Object[] {42L}).get(0);
+        assertEquals(2L, ((Number) replicated.get("version")).longValue());
+        assertEquals("submitted", replicated.get("name"));
+        assertEquals("set by database", replicated.get("memo"));
+        assertEquals(2, replicaSql.queryForList("SELECT * FROM teaql_event_applied_payload",
+                new Object[0]).size());
+        replicaRuntime.close();
 
         sql.execute("DROP TABLE teaql_event_outbox");
         order.updateProperty("name", "should roll back");
