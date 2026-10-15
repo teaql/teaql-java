@@ -138,6 +138,8 @@ public class BoundSecretProviderTest {
                 PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE,
                 PosixFilePermission.GROUP_WRITE));
         assertCode(SecretFailure.Code.DENIED,
+                () -> context.resolveSecret(reference, "read after root permission change"));
+        assertCode(SecretFailure.Code.DENIED,
                 () -> BoundSecretProvider.builder(root));
     }
 
@@ -151,6 +153,37 @@ public class BoundSecretProviderTest {
                 (BusinessClock) caller -> LocalDate.of(1900, 1, 1));
         assertCode(SecretFailure.Code.EXPIRED,
                 () -> context.resolveSecret(reference, "read"));
+    }
+
+    @Test public void replacingBoundRootWithAnotherPrivateDirectoryFailsClosed() throws Exception {
+        Path root = temporary.newFolder("bound-root").toPath();
+        org.junit.Assume.assumeTrue(Files.getFileStore(root).supportsFileAttributeView("posix"));
+        Set<PosixFilePermission> privateDirectory = Set.of(PosixFilePermission.OWNER_READ,
+                PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE);
+        Set<PosixFilePermission> privateFile = Set.of(PosixFilePermission.OWNER_READ,
+                PosixFilePermission.OWNER_WRITE);
+        Files.setPosixFilePermissions(root, privateDirectory);
+        Path key = root.resolve("key");
+        Files.writeString(key, "original");
+        Files.setPosixFilePermissions(key, privateFile);
+        SecretReference reference = new SecretReference("signing", "key");
+        DefaultUserContext context = new DefaultUserContext(null).withSecretProvider(
+                BoundSecretProvider.builder(root).file(reference, Path.of("key"), "v1", null).build());
+        assertEquals("original", new String(context.resolveSecret(reference, "read").exposeBytes()));
+
+        Files.move(root, root.resolveSibling("parked-bound-root"));
+        Files.createDirectory(root);
+        Files.setPosixFilePermissions(root, privateDirectory);
+        Files.writeString(key, "replacement");
+        Files.setPosixFilePermissions(key, privateFile);
+        assertCode(SecretFailure.Code.DENIED,
+                () -> context.resolveSecret(reference, "read after root replacement"));
+        Files.delete(key);
+        Files.delete(root);
+        Files.createSymbolicLink(root, root.resolveSibling("parked-bound-root"));
+        assertCode(SecretFailure.Code.DENIED,
+                () -> context.resolveSecret(reference, "read through replacement symlink"));
+        Files.delete(root);
     }
 
     private static void assertCode(SecretFailure.Code expected, Runnable action) {
