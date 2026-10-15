@@ -3,6 +3,7 @@ package io.teaql.tools.http;
 import io.teaql.core.UserContext;
 import io.teaql.core.businessid.BusinessClock;
 import io.teaql.core.http.HttpPropagation;
+import io.teaql.core.http.HttpObservation;
 import io.teaql.core.http.HttpRequestFailure;
 import io.teaql.core.http.HttpRequestService;
 import io.teaql.tools.http.impl.JdkHttpTool;
@@ -50,10 +51,15 @@ public class HttpResilienceTest {
         return context(service, null);
     }
     private UserContext context(HttpRequestService service, HttpPropagation propagation) {
+        return context(service, propagation, null);
+    }
+    private UserContext context(HttpRequestService service, HttpPropagation propagation,
+                                HttpObservation observation) {
         InvocationHandler handler = (proxy, method, args) -> {
             if (method.getName().equals("capability")) {
                 if (args[0] == HttpRequestService.class) return service;
                 if (args[0] == HttpPropagation.class) return propagation;
+                if (args[0] == HttpObservation.class) return observation;
                 return null;
             }
             if (method.isDefault()) return InvocationHandler.invokeDefault(proxy, method, args);
@@ -65,6 +71,17 @@ public class HttpResilienceTest {
     }
     private static HttpRequestService.Call get(String path) {
         return HttpRequestService.Call.get("orders", path, "load order status", "show current order");
+    }
+
+    @Test public void brokenObservationCannotChangeTransportOutcome() {
+        var service = new JdkHttpRequestService(java.util.List.of(profile().build()));
+        HttpObservation brokenStart = operation -> { throw new IllegalStateException("observer failed"); };
+        assertEquals(200, service.execute(context(service, null, brokenStart), get("ok")).status());
+        HttpObservation brokenFinish = operation -> (outcome, attempts, elapsed) -> {
+            throw new IllegalStateException("observer failed");
+        };
+        assertEquals(200, service.execute(context(service, null, brokenFinish), get("ok")).status());
+        assertEquals(2, server.requests.get());
     }
     private static HttpRequestService.Call call(HttpRequestService.Method method, String path,
                                                 HttpRequestService.RetryMode retry) {

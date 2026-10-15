@@ -86,6 +86,10 @@ public interface RuntimeTelemetry {
 
         void failure(Throwable error);
 
+        default void failureWithAttributes(Throwable error, Map<String, Object> attributes) {
+            failure(error);
+        }
+
         default io.teaql.core.SqlExecutionCorrelation correlation() { return null; }
         default void detach() {}
         default PropagationScope activate() { return NoopPropagationScope.INSTANCE; }
@@ -202,10 +206,16 @@ public interface RuntimeTelemetry {
 
         @Override
         public synchronized void failure(Throwable error) {
+            failureWithAttributes(error, Collections.emptyMap());
+        }
+
+        @Override
+        public synchronized void failureWithAttributes(Throwable error, Map<String, Object> attributes) {
             if (ended) return;
             ended = true;
             try {
-                delegate.failure(error);
+                delegate.failureWithAttributes(error,
+                        attributes == null ? Collections.emptyMap() : attributes);
             } catch (Throwable ignored) {
                 // Runtime telemetry must not affect application behavior.
             }

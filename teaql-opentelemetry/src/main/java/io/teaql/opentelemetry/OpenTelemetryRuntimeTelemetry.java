@@ -124,21 +124,20 @@ public final class OpenTelemetryRuntimeTelemetry implements RuntimeTelemetry {
             @Override
             public synchronized void success(Map<String, Object> completion) {
                 if (ended) return;
-                if (completion != null) {
-                    completion.forEach((key, value) -> {
-                        if ("teaql.result.cardinality".equals(key)
-                                || "teaql.cache.result".equals(key)) {
-                            setAttribute(span, key, value);
-                        }
-                    });
-                }
+                applyCompletion(span, completion);
                 span.setStatus(StatusCode.OK);
                 finish("success");
             }
 
             @Override
             public synchronized void failure(Throwable error) {
+                failureWithAttributes(error, Map.of());
+            }
+
+            @Override
+            public synchronized void failureWithAttributes(Throwable error, Map<String, Object> completion) {
                 if (ended) return;
+                applyCompletion(span, completion);
                 String category = RuntimeTelemetry.errorCategory(error);
                 span.setAttribute("teaql.error.type",
                         error == null ? "unknown" : error.getClass().getSimpleName());
@@ -228,5 +227,18 @@ public final class OpenTelemetryRuntimeTelemetry implements RuntimeTelemetry {
         else if (value instanceof Float number) span.setAttribute(key, number.doubleValue());
         else if (value instanceof Boolean bool) span.setAttribute(key, bool);
         else if (value instanceof Number number) span.setAttribute(key, number.doubleValue());
+    }
+
+    private static void applyCompletion(Span span, Map<String, Object> completion) {
+        if (completion == null) return;
+        completion.forEach((key, value) -> {
+            if ("teaql.result.cardinality".equals(key)
+                    || "teaql.cache.result".equals(key)
+                    || "teaql.http.outcome".equals(key)
+                    || "teaql.http.attempts".equals(key)
+                    || "teaql.http.elapsed_ms".equals(key)) {
+                setAttribute(span, key, value);
+            }
+        });
     }
 }

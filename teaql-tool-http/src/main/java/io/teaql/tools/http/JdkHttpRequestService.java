@@ -1,6 +1,7 @@
 package io.teaql.tools.http;
 
 import io.teaql.core.UserContext;
+import io.teaql.core.http.HttpObservation;
 import io.teaql.core.http.HttpPropagation;
 import io.teaql.core.http.HttpRequestFailure;
 import io.teaql.core.http.HttpRequestService;
@@ -53,8 +54,6 @@ public final class JdkHttpRequestService implements HttpRequestService {
         State state = profiles.get(call.profile());
         if (state == null) throw new HttpRequestFailure(HttpRequestFailure.Code.PROFILE_NOT_CONFIGURED);
         URI target = safeTarget(state.profile.baseUri(), call.relativePath());
-        Map<String, String> headers = safeHeaders(context, call);
-        byte[] body = call.body();
         long started = clock.nanoTime();
         long totalNanos = state.profile.totalTimeout().toNanos();
         int maxAttempts = call.retryMode() == RetryMode.CONFIRMED_IDEMPOTENT
@@ -62,7 +61,17 @@ public final class JdkHttpRequestService implements HttpRequestService {
                 ? state.profile.maxAttempts() : 1;
         int attempts = 0;
         String outcome = "unknown";
+        HttpObservation.Scope observation = null;
         try {
+            HttpObservation observer = context.capability(HttpObservation.class);
+            if (observer != null) observation = observer.start(call.observation());
+        } catch (RuntimeException ignored) {
+            // Observability must not change a business HTTP call's result.
+        }
+        try {
+            // The HTTP span must be active when the runtime injects its carrier.
+            Map<String, String> headers = safeHeaders(context, call);
+            byte[] body = call.body();
             for (;;) {
                 long remaining = remaining(started, totalNanos);
                 state.acquireRate(remaining);
@@ -145,6 +154,10 @@ public final class JdkHttpRequestService implements HttpRequestService {
             int count = attempts;
             String safeOutcome = outcome;
             long elapsed = Math.max(0, clock.nanoTime() - started) / 1_000_000;
+            if (observation != null) {
+                try { observation.finish(safeOutcome, count, elapsed); }
+                catch (RuntimeException ignored) { /* Keep the transport result. */ }
+            }
             LOG.info(() -> "HTTP alias=" + state.profile.alias() + " method=" + call.method()
                     + " intent=" + call.intentKind() + " comment=" + clean(call.comment())
                     + " purpose=" + clean(call.intent()) + " attempts=" + count
