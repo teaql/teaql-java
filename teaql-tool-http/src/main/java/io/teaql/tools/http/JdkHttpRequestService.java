@@ -273,6 +273,9 @@ public final class JdkHttpRequestService implements HttpRequestService {
             if (profile.ratePerSecond() == 0) return;
             long started = clock.nanoTime();
             for (;;) {
+                if (Thread.currentThread().isInterrupted()) {
+                    throw new HttpRequestFailure(HttpRequestFailure.Code.CANCELLED);
+                }
                 long wait;
                 synchronized (this) {
                     long now = clock.nanoTime();

@@ -21,9 +21,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.LockSupport;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -165,6 +167,60 @@ public class HttpResilienceTest {
         assertEquals(1, server.requests.get());
     }
 
+    @Test public void cancellationDuringBackoffCannotReplayTheRequest() throws Exception {
+        BlockingClock clock = new BlockingClock();
+        JdkHttpRequestService service = new JdkHttpRequestService(java.util.List.of(profile()
+                .budgets(Duration.ofMillis(200), Duration.ofSeconds(2), Duration.ofSeconds(3))
+                .retry(3, Duration.ofSeconds(1), Set.of(HttpRequestService.Method.GET)).build()), clock);
+        AtomicReference<Throwable> result = new AtomicReference<>();
+        Thread worker = new Thread(() -> {
+            try { service.execute(context(service), call(HttpRequestService.Method.GET,
+                    "fail", HttpRequestService.RetryMode.CONFIRMED_IDEMPOTENT)); }
+            catch (Throwable failure) { result.set(failure); }
+        });
+        worker.start();
+        assertTrue("first failure should enter backoff", clock.paused.await(1, TimeUnit.SECONDS));
+        assertEquals(1, server.requests.get());
+        worker.interrupt();
+        worker.join(1000);
+        assertFalse(worker.isAlive());
+        assertTrue(result.get() instanceof HttpRequestFailure);
+        assertEquals(HttpRequestFailure.Code.CANCELLED, ((HttpRequestFailure) result.get()).code());
+        assertEquals(1, server.requests.get());
+    }
+
+    @Test public void cancellationDuringRateWaitCannotStartAnotherRequest() throws Exception {
+        BlockingClock clock = new BlockingClock();
+        JdkHttpRequestService service = new JdkHttpRequestService(java.util.List.of(profile()
+                .budgets(Duration.ofMillis(200), Duration.ofSeconds(2), Duration.ofSeconds(3))
+                .ratePerSecond(1).build()), clock);
+        UserContext context = context(service);
+        assertEquals(200, service.execute(context, get("ok")).status());
+        AtomicReference<Throwable> result = new AtomicReference<>();
+        Thread worker = new Thread(() -> {
+            try { service.execute(context, get("ok")); }
+            catch (Throwable failure) { result.set(failure); }
+        });
+        worker.start();
+        assertTrue("second request should wait for token", clock.paused.await(1, TimeUnit.SECONDS));
+        assertEquals(1, server.requests.get());
+        worker.interrupt();
+        worker.join(1000);
+        assertFalse(worker.isAlive());
+        assertTrue(result.get() instanceof HttpRequestFailure);
+        assertEquals(HttpRequestFailure.Code.CANCELLED, ((HttpRequestFailure) result.get()).code());
+        assertEquals(1, server.requests.get());
+    }
+
+    private static final class BlockingClock implements HttpOperationalClock {
+        final CountDownLatch paused = new CountDownLatch(1);
+        @Override public long nanoTime() { return System.nanoTime(); }
+        @Override public void pauseNanos(long nanos) {
+            paused.countDown();
+            LockSupport.parkNanos(nanos);
+        }
+    }
+
     @Test public void circuitAndRateAreProfileShared() throws Exception {
         JdkHttpRequestService circuit = new JdkHttpRequestService(java.util.List.of(profile()
                 .circuit(2, Duration.ofMillis(80), 1).build()));
@@ -205,6 +261,37 @@ public class HttpResilienceTest {
                 assertThrows(HttpRequestFailure.class, () -> service.execute(context, get("ok"))).code());
         assertEquals(before, server.requests.get());
         monotonic.addAndGet(Duration.ofSeconds(5).toNanos());
+        assertEquals(200, service.execute(context, get("ok")).status());
+    }
+
+    @Test public void halfOpenAllowsOneProbeAndCancellationReleasesIt() throws Exception {
+        AtomicLong monotonic = new AtomicLong(1);
+        HttpOperationalClock clock = new HttpOperationalClock() {
+            @Override public long nanoTime() { return monotonic.get(); }
+            @Override public void pauseNanos(long nanos) { monotonic.addAndGet(nanos); }
+        };
+        JdkHttpRequestService service = new JdkHttpRequestService(java.util.List.of(profile()
+                .budgets(Duration.ofMillis(200), Duration.ofSeconds(2), Duration.ofSeconds(2))
+                .circuit(1, Duration.ofSeconds(5), 1).build()), clock);
+        UserContext context = context(service);
+        assertEquals(503, service.execute(context, get("fail")).status());
+        monotonic.addAndGet(Duration.ofSeconds(5).toNanos());
+        AtomicReference<Throwable> result = new AtomicReference<>();
+        Thread probe = new Thread(() -> {
+            try { service.execute(context, get("slow")); }
+            catch (Throwable failure) { result.set(failure); }
+        });
+        probe.start();
+        long deadline = System.nanoTime() + Duration.ofSeconds(1).toNanos();
+        while (server.requests.get() < 2 && System.nanoTime() < deadline) Thread.sleep(5);
+        assertEquals(2, server.requests.get());
+        assertEquals(HttpRequestFailure.Code.CIRCUIT_OPEN,
+                assertThrows(HttpRequestFailure.class, () -> service.execute(context, get("ok"))).code());
+        probe.interrupt();
+        probe.join(1000);
+        assertFalse(probe.isAlive());
+        assertTrue(result.get() instanceof HttpRequestFailure);
+        assertEquals(HttpRequestFailure.Code.CANCELLED, ((HttpRequestFailure) result.get()).code());
         assertEquals(200, service.execute(context, get("ok")).status());
     }
 
@@ -269,6 +356,13 @@ public class HttpResilienceTest {
         try {
             assertEquals("okay", new JdkHttpTool(context).get("orders", "ok")
                     .comment("load order").purpose("show order").execute());
+            HttpRequestService.Call privateCall = new HttpRequestService.Call("orders",
+                    HttpRequestService.Method.POST, "ok?token=PRIVATE_QUERY_CANARY",
+                    Map.of("Authorization", "Bearer PRIVATE_HEADER_CANARY"),
+                    "PRIVATE_BODY_CANARY".getBytes(StandardCharsets.UTF_8), "text/plain",
+                    "send order", HttpRequestService.IntentKind.PURPOSE,
+                    "confirm order", HttpRequestService.RetryMode.NONE);
+            assertEquals(200, service.execute(context, privateCall).status());
             assertEquals(HttpRequestFailure.Code.INVALID_INPUT,
                     assertThrows(HttpRequestFailure.class, () -> new JdkHttpTool(context)
                             .get("http://127.0.0.1/secret").comment("load").purpose("show").execute()).code());
@@ -278,6 +372,9 @@ public class HttpResilienceTest {
             assertTrue(server.traceparents.contains("00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01"));
             assertFalse(log.toString().contains("127.0.0.1"));
             assertFalse(log.toString().contains("PRIVATE-BODY-CANARY"));
+            assertFalse(log.toString().contains("PRIVATE_QUERY_CANARY"));
+            assertFalse(log.toString().contains("PRIVATE_HEADER_CANARY"));
+            assertFalse(log.toString().contains("PRIVATE_BODY_CANARY"));
         } finally { logger.removeHandler(capture); }
     }
 
