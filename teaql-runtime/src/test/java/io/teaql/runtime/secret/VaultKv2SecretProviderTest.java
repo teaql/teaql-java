@@ -8,6 +8,7 @@ import io.teaql.core.secret.SecretReference;
 import io.teaql.core.secret.SecretValue;
 import io.teaql.runtime.DefaultUserContext;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -27,8 +28,36 @@ public class VaultKv2SecretProviderTest {
 
     private DefaultUserContext context(VaultKv2SecretProvider provider, HttpRequestService http) {
         DefaultUserContext context = new DefaultUserContext(null).withSecretProvider(provider);
-        context.putAttribute(HttpRequestService.class.getName(), http);
+        context.putAttribute(HttpRequestService.class.getName(), new HttpRequestService() {
+            @Override public boolean profileIsEncryptedOrLoopback(String profile) {
+                return "vault".equals(profile);
+            }
+            @Override public Response execute(io.teaql.core.UserContext caller, Call call) {
+                return http.execute(caller, call);
+            }
+        });
         return context;
+    }
+
+    @Test public void insecureProfileCannotResolveBootstrapTokenOrSendRequest() {
+        AtomicInteger tokenResolutions = new AtomicInteger();
+        AtomicInteger httpCalls = new AtomicInteger();
+        SecretProvider token = (caller, reference) -> {
+            tokenResolutions.incrementAndGet();
+            return new SecretValue("PRIVATE-VAULT-TOKEN".getBytes(StandardCharsets.UTF_8), null, null);
+        };
+        VaultKv2SecretProvider provider = VaultKv2SecretProvider.builder(
+                "vault", "secret", token, TOKEN_REFERENCE)
+                .bind(REFERENCE, "payments/api", "value").build();
+        DefaultUserContext context = new DefaultUserContext(null).withSecretProvider(provider);
+        context.putAttribute(HttpRequestService.class.getName(), (HttpRequestService) (caller, call) -> {
+            httpCalls.incrementAndGet();
+            return new HttpRequestService.Response(200, BODY.getBytes(StandardCharsets.UTF_8), 1);
+        });
+        assertCode(SecretFailure.Code.UNAVAILABLE,
+                () -> context.resolveSecret(REFERENCE, "read payment credential"));
+        assertEquals(0, tokenResolutions.get());
+        assertEquals(0, httpCalls.get());
     }
 
     @Test public void contextResolutionUsesBoundPathAndMasksDiagnostics() {

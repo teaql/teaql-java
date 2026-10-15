@@ -51,6 +51,10 @@ public final class VaultKv2SecretProvider implements SecretProvider {
         Binding binding = bindings.get(reference);
         if (binding == null) throw new SecretFailure(SecretFailure.Code.UNKNOWN_BINDING);
         try {
+            HttpRequestService http = context.httpRequests();
+            if (!http.profileIsEncryptedOrLoopback(httpProfile)) {
+                throw new SecretFailure(SecretFailure.Code.UNAVAILABLE);
+            }
             SecretValue credential = tokenProvider.resolve(context, tokenReference);
             if (credential == null) throw new SecretFailure(SecretFailure.Code.UNAVAILABLE);
             String token = decodeToken(credential.exposeBytes());
@@ -60,7 +64,7 @@ public final class VaultKv2SecretProvider implements SecretProvider {
                     Map.of("X-Vault-Token", token), null, null,
                     "read configured Vault secret", HttpRequestService.IntentKind.PURPOSE,
                     "resolve runtime credential", HttpRequestService.RetryMode.NONE);
-            HttpRequestService.Response response = context.httpRequests().execute(context, call);
+            HttpRequestService.Response response = http.execute(context, call);
             if (response == null) throw new SecretFailure(SecretFailure.Code.UNAVAILABLE);
             return switch (response.status()) {
                 case 200 -> parse(response.body(), binding.field());
