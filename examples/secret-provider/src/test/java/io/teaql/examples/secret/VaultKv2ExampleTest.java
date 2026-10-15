@@ -3,11 +3,13 @@ package io.teaql.examples.secret;
 import io.teaql.core.http.HttpRequestService;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
 import io.teaql.core.secret.SecretFailure;
+import io.teaql.core.secret.SecretProvider;
 import io.teaql.core.secret.SecretReference;
 import io.teaql.core.secret.SecretValue;
 import io.teaql.runtime.DefaultUserContext;
 import io.teaql.runtime.RuntimeTelemetry;
 import io.teaql.runtime.TeaQLRuntime;
+import io.teaql.runtime.secret.BoundSecretProvider;
 import io.teaql.runtime.secret.VaultKv2SecretProvider;
 import io.teaql.tools.http.HttpServiceProfile;
 import io.teaql.tools.http.JdkHttpRequestService;
@@ -40,6 +42,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
 import org.junit.Test;
+import org.junit.Assume;
 import static org.junit.Assert.*;
 
 public class VaultKv2ExampleTest {
@@ -63,14 +66,21 @@ public class VaultKv2ExampleTest {
     }
 
     private DefaultUserContext tlsContext(int port, byte[] trustedRoot, List<String> captured) {
-        var builder = HttpServiceProfile.builder("vault", URI.create("https://127.0.0.1:" + port + "/"))
+        SecretProvider bootstrap = (caller, reference) -> new SecretValue(
+                "PRIVATE-VAULT-TOKEN".getBytes(StandardCharsets.UTF_8), null, null);
+        return configuredTlsContext(URI.create("https://127.0.0.1:" + port + "/"), trustedRoot,
+                bootstrap, "payment/api", captured);
+    }
+
+    private DefaultUserContext configuredTlsContext(URI endpoint, byte[] trustedRoot,
+                                                    SecretProvider bootstrap, String path,
+                                                    List<String> captured) {
+        var builder = HttpServiceProfile.builder("vault", endpoint)
                 .budgets(Duration.ofSeconds(2), Duration.ofSeconds(2), Duration.ofSeconds(3));
         if (trustedRoot != null) builder.trustedRootPem(trustedRoot);
-        var provider = VaultKv2SecretProvider.builder("vault", "secret",
-                (caller, reference) -> new SecretValue(
-                        "PRIVATE-VAULT-TOKEN".getBytes(StandardCharsets.UTF_8), null, null),
+        var provider = VaultKv2SecretProvider.builder("vault", "secret", bootstrap,
                 new SecretReference("bootstrap", "vault_token"))
-                .bind(REFERENCE, "payment/api", "value").build();
+                .bind(REFERENCE, path, "value").build();
         RuntimeTelemetry telemetry = operation -> {
             captured.add("start:" + operation);
             return new RuntimeTelemetry.Scope() {
@@ -91,6 +101,50 @@ public class VaultKv2ExampleTest {
         context.putAttribute(HttpRequestService.class.getName(),
                 new JdkHttpRequestService(List.of(builder.build())));
         return context;
+    }
+
+    @Test public void liveVaultKv2OverTlsChecksSuccessDeniedMissingAndUnknownCa() throws Exception {
+        String endpointText = System.getenv("TEAQL_TEST_VAULT_URL");
+        Assume.assumeTrue("live Vault fixture is opt-in", endpointText != null);
+        URI endpoint = URI.create(endpointText);
+        assertEquals("https", endpoint.getScheme());
+        assertEquals("127.0.0.1", endpoint.getHost());
+        byte[] root = Files.readAllBytes(java.nio.file.Path.of(
+                System.getenv("TEAQL_TEST_VAULT_CA_PEM")));
+        String expected = System.getenv("TEAQL_TEST_VAULT_EXPECTED_VALUE");
+        String version = System.getenv("TEAQL_TEST_VAULT_EXPECTED_VERSION");
+        List<String> captured = new CopyOnWriteArrayList<>();
+        var tokenReference = new SecretReference("bootstrap", "vault_token");
+        var token = BoundSecretProvider.builder(null)
+                .environment(tokenReference, "TEAQL_TEST_VAULT_TOKEN", null, null).build();
+        SecretValue value = configuredTlsContext(endpoint, root, token, "payment/api", captured)
+                .resolveSecret(REFERENCE, "verify live Vault credential");
+        assertArrayEquals(expected.getBytes(StandardCharsets.UTF_8), value.exposeBytes());
+        assertEquals("vault-kv2:" + version, value.version());
+
+        var wrongToken = BoundSecretProvider.builder(null)
+                .environment(tokenReference, "TEAQL_TEST_VAULT_BAD_TOKEN", null, null).build();
+        SecretFailure denied = assertThrows(SecretFailure.class,
+                () -> configuredTlsContext(endpoint, root, wrongToken, "payment/api", captured)
+                        .resolveSecret(REFERENCE, "verify denied Vault credential"));
+        assertEquals(SecretFailure.Code.DENIED, denied.code());
+        SecretFailure missing = assertThrows(SecretFailure.class,
+                () -> configuredTlsContext(endpoint, root, token, "payment/absent", captured)
+                        .resolveSecret(REFERENCE, "verify missing Vault credential"));
+        assertEquals(SecretFailure.Code.MISSING, missing.code());
+        SecretFailure untrusted = assertThrows(SecretFailure.class,
+                () -> configuredTlsContext(endpoint, null, token, "payment/api", captured)
+                        .resolveSecret(REFERENCE, "verify untrusted Vault certificate"));
+        assertEquals(SecretFailure.Code.UNAVAILABLE, untrusted.code());
+        assertNull(untrusted.getCause());
+
+        String diagnostics = captured.toString();
+        assertTrue(diagnostics.contains("success:"));
+        assertTrue(diagnostics.contains("failure:"));
+        assertFalse(diagnostics.contains(System.getenv("TEAQL_TEST_VAULT_TOKEN")));
+        assertFalse(diagnostics.contains(System.getenv("TEAQL_TEST_VAULT_BAD_TOKEN")));
+        assertFalse(diagnostics.contains(expected));
+        System.out.println("VAULT_LIVE_PASS success=1 denied=1 missing=1 unknown_ca=1 diagnostics=1");
     }
 
     private static void openssl(String... arguments) throws Exception {
