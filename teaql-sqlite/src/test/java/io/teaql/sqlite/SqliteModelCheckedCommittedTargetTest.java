@@ -46,6 +46,7 @@ public class SqliteModelCheckedCommittedTargetTest {
         order.addSimpleProperty("order_number", String.class);
         order.addSimpleProperty("status", String.class);
         order.addSimpleProperty("planned_date", java.time.LocalDate.class);
+        order.addSimpleProperty("amount", java.math.BigDecimal.class);
         SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
         metadata.register(order);
         EntityDescriptor item = new EntityDescriptor();
@@ -59,7 +60,7 @@ public class SqliteModelCheckedCommittedTargetTest {
         DefaultUserContext context = new DefaultUserContext(
                 TeaQLRuntime.builder().metadata(metadata).build());
         sql.execute("CREATE TABLE order_data (id INTEGER PRIMARY KEY, version INTEGER NOT NULL, "
-                + "order_number TEXT NOT NULL, status TEXT NOT NULL, planned_date DATE)");
+                + "order_number TEXT NOT NULL, status TEXT NOT NULL, planned_date DATE, amount NUMERIC)");
         sql.execute("CREATE TABLE order_item_data (id INTEGER PRIMARY KEY, version INTEGER NOT NULL, "
                 + "order_id INTEGER NOT NULL, quantity INTEGER NOT NULL)");
         SqliteModelCheckedCommittedTarget target = new SqliteModelCheckedCommittedTarget(sql, SOURCE, HASH);
@@ -83,7 +84,7 @@ public class SqliteModelCheckedCommittedTargetTest {
                 [{"entity_type":"order","entity_id":"9007199254740993","operation":"create",
                   "base_version":null,"committed_version":"1",
                   "fields":{"order_number":"ORD-0001","status":"DRAFT",
-                            "planned_date":"2026-10-16"},"trace_chain":[]},
+                            "planned_date":"2026-10-16","amount":"0"},"trace_chain":[]},
                  {"entity_type":"order_item","entity_id":"9007199254740994","operation":"create",
                   "base_version":null,"committed_version":"1",
                   "fields":{"order":{"entity_type":"order","entity_id":"9007199254740993"},
@@ -288,6 +289,29 @@ public class SqliteModelCheckedCommittedTargetTest {
             assertEquals("2026-10-16", t.sql().queryForList(
                     "SELECT planned_date FROM order_data WHERE id = ?", new Object[] {ORDER_ID})
                     .get(0).get("planned_date"));
+        } finally { Files.deleteIfExists(path); }
+    }
+
+    @Test public void rejectsSqliteRealCoercionOfExactDecimal() throws Exception {
+        Path path = Files.createTempFile("teaql-model-target-decimal-", ".sqlite");
+        try {
+            Target t = target(path);
+            for (String decimal : new String[] {"0.1", "123456789012345.6789"}) {
+                String inexact = created().replace("\"amount\":\"0\"",
+                        "\"amount\":\"" + decimal + "\"");
+                expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                        record(1, "inexact-decimal", inexact)));
+                assertEquals(0, count(t.sql(), "order_data"));
+                assertEquals(0, count(t.sql(), "teaql_event_inbox"));
+                assertEquals(0, count(t.sql(), "teaql_event_checkpoint"));
+                assertEquals(0, count(t.sql(), "teaql_event_applied_payload"));
+            }
+            t.target().apply(t.context(), record(1, "exact-decimal", created()));
+            Map<String, Object> stored = t.sql().queryForList(
+                    "SELECT typeof(amount) AS storage_type, amount FROM order_data WHERE id = ?",
+                    new Object[] {ORDER_ID}).get(0);
+            assertEquals("integer", stored.get("storage_type"));
+            assertEquals(0L, ((Number) stored.get("amount")).longValue());
         } finally { Files.deleteIfExists(path); }
     }
 

@@ -329,6 +329,9 @@ public final class SqliteModelCheckedCommittedTarget {
         Object expected = field.value();
         if (expected instanceof byte[] bytes) return actual instanceof byte[] other && Arrays.equals(bytes, other);
         if (expected == null || actual == null) return expected == actual;
+        // SQLite REAL is approximate even when Double.toString() happens to
+        // match the exact source decimal (for example, 0.1).
+        if (field.decimal() && (actual instanceof Double || actual instanceof Float)) return false;
         if (field.decimal() || expected instanceof Number && actual instanceof Number) {
             try { return new BigDecimal(expected.toString()).compareTo(new BigDecimal(actual.toString())) == 0; }
             catch (NumberFormatException failure) { return false; }
