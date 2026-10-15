@@ -1,10 +1,13 @@
 package io.teaql.examples.secret;
 
 import io.teaql.core.http.HttpRequestService;
+import io.teaql.core.meta.SimpleEntityMetaFactory;
 import io.teaql.core.secret.SecretFailure;
 import io.teaql.core.secret.SecretReference;
 import io.teaql.core.secret.SecretValue;
 import io.teaql.runtime.DefaultUserContext;
+import io.teaql.runtime.RuntimeTelemetry;
+import io.teaql.runtime.TeaQLRuntime;
 import io.teaql.runtime.secret.VaultKv2SecretProvider;
 import io.teaql.tools.http.HttpServiceProfile;
 import io.teaql.tools.http.JdkHttpRequestService;
@@ -25,8 +28,13 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocket;
@@ -54,7 +62,7 @@ public class VaultKv2ExampleTest {
         return context;
     }
 
-    private DefaultUserContext tlsContext(int port, byte[] trustedRoot) {
+    private DefaultUserContext tlsContext(int port, byte[] trustedRoot, List<String> captured) {
         var builder = HttpServiceProfile.builder("vault", URI.create("https://127.0.0.1:" + port + "/"))
                 .budgets(Duration.ofSeconds(2), Duration.ofSeconds(2), Duration.ofSeconds(3));
         if (trustedRoot != null) builder.trustedRootPem(trustedRoot);
@@ -63,7 +71,23 @@ public class VaultKv2ExampleTest {
                         "PRIVATE-VAULT-TOKEN".getBytes(StandardCharsets.UTF_8), null, null),
                 new SecretReference("bootstrap", "vault_token"))
                 .bind(REFERENCE, "payment/api", "value").build();
-        DefaultUserContext context = new DefaultUserContext(null).withSecretProvider(provider);
+        RuntimeTelemetry telemetry = operation -> {
+            captured.add("start:" + operation);
+            return new RuntimeTelemetry.Scope() {
+                @Override public void success(Map<String, Object> attributes) {
+                    captured.add("success:" + attributes);
+                }
+                @Override public void failure(Throwable error) {
+                    captured.add("failure:" + error);
+                }
+                @Override public void failureWithAttributes(Throwable error, Map<String, Object> attributes) {
+                    captured.add("failure:" + error + ":" + attributes);
+                }
+            };
+        };
+        TeaQLRuntime runtime = TeaQLRuntime.builder().metadata(new SimpleEntityMetaFactory())
+                .telemetry(telemetry).build();
+        DefaultUserContext context = new DefaultUserContext(runtime).withSecretProvider(provider);
         context.putAttribute(HttpRequestService.class.getName(),
                 new JdkHttpRequestService(List.of(builder.build())));
         return context;
@@ -79,6 +103,15 @@ public class VaultKv2ExampleTest {
     }
 
     @Test public void trustedTlsVaultSucceedsAndUntrustedCertificateSendsNoRequest() throws Exception {
+        List<String> captured = new CopyOnWriteArrayList<>();
+        List<String> logs = new CopyOnWriteArrayList<>();
+        Logger logger = Logger.getLogger(JdkHttpRequestService.class.getName());
+        Handler handler = new Handler() {
+            @Override public void publish(LogRecord record) { logs.add(record.getMessage()); }
+            @Override public void flush() {}
+            @Override public void close() {}
+        };
+        logger.addHandler(handler);
         var directory = Files.createTempDirectory("teaql-vault-tls-");
         var rootPath = directory.resolve("root.pem");
         var rootKeyPath = directory.resolve("root.key");
@@ -155,18 +188,27 @@ public class VaultKv2ExampleTest {
                     return null;
                 });
                 SecretFailure untrusted = assertThrows(SecretFailure.class,
-                        () -> tlsContext(server.getLocalPort(), null)
+                        () -> tlsContext(server.getLocalPort(), null, captured)
                                 .resolveSecret(REFERENCE, "read configured credential"));
                 assertEquals(SecretFailure.Code.UNAVAILABLE, untrusted.code());
-                SecretValue value = tlsContext(server.getLocalPort(), rootPem)
+                assertNull(untrusted.getCause());
+                SecretValue value = tlsContext(server.getLocalPort(), rootPem, captured)
                         .resolveSecret(REFERENCE, "read configured credential");
                 assertEquals("PRIVATE-VAULT-VALUE", new String(value.exposeBytes(), StandardCharsets.UTF_8));
                 assertEquals("vault-kv2:7", value.version());
                 served.get(5, TimeUnit.SECONDS);
+                assertTrue(captured.toString().contains("start:Operation"));
+                assertTrue(captured.toString().contains("success:"));
+                assertTrue(captured.toString().contains("failure:"));
+                assertEquals(2, logs.size());
+                String diagnostics = captured + "\n" + logs;
+                assertFalse(diagnostics.contains("PRIVATE-VAULT-TOKEN"));
+                assertFalse(diagnostics.contains("PRIVATE-VAULT-VALUE"));
             } finally {
                 executor.shutdownNow();
             }
         } finally {
+            logger.removeHandler(handler);
             Files.deleteIfExists(keyPath);
             Files.deleteIfExists(certificatePath);
             Files.deleteIfExists(requestPath);
