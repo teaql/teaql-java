@@ -1,6 +1,7 @@
 package io.teaql.examples.http;
 
 import com.sun.net.httpserver.HttpServer;
+import io.teaql.core.http.HttpPropagation;
 import io.teaql.core.http.HttpRequestService;
 import io.teaql.runtime.DefaultUserContext;
 import io.teaql.tools.http.HttpServiceProfile;
@@ -11,16 +12,23 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class HttpResilienceExampleTest {
+    private static final String TRACEPARENT =
+            "00-11111111111111111111111111111111-aaaaaaaaaaaaaaaa-01";
+
     @Test public void contextAndAgentToolUseOneControlledService() throws Exception {
         AtomicInteger requests = new AtomicInteger();
-        HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+        var traceparents = new CopyOnWriteArrayList<String>();
+        HttpServer server = HttpServer.create(new InetSocketAddress(
+                InetAddress.getByAddress(new byte[] {127, 0, 0, 1}), 0), 0);
         server.createContext("/api/orders/1", exchange -> {
             requests.incrementAndGet();
+            traceparents.add(exchange.getRequestHeaders().getFirst("traceparent"));
             byte[] body = "{\"status\":\"submitted\"}".getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.sendResponseHeaders(200, body.length);
@@ -33,6 +41,8 @@ public class HttpResilienceExampleTest {
             var service = new JdkHttpRequestService(List.of(profile));
             var context = new DefaultUserContext(null);
             context.putAttribute(HttpRequestService.class.getName(), service);
+            context.putAttribute(HttpPropagation.class.getName(),
+                    (HttpPropagation) carrier -> carrier.put("traceparent", TRACEPARENT));
 
             var response = context.httpRequests().execute(context,
                     HttpRequestService.Call.get("orders", "orders/1",
@@ -47,6 +57,7 @@ public class HttpResilienceExampleTest {
                     .execute();
             assertTrue(viaTool.contains("submitted"));
             assertEquals(2, requests.get());
+            assertEquals(List.of(TRACEPARENT, TRACEPARENT), traceparents);
         } finally {
             server.stop(0);
         }
