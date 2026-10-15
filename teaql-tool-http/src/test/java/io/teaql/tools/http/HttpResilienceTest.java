@@ -178,6 +178,36 @@ public class HttpResilienceTest {
                 assertThrows(HttpRequestFailure.class, () -> service.execute(context, get("bad-json")).jsonValue()).code());
     }
 
+    @Test public void stalledTlsHandshakeObeysConnectionBudget() throws Exception {
+        try (ServerSocket listener = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
+            listener.setSoTimeout(3000);
+            AtomicReference<Throwable> serverFailure = new AtomicReference<>();
+            Thread stalled = new Thread(() -> {
+                try (Socket ignored = listener.accept()) {
+                    Thread.sleep(1200);
+                } catch (Throwable failure) {
+                    serverFailure.set(failure);
+                }
+            });
+            stalled.start();
+            HttpServiceProfile secure = HttpServiceProfile.builder("secure",
+                    URI.create("https://127.0.0.1:" + listener.getLocalPort() + "/api/"))
+                    .budgets(Duration.ofMillis(100), Duration.ofSeconds(2), Duration.ofSeconds(2))
+                    .build();
+            JdkHttpRequestService service = new JdkHttpRequestService(java.util.List.of(secure));
+            long started = System.nanoTime();
+            HttpRequestFailure failure = assertThrows(HttpRequestFailure.class,
+                    () -> service.execute(context(service), HttpRequestService.Call.get(
+                            "secure", "health", "check upstream", "assess health")));
+            long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
+            stalled.join(2500);
+            assertFalse("TLS fixture thread did not stop", stalled.isAlive());
+            assertNull(serverFailure.get());
+            assertEquals(HttpRequestFailure.Code.TIMEOUT, failure.code());
+            assertTrue("connection phase used request budget: " + elapsedMs + "ms", elapsedMs < 900);
+        }
+    }
+
     @Test public void cancellationStopsAnActiveRequestWithoutRetry() throws Exception {
         JdkHttpRequestService service = new JdkHttpRequestService(java.util.List.of(profile()
                 .budgets(Duration.ofMillis(200), Duration.ofSeconds(2), Duration.ofSeconds(2))
