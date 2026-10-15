@@ -91,9 +91,9 @@ public final class SqliteCommittedMutationRecorder
                 for (TraceNode node : fact.traceChain()) {
                     Map<String, Object> step = new LinkedHashMap<>();
                     step.put("kind", node.getKind().name());
-                    step.put("name", node.getName());
+                    step.put("name", Objects.toString(node.getName(), ""));
                     step.put("entity_id", node.getEntityId() == null ? null : node.getEntityId().toString());
-                    step.put("comment", node.getComment());
+                    step.put("comment", Objects.toString(node.getComment(), ""));
                     chain.add(step);
                 }
                 mutation.put("trace_chain", chain);

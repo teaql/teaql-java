@@ -480,6 +480,14 @@ public class GraphTraceSqliteTest {
             assertTrue(fact.path("base_version").isNull());
             assertEquals("1", fact.path("committed_version").asText());
             assertTrue(fact.path("trace_chain").isArray());
+            for (JsonNode node : fact.path("trace_chain")) {
+                assertEquals(4, node.size());
+                assertTrue(node.has("kind"));
+                assertTrue(node.has("name"));
+                assertTrue(node.has("entity_id"));
+                assertTrue(node.has("comment"));
+                assertTrue(node.path("kind").asText().matches("[A-Z_]+"));
+            }
             if (fact.path("entity_type").asText().equals("CustomerOrder")) orderFact = fact;
         }
         assertNotNull(orderFact);

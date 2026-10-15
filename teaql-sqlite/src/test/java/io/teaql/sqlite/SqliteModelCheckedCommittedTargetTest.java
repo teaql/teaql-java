@@ -81,20 +81,20 @@ public class SqliteModelCheckedCommittedTargetTest {
         return """
                 [{"entity_type":"order","entity_id":"9007199254740993","operation":"create",
                   "base_version":null,"committed_version":"1",
-                  "fields":{"order_number":"ORD-0001","status":"DRAFT"}},
+                  "fields":{"order_number":"ORD-0001","status":"DRAFT"},"trace_chain":[]},
                  {"entity_type":"order_item","entity_id":"9007199254740994","operation":"create",
                   "base_version":null,"committed_version":"1",
                   "fields":{"order":{"entity_type":"order","entity_id":"9007199254740993"},
-                            "quantity":2}}]
+                            "quantity":2},"trace_chain":[]}]
                 """;
     }
 
     private static String submitted() {
         return """
                 [{"entity_type":"order","entity_id":"9007199254740993","operation":"update",
-                  "base_version":"1","committed_version":"2","fields":{"status":"SUBMITTED"}},
+                  "base_version":"1","committed_version":"2","fields":{"status":"SUBMITTED"},"trace_chain":[]},
                  {"entity_type":"order_item","entity_id":"9007199254740994","operation":"delete",
-                  "base_version":"1","committed_version":"-2","fields":{}}]
+                  "base_version":"1","committed_version":"-2","fields":{},"trace_chain":[]}]
                 """;
     }
 
@@ -216,6 +216,14 @@ public class SqliteModelCheckedCommittedTargetTest {
                     "\"status\":\"DRAFT\",\"items\":[]");
             expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
                     record(1, "reverse-relation", reverseRelation)));
+            String invalidTrace = created().replace("\"trace_chain\":[]",
+                    "\"trace_chain\":[{\"kind\":\"AuditReason\",\"entity_type\":\"order\","
+                    + "\"entity_id\":\"9007199254740993\",\"comment\":\"Create order\"}]");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(1, "invalid-trace", invalidTrace)));
+            String missingTrace = created().replace(",\"trace_chain\":[]", "");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(1, "missing-trace", missingTrace)));
             t.sql().execute("CREATE TRIGGER reject_item BEFORE INSERT ON order_item_data "
                     + "BEGIN SELECT RAISE(ABORT, 'reject item'); END");
             try {

@@ -26,6 +26,9 @@ import java.util.concurrent.atomic.AtomicReference;
  * infrastructure, not a business-facing Mutation or remote query endpoint.
  */
 public final class SqliteModelCheckedCommittedTarget {
+    private static final Set<String> TRACE_KINDS = Set.of(
+            "OPERATION", "REQUEST", "RELATION", "ENTITY", "PROVIDER", "SQL",
+            "COMMENT", "PURPOSE", "AUDIT_REASON");
     private final SqlExecutionAdapter sql;
     private final SqliteCommittedEventStore events;
     private final String sourceRuntimeId;
@@ -89,6 +92,7 @@ public final class SqliteModelCheckedCommittedTarget {
         if (!fact.isObject() || !nonblank(fact.path("entity_type"))) {
             throw invalid("mutation entity type is missing");
         }
+        validateTraceChain(fact.path("trace_chain"));
         String entityType = fact.path("entity_type").textValue();
         EntityDescriptor entity = metadata.allEntityDescriptors().stream()
                 .filter(candidate -> entityType.equals(candidate.getType())).findFirst()
@@ -159,6 +163,20 @@ public final class SqliteModelCheckedCommittedTarget {
         }
         return new Mutation(entityType, idMapping.table(), idMapping.column(),
                 versionMapping.column(), id, base, committed, operation, fields);
+    }
+
+    private static void validateTraceChain(JsonNode chain) {
+        if (!chain.isArray()) throw invalid("mutation trace chain is missing");
+        for (JsonNode node : chain) {
+            JsonNode id = node.path("entity_id");
+            if (!node.isObject() || node.size() != 4
+                    || !TRACE_KINDS.contains(node.path("kind").asText(""))
+                    || !node.path("name").isTextual()
+                    || !node.path("comment").isTextual()
+                    || !(id.isNull() || id.isTextual() && id.textValue().matches("[1-9][0-9]*"))) {
+                throw invalid("trace node has wrong shape");
+            }
+        }
     }
 
     private static Object decodeValue(PropertyDescriptor property, JsonNode value) {
