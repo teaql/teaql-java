@@ -1,5 +1,7 @@
 package io.teaql.core.duck;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.teaql.core.BaseEntity;
 import io.teaql.core.duck.DuckDbCommittedInbox.Failure;
 import io.teaql.core.duck.DuckDbCommittedInbox.Record;
@@ -9,6 +11,7 @@ import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import io.teaql.runtime.DefaultUserContext;
 import io.teaql.runtime.TeaQLRuntime;
 import org.junit.After;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -145,6 +148,45 @@ public class DuckDbModelCheckedCommittedTargetTest {
         assertTrue(reopened.apply(context, second).duplicate());
     }
 
+    @Test public void appliesSharedConformanceFixtureWhenConfigured() throws Exception {
+        String fixturePath = System.getenv("TEAQL_COMMITTED_EVENT_FIXTURE");
+        Assume.assumeTrue("shared fixture path was not supplied",
+                fixturePath != null && !fixturePath.isBlank());
+        JsonNode fixture = new ObjectMapper().readTree(Files.readString(Path.of(fixturePath)));
+        assertEquals(1, fixture.path("fixture_version").asInt());
+        assertEquals(2, fixture.path("sets").size());
+        for (int index = 0; index < 2; index++) {
+            JsonNode set = fixture.path("sets").get(index);
+            long sequence = Long.parseLong(set.path("source_sequence").asText());
+            Record source = recordBody(sequence, set.path("change_set_id").asText(), set.toString());
+            assertEquals(sequence, target.apply(context, source).checkpoint());
+            assertTrue(target.apply(context, source).duplicate());
+        }
+        Map<String, Object> order = sql.queryForList("SELECT id, version, status, "
+                + "CAST(planned_date AS VARCHAR) AS planned_date, epoch_ms(occurred_at) AS occurred_at, "
+                + "amount, active, ratio, optional_note, optional_label FROM order_data",
+                new Object[0]).get(0);
+        assertEquals(ORDER_ID, ((Number) order.get("id")).longValue());
+        assertEquals(2L, ((Number) order.get("version")).longValue());
+        assertEquals("SUBMITTED", order.get("status"));
+        assertEquals("2026-10-16", order.get("planned_date"));
+        assertEquals(-315_619_199_877L, ((Number) order.get("occurred_at")).longValue());
+        assertEquals(0, ((BigDecimal) order.get("amount")).compareTo(BigDecimal.ZERO));
+        assertEquals(true, order.get("active"));
+        assertEquals(0.5, ((Number) order.get("ratio")).doubleValue(), 0.0);
+        assertEquals("submitted note", order.get("optional_note"));
+        assertEquals(null, order.get("optional_label"));
+        Map<String, Object> item = sql.queryForList("SELECT id, version, order_id, quantity "
+                + "FROM order_item_data", new Object[0]).get(0);
+        assertEquals(ITEM_ID, ((Number) item.get("id")).longValue());
+        assertEquals(-2L, ((Number) item.get("version")).longValue());
+        assertEquals(ORDER_ID, ((Number) item.get("order_id")).longValue());
+        assertEquals(2L, ((Number) item.get("quantity")).longValue());
+        assertEquals(2, count("teaql_event_inbox"));
+        assertEquals(2, count("teaql_event_applied_payload"));
+        assertEquals(1, count("teaql_event_checkpoint"));
+    }
+
     @Test public void lateGraphFailureRollsBackDomainAndInbox() {
         String broken = created().replace("\"quantity\":\"2\"", "\"quantity\":\"2\",\"unknown\":1");
         expect("INVALID_ENVELOPE", () -> target.apply(context, record(1, "bad", broken)));
@@ -220,6 +262,10 @@ public class DuckDbModelCheckedCommittedTargetTest {
                           "purpose":"Verify target application","trace_id":"fixture-trace"},
                  "mutations":%s}
                 """.formatted(changeSetId, SOURCE, sequence, HASH, sequence, mutations);
+        return recordBody(sequence, changeSetId, payload);
+    }
+
+    private static Record recordBody(long sequence, String changeSetId, String payload) {
         try {
             String digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
                     .digest(payload.getBytes(StandardCharsets.UTF_8)));
