@@ -85,7 +85,7 @@ public class SqliteModelCheckedCommittedTargetTest {
                  {"entity_type":"order_item","entity_id":"9007199254740994","operation":"create",
                   "base_version":null,"committed_version":"1",
                   "fields":{"order":{"entity_type":"order","entity_id":"9007199254740993"},
-                            "quantity":2},"trace_chain":[]}]
+                            "quantity":"2"},"trace_chain":[]}]
                 """;
     }
 
@@ -210,7 +210,8 @@ public class SqliteModelCheckedCommittedTargetTest {
         try {
             Target t = target(path);
             OutboxRecord first = record(1, "order-graph-0001", created());
-            String unknown = created().replace("\"quantity\":2", "\"quantity\":2,\"not_in_model\":1");
+            String unknown = created().replace("\"quantity\":\"2\"",
+                    "\"quantity\":\"2\",\"not_in_model\":1");
             expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(), record(1, "unknown", unknown)));
             String reverseRelation = created().replace("\"status\":\"DRAFT\"",
                     "\"status\":\"DRAFT\",\"items\":[]");
@@ -236,6 +237,30 @@ public class SqliteModelCheckedCommittedTargetTest {
                 assertEquals(0, count(t.sql(), "teaql_event_applied_payload"));
                 assertEquals(0, count(t.sql(), "teaql_event_checkpoint"));
             }
+        } finally { Files.deleteIfExists(path); }
+    }
+
+    @Test public void preservesLargeLongFieldWithoutJsonNumberRounding() throws Exception {
+        Path path = Files.createTempFile("teaql-model-target-large-long-", ".sqlite");
+        try {
+            Target t = target(path);
+            String numeric = created().replace("\"quantity\":\"2\"",
+                    "\"quantity\":9007199254740993");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(1, "unsafe-json-number", numeric)));
+            for (String invalid : new String[] {"02", "-0", "9223372036854775808"}) {
+                String malformed = created().replace("\"quantity\":\"2\"",
+                        "\"quantity\":\"" + invalid + "\"");
+                expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                        record(1, "invalid-integer", malformed)));
+            }
+            assertEquals(0, count(t.sql(), "order_data"));
+            String textual = created().replace("\"quantity\":\"2\"",
+                    "\"quantity\":\"9007199254740993\"");
+            t.target().apply(t.context(), record(1, "lossless-long", textual));
+            Object stored = t.sql().queryForList("SELECT quantity FROM order_item_data WHERE id = ?",
+                    new Object[] {ITEM_ID}).get(0).get("quantity");
+            assertEquals(9_007_199_254_740_993L, ((Number) stored).longValue());
         } finally { Files.deleteIfExists(path); }
     }
 

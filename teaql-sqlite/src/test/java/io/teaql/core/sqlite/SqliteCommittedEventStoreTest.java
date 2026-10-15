@@ -59,7 +59,7 @@ public class SqliteCommittedEventStoreTest {
                    "base_version":%s,"committed_version":"%s","fields":{"status":"%s"}},
                   {"entity_type":"order_item","entity_id":"%d","operation":"%s",
                    "base_version":%s,"committed_version":"%s",
-                   "fields":{"order":{"entity_type":"order","entity_id":"%d"},"quantity":2}}
+                   "fields":{"order":{"entity_type":"order","entity_id":"%d"},"quantity":"2"}}
                  ]}
                 """).formatted(SOURCE, sequence, change, MODEL_HASH, ORDER_ID, operation,
                 baseVersion, version, status, ITEM_ID, itemOperation, baseVersion,

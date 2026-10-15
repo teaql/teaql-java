@@ -33,10 +33,12 @@ public class GraphTraceSqliteTest {
         public GraphEntity(String type) { this.type = type; }
         @Override public String typeName() { return type; }
         @Override public Object __internalGet(String field) {
-            return field.equals("name") || field.equals("memo") || field.equals("children") ? values.get(field) : super.__internalGet(field);
+            return field.equals("name") || field.equals("memo") || field.equals("children")
+                    || field.equals("business_counter") ? values.get(field) : super.__internalGet(field);
         }
         @Override public void __internalSet(String field, Object value) {
-            if (field.equals("name") || field.equals("memo") || field.equals("children")) values.put(field, value);
+            if (field.equals("name") || field.equals("memo") || field.equals("children")
+                    || field.equals("business_counter")) values.put(field, value);
             else super.__internalSet(field, value);
         }
     }
@@ -108,6 +110,10 @@ public class GraphTraceSqliteTest {
                     var property = (GenericSQLProperty) descriptor.addSimpleProperty(field,
                             textField ? String.class : Long.class);
                     property.setColumnType(textField ? "VARCHAR(255)" : "BIGINT");
+                }
+                if (captureCommittedMutations && type.equals("CustomerOrder")) {
+                    var counter = (GenericSQLProperty) descriptor.addSimpleProperty("business_counter", Long.class);
+                    counter.setColumnType("BIGINT");
                 }
                 var children = new Relation();
                 children.setName("children");
@@ -462,6 +468,7 @@ public class GraphTraceSqliteTest {
         fixture.driver.execute("CREATE TRIGGER order_db_default AFTER INSERT ON customer_order_data "
                 + "BEGIN UPDATE customer_order_data SET memo = 'database trigger value' WHERE id = NEW.id; END");
         var order = fixture.create("CustomerOrder", 100, "root value");
+        order.updateProperty("business_counter", 9_007_199_254_740_993L);
         var item = fixture.create("OrderItem", 201, "first item");
         item.setComment("create item");
         var payment = fixture.create("Payment", 300, "payment value");
@@ -492,6 +499,8 @@ public class GraphTraceSqliteTest {
         }
         assertNotNull(orderFact);
         assertEquals("database trigger value", orderFact.path("fields").path("memo").asText());
+        assertTrue(orderFact.path("fields").path("business_counter").isTextual());
+        assertEquals("9007199254740993", orderFact.path("fields").path("business_counter").asText());
         assertFalse(new CommittedMutationFact("CustomerOrder", "100", "create", null, "1",
                 Map.of("memo", "database trigger value"), List.of()).toString().contains("database trigger value"));
         assertEquals("database trigger value", fixture.driver.queryForList(

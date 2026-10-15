@@ -207,10 +207,13 @@ public final class SqliteModelCheckedCommittedTarget {
         }
         if (type == Long.class || type == long.class || type == Integer.class || type == int.class
                 || type == Short.class || type == short.class || type == Byte.class || type == byte.class) {
-            if (!value.isIntegralNumber() || !value.canConvertToLong()) {
+            if (!value.isTextual() || !value.textValue().matches("-?(0|[1-9][0-9]*)")
+                    || value.textValue().equals("-0")) {
                 throw invalid("integer field has wrong type");
             }
-            long number = value.longValue();
+            long number;
+            try { number = Long.parseLong(value.textValue()); }
+            catch (NumberFormatException failure) { throw invalid("integer field overflows"); }
             if (type == Integer.class || type == int.class) {
                 if (number < Integer.MIN_VALUE || number > Integer.MAX_VALUE) throw invalid("integer overflows field");
             } else if (type == Short.class || type == short.class) {
@@ -224,6 +227,10 @@ public final class SqliteModelCheckedCommittedTarget {
             if (!value.isTextual()) throw invalid("Decimal field has wrong type");
             try {
                 if (type == java.math.BigInteger.class) {
+                    if (!value.textValue().matches("-?(0|[1-9][0-9]*)")
+                            || value.textValue().equals("-0")) {
+                        throw invalid("integer field has wrong type");
+                    }
                     return new java.math.BigInteger(value.textValue()).toString();
                 }
                 return new BigDecimal(value.textValue()).toPlainString();

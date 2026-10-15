@@ -1259,8 +1259,9 @@ public class TeaQLRuntime implements AutoCloseable {
             if (id == null) throw new TeaQLRuntimeException("Committed relation has no scalar identity: " + property.getName());
             return Map.of("entity_type", type, "entity_id", id.toString());
         }
-        if (value instanceof String || value instanceof Boolean || value instanceof Long
-                || value instanceof Integer || value instanceof Short || value instanceof Byte) return value;
+        if (value instanceof Long || value instanceof Integer || value instanceof Short
+                || value instanceof Byte) return value.toString();
+        if (value instanceof String || value instanceof Boolean) return value;
         if (value instanceof java.math.BigDecimal decimal) return decimal.toPlainString();
         if (value instanceof java.math.BigInteger integer) return integer.toString();
         if (value instanceof Double number) {
