@@ -38,7 +38,7 @@ public final class DuckDbCommittedInbox {
     public static final class Failure extends RuntimeException {
         private final String code;
 
-        private Failure(String code, String message) {
+        Failure(String code, String message) {
             super(message);
             this.code = code;
         }
