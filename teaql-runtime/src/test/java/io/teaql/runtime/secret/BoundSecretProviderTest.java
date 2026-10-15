@@ -10,7 +10,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import io.teaql.core.businessid.BusinessClock;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -47,7 +50,17 @@ public class BoundSecretProviderTest {
         SecretProvider custom = (caller, requested) ->
                 new SecretValue("custom".getBytes(), null, null);
         DefaultUserContext second = new DefaultUserContext(null).withSecretProvider(custom);
-        assertEquals("custom", new String(second.resolveSecret(reference, "custom provider").exposeBytes()));
+        DefaultUserContext third = new DefaultUserContext(null).withSecretProvider(custom);
+        second.putAttribute("test.marker", "second");
+        third.putAttribute("test.marker", "third");
+        var twoCalls = CompletableFuture.supplyAsync(
+                () -> new String(second.resolveSecret(reference, "second context").exposeBytes()));
+        var threeCalls = CompletableFuture.supplyAsync(
+                () -> new String(third.resolveSecret(reference, "third context").exposeBytes()));
+        assertEquals("custom", twoCalls.get());
+        assertEquals("custom", threeCalls.get());
+        assertEquals("second", second.getAttribute("test.marker"));
+        assertEquals("third", third.getAttribute("test.marker"));
         assertEquals("canary-do-not-log", new String(context.resolveSecret(reference, "first provider").exposeBytes()));
 
         DefaultUserContext unsafe = new DefaultUserContext(null).withSecretProvider(
@@ -95,6 +108,17 @@ public class BoundSecretProviderTest {
         Files.createSymbolicLink(key, root.resolve("missing"));
         assertCode(SecretFailure.Code.DENIED,
                 () -> context.resolveSecret(reference, "read"));
+        Files.delete(key);
+        Files.write(key, new byte[SecretValue.MAX_BYTES + 1]);
+        Files.setPosixFilePermissions(key, Set.of(PosixFilePermission.OWNER_READ,
+                PosixFilePermission.OWNER_WRITE));
+        assertCode(SecretFailure.Code.DENIED,
+                () -> context.resolveSecret(reference, "oversized file"));
+        Files.setPosixFilePermissions(root, Set.of(PosixFilePermission.OWNER_READ,
+                PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE,
+                PosixFilePermission.GROUP_WRITE));
+        assertCode(SecretFailure.Code.DENIED,
+                () -> BoundSecretProvider.builder(root));
     }
 
     @Test public void expiryUsesOperationalTime() {
@@ -103,6 +127,8 @@ public class BoundSecretProviderTest {
                 ignored -> "canary")
                 .environment(reference, "TEST_KEY", null, Instant.EPOCH).build();
         DefaultUserContext context = new DefaultUserContext(null).withSecretProvider(provider);
+        context.putAttribute(BusinessClock.class.getName(),
+                (BusinessClock) caller -> LocalDate.of(1900, 1, 1));
         assertCode(SecretFailure.Code.EXPIRED,
                 () -> context.resolveSecret(reference, "read"));
     }
