@@ -12,7 +12,9 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import io.teaql.core.businessid.BusinessClock;
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,18 +49,36 @@ public class BoundSecretProviderTest {
         assertCode(SecretFailure.Code.INVALID_INPUT,
                 () -> new SecretReference("signing", "/tmp/key"));
 
-        SecretProvider custom = (caller, requested) ->
-                new SecretValue("custom".getBytes(), null, null);
+        CountDownLatch entered = new CountDownLatch(2);
+        SecretProvider custom = (caller, requested) -> {
+            entered.countDown();
+            boolean bothEntered;
+            try {
+                bothEntered = entered.await(2, TimeUnit.SECONDS);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new SecretFailure(SecretFailure.Code.UNAVAILABLE);
+            }
+            if (!bothEntered) {
+                throw new SecretFailure(SecretFailure.Code.UNAVAILABLE);
+            }
+            return new SecretValue("custom".getBytes(), null, null);
+        };
         DefaultUserContext second = new DefaultUserContext(null).withSecretProvider(custom);
         DefaultUserContext third = new DefaultUserContext(null).withSecretProvider(custom);
         second.putAttribute("test.marker", "second");
         third.putAttribute("test.marker", "third");
-        var twoCalls = CompletableFuture.supplyAsync(
-                () -> new String(second.resolveSecret(reference, "second context").exposeBytes()));
-        var threeCalls = CompletableFuture.supplyAsync(
-                () -> new String(third.resolveSecret(reference, "third context").exposeBytes()));
-        assertEquals("custom", twoCalls.get());
-        assertEquals("custom", threeCalls.get());
+        var executor = Executors.newFixedThreadPool(2);
+        try {
+            var twoCalls = executor.submit(
+                    () -> new String(second.resolveSecret(reference, "second context").exposeBytes()));
+            var threeCalls = executor.submit(
+                    () -> new String(third.resolveSecret(reference, "third context").exposeBytes()));
+            assertEquals("custom", twoCalls.get(3, TimeUnit.SECONDS));
+            assertEquals("custom", threeCalls.get(3, TimeUnit.SECONDS));
+        } finally {
+            executor.shutdownNow();
+        }
         assertEquals("second", second.getAttribute("test.marker"));
         assertEquals("third", third.getAttribute("test.marker"));
         assertEquals("canary-do-not-log", new String(context.resolveSecret(reference, "first provider").exposeBytes()));
