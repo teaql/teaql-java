@@ -33,6 +33,7 @@ import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import org.junit.After;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -168,8 +169,8 @@ public class HttpResilienceTest {
             @Override public void pauseNanos(long nanos) { monotonic.addAndGet(nanos); }
         };
         JdkHttpRequestService budgeted = new JdkHttpRequestService(java.util.List.of(profile()
-                .budgets(Duration.ofMillis(100), Duration.ofMillis(100), Duration.ofMillis(10))
-                .retry(3, Duration.ofMillis(100), Set.of(HttpRequestService.Method.GET)).build()), clock);
+                .budgets(Duration.ofSeconds(1), Duration.ofSeconds(1), Duration.ofMillis(500))
+                .retry(3, Duration.ofSeconds(1), Set.of(HttpRequestService.Method.GET)).build()), clock);
         before = server.requests.get();
         assertEquals(HttpRequestFailure.Code.TIMEOUT,
                 assertThrows(HttpRequestFailure.class, () -> budgeted.execute(context(budgeted),
@@ -224,6 +225,24 @@ public class HttpResilienceTest {
             assertEquals(HttpRequestFailure.Code.TIMEOUT, failure.code());
             assertTrue("connection phase used request budget: " + elapsedMs + "ms", elapsedMs < 900);
         }
+    }
+
+    @Test public void droppedTcpSynObeysConnectionBudget() {
+        Assume.assumeTrue("requires the isolated SYN-drop network fixture",
+                "1".equals(System.getenv("TEAQL_HTTP_SYN_DROP_FIXTURE")));
+        HttpServiceProfile blackhole = HttpServiceProfile.builder("blackhole",
+                URI.create("http://127.0.0.2:54321/api/"))
+                .budgets(Duration.ofMillis(100), Duration.ofSeconds(2), Duration.ofSeconds(2))
+                .build();
+        JdkHttpRequestService service = new JdkHttpRequestService(java.util.List.of(blackhole));
+        long started = System.nanoTime();
+        HttpRequestFailure failure = assertThrows(HttpRequestFailure.class,
+                () -> service.execute(context(service), HttpRequestService.Call.get(
+                        "blackhole", "health", "check upstream", "assess health")));
+        long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
+        assertEquals(HttpRequestFailure.Code.TIMEOUT, failure.code());
+        assertNull(failure.getCause());
+        assertTrue("connect budget was not enforced: " + elapsedMs + "ms", elapsedMs < 900);
     }
 
     @Test public void cancellationStopsAnActiveRequestWithoutRetry() throws Exception {
