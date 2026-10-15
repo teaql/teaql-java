@@ -496,6 +496,68 @@ public class HttpResilienceTest {
         } finally { logger.removeHandler(capture); }
     }
 
+    @Test public void privateTransportMatrixStaysOutOfDiagnosticsAndPublicErrors() {
+        JdkHttpRequestService service = new JdkHttpRequestService(java.util.List.of(profile().build()));
+        ConcurrentLinkedQueue<String> diagnostics = new ConcurrentLinkedQueue<>();
+        HttpObservation observation = operation -> {
+            diagnostics.add(operation.profile() + operation.method() + operation.comment()
+                    + operation.intent() + operation.traceChain() + operation);
+            return (outcome, attempts, elapsed) -> diagnostics.add(outcome + attempts + elapsed);
+        };
+        UserContext context = context(service, null, observation);
+        Logger logger = Logger.getLogger(JdkHttpRequestService.class.getName());
+        Handler capture = new Handler() {
+            @Override public void publish(LogRecord record) { diagnostics.add(record.getMessage()); }
+            @Override public void flush() {}
+            @Override public void close() {}
+        };
+        logger.addHandler(capture);
+        try {
+            for (int index = 0; index < 12; index++) {
+                String canary = "HTTP_PRIVACY_" + index + "_CANARY";
+                HttpRequestService.Call call = new HttpRequestService.Call("orders",
+                        HttpRequestService.Method.POST,
+                        "private-response/" + canary + "?token=" + canary,
+                        Map.of("Authorization", "Bearer " + canary, "Cookie", "sid=" + canary),
+                        canary.getBytes(StandardCharsets.UTF_8), "application/x-" + canary,
+                        "check remote order", HttpRequestService.IntentKind.PURPOSE,
+                        "show order status", HttpRequestService.RetryMode.NONE);
+                HttpRequestService.Response response = service.execute(context, call);
+                assertEquals(503, response.status());
+                assertEquals("REMOTE_RESPONSE_CANARY", response.text());
+                assertFalse(call.toString().contains(canary));
+                assertFalse(response.toString().contains("REMOTE_RESPONSE_CANARY"));
+
+                HttpRequestFailure invalid = assertThrows(HttpRequestFailure.class,
+                        () -> service.execute(context, get("../" + canary)));
+                assertEquals(HttpRequestFailure.Code.INVALID_INPUT, invalid.code());
+                assertNull(invalid.getCause());
+                assertFalse(invalid.toString().contains(canary));
+
+                HttpRequestService.Call dropped = new HttpRequestService.Call("orders",
+                        HttpRequestService.Method.POST, "close?token=" + canary,
+                        Map.of("Authorization", "Bearer " + canary),
+                        canary.getBytes(StandardCharsets.UTF_8), "text/plain",
+                        "check remote order", HttpRequestService.IntentKind.PURPOSE,
+                        "show order status", HttpRequestService.RetryMode.NONE);
+                HttpRequestFailure transport = assertThrows(HttpRequestFailure.class,
+                        () -> service.execute(context, dropped));
+                assertEquals(HttpRequestFailure.Code.AMBIGUOUS_OUTCOME, transport.code());
+                assertNull(transport.getCause());
+                assertFalse(transport.toString().contains(canary));
+            }
+            String exported = String.join("\n", diagnostics);
+            assertTrue(exported.contains("comment=check remote order"));
+            assertFalse(exported.contains("REMOTE_REASON_CANARY"));
+            assertFalse(exported.contains("REMOTE_RESPONSE_CANARY"));
+            for (int index = 0; index < 12; index++) {
+                assertFalse(exported.contains("HTTP_PRIVACY_" + index + "_CANARY"));
+            }
+        } finally {
+            logger.removeHandler(capture);
+        }
+    }
+
     private static final class Fixture implements AutoCloseable {
         private final ServerSocket socket;
         private final Thread thread;
@@ -552,15 +614,19 @@ public class HttpResilienceTest {
                     }
                     if (target.contains("/close")) return;
                     if (target.endsWith("/slow")) Thread.sleep(300);
-                    int status = target.contains("/redirect") ? 302 : target.contains("/missing") ? 404
+                    int status = target.contains("/private-response") ? 503
+                            : target.contains("/redirect") ? 302 : target.contains("/missing") ? 404
                             : target.contains("/retry-post") && retryPost.incrementAndGet() == 1 ? 503
                             : target.contains("/fail") || target.contains("/flaky") && flaky.incrementAndGet() <= 2
                             ? 503 : 200;
-                    byte[] body = target.contains("/large") ? "L".repeat(4096).getBytes(StandardCharsets.UTF_8)
+                    byte[] body = target.contains("/private-response")
+                            ? "REMOTE_RESPONSE_CANARY".getBytes(StandardCharsets.UTF_8)
+                            : target.contains("/large") ? "L".repeat(4096).getBytes(StandardCharsets.UTF_8)
                             : target.contains("/invalid-utf8") ? new byte[] {(byte) 0xc3, 0x28}
                             : target.contains("/bad-json") ? "{bad".getBytes(StandardCharsets.UTF_8)
                             : "okay".getBytes(StandardCharsets.UTF_8);
-                    String head = "HTTP/1.1 " + status + " Result\r\nContent-Length: " + body.length
+                    String reason = target.contains("/private-response") ? "REMOTE_REASON_CANARY" : "Result";
+                    String head = "HTTP/1.1 " + status + " " + reason + "\r\nContent-Length: " + body.length
                             + "\r\nConnection: close\r\n"
                             + (status == 302 ? "Location: https://elsewhere.example/secret\r\n" : "") + "\r\n";
                     client.getOutputStream().write(head.getBytes(StandardCharsets.UTF_8));
