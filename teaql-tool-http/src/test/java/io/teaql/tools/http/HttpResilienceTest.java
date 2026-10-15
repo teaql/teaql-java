@@ -1,6 +1,7 @@
 package io.teaql.tools.http;
 
 import io.teaql.core.UserContext;
+import io.teaql.core.businessid.BusinessClock;
 import io.teaql.core.http.HttpPropagation;
 import io.teaql.core.http.HttpRequestFailure;
 import io.teaql.core.http.HttpRequestService;
@@ -17,6 +18,7 @@ import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -125,6 +127,38 @@ public class HttpResilienceTest {
                 assertThrows(HttpRequestFailure.class, () -> service.execute(context,
                         call(HttpRequestService.Method.POST, "close", HttpRequestService.RetryMode.NONE))).code());
         assertEquals(before + 1, server.requests.get());
+    }
+
+    @Test public void replayablePostKeepsItsBodyAndBackoffObeysTheWholeCallBudget() {
+        JdkHttpRequestService service = new JdkHttpRequestService(java.util.List.of(profile()
+                .retry(3, Duration.ofMillis(1), Set.of(HttpRequestService.Method.POST)).build()));
+        byte[] payload = "REPLAY-PAYLOAD-CANARY".getBytes(StandardCharsets.UTF_8);
+        HttpRequestService.Call replayable = new HttpRequestService.Call("orders",
+                HttpRequestService.Method.POST, "retry-post", Map.of(), payload, "text/plain",
+                "submit idempotent request", HttpRequestService.IntentKind.PURPOSE,
+                "verify request replay", HttpRequestService.RetryMode.CONFIRMED_IDEMPOTENT);
+        int before = server.requests.get();
+        HttpRequestService.Response response = service.execute(context(service), replayable);
+        assertEquals(200, response.status());
+        assertEquals(2, response.attempts());
+        assertEquals(before + 2, server.requests.get());
+        assertEquals(java.util.List.of("REPLAY-PAYLOAD-CANARY", "REPLAY-PAYLOAD-CANARY"),
+                java.util.List.copyOf(server.retryBodies));
+
+        AtomicLong monotonic = new AtomicLong(1);
+        HttpOperationalClock clock = new HttpOperationalClock() {
+            @Override public long nanoTime() { return monotonic.get(); }
+            @Override public void pauseNanos(long nanos) { monotonic.addAndGet(nanos); }
+        };
+        JdkHttpRequestService budgeted = new JdkHttpRequestService(java.util.List.of(profile()
+                .budgets(Duration.ofMillis(100), Duration.ofMillis(100), Duration.ofMillis(10))
+                .retry(3, Duration.ofMillis(100), Set.of(HttpRequestService.Method.GET)).build()), clock);
+        before = server.requests.get();
+        assertEquals(HttpRequestFailure.Code.TIMEOUT,
+                assertThrows(HttpRequestFailure.class, () -> budgeted.execute(context(budgeted),
+                        call(HttpRequestService.Method.GET, "fail",
+                                HttpRequestService.RetryMode.CONFIRMED_IDEMPOTENT))).code());
+        assertEquals("backoff must not start another attempt after total expiry", before + 1, server.requests.get());
     }
 
     @Test public void wholeCallTimeoutAndBoundedBodyFailClosed() {
@@ -254,7 +288,9 @@ public class HttpResilienceTest {
         };
         JdkHttpRequestService service = new JdkHttpRequestService(java.util.List.of(profile()
                 .circuit(1, Duration.ofSeconds(5), 1).build()), clock);
-        UserContext context = context(service);
+        BusinessClock backdated = ignored -> LocalDate.of(1999, 1, 1);
+        UserContext context = contextWithBusinessClock(service, backdated);
+        assertEquals(LocalDate.of(1999, 1, 1), context.businessDate());
         assertEquals(503, service.execute(context, get("fail")).status());
         int before = server.requests.get();
         assertEquals(HttpRequestFailure.Code.CIRCUIT_OPEN,
@@ -301,28 +337,47 @@ public class HttpResilienceTest {
         String secondTrace = "00-22222222222222222222222222222222-bbbbbbbbbbbbbbbb-01";
         CountDownLatch start = new CountDownLatch(1);
         AtomicReference<Throwable> failure = new AtomicReference<>();
-        Thread first = concurrentCall(service, firstTrace, start, failure);
-        Thread second = concurrentCall(service, secondTrace, start, failure);
-        first.start();
-        second.start();
-        start.countDown();
-        first.join(2000);
-        second.join(2000);
-        assertFalse(first.isAlive());
-        assertFalse(second.isAlive());
-        if (failure.get() != null) throw new AssertionError(failure.get());
-        assertEquals(2, server.traceparents.size());
-        assertTrue(server.traceparents.contains(firstTrace));
-        assertTrue(server.traceparents.contains(secondTrace));
+        ConcurrentLinkedQueue<String> diagnostics = new ConcurrentLinkedQueue<>();
+        Logger logger = Logger.getLogger(JdkHttpRequestService.class.getName());
+        Handler capture = new Handler() {
+            @Override public void publish(LogRecord record) { diagnostics.add(record.getMessage()); }
+            @Override public void flush() {}
+            @Override public void close() {}
+        };
+        logger.addHandler(capture);
+        try {
+            Thread first = concurrentCall(service, firstTrace, "first request", start, failure);
+            Thread second = concurrentCall(service, secondTrace, "second request", start, failure);
+            first.start();
+            second.start();
+            start.countDown();
+            first.join(2000);
+            second.join(2000);
+            assertFalse(first.isAlive());
+            assertFalse(second.isAlive());
+            if (failure.get() != null) throw new AssertionError(failure.get());
+            assertEquals(2, server.traceparents.size());
+            assertTrue(server.traceparents.contains(firstTrace));
+            assertTrue(server.traceparents.contains(secondTrace));
+            assertEquals(1, diagnostics.stream().filter(message -> message.contains("comment=first request")).count());
+            assertEquals(1, diagnostics.stream().filter(message -> message.contains("comment=second request")).count());
+            assertTrue(diagnostics.stream().noneMatch(message -> message.contains("comment=first request")
+                    && message.contains("second request")));
+            assertTrue(diagnostics.stream().noneMatch(message -> message.contains("comment=second request")
+                    && message.contains("first request")));
+        } finally {
+            logger.removeHandler(capture);
+        }
     }
 
-    private static Thread concurrentCall(JdkHttpRequestService service, String trace,
+    private static Thread concurrentCall(JdkHttpRequestService service, String trace, String comment,
                                          CountDownLatch start, AtomicReference<Throwable> failure) {
         return new Thread(() -> {
             try {
                 start.await();
                 UserContext context = contextForTrace(service, trace);
-                assertEquals(200, service.execute(context, get("ok")).status());
+                assertEquals(200, service.execute(context,
+                        HttpRequestService.Call.get("orders", "ok", comment, "show current order")).status());
             } catch (Throwable error) { failure.compareAndSet(null, error); }
         });
     }
@@ -332,6 +387,21 @@ public class HttpResilienceTest {
             if (method.getName().equals("capability")) {
                 if (args[0] == HttpRequestService.class) return service;
                 if (args[0] == HttpPropagation.class) return (HttpPropagation) carrier -> carrier.put("traceparent", trace);
+                return null;
+            }
+            if (method.isDefault()) return InvocationHandler.invokeDefault(proxy, method, args);
+            if (method.getReturnType().isPrimitive()) return false;
+            return null;
+        };
+        return (UserContext) Proxy.newProxyInstance(UserContext.class.getClassLoader(),
+                new Class<?>[] {UserContext.class}, handler);
+    }
+
+    private static UserContext contextWithBusinessClock(JdkHttpRequestService service, BusinessClock clock) {
+        InvocationHandler handler = (proxy, method, args) -> {
+            if (method.getName().equals("capability")) {
+                if (args[0] == HttpRequestService.class) return service;
+                if (args[0] == BusinessClock.class) return clock;
                 return null;
             }
             if (method.isDefault()) return InvocationHandler.invokeDefault(proxy, method, args);
@@ -383,7 +453,9 @@ public class HttpResilienceTest {
         private final Thread thread;
         private final AtomicInteger requests = new AtomicInteger();
         private final AtomicInteger flaky = new AtomicInteger();
+        private final AtomicInteger retryPost = new AtomicInteger();
         private final ConcurrentLinkedQueue<String> traceparents = new ConcurrentLinkedQueue<>();
+        private final ConcurrentLinkedQueue<String> retryBodies = new ConcurrentLinkedQueue<>();
         private volatile boolean closed;
         Fixture() throws IOException {
             socket = new ServerSocket(0, 32, InetAddress.getLoopbackAddress());
@@ -413,13 +485,27 @@ public class HttpResilienceTest {
                     if (line == null) return;
                     requests.incrementAndGet();
                     String target = line.split(" ")[1];
+                    int contentLength = 0;
                     while ((line = reader.readLine()) != null && !line.isEmpty()) {
                         if (line.toLowerCase(java.util.Locale.ROOT).startsWith("traceparent:"))
                             traceparents.add(line.substring(line.indexOf(':') + 1).trim());
+                        if (line.toLowerCase(java.util.Locale.ROOT).startsWith("content-length:"))
+                            contentLength = Integer.parseInt(line.substring(line.indexOf(':') + 1).trim());
+                    }
+                    if (target.contains("/retry-post")) {
+                        char[] body = new char[contentLength];
+                        int offset = 0;
+                        while (offset < body.length) {
+                            int count = reader.read(body, offset, body.length - offset);
+                            if (count < 0) return;
+                            offset += count;
+                        }
+                        retryBodies.add(new String(body));
                     }
                     if (target.contains("/close")) return;
                     if (target.endsWith("/slow")) Thread.sleep(300);
                     int status = target.contains("/redirect") ? 302 : target.contains("/missing") ? 404
+                            : target.contains("/retry-post") && retryPost.incrementAndGet() == 1 ? 503
                             : target.contains("/fail") || target.contains("/flaky") && flaky.incrementAndGet() <= 2
                             ? 503 : 200;
                     byte[] body = target.contains("/large") ? "L".repeat(4096).getBytes(StandardCharsets.UTF_8)
