@@ -1,5 +1,7 @@
 package io.teaql.sqlite;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.teaql.core.BaseEntity;
 import io.teaql.core.meta.EntityDescriptor;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
@@ -11,6 +13,7 @@ import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import io.teaql.runtime.DefaultUserContext;
 import io.teaql.runtime.TeaQLRuntime;
 import org.junit.Test;
+import org.junit.Assume;
 import org.sqlite.SQLiteDataSource;
 
 import java.nio.charset.StandardCharsets;
@@ -120,6 +123,33 @@ public class SqliteModelCheckedCommittedTargetTest {
     private static long count(JdbcSqlExecutor sql, String table) {
         return ((Number) sql.queryForList("SELECT COUNT(*) AS n FROM " + table,
                 new Object[0]).get(0).get("n")).longValue();
+    }
+
+    @Test public void appliesSharedConformanceFixtureWhenConfigured() throws Exception {
+        String fixturePath = System.getenv("TEAQL_COMMITTED_EVENT_FIXTURE");
+        Assume.assumeTrue("shared fixture path was not supplied",
+                fixturePath != null && !fixturePath.isBlank());
+        JsonNode fixture = new ObjectMapper().readTree(Files.readString(Path.of(fixturePath)));
+        assertEquals(1, fixture.path("fixture_version").asInt());
+        assertEquals(2, fixture.path("sets").size());
+        Path path = Files.createTempFile("teaql-shared-model-target-", ".sqlite");
+        try {
+            Target t = target(path);
+            for (int index = 0; index < 2; index++) {
+                JsonNode set = fixture.path("sets").get(index);
+                long sequence = Long.parseLong(set.path("source_sequence").asText());
+                OutboxRecord record = recordBody(sequence,
+                        set.path("change_set_id").asText(), set.toString());
+                assertEquals(sequence, t.target().apply(t.context(), record).checkpoint());
+            }
+            assertEquals("SUBMITTED", t.sql().queryForList(
+                    "SELECT status FROM order_data WHERE id = ?", new Object[] {ORDER_ID})
+                    .get(0).get("status"));
+            assertEquals(-2L, ((Number) t.sql().queryForList(
+                    "SELECT version FROM order_item_data WHERE id = ?", new Object[] {ITEM_ID})
+                    .get(0).get("version")).longValue());
+            assertEquals(2, count(t.sql(), "teaql_event_applied_payload"));
+        } finally { Files.deleteIfExists(path); }
     }
 
     @Test public void appliesWholeOrderGraphAndReturnsStableDuplicateAcks() throws Exception {
