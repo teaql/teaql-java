@@ -1,7 +1,10 @@
 package io.teaql.tools.http;
 
 import io.teaql.core.http.HttpRequestService;
+import java.io.ByteArrayInputStream;
 import java.net.URI;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.EnumSet;
 import java.util.Objects;
@@ -11,6 +14,7 @@ import java.util.Set;
 public final class HttpServiceProfile {
     private final String alias;
     private final URI baseUri;
+    private final X509Certificate trustedRoot;
     private final Duration connectTimeout;
     private final Duration requestTimeout;
     private final Duration totalTimeout;
@@ -26,6 +30,7 @@ public final class HttpServiceProfile {
     private HttpServiceProfile(Builder b) {
         this.alias = b.alias;
         this.baseUri = b.baseUri;
+        this.trustedRoot = b.trustedRoot;
         this.connectTimeout = b.connectTimeout;
         this.requestTimeout = b.requestTimeout;
         this.totalTimeout = b.totalTimeout;
@@ -42,6 +47,7 @@ public final class HttpServiceProfile {
     public static Builder builder(String alias, URI baseUri) { return new Builder(alias, baseUri); }
     public String alias() { return alias; }
     public URI baseUri() { return baseUri; }
+    X509Certificate trustedRoot() { return trustedRoot; }
     public Duration connectTimeout() { return connectTimeout; }
     public Duration requestTimeout() { return requestTimeout; }
     public Duration totalTimeout() { return totalTimeout; }
@@ -58,6 +64,7 @@ public final class HttpServiceProfile {
     public static final class Builder {
         private final String alias;
         private final URI baseUri;
+        private X509Certificate trustedRoot;
         private Duration connectTimeout = Duration.ofSeconds(2);
         private Duration requestTimeout = Duration.ofSeconds(5);
         private Duration totalTimeout = Duration.ofSeconds(10);
@@ -94,6 +101,24 @@ public final class HttpServiceProfile {
             return this;
         }
         public Builder maxResponseBytes(int bytes) { this.maxResponseBytes = bytes; return this; }
+        /** Use only this profile's trusted root for HTTPS; peer and hostname checks remain enabled. */
+        public Builder trustedRootPem(byte[] pem) {
+            if (!"https".equalsIgnoreCase(baseUri.getScheme()) || pem == null
+                    || pem.length == 0 || pem.length > 64 * 1024) {
+                throw new IllegalArgumentException("invalid trusted TLS root");
+            }
+            try {
+                var source = new ByteArrayInputStream(pem.clone());
+                var certificate = CertificateFactory.getInstance("X.509").generateCertificate(source);
+                if (!(certificate instanceof X509Certificate x509)) {
+                    throw new IllegalArgumentException("invalid trusted TLS root");
+                }
+                trustedRoot = x509;
+            } catch (java.security.cert.CertificateException failure) {
+                throw new IllegalArgumentException("invalid trusted TLS root");
+            }
+            return this;
+        }
         public Builder retry(int attempts, Duration delay, Set<HttpRequestService.Method> methods) {
             this.maxAttempts = attempts;
             this.retryDelay = positive(delay);

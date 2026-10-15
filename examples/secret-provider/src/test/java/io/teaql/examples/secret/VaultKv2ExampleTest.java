@@ -15,10 +15,22 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.security.KeyFactory;
+import java.security.KeyStore;
+import java.security.PrivateKey;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLSocket;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -40,6 +52,129 @@ public class VaultKv2ExampleTest {
         context.putAttribute(HttpRequestService.class.getName(),
                 new JdkHttpRequestService(List.of(profile)));
         return context;
+    }
+
+    private DefaultUserContext tlsContext(int port, byte[] trustedRoot) {
+        var builder = HttpServiceProfile.builder("vault", URI.create("https://127.0.0.1:" + port + "/"))
+                .budgets(Duration.ofSeconds(2), Duration.ofSeconds(2), Duration.ofSeconds(3));
+        if (trustedRoot != null) builder.trustedRootPem(trustedRoot);
+        var provider = VaultKv2SecretProvider.builder("vault", "secret",
+                (caller, reference) -> new SecretValue(
+                        "PRIVATE-VAULT-TOKEN".getBytes(StandardCharsets.UTF_8), null, null),
+                new SecretReference("bootstrap", "vault_token"))
+                .bind(REFERENCE, "payment/api", "value").build();
+        DefaultUserContext context = new DefaultUserContext(null).withSecretProvider(provider);
+        context.putAttribute(HttpRequestService.class.getName(),
+                new JdkHttpRequestService(List.of(builder.build())));
+        return context;
+    }
+
+    private static void openssl(String... arguments) throws Exception {
+        String[] command = new String[arguments.length + 1];
+        command[0] = "openssl";
+        System.arraycopy(arguments, 0, command, 1, arguments.length);
+        Process process = new ProcessBuilder(command).redirectErrorStream(true)
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
+        assertEquals("local TLS fixture generation failed", 0, process.waitFor());
+    }
+
+    @Test public void trustedTlsVaultSucceedsAndUntrustedCertificateSendsNoRequest() throws Exception {
+        var directory = Files.createTempDirectory("teaql-vault-tls-");
+        var rootPath = directory.resolve("root.pem");
+        var rootKeyPath = directory.resolve("root.key");
+        var requestPath = directory.resolve("server.csr");
+        var serialPath = directory.resolve("root.srl");
+        var certificatePath = directory.resolve("server.pem");
+        var keyPath = directory.resolve("server.key");
+        try {
+            openssl("req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
+                    "-subj", "/CN=TeaQL test root", "-addext", "basicConstraints=critical,CA:TRUE",
+                    "-addext", "keyUsage=critical,keyCertSign,cRLSign",
+                    "-keyout", rootKeyPath.toString(), "-out", rootPath.toString());
+            openssl("req", "-new", "-newkey", "rsa:2048", "-nodes", "-subj", "/CN=127.0.0.1",
+                    "-addext", "subjectAltName=IP:127.0.0.1",
+                    "-keyout", keyPath.toString(), "-out", requestPath.toString());
+            openssl("x509", "-req", "-days", "1", "-CAcreateserial", "-copy_extensions", "copy",
+                    "-in", requestPath.toString(), "-CA", rootPath.toString(),
+                    "-CAkey", rootKeyPath.toString(), "-out", certificatePath.toString());
+            byte[] rootPem = Files.readAllBytes(rootPath);
+            Certificate certificate;
+            Certificate root;
+            try (var source = Files.newInputStream(certificatePath)) {
+                certificate = CertificateFactory.getInstance("X.509").generateCertificate(source);
+            }
+            try (var source = Files.newInputStream(rootPath)) {
+                root = CertificateFactory.getInstance("X.509").generateCertificate(source);
+            }
+            String keyText = Files.readString(keyPath);
+            String encoded = keyText.replace("-----BEGIN PRIVATE KEY-----", "")
+                    .replace("-----END PRIVATE KEY-----", "").replaceAll("\\s", "");
+            PrivateKey key = KeyFactory.getInstance("RSA").generatePrivate(
+                    new PKCS8EncodedKeySpec(Base64.getDecoder().decode(encoded)));
+            KeyStore store = KeyStore.getInstance("PKCS12");
+            store.load(null, null);
+            char[] password = "fixture-only".toCharArray();
+            store.setKeyEntry("server", key, password, new Certificate[] {certificate, root});
+            KeyManagerFactory managers = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+            managers.init(store, password);
+            SSLContext tls = SSLContext.getInstance("TLS");
+            tls.init(managers.getKeyManagers(), null, null);
+
+            var executor = Executors.newSingleThreadExecutor();
+            try (SSLServerSocket server = (SSLServerSocket) tls.getServerSocketFactory()
+                    .createServerSocket(0, 2, InetAddress.getLoopbackAddress())) {
+                server.setSoTimeout(3000);
+                var served = executor.submit(() -> {
+                    for (int connection = 0; connection < 2; connection++) {
+                        try (SSLSocket socket = (SSLSocket) server.accept()) {
+                            socket.setSoTimeout(2000);
+                            BufferedReader reader = new BufferedReader(new InputStreamReader(
+                                    socket.getInputStream(), StandardCharsets.US_ASCII));
+                            String firstLine = reader.readLine();
+                            if (connection == 0) {
+                                assertNull("untrusted peer received an HTTP request", firstLine);
+                                continue;
+                            }
+                            assertTrue(firstLine.startsWith("GET /v1/secret/data/payment/api HTTP/1.1"));
+                            boolean tokenSeen = false;
+                            String line;
+                            while ((line = reader.readLine()) != null && !line.isEmpty()) {
+                                if (line.toLowerCase(java.util.Locale.ROOT).startsWith("x-vault-token:")) {
+                                    tokenSeen = line.trim().endsWith("PRIVATE-VAULT-TOKEN");
+                                }
+                            }
+                            assertTrue(tokenSeen);
+                            socket.getOutputStream().write(("HTTP/1.1 200 OK\r\nContent-Length: "
+                                    + BODY.length + "\r\nConnection: close\r\n\r\n")
+                                    .getBytes(StandardCharsets.US_ASCII));
+                            socket.getOutputStream().write(BODY);
+                        } catch (javax.net.ssl.SSLException expectedUntrusted) {
+                            if (connection != 0) throw expectedUntrusted;
+                        }
+                    }
+                    return null;
+                });
+                SecretFailure untrusted = assertThrows(SecretFailure.class,
+                        () -> tlsContext(server.getLocalPort(), null)
+                                .resolveSecret(REFERENCE, "read configured credential"));
+                assertEquals(SecretFailure.Code.UNAVAILABLE, untrusted.code());
+                SecretValue value = tlsContext(server.getLocalPort(), rootPem)
+                        .resolveSecret(REFERENCE, "read configured credential");
+                assertEquals("PRIVATE-VAULT-VALUE", new String(value.exposeBytes(), StandardCharsets.UTF_8));
+                assertEquals("vault-kv2:7", value.version());
+                served.get(5, TimeUnit.SECONDS);
+            } finally {
+                executor.shutdownNow();
+            }
+        } finally {
+            Files.deleteIfExists(keyPath);
+            Files.deleteIfExists(certificatePath);
+            Files.deleteIfExists(requestPath);
+            Files.deleteIfExists(serialPath);
+            Files.deleteIfExists(rootKeyPath);
+            Files.deleteIfExists(rootPath);
+            Files.deleteIfExists(directory);
+        }
     }
 
     @Test public void loopbackVaultPathTokenVersionAndTimeout() throws Exception {
