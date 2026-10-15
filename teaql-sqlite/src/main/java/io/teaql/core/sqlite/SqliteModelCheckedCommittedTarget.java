@@ -194,9 +194,21 @@ public final class SqliteModelCheckedCommittedTarget {
             return positiveId(value.path("entity_id"));
         }
         Class<?> type = property.getType() == null ? null : property.getType().javaType();
-        if (type == String.class || type == java.util.UUID.class || type == java.time.LocalDate.class
+        if (type == java.time.LocalDate.class || type == java.sql.Date.class) {
+            if (!value.isTextual()) throw invalid("Date field has wrong type");
+            String text = value.textValue();
+            try {
+                if (!java.time.LocalDate.parse(text).toString().equals(text)) {
+                    throw invalid("Date field has wrong type");
+                }
+            } catch (java.time.format.DateTimeParseException failure) {
+                throw invalid("Date field has wrong type");
+            }
+            return text;
+        }
+        if (type == String.class || type == java.util.UUID.class
                 || type == java.time.LocalDateTime.class || type == java.time.Instant.class
-                || type == java.util.Date.class || type == java.sql.Date.class
+                || type == java.util.Date.class
                 || type == java.sql.Timestamp.class || type != null && type.isEnum()) {
             if (!value.isTextual()) throw invalid("text/date field has wrong type");
             return value.textValue();

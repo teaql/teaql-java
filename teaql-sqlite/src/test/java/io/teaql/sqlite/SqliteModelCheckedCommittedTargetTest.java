@@ -45,6 +45,7 @@ public class SqliteModelCheckedCommittedTargetTest {
         order.addSimpleProperty("version", Long.class);
         order.addSimpleProperty("order_number", String.class);
         order.addSimpleProperty("status", String.class);
+        order.addSimpleProperty("planned_date", java.time.LocalDate.class);
         SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
         metadata.register(order);
         EntityDescriptor item = new EntityDescriptor();
@@ -58,7 +59,7 @@ public class SqliteModelCheckedCommittedTargetTest {
         DefaultUserContext context = new DefaultUserContext(
                 TeaQLRuntime.builder().metadata(metadata).build());
         sql.execute("CREATE TABLE order_data (id INTEGER PRIMARY KEY, version INTEGER NOT NULL, "
-                + "order_number TEXT NOT NULL, status TEXT NOT NULL)");
+                + "order_number TEXT NOT NULL, status TEXT NOT NULL, planned_date DATE)");
         sql.execute("CREATE TABLE order_item_data (id INTEGER PRIMARY KEY, version INTEGER NOT NULL, "
                 + "order_id INTEGER NOT NULL, quantity INTEGER NOT NULL)");
         SqliteModelCheckedCommittedTarget target = new SqliteModelCheckedCommittedTarget(sql, SOURCE, HASH);
@@ -81,7 +82,8 @@ public class SqliteModelCheckedCommittedTargetTest {
         return """
                 [{"entity_type":"order","entity_id":"9007199254740993","operation":"create",
                   "base_version":null,"committed_version":"1",
-                  "fields":{"order_number":"ORD-0001","status":"DRAFT"},"trace_chain":[]},
+                  "fields":{"order_number":"ORD-0001","status":"DRAFT",
+                            "planned_date":"2026-10-16"},"trace_chain":[]},
                  {"entity_type":"order_item","entity_id":"9007199254740994","operation":"create",
                   "base_version":null,"committed_version":"1",
                   "fields":{"order":{"entity_type":"order","entity_id":"9007199254740993"},
@@ -146,6 +148,9 @@ public class SqliteModelCheckedCommittedTargetTest {
             assertEquals("SUBMITTED", t.sql().queryForList(
                     "SELECT status FROM order_data WHERE id = ?", new Object[] {ORDER_ID})
                     .get(0).get("status"));
+            assertEquals("2026-10-16", t.sql().queryForList(
+                    "SELECT planned_date FROM order_data WHERE id = ?", new Object[] {ORDER_ID})
+                    .get(0).get("planned_date"));
             assertEquals(-2L, ((Number) t.sql().queryForList(
                     "SELECT version FROM order_item_data WHERE id = ?", new Object[] {ITEM_ID})
                     .get(0).get("version")).longValue());
@@ -261,6 +266,28 @@ public class SqliteModelCheckedCommittedTargetTest {
             Object stored = t.sql().queryForList("SELECT quantity FROM order_item_data WHERE id = ?",
                     new Object[] {ITEM_ID}).get(0).get("quantity");
             assertEquals(9_007_199_254_740_993L, ((Number) stored).longValue());
+        } finally { Files.deleteIfExists(path); }
+    }
+
+    @Test public void acceptsOnlyCanonicalCalendarDate() throws Exception {
+        Path path = Files.createTempFile("teaql-model-target-date-", ".sqlite");
+        try {
+            Target t = target(path);
+            for (String invalid : new String[] {"2026-2-3", "2026-02-30", "2026-10-16T00:00:00Z"}) {
+                String malformed = created().replace("\"planned_date\":\"2026-10-16\"",
+                        "\"planned_date\":\"" + invalid + "\"");
+                expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                        record(1, "invalid-date", malformed)));
+            }
+            String numeric = created().replace("\"planned_date\":\"2026-10-16\"",
+                    "\"planned_date\":20261016");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(1, "numeric-date", numeric)));
+            assertEquals(0, count(t.sql(), "order_data"));
+            t.target().apply(t.context(), record(1, "valid-date", created()));
+            assertEquals("2026-10-16", t.sql().queryForList(
+                    "SELECT planned_date FROM order_data WHERE id = ?", new Object[] {ORDER_ID})
+                    .get(0).get("planned_date"));
         } finally { Files.deleteIfExists(path); }
     }
 
