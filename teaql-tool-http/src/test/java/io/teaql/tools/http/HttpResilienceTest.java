@@ -179,7 +179,8 @@ public class HttpResilienceTest {
     }
 
     @Test public void stalledTlsHandshakeObeysConnectionBudget() throws Exception {
-        try (ServerSocket listener = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
+        try (ServerSocket listener = new ServerSocket(0, 1,
+                InetAddress.getByAddress(new byte[] {127, 0, 0, 1}))) {
             listener.setSoTimeout(3000);
             AtomicReference<Throwable> serverFailure = new AtomicReference<>();
             Thread stalled = new Thread(() -> {
