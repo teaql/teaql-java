@@ -36,12 +36,14 @@ public class GraphTraceSqliteTest {
             return field.equals("name") || field.equals("memo") || field.equals("children")
                     || field.equals("business_counter") || field.equals("planned_date")
                     || field.equals("active") || field.equals("ratio") || field.equals("optional_note")
+                    || field.equals("occurred_at") || field.equals("wall_time")
                     ? values.get(field) : super.__internalGet(field);
         }
         @Override public void __internalSet(String field, Object value) {
             if (field.equals("name") || field.equals("memo") || field.equals("children")
                     || field.equals("business_counter") || field.equals("planned_date")
-                    || field.equals("active") || field.equals("ratio") || field.equals("optional_note")) values.put(field, value);
+                    || field.equals("active") || field.equals("ratio") || field.equals("optional_note")
+                    || field.equals("occurred_at") || field.equals("wall_time")) values.put(field, value);
             else super.__internalSet(field, value);
         }
     }
@@ -127,6 +129,12 @@ public class GraphTraceSqliteTest {
                     var optionalNote = (GenericSQLProperty) descriptor.addSimpleProperty(
                             "optional_note", String.class);
                     optionalNote.setColumnType("VARCHAR(255)");
+                    var occurredAt = (GenericSQLProperty) descriptor.addSimpleProperty(
+                            "occurred_at", java.time.Instant.class);
+                    occurredAt.setColumnType("BIGINT");
+                    var wallTime = (GenericSQLProperty) descriptor.addSimpleProperty(
+                            "wall_time", java.time.LocalDateTime.class);
+                    wallTime.setColumnType("TIMESTAMP");
                 }
                 var children = new Relation();
                 children.setName("children");
@@ -486,6 +494,7 @@ public class GraphTraceSqliteTest {
         order.updateProperty("active", true);
         order.updateProperty("ratio", 0.5);
         order.updateProperty("optional_note", null);
+        order.updateProperty("occurred_at", java.time.Instant.parse("1960-01-01T00:00:00.123Z"));
         var item = fixture.create("OrderItem", 201, "first item");
         item.setComment("create item");
         var payment = fixture.create("Payment", 300, "payment value");
@@ -523,11 +532,17 @@ public class GraphTraceSqliteTest {
         assertTrue(orderFact.path("fields").path("active").booleanValue());
         assertEquals(0.5, orderFact.path("fields").path("ratio").doubleValue(), 0.0);
         assertTrue(orderFact.path("fields").path("optional_note").isNull());
+        assertEquals("-315619199877", orderFact.path("fields").path("occurred_at").asText());
         assertFalse(new CommittedMutationFact("CustomerOrder", "100", "create", null, "1",
                 Map.of("memo", "database trigger value"), List.of()).toString().contains("database trigger value"));
         assertEquals("database trigger value", fixture.driver.queryForList(
                 "SELECT memo FROM customer_order_data WHERE id = ?", new Object[] {100L})
                 .get(0).get("memo"));
+        Map<String, Object> instant = fixture.driver.queryForList(
+                "SELECT typeof(occurred_at) AS storage_type, occurred_at "
+                        + "FROM customer_order_data WHERE id = ?", new Object[] {100L}).get(0);
+        assertEquals("integer", instant.get("storage_type"));
+        assertEquals(-315_619_199_877L, ((Number) instant.get("occurred_at")).longValue());
 
         item.updateProperty("name", "revised item");
         item.setComment("revise item");
@@ -612,6 +627,31 @@ public class GraphTraceSqliteTest {
         assertNull(fixture.driver.queryForList(
                 "SELECT optional_note FROM customer_order_data WHERE id = ?", new Object[] {911L})
                 .get(0).get("optional_note"));
+    }
+
+    @Test public void committedLocalDateTimeFailsClosedWithoutAnInstantMapping() throws Exception {
+        var fixture = new Fixture(true);
+        var order = fixture.create("CustomerOrder", 912, "wall-clock order");
+        order.updateProperty("wall_time", java.time.LocalDateTime.of(2026, 10, 16, 8, 0));
+        var failure = assertThrows(RuntimeException.class,
+                () -> order.auditAs("reject ambiguous wall time").save(fixture.context));
+        assertTrue(failure.getMessage().contains("LocalDateTime"));
+        assertTrue(fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {912L}).isEmpty());
+        assertTrue(fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).isEmpty());
+    }
+
+    @Test public void committedInstantRejectsSubMillisecondPrecision() throws Exception {
+        var fixture = new Fixture(true);
+        var order = fixture.create("CustomerOrder", 913, "precise order");
+        order.updateProperty("occurred_at", java.time.Instant.parse("2026-10-16T00:00:00.123456Z"));
+        assertThrows(RuntimeException.class,
+                () -> order.auditAs("reject submillisecond instant").save(fixture.context));
+        assertTrue(fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {913L}).isEmpty());
+        assertTrue(fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).isEmpty());
     }
 
     @Test public void committedRecoveryKeepsPredecessorAndNeedsNoChangedScalarField() throws Exception {

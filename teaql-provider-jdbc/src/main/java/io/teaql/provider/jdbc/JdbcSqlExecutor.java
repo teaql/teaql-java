@@ -240,6 +240,13 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         private static <V> V convertColumn(Class<V> type, Object value) {
             if (value == null || type.isInstance(value)) return (V) value;
             if (value instanceof Number number) {
+                if (type == java.time.Instant.class) {
+                    if (!(number instanceof Long || number instanceof Integer
+                            || number instanceof Short || number instanceof Byte)) {
+                        throw new IllegalArgumentException("Instant JDBC value is not an exact integer");
+                    }
+                    return (V) java.time.Instant.ofEpochMilli(number.longValue());
+                }
                 if (type == Long.class) return (V) Long.valueOf(number.longValue());
                 if (type == Integer.class) return (V) Integer.valueOf(number.intValue());
                 if (type == Double.class) return (V) Double.valueOf(number.doubleValue());
@@ -255,6 +262,12 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             }
             if (type == java.time.LocalDateTime.class && value instanceof java.sql.Timestamp timestamp) {
                 return (V) timestamp.toLocalDateTime();
+            }
+            if (type == java.time.Instant.class && value instanceof java.sql.Timestamp timestamp) {
+                return (V) timestamp.toInstant();
+            }
+            if (type == java.time.Instant.class && value instanceof CharSequence text) {
+                return (V) java.time.Instant.parse(text);
             }
             if (type == java.time.LocalDateTime.class) {
                 return (V) java.time.LocalDateTime.parse(String.valueOf(value).replace(' ', 'T'));
@@ -441,6 +454,14 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 statement.setString(index, java.sql.Timestamp.valueOf(dateTime).toString());
             } else {
                 statement.setTimestamp(index, java.sql.Timestamp.valueOf(dateTime));
+            }
+        } else if (value instanceof java.time.Instant instant && isSqlite(statement)) {
+            if (instant.getNano() % 1_000_000 != 0) {
+                throw new SQLException("Instant has precision finer than milliseconds");
+            }
+            try { statement.setLong(index, instant.toEpochMilli()); }
+            catch (ArithmeticException overflow) {
+                throw new SQLException("Instant exceeds epoch-millisecond range", overflow);
             }
         } else if (value instanceof java.time.LocalTime time) {
             if (isSqlite(statement)) {

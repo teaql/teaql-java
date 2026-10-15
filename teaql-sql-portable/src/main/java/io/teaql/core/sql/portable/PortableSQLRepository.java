@@ -1403,6 +1403,15 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 && value instanceof java.sql.Timestamp timestamp) {
             return timestamp.toLocalDateTime();
         }
+        if (targetType == java.time.Instant.class) {
+            if (value instanceof Long || value instanceof Integer || value instanceof Short
+                    || value instanceof Byte) {
+                return java.time.Instant.ofEpochMilli(((Number) value).longValue());
+            }
+            if (value instanceof java.sql.Timestamp timestamp) return timestamp.toInstant();
+            if (value instanceof CharSequence text) return java.time.Instant.parse(text);
+            throw new IllegalArgumentException("Instant readback is not an exact timestamp value");
+        }
         if (targetType == java.time.LocalDateTime.class) {
             // SQLite returns text and some JDBC drivers return vendor temporal
             // wrappers. Both expose the standard timestamp representation.

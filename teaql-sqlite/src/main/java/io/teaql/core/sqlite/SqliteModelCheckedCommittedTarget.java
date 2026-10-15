@@ -206,11 +206,20 @@ public final class SqliteModelCheckedCommittedTarget {
             }
             return text;
         }
-        if (type == String.class || type == java.util.UUID.class
-                || type == java.time.LocalDateTime.class || type == java.time.Instant.class
-                || type == java.util.Date.class
-                || type == java.sql.Timestamp.class || type != null && type.isEnum()) {
-            if (!value.isTextual()) throw invalid("text/date field has wrong type");
+        if (type == java.time.Instant.class || type == java.util.Date.class
+                || type == java.sql.Timestamp.class) {
+            if (!value.isTextual() || !value.textValue().matches("-?(0|[1-9][0-9]*)")
+                    || value.textValue().equals("-0")) {
+                throw invalid("Timestamp field has wrong type");
+            }
+            try { return Long.parseLong(value.textValue()); }
+            catch (NumberFormatException failure) { throw invalid("Timestamp field has wrong type"); }
+        }
+        if (type == java.time.LocalDateTime.class) {
+            throw invalid("zone-free LocalDateTime has no committed instant mapping");
+        }
+        if (type == String.class || type == java.util.UUID.class || type != null && type.isEnum()) {
+            if (!value.isTextual()) throw invalid("text field has wrong type");
             return value.textValue();
         }
         if (type == Boolean.class || type == boolean.class) {

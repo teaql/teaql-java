@@ -46,6 +46,7 @@ public class SqliteModelCheckedCommittedTargetTest {
         order.addSimpleProperty("order_number", String.class);
         order.addSimpleProperty("status", String.class);
         order.addSimpleProperty("planned_date", java.time.LocalDate.class);
+        order.addSimpleProperty("occurred_at", java.time.Instant.class).with("required", "true");
         order.addSimpleProperty("amount", java.math.BigDecimal.class);
         order.addSimpleProperty("active", Boolean.class).with("required", "true");
         order.addSimpleProperty("ratio", Double.class).with("required", "true");
@@ -64,7 +65,8 @@ public class SqliteModelCheckedCommittedTargetTest {
         DefaultUserContext context = new DefaultUserContext(
                 TeaQLRuntime.builder().metadata(metadata).build());
         sql.execute("CREATE TABLE order_data (id INTEGER PRIMARY KEY, version INTEGER NOT NULL, "
-                + "order_number TEXT NOT NULL, status TEXT NOT NULL, planned_date DATE, amount NUMERIC, "
+                + "order_number TEXT NOT NULL, status TEXT NOT NULL, planned_date DATE, "
+                + "occurred_at INTEGER NOT NULL, amount NUMERIC, "
                 + "active INTEGER NOT NULL, ratio REAL NOT NULL, optional_note TEXT, optional_label TEXT)");
         sql.execute("CREATE TABLE order_item_data (id INTEGER PRIMARY KEY, version INTEGER NOT NULL, "
                 + "order_id INTEGER NOT NULL, quantity INTEGER NOT NULL)");
@@ -89,7 +91,8 @@ public class SqliteModelCheckedCommittedTargetTest {
                 [{"entity_type":"order","entity_id":"9007199254740993","operation":"create",
                   "base_version":null,"committed_version":"1",
                   "fields":{"order_number":"ORD-0001","status":"DRAFT",
-                            "planned_date":"2026-10-16","amount":"0",
+                            "planned_date":"2026-10-16","occurred_at":"-315619199877",
+                            "amount":"0",
                             "active":true,"ratio":0.5,"optional_note":null,
                             "optional_label":"initial label"},"trace_chain":[]},
                  {"entity_type":"order_item","entity_id":"9007199254740994","operation":"create",
@@ -161,6 +164,11 @@ public class SqliteModelCheckedCommittedTargetTest {
             assertEquals("2026-10-16", t.sql().queryForList(
                     "SELECT planned_date FROM order_data WHERE id = ?", new Object[] {ORDER_ID})
                     .get(0).get("planned_date"));
+            Map<String, Object> instant = t.sql().queryForList(
+                    "SELECT typeof(occurred_at) AS storage_type, occurred_at FROM order_data WHERE id = ?",
+                    new Object[] {ORDER_ID}).get(0);
+            assertEquals("integer", instant.get("storage_type"));
+            assertEquals(-315_619_199_877L, ((Number) instant.get("occurred_at")).longValue());
             Map<String, Object> scalars = t.sql().queryForList(
                     "SELECT active, ratio, optional_note, optional_label FROM order_data WHERE id = ?",
                     new Object[] {ORDER_ID}).get(0);
@@ -305,6 +313,30 @@ public class SqliteModelCheckedCommittedTargetTest {
             assertEquals("2026-10-16", t.sql().queryForList(
                     "SELECT planned_date FROM order_data WHERE id = ?", new Object[] {ORDER_ID})
                     .get(0).get("planned_date"));
+        } finally { Files.deleteIfExists(path); }
+    }
+
+    @Test public void acceptsOnlyLosslessInstantMillisecondText() throws Exception {
+        Path path = Files.createTempFile("teaql-model-target-instant-", ".sqlite");
+        try {
+            Target t = target(path);
+            for (String invalid : new String[] {
+                    "-315619199877", "\"1960-01-01T00:00:00.123Z\"",
+                    "\"1960-01-01T00:00:00.123\"", "\"-0315619199877\"",
+                    "\"-0\"", "\"9223372036854775808\""}) {
+                String malformed = created().replace("\"occurred_at\":\"-315619199877\"",
+                        "\"occurred_at\":" + invalid);
+                expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                        record(1, "invalid-instant", malformed)));
+            }
+            assertEquals(0, count(t.sql(), "order_data"));
+            assertEquals(0, count(t.sql(), "teaql_event_inbox"));
+            t.target().apply(t.context(), record(1, "valid-instant", created()));
+            Map<String, Object> stored = t.sql().queryForList(
+                    "SELECT typeof(occurred_at) AS storage_type, occurred_at FROM order_data WHERE id = ?",
+                    new Object[] {ORDER_ID}).get(0);
+            assertEquals("integer", stored.get("storage_type"));
+            assertEquals(-315_619_199_877L, ((Number) stored.get("occurred_at")).longValue());
         } finally { Files.deleteIfExists(path); }
     }
 

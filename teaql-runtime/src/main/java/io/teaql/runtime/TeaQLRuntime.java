@@ -1272,17 +1272,38 @@ public class TeaQLRuntime implements AutoCloseable {
             if (!Float.isFinite(number)) throw new TeaQLRuntimeException("Non-finite committed numeric value");
             return number;
         }
-        if (value instanceof java.time.temporal.TemporalAccessor || value instanceof java.util.UUID
-                || value instanceof Enum<?>) return value.toString();
+        if (value instanceof java.time.Instant instant) return committedInstantMillis(instant);
+        if (value instanceof java.time.LocalDate date) return date.toString();
+        if (value instanceof java.time.LocalDateTime) {
+            throw new TeaQLRuntimeException("Zone-free LocalDateTime has no committed instant mapping");
+        }
+        if (value instanceof java.time.temporal.TemporalAccessor) {
+            throw new TeaQLRuntimeException("Committed temporal field has unsupported type: " + property.getName());
+        }
+        if (value instanceof java.util.UUID || value instanceof Enum<?>) return value.toString();
         if (value instanceof java.util.Date date) {
             // JDBC date/time subclasses deliberately throw from toInstant().
             // Keep this model-level runtime independent of the java.sql module.
-            try { return date.toInstant().toString(); }
-            catch (UnsupportedOperationException unsupported) { return date.toString(); }
+            try { return committedInstantMillis(date.toInstant()); }
+            catch (UnsupportedOperationException unsupported) {
+                String calendarDate = date.toString();
+                if (calendarDate.matches("[0-9]{4}-[0-9]{2}-[0-9]{2}")) return calendarDate;
+                throw new TeaQLRuntimeException("Committed temporal field has unsupported type: " + property.getName());
+            }
         }
         if (value instanceof byte[] bytes) return Map.of("$binary_base64",
                 java.util.Base64.getEncoder().encodeToString(bytes));
         throw new TeaQLRuntimeException("Committed field has unsupported type: " + property.getName());
+    }
+
+    private static String committedInstantMillis(java.time.Instant instant) {
+        if (instant.getNano() % 1_000_000 != 0) {
+            throw new TeaQLRuntimeException("Committed instant has finer than millisecond precision");
+        }
+        try { return Long.toString(instant.toEpochMilli()); }
+        catch (ArithmeticException overflow) {
+            throw new TeaQLRuntimeException("Committed instant exceeds epoch-millisecond range");
+        }
     }
 
     private record PersistenceState(
