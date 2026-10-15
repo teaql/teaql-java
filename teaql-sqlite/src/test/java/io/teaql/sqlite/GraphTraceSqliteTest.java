@@ -502,6 +502,8 @@ public class GraphTraceSqliteTest {
         assertEquals("1", changedItem.path("base_version").asText());
         assertEquals("2", changedItem.path("committed_version").asText());
         assertEquals("revised item", changedItem.path("fields").path("name").asText());
+        assertEquals(1, changedItem.path("fields").size());
+        assertFalse(changedItem.path("fields").has("memo"));
 
         payment.markForDeletion();
         payment.setComment("remove payment");
@@ -523,6 +525,45 @@ public class GraphTraceSqliteTest {
                 events.outboxAfter("java-graph-source", 0, 10).size());
         assertTrue(fixture.driver.queryForList("SELECT id FROM payment_data WHERE id = ?",
                 new Object[] {301L}).isEmpty());
+    }
+
+    @Test public void committedUpdateIncludesDatabaseTriggerChangeButOmitsUnchangedFields() throws Exception {
+        var fixture = new Fixture(true);
+        var order = fixture.create("CustomerOrder", 909, "before");
+        order.auditAs("create trigger comparison order").save(fixture.context);
+        fixture.driver.execute("CREATE TRIGGER order_update_memo AFTER UPDATE OF name ON customer_order_data "
+                + "WHEN NEW.name = 'after' BEGIN UPDATE customer_order_data "
+                + "SET memo = 'database revised memo' WHERE id = NEW.id; END");
+
+        order.updateProperty("name", "after");
+        order.auditAs("update trigger comparison order").save(fixture.context);
+        var outbox = fixture.committedRecorder.eventStore().outboxAfter("java-graph-source", 1, 10);
+        assertEquals(1, outbox.size());
+        JsonNode fact = new ObjectMapper().readTree(outbox.get(0).payloadJson())
+                .path("mutations").get(0);
+        assertEquals("update", fact.path("operation").asText());
+        assertEquals("after", fact.path("fields").path("name").asText());
+        assertEquals("database revised memo", fact.path("fields").path("memo").asText());
+        assertEquals(2, fact.path("fields").size());
+    }
+
+    @Test public void committedRecoveryKeepsPredecessorAndNeedsNoChangedScalarField() throws Exception {
+        var fixture = new Fixture(true);
+        var order = fixture.create("CustomerOrder", 910, "recoverable");
+        order.auditAs("create recoverable order").save(fixture.context);
+        order.markForDeletion();
+        order.auditAs("delete recoverable order").save(fixture.context);
+        order.markAsRecover();
+        order.auditAs("recover order").save(fixture.context);
+
+        var outbox = fixture.committedRecorder.eventStore().outboxAfter("java-graph-source", 2, 10);
+        assertEquals(1, outbox.size());
+        JsonNode fact = new ObjectMapper().readTree(outbox.get(0).payloadJson())
+                .path("mutations").get(0);
+        assertEquals("recover", fact.path("operation").asText());
+        assertEquals("-2", fact.path("base_version").asText());
+        assertEquals("3", fact.path("committed_version").asText());
+        assertEquals(0, fact.path("fields").size());
     }
 
     @Test public void brokenOutboxRollsBackNormalGraphSaveAndDoesNotDeliverAudit() throws Exception {
