@@ -9,6 +9,7 @@ import io.teaql.core.sqlite.SqliteCommittedEventStore;
 import io.teaql.core.sqlite.SqliteCommittedEventStore.CommittedEventException;
 import io.teaql.core.sqlite.SqliteCommittedEventStore.OutboxRecord;
 import io.teaql.core.sqlite.SqliteModelCheckedCommittedTarget;
+import io.teaql.core.sqlite.SqliteCommittedOutboxPublisher;
 import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import io.teaql.runtime.DefaultUserContext;
 import io.teaql.runtime.TeaQLRuntime;
@@ -248,5 +249,68 @@ public class SqliteModelCheckedCommittedTargetTest {
             expect("VERSION_CONFLICT", () -> t.target().apply(t.context(), record(2, "stale", stale)));
             assertEquals(1, count(t.sql(), "teaql_event_inbox"));
         } finally { Files.deleteIfExists(path); }
+    }
+
+    @Test public void orderedPublisherRecoversAmbiguousAckAfterSourceReopen() throws Exception {
+        Path sourcePath = Files.createTempFile("teaql-source-delivery-", ".sqlite");
+        Path targetPath = Files.createTempFile("teaql-target-delivery-", ".sqlite");
+        try {
+            SQLiteDataSource sourceDataSource = new SQLiteDataSource();
+            sourceDataSource.setUrl("jdbc:sqlite:" + sourcePath);
+            JdbcSqlExecutor sourceSql = new JdbcSqlExecutor(sourceDataSource);
+            SqliteCommittedEventStore sourceEvents = new SqliteCommittedEventStore(sourceSql);
+            sourceEvents.ensureSchema();
+            for (String change : new String[] {"order-graph-0001", "order-graph-0002"}) {
+                String mutations = change.endsWith("0001") ? created() : submitted();
+                sourceSql.executeInTransaction(() -> sourceEvents.append(SOURCE, change, HASH,
+                        sequence -> record(sequence, change, mutations).payloadJson()));
+            }
+            Target target = target(targetPath);
+            SqliteCommittedOutboxPublisher publisher = new SqliteCommittedOutboxPublisher(
+                    sourceSql, SOURCE, "analytics", HASH);
+            assertEquals(2, publisher.status().backlog());
+            expect("ACK_MISMATCH", () -> publisher.publishBatch(2,
+                    record -> SqliteCommittedEventStore.InboxOutcome.applied(99)));
+            assertEquals(0, publisher.status().ackedSequence());
+            try {
+                publisher.publishBatch(2, record -> {
+                    target.target().apply(target.context(), record);
+                    throw new IllegalStateException("acknowledgement lost after target commit");
+                });
+                fail("expected ambiguous acknowledgement");
+            } catch (IllegalStateException expected) {
+                assertEquals("acknowledgement lost after target commit", expected.getMessage());
+            }
+            assertEquals(0, publisher.status().ackedSequence());
+            assertEquals(1, count(target.sql(), "teaql_event_inbox"));
+
+            SqliteCommittedOutboxPublisher restarted = new SqliteCommittedOutboxPublisher(
+                    new JdbcSqlExecutor(sourceDataSource), SOURCE, "analytics", HASH);
+            var outcome = restarted.publishBatch(2,
+                    record -> target.target().apply(target.context(), record));
+            assertEquals(2, outcome.acknowledged());
+            assertEquals(2, outcome.status().ackedSequence());
+            assertEquals(0, outcome.status().backlog());
+            assertEquals(0, restarted.publishBatch(2, record -> {
+                throw new AssertionError("acked event must not be delivered again");
+            }).acknowledged());
+            assertEquals(2, count(target.sql(), "teaql_event_inbox"));
+            assertEquals("SUBMITTED", target.sql().queryForList(
+                    "SELECT status FROM order_data WHERE id = ?", new Object[] {ORDER_ID})
+                    .get(0).get("status"));
+            assertEquals(2, new SqliteCommittedOutboxPublisher(sourceSql, SOURCE,
+                    "second-target", HASH).status().backlog());
+            expect("MODEL_MISMATCH", () -> new SqliteCommittedOutboxPublisher(sourceSql,
+                    SOURCE, "analytics", "sha256:" + "1".repeat(64)).status());
+            sourceSql.update("DELETE FROM teaql_event_outbox WHERE source_runtime_id = ? "
+                    + "AND source_sequence = 1", new Object[] {SOURCE});
+            expect("SEQUENCE_GAP", () -> new SqliteCommittedOutboxPublisher(sourceSql,
+                    SOURCE, "second-target", HASH).publishBatch(2, record -> {
+                throw new AssertionError("gap must be rejected before delivery");
+            }));
+        } finally {
+            Files.deleteIfExists(sourcePath);
+            Files.deleteIfExists(targetPath);
+        }
     }
 }

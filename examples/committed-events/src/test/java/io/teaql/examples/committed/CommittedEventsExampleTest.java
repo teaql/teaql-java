@@ -9,6 +9,7 @@ import io.teaql.core.sql.SQLEntityDescriptor;
 import io.teaql.core.sqlite.SqliteCommittedEventStore;
 import io.teaql.core.sqlite.SqliteCommittedMutationRecorder;
 import io.teaql.core.sqlite.SqliteModelCheckedCommittedTarget;
+import io.teaql.core.sqlite.SqliteCommittedOutboxPublisher;
 import io.teaql.core.sqlite.SqliteDataServiceExecutor;
 import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import io.teaql.runtime.DefaultUserContext;
@@ -103,8 +104,11 @@ public class CommittedEventsExampleTest {
         SqliteModelCheckedCommittedTarget target = new SqliteModelCheckedCommittedTarget(
                 replicaSql, "example-java-source", "sha256:" + "0".repeat(64));
         target.ensureSchema();
-        assertEquals(1, target.apply(replicaContext, durable.get(0)).checkpoint());
-        assertEquals(2, target.apply(replicaContext, durable.get(1)).checkpoint());
+        var published = new SqliteCommittedOutboxPublisher(reopened, "example-java-source",
+                "example-analytics", "sha256:" + "0".repeat(64))
+                .publishBatch(10, record -> target.apply(replicaContext, record));
+        assertEquals(2, published.acknowledged());
+        assertEquals(0, published.status().backlog());
         var duplicate = target.apply(replicaContext, durable.get(0));
         assertTrue(duplicate.duplicate());
         assertEquals(1, duplicate.checkpoint());
