@@ -1863,7 +1863,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             String indexName = canonicalRelationIndexName(
                     table, relationColumn.getColumnName(), idColumn.getColumnName());
             try {
-                if (database.indexExists(context, table, indexName).orElse(false)) continue;
+                if (database.canonicalRelationIndexMatches(context, table, indexName,
+                        List.of(relationColumn.getColumnName(), idColumn.getColumnName())).orElse(false)) continue;
             } catch (Exception failure) {
                 throw canonicalRelationIndexFailure("inspect", table, indexName, failure);
             }
@@ -1880,7 +1881,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                         try {
                             // PostgreSQL index names are schema-wide. A duplicate name on a
                             // different table must not be mistaken for this index being present.
-                            if (database.indexExists(context, table, indexName).orElse(true)) {
+                            if (database.canonicalRelationIndexMatches(context, table, indexName,
+                                    List.of(relationColumn.getColumnName(), idColumn.getColumnName())).orElse(true)) {
                                 continue;
                             }
                         } catch (Exception inspectionFailure) {

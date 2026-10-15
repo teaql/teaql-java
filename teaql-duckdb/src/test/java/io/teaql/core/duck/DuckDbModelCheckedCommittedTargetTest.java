@@ -6,6 +6,7 @@ import io.teaql.core.BaseEntity;
 import io.teaql.core.duck.DuckDbCommittedInbox.Failure;
 import io.teaql.core.duck.DuckDbCommittedInbox.Record;
 import io.teaql.core.meta.EntityDescriptor;
+import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
 import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import io.teaql.runtime.DefaultUserContext;
@@ -185,6 +186,59 @@ public class DuckDbModelCheckedCommittedTargetTest {
         assertEquals(2, count("teaql_event_inbox"));
         assertEquals(2, count("teaql_event_applied_payload"));
         assertEquals(1, count("teaql_event_checkpoint"));
+    }
+
+    @Test public void contextEnsureSchemaInstallsCompatibleModelStorage() throws Exception {
+        Path installedDatabase = directory.resolve("installed-schema.db");
+        try {
+            JdbcSqlExecutor installedSql = new JdbcSqlExecutor(
+                    new DriverManagerDataSource("jdbc:duckdb:" + installedDatabase));
+            EntityMetaFactory metadata = EntityMetaFactory.requireFrom(context);
+            metadata.allEntityDescriptors().forEach(entity -> entity.setDataService("duckdb"));
+            DefaultUserContext installedContext = new DefaultUserContext(TeaQLRuntime.builder()
+                    .metadata(metadata)
+                    .dataService("duckdb", new DuckDataServiceExecutor("duckdb", installedSql))
+                    .build());
+            installedContext.ensureSchema();
+            installedContext.ensureSchema();
+            DuckDbModelCheckedCommittedTarget installed =
+                    new DuckDbModelCheckedCommittedTarget(installedSql, SOURCE, HASH);
+            installed.ensureInboxSchema();
+            assertEquals(1L, installed.apply(installedContext,
+                    record(1, "installed-create", created())).checkpoint());
+            assertEquals(2L, installed.apply(installedContext,
+                    record(2, "installed-update", submitted())).checkpoint());
+            List<Map<String, Object>> columns = installedSql.queryForList(
+                    "SELECT column_name, data_type FROM information_schema.columns "
+                            + "WHERE table_name = 'order_data'", new Object[0]);
+            Map<String, String> types = new java.util.HashMap<>();
+            for (Map<String, Object> column : columns) {
+                types.put((String) column.get("column_name"), (String) column.get("data_type"));
+            }
+            assertEquals("DATE", types.get("planned_date"));
+            assertEquals("TIMESTAMP WITH TIME ZONE", types.get("occurred_at"));
+            assertEquals("DECIMAL(19,7)", types.get("amount"));
+            assertEquals("BOOLEAN", types.get("active"));
+            assertEquals("SUBMITTED", installedSql.queryForList(
+                    "SELECT status FROM order_data", new Object[0]).get(0).get("status"));
+            assertEquals(-2L, ((Number) installedSql.queryForList(
+                    "SELECT version FROM order_item_data", new Object[0])
+                    .get(0).get("version")).longValue());
+            List<Map<String, Object>> indexes = installedSql.queryForList(
+                    "SELECT index_name FROM duckdb_indexes() "
+                            + "WHERE table_name = 'order_item_data'", new Object[0]);
+            assertEquals(1, indexes.size());
+            String indexName = (String) indexes.get(0).get("index_name");
+            assertTrue(indexName.matches("[A-Za-z0-9_]+"));
+            installedSql.execute("DROP INDEX \"" + indexName + "\"");
+            installedSql.execute("CREATE INDEX \"" + indexName
+                    + "\" ON order_item_data(quantity)");
+            IllegalStateException mismatch = assertThrows(IllegalStateException.class,
+                    installedContext::ensureSchema);
+            assertTrue(mismatch.getMessage().contains("canonical relation index"));
+        } finally {
+            Files.deleteIfExists(installedDatabase);
+        }
     }
 
     @Test public void lateGraphFailureRollsBackDomainAndInbox() {

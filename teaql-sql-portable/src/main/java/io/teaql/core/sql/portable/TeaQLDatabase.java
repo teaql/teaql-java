@@ -128,4 +128,16 @@ public interface TeaQLDatabase {
             io.teaql.core.UserContext context, String tableName, String indexName) {
         return Optional.empty();
     }
+
+    /**
+     * Check the ordered keys of a generated relation index when the provider
+     * exposes them. Existing adapters retain their established index check;
+     * adapters with index-definition metadata can reject a name collision
+     * whose keys do not match the generated relation/index shape.
+     */
+    default Optional<Boolean> canonicalRelationIndexMatches(
+            io.teaql.core.UserContext context, String tableName, String indexName,
+            List<String> orderedColumns) {
+        return indexExists(context, tableName, indexName);
+    }
 }
