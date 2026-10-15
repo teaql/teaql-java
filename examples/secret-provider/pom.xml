@@ -4,6 +4,7 @@
   <artifactId>teaql-secret-provider-example</artifactId>
   <dependencies>
     <dependency><groupId>io.teaql</groupId><artifactId>teaql-runtime</artifactId></dependency>
+    <dependency><groupId>io.teaql</groupId><artifactId>teaql-tool-http</artifactId></dependency>
     <dependency><groupId>junit</groupId><artifactId>junit</artifactId><scope>test</scope></dependency>
   </dependencies>
 </project>
