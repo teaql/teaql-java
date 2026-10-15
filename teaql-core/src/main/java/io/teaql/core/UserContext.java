@@ -235,6 +235,17 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
         return io.teaql.core.storage.ObjectStorage.forContext(this, comment);
     }
 
+    /** Executes only a named HTTP service installed at trusted startup. */
+    default io.teaql.core.http.HttpRequestService httpRequests() {
+        io.teaql.core.http.HttpRequestService service =
+                capability(io.teaql.core.http.HttpRequestService.class);
+        if (service == null) {
+            throw new io.teaql.core.http.HttpRequestFailure(
+                    io.teaql.core.http.HttpRequestFailure.Code.PROFILE_NOT_CONFIGURED);
+        }
+        return service;
+    }
+
     default <T> T capability(Class<T> capabilityType) {
         return null;
     }
