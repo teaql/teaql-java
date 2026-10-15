@@ -20,6 +20,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Startup-owned, one-source SQLite target for committed model facts. This is
@@ -29,6 +31,8 @@ public final class SqliteModelCheckedCommittedTarget {
     private static final Set<String> TRACE_KINDS = Set.of(
             "OPERATION", "REQUEST", "RELATION", "ENTITY", "PROVIDER", "SQL",
             "COMMENT", "PURPOSE", "AUDIT_REASON");
+    private static final Pattern DECLARED_DECIMAL = Pattern.compile(
+            "(?i)\\s*(?:NUMERIC|DECIMAL)\\s*\\(\\s*([0-9]+)\\s*,\\s*([0-9]+)\\s*\\)\\s*");
     private final SqlExecutionAdapter sql;
     private final SqliteCommittedEventStore events;
     private final String sourceRuntimeId;
@@ -254,7 +258,11 @@ public final class SqliteModelCheckedCommittedTarget {
                     }
                     return new java.math.BigInteger(value.textValue()).toString();
                 }
-                return new BigDecimal(value.textValue()).toPlainString();
+                BigDecimal decimal = new BigDecimal(value.textValue());
+                if (!fitsDeclaredDecimal(property, decimal)) {
+                    throw invalid("Decimal lacks or exceeds modeled precision/scale");
+                }
+                return decimal.toPlainString();
             }
             catch (NumberFormatException failure) { throw invalid("Decimal field is invalid"); }
         }
@@ -352,6 +360,27 @@ public final class SqliteModelCheckedCommittedTarget {
         List<SQLColumn> columns = SQLPropertyUtil.getColumns(property);
         if (columns.size() != 1) throw invalid("property has no single SQLite column");
         return new Mapping(columns.get(0).getTableName(), columns.get(0).getColumnName());
+    }
+
+    private static boolean fitsDeclaredDecimal(PropertyDescriptor property, BigDecimal value) {
+        List<SQLColumn> columns = SQLPropertyUtil.getColumns(property);
+        if (columns.size() != 1) return false;
+        String declaredType = columns.get(0).getType();
+        if (declaredType == null) return false;
+        Matcher declaration = DECLARED_DECIMAL.matcher(declaredType);
+        if (!declaration.matches()) return false;
+        try {
+            int precision = Integer.parseInt(declaration.group(1));
+            int scale = Integer.parseInt(declaration.group(2));
+            if (precision < 1 || scale > precision) return false;
+            BigDecimal normalized = value.stripTrailingZeros();
+            long integerDigits = value.signum() == 0 ? 0
+                    : Math.max(0L, (long) normalized.precision() - normalized.scale());
+            long fractionalDigits = Math.max(0L, normalized.scale());
+            return integerDigits <= precision - scale && fractionalDigits <= scale;
+        } catch (NumberFormatException invalidDeclaration) {
+            return false;
+        }
     }
 
     private static String quoted(String identifier) {

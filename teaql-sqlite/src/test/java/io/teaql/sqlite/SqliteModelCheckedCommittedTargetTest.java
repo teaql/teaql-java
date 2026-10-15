@@ -36,6 +36,10 @@ public class SqliteModelCheckedCommittedTargetTest {
             DefaultUserContext context) { }
 
     private static Target target(Path path) {
+        return target(path, "NUMERIC(19,7)");
+    }
+
+    private static Target target(Path path, String amountType) {
         SQLiteDataSource source = new SQLiteDataSource();
         source.setUrl("jdbc:sqlite:" + path);
         JdbcSqlExecutor sql = new JdbcSqlExecutor(source);
@@ -47,7 +51,8 @@ public class SqliteModelCheckedCommittedTargetTest {
         order.addSimpleProperty("status", String.class);
         order.addSimpleProperty("planned_date", java.time.LocalDate.class);
         order.addSimpleProperty("occurred_at", java.time.Instant.class).with("required", "true");
-        order.addSimpleProperty("amount", java.math.BigDecimal.class);
+        var amount = order.addSimpleProperty("amount", java.math.BigDecimal.class);
+        if (amountType != null) amount.with("sqlType", amountType);
         order.addSimpleProperty("active", Boolean.class).with("required", "true");
         order.addSimpleProperty("ratio", Double.class).with("required", "true");
         order.addSimpleProperty("optional_note", String.class);
@@ -344,7 +349,8 @@ public class SqliteModelCheckedCommittedTargetTest {
         Path path = Files.createTempFile("teaql-model-target-decimal-", ".sqlite");
         try {
             Target t = target(path);
-            for (String decimal : new String[] {"0.1", "123456789012345.6789"}) {
+            for (String decimal : new String[] {
+                    "0.1", "123456789012345.6789", "0.12345678", "1234567890123"}) {
                 String inexact = created().replace("\"amount\":\"0\"",
                         "\"amount\":\"" + decimal + "\"");
                 expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
@@ -360,6 +366,17 @@ public class SqliteModelCheckedCommittedTargetTest {
                     new Object[] {ORDER_ID}).get(0);
             assertEquals("integer", stored.get("storage_type"));
             assertEquals(0L, ((Number) stored.get("amount")).longValue());
+        } finally { Files.deleteIfExists(path); }
+    }
+
+    @Test public void rejectsDecimalWithoutExplicitModeledPrecisionAndScale() throws Exception {
+        Path path = Files.createTempFile("teaql-model-target-untyped-decimal-", ".sqlite");
+        try {
+            Target t = target(path, null);
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(1, "untyped-decimal", created())));
+            assertEquals(0, count(t.sql(), "order_data"));
+            assertEquals(0, count(t.sql(), "teaql_event_inbox"));
         } finally { Files.deleteIfExists(path); }
     }
 
