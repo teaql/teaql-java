@@ -14,6 +14,7 @@ module io.teaql.core {
     exports io.teaql.core.parser;
     exports io.teaql.core.value;
     exports io.teaql.core.spi;
+    exports io.teaql.core.storage;
     exports io.teaql.core.businessid;
     exports io.teaql.core.reference;
     

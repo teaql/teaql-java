@@ -93,7 +93,7 @@ public class BoundedSignalAdmissionTest {
             assertEquals(0, admission.pending()); assertEquals(4, block.exported.get());
             tracer.spanBuilder("after recovery").startSpan().end();
             assertTrue(provider.forceFlush().join(2, TimeUnit.SECONDS).isSuccess());
-            assertEquals(5, block.exported.get()); assertEquals(0, admission.pending());
+            awaitExportedAndDrained(block, admission, 5);
             assertEquals(3, losses.lost(ExportLossAccounting.Signal.TRACES));
         } finally { block.completion.succeed(); }
     }
@@ -122,7 +122,7 @@ public class BoundedSignalAdmissionTest {
             assertEquals(0, admission.pending()); assertEquals(4, block.exported.get());
             logger.logRecordBuilder().setBody("after recovery").emit();
             assertTrue(provider.forceFlush().join(2, TimeUnit.SECONDS).isSuccess());
-            assertEquals(5, block.exported.get()); assertEquals(0, admission.pending());
+            awaitExportedAndDrained(block, admission, 5);
             assertEquals(3, losses.lost(ExportLossAccounting.Signal.LOGS));
         } finally { block.completion.succeed(); }
     }
@@ -173,5 +173,16 @@ public class BoundedSignalAdmissionTest {
             if (first.compareAndSet(true, false)) { entered.countDown(); return completion; }
             return CompletableResultCode.ofSuccess();
         }
+    }
+
+    private static void awaitExportedAndDrained(BlockedBatch block, BoundedSignalAdmission admission,
+                                                 int expected) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (System.nanoTime() < deadline) {
+            if (block.exported.get() == expected && admission.pending() == 0) return;
+            Thread.sleep(10);
+        }
+        assertEquals("exported records after bounded recovery", expected, block.exported.get());
+        assertEquals("pending records after bounded recovery", 0, admission.pending());
     }
 }

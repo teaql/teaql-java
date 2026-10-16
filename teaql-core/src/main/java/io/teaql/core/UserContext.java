@@ -230,6 +230,11 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
         return null;
     }
 
+    /** Low-level binary object operations, with explicit execution intent. */
+    default io.teaql.core.storage.ObjectStorage objectStorage(String comment) {
+        return io.teaql.core.storage.ObjectStorage.forContext(this, comment);
+    }
+
     default <T> T capability(Class<T> capabilityType) {
         return null;
     }
