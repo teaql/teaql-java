@@ -76,12 +76,14 @@ public final class JdkHttpRequestService implements HttpRequestService {
                 long remaining = remaining(started, totalNanos);
                 state.acquireRate(remaining);
                 boolean probe = state.acquireCircuit();
-                attempts++;
+                boolean attemptStarted = false;
                 boolean settled = false;
                 try {
                     remaining = remaining(started, totalNanos);
                     HttpRequest request = buildRequest(target, call, headers, body,
                             Duration.ofNanos(Math.min(remaining, state.profile.requestTimeout().toNanos())));
+                    attempts++;
+                    attemptStarted = true;
                     CompletableFuture<HttpResponse<byte[]>> future = state.client.sendAsync(
                             request, ignored -> new BoundedSubscriber(state.profile.maxResponseBytes()));
                     HttpResponse<byte[]> response;
@@ -122,7 +124,7 @@ public final class JdkHttpRequestService implements HttpRequestService {
                     return new Response(response.statusCode(), response.body(), attempts);
                 } catch (HttpRequestFailure failure) {
                     if (!settled) {
-                        if (failure.code() == HttpRequestFailure.Code.CANCELLED
+                        if (!attemptStarted || failure.code() == HttpRequestFailure.Code.CANCELLED
                                 || failure.code() == HttpRequestFailure.Code.RESPONSE_TOO_LARGE
                                 || failure.code() == HttpRequestFailure.Code.INVALID_INPUT) {
                             state.neutral(probe);
@@ -130,7 +132,7 @@ public final class JdkHttpRequestService implements HttpRequestService {
                             state.failed(probe);
                         }
                     }
-                    if (!settled && attempts < maxAttempts
+                    if (!settled && attemptStarted && attempts < maxAttempts
                             && failure.code() != HttpRequestFailure.Code.CANCELLED
                             && failure.code() != HttpRequestFailure.Code.RESPONSE_TOO_LARGE
                             && failure.code() != HttpRequestFailure.Code.INVALID_INPUT) {

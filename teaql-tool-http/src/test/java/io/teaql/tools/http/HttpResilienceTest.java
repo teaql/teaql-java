@@ -218,6 +218,31 @@ public class HttpResilienceTest {
         assertEquals(before + 1, server.requests.get());
     }
 
+    @Test public void postBudgetExpiryBeforeSendRemainsTimeoutWithoutRetry() {
+        AtomicInteger reads = new AtomicInteger();
+        HttpOperationalClock clock = new HttpOperationalClock() {
+            @Override public long nanoTime() {
+                // State construction, execute start and the outer budget read
+                // are valid; the inner read expires before sendAsync starts.
+                return reads.incrementAndGet() <= 3 ? 0 : Duration.ofSeconds(2).toNanos();
+            }
+            @Override public void pauseNanos(long nanos) { fail("no request or retry may start"); }
+        };
+        JdkHttpRequestService service = new JdkHttpRequestService(java.util.List.of(profile()
+                .budgets(Duration.ofMillis(200), Duration.ofMillis(200), Duration.ofSeconds(1))
+                .retry(2, Duration.ofMillis(1), Set.of(HttpRequestService.Method.POST))
+                .build()), clock);
+        HttpRequestService.Call call = new HttpRequestService.Call("orders",
+                HttpRequestService.Method.POST, "ok", Map.of(),
+                "PRIVATE_BODY_CANARY".getBytes(StandardCharsets.UTF_8), "text/plain",
+                "submit payment", HttpRequestService.IntentKind.PURPOSE,
+                "confirm external effect", HttpRequestService.RetryMode.CONFIRMED_IDEMPOTENT);
+        assertEquals(HttpRequestFailure.Code.TIMEOUT,
+                assertThrows(HttpRequestFailure.class,
+                        () -> service.execute(context(service), call)).code());
+        assertEquals(0, server.requests.get());
+    }
+
     @Test public void stalledTlsHandshakeObeysConnectionBudget() throws Exception {
         try (ServerSocket listener = new ServerSocket(0, 1,
                 InetAddress.getByAddress(new byte[] {127, 0, 0, 1}))) {
