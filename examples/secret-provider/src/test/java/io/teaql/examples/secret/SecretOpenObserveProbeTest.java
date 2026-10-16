@@ -35,8 +35,8 @@ public class SecretOpenObserveProbeTest {
         String serviceName = System.getenv("TEAQL_TELEMETRY_SERVICE_NAME");
         assertNotNull(serviceName);
         String outcome = System.getenv().getOrDefault("TEAQL_SECRET_PROBE_OUTCOME", "success");
-        assertTrue("unsupported probe outcome", outcome.equals("success") || outcome.equals("denied"));
-        boolean denied = outcome.equals("denied");
+        assertTrue("unsupported probe outcome", List.of("success", "denied", "missing",
+                "malformed", "expired").contains(outcome));
         var telemetry = new StandardOpenTelemetryFactory().create(serviceName, endpoint);
         var carrier = new AtomicReference<String>();
         HttpServer server = HttpServer.create(new InetSocketAddress(
@@ -44,12 +44,16 @@ public class SecretOpenObserveProbeTest {
         server.createContext("/v1/secret/data/payment/api", exchange -> {
             assertEquals(TOKEN, exchange.getRequestHeaders().getFirst("X-Vault-Token"));
             carrier.set(exchange.getRequestHeaders().getFirst("traceparent"));
-            byte[] body = (denied
-                    ? "{\"errors\":[\"" + VALUE + "\"]}"
-                    : "{\"data\":{\"data\":{\"value\":\"" + VALUE
-                            + "\"},\"metadata\":{\"version\":7,\"destroyed\":false,\"deletion_time\":\"\"}}}")
-                    .getBytes(StandardCharsets.UTF_8);
-            exchange.sendResponseHeaders(denied ? 403 : 200, body.length);
+            String response = switch (outcome) {
+                case "denied", "missing" -> "{\"errors\":[\"" + VALUE + "\"]}";
+                case "malformed" -> "{\"data\":\"" + VALUE + "\",";
+                case "expired" -> "{\"data\":{\"data\":{\"value\":\"" + VALUE
+                        + "\"},\"metadata\":{\"version\":7,\"destroyed\":false,\"deletion_time\":\"2020-01-01T00:00:00Z\"}}}";
+                default -> "{\"data\":{\"data\":{\"value\":\"" + VALUE
+                        + "\"},\"metadata\":{\"version\":7,\"destroyed\":false,\"deletion_time\":\"\"}}}";
+            };
+            byte[] body = response.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(outcome.equals("denied") ? 403 : outcome.equals("missing") ? 404 : 200, body.length);
             try (var output = exchange.getResponseBody()) { output.write(body); }
         });
         server.start();
@@ -67,12 +71,18 @@ public class SecretOpenObserveProbeTest {
                     .build();
             context.putAttribute(HttpRequestService.class.getName(),
                     new JdkHttpRequestService(List.of(profile)));
-            if (denied) {
-                assertEquals(SecretFailure.Code.DENIED, assertThrows(SecretFailure.class,
-                        () -> context.resolveSecret(reference, "verify Vault adapter")).code());
-            } else {
+            if (outcome.equals("success")) {
                 assertEquals(VALUE, new String(context.resolveSecret(reference, "verify Vault adapter")
                         .exposeBytes(), StandardCharsets.UTF_8));
+            } else {
+                SecretFailure.Code expected = switch (outcome) {
+                    case "denied" -> SecretFailure.Code.DENIED;
+                    case "missing" -> SecretFailure.Code.MISSING;
+                    case "expired" -> SecretFailure.Code.EXPIRED;
+                    default -> SecretFailure.Code.UNAVAILABLE;
+                };
+                assertEquals(expected, assertThrows(SecretFailure.class,
+                        () -> context.resolveSecret(reference, "verify Vault adapter")).code());
             }
             assertNotNull(carrier.get());
             assertTrue(carrier.get().startsWith("00-") && carrier.get().length() == 55);
