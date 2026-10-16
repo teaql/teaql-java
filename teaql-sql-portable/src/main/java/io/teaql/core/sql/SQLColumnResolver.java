@@ -4,11 +4,19 @@ import java.util.List;
 import java.util.Map;
 
 import io.teaql.core.SearchRequest;
+import io.teaql.core.AggrFunction;
+import io.teaql.core.Expression;
 import io.teaql.core.UserContext;
 import io.teaql.core.utils.CollUtil;
 import io.teaql.core.sql.expression.SQLExpressionParser;
 
 public interface SQLColumnResolver {
+
+    /** Optional provider override for typed aggregation; null uses portable SQL. */
+    default String aggregateSql(UserContext context, AggrFunction function,
+                                Expression operand, String columnSql) {
+        return null;
+    }
 
     default io.teaql.core.SqlParameterLogPolicy parameterLogPolicy(String property) {
         return io.teaql.core.SqlParameterLogPolicy.UNKNOWN;

@@ -5,6 +5,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import org.sqlite.Collation;
 import org.sqlite.Function;
+import org.sqlite.core.Codes;
 
 /** Connection-local exact Decimal primitives for SQLite's text-affinity columns. */
 final class SqliteDecimalFunctions {
@@ -33,6 +34,10 @@ final class SqliteDecimalFunctions {
         Function.create(sqlite, VALID, new Function() {
             @Override
             protected void xFunc() throws SQLException {
+                if (value_type(0) != Codes.SQLITE_TEXT) {
+                    result(0);
+                    return;
+                }
                 String text = value_text(0);
                 boolean valid;
                 try {
@@ -48,8 +53,12 @@ final class SqliteDecimalFunctions {
 
             @Override
             protected void xStep() throws SQLException {
+                if (value_type(0) == Codes.SQLITE_NULL) return;
+                if (value_type(0) != Codes.SQLITE_TEXT) {
+                    error("invalid decimal storage type");
+                    return;
+                }
                 String text = value_text(0);
-                if (text == null) return;
                 try {
                     BigDecimal value = new BigDecimal(text);
                     total = total == null ? value : total.add(value);

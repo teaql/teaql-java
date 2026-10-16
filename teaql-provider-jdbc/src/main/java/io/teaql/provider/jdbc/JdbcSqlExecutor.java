@@ -281,6 +281,9 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 return (V) java.time.LocalTime.parse(separator < 0 ? text : text.substring(separator + 1));
             }
             if (type == String.class) return (V) String.valueOf(value);
+            if (type == java.math.BigDecimal.class && value instanceof CharSequence text) {
+                return (V) new java.math.BigDecimal(text.toString());
+            }
             throw new IllegalArgumentException("Cannot convert JDBC value " + value.getClass().getName()
                     + " to " + type.getName());
         }

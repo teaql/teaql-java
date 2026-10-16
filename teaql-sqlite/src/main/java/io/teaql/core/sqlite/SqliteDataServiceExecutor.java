@@ -21,9 +21,11 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
             System.getLogger(SqliteDataServiceExecutor.class.getName());
     private final DataSource dataSource;
     private boolean soundexInstalled;
+    private boolean decimalInstalled;
 
     public SqliteDataServiceExecutor(String name, SqlExecutionAdapter executionAdapter, DataSource dataSource) {
         super(name, executionAdapter);
+        this.dialect = new SqliteDialect();
         this.debugDatabaseKind = "sqlite";
         this.topNRelationPlanPolicy = io.teaql.core.sql.portable.TopNRelationPlanPolicy.ALWAYS_PROBE;
         this.dataSource = dataSource;
@@ -32,8 +34,14 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
     @Override
     public void ensureSchema(UserContext context, io.teaql.core.SchemaExecutor.Invocation invocation) {
         io.teaql.core.SchemaExecutor.Invocation.requireContextOwned(invocation);
-        ensureSoundexOnEveryConnection();
         List<EntityDescriptor> descriptors = EntityMetaFactory.requireFrom(context).allEntityDescriptors();
+        if (descriptors.stream().flatMap(descriptor -> descriptor.getOwnProperties().stream())
+                .flatMap(property -> io.teaql.core.sql.portable.SQLPropertyUtil.getColumns(property).stream())
+                .anyMatch(column -> dialect.mapColumnType(column.getType())
+                        .toUpperCase(java.util.Locale.ROOT).startsWith("DECIMAL_TEXT"))) {
+            ensureDecimalOnEveryConnection();
+        }
+        ensureSoundexOnEveryConnection();
 
         TeaQLDatabase dbAdapter = new TeaQLDatabase() {
             @Override
@@ -97,8 +105,43 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
 
         for (EntityDescriptor descriptor : descriptors) {
             PortableSQLRepository repository = new PortableSQLRepository(descriptor, dbAdapter, null);
+            repository.setDialect(dialect);
             repository.ensurePhysicalSchema(context);
+            for (var property : descriptor.getOwnProperties()) {
+                for (var column : io.teaql.core.sql.portable.SQLPropertyUtil.getColumns(property)) {
+                    if (dialect.mapColumnType(column.getType())
+                            .toUpperCase(java.util.Locale.ROOT).startsWith("DECIMAL_TEXT")) {
+                        SqliteDecimalSchemaVerifier.verify(
+                                getExecutionAdapter(), column.getTableName(), column.getColumnName());
+                    }
+                }
+            }
         }
+    }
+
+    private synchronized void ensureDecimalOnEveryConnection() {
+        if (decimalInstalled) return;
+        if (getExecutionAdapter() instanceof JdbcSqlExecutor jdbc) {
+            jdbc.addConnectionInitializer(connection -> {
+                try {
+                    SqliteDecimalFunctions.register(connection);
+                } catch (java.sql.SQLException failure) {
+                    throw new IllegalStateException("Unable to register SQLite exact Decimal functions", failure);
+                }
+            });
+        }
+        try {
+            getExecutionAdapter().queryForList(
+                    "SELECT teaql_decimal_valid('1') AS valid, "
+                            + "'1' = '1' COLLATE TEAQL_DECIMAL AS ordered, "
+                            + "teaql_decimal_sum(value) AS total FROM (SELECT '1' AS value)",
+                    new Object[0]);
+        } catch (RuntimeException missing) {
+            throw new IllegalStateException(
+                    "SQLite exact Decimal functions and collation must be registered on every connection",
+                    missing);
+        }
+        decimalInstalled = true;
     }
 
     private synchronized void ensureSoundexOnEveryConnection() {
