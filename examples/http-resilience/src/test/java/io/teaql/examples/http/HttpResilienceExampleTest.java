@@ -5,6 +5,7 @@ import io.teaql.core.TraceKind;
 import io.teaql.core.TraceNode;
 import io.teaql.core.http.HttpObservation;
 import io.teaql.core.http.HttpPropagation;
+import io.teaql.core.http.HttpRequestFailure;
 import io.teaql.core.http.HttpRequestService;
 import io.teaql.runtime.DefaultUserContext;
 import io.teaql.tools.http.HttpServiceProfile;
@@ -14,6 +15,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -23,6 +25,45 @@ import static org.junit.Assert.*;
 public class HttpResilienceExampleTest {
     private static final String TRACEPARENT =
             "00-11111111111111111111111111111111-aaaaaaaaaaaaaaaa-01";
+
+    @Test public void postedRequestWithStalledResponseRequiresReconciliation() throws Exception {
+        AtomicInteger requests = new AtomicInteger();
+        HttpServer server = HttpServer.create(new InetSocketAddress(
+                InetAddress.getByAddress(new byte[] {127, 0, 0, 1}), 0), 0);
+        server.createContext("/api/payments", exchange -> {
+            requests.incrementAndGet();
+            assertEquals("POST", exchange.getRequestMethod());
+            exchange.getRequestBody().readAllBytes();
+            exchange.sendResponseHeaders(200, 2);
+            try (var output = exchange.getResponseBody()) {
+                output.write('x');
+                output.flush();
+                try { Thread.sleep(1200); } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+            } catch (java.io.IOException ignored) {
+                // The client is expected to close the response after its budget expires.
+            }
+        });
+        server.start();
+        try {
+            var profile = HttpServiceProfile.builder("payments",
+                    URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/api/"))
+                    .budgets(Duration.ofMillis(1500), Duration.ofMillis(700), Duration.ofMillis(1000))
+                    .build();
+            var service = new JdkHttpRequestService(List.of(profile));
+            var context = new DefaultUserContext(null);
+            context.putAttribute(HttpRequestService.class.getName(), service);
+            var call = HttpRequestService.Call.postText("payments", "payments",
+                    "PRIVATE_BODY_CANARY", "submit payment", "confirm external effect");
+            assertEquals(HttpRequestFailure.Code.AMBIGUOUS_OUTCOME,
+                    assertThrows(HttpRequestFailure.class,
+                            () -> context.httpRequests().execute(context, call)).code());
+            assertEquals(1, requests.get());
+        } finally {
+            server.stop(0);
+        }
+    }
 
     @Test public void contextAndAgentToolUseOneControlledService() throws Exception {
         AtomicInteger requests = new AtomicInteger();
