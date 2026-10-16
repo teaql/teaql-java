@@ -19,6 +19,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Test;
@@ -36,7 +37,7 @@ public class SecretOpenObserveProbeTest {
         assertNotNull(serviceName);
         String outcome = System.getenv().getOrDefault("TEAQL_SECRET_PROBE_OUTCOME", "success");
         assertTrue("unsupported probe outcome", List.of("success", "denied", "missing",
-                "malformed", "expired").contains(outcome));
+                "malformed", "expired", "timeout").contains(outcome));
         var telemetry = new StandardOpenTelemetryFactory().create(serviceName, endpoint);
         var carrier = new AtomicReference<String>();
         HttpServer server = HttpServer.create(new InetSocketAddress(
@@ -44,6 +45,16 @@ public class SecretOpenObserveProbeTest {
         server.createContext("/v1/secret/data/payment/api", exchange -> {
             assertEquals(TOKEN, exchange.getRequestHeaders().getFirst("X-Vault-Token"));
             carrier.set(exchange.getRequestHeaders().getFirst("traceparent"));
+            if (outcome.equals("timeout")) {
+                try {
+                    Thread.sleep(1800);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    exchange.close();
+                }
+                return;
+            }
             String response = switch (outcome) {
                 case "denied", "missing" -> "{\"errors\":[\"" + VALUE + "\"]}";
                 case "malformed" -> "{\"data\":\"" + VALUE + "\",";
@@ -66,9 +77,13 @@ public class SecretOpenObserveProbeTest {
                     new SecretReference("bootstrap", "vault_token"))
                     .bind(reference, "payment/api", "value").build();
             var context = new DefaultUserContext(runtime).withSecretProvider(provider);
-            var profile = HttpServiceProfile.builder("vault",
-                    URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/"))
-                    .build();
+            var profileBuilder = HttpServiceProfile.builder("vault",
+                    URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/"));
+            if (outcome.equals("timeout")) {
+                profileBuilder.budgets(Duration.ofSeconds(2), Duration.ofMillis(700),
+                        Duration.ofSeconds(3));
+            }
+            var profile = profileBuilder.build();
             context.putAttribute(HttpRequestService.class.getName(),
                     new JdkHttpRequestService(List.of(profile)));
             if (outcome.equals("success")) {
