@@ -6,6 +6,7 @@ import static org.junit.Assume.assumeTrue;
 import com.sun.net.httpserver.HttpServer;
 import io.teaql.core.http.HttpRequestService;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
+import io.teaql.core.secret.SecretFailure;
 import io.teaql.core.secret.SecretReference;
 import io.teaql.core.secret.SecretValue;
 import io.teaql.opentelemetry.StandardOpenTelemetryFactory;
@@ -33,6 +34,9 @@ public class SecretOpenObserveProbeTest {
         assertEquals("127.0.0.1", endpoint.getHost());
         String serviceName = System.getenv("TEAQL_TELEMETRY_SERVICE_NAME");
         assertNotNull(serviceName);
+        String outcome = System.getenv().getOrDefault("TEAQL_SECRET_PROBE_OUTCOME", "success");
+        assertTrue("unsupported probe outcome", outcome.equals("success") || outcome.equals("denied"));
+        boolean denied = outcome.equals("denied");
         var telemetry = new StandardOpenTelemetryFactory().create(serviceName, endpoint);
         var carrier = new AtomicReference<String>();
         HttpServer server = HttpServer.create(new InetSocketAddress(
@@ -40,10 +44,12 @@ public class SecretOpenObserveProbeTest {
         server.createContext("/v1/secret/data/payment/api", exchange -> {
             assertEquals(TOKEN, exchange.getRequestHeaders().getFirst("X-Vault-Token"));
             carrier.set(exchange.getRequestHeaders().getFirst("traceparent"));
-            byte[] body = ("{\"data\":{\"data\":{\"value\":\"" + VALUE
-                    + "\"},\"metadata\":{\"version\":7,\"destroyed\":false,\"deletion_time\":\"\"}}}")
+            byte[] body = (denied
+                    ? "{\"errors\":[\"" + VALUE + "\"]}"
+                    : "{\"data\":{\"data\":{\"value\":\"" + VALUE
+                            + "\"},\"metadata\":{\"version\":7,\"destroyed\":false,\"deletion_time\":\"\"}}}")
                     .getBytes(StandardCharsets.UTF_8);
-            exchange.sendResponseHeaders(200, body.length);
+            exchange.sendResponseHeaders(denied ? 403 : 200, body.length);
             try (var output = exchange.getResponseBody()) { output.write(body); }
         });
         server.start();
@@ -61,12 +67,18 @@ public class SecretOpenObserveProbeTest {
                     .build();
             context.putAttribute(HttpRequestService.class.getName(),
                     new JdkHttpRequestService(List.of(profile)));
-            assertEquals(VALUE, new String(context.resolveSecret(reference, "verify Vault adapter")
-                    .exposeBytes(), StandardCharsets.UTF_8));
+            if (denied) {
+                assertEquals(SecretFailure.Code.DENIED, assertThrows(SecretFailure.class,
+                        () -> context.resolveSecret(reference, "verify Vault adapter")).code());
+            } else {
+                assertEquals(VALUE, new String(context.resolveSecret(reference, "verify Vault adapter")
+                        .exposeBytes(), StandardCharsets.UTF_8));
+            }
             assertNotNull(carrier.get());
             assertTrue(carrier.get().startsWith("00-") && carrier.get().length() == 55);
             telemetry.flush();
-            System.out.println("SECRET_OTLP_PROBE_PASS traceparent=" + carrier.get());
+            System.out.println("SECRET_OTLP_PROBE_PASS outcome=" + outcome
+                    + " traceparent=" + carrier.get());
         } finally {
             server.stop(0);
             telemetry.shutdown();
