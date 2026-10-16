@@ -205,6 +205,19 @@ public class HttpResilienceTest {
                 assertThrows(HttpRequestFailure.class, () -> service.execute(context, get("bad-json")).jsonValue()).code());
     }
 
+    @Test public void postedRequestWithStalledResponseBodyIsAmbiguous() {
+        JdkHttpRequestService service = new JdkHttpRequestService(java.util.List.of(profile()
+                .budgets(Duration.ofMillis(200), Duration.ofMillis(120), Duration.ofMillis(180))
+                .build()));
+        UserContext context = context(service);
+        HttpRequestService.Call call = HttpRequestService.Call.postText("orders", "slowbody",
+                "PRIVATE_BODY_CANARY", "submit payment", "confirm external effect");
+        int before = server.requests.get();
+        assertEquals(HttpRequestFailure.Code.AMBIGUOUS_OUTCOME,
+                assertThrows(HttpRequestFailure.class, () -> service.execute(context, call)).code());
+        assertEquals(before + 1, server.requests.get());
+    }
+
     @Test public void stalledTlsHandshakeObeysConnectionBudget() throws Exception {
         try (ServerSocket listener = new ServerSocket(0, 1,
                 InetAddress.getByAddress(new byte[] {127, 0, 0, 1}))) {

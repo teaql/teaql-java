@@ -148,8 +148,16 @@ public final class JdkHttpRequestService implements HttpRequestService {
                 }
             }
         } catch (HttpRequestFailure failure) {
-            outcome = failure.code().name();
-            throw failure;
+            // A started POST can have committed upstream even when only the
+            // response times out or the connection fails. Before any attempt,
+            // keep the ordinary timeout/rate-limit classification.
+            HttpRequestFailure reported = attempts > 0 && call.method() == Method.POST
+                    && (failure.code() == HttpRequestFailure.Code.TIMEOUT
+                            || failure.code() == HttpRequestFailure.Code.UPSTREAM_FAILURE)
+                    ? new HttpRequestFailure(HttpRequestFailure.Code.AMBIGUOUS_OUTCOME)
+                    : failure;
+            outcome = reported.code().name();
+            throw reported;
         } finally {
             int count = attempts;
             String safeOutcome = outcome;
