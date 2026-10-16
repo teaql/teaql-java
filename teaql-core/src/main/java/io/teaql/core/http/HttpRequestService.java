@@ -32,6 +32,10 @@ public interface HttpRequestService {
                     || intent == null || intent.isBlank() || retryMode == null) {
                 throw new HttpRequestFailure(HttpRequestFailure.Code.INVALID_INPUT);
             }
+            if (headers != null && headers.entrySet().stream()
+                    .anyMatch(entry -> entry.getKey() == null || entry.getValue() == null)) {
+                throw new HttpRequestFailure(HttpRequestFailure.Code.INVALID_INPUT);
+            }
             headers = headers == null ? Map.of() : Map.copyOf(headers);
             body = body == null ? new byte[0] : body.clone();
             if (contentType != null && contentType.chars().anyMatch(c -> c < 32 || c == 127)) {

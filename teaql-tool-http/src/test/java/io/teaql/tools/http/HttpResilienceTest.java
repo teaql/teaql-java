@@ -108,6 +108,15 @@ public class HttpResilienceTest {
                 "purpose", HttpRequestService.RetryMode.NONE);
         assertEquals(HttpRequestFailure.Code.INVALID_INPUT, assertThrows(HttpRequestFailure.class,
                 () -> service.execute(context, header)).code());
+        for (boolean nullKey : new boolean[] {true, false}) {
+            Map<String, String> invalidHeaders = new java.util.HashMap<>();
+            invalidHeaders.put(nullKey ? null : "X-Private", nullKey ? "value" : null);
+            assertEquals(HttpRequestFailure.Code.INVALID_INPUT, assertThrows(HttpRequestFailure.class,
+                    () -> new HttpRequestService.Call("orders", HttpRequestService.Method.GET,
+                            "ok", invalidHeaders, null, null, "comment",
+                            HttpRequestService.IntentKind.PURPOSE, "purpose",
+                            HttpRequestService.RetryMode.NONE)).code());
+        }
         assertEquals(0, server.requests.get());
     }
 
