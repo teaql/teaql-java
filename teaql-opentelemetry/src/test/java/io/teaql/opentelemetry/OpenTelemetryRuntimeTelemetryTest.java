@@ -14,11 +14,66 @@ import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
 import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.teaql.runtime.RuntimeTelemetry;
+import io.teaql.runtime.DefaultUserContext;
+import io.teaql.runtime.TeaQLRuntime;
+import io.teaql.core.meta.SimpleEntityMetaFactory;
+import io.teaql.core.TraceKind;
+import io.teaql.core.TraceNode;
+import io.teaql.core.http.HttpObservation;
+import io.teaql.core.http.HttpPropagation;
+import io.teaql.core.http.HttpRequestService;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 
 public class OpenTelemetryRuntimeTelemetryTest {
+    @Test
+    public void httpBusinessLineageAndCarrierShareTheRuntimeOwnedSpan() {
+        var spans = InMemorySpanExporter.create();
+        try (var tracerProvider = SdkTracerProvider.builder()
+                    .addSpanProcessor(SimpleSpanProcessor.create(spans)).build();
+             var meterProvider = SdkMeterProvider.builder().build()) {
+            var telemetry = new OpenTelemetryRuntimeTelemetry(
+                    tracerProvider.get("http-test"), meterProvider.get("http-test"),
+                    null, () -> {}, () -> {},
+                    ContextPropagators.create(W3CTraceContextPropagator.getInstance()));
+            var context = new DefaultUserContext(TeaQLRuntime.builder()
+                    .metadata(new SimpleEntityMetaFactory()).telemetry(telemetry).build());
+            var call = HttpRequestService.Call.get("orders",
+                    "orders/1?token=PRIVATE_QUERY_CANARY", "check inventory", "render order")
+                    .withParentTraceChain(List.of(
+                            new TraceNode(TraceKind.PURPOSE, "Order", "render order"),
+                            new TraceNode(TraceKind.COMMENT, "Order", "load order graph")));
+            var scope = context.capability(HttpObservation.class).start(call.observation());
+            var carrier = new java.util.LinkedHashMap<String, String>();
+            context.capability(HttpPropagation.class).inject(carrier);
+            scope.finish("success", 1, 5);
+
+            var span = spans.getFinishedSpanItems().get(0);
+            assertEquals("teaql.http", span.getName());
+            assertEquals("success", span.getAttributes().get(
+                    AttributeKey.stringKey("teaql.http.outcome")));
+            assertEquals(Long.valueOf(1), span.getAttributes().get(
+                    AttributeKey.longKey("teaql.http.attempts")));
+            var lineage = span.getAttributes().get(AttributeKey.stringKey("teaql.http.trace_chain"));
+            assertEquals(3, new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readTree(lineage).size());
+            assertTrue(carrier.get("traceparent").contains(span.getTraceId()));
+            assertFalse(span.getAttributes().toString().contains("PRIVATE_QUERY_CANARY"));
+
+            var failed = context.capability(HttpObservation.class).start(call.observation());
+            failed.finish("TIMEOUT", 1, 9);
+            var failure = spans.getFinishedSpanItems().get(1);
+            assertEquals("TIMEOUT", failure.getAttributes().get(
+                    AttributeKey.stringKey("teaql.http.outcome")));
+            assertEquals(io.opentelemetry.api.trace.StatusCode.ERROR,
+                    failure.getStatus().getStatusCode());
+        } catch (com.fasterxml.jackson.core.JsonProcessingException invalid) {
+            throw new AssertionError(invalid);
+        }
+    }
+
     @Test
     public void delegatesExplicitApplicationOwnedLifecycle() {
         AtomicInteger flushes = new AtomicInteger();

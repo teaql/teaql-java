@@ -181,6 +181,15 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
         if (value == null && capabilityType == io.teaql.core.storage.ObjectStorageObserver.class) {
             value = new RuntimeObjectStorageObserver(runtime == null ? RuntimeTelemetry.NOOP : runtime.getTelemetry());
         }
+        if (value == null && capabilityType == io.teaql.core.http.HttpPropagation.class) {
+            RuntimeTelemetry telemetry = runtime == null ? RuntimeTelemetry.NOOP : runtime.getTelemetry();
+            value = (io.teaql.core.http.HttpPropagation)
+                    carrier -> RuntimeTelemetry.injectSafely(telemetry, carrier);
+        }
+        if (value == null && capabilityType == io.teaql.core.http.HttpObservation.class) {
+            value = new RuntimeHttpObservation(runtime == null
+                    ? RuntimeTelemetry.NOOP : runtime.getTelemetry());
+        }
         if (value == null) {
             return null;
         }

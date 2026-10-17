@@ -2,6 +2,7 @@ module io.teaql.tool.http {
     requires io.teaql.core;
     requires io.teaql.context.tools;
     requires java.net.http;
+    requires java.logging;
 
     exports io.teaql.tools.http;
 
