@@ -18,4 +18,9 @@ roots rather than expanding process-wide trust. A later profile with only
 checks reads through both CA-signed server certificates during overlap and
 rejects the old certificate after retirement. Each list element contains one
 PEM certificate; the bounded profile accepts at most four roots. In-flight
-requests and production certificate rollout require separate coordination.
+requests already holding the old HTTP service may finish within their existing
+budget after the Context profile is replaced; replacement is not retroactive
+revocation. The example pauses one accepted TLS request, retires its CA for
+new calls, proves a second call sends no HTTP request, then lets the first
+finish. Production certificate rollout still requires traffic coordination and
+draining; do not discard the old CA before all instances have the overlap set.

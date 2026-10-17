@@ -410,6 +410,86 @@ public class VaultKv2ExampleTest {
                 String completeDiagnostics = captured + "\n" + logs;
                 assertFalse(completeDiagnostics.contains("PRIVATE-VAULT-TOKEN"));
                 assertFalse(completeDiagnostics.contains("PRIVATE-VAULT-VALUE"));
+
+                // Replacing the Context service governs new calls, but an already
+                // started call owns its old client until its bounded response ends.
+                try (SSLServerSocket heldServer = (SSLServerSocket) tls.getServerSocketFactory()
+                        .createServerSocket(0, 2, InetAddress.getLoopbackAddress())) {
+                    heldServer.setSoTimeout(8000);
+                    CompletableFuture<Void> requestArrived = new CompletableFuture<>();
+                    CompletableFuture<Void> releaseResponse = new CompletableFuture<>();
+                    CompletableFuture<Void> oldRequestFinished = new CompletableFuture<>();
+                    AtomicInteger heldHttpRequests = new AtomicInteger();
+                    var heldServerTask = executor.submit(() -> {
+                        SSLSocket oldSocket = (SSLSocket) heldServer.accept();
+                        executor.execute(() -> {
+                            try (oldSocket) {
+                                oldSocket.setSoTimeout(8000);
+                                BufferedReader reader = new BufferedReader(new InputStreamReader(
+                                        oldSocket.getInputStream(), StandardCharsets.US_ASCII));
+                                assertTrue(reader.readLine().startsWith(
+                                        "GET /v1/secret/data/payment/api HTTP/1.1"));
+                                String line;
+                                while ((line = reader.readLine()) != null && !line.isEmpty()) {}
+                                heldHttpRequests.incrementAndGet();
+                                requestArrived.complete(null);
+                                releaseResponse.get(8, TimeUnit.SECONDS);
+                                oldSocket.getOutputStream().write(("HTTP/1.1 200 OK\r\nContent-Length: "
+                                        + BODY.length + "\r\nConnection: close\r\n\r\n")
+                                        .getBytes(StandardCharsets.US_ASCII));
+                                oldSocket.getOutputStream().write(BODY);
+                                oldRequestFinished.complete(null);
+                            } catch (Throwable failure) {
+                                requestArrived.completeExceptionally(failure);
+                                oldRequestFinished.completeExceptionally(failure);
+                            }
+                        });
+                        try (SSLSocket removed = (SSLSocket) heldServer.accept()) {
+                            removed.setSoTimeout(8000);
+                            try {
+                                String line = new BufferedReader(new InputStreamReader(
+                                        removed.getInputStream(), StandardCharsets.US_ASCII)).readLine();
+                                if (line != null) {
+                                    heldHttpRequests.incrementAndGet();
+                                    throw new AssertionError("retired CA received a new HTTP request");
+                                }
+                            } catch (java.io.IOException expected) {
+                                // The new client rejects the old CA before any HTTP request.
+                            }
+                        }
+                        return null;
+                    });
+                    URI heldEndpoint = URI.create("https://127.0.0.1:"
+                            + heldServer.getLocalPort() + "/");
+                    var oldOnly = HttpServiceProfile.builder("vault", heldEndpoint)
+                            .budgets(Duration.ofSeconds(5), Duration.ofSeconds(5), Duration.ofSeconds(8))
+                            .trustedRootPem(rootPem).build();
+                    context.putAttribute(HttpRequestService.class.getName(),
+                            new JdkHttpRequestService(List.of(oldOnly)));
+                    var inFlight = executor.submit(() -> context.resolveSecret(
+                            REFERENCE, "read before TLS root retirement"));
+                    try {
+                        requestArrived.get(8, TimeUnit.SECONDS);
+                        var newOnly = HttpServiceProfile.builder("vault", heldEndpoint)
+                                .budgets(Duration.ofSeconds(5), Duration.ofSeconds(5), Duration.ofSeconds(8))
+                                .trustedRootPem(nextRootPem).build();
+                        context.putAttribute(HttpRequestService.class.getName(),
+                                new JdkHttpRequestService(List.of(newOnly)));
+                        SecretFailure rejected = assertThrows(SecretFailure.class,
+                                () -> context.resolveSecret(REFERENCE, "reject retired CA on new call"));
+                        assertEquals(SecretFailure.Code.UNAVAILABLE, rejected.code());
+                        assertEquals(1, heldHttpRequests.get());
+                    } finally {
+                        releaseResponse.complete(null);
+                    }
+                    assertEquals("vault-kv2:7", inFlight.get(8, TimeUnit.SECONDS).version());
+                    oldRequestFinished.get(8, TimeUnit.SECONDS);
+                    heldServerTask.get(8, TimeUnit.SECONDS);
+                    assertEquals(1, heldHttpRequests.get());
+                }
+                String inFlightDiagnostics = captured + "\n" + logs;
+                assertFalse(inFlightDiagnostics.contains("PRIVATE-VAULT-TOKEN"));
+                assertFalse(inFlightDiagnostics.contains("PRIVATE-VAULT-VALUE"));
             } finally {
                 executor.shutdownNow();
             }
