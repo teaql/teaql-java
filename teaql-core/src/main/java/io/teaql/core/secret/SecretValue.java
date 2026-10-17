@@ -11,9 +11,11 @@ import java.time.Instant;
 @JsonSerialize(using = SecretValue.BlockedSerializer.class)
 public final class SecretValue {
     public static final int MAX_BYTES = 16 * 1024;
-    private final byte[] bytes;
-    private final String version;
-    private final Instant expiresAt;
+    // Reflective serializers such as Gson skip transient fields. Jackson is
+    // denied by the class-level serializer; neither path may emit this value.
+    private final transient byte[] bytes;
+    private final transient String version;
+    private final transient Instant expiresAt;
 
     public SecretValue(byte[] bytes, String version, Instant expiresAt) {
         if (bytes == null || bytes.length == 0 || bytes.length > MAX_BYTES) {
