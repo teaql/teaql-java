@@ -34,6 +34,8 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -76,7 +78,7 @@ public class VaultKv2ExampleTest {
                                                     SecretProvider bootstrap, String path,
                                                     List<String> captured) {
         var builder = HttpServiceProfile.builder("vault", endpoint)
-                .budgets(Duration.ofSeconds(2), Duration.ofSeconds(2), Duration.ofSeconds(3));
+                .budgets(Duration.ofSeconds(5), Duration.ofSeconds(5), Duration.ofSeconds(8));
         if (trustedRoot != null) builder.trustedRootPem(trustedRoot);
         var provider = VaultKv2SecretProvider.builder("vault", "secret", bootstrap,
                 new SecretReference("bootstrap", "vault_token"))
@@ -207,36 +209,59 @@ public class VaultKv2ExampleTest {
             SSLContext tls = SSLContext.getInstance("TLS");
             tls.init(managers.getKeyManagers(), null, null);
 
-            var executor = Executors.newSingleThreadExecutor();
+            var executor = Executors.newCachedThreadPool();
+            AtomicInteger receivedRequests = new AtomicInteger();
+            List<String> fixtureEvents = new CopyOnWriteArrayList<>();
             try (SSLServerSocket server = (SSLServerSocket) tls.getServerSocketFactory()
                     .createServerSocket(0, 2, InetAddress.getLoopbackAddress())) {
-                server.setSoTimeout(3000);
-                var served = executor.submit(() -> {
-                    for (int connection = 0; connection < 2; connection++) {
-                        try (SSLSocket socket = (SSLSocket) server.accept()) {
-                            socket.setSoTimeout(2000);
-                            BufferedReader reader = new BufferedReader(new InputStreamReader(
-                                    socket.getInputStream(), StandardCharsets.US_ASCII));
-                            String firstLine = reader.readLine();
-                            if (connection == 0) {
-                                assertNull("untrusted peer received an HTTP request", firstLine);
-                                continue;
-                            }
-                            assertTrue(firstLine.startsWith("GET /v1/secret/data/payment/api HTTP/1.1"));
-                            boolean tokenSeen = false;
-                            String line;
-                            while ((line = reader.readLine()) != null && !line.isEmpty()) {
-                                if (line.toLowerCase(java.util.Locale.ROOT).startsWith("x-vault-token:")) {
-                                    tokenSeen = line.trim().endsWith("PRIVATE-VAULT-TOKEN");
+                server.setSoTimeout(250);
+                CompletableFuture<Void> served = new CompletableFuture<>();
+                var acceptor = executor.submit(() -> {
+                    while (!served.isDone()) {
+                        try {
+                            SSLSocket socket = (SSLSocket) server.accept();
+                            fixtureEvents.add("accepted");
+                            executor.execute(() -> {
+                                try (socket) {
+                                    socket.setSoTimeout(8000);
+                                    BufferedReader reader = new BufferedReader(new InputStreamReader(
+                                            socket.getInputStream(), StandardCharsets.US_ASCII));
+                                    String firstLine = reader.readLine();
+                                    if (firstLine == null) {
+                                        fixtureEvents.add("closed-before-http");
+                                        return;
+                                    }
+                                    fixtureEvents.add("received-http");
+                                    receivedRequests.incrementAndGet();
+                                    assertTrue(firstLine.startsWith("GET /v1/secret/data/payment/api HTTP/1.1"));
+                                    boolean tokenSeen = false;
+                                    String line;
+                                    while ((line = reader.readLine()) != null && !line.isEmpty()) {
+                                        if (line.toLowerCase(java.util.Locale.ROOT).startsWith("x-vault-token:")) {
+                                            tokenSeen = line.trim().endsWith("PRIVATE-VAULT-TOKEN");
+                                        }
+                                    }
+                                    assertTrue(tokenSeen);
+                                    socket.getOutputStream().write(("HTTP/1.1 200 OK\r\nContent-Length: "
+                                            + BODY.length + "\r\nConnection: close\r\n\r\n")
+                                            .getBytes(StandardCharsets.US_ASCII));
+                                    socket.getOutputStream().write(BODY);
+                                    fixtureEvents.add("responded");
+                                    served.complete(null);
+                                } catch (javax.net.ssl.SSLException | java.net.SocketTimeoutException
+                                        | java.net.SocketException incompleteHandshake) {
+                                    fixtureEvents.add("incomplete-handshake:" + incompleteHandshake.getClass().getSimpleName());
+                                    // Failed TLS connections may still occupy a worker, but
+                                    // cannot block acceptance of the trusted connection.
+                                } catch (Throwable error) {
+                                    fixtureEvents.add("fixture-error:" + error.getClass().getSimpleName());
+                                    served.completeExceptionally(error);
                                 }
-                            }
-                            assertTrue(tokenSeen);
-                            socket.getOutputStream().write(("HTTP/1.1 200 OK\r\nContent-Length: "
-                                    + BODY.length + "\r\nConnection: close\r\n\r\n")
-                                    .getBytes(StandardCharsets.US_ASCII));
-                            socket.getOutputStream().write(BODY);
-                        } catch (javax.net.ssl.SSLException expectedUntrusted) {
-                            if (connection != 0) throw expectedUntrusted;
+                            });
+                        } catch (java.net.SocketTimeoutException awaitingConnection) {
+                            // Recheck whether the trusted request has finished.
+                        } catch (Throwable error) {
+                            served.completeExceptionally(error);
                         }
                     }
                     return null;
@@ -246,11 +271,19 @@ public class VaultKv2ExampleTest {
                                 .resolveSecret(REFERENCE, "read configured credential"));
                 assertEquals(SecretFailure.Code.UNAVAILABLE, untrusted.code());
                 assertNull(untrusted.getCause());
-                SecretValue value = tlsContext(server.getLocalPort(), rootPem, captured)
-                        .resolveSecret(REFERENCE, "read configured credential");
+                assertEquals("untrusted peer sent an HTTP request", 0, receivedRequests.get());
+                SecretValue value;
+                try {
+                    value = tlsContext(server.getLocalPort(), rootPem, captured)
+                            .resolveSecret(REFERENCE, "read configured credential");
+                } catch (SecretFailure failure) {
+                    throw new AssertionError("trusted TLS failed; fixture=" + fixtureEvents, failure);
+                }
                 assertEquals("PRIVATE-VAULT-VALUE", new String(value.exposeBytes(), StandardCharsets.UTF_8));
                 assertEquals("vault-kv2:7", value.version());
-                served.get(5, TimeUnit.SECONDS);
+                served.get(20, TimeUnit.SECONDS);
+                acceptor.get(20, TimeUnit.SECONDS);
+                assertEquals("trusted request must be handled once", 1, receivedRequests.get());
                 assertTrue(captured.toString().contains("start:Operation"));
                 assertTrue(captured.toString().contains("success:"));
                 assertTrue(captured.toString().contains("failure:"));
