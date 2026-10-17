@@ -53,6 +53,17 @@ public final class JdkHttpRequestService implements HttpRequestService {
     }
 
     @Override
+    public boolean profileIsEncryptedOrLoopback(String alias) {
+        State state = profiles.get(alias);
+        if (state == null) return false;
+        URI base = state.profile.baseUri();
+        if ("https".equalsIgnoreCase(base.getScheme())) return true;
+        if (!"http".equalsIgnoreCase(base.getScheme())) return false;
+        String host = base.getHost();
+        return "127.0.0.1".equals(host) || "::1".equals(host) || "[::1]".equals(host);
+    }
+
+    @Override
     public Response execute(UserContext context, Call call) {
         if (context == null || call == null) throw new HttpRequestFailure(HttpRequestFailure.Code.INVALID_INPUT);
         State state = profiles.get(call.profile());
