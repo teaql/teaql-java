@@ -490,6 +490,88 @@ public class VaultKv2ExampleTest {
                 String inFlightDiagnostics = captured + "\n" + logs;
                 assertFalse(inFlightDiagnostics.contains("PRIVATE-VAULT-TOKEN"));
                 assertFalse(inFlightDiagnostics.contains("PRIVATE-VAULT-VALUE"));
+
+                // Two independent Contexts model mixed old/new certificates
+                // while client instances are upgraded at different times.
+                try (SSLServerSocket oldServer = (SSLServerSocket) tls.getServerSocketFactory()
+                        .createServerSocket(0, 3, InetAddress.getLoopbackAddress());
+                     SSLServerSocket newServer = (SSLServerSocket) nextTls.getServerSocketFactory()
+                        .createServerSocket(0, 4, InetAddress.getLoopbackAddress())) {
+                    oldServer.setSoTimeout(10000);
+                    newServer.setSoTimeout(10000);
+                    AtomicInteger oldRequests = new AtomicInteger();
+                    AtomicInteger newRequests = new AtomicInteger();
+                    var oldServed = executor.submit(() -> {
+                        serveRolloverTls(oldServer, 2, true, BODY, oldRequests);
+                        return null;
+                    });
+                    var newServed = executor.submit(() -> {
+                        serveRolloverTls(newServer, 4, false, nextBody, newRequests);
+                        return null;
+                    });
+                    List<String> oldEvents = new CopyOnWriteArrayList<>();
+                    List<String> newEvents = new CopyOnWriteArrayList<>();
+                    DefaultUserContext oldInstance = tlsContext(oldServer.getLocalPort(), rootPem,
+                            oldEvents);
+                    DefaultUserContext newInstance = tlsContext(newServer.getLocalPort(), nextRootPem,
+                            newEvents);
+                    URI oldEndpoint = URI.create("https://127.0.0.1:" + oldServer.getLocalPort() + "/");
+                    URI newEndpoint = URI.create("https://127.0.0.1:" + newServer.getLocalPort() + "/");
+                    var newOverlap = HttpServiceProfile.builder("vault", newEndpoint)
+                            .budgets(Duration.ofSeconds(5), Duration.ofSeconds(5), Duration.ofSeconds(8))
+                            .trustedRootsPem(List.of(rootPem, nextRootPem)).build();
+                    newInstance.putAttribute(HttpRequestService.class.getName(),
+                            new JdkHttpRequestService(List.of(newOverlap)));
+                    var oldFirst = executor.submit(() -> oldInstance.resolveSecret(
+                            REFERENCE, "old instance before overlap"));
+                    var newFirst = executor.submit(() -> newInstance.resolveSecret(
+                            REFERENCE, "new instance during overlap"));
+                    assertEquals("vault-kv2:7", oldFirst.get(8, TimeUnit.SECONDS).version());
+                    assertEquals("vault-kv2:8", newFirst.get(8, TimeUnit.SECONDS).version());
+
+                    var oldOverlap = HttpServiceProfile.builder("vault", oldEndpoint)
+                            .budgets(Duration.ofSeconds(5), Duration.ofSeconds(5), Duration.ofSeconds(8))
+                            .trustedRootsPem(List.of(rootPem, nextRootPem)).build();
+                    oldInstance.putAttribute(HttpRequestService.class.getName(),
+                            new JdkHttpRequestService(List.of(oldOverlap)));
+                    var oldSecond = executor.submit(() -> oldInstance.resolveSecret(
+                            REFERENCE, "old instance during overlap"));
+                    var newSecond = executor.submit(() -> newInstance.resolveSecret(
+                            REFERENCE, "new instance remains on overlap"));
+                    assertEquals("vault-kv2:7", oldSecond.get(8, TimeUnit.SECONDS).version());
+                    assertEquals("vault-kv2:8", newSecond.get(8, TimeUnit.SECONDS).version());
+
+                    var oldNewOnly = HttpServiceProfile.builder("vault", oldEndpoint)
+                            .budgets(Duration.ofSeconds(5), Duration.ofSeconds(5), Duration.ofSeconds(8))
+                            .trustedRootPem(nextRootPem).build();
+                    var newNewOnly = HttpServiceProfile.builder("vault", newEndpoint)
+                            .budgets(Duration.ofSeconds(5), Duration.ofSeconds(5), Duration.ofSeconds(8))
+                            .trustedRootPem(nextRootPem).build();
+                    oldInstance.putAttribute(HttpRequestService.class.getName(),
+                            new JdkHttpRequestService(List.of(oldNewOnly)));
+                    newInstance.putAttribute(HttpRequestService.class.getName(),
+                            new JdkHttpRequestService(List.of(newNewOnly)));
+                    var newThird = executor.submit(() -> newInstance.resolveSecret(
+                            REFERENCE, "new route after CA retirement"));
+                    SecretFailure oldRejected = assertThrows(SecretFailure.class,
+                            () -> oldInstance.resolveSecret(REFERENCE, "old route after CA retirement"));
+                    assertEquals(SecretFailure.Code.UNAVAILABLE, oldRejected.code());
+                    assertEquals("vault-kv2:8", newThird.get(8, TimeUnit.SECONDS).version());
+                    assertEquals(2, oldRequests.get());
+
+                    oldInstance.putAttribute(HttpRequestService.class.getName(),
+                            new JdkHttpRequestService(List.of(newNewOnly)));
+                    assertEquals("vault-kv2:8", oldInstance.resolveSecret(
+                            REFERENCE, "old instance after route migration").version());
+                    oldServed.get(10, TimeUnit.SECONDS);
+                    newServed.get(10, TimeUnit.SECONDS);
+                    assertEquals(2, oldRequests.get());
+                    assertEquals(4, newRequests.get());
+                    for (List<String> events : List.of(oldEvents, newEvents)) {
+                        assertFalse(events.toString().contains("PRIVATE-VAULT-TOKEN"));
+                        assertFalse(events.toString().contains("PRIVATE-VAULT-VALUE"));
+                    }
+                }
             } finally {
                 executor.shutdownNow();
             }
@@ -506,6 +588,45 @@ public class VaultKv2ExampleTest {
             Files.deleteIfExists(nextRootKeyPath);
             Files.deleteIfExists(nextRootPath);
             Files.deleteIfExists(directory);
+        }
+    }
+
+    private static void serveRolloverTls(SSLServerSocket server, int successfulCalls,
+                                         boolean rejectLast, byte[] body,
+                                         AtomicInteger receivedRequests) throws Exception {
+        int attempts = successfulCalls + (rejectLast ? 1 : 0);
+        for (int attempt = 0; attempt < attempts; attempt++) {
+            try (SSLSocket socket = (SSLSocket) server.accept()) {
+                socket.setSoTimeout(8000);
+                try {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(
+                            socket.getInputStream(), StandardCharsets.US_ASCII));
+                    String firstLine = reader.readLine();
+                    if (rejectLast && attempt == successfulCalls) {
+                        assertNull("retired CA received an HTTP request", firstLine);
+                        continue;
+                    }
+                    assertNotNull("trusted rollover request missing", firstLine);
+                    assertTrue(firstLine.startsWith("GET /v1/secret/data/payment/api HTTP/1.1"));
+                    boolean tokenSeen = false;
+                    String line;
+                    while ((line = reader.readLine()) != null && !line.isEmpty()) {
+                        if (line.toLowerCase(java.util.Locale.ROOT).startsWith("x-vault-token:")) {
+                            tokenSeen = line.trim().endsWith("PRIVATE-VAULT-TOKEN");
+                        }
+                    }
+                    assertTrue(tokenSeen);
+                    receivedRequests.incrementAndGet();
+                    socket.getOutputStream().write(("HTTP/1.1 200 OK\r\nContent-Length: "
+                            + body.length + "\r\nConnection: close\r\n\r\n")
+                            .getBytes(StandardCharsets.US_ASCII));
+                    socket.getOutputStream().write(body);
+                } catch (java.io.IOException incompleteHandshake) {
+                    if (!rejectLast || attempt != successfulCalls) {
+                        throw incompleteHandshake;
+                    }
+                }
+            }
         }
     }
 

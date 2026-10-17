@@ -24,3 +24,8 @@ revocation. The example pauses one accepted TLS request, retires its CA for
 new calls, proves a second call sends no HTTP request, then lets the first
 finish. Production certificate rollout still requires traffic coordination and
 draining; do not discard the old CA before all instances have the overlap set.
+The controlled two-instance fixture keeps old- and new-CA servers online
+together, advances independent Contexts through mixed and overlap profiles,
+rejects an old endpoint after trust retirement, then restores the old
+instance by routing it to the new endpoint. It checks exact server-side HTTP
+request counts; it is not a separate-host production rollout.
