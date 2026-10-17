@@ -15,6 +15,10 @@ import java.util.Map;
 
 /** Context-owned, provider-neutral HTTP boundary for configured external services. */
 public interface HttpRequestService {
+    /** Sensitive adapters fail closed unless the installed transport attests
+     *  to the trusted profile it will actually use. */
+    default boolean profileIsEncryptedOrLoopback(String profile) { return false; }
+
     enum Method { GET, POST, PUT, DELETE }
     enum IntentKind { PURPOSE, AUDIT }
     enum RetryMode { NONE, CONFIRMED_IDEMPOTENT }
