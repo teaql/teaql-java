@@ -81,6 +81,48 @@ public class VaultKv2SecretProviderTest {
                 () -> context.resolveSecret(new SecretReference("payments", "unknown"), "read"));
     }
 
+    @Test public void bootstrapCredentialRotationIsReadOnEveryCallAndExpiryFailsBeforeTransport() {
+        AtomicReference<String> currentToken = new AtomicReference<>("PRIVATE-VAULT-TOKEN-A");
+        AtomicInteger tokenResolutions = new AtomicInteger();
+        AtomicInteger httpCalls = new AtomicInteger();
+        SecretProvider rotatingToken = (caller, reference) -> {
+            tokenResolutions.incrementAndGet();
+            if ("expired".equals(currentToken.get())) {
+                throw new SecretFailure(SecretFailure.Code.EXPIRED);
+            }
+            return new SecretValue(currentToken.get().getBytes(StandardCharsets.UTF_8), null, null);
+        };
+        VaultKv2SecretProvider provider = VaultKv2SecretProvider.builder(
+                "vault", "secret", rotatingToken, TOKEN_REFERENCE)
+                .bind(REFERENCE, "payments/api", "value").build();
+        HttpRequestService http = (caller, call) -> {
+            httpCalls.incrementAndGet();
+            String token = call.headers().get("X-Vault-Token");
+            String body = switch (token) {
+                case "PRIVATE-VAULT-TOKEN-A" -> BODY;
+                case "PRIVATE-VAULT-TOKEN-B" -> BODY.replace("\"version\":7", "\"version\":8")
+                        .replace("PRIVATE-VAULT-VALUE", "ROTATED-VAULT-VALUE");
+                default -> throw new AssertionError("unexpected bootstrap token");
+            };
+            return new HttpRequestService.Response(200, body.getBytes(StandardCharsets.UTF_8), 1);
+        };
+        DefaultUserContext context = context(provider, http);
+        assertEquals("vault-kv2:7", context.resolveSecret(REFERENCE, "read before rotation").version());
+        currentToken.set("PRIVATE-VAULT-TOKEN-B");
+        SecretValue rotated = context.resolveSecret(REFERENCE, "read after rotation");
+        assertEquals("vault-kv2:8", rotated.version());
+        assertEquals("ROTATED-VAULT-VALUE",
+                new String(rotated.exposeBytes(), StandardCharsets.UTF_8));
+        assertEquals(2, tokenResolutions.get());
+        assertEquals(2, httpCalls.get());
+
+        currentToken.set("expired");
+        assertCode(SecretFailure.Code.EXPIRED,
+                () -> context.resolveSecret(REFERENCE, "reject expired bootstrap token"));
+        assertEquals(3, tokenResolutions.get());
+        assertEquals("expired token must not reach HTTP", 2, httpCalls.get());
+    }
+
     @Test public void failuresAreSafeAndDistinct() {
         for (int status : new int[] {403, 404, 500}) {
             HttpRequestService http = (context, call) -> new HttpRequestService.Response(
