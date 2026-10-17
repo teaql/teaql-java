@@ -5,6 +5,8 @@ import io.teaql.core.secret.SecretProvider;
 import io.teaql.core.secret.SecretReference;
 import io.teaql.core.secret.SecretValue;
 import io.teaql.core.businessid.BusinessClock;
+import io.teaql.core.BaseEntity;
+import io.teaql.core.EntityKey;
 import io.teaql.runtime.DefaultUserContext;
 import io.teaql.runtime.secret.BoundSecretProvider;
 import java.nio.charset.StandardCharsets;
@@ -24,6 +26,19 @@ import static org.junit.Assert.*;
 
 public class SecretProviderExampleTest {
     @Rule public TemporaryFolder temporary = new TemporaryFolder();
+
+    private static final class LedgerProbe extends BaseEntity {
+        private String name = "original";
+
+        private LedgerProbe(long id) {
+            updateId(id);
+        }
+
+        private void updateName(String replacement) {
+            handleUpdate("name", name, replacement);
+            name = replacement;
+        }
+    }
 
     @Test public void startupBindingAndContextResolutionObserveRotation() throws Exception {
         Path root = temporary.newFolder("keys").toPath();
@@ -90,14 +105,24 @@ public class SecretProviderExampleTest {
         DefaultUserContext second = new DefaultUserContext(null).withSecretProvider(custom);
         first.putAttribute("example.business-date", "2000-01-01");
         second.putAttribute("example.business-date", "2100-01-01");
+        // Same type and ID make accidental process- or provider-owned ledger
+        // sharing observable even when the two calls run concurrently.
+        LedgerProbe firstEntity = new LedgerProbe(42);
+        LedgerProbe secondEntity = new LedgerProbe(42);
         var executor = Executors.newFixedThreadPool(2);
         try {
-            var firstCall = executor.submit(() -> new String(
-                    first.resolveSecret(reference, "first custom context").exposeBytes(),
-                    StandardCharsets.UTF_8));
-            var secondCall = executor.submit(() -> new String(
-                    second.resolveSecret(reference, "second custom context").exposeBytes(),
-                    StandardCharsets.UTF_8));
+            var firstCall = executor.submit(() -> {
+                String resolved = new String(first.resolveSecret(reference, "first custom context")
+                        .exposeBytes(), StandardCharsets.UTF_8);
+                firstEntity.updateName("first pending");
+                return resolved;
+            });
+            var secondCall = executor.submit(() -> {
+                String resolved = new String(second.resolveSecret(reference, "second custom context")
+                        .exposeBytes(), StandardCharsets.UTF_8);
+                secondEntity.updateName("second pending");
+                return resolved;
+            });
             assertEquals("2000-01-01", firstCall.get(4, TimeUnit.SECONDS));
             assertEquals("2100-01-01", secondCall.get(4, TimeUnit.SECONDS));
         } finally {
@@ -105,5 +130,13 @@ public class SecretProviderExampleTest {
         }
         assertEquals("2000-01-01", first.getAttribute("example.business-date"));
         assertEquals("2100-01-01", second.getAttribute("example.business-date"));
+        EntityKey ledgerKey = new EntityKey(firstEntity.typeName(), 42L);
+        assertNotSame(firstEntity.getEntityMutationLedger(), secondEntity.getEntityMutationLedger());
+        assertEquals("first pending", firstEntity.getEntityMutationLedger().get(ledgerKey, "name"));
+        assertEquals("second pending", secondEntity.getEntityMutationLedger().get(ledgerKey, "name"));
+        firstEntity.getEntityMutationLedger().clearCurrentChangeSet();
+        assertNull(firstEntity.getEntityMutationLedger().get(ledgerKey, "name"));
+        assertEquals("second pending", secondEntity.getEntityMutationLedger().get(ledgerKey, "name"));
+        assertTrue(secondEntity.dirtyFields().contains("name"));
     }
 }
