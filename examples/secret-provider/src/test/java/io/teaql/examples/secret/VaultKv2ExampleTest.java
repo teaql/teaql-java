@@ -31,7 +31,9 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.CompletableFuture;
@@ -65,6 +67,63 @@ public class VaultKv2ExampleTest {
         context.putAttribute(HttpRequestService.class.getName(),
                 new JdkHttpRequestService(List.of(profile)));
         return context;
+    }
+
+    @Test public void sharedVaultProviderKeepsConcurrentContextRequestsIndependent() throws Exception {
+        CountDownLatch entered = new CountDownLatch(2);
+        List<HttpRequestService.Call> calls = new CopyOnWriteArrayList<>();
+        HttpRequestService transport = new HttpRequestService() {
+            @Override public boolean profileIsEncryptedOrLoopback(String profile) {
+                return "vault".equals(profile);
+            }
+
+            @Override public Response execute(io.teaql.core.UserContext caller, Call call) {
+                calls.add(call);
+                entered.countDown();
+                try {
+                    if (!entered.await(3, TimeUnit.SECONDS)) throw new AssertionError("requests did not overlap");
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new AssertionError("request interrupted", interrupted);
+                }
+                String expected = caller.getAttribute("example.vault-token").toString();
+                assertEquals(expected, call.headers().get("X-Vault-Token"));
+                assertEquals("v1/secret/data/payment/api", call.relativePath());
+                String value = expected.equals("token-context-a") ? "value-a" : "value-b";
+                String json = "{\"data\":{\"data\":{\"value\":\"" + value
+                        + "\"},\"metadata\":{\"version\":7,\"destroyed\":false,\"deletion_time\":\"\"}}}";
+                return new Response(200, json.getBytes(StandardCharsets.UTF_8), 1);
+            }
+        };
+        SecretProvider tokenProvider = (caller, ignored) -> new SecretValue(
+                caller.getAttribute("example.vault-token").toString().getBytes(StandardCharsets.UTF_8),
+                null, null);
+        var shared = VaultKv2SecretProvider.builder("vault", "secret", tokenProvider,
+                new SecretReference("bootstrap", "vault_token"))
+                .bind(REFERENCE, "payment/api", "value").build();
+        DefaultUserContext first = new DefaultUserContext(null).withSecretProvider(shared);
+        DefaultUserContext second = new DefaultUserContext(null).withSecretProvider(shared);
+        first.putAttribute(HttpRequestService.class.getName(), transport);
+        second.putAttribute(HttpRequestService.class.getName(), transport);
+        first.putAttribute("example.vault-token", "token-context-a");
+        second.putAttribute("example.vault-token", "token-context-b");
+
+        var executor = Executors.newFixedThreadPool(2);
+        try {
+            var firstCall = executor.submit(() -> first.resolveSecret(REFERENCE, "first Vault context"));
+            var secondCall = executor.submit(() -> second.resolveSecret(REFERENCE, "second Vault context"));
+            assertArrayEquals("value-a".getBytes(StandardCharsets.UTF_8),
+                    firstCall.get(4, TimeUnit.SECONDS).exposeBytes());
+            assertArrayEquals("value-b".getBytes(StandardCharsets.UTF_8),
+                    secondCall.get(4, TimeUnit.SECONDS).exposeBytes());
+        } finally {
+            executor.shutdownNow();
+        }
+        assertEquals(2, calls.size());
+        assertNotSame(calls.get(0), calls.get(1));
+        assertEquals(Set.of("token-context-a", "token-context-b"),
+                calls.stream().map(call -> call.headers().get("X-Vault-Token"))
+                        .collect(java.util.stream.Collectors.toSet()));
     }
 
     private DefaultUserContext tlsContext(int port, byte[] trustedRoot, List<String> captured) {
