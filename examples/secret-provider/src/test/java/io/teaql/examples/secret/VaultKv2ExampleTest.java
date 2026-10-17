@@ -573,6 +573,70 @@ public class VaultKv2ExampleTest {
                     }
                 }
 
+                // A rolling deployment replaces whole client processes. Keep
+                // both certificate endpoints live while independent JVMs use
+                // old-only and overlap trust, then retire the old route.
+                try (SSLServerSocket oldProcessServer = (SSLServerSocket) tls.getServerSocketFactory()
+                        .createServerSocket(0, 3, InetAddress.getLoopbackAddress());
+                     SSLServerSocket newProcessServer = (SSLServerSocket) nextTls.getServerSocketFactory()
+                        .createServerSocket(0, 5, InetAddress.getLoopbackAddress())) {
+                    oldProcessServer.setSoTimeout(30000);
+                    newProcessServer.setSoTimeout(30000);
+                    AtomicInteger oldProcessRequests = new AtomicInteger();
+                    AtomicInteger newProcessRequests = new AtomicInteger();
+                    var oldProcessTask = executor.submit(() -> {
+                        serveRolloverTls(oldProcessServer, 2, true, BODY, oldProcessRequests);
+                        return null;
+                    });
+                    var newProcessTask = executor.submit(() -> {
+                        serveRolloverTls(newProcessServer, 5, false, nextBody, newProcessRequests);
+                        return null;
+                    });
+                    Process oldClient = startRolloverChild("old-only", oldProcessServer.getLocalPort(),
+                            rootPath, nextRootPath, "vault-kv2:7");
+                    Process newClient = startRolloverChild("overlap", newProcessServer.getLocalPort(),
+                            rootPath, nextRootPath, "vault-kv2:8");
+                    assertRolloverChild(oldClient, "old-only");
+                    assertRolloverChild(newClient, "overlap");
+                    assertEquals(1, oldProcessRequests.get());
+                    assertEquals(1, newProcessRequests.get());
+
+                    oldClient = startRolloverChild("overlap", oldProcessServer.getLocalPort(),
+                            rootPath, nextRootPath, "vault-kv2:7");
+                    newClient = startRolloverChild("overlap", newProcessServer.getLocalPort(),
+                            rootPath, nextRootPath, "vault-kv2:8");
+                    assertRolloverChild(oldClient, "overlap");
+                    assertRolloverChild(newClient, "overlap");
+                    assertEquals(2, oldProcessRequests.get());
+                    assertEquals(2, newProcessRequests.get());
+
+                    // Drain the old route while overlap trust is still live.
+                    Process overlapRerouted = startRolloverChild("overlap",
+                            newProcessServer.getLocalPort(), rootPath, nextRootPath,
+                            "vault-kv2:8");
+                    assertRolloverChild(overlapRerouted, "overlap");
+                    assertEquals(3, newProcessRequests.get());
+
+                    oldClient = startRolloverChild("new-only", oldProcessServer.getLocalPort(),
+                            rootPath, nextRootPath, "unavailable");
+                    newClient = startRolloverChild("new-only", newProcessServer.getLocalPort(),
+                            rootPath, nextRootPath, "vault-kv2:8");
+                    assertRolloverChild(oldClient, "new-only");
+                    assertRolloverChild(newClient, "new-only");
+                    assertEquals("retired route received HTTP", 2, oldProcessRequests.get());
+                    assertEquals(4, newProcessRequests.get());
+
+                    Process reroutedClient = startRolloverChild("new-only",
+                            newProcessServer.getLocalPort(), rootPath, nextRootPath,
+                            "vault-kv2:8");
+                    assertRolloverChild(reroutedClient, "new-only");
+                    oldProcessTask.get(30, TimeUnit.SECONDS);
+                    newProcessTask.get(30, TimeUnit.SECONDS);
+                    assertEquals(2, oldProcessRequests.get());
+                    assertEquals(5, newProcessRequests.get());
+                    System.out.println("PROCESS_ROLLOVER_PASS language=java old_requests=2 new_requests=5");
+                }
+
                 // A response held beyond the whole-call budget must release
                 // the old Context call before a new trust profile is used.
                 try (SSLServerSocket stalledServer = (SSLServerSocket) tls.getServerSocketFactory()
@@ -692,6 +756,67 @@ public class VaultKv2ExampleTest {
                 }
             }
         }
+    }
+
+    private static Process startRolloverChild(String mode, int port,
+            java.nio.file.Path rootPath, java.nio.file.Path nextRootPath,
+            String expected) throws Exception {
+        String javaBinary = java.nio.file.Path.of(System.getProperty("java.home"), "bin", "java")
+                .toString();
+        String classpath = System.getProperty("surefire.test.class.path",
+                System.getProperty("java.class.path"));
+        return new ProcessBuilder(javaBinary, "-cp", classpath, VaultKv2ExampleTest.class.getName(),
+                "--rollover-child", mode, Integer.toString(port), rootPath.toString(),
+                nextRootPath.toString(), expected).redirectErrorStream(true).start();
+    }
+
+    private static void assertRolloverChild(Process child, String mode) throws Exception {
+        if (!child.waitFor(20, TimeUnit.SECONDS)) {
+            child.destroyForcibly();
+            fail("TLS rollover child timed out: " + mode);
+        }
+        String output = new String(child.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        assertEquals("TLS rollover child failed: " + mode + "\n" + output,
+                0, child.exitValue());
+        assertTrue("TLS rollover child lacked process evidence: " + output,
+                output.contains("ROLLOVER_CHILD_PASS pid=" + child.pid() + " mode=" + mode));
+        assertFalse(output.contains("PRIVATE-VAULT-TOKEN"));
+        assertFalse(output.contains("PRIVATE-VAULT-VALUE"));
+    }
+
+    public static void main(String[] args) throws Exception {
+        if (args.length != 6 || !"--rollover-child".equals(args[0])) {
+            throw new IllegalArgumentException("expected --rollover-child MODE PORT OLD_CA NEW_CA EXPECTED");
+        }
+        String mode = args[1];
+        int port = Integer.parseInt(args[2]);
+        byte[] root = Files.readAllBytes(java.nio.file.Path.of(args[3]));
+        byte[] nextRoot = Files.readAllBytes(java.nio.file.Path.of(args[4]));
+        List<String> captured = new CopyOnWriteArrayList<>();
+        DefaultUserContext context = new VaultKv2ExampleTest().tlsContext(port, root, captured);
+        URI endpoint = URI.create("https://127.0.0.1:" + port + "/");
+        var builder = HttpServiceProfile.builder("vault", endpoint)
+                .budgets(Duration.ofSeconds(2), Duration.ofSeconds(2), Duration.ofSeconds(3));
+        switch (mode) {
+            case "old-only" -> builder.trustedRootPem(root);
+            case "overlap" -> builder.trustedRootsPem(List.of(root, nextRoot));
+            case "new-only" -> builder.trustedRootPem(nextRoot);
+            default -> throw new IllegalArgumentException("unknown trust mode");
+        }
+        context.putAttribute(HttpRequestService.class.getName(),
+                new JdkHttpRequestService(List.of(builder.build())));
+        if ("unavailable".equals(args[5])) {
+            SecretFailure failure = assertThrows(SecretFailure.class,
+                    () -> context.resolveSecret(REFERENCE, "rollover process trust probe"));
+            assertEquals(SecretFailure.Code.UNAVAILABLE, failure.code());
+        } else {
+            assertEquals(args[5], context.resolveSecret(REFERENCE,
+                    "rollover process trust probe").version());
+        }
+        assertFalse(captured.toString().contains("PRIVATE-VAULT-TOKEN"));
+        assertFalse(captured.toString().contains("PRIVATE-VAULT-VALUE"));
+        System.out.println("ROLLOVER_CHILD_PASS pid=" + ProcessHandle.current().pid()
+                + " mode=" + mode + " outcome=" + args[5]);
     }
 
     @Test public void loopbackVaultPathTokenVersionAndTimeout() throws Exception {
