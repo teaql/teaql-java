@@ -211,6 +211,7 @@ public class VaultKv2ExampleTest {
 
             var executor = Executors.newCachedThreadPool();
             AtomicInteger receivedRequests = new AtomicInteger();
+            AtomicInteger acceptedConnections = new AtomicInteger();
             List<String> fixtureEvents = new CopyOnWriteArrayList<>();
             try (SSLServerSocket server = (SSLServerSocket) tls.getServerSocketFactory()
                     .createServerSocket(0, 2, InetAddress.getLoopbackAddress())) {
@@ -220,6 +221,7 @@ public class VaultKv2ExampleTest {
                     while (!served.isDone()) {
                         try {
                             SSLSocket socket = (SSLSocket) server.accept();
+                            int connection = acceptedConnections.incrementAndGet();
                             fixtureEvents.add("accepted");
                             executor.execute(() -> {
                                 try (socket) {
@@ -247,12 +249,12 @@ public class VaultKv2ExampleTest {
                                             .getBytes(StandardCharsets.US_ASCII));
                                     socket.getOutputStream().write(BODY);
                                     fixtureEvents.add("responded");
-                                    served.complete(null);
                                 } catch (javax.net.ssl.SSLException | java.net.SocketTimeoutException
                                         | java.net.SocketException incompleteHandshake) {
                                     fixtureEvents.add("incomplete-handshake:" + incompleteHandshake.getClass().getSimpleName());
                                     // Failed TLS connections may still occupy a worker, but
                                     // cannot block acceptance of the trusted connection.
+                                    if (connection == 3) served.complete(null);
                                 } catch (Throwable error) {
                                     fixtureEvents.add("fixture-error:" + error.getClass().getSimpleName());
                                     served.completeExceptionally(error);
@@ -266,28 +268,43 @@ public class VaultKv2ExampleTest {
                     }
                     return null;
                 });
+                DefaultUserContext context = tlsContext(server.getLocalPort(), null, captured);
                 SecretFailure untrusted = assertThrows(SecretFailure.class,
-                        () -> tlsContext(server.getLocalPort(), null, captured)
-                                .resolveSecret(REFERENCE, "read configured credential"));
+                        () -> context.resolveSecret(REFERENCE, "read configured credential"));
                 assertEquals(SecretFailure.Code.UNAVAILABLE, untrusted.code());
                 assertNull(untrusted.getCause());
                 assertEquals("untrusted peer sent an HTTP request", 0, receivedRequests.get());
+                var trustedProfile = HttpServiceProfile.builder("vault",
+                        URI.create("https://127.0.0.1:" + server.getLocalPort() + "/"))
+                        .budgets(Duration.ofSeconds(5), Duration.ofSeconds(5), Duration.ofSeconds(8))
+                        .trustedRootPem(rootPem).build();
+                context.putAttribute(HttpRequestService.class.getName(),
+                        new JdkHttpRequestService(List.of(trustedProfile)));
                 SecretValue value;
                 try {
-                    value = tlsContext(server.getLocalPort(), rootPem, captured)
-                            .resolveSecret(REFERENCE, "read configured credential");
+                    value = context.resolveSecret(REFERENCE, "read configured credential");
                 } catch (SecretFailure failure) {
                     throw new AssertionError("trusted TLS failed; fixture=" + fixtureEvents, failure);
                 }
                 assertEquals("PRIVATE-VAULT-VALUE", new String(value.exposeBytes(), StandardCharsets.UTF_8));
                 assertEquals("vault-kv2:7", value.version());
+                var removedTrustProfile = HttpServiceProfile.builder("vault",
+                        URI.create("https://127.0.0.1:" + server.getLocalPort() + "/"))
+                        .budgets(Duration.ofSeconds(5), Duration.ofSeconds(5), Duration.ofSeconds(8))
+                        .build();
+                context.putAttribute(HttpRequestService.class.getName(),
+                        new JdkHttpRequestService(List.of(removedTrustProfile)));
+                SecretFailure trustRemoved = assertThrows(SecretFailure.class,
+                        () -> context.resolveSecret(REFERENCE, "reject removed TLS trust"));
+                assertEquals(SecretFailure.Code.UNAVAILABLE, trustRemoved.code());
+                assertNull(trustRemoved.getCause());
                 served.get(20, TimeUnit.SECONDS);
                 acceptor.get(20, TimeUnit.SECONDS);
                 assertEquals("trusted request must be handled once", 1, receivedRequests.get());
                 assertTrue(captured.toString().contains("start:Operation"));
                 assertTrue(captured.toString().contains("success:"));
                 assertTrue(captured.toString().contains("failure:"));
-                assertEquals(2, logs.size());
+                assertEquals(3, logs.size());
                 String diagnostics = captured + "\n" + logs;
                 assertFalse(diagnostics.contains("PRIVATE-VAULT-TOKEN"));
                 assertFalse(diagnostics.contains("PRIVATE-VAULT-VALUE"));
