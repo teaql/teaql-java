@@ -572,6 +572,70 @@ public class VaultKv2ExampleTest {
                         assertFalse(events.toString().contains("PRIVATE-VAULT-VALUE"));
                     }
                 }
+
+                // A response held beyond the whole-call budget must release
+                // the old Context call before a new trust profile is used.
+                try (SSLServerSocket stalledServer = (SSLServerSocket) tls.getServerSocketFactory()
+                        .createServerSocket(0, 2, InetAddress.getLoopbackAddress())) {
+                    stalledServer.setSoTimeout(8000);
+                    CompletableFuture<Void> requestArrived = new CompletableFuture<>();
+                    CompletableFuture<Void> releaseResponse = new CompletableFuture<>();
+                    AtomicInteger stalledRequests = new AtomicInteger();
+                    var stalledServerTask = executor.submit(() -> {
+                        try (SSLSocket socket = (SSLSocket) stalledServer.accept()) {
+                            socket.setSoTimeout(8000);
+                            BufferedReader reader = new BufferedReader(new InputStreamReader(
+                                    socket.getInputStream(), StandardCharsets.US_ASCII));
+                            assertTrue(reader.readLine().startsWith(
+                                    "GET /v1/secret/data/payment/api HTTP/1.1"));
+                            String line;
+                            while ((line = reader.readLine()) != null && !line.isEmpty()) {}
+                            stalledRequests.incrementAndGet();
+                            requestArrived.complete(null);
+                            releaseResponse.get(8, TimeUnit.SECONDS);
+                        }
+                        stalledServer.setSoTimeout(300);
+                        try (SSLSocket unexpected = (SSLSocket) stalledServer.accept()) {
+                            throw new AssertionError("stalled Vault read started another connection");
+                        } catch (java.net.SocketTimeoutException expected) {
+                            return null;
+                        }
+                    });
+                    URI stalledEndpoint = URI.create("https://127.0.0.1:"
+                            + stalledServer.getLocalPort() + "/");
+                    var shortOld = HttpServiceProfile.builder("vault", stalledEndpoint)
+                            .budgets(Duration.ofSeconds(2), Duration.ofSeconds(2),
+                                    Duration.ofMillis(900))
+                            .trustedRootPem(rootPem).build();
+                    context.putAttribute(HttpRequestService.class.getName(),
+                            new JdkHttpRequestService(List.of(shortOld)));
+                    long startedAt = System.nanoTime();
+                    var stalled = executor.submit(() -> context.resolveSecret(
+                            REFERENCE, "bound stalled old-CA read"));
+                    try {
+                        requestArrived.get(5, TimeUnit.SECONDS);
+                        var shortNew = HttpServiceProfile.builder("vault", stalledEndpoint)
+                                .budgets(Duration.ofSeconds(2), Duration.ofSeconds(2),
+                                        Duration.ofMillis(900))
+                                .trustedRootPem(nextRootPem).build();
+                        context.putAttribute(HttpRequestService.class.getName(),
+                                new JdkHttpRequestService(List.of(shortNew)));
+                        var failure = assertThrows(java.util.concurrent.ExecutionException.class,
+                                () -> stalled.get(4, TimeUnit.SECONDS));
+                        assertTrue(failure.getCause() instanceof SecretFailure);
+                        assertEquals(SecretFailure.Code.UNAVAILABLE,
+                                ((SecretFailure) failure.getCause()).code());
+                        assertTrue(Duration.ofNanos(System.nanoTime() - startedAt)
+                                .compareTo(Duration.ofSeconds(4)) < 0);
+                        assertEquals(1, stalledRequests.get());
+                    } finally {
+                        releaseResponse.complete(null);
+                    }
+                    stalledServerTask.get(5, TimeUnit.SECONDS);
+                }
+                String budgetDiagnostics = captured + "\n" + logs;
+                assertFalse(budgetDiagnostics.contains("PRIVATE-VAULT-TOKEN"));
+                assertFalse(budgetDiagnostics.contains("PRIVATE-VAULT-VALUE"));
             } finally {
                 executor.shutdownNow();
             }
