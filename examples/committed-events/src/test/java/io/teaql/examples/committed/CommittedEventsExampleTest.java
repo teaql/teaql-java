@@ -3,10 +3,13 @@ package io.teaql.examples.committed;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.teaql.core.BaseEntity;
+import io.teaql.core.duck.DuckDbCommittedInbox;
+import io.teaql.core.duck.DuckDbModelCheckedCommittedTarget;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
 import io.teaql.core.sql.GenericSQLProperty;
 import io.teaql.core.sql.SQLEntityDescriptor;
 import io.teaql.core.sqlite.SqliteCommittedEventStore;
+import io.teaql.core.sqlite.SqliteCommittedEventStore.InboxOutcome;
 import io.teaql.core.sqlite.SqliteCommittedMutationRecorder;
 import io.teaql.core.sqlite.SqliteModelCheckedCommittedTarget;
 import io.teaql.core.sqlite.SqliteCommittedOutboxPublisher;
@@ -17,14 +20,37 @@ import io.teaql.runtime.TeaQLRuntime;
 import org.junit.Test;
 import org.sqlite.SQLiteDataSource;
 
+import javax.sql.DataSource;
+import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import static org.junit.Assert.*;
 
 public class CommittedEventsExampleTest {
+    private record DriverManagerDataSource(String url) implements DataSource {
+        @Override public Connection getConnection() throws SQLException { return DriverManager.getConnection(url); }
+        @Override public Connection getConnection(String user, String password) throws SQLException {
+            return getConnection();
+        }
+        @Override public PrintWriter getLogWriter() { return null; }
+        @Override public void setLogWriter(PrintWriter writer) { }
+        @Override public void setLoginTimeout(int seconds) { }
+        @Override public int getLoginTimeout() { return 0; }
+        @Override public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+            throw new SQLFeatureNotSupportedException();
+        }
+        @Override public <T> T unwrap(Class<T> type) throws SQLException { throw new SQLException("not a wrapper"); }
+        @Override public boolean isWrapperFor(Class<?> type) { return false; }
+    }
+
     public static final class Order extends BaseEntity {
         private final Map<String, Object> fields = new HashMap<>();
 
@@ -120,6 +146,36 @@ public class CommittedEventsExampleTest {
         assertEquals(2, replicaSql.queryForList("SELECT * FROM teaql_event_applied_payload",
                 new Object[0]).size());
         replicaRuntime.close();
+
+        Path duckDirectory = Files.createTempDirectory("teaql-committed-duckdb-example-");
+        duckDirectory.toFile().deleteOnExit();
+        Path duckPath = duckDirectory.resolve("target.db");
+        duckPath.toFile().deleteOnExit();
+        JdbcSqlExecutor duckSql = new JdbcSqlExecutor(
+                new DriverManagerDataSource("jdbc:duckdb:" + duckPath));
+        duckSql.execute("CREATE TABLE order_data (id BIGINT PRIMARY KEY, version BIGINT NOT NULL, "
+                + "name VARCHAR, memo VARCHAR)");
+        DuckDbModelCheckedCommittedTarget duckTarget =
+                new DuckDbModelCheckedCommittedTarget(duckSql, "example-java-source",
+                        "sha256:" + "0".repeat(64));
+        duckTarget.ensureInboxSchema();
+        var duckPublished = new SqliteCommittedOutboxPublisher(reopened, "example-java-source",
+                "example-duckdb-analytics", "sha256:" + "0".repeat(64))
+                .publishBatch(10, record -> {
+                    var outcome = duckTarget.apply(context, new DuckDbCommittedInbox.Record(
+                            record.sourceRuntimeId(), record.sourceSequence(), record.changeSetId(),
+                            record.modelHash(), record.payloadSha256(), record.payloadJson()));
+                    return new InboxOutcome(outcome.duplicate(), outcome.checkpoint());
+                });
+        assertEquals(2, duckPublished.acknowledged());
+        assertEquals(0, duckPublished.status().backlog());
+        var duckOrder = duckSql.queryForList("SELECT version, name, memo FROM order_data WHERE id = ?",
+                new Object[] {42L}).get(0);
+        assertEquals(2L, ((Number) duckOrder.get("version")).longValue());
+        assertEquals("submitted", duckOrder.get("name"));
+        assertEquals("set by database", duckOrder.get("memo"));
+        assertEquals(2, duckSql.queryForList("SELECT * FROM teaql_event_applied_payload",
+                new Object[0]).size());
 
         sql.execute("DROP TABLE teaql_event_outbox");
         order.updateProperty("name", "should roll back");
