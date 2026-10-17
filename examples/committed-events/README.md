@@ -5,7 +5,10 @@ Run `bash examples/committed-events/verify.sh`. It executes a small, real
 fresh source/target SQLite files and an independent DuckDB target. The test
 reopens the Outbox, delivers the two events through bounded publishers into
 both model-checked targets, verifies their rows and the SQLite target duplicate
-acknowledgement, then injects a later source write failure. This small fixture
+acknowledgement, then injects a later source write failure. The first SQLite
+delivery deliberately loses its acknowledgement after target commit; a new
+source executor replays sequence 1 as a duplicate and then applies sequence 2
+in order. This small fixture
 itself requires no generated ERP model or remote service.
 
 The example configures `SqliteCommittedMutationRecorder` at trusted runtime

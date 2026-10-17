@@ -10,7 +10,10 @@ generated_library_hash() {
 generated_library_hash > "$evidence/generated-before.sha256"
 for round in 1 2; do
   mvn -B -q -pl examples/committed-events -am \
-    -Dtest=CommittedEventsExampleTest -Dsurefire.failIfNoSpecifiedTests=false test
+    -Dtest=CommittedEventsExampleTest -Dsurefire.failIfNoSpecifiedTests=false test \
+    2>&1 | tee "$evidence/runtime-$round.log"
+  rg -Fq 'COMMITTED_DELIVERY_RECOVERY_PASS language=java ordered=2 lost_ack=1 restart=1 duplicate=1' \
+    "$evidence/runtime-$round.log"
   echo "PASS Java committed-events example round $round"
   mvn -B -q -Pruntime-examples -pl examples/standard-order -am \
     -Dtest=StandardOrderCommittedTargetTest -Dsurefire.failIfNoSpecifiedTests=false test \

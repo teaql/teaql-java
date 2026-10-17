@@ -130,11 +130,27 @@ public class CommittedEventsExampleTest {
         SqliteModelCheckedCommittedTarget target = new SqliteModelCheckedCommittedTarget(
                 replicaSql, "example-java-source", "sha256:" + "0".repeat(64));
         target.ensureSchema();
-        var published = new SqliteCommittedOutboxPublisher(reopened, "example-java-source",
+        var interruptedPublisher = new SqliteCommittedOutboxPublisher(reopened,
+                "example-java-source", "example-analytics", "sha256:" + "0".repeat(64));
+        assertThrows(IllegalStateException.class, () -> interruptedPublisher.publishBatch(10,
+                record -> {
+                    target.apply(replicaContext, record);
+                    throw new IllegalStateException("simulate lost target acknowledgement");
+                }));
+        assertEquals(0L, interruptedPublisher.status().ackedSequence());
+        assertEquals(2L, interruptedPublisher.status().backlog());
+        assertEquals(1, replicaSql.queryForList("SELECT * FROM teaql_event_inbox",
+                new Object[0]).size());
+
+        SQLiteDataSource restartedSource = new SQLiteDataSource();
+        restartedSource.setUrl("jdbc:sqlite:" + path);
+        JdbcSqlExecutor restarted = new JdbcSqlExecutor(restartedSource);
+        var published = new SqliteCommittedOutboxPublisher(restarted, "example-java-source",
                 "example-analytics", "sha256:" + "0".repeat(64))
                 .publishBatch(10, record -> target.apply(replicaContext, record));
         assertEquals(2, published.acknowledged());
         assertEquals(0, published.status().backlog());
+        assertEquals(2L, published.status().ackedSequence());
         var duplicate = target.apply(replicaContext, durable.get(0));
         assertTrue(duplicate.duplicate());
         assertEquals(1, duplicate.checkpoint());
@@ -145,6 +161,8 @@ public class CommittedEventsExampleTest {
         assertEquals("set by database", replicated.get("memo"));
         assertEquals(2, replicaSql.queryForList("SELECT * FROM teaql_event_applied_payload",
                 new Object[0]).size());
+        System.out.println("COMMITTED_DELIVERY_RECOVERY_PASS language=java ordered=2 "
+                + "lost_ack=1 restart=1 duplicate=1");
         replicaRuntime.close();
 
         Path duckDirectory = Files.createTempDirectory("teaql-committed-duckdb-example-");
