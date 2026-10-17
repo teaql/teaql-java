@@ -171,29 +171,63 @@ public class VaultKv2ExampleTest {
         var directory = Files.createTempDirectory("teaql-vault-tls-");
         var rootPath = directory.resolve("root.pem");
         var rootKeyPath = directory.resolve("root.key");
+        var nextRootPath = directory.resolve("next-root.pem");
+        var nextRootKeyPath = directory.resolve("next-root.key");
         var requestPath = directory.resolve("server.csr");
         var serialPath = directory.resolve("root.srl");
+        var nextSerialPath = directory.resolve("next-root.srl");
         var certificatePath = directory.resolve("server.pem");
+        var nextCertificatePath = directory.resolve("next-server.pem");
         var keyPath = directory.resolve("server.key");
         try {
             openssl("req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
                     "-subj", "/CN=TeaQL test root", "-addext", "basicConstraints=critical,CA:TRUE",
                     "-addext", "keyUsage=critical,keyCertSign,cRLSign",
                     "-keyout", rootKeyPath.toString(), "-out", rootPath.toString());
+            openssl("req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
+                    "-subj", "/CN=TeaQL next test root", "-addext", "basicConstraints=critical,CA:TRUE",
+                    "-addext", "keyUsage=critical,keyCertSign,cRLSign",
+                    "-keyout", nextRootKeyPath.toString(), "-out", nextRootPath.toString());
             openssl("req", "-new", "-newkey", "rsa:2048", "-nodes", "-subj", "/CN=127.0.0.1",
                     "-addext", "subjectAltName=IP:127.0.0.1",
                     "-keyout", keyPath.toString(), "-out", requestPath.toString());
             openssl("x509", "-req", "-days", "1", "-CAcreateserial", "-copy_extensions", "copy",
                     "-in", requestPath.toString(), "-CA", rootPath.toString(),
                     "-CAkey", rootKeyPath.toString(), "-out", certificatePath.toString());
+            openssl("x509", "-req", "-days", "1", "-CAcreateserial", "-copy_extensions", "copy",
+                    "-in", requestPath.toString(), "-CA", nextRootPath.toString(),
+                    "-CAkey", nextRootKeyPath.toString(), "-out", nextCertificatePath.toString());
             byte[] rootPem = Files.readAllBytes(rootPath);
+            byte[] nextRootPem = Files.readAllBytes(nextRootPath);
+            URI configuredEndpoint = URI.create("https://127.0.0.1:8443/");
+            assertThrows(IllegalArgumentException.class,
+                    () -> HttpServiceProfile.builder("vault", configuredEndpoint)
+                            .trustedRootsPem(List.of(rootPem, rootPem)));
+            assertThrows(IllegalArgumentException.class,
+                    () -> HttpServiceProfile.builder("vault", configuredEndpoint)
+                            .trustedRootsPem(List.of(rootPem, nextRootPem, rootPem,
+                                    nextRootPem, rootPem)));
+            byte[] bundledRoots = new byte[rootPem.length + nextRootPem.length];
+            System.arraycopy(rootPem, 0, bundledRoots, 0, rootPem.length);
+            System.arraycopy(nextRootPem, 0, bundledRoots, rootPem.length, nextRootPem.length);
+            assertThrows(IllegalArgumentException.class,
+                    () -> HttpServiceProfile.builder("vault", configuredEndpoint)
+                            .trustedRootPem(bundledRoots));
             Certificate certificate;
             Certificate root;
+            Certificate nextCertificate;
+            Certificate nextRoot;
             try (var source = Files.newInputStream(certificatePath)) {
                 certificate = CertificateFactory.getInstance("X.509").generateCertificate(source);
             }
             try (var source = Files.newInputStream(rootPath)) {
                 root = CertificateFactory.getInstance("X.509").generateCertificate(source);
+            }
+            try (var source = Files.newInputStream(nextCertificatePath)) {
+                nextCertificate = CertificateFactory.getInstance("X.509").generateCertificate(source);
+            }
+            try (var source = Files.newInputStream(nextRootPath)) {
+                nextRoot = CertificateFactory.getInstance("X.509").generateCertificate(source);
             }
             String keyText = Files.readString(keyPath);
             String encoded = keyText.replace("-----BEGIN PRIVATE KEY-----", "")
@@ -208,6 +242,13 @@ public class VaultKv2ExampleTest {
             managers.init(store, password);
             SSLContext tls = SSLContext.getInstance("TLS");
             tls.init(managers.getKeyManagers(), null, null);
+            KeyStore nextStore = KeyStore.getInstance("PKCS12");
+            nextStore.load(null, null);
+            nextStore.setKeyEntry("server", key, password, new Certificate[] {nextCertificate, nextRoot});
+            KeyManagerFactory nextManagers = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+            nextManagers.init(nextStore, password);
+            SSLContext nextTls = SSLContext.getInstance("TLS");
+            nextTls.init(nextManagers.getKeyManagers(), null, null);
 
             var executor = Executors.newCachedThreadPool();
             AtomicInteger receivedRequests = new AtomicInteger();
@@ -254,7 +295,7 @@ public class VaultKv2ExampleTest {
                                     fixtureEvents.add("incomplete-handshake:" + incompleteHandshake.getClass().getSimpleName());
                                     // Failed TLS connections may still occupy a worker, but
                                     // cannot block acceptance of the trusted connection.
-                                    if (connection == 3) served.complete(null);
+                                    if (connection == 4) served.complete(null);
                                 } catch (Throwable error) {
                                     fixtureEvents.add("fixture-error:" + error.getClass().getSimpleName());
                                     served.completeExceptionally(error);
@@ -288,9 +329,18 @@ public class VaultKv2ExampleTest {
                 }
                 assertEquals("PRIVATE-VAULT-VALUE", new String(value.exposeBytes(), StandardCharsets.UTF_8));
                 assertEquals("vault-kv2:7", value.version());
+                var overlapProfile = HttpServiceProfile.builder("vault",
+                        URI.create("https://127.0.0.1:" + server.getLocalPort() + "/"))
+                        .budgets(Duration.ofSeconds(5), Duration.ofSeconds(5), Duration.ofSeconds(8))
+                        .trustedRootsPem(List.of(rootPem, nextRootPem)).build();
+                context.putAttribute(HttpRequestService.class.getName(),
+                        new JdkHttpRequestService(List.of(overlapProfile)));
+                SecretValue overlap = context.resolveSecret(REFERENCE, "read during TLS root overlap");
+                assertEquals("vault-kv2:7", overlap.version());
                 var removedTrustProfile = HttpServiceProfile.builder("vault",
                         URI.create("https://127.0.0.1:" + server.getLocalPort() + "/"))
                         .budgets(Duration.ofSeconds(5), Duration.ofSeconds(5), Duration.ofSeconds(8))
+                        .trustedRootPem(nextRootPem)
                         .build();
                 context.putAttribute(HttpRequestService.class.getName(),
                         new JdkHttpRequestService(List.of(removedTrustProfile)));
@@ -300,14 +350,66 @@ public class VaultKv2ExampleTest {
                 assertNull(trustRemoved.getCause());
                 served.get(20, TimeUnit.SECONDS);
                 acceptor.get(20, TimeUnit.SECONDS);
-                assertEquals("trusted request must be handled once", 1, receivedRequests.get());
+                assertEquals("trusted requests must be handled twice", 2, receivedRequests.get());
                 assertTrue(captured.toString().contains("start:Operation"));
                 assertTrue(captured.toString().contains("success:"));
                 assertTrue(captured.toString().contains("failure:"));
-                assertEquals(3, logs.size());
+                assertEquals(4, logs.size());
                 String diagnostics = captured + "\n" + logs;
                 assertFalse(diagnostics.contains("PRIVATE-VAULT-TOKEN"));
                 assertFalse(diagnostics.contains("PRIVATE-VAULT-VALUE"));
+
+                byte[] nextBody = new String(BODY, StandardCharsets.UTF_8)
+                        .replace("\"version\":7", "\"version\":8")
+                        .getBytes(StandardCharsets.UTF_8);
+                try (SSLServerSocket nextServer = (SSLServerSocket) nextTls.getServerSocketFactory()
+                        .createServerSocket(0, 2, InetAddress.getLoopbackAddress())) {
+                    nextServer.setSoTimeout(5000);
+                    var nextServed = executor.submit(() -> {
+                        for (int request = 0; request < 2; request++) {
+                            try (SSLSocket socket = (SSLSocket) nextServer.accept()) {
+                                socket.setSoTimeout(5000);
+                                BufferedReader reader = new BufferedReader(new InputStreamReader(
+                                        socket.getInputStream(), StandardCharsets.US_ASCII));
+                                assertTrue(reader.readLine().startsWith("GET /v1/secret/data/payment/api HTTP/1.1"));
+                                boolean tokenSeen = false;
+                                String line;
+                                while ((line = reader.readLine()) != null && !line.isEmpty()) {
+                                    if (line.toLowerCase(java.util.Locale.ROOT).startsWith("x-vault-token:")) {
+                                        tokenSeen = line.trim().endsWith("PRIVATE-VAULT-TOKEN");
+                                    }
+                                }
+                                assertTrue(tokenSeen);
+                                socket.getOutputStream().write(("HTTP/1.1 200 OK\r\nContent-Length: "
+                                        + nextBody.length + "\r\nConnection: close\r\n\r\n")
+                                        .getBytes(StandardCharsets.US_ASCII));
+                                socket.getOutputStream().write(nextBody);
+                            }
+                        }
+                        return null;
+                    });
+                    var overlapNextProfile = HttpServiceProfile.builder("vault",
+                            URI.create("https://127.0.0.1:" + nextServer.getLocalPort() + "/"))
+                            .budgets(Duration.ofSeconds(5), Duration.ofSeconds(5), Duration.ofSeconds(8))
+                            .trustedRootsPem(List.of(rootPem, nextRootPem)).build();
+                    context.putAttribute(HttpRequestService.class.getName(),
+                            new JdkHttpRequestService(List.of(overlapNextProfile)));
+                    assertEquals("vault-kv2:8",
+                            context.resolveSecret(REFERENCE, "read next CA during overlap").version());
+                    var nextOnlyProfile = HttpServiceProfile.builder("vault",
+                            URI.create("https://127.0.0.1:" + nextServer.getLocalPort() + "/"))
+                            .budgets(Duration.ofSeconds(5), Duration.ofSeconds(5), Duration.ofSeconds(8))
+                            .trustedRootPem(nextRootPem).build();
+                    context.putAttribute(HttpRequestService.class.getName(),
+                            new JdkHttpRequestService(List.of(nextOnlyProfile)));
+                    assertEquals("vault-kv2:8",
+                            context.resolveSecret(REFERENCE, "read next CA after retirement").version());
+                    nextServed.get(20, TimeUnit.SECONDS);
+                }
+                assertEquals(6, logs.size());
+                String completeDiagnostics = captured + "\n" + logs;
+                assertFalse(completeDiagnostics.contains("PRIVATE-VAULT-TOKEN"));
+                assertFalse(completeDiagnostics.contains("PRIVATE-VAULT-VALUE"));
             } finally {
                 executor.shutdownNow();
             }
@@ -315,10 +417,14 @@ public class VaultKv2ExampleTest {
             logger.removeHandler(handler);
             Files.deleteIfExists(keyPath);
             Files.deleteIfExists(certificatePath);
+            Files.deleteIfExists(nextCertificatePath);
             Files.deleteIfExists(requestPath);
             Files.deleteIfExists(serialPath);
+            Files.deleteIfExists(nextSerialPath);
             Files.deleteIfExists(rootKeyPath);
             Files.deleteIfExists(rootPath);
+            Files.deleteIfExists(nextRootKeyPath);
+            Files.deleteIfExists(nextRootPath);
             Files.deleteIfExists(directory);
         }
     }

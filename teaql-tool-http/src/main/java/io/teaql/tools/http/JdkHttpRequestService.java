@@ -272,7 +272,7 @@ public final class JdkHttpRequestService implements HttpRequestService {
             HttpClient.Builder builder = HttpClient.newBuilder()
                     .connectTimeout(profile.connectTimeout())
                     .followRedirects(HttpClient.Redirect.NEVER);
-            if (profile.trustedRoot() != null) builder.sslContext(trustedRootContext(profile));
+            if (!profile.trustedRoots().isEmpty()) builder.sslContext(trustedRootContext(profile));
             this.client = builder.build();
             this.tokens = profile.ratePerSecond();
         }
@@ -280,7 +280,9 @@ public final class JdkHttpRequestService implements HttpRequestService {
             try {
                 KeyStore store = KeyStore.getInstance("PKCS12");
                 store.load(null, null);
-                store.setCertificateEntry("root", profile.trustedRoot());
+                for (int index = 0; index < profile.trustedRoots().size(); index++) {
+                    store.setCertificateEntry("root-" + index, profile.trustedRoots().get(index));
+                }
                 TrustManagerFactory managers = TrustManagerFactory.getInstance(
                         TrustManagerFactory.getDefaultAlgorithm());
                 managers.init(store);
