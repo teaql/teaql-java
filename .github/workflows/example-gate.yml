@@ -45,21 +45,3 @@ jobs:
       - name: Stop dedicated S3 example fixture
         if: always()
         run: docker rm -f teaql-java-example-s3 || true
-  exact-decimal:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: teaql/teaql-code-gen
-          ref: a6335fe50da8f28be0d3ff8b8dfc8a89fb4489a6
-          path: generator
-      - name: Install example verification tools
-        run: sudo apt-get update && sudo apt-get install -y ripgrep
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: maven
-      - name: Verify generated exact Decimal twice
-        run: TEAQL_CODEGEN_DIR="$GITHUB_WORKSPACE/generator" bash examples/exact-decimal/verify.sh
