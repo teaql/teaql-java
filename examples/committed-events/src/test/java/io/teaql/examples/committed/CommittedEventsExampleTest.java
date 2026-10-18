@@ -203,6 +203,21 @@ public class CommittedEventsExampleTest {
                 new Object[] {42L}).get(0).get("name"));
         assertEquals(2L, ((Number) sql.queryForList("SELECT version FROM order_data WHERE id = ?",
                 new Object[] {42L}).get(0).get("version")).longValue());
+
+        // Even if application code catches the inner save failure, the shared
+        // JDBC transaction must not commit a business row without its outbox.
+        order.updateProperty("name", "caught failure must roll back");
+        assertThrows(IllegalStateException.class, () -> sql.executeInTransaction(() -> {
+            try {
+                order.auditAs("reject caught outbox failure").save(context);
+            } catch (RuntimeException expected) {
+                // Simulate a caller that handles the failed save and returns.
+            }
+        }));
+        assertEquals("submitted", sql.queryForList("SELECT name FROM order_data WHERE id = ?",
+                new Object[] {42L}).get(0).get("name"));
+        assertEquals(2L, ((Number) sql.queryForList("SELECT version FROM order_data WHERE id = ?",
+                new Object[] {42L}).get(0).get("version")).longValue());
         runtime.close();
     }
 }

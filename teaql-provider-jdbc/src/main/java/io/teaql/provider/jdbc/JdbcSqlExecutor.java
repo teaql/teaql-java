@@ -21,6 +21,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
     // A held view retains only this token, not the executor, connection or DataSource.
     private final Object storageIdentity = new Object();
     private final ThreadLocal<Connection> transactionConnection = new ThreadLocal<>();
+    private final ThreadLocal<Boolean> transactionRollbackOnly = new ThreadLocal<>();
     private final List<Consumer<Connection>> connectionInitializers = new CopyOnWriteArrayList<>();
 
     public JdbcSqlExecutor(DataSource dataSource) {
@@ -395,21 +396,35 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
     @Override
     public void executeInTransaction(Runnable action) {
         if (transactionConnection.get() != null) {
-            action.run();
+            try {
+                action.run();
+            } catch (RuntimeException | Error failure) {
+                // The nested action shares the outer JDBC transaction. Without a
+                // savepoint, its partial writes cannot be committed safely even if
+                // application code catches the exception before the outer returns.
+                transactionRollbackOnly.set(true);
+                throw failure;
+            }
             return;
         }
         try (Connection connection = openConnection()) {
             boolean autoCommit = connection.getAutoCommit();
             connection.setAutoCommit(false);
             transactionConnection.set(connection);
+            transactionRollbackOnly.set(false);
             try {
                 action.run();
+                if (Boolean.TRUE.equals(transactionRollbackOnly.get())) {
+                    throw new IllegalStateException(
+                            "JDBC transaction is rollback-only after a nested failure");
+                }
                 connection.commit();
             } catch (RuntimeException | Error failure) {
                 connection.rollback();
                 throw failure;
             } finally {
                 transactionConnection.remove();
+                transactionRollbackOnly.remove();
                 connection.setAutoCommit(autoCommit);
             }
         } catch (SQLException e) {

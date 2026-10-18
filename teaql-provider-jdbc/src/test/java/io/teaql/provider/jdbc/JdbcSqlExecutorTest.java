@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 public class JdbcSqlExecutorTest {
@@ -60,6 +61,34 @@ public class JdbcSqlExecutorTest {
             assertEquals("Alice", rs.getString("name"));
             assertEquals(25, rs.getInt("age"));
         }
+    }
+
+    @Test
+    public void nestedFailureCaughtByCallerStillRollsBackOuterTransaction() {
+        assertThrows(IllegalStateException.class, () -> sqlExecutor.executeInTransaction(() -> {
+            sqlExecutor.update("INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
+                    new Object[] {91, "before failure", 20});
+            try {
+                sqlExecutor.executeInTransaction(() -> {
+                    sqlExecutor.update("INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
+                            new Object[] {92, "failed save", 20});
+                    throw new IllegalStateException("simulated outbox append failure");
+                });
+            } catch (IllegalStateException expected) {
+                // Application code may log a failed save and continue its outer callback.
+            }
+        }));
+
+        assertEquals(0, ((Number) sqlExecutor.queryForList(
+                "SELECT count(*) AS total FROM test_user", new Object[0])
+                .get(0).get("total")).intValue());
+
+        sqlExecutor.executeInTransaction(() -> sqlExecutor.executeInTransaction(() ->
+                sqlExecutor.update("INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
+                        new Object[] {93, "next transaction", 20})));
+        assertEquals(1, ((Number) sqlExecutor.queryForList(
+                "SELECT count(*) AS total FROM test_user", new Object[0])
+                .get(0).get("total")).intValue());
     }
 
     @Test
