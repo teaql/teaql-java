@@ -55,8 +55,20 @@ public final class GeneratedExactDecimalProbe {
         if (sum(source).compareTo(new BigDecimal("0.3")) != 0) {
             throw new AssertionError("generated Decimal SUM is not exact");
         }
+        DecimalEntry preciseEntry = save(source, platform, "precise", new BigDecimal("3.50"));
+        BigDecimal scale = reloadAmount(source, preciseEntry.getId());
+        if (!new BigDecimal("3.50").equals(scale)) {
+            throw new AssertionError("generated Decimal scale was not preserved: " + scale);
+        }
+        BigDecimal preciseInput = new BigDecimal("123456789012.3456789");
+        preciseEntry.updateAmount(preciseInput);
+        preciseEntry.auditAs("Update exact Decimal precision for generated integration gate").save(source);
+        BigDecimal precision = reloadAmount(source, preciseEntry.getId());
+        if (!preciseInput.equals(precision)) {
+            throw new AssertionError("generated Decimal precision was not preserved: " + precision);
+        }
 
-        System.out.println("GENERATED_EXACT_DECIMAL_PASS q=1 e=1 save=2 sum=0.3");
+        System.out.println("GENERATED_EXACT_DECIMAL_PASS q=1 e=1 save=3 update=1 sum=0.3 scale=3.50 precision=19");
     }
 
     private static DecimalEntry save(CustomUserContext context, Platform platform,
@@ -81,5 +93,15 @@ public final class GeneratedExactDecimalProbe {
             throw new AssertionError("generated Decimal aggregate has the wrong shape");
         }
         return total;
+    }
+
+    private static BigDecimal reloadAmount(CustomUserContext context, Long id) {
+        var entry = Q.decimalEntriesWithMinimalFields().selectAmount()
+                .withIdIs(id).limit(1)
+                .comment("Reload generated exact Decimal value")
+                .purpose("Verify scale and precision after audited save")
+                .executeForOne(context);
+        if (entry == null) throw new AssertionError("generated Decimal entry is missing: " + id);
+        return E.decimalEntry(entry).getAmount().eval();
     }
 }
