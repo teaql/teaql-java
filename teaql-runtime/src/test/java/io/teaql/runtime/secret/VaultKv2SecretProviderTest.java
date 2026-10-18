@@ -8,6 +8,12 @@ import io.teaql.core.secret.SecretReference;
 import io.teaql.core.secret.SecretValue;
 import io.teaql.runtime.DefaultUserContext;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Test;
@@ -121,6 +127,67 @@ public class VaultKv2SecretProviderTest {
                 () -> context.resolveSecret(REFERENCE, "reject expired bootstrap token"));
         assertEquals(3, tokenResolutions.get());
         assertEquals("expired token must not reach HTTP", 2, httpCalls.get());
+    }
+
+    @Test public void sharedProviderKeepsConcurrentContextHttpRequestsIsolated() throws Exception {
+        SecretReference alpha = new SecretReference("payments", "alpha");
+        SecretReference beta = new SecretReference("payments", "beta");
+        SecretProvider perContextToken = (caller, reference) -> {
+            String actor = (String) caller.getAttribute("test.actor");
+            String token = "alpha".equals(actor) ? "PRIVATE-VAULT-TOKEN-A"
+                    : "PRIVATE-VAULT-TOKEN-B";
+            return new SecretValue(token.getBytes(StandardCharsets.UTF_8), null, null);
+        };
+        VaultKv2SecretProvider sharedProvider = VaultKv2SecretProvider.builder(
+                "vault", "secret", perContextToken, TOKEN_REFERENCE)
+                .bind(alpha, "payments/alpha", "value")
+                .bind(beta, "payments/beta", "value")
+                .build();
+        CountDownLatch bothInHttp = new CountDownLatch(2);
+        ConcurrentLinkedQueue<String> observed = new ConcurrentLinkedQueue<>();
+        HttpRequestService http = (caller, call) -> {
+            String actor = (String) caller.getAttribute("test.actor");
+            String suffix = "alpha".equals(actor) ? "A" : "B";
+            assertEquals("v1/secret/data/payments/" + actor, call.relativePath());
+            assertEquals("PRIVATE-VAULT-TOKEN-" + suffix,
+                    call.headers().get("X-Vault-Token"));
+            bothInHttp.countDown();
+            try {
+                assertTrue("both Context requests must overlap",
+                        bothInHttp.await(5, TimeUnit.SECONDS));
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError(interrupted);
+            }
+            assertEquals("v1/secret/data/payments/" + actor, call.relativePath());
+            assertEquals("PRIVATE-VAULT-TOKEN-" + suffix,
+                    call.headers().get("X-Vault-Token"));
+            observed.add(actor + ":" + suffix);
+            String body = BODY.replace("PRIVATE-VAULT-VALUE", "VALUE-" + suffix);
+            return new HttpRequestService.Response(200,
+                    body.getBytes(StandardCharsets.UTF_8), 1);
+        };
+        DefaultUserContext contextA = context(sharedProvider, http);
+        DefaultUserContext contextB = context(sharedProvider, http);
+        contextA.putAttribute("test.actor", "alpha");
+        contextB.putAttribute("test.actor", "beta");
+
+        ExecutorService workers = Executors.newFixedThreadPool(2);
+        try {
+            Future<SecretValue> first = workers.submit(
+                    () -> contextA.resolveSecret(alpha, "read alpha credential"));
+            Future<SecretValue> second = workers.submit(
+                    () -> contextB.resolveSecret(beta, "read beta credential"));
+            assertEquals("VALUE-A", new String(first.get(10, TimeUnit.SECONDS).exposeBytes(),
+                    StandardCharsets.UTF_8));
+            assertEquals("VALUE-B", new String(second.get(10, TimeUnit.SECONDS).exposeBytes(),
+                    StandardCharsets.UTF_8));
+        } finally {
+            workers.shutdownNow();
+        }
+        assertEquals(2, observed.size());
+        assertTrue(observed.contains("alpha:A"));
+        assertTrue(observed.contains("beta:B"));
     }
 
     @Test public void failuresAreSafeAndDistinct() {
