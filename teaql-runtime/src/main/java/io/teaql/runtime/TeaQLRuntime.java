@@ -574,6 +574,7 @@ public class TeaQLRuntime implements AutoCloseable {
                         Collections.newSetFromMap(new IdentityHashMap<>()));
                 throw failure;
             }
+            CommittedStateReconciliationException reconciliationOutcome = null;
             try {
                 dynamicReadbacks.forEach((key, values) -> {
                     BaseEntity target = realEntities.get(key);
@@ -586,9 +587,17 @@ public class TeaQLRuntime implements AutoCloseable {
                 // partially reconciled, so neither its pending ledger nor its
                 // entity instances are safe to save again without a fresh load.
                 entityMutationLedger.markCommittedStateRequiresReload();
-                throw new CommittedStateReconciliationException();
+                reconciliationOutcome = new CommittedStateReconciliationException();
             }
-            deliverCommittedAuditEvents(context, completed);
+            try {
+                // The provider has already committed. A failed in-memory readback
+                // must not silently suppress the independent audit delivery.
+                deliverCommittedAuditEvents(context, completed);
+            } catch (AuditDeliveryAfterCommitException auditFailure) {
+                if (reconciliationOutcome == null) throw auditFailure;
+                reconciliationOutcome.addSuppressed(auditFailure);
+            }
+            if (reconciliationOutcome != null) throw reconciliationOutcome;
             telemetryScope.success();
         } catch (RuntimeException | Error error) {
             telemetryScope.failure(error);
@@ -1125,7 +1134,8 @@ public class TeaQLRuntime implements AutoCloseable {
             try {
                 failures += emitAuditEvent(
                         context, mutation.target(), mutation.auditKind(), mutation.changedValues(),
-                        mutation.governance(), mutation.intent(), mutation.traceChain(), mutation.redactions());
+                        mutation.governance(), mutation.intent(), mutation.traceChain(), mutation.redactions(),
+                        mutation.result().persistedEntity().getVersion());
             } catch (RuntimeException failure) {
                 // The provider transaction has already committed. Continue delivery
                 // for the other graph members and never expose a retryable save error.
@@ -1442,7 +1452,7 @@ public class TeaQLRuntime implements AutoCloseable {
             MutationAuditKind kind,
             Map<String, Object> changedValues,
             MutationGovernanceSnapshot governance, MutationIntent intent, List<TraceNode> traceChain,
-            SqlIntentRedactions redactions) {
+            SqlIntentRedactions redactions, Long committedVersion) {
         List<AuditFieldChange> changes = new ArrayList<>();
         if (changedValues != null) {
             for (Map.Entry<String, Object> entry : changedValues.entrySet()) {
@@ -1472,7 +1482,7 @@ public class TeaQLRuntime implements AutoCloseable {
                 context.getAttribute(GeneratedSchemaBootstrap.AUDIT_ACTOR_ATTRIBUTE, String.class),
                 context.getAttribute(GeneratedSchemaBootstrap.AUDIT_CATEGORY_ATTRIBUTE, String.class),
                 intent.auditReason(),
-                entity.getVersion(),
+                committedVersion,
                 java.time.Instant.now(),
                 governance);
 

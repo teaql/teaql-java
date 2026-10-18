@@ -55,6 +55,7 @@ public class GraphTraceSqliteTest {
     static final class Fixture {
         final List<ExecutionMetadata> sql = new CopyOnWriteArrayList<>();
         final List<SafeAuditEvent> audit = new CopyOnWriteArrayList<>();
+        final List<RawAuditEvent> rawAudit = new CopyOnWriteArrayList<>();
         final List<EntityPersistenceMutation> commands = new CopyOnWriteArrayList<>();
         final List<MutationResult> results = new CopyOnWriteArrayList<>();
         boolean queryLogging = true;
@@ -174,6 +175,7 @@ public class GraphTraceSqliteTest {
 
                         @Override public void writeAuditEvent(UserContext caller, RawAuditEvent event) {
                             if (failStandardAudit) throw new IllegalStateException("standard audit sink failure");
+                            rawAudit.add(event);
                         }
                     });
             if (committedRecorder != null) builder.committedMutationRecorder(committedRecorder);
@@ -188,7 +190,7 @@ public class GraphTraceSqliteTest {
         }
 
         void clear() {
-            sql.clear(); audit.clear(); commands.clear(); results.clear(); itemInsertBatchSizes.clear();
+            sql.clear(); audit.clear(); rawAudit.clear(); commands.clear(); results.clear(); itemInsertBatchSizes.clear();
             itemUpdateBatchSizes.clear(); itemDeleteBatchSizes.clear(); itemRecoverBatchSizes.clear();
         }
 
@@ -736,6 +738,9 @@ public class GraphTraceSqliteTest {
                 "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {196L}).size());
         assertEquals(1, fixture.committedRecorder.eventStore()
                 .outboxAfter("java-graph-source", 0, 10).size());
+        assertEquals("committed mutations still require application audit delivery", 1, fixture.audit.size());
+        assertEquals(1, fixture.rawAudit.size());
+        assertEquals(Long.valueOf(1), fixture.rawAudit.get(0).resultingVersion());
         assertTrue("committed outcome must be explicit to prevent blind retry",
                 failure.getMessage().contains("provider write completed"));
         order.failPostCommitReconcile = false;
@@ -746,6 +751,7 @@ public class GraphTraceSqliteTest {
                 () -> order.setEntityMutationLedger(new EntityMutationLedger()));
         assertEquals(1, fixture.committedRecorder.eventStore()
                 .outboxAfter("java-graph-source", 0, 10).size());
+        assertEquals(1, fixture.audit.size());
         var independent = fixture.create("Payment", 195, "unrelated graph may still save");
         independent.auditAs("save independent graph after failure").save(fixture.context);
         assertEquals(2, fixture.committedRecorder.eventStore()
@@ -773,6 +779,37 @@ public class GraphTraceSqliteTest {
                 () -> item.auditAs("unsafe child retry").save(fixture.context));
         assertThrows(TeaQLRuntimeException.class,
                 () -> order.auditAs("unsafe root retry").save(fixture.context));
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+        assertEquals("both committed graph members must still be audited", 2, fixture.audit.size());
+        assertEquals(2, fixture.rawAudit.size());
+    }
+
+    @Test public void postCommitReconciliationAndAuditFailureRetainBothOutcomes() throws Exception {
+        var fixture = new Fixture(true);
+        var attempts = new java.util.concurrent.atomic.AtomicInteger();
+        fixture.context.putAttribute(AppAuditEventSink.class.getName(),
+                (AppAuditEventSink) (caller, event) -> {
+                    attempts.incrementAndGet();
+                    throw new IllegalStateException("diagnostic audit sink failure");
+                });
+        var order = fixture.create("CustomerOrder", 193, "committed despite two post-commit failures");
+        order.failPostCommitReconcile = true;
+
+        var failure = assertThrows(CommittedStateReconciliationException.class,
+                () -> order.auditAs("commit before reconciliation and audit failures").save(fixture.context));
+        assertEquals(1, attempts.get());
+        assertEquals(1, failure.getSuppressed().length);
+        assertTrue(failure.getSuppressed()[0] instanceof AuditDeliveryAfterCommitException);
+        assertEquals(1, fixture.rawAudit.size());
+        assertEquals(Long.valueOf(1), fixture.rawAudit.get(0).resultingVersion());
+        assertEquals(1, fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {193L}).size());
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+        order.failPostCommitReconcile = false;
+        assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("reject retry after two post-commit failures").save(fixture.context));
         assertEquals(1, fixture.committedRecorder.eventStore()
                 .outboxAfter("java-graph-source", 0, 10).size());
     }
