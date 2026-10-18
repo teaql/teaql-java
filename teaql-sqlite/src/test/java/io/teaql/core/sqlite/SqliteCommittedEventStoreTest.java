@@ -262,6 +262,35 @@ public class SqliteCommittedEventStoreTest {
         }
     }
 
+    @Test public void duplicateRequiresCheckpointCoveringRetainedInbox() throws Exception {
+        Path path = Files.createTempFile("teaql-java-cmr-checkpoint-", ".sqlite");
+        try {
+            Database target = database(path);
+            target.events().ensureSchema();
+            graphSchema(target.driver());
+            OutboxRecord first = record(1, "change-a", false);
+            OutboxRecord second = record(2, "change-b", true);
+            target.driver().executeInTransaction(() -> {
+                target.events().apply(first, MODEL_HASH, SqliteCommittedEventStoreTest::applyGraph);
+                target.events().apply(second, MODEL_HASH, SqliteCommittedEventStoreTest::applyGraph);
+            });
+
+            target.driver().update("UPDATE teaql_event_checkpoint SET source_sequence = 1 "
+                    + "WHERE source_runtime_id = ?", new Object[] {SOURCE});
+            target.driver().executeInTransaction(() -> expectCode("INVALID_ENVELOPE",
+                    () -> target.events().apply(second, MODEL_HASH, SqliteCommittedEventStoreTest::applyGraph)));
+
+            target.driver().update("DELETE FROM teaql_event_checkpoint WHERE source_runtime_id = ?",
+                    new Object[] {SOURCE});
+            target.driver().executeInTransaction(() -> expectCode("INVALID_ENVELOPE",
+                    () -> target.events().apply(first, MODEL_HASH, SqliteCommittedEventStoreTest::applyGraph)));
+            assertEquals(2, count(target.driver(), "teaql_event_inbox"));
+            assertEquals(2, count(target.driver(), "teaql_event_applied_payload"));
+        } finally {
+            Files.deleteIfExists(path);
+        }
+    }
+
     private static OutboxRecord record(long sequence, String change, boolean submitted) throws Exception {
         String json = payload(sequence, change, submitted);
         byte[] bytes = java.security.MessageDigest.getInstance("SHA-256")

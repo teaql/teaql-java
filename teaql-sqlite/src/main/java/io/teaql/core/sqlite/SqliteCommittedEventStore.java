@@ -175,6 +175,9 @@ public final class SqliteCommittedEventStore {
                         || !record.payloadSha256().equals(digest((String) retained.get(0).get("payload_json")))) {
                     throw invalid("prior Inbox identity lacks retained source evidence");
                 }
+                if (last < record.sourceSequence()) {
+                    throw invalid("prior Inbox identity is ahead of target checkpoint");
+                }
                 return InboxOutcome.duplicate(record.sourceSequence());
             }
             throw new CommittedEventException("DUPLICATE_CONFLICT", "committed-event identity has conflicting content");
