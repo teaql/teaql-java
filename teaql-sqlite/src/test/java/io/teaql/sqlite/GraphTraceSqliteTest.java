@@ -55,6 +55,7 @@ public class GraphTraceSqliteTest {
         final List<MutationResult> results = new CopyOnWriteArrayList<>();
         boolean queryLogging = true;
         boolean mutationLogging = true;
+        boolean failStandardAudit;
         final List<Integer> itemInsertBatchSizes = new CopyOnWriteArrayList<>();
         final List<Integer> itemUpdateBatchSizes = new CopyOnWriteArrayList<>();
         final List<Integer> itemDeleteBatchSizes = new CopyOnWriteArrayList<>();
@@ -162,7 +163,15 @@ public class GraphTraceSqliteTest {
             var ids = new AtomicLong(1000);
             var builder = TeaQLRuntime.builder().metadata(metadata).dataService("sqlite", provider)
                     .idGenerationService((caller, entity) -> ids.getAndIncrement())
-                    .logSink((caller, entry) -> sql.add(entry));
+                    .logSink(new RuntimeLogSink() {
+                        @Override public void writeExecutionLog(UserContext caller, ExecutionMetadata entry) {
+                            sql.add(entry);
+                        }
+
+                        @Override public void writeAuditEvent(UserContext caller, RawAuditEvent event) {
+                            if (failStandardAudit) throw new IllegalStateException("standard audit sink failure");
+                        }
+                    });
             if (committedRecorder != null) builder.committedMutationRecorder(committedRecorder);
             var runtime = builder.build();
             context = new DefaultUserContext(runtime) {
@@ -686,6 +695,67 @@ public class GraphTraceSqliteTest {
         assertTrue(fixture.driver.queryForList("SELECT id FROM order_item_data WHERE id = ?",
                 new Object[] {201L}).isEmpty());
         assertTrue("no post-commit audit on rolled back save", fixture.audit.isEmpty());
+    }
+
+    @Test public void postCommitAuditFailureReportsCommittedOutcomeWithoutReplayingLedger() throws Exception {
+        var fixture = new Fixture(true);
+        fixture.context.putAttribute(AppAuditEventSink.class.getName(),
+                (AppAuditEventSink) (caller, event) -> {
+                    throw new IllegalStateException("diagnostic audit sink failure");
+                });
+        var order = fixture.create("CustomerOrder", 199, "committed before audit delivery");
+
+        var failure = assertThrows(AuditDeliveryAfterCommitException.class,
+                () -> order.auditAs("diagnose post-commit audit failure").save(fixture.context));
+        assertTrue(failure.getMessage().contains("AUDIT_DELIVERY_AFTER_COMMIT"));
+        assertEquals(1, failure.failureCount());
+        assertEquals(1, fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {199L}).size());
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+
+        fixture.context.putAttribute(AppAuditEventSink.class.getName(),
+                (AppAuditEventSink) (caller, event) -> fixture.audit.add(event));
+        order.auditAs("retry after audit delivery failure").save(fixture.context);
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+    }
+
+    @Test public void postCommitAuditFailureStillAttemptsEveryGraphMember() throws Exception {
+        var fixture = new Fixture(true);
+        var attempts = new java.util.concurrent.atomic.AtomicInteger();
+        fixture.context.putAttribute(AppAuditEventSink.class.getName(),
+                (AppAuditEventSink) (caller, event) -> {
+                    attempts.incrementAndGet();
+                    throw new IllegalStateException("diagnostic audit sink failure");
+                });
+        var order = fixture.create("CustomerOrder", 198, "root audit fails");
+        var item = fixture.create("OrderItem", 298, "child audit fails");
+        order.__internalSet("children", List.of(item));
+
+        var failure = assertThrows(AuditDeliveryAfterCommitException.class,
+                () -> order.auditAs("commit graph before audit delivery").save(fixture.context));
+        assertEquals(2, failure.failureCount());
+        assertEquals(2, attempts.get());
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+        assertEquals(1, fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {198L}).size());
+        assertEquals(1, fixture.driver.queryForList(
+                "SELECT id FROM order_item_data WHERE id = ?", new Object[] {298L}).size());
+    }
+
+    @Test public void standardAuditSinkFailureDoesNotSuppressApplicationAuditDelivery() throws Exception {
+        var fixture = new Fixture(true);
+        fixture.failStandardAudit = true;
+        var order = fixture.create("CustomerOrder", 197, "both audit sinks are attempted");
+
+        var failure = assertThrows(AuditDeliveryAfterCommitException.class,
+                () -> order.auditAs("commit before standard audit delivery").save(fixture.context));
+        assertEquals(1, failure.failureCount());
+        assertEquals(1, fixture.audit.size());
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
     }
 
     @Test public void realSqliteProviderFailureKeepsAttemptedLineageWithoutCommittedAudit() throws Exception {

@@ -577,8 +577,9 @@ public class TeaQLRuntime implements AutoCloseable {
                 BaseEntity target = realEntities.get(key);
                 target.__internalHydrateDynamicFields(values, target.__internalLoadState().withDynamicSelection(values.selectedCodes()));
             });
-            completeLedgerPlan(context, completed);
+            completeLedgerPlan(completed);
             entityMutationLedger.clearCurrentChangeSet();
+            deliverCommittedAuditEvents(context, completed);
             telemetryScope.success();
         } catch (RuntimeException | Error error) {
             telemetryScope.failure(error);
@@ -1102,16 +1103,31 @@ public class TeaQLRuntime implements AutoCloseable {
         return completed;
     }
 
-    private void completeLedgerPlan(UserContext context, List<PendingMutation> completed) {
+    private void completeLedgerPlan(List<PendingMutation> completed) {
         for (PendingMutation mutation : completed) {
             applyPersistedEntity(mutation.descriptor(), mutation.target(), mutation.result());
-            emitAuditEvent(
-                    context, mutation.target(), mutation.auditKind(), mutation.changedValues(),
-                    mutation.governance(), mutation.intent(), mutation.traceChain(), mutation.redactions());
             mutation.target().clearUpdatedProperties();
-            // A committed delete supersedes any staged extension edits too.
-            mutation.target().__internalClearDynamicMutations();
         }
+    }
+
+    private void deliverCommittedAuditEvents(UserContext context, List<PendingMutation> completed) {
+        int failures = 0;
+        for (PendingMutation mutation : completed) {
+            try {
+                failures += emitAuditEvent(
+                        context, mutation.target(), mutation.auditKind(), mutation.changedValues(),
+                        mutation.governance(), mutation.intent(), mutation.traceChain(), mutation.redactions());
+            } catch (RuntimeException failure) {
+                // The provider transaction has already committed. Continue delivery
+                // for the other graph members and never expose a retryable save error.
+                failures++;
+            } finally {
+                // Preserve dynamic original values until the audit projection has
+                // observed them; then clear staged extension edits even on failure.
+                mutation.target().__internalClearDynamicMutations();
+            }
+        }
+        if (failures != 0) throw new AuditDeliveryAfterCommitException(failures);
     }
 
     private Map<String, Object> snapshotChanges(Map<String, Object> changes) {
@@ -1411,7 +1427,7 @@ public class TeaQLRuntime implements AutoCloseable {
         }
     }
 
-    private void emitAuditEvent(
+    private int emitAuditEvent(
             UserContext context,
             Entity entity,
             MutationAuditKind kind,
@@ -1457,18 +1473,29 @@ public class TeaQLRuntime implements AutoCloseable {
                         "teaql.mutation.kind", kind.name().toLowerCase(Locale.ROOT),
                         "teaql.audit.changed_field_count", changes.size())));
         try {
+            int failures = 0;
+            // The server-owned and application sinks are independent delivery
+            // attempts. One failure must not suppress the other after commit.
+            if (logSink != null) {
+                try {
+                    logSink.writeAuditEvent(context,
+                            LogPrivacy.audit(rawEvent, LogPrivacy.plaintextEnabled(), redactions));
+                } catch (RuntimeException failure) {
+                    failures++;
+                }
+            }
 
-        // The standard sink is server-owned by TeaQLRuntime and cannot be replaced by
-        // dynamic input or an application capability registered on UserContext.
-        if (logSink != null) {
-            logSink.writeAuditEvent(context, LogPrivacy.audit(rawEvent, LogPrivacy.plaintextEnabled(), redactions));
-        }
-
-        AppAuditEventSink appSink = context.capability(AppAuditEventSink.class);
-        if (appSink != null) {
-            appSink.onAuditEvent(context, buildSafeAuditEvent(rawEvent, redactions));
-        }
-        telemetryScope.success();
+            AppAuditEventSink appSink = context.capability(AppAuditEventSink.class);
+            if (appSink != null) {
+                try {
+                    appSink.onAuditEvent(context, buildSafeAuditEvent(rawEvent, redactions));
+                } catch (RuntimeException failure) {
+                    failures++;
+                }
+            }
+            if (failures == 0) telemetryScope.success();
+            else telemetryScope.failure(new AuditDeliveryAfterCommitException(failures));
+            return failures;
         } catch (RuntimeException | Error error) {
             telemetryScope.failure(error);
             throw error;
