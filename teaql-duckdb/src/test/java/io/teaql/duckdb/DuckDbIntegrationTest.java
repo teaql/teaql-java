@@ -16,6 +16,7 @@ import io.teaql.core.criteria.Operator;
 import io.teaql.core.duck.DuckDataServiceExecutor;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
 import io.teaql.core.sql.GenericSQLProperty;
+import io.teaql.core.sql.GenericSQLRelation;
 import io.teaql.core.sql.SQLEntityDescriptor;
 import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import io.teaql.runtime.DefaultUserContext;
@@ -39,6 +40,14 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class DuckDbIntegrationTest {
+
+    public static class IndexedParent extends BaseEntity {
+        @Override public String typeName() { return "IndexedParent"; }
+    }
+
+    public static class IndexedChild extends BaseEntity {
+        @Override public String typeName() { return "IndexedChild"; }
+    }
 
     private static UserContext context;
     private static JdbcSqlExecutor sql;
@@ -213,6 +222,67 @@ public class DuckDbIntegrationTest {
                 ResultSet rows = statement.executeQuery("SELECT version()")) {
             assertTrue(rows.next());
             assertTrue(rows.getString(1).matches("v?[0-9]+\\.[0-9]+.*"));
+        }
+    }
+
+    @Test
+    public void repeatedEnsureSchemaFindsCanonicalRelationIndexInDuckDbCatalog() throws Exception {
+        Path indexDatabase = databaseDirectory.resolve("relation-index-" + UUID.randomUUID() + ".db");
+        String indexUrl = "jdbc:duckdb:" + indexDatabase;
+        JdbcSqlExecutor indexSql = new JdbcSqlExecutor(new DriverManagerDataSource(indexUrl));
+        SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
+
+        SQLEntityDescriptor parent = new SQLEntityDescriptor();
+        parent.setType("IndexedParent");
+        parent.setTargetType(IndexedParent.class);
+        parent.setEntitySupplier(IndexedParent::new);
+        parent.setDataService("duckdb");
+        parent.with("table_name", "indexed_parent_data");
+        ((GenericSQLProperty) parent.addSimpleProperty("id", Long.class)).setColumnType("BIGINT");
+        ((GenericSQLProperty) parent.addSimpleProperty("version", Long.class)).setColumnType("BIGINT");
+        metadata.register(parent);
+
+        SQLEntityDescriptor child = new SQLEntityDescriptor();
+        child.setType("IndexedChild");
+        child.setTargetType(IndexedChild.class);
+        child.setEntitySupplier(IndexedChild::new);
+        child.setDataService("duckdb");
+        child.with("table_name", "indexed_child_data");
+        ((GenericSQLProperty) child.addSimpleProperty("id", Long.class)).setColumnType("BIGINT");
+        ((GenericSQLProperty) child.addSimpleProperty("version", Long.class)).setColumnType("BIGINT");
+        GenericSQLRelation relation = (GenericSQLRelation) child.addObjectProperty(
+                metadata, "parent", "IndexedParent", "children", IndexedParent.class,
+                GenericSQLRelation::new);
+        relation.setTableName("indexed_child_data");
+        relation.setColumnName("parent");
+        relation.setColumnType("BIGINT");
+        metadata.register(child);
+
+        UserContext indexContext = new DefaultUserContext(TeaQLRuntime.builder()
+                .metadata(metadata)
+                .dataService("duckdb", new DuckDataServiceExecutor("duckdb", indexSql))
+                .idGenerationService((ignored, entity) -> 1L)
+                .build());
+        try {
+            indexContext.ensureSchema();
+            var first = indexSql.queryForList(
+                    "SELECT index_name FROM duckdb_indexes() WHERE database_name = current_database() "
+                            + "AND schema_name = current_schema() AND table_name = ?",
+                    new Object[] {"indexed_child_data"});
+            assertEquals("first ensure must create one relation index", 1, first.size());
+            indexContext.ensureSchema();
+            var second = indexSql.queryForList(
+                    "SELECT index_name FROM duckdb_indexes() WHERE database_name = current_database() "
+                            + "AND schema_name = current_schema() AND table_name = ?",
+                    new Object[] {"indexed_child_data"});
+            assertEquals("second ensure must reuse the same relation index", first, second);
+        } finally {
+            try (Connection connection = DriverManager.getConnection(indexUrl);
+                    Statement statement = connection.createStatement()) {
+                statement.execute("CHECKPOINT");
+            }
+            Files.deleteIfExists(Path.of(indexDatabase + ".wal"));
+            Files.deleteIfExists(indexDatabase);
         }
     }
 
