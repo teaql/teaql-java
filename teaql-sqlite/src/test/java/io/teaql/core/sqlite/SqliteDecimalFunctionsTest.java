@@ -1,6 +1,7 @@
 package io.teaql.core.sqlite;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -25,6 +26,11 @@ import org.junit.Test;
 import org.sqlite.SQLiteDataSource;
 
 public class SqliteDecimalFunctionsTest {
+
+    @Test
+    public void virtualColumnsWithoutPhysicalTypeRemainUnmapped() {
+        assertNull(new SqliteDialect().mapColumnType(null));
+    }
 
     public static class DecimalRow extends BaseEntity {
         private BigDecimal amount;

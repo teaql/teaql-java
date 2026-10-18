@@ -13,6 +13,7 @@ final class SqliteDialect extends PostgreSqlDialect {
     @Override
     public String mapColumnType(String type) {
         String mapped = super.mapColumnType(type);
+        if (mapped == null) return null;
         String normalized = mapped.trim().toUpperCase(Locale.ROOT);
         for (String family : new String[] {"DECIMAL", "NUMERIC"}) {
             if (normalized.equals(family) || normalized.startsWith(family + "(")) {
@@ -25,6 +26,7 @@ final class SqliteDialect extends PostgreSqlDialect {
     @Override
     public String columnTypeAndConstraintsSql(SQLColumn column) {
         String type = mapColumnType(column.getType());
+        if (type == null) return null;
         if (!type.toUpperCase(Locale.ROOT).startsWith("DECIMAL_TEXT")) return type;
         String name = escapeIdentifier(column.getColumnName());
         return type + " COLLATE " + SqliteDecimalFunctions.COLLATION

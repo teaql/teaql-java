@@ -37,8 +37,7 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
         List<EntityDescriptor> descriptors = EntityMetaFactory.requireFrom(context).allEntityDescriptors();
         if (descriptors.stream().flatMap(descriptor -> descriptor.getOwnProperties().stream())
                 .flatMap(property -> io.teaql.core.sql.portable.SQLPropertyUtil.getColumns(property).stream())
-                .anyMatch(column -> dialect.mapColumnType(column.getType())
-                        .toUpperCase(java.util.Locale.ROOT).startsWith("DECIMAL_TEXT"))) {
+                .anyMatch(this::isExactDecimalColumn)) {
             ensureDecimalOnEveryConnection();
         }
         ensureSoundexOnEveryConnection();
@@ -109,14 +108,18 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
             repository.ensurePhysicalSchema(context);
             for (var property : descriptor.getOwnProperties()) {
                 for (var column : io.teaql.core.sql.portable.SQLPropertyUtil.getColumns(property)) {
-                    if (dialect.mapColumnType(column.getType())
-                            .toUpperCase(java.util.Locale.ROOT).startsWith("DECIMAL_TEXT")) {
+                    if (isExactDecimalColumn(column)) {
                         SqliteDecimalSchemaVerifier.verify(
                                 getExecutionAdapter(), column.getTableName(), column.getColumnName());
                     }
                 }
             }
         }
+    }
+
+    private boolean isExactDecimalColumn(io.teaql.core.sql.SQLColumn column) {
+        String mapped = dialect.mapColumnType(column.getType());
+        return mapped != null && mapped.toUpperCase(java.util.Locale.ROOT).startsWith("DECIMAL_TEXT");
     }
 
     private synchronized void ensureDecimalOnEveryConnection() {
