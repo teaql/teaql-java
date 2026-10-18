@@ -92,6 +92,50 @@ public class JdbcSqlExecutorTest {
     }
 
     @Test
+    public void caughtJdbcWriteFailureStillRollsBackOuterTransaction() {
+        assertThrows(IllegalStateException.class, () -> sqlExecutor.executeInTransaction(() -> {
+            sqlExecutor.update("INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
+                    new Object[] {94, "first write", 20});
+            try {
+                sqlExecutor.update("INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
+                        new Object[] {94, "duplicate key", 21});
+            } catch (RuntimeException expected) {
+                // A caller may handle a low-level JDBC failure before returning.
+            }
+        }));
+
+        assertEquals(0, ((Number) sqlExecutor.queryForList(
+                "SELECT count(*) AS total FROM test_user", new Object[0])
+                .get(0).get("total")).intValue());
+    }
+
+    @Test
+    public void caughtStatementOrReadFailureCannotCommitEarlierWrites() {
+        List<Runnable> failures = List.of(
+                () -> sqlExecutor.execute("INSERT INTO test_user (id, name, age) VALUES (94, 'duplicate', 21)"),
+                () -> sqlExecutor.batchUpdate(
+                        "INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
+                        java.util.Collections.singletonList(new Object[] {94, "duplicate", 21})),
+                () -> sqlExecutor.queryForList("SELECT * FROM missing_test_table", new Object[0]),
+                () -> sqlExecutor.query("SELECT * FROM missing_test_table", new Object[0],
+                        row -> new TypedRow()));
+        for (Runnable failedStatement : failures) {
+            assertThrows(IllegalStateException.class, () -> sqlExecutor.executeInTransaction(() -> {
+                sqlExecutor.update("INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
+                        new Object[] {94, "must roll back", 20});
+                try {
+                    failedStatement.run();
+                } catch (RuntimeException expected) {
+                    // The failed statement must poison the shared transaction.
+                }
+            }));
+            assertEquals(0, ((Number) sqlExecutor.queryForList(
+                    "SELECT count(*) AS total FROM test_user", new Object[0])
+                    .get(0).get("total")).intValue());
+        }
+    }
+
+    @Test
     public void testQueryForListNormalizesAliasesForPortableMapping() {
         List<Map<String, Object>> rows = sqlExecutor.queryForList(
                 "SELECT 1 AS \"customerOrder\", 2 AS plain_name",

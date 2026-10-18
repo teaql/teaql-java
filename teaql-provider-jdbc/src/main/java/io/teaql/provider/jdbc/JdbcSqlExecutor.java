@@ -184,6 +184,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 return result;
             }
         } catch (SQLException e) {
+            markTransactionRollbackOnly();
             throw new RuntimeException("JDBC query failed for parameterized SQL: " + sql, e);
         } finally {
             if (owned && connection != null) try { connection.close(); } catch (SQLException ignored) { }
@@ -210,6 +211,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             }
             return result;
         } catch (SQLException exception) {
+            markTransactionRollbackOnly();
             throw new RuntimeException("JDBC typed query failed for parameterized SQL: " + sql, exception);
         } finally {
             if (owned && connection != null) try { connection.close(); } catch (SQLException ignored) { }
@@ -339,6 +341,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             ps.execute();
             }
         } catch (SQLException e) {
+            markTransactionRollbackOnly();
             throw new RuntimeException(e);
         } finally {
             if (owned && connection != null) try { connection.close(); } catch (SQLException ignored) { }
@@ -364,6 +367,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 return ps.executeUpdate();
             }
         } catch (SQLException e) {
+            markTransactionRollbackOnly();
             throw new RuntimeException(e);
         } finally {
             if (owned && connection != null) try { connection.close(); } catch (SQLException ignored) { }
@@ -387,6 +391,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 return ps.executeBatch();
             }
         } catch (SQLException e) {
+            markTransactionRollbackOnly();
             throw new RuntimeException(e);
         } finally {
             if (owned && connection != null) try { connection.close(); } catch (SQLException ignored) { }
@@ -430,6 +435,13 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         } catch (SQLException e) {
             throw new RuntimeException("JDBC transaction failed", e);
         }
+    }
+
+    private void markTransactionRollbackOnly() {
+        // A failed statement may have left earlier writes in the shared
+        // transaction. Without a savepoint, catching that failure cannot
+        // make the transaction safe to commit.
+        if (transactionConnection.get() != null) transactionRollbackOnly.set(true);
     }
 
     @Override public boolean hasActiveTransaction() { return transactionConnection.get() != null; }
