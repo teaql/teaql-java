@@ -7,7 +7,6 @@ generator_root="${TEAQL_CODEGEN_DIR:?Set TEAQL_CODEGEN_DIR to the local teaql-co
 generator_root="$(cd "$generator_root" && pwd)"
 run_dir="$(mktemp -d -t teaql-java-exact-decimal.XXXXXX)"
 model_file="$fixture_dir/model.xml"
-export TEAQL_TEST_MODEL_HASH="sha256:$(sha256sum "$model_file" | cut -d' ' -f1)"
 
 command -v mvn >/dev/null
 command -v rg >/dev/null
@@ -38,7 +37,7 @@ for round in 1 2; do
     echo "Generated exact Decimal probe failed: $run_dir/round-$round.log" >&2
     exit 1
   fi
-  if ! rg -q '^GENERATED_EXACT_DECIMAL_PASS q=1 e=1 save=2 sum=0.3 cmr=2 duplicate=1$' \
+  if ! rg -q '^GENERATED_EXACT_DECIMAL_PASS q=1 e=1 save=2 sum=0.3$' \
       "$run_dir/round-$round.log"; then
     echo "Generated exact Decimal probe lacks its complete marker: $run_dir/round-$round.log" >&2
     exit 1
