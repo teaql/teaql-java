@@ -251,6 +251,34 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
         return service;
     }
 
+    /** Resolves only a startup-bound alias with an explicit execution comment. */
+    default io.teaql.core.secret.SecretValue resolveSecret(
+            io.teaql.core.secret.SecretReference reference, String comment) {
+        if (reference == null || comment == null || comment.isBlank()) {
+            throw new io.teaql.core.secret.SecretFailure(
+                    io.teaql.core.secret.SecretFailure.Code.INVALID_INPUT);
+        }
+        io.teaql.core.secret.SecretProvider provider =
+                capability(io.teaql.core.secret.SecretProvider.class);
+        if (provider == null) {
+            throw new io.teaql.core.secret.SecretFailure(
+                    io.teaql.core.secret.SecretFailure.Code.PROVIDER_NOT_CONFIGURED);
+        }
+        try {
+            io.teaql.core.secret.SecretValue value = provider.resolve(this, reference);
+            if (value == null) {
+                throw new io.teaql.core.secret.SecretFailure(
+                        io.teaql.core.secret.SecretFailure.Code.UNAVAILABLE);
+            }
+            return value;
+        } catch (io.teaql.core.secret.SecretFailure safe) {
+            throw safe;
+        } catch (RuntimeException unsafe) {
+            throw new io.teaql.core.secret.SecretFailure(
+                    io.teaql.core.secret.SecretFailure.Code.UNAVAILABLE);
+        }
+    }
+
     default <T> T capability(Class<T> capabilityType) {
         return null;
     }
