@@ -457,9 +457,10 @@ public class TeaQLRuntime implements AutoCloseable {
                         "teaql.mutation.kind", "save")));
         try {
             MutationIntent intent = MutationIntent.of(entity.getComment());
-            checkAndFix(context, entity);
             // Get entity's own EntityMutationLedger
             EntityMutationLedger entityMutationLedger = ((BaseEntity) entity).getEntityMutationLedger();
+            entityMutationLedger.requireSaveable();
+            checkAndFix(context, entity);
 
             // Allocate identifiers before roots are merged. New children commonly
             // receive their field updates while their id is still null, so those
@@ -573,12 +574,20 @@ public class TeaQLRuntime implements AutoCloseable {
                         Collections.newSetFromMap(new IdentityHashMap<>()));
                 throw failure;
             }
-            dynamicReadbacks.forEach((key, values) -> {
-                BaseEntity target = realEntities.get(key);
-                target.__internalHydrateDynamicFields(values, target.__internalLoadState().withDynamicSelection(values.selectedCodes()));
-            });
-            completeLedgerPlan(completed);
-            entityMutationLedger.clearCurrentChangeSet();
+            try {
+                dynamicReadbacks.forEach((key, values) -> {
+                    BaseEntity target = realEntities.get(key);
+                    target.__internalHydrateDynamicFields(values, target.__internalLoadState().withDynamicSelection(values.selectedCodes()));
+                });
+                completeLedgerPlan(completed);
+                entityMutationLedger.clearCurrentChangeSet();
+            } catch (RuntimeException reconciliationFailure) {
+                // The provider has returned from its transaction. The graph may be
+                // partially reconciled, so neither its pending ledger nor its
+                // entity instances are safe to save again without a fresh load.
+                entityMutationLedger.markCommittedStateRequiresReload();
+                throw new CommittedStateReconciliationException();
+            }
             deliverCommittedAuditEvents(context, completed);
             telemetryScope.success();
         } catch (RuntimeException | Error error) {

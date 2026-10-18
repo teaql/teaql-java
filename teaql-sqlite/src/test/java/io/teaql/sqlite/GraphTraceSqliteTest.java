@@ -30,6 +30,7 @@ public class GraphTraceSqliteTest {
     public static final class GraphEntity extends BaseEntity {
         private final String type;
         private final Map<String, Object> values = new HashMap<>();
+        boolean failPostCommitReconcile;
         public GraphEntity(String type) { this.type = type; }
         @Override public String typeName() { return type; }
         @Override public Object __internalGet(String field) {
@@ -40,6 +41,9 @@ public class GraphTraceSqliteTest {
                     ? values.get(field) : super.__internalGet(field);
         }
         @Override public void __internalSet(String field, Object value) {
+            if (failPostCommitReconcile && field.equals("version")) {
+                throw new IllegalStateException("diagnostic reconciliation failure");
+            }
             if (field.equals("name") || field.equals("memo") || field.equals("children")
                     || field.equals("business_counter") || field.equals("planned_date")
                     || field.equals("active") || field.equals("ratio") || field.equals("optional_note")
@@ -717,6 +721,58 @@ public class GraphTraceSqliteTest {
         fixture.context.putAttribute(AppAuditEventSink.class.getName(),
                 (AppAuditEventSink) (caller, event) -> fixture.audit.add(event));
         order.auditAs("retry after audit delivery failure").save(fixture.context);
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+    }
+
+    @Test public void postCommitReconciliationFailureMustReportCommittedOutcome() throws Exception {
+        var fixture = new Fixture(true);
+        var order = fixture.create("CustomerOrder", 196, "reconcile after commit");
+        order.failPostCommitReconcile = true;
+
+        var failure = assertThrows(CommittedStateReconciliationException.class,
+                () -> order.auditAs("diagnose committed reconciliation failure").save(fixture.context));
+        assertEquals(1, fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {196L}).size());
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+        assertTrue("committed outcome must be explicit to prevent blind retry",
+                failure.getMessage().contains("provider write completed"));
+        order.failPostCommitReconcile = false;
+        var retryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("retry committed reconciliation failure").save(fixture.context));
+        assertTrue(retryFailure.getMessage().contains("COMMITTED_STATE_RELOAD_REQUIRED"));
+        assertThrows(TeaQLRuntimeException.class,
+                () -> order.setEntityMutationLedger(new EntityMutationLedger()));
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+        var independent = fixture.create("Payment", 195, "unrelated graph may still save");
+        independent.auditAs("save independent graph after failure").save(fixture.context);
+        assertEquals(2, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+    }
+
+    @Test public void postCommitChildReconciliationFailurePoisonsOnlyItsSaveGraph() throws Exception {
+        var fixture = new Fixture(true);
+        var order = fixture.create("CustomerOrder", 194, "root already committed");
+        var item = fixture.create("OrderItem", 294, "child needs reload");
+        item.failPostCommitReconcile = true;
+        order.__internalSet("children", List.of(item));
+
+        assertThrows(CommittedStateReconciliationException.class,
+                () -> order.auditAs("commit graph before child reconciliation").save(fixture.context));
+        assertEquals(1, fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {194L}).size());
+        assertEquals(1, fixture.driver.queryForList(
+                "SELECT id FROM order_item_data WHERE id = ?", new Object[] {294L}).size());
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+
+        item.failPostCommitReconcile = false;
+        assertThrows(TeaQLRuntimeException.class,
+                () -> item.auditAs("unsafe child retry").save(fixture.context));
+        assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("unsafe root retry").save(fixture.context));
         assertEquals(1, fixture.committedRecorder.eventStore()
                 .outboxAfter("java-graph-source", 0, 10).size());
     }
