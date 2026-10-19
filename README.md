@@ -322,6 +322,7 @@ Request JSON is not allowed to replace those trusted capabilities.
 - [Shared load state](examples/shared-load-state/README.md)
 - [Binary object storage and temporary S3 URLs](examples/object-storage/README.md)
 - [Context-owned HTTP with bounded retries and safe diagnostics](examples/http-resilience/README.md)
+- [Transactional committed-event Outbox from a real SQLite graph save](examples/committed-events/README.md)
 - [Extension points](https://github.com/teaql/teaql-conformance/blob/main/design/runtime-customization-p0-p1-matrix.md)
 
 ## Safe troubleshooting

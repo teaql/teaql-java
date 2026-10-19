@@ -427,6 +427,7 @@ public class BaseEntity implements Entity {
     public boolean __internalHasMutationLedger() { return entityMutationLedger != null; }
 
     public void setEntityMutationLedger(EntityMutationLedger entityMutationLedger) {
+        if (this.entityMutationLedger != null) this.entityMutationLedger.requireSaveable();
         this.entityMutationLedger = entityMutationLedger;
         if (entityMutationLedger != null && id != null && newItem()) {
             entityMutationLedger.markAsNew(new EntityKey(typeName(), id));
