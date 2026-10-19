@@ -566,6 +566,11 @@ public class TeaQLRuntime implements AutoCloseable {
                     completed = executeLedgerPlan(
                             context, entityMutationLedger, mutationExecutor, realEntities, governance, intent, traceScopes, graphScope);
                 }
+            } catch (TransactionOutcomeUnknownException failure) {
+                // The JDBC commit acknowledgement can fail after durable commit.
+                // Restoring the old version would make this graph appear retryable.
+                entityMutationLedger.markTransactionOutcomeUnknownRequiresReload();
+                throw failure;
             } catch (RuntimeException | Error failure) {
                 restoreGraphPersistenceState(
                         entity,

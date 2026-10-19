@@ -10,13 +10,24 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import io.teaql.runtime.*;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.nio.file.Files;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import javax.sql.DataSource;
 import io.teaql.core.checker.Checker;
 import io.teaql.core.checker.CheckException;
 import io.teaql.core.checker.FixEvidence;
@@ -75,10 +86,15 @@ public class GraphTraceSqliteTest {
         Fixture() throws Exception { this(false); }
 
         Fixture(boolean captureCommittedMutations) throws Exception {
+            this(captureCommittedMutations, source -> source);
+        }
+
+        Fixture(boolean captureCommittedMutations,
+                Function<SQLiteDataSource, DataSource> transactionSource) throws Exception {
             var ds = new SQLiteDataSource();
             dataSource = ds;
             ds.setUrl("jdbc:sqlite:" + Files.createTempFile("teaql-graph-trace-", ".db"));
-            driver = new JdbcSqlExecutor(ds) {
+            driver = new JdbcSqlExecutor(transactionSource.apply(ds)) {
                 @Override public int[] batchUpdate(String text, List<Object[]> rows) {
                     if (text.startsWith("INSERT INTO order_item_data")) {
                         itemInsertBatchSizes.add(rows.size());
@@ -701,6 +717,137 @@ public class GraphTraceSqliteTest {
         assertTrue(fixture.driver.queryForList("SELECT id FROM order_item_data WHERE id = ?",
                 new Object[] {201L}).isEmpty());
         assertTrue("no post-commit audit on rolled back save", fixture.audit.isEmpty());
+    }
+
+    @Test public void lostCommitAcknowledgementAfterDurableWriteRequiresReload() throws Exception {
+        assertCommitAcknowledgementUnknown(true);
+    }
+
+    @Test public void failedCommitBeforeWriteRequiresTheSameConservativeReload() throws Exception {
+        assertCommitAcknowledgementUnknown(false);
+    }
+
+    @Test public void failedRollbackMustNotImplicitlyCommitOnAutoCommitRestoration() throws Exception {
+        var armed = new AtomicBoolean();
+        var injected = new AtomicBoolean();
+        var restoredAutoCommit = new AtomicBoolean();
+        var fixture = new Fixture(true,
+                source -> rollbackFault(source, armed, injected, restoredAutoCommit));
+        fixture.driver.execute("DROP TABLE teaql_event_outbox");
+        armed.set(true);
+        var order = fixture.create("CustomerOrder", 187, "rollback failed after Outbox error");
+
+        var failure = assertThrows(RuntimeException.class,
+                () -> order.auditAs("probe uncertain rollback outcome").save(fixture.context));
+        assertTrue("the rollback failure must be injected", injected.get());
+        assertFalse("restoring autoCommit after failed rollback can commit pending writes",
+                restoredAutoCommit.get());
+        assertEquals(0, fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {187L}).size());
+        assertTrue(failure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN"));
+        var retryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("reject replay after failed rollback").save(fixture.context));
+        assertTrue(retryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
+    }
+
+    private static void assertCommitAcknowledgementUnknown(boolean afterActualCommit) throws Exception {
+        var armed = new AtomicBoolean();
+        var injected = new AtomicBoolean();
+        var fixture = new Fixture(true,
+                source -> commitAcknowledgementFault(source, armed, injected, afterActualCommit));
+        armed.set(true);
+        var order = fixture.create("CustomerOrder", afterActualCommit ? 189 : 188,
+                "commit acknowledgement may be lost");
+        var item = fixture.create("OrderItem", afterActualCommit ? 289 : 288,
+                "same uncertain transaction");
+        order.__internalSet("children", List.of(item));
+
+        var warnings = new ArrayList<String>();
+        var logger = Logger.getLogger(JdbcSqlExecutor.class.getName());
+        Handler capture = new Handler() {
+            @Override public void publish(LogRecord record) { warnings.add(record.getMessage()); }
+            @Override public void flush() { }
+            @Override public void close() { }
+        };
+        logger.addHandler(capture);
+        RuntimeException failure;
+        try {
+            failure = assertThrows(RuntimeException.class,
+                    () -> order.auditAs("probe uncertain commit outcome").save(fixture.context));
+        } finally {
+            logger.removeHandler(capture);
+        }
+        assertTrue("fault must reach the actual commit boundary", injected.get());
+        assertEquals(afterActualCommit ? 1 : 0, fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {order.getId()}).size());
+        assertEquals(afterActualCommit ? 1 : 0, fixture.driver.queryForList(
+                "SELECT id FROM order_item_data WHERE id = ?", new Object[] {item.getId()}).size());
+        assertEquals(afterActualCommit ? 1 : 0, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+        assertTrue("the outcome must not be reported as a known rollback",
+                failure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN"));
+        assertFalse("the public message must not contain the JDBC diagnostic",
+                failure.getMessage().contains("COMMIT-ACK-SECRET-CANARY"));
+        assertTrue(warnings.stream().anyMatch(message -> message.contains("outcome unknown")));
+        assertTrue("the operational warning must not contain the JDBC diagnostic",
+                warnings.stream().noneMatch(message -> message.contains("COMMIT-ACK-SECRET-CANARY")));
+        var retryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("reject replay before reload").save(fixture.context));
+        assertTrue(retryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
+        var childRetryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> item.auditAs("reject child replay before reload").save(fixture.context));
+        assertTrue(childRetryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
+        assertThrows(TeaQLRuntimeException.class,
+                () -> order.setEntityMutationLedger(new EntityMutationLedger()));
+    }
+
+    private static DataSource commitAcknowledgementFault(SQLiteDataSource source,
+            AtomicBoolean armed, AtomicBoolean injected, boolean afterActualCommit) {
+        return (DataSource) Proxy.newProxyInstance(DataSource.class.getClassLoader(),
+                new Class<?>[] {DataSource.class}, (proxy, method, args) -> {
+                    Object result = invoke(source, method, args);
+                    if (!method.getName().equals("getConnection")) return result;
+                    Connection actual = (Connection) result;
+                    return Proxy.newProxyInstance(Connection.class.getClassLoader(),
+                            new Class<?>[] {Connection.class}, (connectionProxy, operation, parameters) -> {
+                                if (operation.getName().equals("commit") && armed.get()
+                                        && injected.compareAndSet(false, true)) {
+                                    if (afterActualCommit) invoke(actual, operation, parameters);
+                                    throw new SQLException("COMMIT-ACK-SECRET-CANARY");
+                                }
+                                return invoke(actual, operation, parameters);
+                            });
+                });
+    }
+
+    private static DataSource rollbackFault(SQLiteDataSource source,
+            AtomicBoolean armed, AtomicBoolean injected, AtomicBoolean restoredAutoCommit) {
+        return (DataSource) Proxy.newProxyInstance(DataSource.class.getClassLoader(),
+                new Class<?>[] {DataSource.class}, (proxy, method, args) -> {
+                    Object result = invoke(source, method, args);
+                    if (!method.getName().equals("getConnection")) return result;
+                    Connection actual = (Connection) result;
+                    return Proxy.newProxyInstance(Connection.class.getClassLoader(),
+                            new Class<?>[] {Connection.class}, (connectionProxy, operation, parameters) -> {
+                                if (operation.getName().equals("rollback") && armed.get()
+                                        && injected.compareAndSet(false, true)) {
+                                    throw new SQLException("ROLLBACK-SECRET-CANARY");
+                                }
+                                if (operation.getName().equals("setAutoCommit") && injected.get()
+                                        && Boolean.TRUE.equals(parameters[0])) {
+                                    restoredAutoCommit.set(true);
+                                }
+                                return invoke(actual, operation, parameters);
+                            });
+                });
+    }
+
+    private static Object invoke(Object target, Method method, Object[] args) throws Throwable {
+        try {
+            return method.invoke(target, args);
+        } catch (InvocationTargetException failure) {
+            throw failure.getCause();
+        }
     }
 
     @Test public void postCommitAuditFailureReportsCommittedOutcomeWithoutReplayingLedger() throws Exception {
