@@ -461,8 +461,9 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                         warnTransactionCleanup("rollback after failed action", false, true);
                         if (failure instanceof Error) {
                             // Preserve a JVM-level failure, but do not implicitly
-                            // commit when restoring autoCommit below.
-                            failure.addSuppressed(new IllegalStateException("JDBC rollback failed"));
+                            // commit when restoring autoCommit below. The sanitized
+                            // marker also prevents the caller's graph from replaying.
+                            failure.addSuppressed(new TransactionOutcomeUnknownException());
                             throw failure;
                         }
                         throw new TransactionOutcomeUnknownException();

@@ -81,6 +81,7 @@ public class GraphTraceSqliteTest {
         final DefaultUserContext context;
         final SqliteCommittedMutationRecorder committedRecorder;
         volatile boolean failReadback;
+        volatile boolean errorReadback;
         volatile boolean unknownUpdateCounts;
 
         Fixture() throws Exception { this(false); }
@@ -114,6 +115,9 @@ public class GraphTraceSqliteTest {
                     return counts;
                 }
                 @Override public List<Map<String, Object>> queryForList(String text, Object[] args) {
+                    if (errorReadback && text.startsWith("SELECT * FROM") && text.contains("customer_order_data")) {
+                        throw new AssertionError("synthetic Error after business write");
+                    }
                     if (failReadback && text.startsWith("SELECT * FROM") && text.contains("customer_order_data")) {
                         // A real driver failure after a successful write, inside the same transaction.
                         execute("DROP TABLE customer_order_data");
@@ -748,6 +752,33 @@ public class GraphTraceSqliteTest {
         var retryFailure = assertThrows(TeaQLRuntimeException.class,
                 () -> order.auditAs("reject replay after failed rollback").save(fixture.context));
         assertTrue(retryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
+    }
+
+    @Test public void failedRollbackAfterErrorRequiresReloadBeforeRetry() throws Exception {
+        var armed = new AtomicBoolean();
+        var injected = new AtomicBoolean();
+        var restoredAutoCommit = new AtomicBoolean();
+        var fixture = new Fixture(false,
+                source -> rollbackFault(source, armed, injected, restoredAutoCommit));
+        var order = fixture.create("CustomerOrder", 190, "error before rollback");
+        fixture.errorReadback = true;
+        armed.set(true);
+
+        var failure = assertThrows(AssertionError.class,
+                () -> order.auditAs("probe rollback failure after Error").save(fixture.context));
+        assertTrue("the original Error must carry a sanitized unknown-outcome marker",
+                Arrays.stream(failure.getSuppressed())
+                        .anyMatch(TransactionOutcomeUnknownException.class::isInstance));
+        assertTrue("rollback fault must be injected", injected.get());
+        assertFalse("failed rollback must not restore autoCommit", restoredAutoCommit.get());
+        fixture.errorReadback = false;
+        var retryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("reject retry after unknown Error outcome").save(fixture.context));
+        assertTrue(retryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
+        var independent = fixture.create("Payment", 191, "independent graph after Error");
+        independent.auditAs("save independent graph after unknown Error outcome")
+                .save(fixture.context);
+        assertEquals(Long.valueOf(1), independent.getVersion());
     }
 
     private static void assertCommitAcknowledgementUnknown(boolean afterActualCommit) throws Exception {

@@ -572,11 +572,18 @@ public class TeaQLRuntime implements AutoCloseable {
                 entityMutationLedger.markTransactionOutcomeUnknownRequiresReload();
                 throw failure;
             } catch (RuntimeException | Error failure) {
-                restoreGraphPersistenceState(
-                        entity,
-                        entityMutationLedger,
-                        persistenceStates,
-                        Collections.newSetFromMap(new IdentityHashMap<>()));
+                if (Arrays.stream(failure.getSuppressed())
+                        .anyMatch(TransactionOutcomeUnknownException.class::isInstance)) {
+                    // Preserve the original JVM Error while preventing replay after
+                    // an unconfirmed rollback of its partially written graph.
+                    entityMutationLedger.markTransactionOutcomeUnknownRequiresReload();
+                } else {
+                    restoreGraphPersistenceState(
+                            entity,
+                            entityMutationLedger,
+                            persistenceStates,
+                            Collections.newSetFromMap(new IdentityHashMap<>()));
+                }
                 throw failure;
             }
             CommittedStateReconciliationException reconciliationOutcome = null;
