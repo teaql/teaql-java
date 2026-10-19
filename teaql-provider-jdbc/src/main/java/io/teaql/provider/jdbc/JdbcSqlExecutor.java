@@ -17,6 +17,10 @@ import java.util.function.Consumer;
 
 public class JdbcSqlExecutor implements SqlExecutionAdapter {
 
+    // Cap SQLite plain-text materialization before expanding exponent-form
+    // BigDecimal inputs. Model precision/scale checks remain separate.
+    private static final long MAX_SQLITE_DECIMAL_TEXT_LENGTH = 1_000_000L;
+
     private final DataSource dataSource;
     // A held view retains only this token, not the executor, connection or DataSource.
     private final Object storageIdentity = new Object();
@@ -281,6 +285,9 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 return (V) java.time.LocalTime.parse(separator < 0 ? text : text.substring(separator + 1));
             }
             if (type == String.class) return (V) String.valueOf(value);
+            if (type == java.math.BigDecimal.class && value instanceof CharSequence text) {
+                return (V) new java.math.BigDecimal(text.toString());
+            }
             throw new IllegalArgumentException("Cannot convert JDBC value " + value.getClass().getName()
                     + " to " + type.getName());
         }
@@ -421,7 +428,22 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         } else if (value instanceof Byte number) {
             statement.setByte(index, number);
         } else if (value instanceof java.math.BigDecimal number) {
-            statement.setBigDecimal(index, number);
+            // SQLite's exact Decimal columns require canonical plain text. The
+            // driver binds exponent-form BigDecimal values (for example 1E-7)
+            // as exponent text, which the column CHECK correctly rejects.
+            // Keep native numeric binding for the other JDBC providers.
+            if (isSqlite(statement)) {
+                long precision = number.precision();
+                long scale = number.scale();
+                long plainLength = scale <= 0
+                        ? precision - scale
+                        : Math.max(precision, scale + 1) + 1;
+                if (number.signum() < 0) plainLength++;
+                if (plainLength > MAX_SQLITE_DECIMAL_TEXT_LENGTH) {
+                    throw new SQLException("SQLite Decimal plain-text representation exceeds safe length");
+                }
+                statement.setString(index, number.toPlainString());
+            } else statement.setBigDecimal(index, number);
         } else if (value instanceof Double number) {
             statement.setDouble(index, number);
         } else if (value instanceof Float number) {

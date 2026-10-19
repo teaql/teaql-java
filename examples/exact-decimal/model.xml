@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root name="exact-decimal-service"
+      cfg_mask_china_mobile="false"
+      data_service="sqlite"
+      org="example"
+      _module_key="root">
+  <platform _name="Platform"
+            _module="Organization"
+            _module_key="organization"
+            name="Exact Decimal Platform"/>
+
+  <decimal_entry _name="Decimal Entry"
+                 _module="Ledger"
+                 _module_key="ledger"
+                 platform="platform()"
+                 label="string()"
+                 amount="number()"/>
+</root>

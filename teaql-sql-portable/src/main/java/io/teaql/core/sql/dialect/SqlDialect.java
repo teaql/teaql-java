@@ -1,6 +1,8 @@
 package io.teaql.core.sql.dialect;
 
 import io.teaql.core.SearchRequest;
+import io.teaql.core.AggrFunction;
+import io.teaql.core.sql.SQLColumn;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -52,6 +54,21 @@ public interface SqlDialect {
      */
     default String mapColumnType(String type) {
         return type;
+    }
+
+    /** Physical type plus column-local constraints needed by a provider. */
+    default String columnTypeAndConstraintsSql(SQLColumn column) {
+        return mapColumnType(column.getType());
+    }
+
+    /** Override only when a provider needs an exact Decimal aggregate. */
+    default String decimalAggregateSql(AggrFunction function, String columnSql, boolean directColumn) {
+        return null;
+    }
+
+    /** Decode an exact modeled Decimal aggregate without binary-float fallback. */
+    default Object decodeDecimalAggregate(Object value) {
+        return value;
     }
 
     /**
