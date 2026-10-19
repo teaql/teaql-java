@@ -29,8 +29,17 @@
             <version>3.53.2.1</version>
         </dependency>
         <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.teaql</groupId>
             <artifactId>teaql-provider-jdbc</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.teaql</groupId>
+            <artifactId>teaql-runtime</artifactId>
             <version>${project.version}</version>
         </dependency>
         <!-- Testing dependencies -->
@@ -49,12 +58,6 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.teaql</groupId>
-            <artifactId>teaql-runtime</artifactId>
-            <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
