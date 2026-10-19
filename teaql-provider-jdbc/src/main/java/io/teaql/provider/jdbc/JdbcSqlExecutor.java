@@ -455,7 +455,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 } catch (RuntimeException | Error failure) {
                     try {
                         connection.rollback();
-                    } catch (SQLException | RuntimeException rollbackFailure) {
+                    } catch (SQLException | RuntimeException | Error rollbackFailure) {
                         outcomeUnknown = true;
                         rollbackUnconfirmed = true;
                         warnTransactionCleanup("rollback after failed action", false, true);
@@ -465,6 +465,9 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                             // is unreliable because Error may disable suppression.
                             throw new TransactionOutcomeUnknownException((Error) failure);
                         }
+                        if (rollbackFailure instanceof Error) {
+                            throw new TransactionOutcomeUnknownException((Error) rollbackFailure);
+                        }
                         throw new TransactionOutcomeUnknownException();
                     }
                     throw failure;
@@ -472,7 +475,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 try {
                     connection.commit();
                     committed = true;
-                } catch (SQLException | RuntimeException commitFailure) {
+                } catch (SQLException | RuntimeException | Error commitFailure) {
                     // The database may have committed before the driver lost the
                     // acknowledgement. Conversely, restoring autoCommit without a
                     // rollback can commit a transaction the driver never attempted.
@@ -480,11 +483,13 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                     warnTransactionCleanup("commit confirmation", false, true);
                     try {
                         connection.rollback();
-                    } catch (SQLException | RuntimeException rollbackFailure) {
+                    } catch (SQLException | RuntimeException | Error rollbackFailure) {
                         rollbackUnconfirmed = true;
                         warnTransactionCleanup("rollback after unconfirmed commit", false, true);
                     }
-                    throw new TransactionOutcomeUnknownException();
+                    throw commitFailure instanceof Error
+                            ? new TransactionOutcomeUnknownException((Error) commitFailure)
+                            : new TransactionOutcomeUnknownException();
                 }
             } finally {
                 transactionConnection.remove();
@@ -494,7 +499,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 if (!rollbackUnconfirmed) {
                     try {
                         connection.setAutoCommit(autoCommit);
-                    } catch (SQLException | RuntimeException cleanupFailure) {
+                    } catch (SQLException | RuntimeException | Error cleanupFailure) {
                         // A successful commit is already durable. A cleanup error
                         // must not make the caller replay that business mutation.
                         warnTransactionCleanup("autoCommit restoration", committed, outcomeUnknown);
@@ -506,7 +511,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         } finally {
             try {
                 connection.close();
-            } catch (SQLException | RuntimeException cleanupFailure) {
+            } catch (SQLException | RuntimeException | Error cleanupFailure) {
                 warnTransactionCleanup("connection close", committed, outcomeUnknown);
             }
         }
@@ -516,9 +521,10 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         try {
             String state = committed ? "committed" : outcomeUnknown ? "outcome unknown" : "unsuccessful";
             LOG.warning("JDBC transaction " + state + "; " + operation + " failed");
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException | Error ignored) {
             // A user-installed logging handler must not turn a committed write
-            // back into an apparently retryable transaction failure.
+            // back into an apparently retryable transaction failure, even if it
+            // throws an Error with suppressed diagnostics disabled.
         }
     }
 
