@@ -23,7 +23,13 @@ import static org.junit.Assert.assertTrue;
 /** A committed JDBC write must not look like a rolled-back, retryable save. */
 public class JdbcCommittedCleanupSqliteTest {
     private static final String DIAGNOSTIC_CANARY = "POST-COMMIT-CLEANUP-SECRET-CANARY";
-    private enum Fault { AUTO_COMMIT_RESTORE, CLOSE }
+    private enum Fault { AUTO_COMMIT_RESTORE, CLOSE, AUTO_COMMIT_RESTORE_ERROR, CLOSE_ERROR }
+
+    private static final class NoSuppressionError extends Error {
+        private NoSuppressionError() {
+            super(DIAGNOSTIC_CANARY, null, false, false);
+        }
+    }
 
     @Test public void failedAutoCommitRestoreAfterCommitKeepsCommittedOutcome() throws Exception {
         verifyCommittedCleanupFailure(Fault.AUTO_COMMIT_RESTORE);
@@ -37,12 +43,29 @@ public class JdbcCommittedCleanupSqliteTest {
         verifyCommittedCleanupFailure(Fault.AUTO_COMMIT_RESTORE, true);
     }
 
+    @Test public void autoCommitRestoreErrorAfterCommitKeepsCommittedOutcome() throws Exception {
+        verifyCommittedCleanupFailure(Fault.AUTO_COMMIT_RESTORE_ERROR);
+    }
+
+    @Test public void closeErrorAfterCommitKeepsCommittedOutcome() throws Exception {
+        verifyCommittedCleanupFailure(Fault.CLOSE_ERROR);
+    }
+
+    @Test public void warningHandlerErrorAfterCommitKeepsCommittedOutcome() throws Exception {
+        verifyCommittedCleanupFailure(Fault.AUTO_COMMIT_RESTORE, false, true);
+    }
+
     private static void verifyCommittedCleanupFailure(Fault fault) throws Exception {
         verifyCommittedCleanupFailure(fault, false);
     }
 
     private static void verifyCommittedCleanupFailure(Fault fault, boolean warningHandlerFails)
             throws Exception {
+        verifyCommittedCleanupFailure(fault, warningHandlerFails, false);
+    }
+
+    private static void verifyCommittedCleanupFailure(Fault fault, boolean warningHandlerFails,
+            boolean warningHandlerThrowsError) throws Exception {
         var backing = new SQLiteDataSource();
         backing.setUrl("jdbc:sqlite:" + Files.createTempFile("teaql-committed-cleanup-", ".db"));
         try (var connection = backing.getConnection(); var statement = connection.createStatement()) {
@@ -59,13 +82,16 @@ public class JdbcCommittedCleanupSqliteTest {
                             new Class<?>[] {Connection.class}, (connectionProxy, operation, parameters) -> {
                                 if (operation.getName().equals("setAutoCommit")
                                         && Boolean.TRUE.equals(parameters[0]) && committed.get()
-                                        && fault == Fault.AUTO_COMMIT_RESTORE) {
+                                        && (fault == Fault.AUTO_COMMIT_RESTORE
+                                        || fault == Fault.AUTO_COMMIT_RESTORE_ERROR)) {
+                                    if (fault == Fault.AUTO_COMMIT_RESTORE_ERROR) throw new NoSuppressionError();
                                     throw new SQLException(DIAGNOSTIC_CANARY);
                                 }
                                 Object result = invoke(actual, operation, parameters);
                                 if (operation.getName().equals("commit")) committed.set(true);
                                 if (operation.getName().equals("close") && committed.get()
-                                        && fault == Fault.CLOSE) {
+                                        && (fault == Fault.CLOSE || fault == Fault.CLOSE_ERROR)) {
+                                    if (fault == Fault.CLOSE_ERROR) throw new NoSuppressionError();
                                     throw new SQLException(DIAGNOSTIC_CANARY);
                                 }
                                 return result;
@@ -77,6 +103,7 @@ public class JdbcCommittedCleanupSqliteTest {
         Handler capture = new Handler() {
             @Override public void publish(LogRecord record) {
                 warnings.add(record.getMessage());
+                if (warningHandlerThrowsError) throw new NoSuppressionError();
                 if (warningHandlerFails) throw new IllegalStateException(DIAGNOSTIC_CANARY);
             }
             @Override public void flush() { }
@@ -84,11 +111,11 @@ public class JdbcCommittedCleanupSqliteTest {
         };
         logger.addHandler(capture);
 
-        RuntimeException reported = null;
+        Throwable reported = null;
         try {
             executor.executeInTransaction(() -> executor.update(
                     "INSERT INTO committed_cleanup_probe (id) VALUES (?)", new Object[] {1L}));
-        } catch (RuntimeException failure) {
+        } catch (RuntimeException | Error failure) {
             reported = failure;
         } finally {
             logger.removeHandler(capture);

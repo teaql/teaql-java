@@ -1,5 +1,6 @@
 package io.teaql.provider.jdbc;
 
+import io.teaql.core.TransactionOutcomeUnknownException;
 import io.teaql.dataservice.sql.SqlExecutionAdapter;
 import io.teaql.dataservice.sql.SqlRowMapper;
 
@@ -437,37 +438,72 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             throw new RuntimeException("JDBC transaction failed", failure);
         }
         boolean committed = false;
+        boolean outcomeUnknown = false;
+        boolean rollbackUnconfirmed = false;
         try {
             boolean autoCommit = connection.getAutoCommit();
             connection.setAutoCommit(false);
             transactionConnection.set(connection);
             transactionRollbackOnly.set(false);
             try {
-                action.run();
-                if (Boolean.TRUE.equals(transactionRollbackOnly.get())) {
-                    throw new IllegalStateException(
-                            "JDBC transaction is rollback-only after a failed operation");
-                }
-                connection.commit();
-                committed = true;
-            } catch (RuntimeException | Error failure) {
                 try {
-                    connection.rollback();
-                } catch (SQLException | RuntimeException rollbackFailure) {
-                    // Keep the original failure. The JDBC message may contain
-                    // sensitive connection details and is not safe to expose.
-                    failure.addSuppressed(new IllegalStateException("JDBC rollback failed"));
+                    action.run();
+                    if (Boolean.TRUE.equals(transactionRollbackOnly.get())) {
+                        throw new IllegalStateException(
+                                "JDBC transaction is rollback-only after a failed operation");
+                    }
+                } catch (RuntimeException | Error failure) {
+                    try {
+                        connection.rollback();
+                    } catch (SQLException | RuntimeException | Error rollbackFailure) {
+                        outcomeUnknown = true;
+                        rollbackUnconfirmed = true;
+                        warnTransactionCleanup("rollback after failed action", false, true);
+                        if (failure instanceof Error) {
+                            // The graph runtime must fence the ledger before
+                            // rethrowing the original Error. A suppressed marker
+                            // is unreliable because Error may disable suppression.
+                            throw new TransactionOutcomeUnknownException((Error) failure);
+                        }
+                        if (rollbackFailure instanceof Error) {
+                            throw new TransactionOutcomeUnknownException((Error) rollbackFailure);
+                        }
+                        throw new TransactionOutcomeUnknownException();
+                    }
+                    throw failure;
                 }
-                throw failure;
+                try {
+                    connection.commit();
+                    committed = true;
+                } catch (SQLException | RuntimeException | Error commitFailure) {
+                    // The database may have committed before the driver lost the
+                    // acknowledgement. Conversely, restoring autoCommit without a
+                    // rollback can commit a transaction the driver never attempted.
+                    outcomeUnknown = true;
+                    warnTransactionCleanup("commit confirmation", false, true);
+                    try {
+                        connection.rollback();
+                    } catch (SQLException | RuntimeException | Error rollbackFailure) {
+                        rollbackUnconfirmed = true;
+                        warnTransactionCleanup("rollback after unconfirmed commit", false, true);
+                    }
+                    throw commitFailure instanceof Error
+                            ? new TransactionOutcomeUnknownException((Error) commitFailure)
+                            : new TransactionOutcomeUnknownException();
+                }
             } finally {
                 transactionConnection.remove();
                 transactionRollbackOnly.remove();
-                try {
-                    connection.setAutoCommit(autoCommit);
-                } catch (SQLException | RuntimeException cleanupFailure) {
-                    // A successful commit is already durable. A cleanup error
-                    // must not make the caller replay that business mutation.
-                    warnTransactionCleanup("autoCommit restoration", committed);
+                // A confirmed rollback leaves no pending write to commit. If
+                // rollback itself failed, changing autoCommit could commit it.
+                if (!rollbackUnconfirmed) {
+                    try {
+                        connection.setAutoCommit(autoCommit);
+                    } catch (SQLException | RuntimeException | Error cleanupFailure) {
+                        // A successful commit is already durable. A cleanup error
+                        // must not make the caller replay that business mutation.
+                        warnTransactionCleanup("autoCommit restoration", committed, outcomeUnknown);
+                    }
                 }
             }
         } catch (SQLException e) {
@@ -475,20 +511,20 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         } finally {
             try {
                 connection.close();
-            } catch (SQLException | RuntimeException cleanupFailure) {
-                warnTransactionCleanup("connection close", committed);
+            } catch (SQLException | RuntimeException | Error cleanupFailure) {
+                warnTransactionCleanup("connection close", committed, outcomeUnknown);
             }
         }
     }
 
-    private static void warnTransactionCleanup(String operation, boolean committed) {
+    private static void warnTransactionCleanup(String operation, boolean committed, boolean outcomeUnknown) {
         try {
-            LOG.warning(committed
-                    ? "JDBC transaction committed; " + operation + " failed"
-                    : "JDBC transaction unsuccessful; " + operation + " failed");
-        } catch (RuntimeException ignored) {
+            String state = committed ? "committed" : outcomeUnknown ? "outcome unknown" : "unsuccessful";
+            LOG.warning("JDBC transaction " + state + "; " + operation + " failed");
+        } catch (RuntimeException | Error ignored) {
             // A user-installed logging handler must not turn a committed write
-            // back into an apparently retryable transaction failure.
+            // back into an apparently retryable transaction failure, even if it
+            // throws an Error with suppressed diagnostics disabled.
         }
     }
 
