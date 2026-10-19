@@ -102,6 +102,31 @@ public class SqliteDecimalFunctionsTest {
                         () -> statement.executeUpdate("INSERT INTO amounts (value) VALUES ('not-a-decimal')"));
                 assertThrows(java.sql.SQLException.class,
                         () -> statement.executeUpdate("INSERT INTO amounts (value) VALUES (X'31')"));
+                assertThrows(java.sql.SQLException.class,
+                        () -> statement.executeUpdate(
+                                "INSERT INTO amounts (value) VALUES ('1e-1000000000')"));
+            }
+        }
+    }
+
+    @Test
+    public void exponentTextCannotAmplifyDecimalValidationOrAggregation() throws Exception {
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite::memory:")) {
+            SqliteDecimalFunctions.register(connection);
+            try (Statement statement = connection.createStatement();
+                 ResultSet rows = statement.executeQuery(
+                         "SELECT teaql_decimal_valid('1e-1000000000'), "
+                                 + "teaql_decimal_valid('1E+1000000000'), "
+                                 + "teaql_decimal_valid('0.0000001')")) {
+                assertTrue(rows.next());
+                assertEquals(0, rows.getInt(1));
+                assertEquals(0, rows.getInt(2));
+                assertEquals(1, rows.getInt(3));
+            }
+            try (Statement statement = connection.createStatement()) {
+                assertThrows(java.sql.SQLException.class,
+                        () -> statement.executeQuery(
+                                "SELECT teaql_decimal_sum('1e-1000000000')"));
             }
         }
     }

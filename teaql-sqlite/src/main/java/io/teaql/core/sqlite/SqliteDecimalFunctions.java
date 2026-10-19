@@ -16,6 +16,10 @@ final class SqliteDecimalFunctions {
 
     private SqliteDecimalFunctions() {}
 
+    private static boolean hasExponent(String text) {
+        return text != null && (text.indexOf('e') >= 0 || text.indexOf('E') >= 0);
+    }
+
     static void register(Connection connection) throws SQLException {
         Connection sqlite = connection instanceof org.sqlite.SQLiteConnection
                 ? connection : connection.unwrap(org.sqlite.SQLiteConnection.class);
@@ -41,7 +45,11 @@ final class SqliteDecimalFunctions {
                 String text = value_text(0);
                 boolean valid;
                 try {
-                    valid = text != null && new BigDecimal(text).toPlainString().equals(text);
+                    // Exponent notation is never canonical plain text. Reject it
+                    // before toPlainString(), which could expand a tiny input into
+                    // billions of characters (for example, 1e-1000000000).
+                    valid = text != null && !hasExponent(text)
+                            && new BigDecimal(text).toPlainString().equals(text);
                 } catch (NumberFormatException invalid) {
                     valid = false;
                 }
@@ -59,6 +67,10 @@ final class SqliteDecimalFunctions {
                     return;
                 }
                 String text = value_text(0);
+                if (hasExponent(text)) {
+                    error("invalid decimal text");
+                    return;
+                }
                 try {
                     BigDecimal value = new BigDecimal(text);
                     total = total == null ? value : total.add(value);
