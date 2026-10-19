@@ -424,7 +424,12 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         } else if (value instanceof Byte number) {
             statement.setByte(index, number);
         } else if (value instanceof java.math.BigDecimal number) {
-            statement.setBigDecimal(index, number);
+            // SQLite's exact Decimal columns require canonical plain text. The
+            // driver binds exponent-form BigDecimal values (for example 1E-7)
+            // as exponent text, which the column CHECK correctly rejects.
+            // Keep native numeric binding for the other JDBC providers.
+            if (isSqlite(statement)) statement.setString(index, number.toPlainString());
+            else statement.setBigDecimal(index, number);
         } else if (value instanceof Double number) {
             statement.setDouble(index, number);
         } else if (value instanceof Float number) {

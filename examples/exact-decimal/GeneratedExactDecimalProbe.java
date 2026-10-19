@@ -68,7 +68,22 @@ public final class GeneratedExactDecimalProbe {
             throw new AssertionError("generated Decimal precision was not preserved: " + precision);
         }
 
-        System.out.println("GENERATED_EXACT_DECIMAL_PASS q=1 e=1 save=3 update=1 sum=0.3 scale=3.50 precision=19");
+        for (String exponent : new String[] {"1E-7", "1E+8"}) {
+            BigDecimal input = new BigDecimal(exponent);
+            DecimalEntry entry = save(source, platform, "exponent " + exponent, input);
+            BigDecimal reloaded = reloadAmount(source, entry.getId());
+            var filtered = Q.decimalEntriesWithMinimalFields().selectAmount()
+                    .withIdIs(entry.getId()).withAmountIs(input).limit(1)
+                    .comment("Find generated exact Decimal exponent value")
+                    .purpose("Verify canonical SQLite binding in generated Q and mutation APIs")
+                    .executeForOne(source);
+            if (input.compareTo(reloaded) != 0 || filtered == null
+                    || input.compareTo(E.decimalEntry(filtered).getAmount().eval()) != 0) {
+                throw new AssertionError("generated Decimal exponent round-trip failed: " + exponent);
+            }
+        }
+
+        System.out.println("GENERATED_EXACT_DECIMAL_PASS q=1 e=1 save=5 update=1 sum=0.3 scale=3.50 precision=19 exponent=2");
     }
 
     private static DecimalEntry save(CustomUserContext context, Platform platform,

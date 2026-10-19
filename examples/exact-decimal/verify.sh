@@ -37,7 +37,7 @@ for round in 1 2; do
     echo "Generated exact Decimal probe failed: $run_dir/round-$round.log" >&2
     exit 1
   fi
-  if ! rg -q '^GENERATED_EXACT_DECIMAL_PASS q=1 e=1 save=3 update=1 sum=0.3 scale=3.50 precision=19$' \
+  if ! rg -q '^GENERATED_EXACT_DECIMAL_PASS q=1 e=1 save=5 update=1 sum=0.3 scale=3.50 precision=19 exponent=2$' \
       "$run_dir/round-$round.log"; then
     echo "Generated exact Decimal probe lacks its complete marker: $run_dir/round-$round.log" >&2
     exit 1

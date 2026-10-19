@@ -15,6 +15,8 @@ installs only the local runtime into Maven's local cache, then runs twice:
 - Audited saves of `0.1` and `0.2`, followed by an exact modeled Q `SUM=0.3`.
 - A `3.50` scale round-trip and audited update to
   `123456789012.3456789` without losing numeric precision.
+- Exponent-form `BigDecimal` inputs (`1E-7`, `1E+8`) through generated
+  audited mutation, typed Q filtering and E hydration.
 - The actual generated Spring console startup, including repeated
   `ensureSchema` against one workspace database.
 

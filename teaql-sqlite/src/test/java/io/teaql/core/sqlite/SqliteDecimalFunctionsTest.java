@@ -189,6 +189,16 @@ public class SqliteDecimalFunctionsTest {
             assertThrows(IllegalArgumentException.class, () -> unsupported
                     .comment("reject approximate Decimal average")
                     .purpose("prevent silent financial rounding").aggregation(context));
+
+            for (String value : new String[] {"1E-7", "1E+8"}) {
+                jdbc.update("INSERT INTO decimal_row_data (id, version, bucket, amount) VALUES (?, ?, ?, ?)",
+                        new Object[] {value.equals("1E-7") ? 4L : 5L, 1L, "C", new BigDecimal(value)});
+                var matched = jdbc.queryForList(
+                        "SELECT amount FROM decimal_row_data WHERE amount = ?",
+                        new Object[] {new BigDecimal(value)});
+                assertEquals(1, matched.size());
+                assertEquals(new BigDecimal(value).toPlainString(), matched.get(0).get("amount"));
+            }
         } finally {
             Files.deleteIfExists(file);
         }
