@@ -509,10 +509,43 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         } catch (SQLException e) {
             throw new RuntimeException("JDBC transaction failed", e);
         } finally {
-            try {
-                connection.close();
-            } catch (SQLException | RuntimeException | Error cleanupFailure) {
-                warnTransactionCleanup("connection close", committed, outcomeUnknown);
+            if (rollbackUnconfirmed) {
+                // JDBC leaves close() with an active transaction implementation-defined.
+                // A pool may even commit when close() returns the connection, so never
+                // return an unconfirmed transaction to it. A one-shot rollback fault
+                // can recover on retry, allowing a confirmed rollback before close.
+                boolean rollbackConfirmed = false;
+                try {
+                    connection.rollback();
+                    rollbackConfirmed = true;
+                } catch (SQLException | RuntimeException | Error cleanupFailure) {
+                    warnTransactionCleanup("rollback retry before connection disposal", committed, outcomeUnknown);
+                }
+                if (rollbackConfirmed) {
+                    try {
+                        connection.close();
+                    } catch (SQLException | RuntimeException | Error cleanupFailure) {
+                        warnTransactionCleanup("connection close after confirmed rollback", committed, outcomeUnknown);
+                    }
+                } else {
+                    try {
+                        connection.abort(Runnable::run);
+                        // Some drivers incorrectly implement abort() as a no-op.
+                        if (!connection.isClosed()) {
+                            warnTransactionCleanup("connection abort completion", committed, outcomeUnknown);
+                        }
+                    } catch (SQLException | RuntimeException | Error cleanupFailure) {
+                        // Do not fall back to close(): correctness takes precedence
+                        // over reclaiming a still-active transaction.
+                        warnTransactionCleanup("connection abort", committed, outcomeUnknown);
+                    }
+                }
+            } else {
+                try {
+                    connection.close();
+                } catch (SQLException | RuntimeException | Error cleanupFailure) {
+                    warnTransactionCleanup("connection close", committed, outcomeUnknown);
+                }
             }
         }
     }
