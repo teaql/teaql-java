@@ -82,6 +82,7 @@ public class GraphTraceSqliteTest {
         final SqliteCommittedMutationRecorder committedRecorder;
         volatile boolean failReadback;
         volatile boolean errorReadback;
+        volatile boolean errorReadbackWithoutSuppression;
         volatile boolean unknownUpdateCounts;
 
         Fixture() throws Exception { this(false); }
@@ -115,6 +116,10 @@ public class GraphTraceSqliteTest {
                     return counts;
                 }
                 @Override public List<Map<String, Object>> queryForList(String text, Object[] args) {
+                    if (errorReadbackWithoutSuppression && text.startsWith("SELECT * FROM")
+                            && text.contains("customer_order_data")) {
+                        throw new NoSuppressionError();
+                    }
                     if (errorReadback && text.startsWith("SELECT * FROM") && text.contains("customer_order_data")) {
                         throw new AssertionError("synthetic Error after business write");
                     }
@@ -220,6 +225,12 @@ public class GraphTraceSqliteTest {
             entity.__internalInitializeNewEntityId(id);
             entity.updateProperty("name", name);
             return entity;
+        }
+    }
+
+    private static final class NoSuppressionError extends Error {
+        private NoSuppressionError() {
+            super("synthetic Error without suppressed diagnostics", null, false, false);
         }
     }
 
@@ -766,9 +777,7 @@ public class GraphTraceSqliteTest {
 
         var failure = assertThrows(AssertionError.class,
                 () -> order.auditAs("probe rollback failure after Error").save(fixture.context));
-        assertTrue("the original Error must carry a sanitized unknown-outcome marker",
-                Arrays.stream(failure.getSuppressed())
-                        .anyMatch(TransactionOutcomeUnknownException.class::isInstance));
+        assertEquals("synthetic Error after business write", failure.getMessage());
         assertTrue("rollback fault must be injected", injected.get());
         assertFalse("failed rollback must not restore autoCommit", restoredAutoCommit.get());
         fixture.errorReadback = false;
@@ -779,6 +788,26 @@ public class GraphTraceSqliteTest {
         independent.auditAs("save independent graph after unknown Error outcome")
                 .save(fixture.context);
         assertEquals(Long.valueOf(1), independent.getVersion());
+    }
+
+    @Test public void failedRollbackAfterUnsuppressibleErrorRequiresReloadBeforeRetry() throws Exception {
+        var armed = new AtomicBoolean();
+        var injected = new AtomicBoolean();
+        var restoredAutoCommit = new AtomicBoolean();
+        var fixture = new Fixture(false,
+                source -> rollbackFault(source, armed, injected, restoredAutoCommit));
+        var order = fixture.create("CustomerOrder", 192, "unsuppressible error before rollback");
+        fixture.errorReadbackWithoutSuppression = true;
+        armed.set(true);
+
+        assertThrows(NoSuppressionError.class,
+                () -> order.auditAs("probe unsuppressible Error rollback failure").save(fixture.context));
+        assertTrue("rollback fault must be injected", injected.get());
+        assertFalse("failed rollback must not restore autoCommit", restoredAutoCommit.get());
+        fixture.errorReadbackWithoutSuppression = false;
+        var retryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("reject retry after unsuppressible Error").save(fixture.context));
+        assertTrue(retryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
     }
 
     private static void assertCommitAcknowledgementUnknown(boolean afterActualCommit) throws Exception {

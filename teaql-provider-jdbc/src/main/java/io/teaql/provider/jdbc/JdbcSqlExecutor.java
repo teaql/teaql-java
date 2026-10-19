@@ -460,11 +460,10 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                         rollbackUnconfirmed = true;
                         warnTransactionCleanup("rollback after failed action", false, true);
                         if (failure instanceof Error) {
-                            // Preserve a JVM-level failure, but do not implicitly
-                            // commit when restoring autoCommit below. The sanitized
-                            // marker also prevents the caller's graph from replaying.
-                            failure.addSuppressed(new TransactionOutcomeUnknownException());
-                            throw failure;
+                            // The graph runtime must fence the ledger before
+                            // rethrowing the original Error. A suppressed marker
+                            // is unreliable because Error may disable suppression.
+                            throw new TransactionOutcomeUnknownException((Error) failure);
                         }
                         throw new TransactionOutcomeUnknownException();
                     }

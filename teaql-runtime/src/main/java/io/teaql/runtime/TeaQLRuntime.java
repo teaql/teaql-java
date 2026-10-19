@@ -570,20 +570,14 @@ public class TeaQLRuntime implements AutoCloseable {
                 // The JDBC commit acknowledgement can fail after durable commit.
                 // Restoring the old version would make this graph appear retryable.
                 entityMutationLedger.markTransactionOutcomeUnknownRequiresReload();
+                if (failure.originalError() != null) throw failure.originalError();
                 throw failure;
             } catch (RuntimeException | Error failure) {
-                if (Arrays.stream(failure.getSuppressed())
-                        .anyMatch(TransactionOutcomeUnknownException.class::isInstance)) {
-                    // Preserve the original JVM Error while preventing replay after
-                    // an unconfirmed rollback of its partially written graph.
-                    entityMutationLedger.markTransactionOutcomeUnknownRequiresReload();
-                } else {
-                    restoreGraphPersistenceState(
-                            entity,
-                            entityMutationLedger,
-                            persistenceStates,
-                            Collections.newSetFromMap(new IdentityHashMap<>()));
-                }
+                restoreGraphPersistenceState(
+                        entity,
+                        entityMutationLedger,
+                        persistenceStates,
+                        Collections.newSetFromMap(new IdentityHashMap<>()));
                 throw failure;
             }
             CommittedStateReconciliationException reconciliationOutcome = null;
