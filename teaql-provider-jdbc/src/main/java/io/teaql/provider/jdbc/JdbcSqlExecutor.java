@@ -14,8 +14,11 @@ import java.util.Map;
 import java.util.stream.Stream;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import java.util.logging.Logger;
 
 public class JdbcSqlExecutor implements SqlExecutionAdapter {
+
+    private static final Logger LOG = Logger.getLogger(JdbcSqlExecutor.class.getName());
 
     private final DataSource dataSource;
     // A held view retains only this token, not the executor, connection or DataSource.
@@ -427,7 +430,14 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             }
             return;
         }
-        try (Connection connection = openConnection()) {
+        Connection connection;
+        try {
+            connection = openConnection();
+        } catch (SQLException failure) {
+            throw new RuntimeException("JDBC transaction failed", failure);
+        }
+        boolean committed = false;
+        try {
             boolean autoCommit = connection.getAutoCommit();
             connection.setAutoCommit(false);
             transactionConnection.set(connection);
@@ -439,16 +449,46 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                             "JDBC transaction is rollback-only after a failed operation");
                 }
                 connection.commit();
+                committed = true;
             } catch (RuntimeException | Error failure) {
-                connection.rollback();
+                try {
+                    connection.rollback();
+                } catch (SQLException | RuntimeException rollbackFailure) {
+                    // Keep the original failure. The JDBC message may contain
+                    // sensitive connection details and is not safe to expose.
+                    failure.addSuppressed(new IllegalStateException("JDBC rollback failed"));
+                }
                 throw failure;
             } finally {
                 transactionConnection.remove();
                 transactionRollbackOnly.remove();
-                connection.setAutoCommit(autoCommit);
+                try {
+                    connection.setAutoCommit(autoCommit);
+                } catch (SQLException | RuntimeException cleanupFailure) {
+                    // A successful commit is already durable. A cleanup error
+                    // must not make the caller replay that business mutation.
+                    warnTransactionCleanup("autoCommit restoration", committed);
+                }
             }
         } catch (SQLException e) {
             throw new RuntimeException("JDBC transaction failed", e);
+        } finally {
+            try {
+                connection.close();
+            } catch (SQLException | RuntimeException cleanupFailure) {
+                warnTransactionCleanup("connection close", committed);
+            }
+        }
+    }
+
+    private static void warnTransactionCleanup(String operation, boolean committed) {
+        try {
+            LOG.warning(committed
+                    ? "JDBC transaction committed; " + operation + " failed"
+                    : "JDBC transaction unsuccessful; " + operation + " failed");
+        } catch (RuntimeException ignored) {
+            // A user-installed logging handler must not turn a committed write
+            // back into an apparently retryable transaction failure.
         }
     }
 
