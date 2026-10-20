@@ -56,12 +56,25 @@ final class TypedEntityJsonDeserializer extends JsonDeserializer<BaseEntity> {
                 }
                 Binding binding = new Binding(property.getName(), type, index == null ? -1 : index, element);
                 if (index != null) fields.putIfAbsent(index, binding);
-                else if (layout.relationNames().contains(property.getName())) named.putIfAbsent(property.getName(), binding);
+                else if (layout.relationNames().contains(property.getName())) {
+                    addRelationAlias(named, property.getName(), binding);
+                    addRelationAlias(named, io.teaql.core.utils.NamingCase.toCamelCase(property.getName()), binding);
+                }
                 else throw new IllegalArgumentException("Metadata is outside the installed field layout: " + property.getName());
             }
         }
         if (fields.size() != layout.indexes().size()) throw new IllegalArgumentException("Incomplete typed JSON field metadata: " + target.getName());
         fixed = Map.copyOf(fields); relations = Map.copyOf(named);
+    }
+
+    private void addRelationAlias(Map<String, Binding> named, String alias, Binding binding) {
+        if (layout.findIndex(alias) != null) {
+            throw new IllegalArgumentException("Relation JSON name overlaps a fixed field: " + alias);
+        }
+        Binding previous = named.putIfAbsent(alias, binding);
+        if (previous != null && !previous.member().equals(binding.member())) {
+            throw new IllegalArgumentException("Ambiguous relation JSON name: " + alias);
+        }
     }
 
     private Binding binding(String name) {

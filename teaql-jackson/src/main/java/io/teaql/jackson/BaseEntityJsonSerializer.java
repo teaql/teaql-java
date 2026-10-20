@@ -11,9 +11,11 @@ import java.util.Map;
 public class BaseEntityJsonSerializer extends JsonSerializer<BaseEntity> {
     private static final Object ACTIVE_PATH = new Object();
     private final Map<String, String> accessorKeys;
+    private final Map<String, String> relationWireNames;
 
     public BaseEntityJsonSerializer() {
         accessorKeys = Map.of();
+        relationWireNames = Map.of();
     }
 
     /** Bind value-free accessor geometry to the installed model, not to row values. */
@@ -33,6 +35,11 @@ public class BaseEntityJsonSerializer extends JsonSerializer<BaseEntity> {
             keys.put(field, accessor);
         });
         accessorKeys = Map.copyOf(keys);
+        var wireNames = new java.util.HashMap<String, String>();
+        for (String relation : layout.relationNames()) {
+            wireNames.put(relation, io.teaql.core.utils.NamingCase.toCamelCase(relation));
+        }
+        relationWireNames = Map.copyOf(wireNames);
     }
 
     @Override
@@ -73,7 +80,8 @@ public class BaseEntityJsonSerializer extends JsonSerializer<BaseEntity> {
                 }
                 for (String relation : layout.relationNames()) {
                     if (layout.findIndex(relation) != null || !state.isLoaded(relation)) continue;
-                    serializers.defaultSerializeField(relation, value.__internalGet(relation), gen);
+                    serializers.defaultSerializeField(relationWireNames.getOrDefault(relation, relation),
+                            value.__internalGet(relation), gen);
                 }
             }
             for (Map.Entry<String, Object> entry : value.getAdditionalInfo().entrySet()) {
