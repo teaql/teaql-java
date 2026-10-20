@@ -12,10 +12,12 @@ public class BaseEntityJsonSerializer extends JsonSerializer<BaseEntity> {
     private static final Object ACTIVE_PATH = new Object();
     private final Map<String, String> accessorKeys;
     private final Map<String, String> relationWireNames;
+    private final java.util.Set<String> relationWireKeys;
 
     public BaseEntityJsonSerializer() {
         accessorKeys = Map.of();
         relationWireNames = Map.of();
+        relationWireKeys = java.util.Set.of();
     }
 
     /** Bind value-free accessor geometry to the installed model, not to row values. */
@@ -40,6 +42,7 @@ public class BaseEntityJsonSerializer extends JsonSerializer<BaseEntity> {
             wireNames.put(relation, io.teaql.core.checker.JsonFieldNamingProfile.CAMEL_CASE.render(relation));
         }
         relationWireNames = Map.copyOf(wireNames);
+        relationWireKeys = java.util.Set.copyOf(wireNames.values());
     }
 
     @Override
@@ -87,7 +90,8 @@ public class BaseEntityJsonSerializer extends JsonSerializer<BaseEntity> {
             for (Map.Entry<String, Object> entry : value.getAdditionalInfo().entrySet()) {
                 if (BaseEntity.ID_PROPERTY.equals(entry.getKey()) || BaseEntity.VERSION_PROPERTY.equals(entry.getKey())
                         || layout.findIndex(entry.getKey()) != null
-                        || layout.relationNames().contains(entry.getKey())) continue;
+                        || layout.relationNames().contains(entry.getKey())
+                        || relationWireKeys.contains(entry.getKey())) continue;
                 serializers.defaultSerializeField(entry.getKey(), entry.getValue(), gen);
             }
             gen.writeEndObject();
