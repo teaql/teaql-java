@@ -112,7 +112,7 @@ public final class FieldLayout {
     public boolean isGenerated() { return generated; }
     public Map<String, Integer> indexes() { return indexes; }
     public Integer findIndex(String fieldOrAlias) { return aliases.get(fieldOrAlias); }
-    /** Generated language-native accessor key, not a SQL column or reflected bean property. */
+    /** Language-native member/JSON name, not the canonical key passed to internal field access. */
     public String memberName(String canonicalField) { return members.get(canonicalField); }
     /** Shared named relation metadata; these members do not consume fixed-field positions. */
     @FrameworkInternal("Typed graph hydration and presentation only")

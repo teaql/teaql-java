@@ -44,7 +44,7 @@ public class BaseEntityJsonSerializer extends JsonSerializer<BaseEntity> {
                     String member = layout.memberName(field);
                     // Preserve this provider's graph path, configured serializers
                     // and per-call attributes during nested serialization.
-                    serializers.defaultSerializeField(member, value.__internalGet(member), gen);
+                    serializers.defaultSerializeField(member, value.__internalGet(field), gen);
                 }
                 for (String relation : layout.relationNames()) {
                     if (layout.findIndex(relation) != null || !state.isLoaded(relation)) continue;
