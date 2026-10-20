@@ -58,7 +58,7 @@ final class TypedEntityJsonDeserializer extends JsonDeserializer<BaseEntity> {
                 if (index != null) fields.putIfAbsent(index, binding);
                 else if (layout.relationNames().contains(property.getName())) {
                     addRelationAlias(named, property.getName(), binding);
-                    addRelationAlias(named, io.teaql.core.utils.NamingCase.toCamelCase(property.getName()), binding);
+                    addRelationAlias(named, io.teaql.core.checker.JsonFieldNamingProfile.CAMEL_CASE.render(property.getName()), binding);
                 }
                 else throw new IllegalArgumentException("Metadata is outside the installed field layout: " + property.getName());
             }
