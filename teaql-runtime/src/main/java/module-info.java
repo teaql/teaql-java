@@ -8,6 +8,7 @@ module io.teaql.runtime {
     exports io.teaql.runtime.boot;
     exports io.teaql.runtime.businessid;
     exports io.teaql.runtime.reference;
+    exports io.teaql.runtime.secret;
 
     provides io.teaql.core.spi.ContextAssembler with io.teaql.runtime.boot.CoreAssembler;
     uses io.teaql.runtime.StandardTelemetryFactory;
