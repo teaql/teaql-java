@@ -46,6 +46,7 @@ public final class FieldLayout {
     private final Map<String, Integer> aliases;
     private final Map<String, String> members;
     private final Set<String> relations;
+    private final Map<String, String> relationAliases;
     private final boolean generated;
     private final LoadState empty;
 
@@ -86,6 +87,14 @@ public final class FieldLayout {
         }
         this.aliases = Map.copyOf(aliases);
         this.members = Map.copyOf(members);
+        Map<String, String> relationAliases = new HashMap<>();
+        for (String relation : this.relations) {
+            if (aliases.containsKey(relation)) continue;
+            bindRelationAlias(relationAliases, relation, relation);
+            String member = io.teaql.core.utils.NamingCase.toCamelCase(relation);
+            if (!aliases.containsKey(member)) bindRelationAlias(relationAliases, member, relation);
+        }
+        this.relationAliases = Map.copyOf(relationAliases);
         empty = LoadState.empty(this);
     }
 
@@ -112,11 +121,12 @@ public final class FieldLayout {
     public boolean isGenerated() { return generated; }
     public Map<String, Integer> indexes() { return indexes; }
     public Integer findIndex(String fieldOrAlias) { return aliases.get(fieldOrAlias); }
-    /** Generated language-native accessor key, not a SQL column or reflected bean property. */
+    /** Language-native member/JSON name; context-bound access uses the descriptor's property key. */
     public String memberName(String canonicalField) { return members.get(canonicalField); }
     /** Shared named relation metadata; these members do not consume fixed-field positions. */
     @FrameworkInternal("Typed graph hydration and presentation only")
     public Set<String> relationNames() { return relations; }
+    String selectionName(String fieldOrAlias) { return relationAliases.getOrDefault(fieldOrAlias, fieldOrAlias); }
     public LoadState emptyState() { return empty; }
 
     int indexForLoad(String name) {
@@ -139,6 +149,13 @@ public final class FieldLayout {
         }
         if (expected.size() != indexes.size()) {
             throw new IllegalArgumentException("Generated layout disagrees with entity descriptor: " + entityType.getName());
+        }
+    }
+
+    private static void bindRelationAlias(Map<String, String> aliases, String alias, String canonical) {
+        String previous = aliases.putIfAbsent(alias, canonical);
+        if (previous != null && !previous.equals(canonical)) {
+            throw new IllegalArgumentException("Ambiguous named relation alias: " + alias);
         }
     }
 

@@ -9,9 +9,10 @@ final class GeneratedPropertyMetadataAcceptance {
     static void verify(UserContext context, String first, String second) {
         var request = Q.schoolsWithMinimalFields().withNameIn(first,second).selectName().orderByIdAscending().limit(2);
         var metadata = new DynamicPropertyMetadata(Map.of("_missing_count",Long.class,"_count",Number.class,"_null",String.class));
-        request.addSimpleDynamicProperty("_count",new io.teaql.core.PropertyReference("studentCapacity"));
+        // Low-level query references use KSML keys, not Java member spellings.
+        request.addSimpleDynamicProperty("_count",new io.teaql.core.PropertyReference("student_capacity"));
         String nullableMember=io.teaql.core.FieldLayout.forType(com.example.schoolmanagementservice.school.School.class).memberName("probe_0");
-        if(nullableMember!=null) request.addSimpleDynamicProperty("_null",new io.teaql.core.PropertyReference(nullableMember));
+        if(nullableMember!=null) request.addSimpleDynamicProperty("_null",new io.teaql.core.PropertyReference("probe_0"));
         request.setDynamicPropertyMetadata(metadata);
         var rows = request.comment("what: load generated School with a readonly schema")
             .purpose("why: keep schema sharing distinct from value presence").executeForList(context);

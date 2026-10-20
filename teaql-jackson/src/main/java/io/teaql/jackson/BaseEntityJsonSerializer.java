@@ -10,6 +10,40 @@ import java.util.Map;
 
 public class BaseEntityJsonSerializer extends JsonSerializer<BaseEntity> {
     private static final Object ACTIVE_PATH = new Object();
+    private final Map<String, String> accessorKeys;
+    private final Map<String, String> relationWireNames;
+    private final java.util.Set<String> relationWireKeys;
+
+    public BaseEntityJsonSerializer() {
+        accessorKeys = Map.of();
+        relationWireNames = Map.of();
+        relationWireKeys = java.util.Set.of();
+    }
+
+    /** Bind value-free accessor geometry to the installed model, not to row values. */
+    BaseEntityJsonSerializer(io.teaql.core.meta.EntityDescriptor descriptor) {
+        var layout = io.teaql.core.FieldLayout.forType(descriptor.getTargetType());
+        var byIndex = new java.util.HashMap<Integer, String>();
+        for (var current = descriptor; current != null; current = current.getParent()) {
+            for (var property : current.getProperties()) {
+                Integer index = layout.findIndex(property.getName());
+                if (index != null) byIndex.putIfAbsent(index, property.getName());
+            }
+        }
+        var keys = new java.util.HashMap<String, String>();
+        layout.indexes().forEach((field, index) -> {
+            String accessor = byIndex.get(index);
+            if (accessor == null) throw new IllegalArgumentException("Incomplete typed JSON field metadata: " + field);
+            keys.put(field, accessor);
+        });
+        accessorKeys = Map.copyOf(keys);
+        var wireNames = new java.util.HashMap<String, String>();
+        for (String relation : layout.relationNames()) {
+            wireNames.put(relation, io.teaql.core.checker.JsonFieldNamingProfile.CAMEL_CASE.render(relation));
+        }
+        relationWireNames = Map.copyOf(wireNames);
+        relationWireKeys = java.util.Set.copyOf(wireNames.values());
+    }
 
     @Override
     public void serialize(BaseEntity value, JsonGenerator gen, SerializerProvider serializers)
@@ -44,17 +78,20 @@ public class BaseEntityJsonSerializer extends JsonSerializer<BaseEntity> {
                     String member = layout.memberName(field);
                     // Preserve this provider's graph path, configured serializers
                     // and per-call attributes during nested serialization.
-                    serializers.defaultSerializeField(member, value.__internalGet(member), gen);
+                    serializers.defaultSerializeField(member,
+                            value.__internalGet(accessorKeys.getOrDefault(field, member)), gen);
                 }
                 for (String relation : layout.relationNames()) {
                     if (layout.findIndex(relation) != null || !state.isLoaded(relation)) continue;
-                    serializers.defaultSerializeField(relation, value.__internalGet(relation), gen);
+                    serializers.defaultSerializeField(relationWireNames.getOrDefault(relation, relation),
+                            value.__internalGet(relation), gen);
                 }
             }
             for (Map.Entry<String, Object> entry : value.getAdditionalInfo().entrySet()) {
                 if (BaseEntity.ID_PROPERTY.equals(entry.getKey()) || BaseEntity.VERSION_PROPERTY.equals(entry.getKey())
                         || layout.findIndex(entry.getKey()) != null
-                        || layout.relationNames().contains(entry.getKey())) continue;
+                        || layout.relationNames().contains(entry.getKey())
+                        || relationWireKeys.contains(entry.getKey())) continue;
                 serializers.defaultSerializeField(entry.getKey(), entry.getValue(), gen);
             }
             gen.writeEndObject();
