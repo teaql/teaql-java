@@ -51,6 +51,7 @@ public final class LoadState {
         Set<Integer> overflow = null;
         Set<String> names = null;
         for (String field : fields) {
+            field = layout.selectionName(field);
             int index = layout.indexForLoad(field);
             if (index >= 0 && index < Long.SIZE) bits |= 1L << index;
             else if (index >= Long.SIZE) {
@@ -119,12 +120,13 @@ public final class LoadState {
     public boolean isLoaded(String fieldOrAlias) {
         if (fieldOrAlias == null) return false;
         Integer index = layout.findIndex(fieldOrAlias);
-        if (index == null) return selectedNames.contains(fieldOrAlias);
+        if (index == null) return selectedNames.contains(layout.selectionName(fieldOrAlias));
         return index < Long.SIZE ? (bits & (1L << index)) != 0 : overflow.contains(index);
     }
 
     /** Value-only updates keep this exact reference; availability changes create a private snapshot. */
     public LoadState withLoaded(String field, boolean loaded) {
+        field = layout.selectionName(field);
         int index = layout.indexForLoad(field);
         if (isLoaded(field) == loaded) return this;
         if (index >= 0 && index < Long.SIZE) {
