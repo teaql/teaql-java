@@ -134,7 +134,9 @@ final class TypedEntityJsonDeserializer extends JsonDeserializer<BaseEntity> {
             }
             Binding binding = binding(name);
             Object converted;
-            if (binding.element() != null && !value.isNull()) {
+            if (binding.element() != null && value.isNull()) {
+                converted = null;
+            } else if (binding.element() != null) {
                 if (!value.isArray()) return context.reportInputMismatch(target, "Expected relation array: %s", name);
                 List<Entity> children = new ArrayList<>(value.size());
                 for (JsonNode child : value) {

@@ -136,10 +136,13 @@ public class CanonicalFieldSerializationTest {
         var children = new io.teaql.core.SmartList<Child>();
         children.add(child);
         row.__internalSet("child_list", children);
+        row.putAdditional("childList", "must not replace the declared relation");
+        row.addDynamicProperty("childList", "readonly summary");
         var state = row.__internalLoadState();
         var json = mapper.readTree(mapper.writeValueAsString(row));
         assertEquals(7L, json.get("childList").get(0).get("id").asLong());
         assertFalse(json.has("child_list"));
+        assertEquals("readonly summary", json.get("_childList").asText());
         var restored = mapper.treeToValue(json, Row.class);
         assertEquals(Long.valueOf(7), ((io.teaql.core.SmartList<?>) restored.__internalGet("child_list")).first().getId());
         assertTrue(restored.isPropertyLoaded("child_list"));
