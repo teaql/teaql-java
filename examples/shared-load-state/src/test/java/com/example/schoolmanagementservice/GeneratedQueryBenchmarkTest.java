@@ -89,7 +89,7 @@ class GeneratedQueryBenchmarkTest {
                     .selectSchoolListWith(Q.schoolsWithMinimalFields().selectName().orderByIdAscending().limit(count))
                     .limit(1).comment("what: load bounded generated reverse graph")
                     .purpose("why: measure relation hydration and shared state").executeForOne(context);
-            assertTrue(parent.isPropertyLoaded("school_list"));
+            assertTrue(parent.isPropertyLoaded("schoolList"));
             return parent.getSchoolList();
         }
         var request=scenario.equals("wide")||scenario.equals("dynamic")
