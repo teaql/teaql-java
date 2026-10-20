@@ -156,12 +156,12 @@ public class BaseEntitySerializationTest {
             markPropertyLoaded(field);
             switch (field) {
                 case "name" -> name = (String) value;
-                case "base_url" -> baseUrl = (String) value;
+                case "baseUrl" -> baseUrl = (String) value;
                 default -> super.__internalSet(field, value);
             }
         }
         @Override public Object __internalGet(String field) {
-            return switch (field) { case "name" -> name; case "base_url" -> baseUrl; default -> super.__internalGet(field); };
+            return switch (field) { case "name" -> name; case "baseUrl" -> baseUrl; default -> super.__internalGet(field); };
         }
     }
 
@@ -187,7 +187,7 @@ public class BaseEntitySerializationTest {
         assertTrue(json.get("_nil").isNull()); assertTrue(json.get("#nil").isNull());
         assertFalse(json.has("#missing")); assertFalse(json.has("baseUrl"));
         assertFalse(json.has("loadState")); assertFalse(json.has("entityMutationLedger"));
-        entity.__internalSet("base_url", null);
+        entity.__internalSet("baseUrl", null);
         json = mapper.readTree(mapper.writeValueAsString(entity));
         assertTrue(json.has("baseUrl")); assertTrue(json.get("baseUrl").isNull());
         assertFalse(json.has("base_url")); assertFalse(json.has("legacy_url"));

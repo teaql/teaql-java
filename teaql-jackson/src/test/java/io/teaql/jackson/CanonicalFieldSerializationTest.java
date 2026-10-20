@@ -35,7 +35,26 @@ public class CanonicalFieldSerializationTest {
         }
     }
 
-    private final ObjectMapper mapper = new ObjectMapper().registerModule(TeaQLModule.INSTANCE);
+    private static ObjectMapper mapper(boolean singletonFirst) {
+        assertTrue(Row.LAYOUT.isGenerated());
+        var metadata = new io.teaql.core.meta.SimpleEntityMetaFactory();
+        var descriptor = new io.teaql.core.meta.EntityDescriptor();
+        descriptor.setType("CanonicalRow");
+        descriptor.setTargetType(Row.class);
+        descriptor.withEntitySupplier(Row::new);
+        descriptor.addSimpleProperty("id", Long.class);
+        descriptor.addSimpleProperty("version", Long.class);
+        descriptor.addSimpleProperty("display_name", String.class);
+        descriptor.addSimpleProperty("optional_note", String.class);
+        metadata.register(descriptor);
+        var context = new io.teaql.runtime.DefaultUserContext(
+                io.teaql.runtime.TeaQLRuntime.builder().metadata(metadata).build());
+        var mapper = new ObjectMapper();
+        if (singletonFirst) mapper.registerModule(TeaQLModule.INSTANCE);
+        return mapper.registerModule(new TeaQLModule(context));
+    }
+
+    private final ObjectMapper mapper = mapper(false);
 
     @Test public void loadedValueUsesCanonicalAccessorAndCamelCaseWireName() throws Exception {
         var row = new Row();
@@ -47,6 +66,9 @@ public class CanonicalFieldSerializationTest {
         assertFalse(json.has("optionalNote"));
         assertSame(state, row.__internalLoadState());
         assertFalse(row.__internalHasMutationLedger());
+        var restored = mapper.readValue(mapper.writeValueAsString(row), Row.class);
+        assertEquals("sample", restored.__internalGet("display_name"));
+        assertFalse(restored.__internalHasMutationLedger());
     }
 
     @Test public void loadedNullIsNotConfusedWithNotLoaded() throws Exception {
@@ -65,6 +87,16 @@ public class CanonicalFieldSerializationTest {
         var state = row.__internalLoadState();
         assertEquals(0, mapper.readTree(mapper.writeValueAsString(row)).size());
         assertSame(state, row.__internalLoadState());
+        assertFalse(row.__internalHasMutationLedger());
+    }
+
+    @Test public void contextWriterOverridesTheSerializationOnlySingleton() throws Exception {
+        var row = new Row();
+        row.__internalSet("display_name", "context-bound");
+        var mapper = mapper(true);
+        var json = mapper.readTree(mapper.writeValueAsString(row));
+        assertEquals("context-bound", json.get("displayName").asText());
+        assertFalse(json.has("display_name"));
         assertFalse(row.__internalHasMutationLedger());
     }
 }

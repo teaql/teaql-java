@@ -10,6 +10,30 @@ import java.util.Map;
 
 public class BaseEntityJsonSerializer extends JsonSerializer<BaseEntity> {
     private static final Object ACTIVE_PATH = new Object();
+    private final Map<String, String> accessorKeys;
+
+    public BaseEntityJsonSerializer() {
+        accessorKeys = Map.of();
+    }
+
+    /** Bind value-free accessor geometry to the installed model, not to row values. */
+    BaseEntityJsonSerializer(io.teaql.core.meta.EntityDescriptor descriptor) {
+        var layout = io.teaql.core.FieldLayout.forType(descriptor.getTargetType());
+        var byIndex = new java.util.HashMap<Integer, String>();
+        for (var current = descriptor; current != null; current = current.getParent()) {
+            for (var property : current.getProperties()) {
+                Integer index = layout.findIndex(property.getName());
+                if (index != null) byIndex.putIfAbsent(index, property.getName());
+            }
+        }
+        var keys = new java.util.HashMap<String, String>();
+        layout.indexes().forEach((field, index) -> {
+            String accessor = byIndex.get(index);
+            if (accessor == null) throw new IllegalArgumentException("Incomplete typed JSON field metadata: " + field);
+            keys.put(field, accessor);
+        });
+        accessorKeys = Map.copyOf(keys);
+    }
 
     @Override
     public void serialize(BaseEntity value, JsonGenerator gen, SerializerProvider serializers)
@@ -44,7 +68,8 @@ public class BaseEntityJsonSerializer extends JsonSerializer<BaseEntity> {
                     String member = layout.memberName(field);
                     // Preserve this provider's graph path, configured serializers
                     // and per-call attributes during nested serialization.
-                    serializers.defaultSerializeField(member, value.__internalGet(field), gen);
+                    serializers.defaultSerializeField(member,
+                            value.__internalGet(accessorKeys.getOrDefault(field, member)), gen);
                 }
                 for (String relation : layout.relationNames()) {
                     if (layout.findIndex(relation) != null || !state.isLoaded(relation)) continue;
