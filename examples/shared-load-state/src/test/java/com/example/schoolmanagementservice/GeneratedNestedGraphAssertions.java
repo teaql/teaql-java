@@ -77,7 +77,7 @@ final class GeneratedNestedGraphAssertions {
                         .selectName().orderByIdAscending().limit(2))
                 .limit(1).comment("what: load two selected Schools under the seeded Platform")
                 .purpose("why: verify generated reverse graph state and JSON").executeForOne(context);
-        assertTrue(platform.isPropertyLoaded("schoolList"));
+        assertTrue(platform.isPropertyLoaded("school_list"));
         var children = platform.getSchoolList();
         assertEquals(2, children.size());
         assertEquals(renamed, E.school(children.get(0)).getName().eval());
@@ -105,7 +105,7 @@ final class GeneratedNestedGraphAssertions {
                 .purpose("why: verify forward ancestor and reverse descendant availability")
                 .executeForOne(context);
         var parent = E.school(nested).getPlatform().eval();
-        assertTrue(parent.isPropertyLoaded("schoolList"));
+        assertTrue(parent.isPropertyLoaded("school_list"));
         assertEquals(2, parent.getSchoolList().size());
         var nestedJson = mapper.readTree(mapper.writeValueAsString(nested));
         assertEquals(renamed, nestedJson.get("platform").get("schoolList").get(0).get("name").asText());
@@ -118,23 +118,23 @@ final class GeneratedNestedGraphAssertions {
                 .selectSchoolListWith(Q.schoolsWithMinimalFields().selectName().orderByIdAscending().limit(2))
                 .limit(1).comment("what: explicitly load the unused Secondary constant's Schools")
                 .purpose("why: distinguish loaded empty from omitted reverse detail").executeForOne(context);
-        assertTrue(empty.isPropertyLoaded("schoolList"));
+        assertTrue(empty.isPropertyLoaded("school_list"));
         assertNotNull(empty.getSchoolList());
         assertTrue(empty.getSchoolList().isEmpty());
         var emptyJson = mapper.readTree(mapper.writeValueAsString(empty));
         assertTrue(emptyJson.get("schoolList").isArray());
         assertEquals(0, emptyJson.get("schoolList").size());
         var restoredEmpty = mapper.treeToValue(emptyJson, empty.getClass());
-        assertTrue(restoredEmpty.isPropertyLoaded("schoolList"));
+        assertTrue(restoredEmpty.isPropertyLoaded("school_list"));
         assertTrue(restoredEmpty.getSchoolList().isEmpty());
 
         var unselected = Q.schoolTypesWithMinimalFields().withIdIs(1002L)
                 .limit(1).comment("what: load the same constant without selecting its Schools")
                 .purpose("why: NotLoaded must not serialize as an empty list").executeForOne(context);
-        assertFalse(unselected.isPropertyLoaded("schoolList"));
+        assertFalse(unselected.isPropertyLoaded("school_list"));
         assertFalse(mapper.readTree(mapper.writeValueAsString(unselected)).has("schoolList"));
         var restoredUnselected = mapper.readValue(mapper.writeValueAsString(unselected), unselected.getClass());
-        assertFalse(restoredUnselected.isPropertyLoaded("schoolList"));
+        assertFalse(restoredUnselected.isPropertyLoaded("school_list"));
         System.out.println("PASS generated Java LF09 reverse Loaded/Empty/NotLoaded through Q/E/JSON");
 
         var filtered = Q.schoolsWithMinimalFields().withIdIs(schoolId)
