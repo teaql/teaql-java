@@ -22,7 +22,7 @@ public class TeaQLModule extends SimpleModule {
         addSerializer(SmartList.class, new SmartListAsListSerializer(SmartList.class));
     }
 
-    /** Bind typed readers to this context's installed model, never process-global metadata. */
+    /** Bind typed readers and writers to this context's installed model, never global metadata. */
     public TeaQLModule(UserContext context) {
         this();
         contextBound = true;
@@ -32,6 +32,7 @@ public class TeaQLModule extends SimpleModule {
             if (type != null && BaseEntity.class.isAssignableFrom(type) && type != BaseEntity.class) {
                 if (!typedEntities.add(type)) throw new IllegalArgumentException("Duplicate model entity class: " + type.getName());
                 registerTyped(type, new TypedEntityJsonDeserializer(descriptor));
+                registerTypedWriter(type, new BaseEntityJsonSerializer(descriptor));
             }
         }
     }
@@ -39,6 +40,11 @@ public class TeaQLModule extends SimpleModule {
     @SuppressWarnings("unchecked")
     private void registerTyped(Class<?> type, TypedEntityJsonDeserializer reader) {
         addDeserializer((Class<BaseEntity>) type, reader);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void registerTypedWriter(Class<?> type, BaseEntityJsonSerializer writer) {
+        addSerializer((Class<BaseEntity>) type, writer);
     }
 
     // A context-bound module must not be ignored after the serialization-only singleton.
