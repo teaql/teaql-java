@@ -37,7 +37,7 @@ public class BaseEntityJsonSerializer extends JsonSerializer<BaseEntity> {
         accessorKeys = Map.copyOf(keys);
         var wireNames = new java.util.HashMap<String, String>();
         for (String relation : layout.relationNames()) {
-            wireNames.put(relation, io.teaql.core.utils.NamingCase.toCamelCase(relation));
+            wireNames.put(relation, io.teaql.core.checker.JsonFieldNamingProfile.CAMEL_CASE.render(relation));
         }
         relationWireNames = Map.copyOf(wireNames);
     }
