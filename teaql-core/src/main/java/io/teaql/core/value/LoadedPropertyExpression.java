@@ -1,6 +1,8 @@
 package io.teaql.core.value;
 
 import io.teaql.core.BaseEntity;
+import io.teaql.core.checker.ObjectLocation;
+import io.teaql.core.checker.JsonFieldNamingProfile;
 import java.util.function.Function;
 
 final class LoadedPropertyExpression<T, E extends BaseEntity, V> implements Expression<T, V> {
@@ -17,15 +19,20 @@ final class LoadedPropertyExpression<T, E extends BaseEntity, V> implements Expr
         E entity = parent.eval(root);
         if (entity == null) return null;
         if (!entity.isPropertyLoaded(property)) {
-            throw new TeaQLNotLoadedException(describeRoot(), $path(), property);
+            throw new TeaQLNotLoadedException(describeRoot(), $location(), property, $jsonFieldNaming());
         }
         return getter.apply(entity);
     }
 
     @Override public T $getRoot() { return parent.$getRoot(); }
     @Override public String $path() {
-        return parent.$path().isEmpty() ? property : parent.$path() + "." + property;
+        return $location().modelPath();
     }
+    @Override public ObjectLocation $location() {
+        ObjectLocation base = parent.$location();
+        return base == null ? ObjectLocation.hashRoot(property) : base.member(property);
+    }
+    @Override public JsonFieldNamingProfile $jsonFieldNaming() { return parent.$jsonFieldNaming(); }
     private String describeRoot() {
         Object root = $getRoot();
         if (root instanceof BaseEntity entity) return entity.typeName() + "(id=" + entity.getId() + ")";
