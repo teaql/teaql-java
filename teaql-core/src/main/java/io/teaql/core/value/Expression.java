@@ -1,5 +1,7 @@
 package io.teaql.core.value;
 
+import io.teaql.core.checker.ObjectLocation;
+import io.teaql.core.checker.JsonFieldNamingProfile;
 import java.util.NoSuchElementException;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -25,6 +27,11 @@ public interface Expression<E, T> {
     }
 
     default String $path() { return ""; }
+
+    /** Canonical model location; null denotes the entity root. */
+    default ObjectLocation $location() { return null; }
+
+    default JsonFieldNamingProfile $jsonFieldNaming() { return JsonFieldNamingProfile.CAMEL_CASE; }
 
     default T orIfNull(T defaultValue) {
         T value = resolve();

@@ -147,6 +147,8 @@ final class GeneratedNestedGraphAssertions {
         var missing = assertThrows(io.teaql.core.value.TeaQLNotLoadedException.class,
                 () -> E.school(filtered).getSchoolType().getCode().eval());
         assertEquals("schoolType.code", missing.getAccessPath());
+        assertEquals("school_type.code", missing.getLocation().modelPath());
+        assertEquals("/schoolType/code", missing.getInstancePath());
         assertEquals("code", missing.getBreakPoint());
         assertEquals("School(id=" + schoolId + ")", missing.getRoot());
         var filteredJson = mapper.readTree(mapper.writeValueAsString(filtered));
@@ -157,6 +159,8 @@ final class GeneratedNestedGraphAssertions {
         var restoredMissing = assertThrows(io.teaql.core.value.TeaQLNotLoadedException.class,
                 () -> E.school(restoredFiltered).getSchoolType().getCode().eval());
         assertEquals("schoolType.code", restoredMissing.getAccessPath());
+        assertEquals("school_type.code", restoredMissing.getLocation().modelPath());
+        assertEquals("/schoolType/code", restoredMissing.toWire().instancePath());
         assertEquals("code", restoredMissing.getBreakPoint());
         assertEquals("School(id=" + schoolId + ")", restoredMissing.getRoot());
         assertFalse(restoredFiltered.__internalHasMutationLedger());
