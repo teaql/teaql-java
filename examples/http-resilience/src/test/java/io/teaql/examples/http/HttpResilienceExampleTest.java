@@ -9,7 +9,6 @@ import io.teaql.core.http.HttpRequestFailure;
 import io.teaql.core.http.HttpRequestService;
 import io.teaql.runtime.DefaultUserContext;
 import io.teaql.tools.http.HttpServiceProfile;
-import io.teaql.tools.http.HttpOperationalClock;
 import io.teaql.tools.http.JdkHttpRequestService;
 import io.teaql.tools.http.impl.JdkHttpTool;
 import java.net.InetAddress;
@@ -20,7 +19,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -33,13 +31,18 @@ public class HttpResilienceExampleTest {
 
     @Test public void postedRequestWithStalledResponseRequiresReconciliation() throws Exception {
         AtomicInteger requests = new AtomicInteger();
+        AtomicInteger warmups = new AtomicInteger();
         CountDownLatch firstByteSent = new CountDownLatch(1);
         CountDownLatch releaseResponse = new CountDownLatch(1);
-        AtomicLong monotonic = new AtomicLong(1);
         AtomicReference<Throwable> result = new AtomicReference<>();
         AtomicReference<Thread> worker = new AtomicReference<>();
         HttpServer server = HttpServer.create(new InetSocketAddress(
                 InetAddress.getByAddress(new byte[] {127, 0, 0, 1}), 0), 0);
+        server.createContext("/api/warmup", exchange -> {
+            warmups.incrementAndGet();
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
+        });
         server.createContext("/api/payments", exchange -> {
             requests.incrementAndGet();
             assertEquals("POST", exchange.getRequestMethod());
@@ -60,15 +63,14 @@ public class HttpResilienceExampleTest {
         try {
             var profile = HttpServiceProfile.builder("payments",
                     URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/api/"))
-                    .budgets(Duration.ofSeconds(2), Duration.ofSeconds(10), Duration.ofSeconds(5))
+                    .budgets(Duration.ofSeconds(2), Duration.ofSeconds(2), Duration.ofSeconds(3))
                     .build();
-            HttpOperationalClock clock = new HttpOperationalClock() {
-                @Override public long nanoTime() { return monotonic.get(); }
-                @Override public void pauseNanos(long nanos) { java.util.concurrent.locks.LockSupport.parkNanos(nanos); }
-            };
-            var service = new JdkHttpRequestService(List.of(profile), clock);
+            var service = new JdkHttpRequestService(List.of(profile));
             var context = new DefaultUserContext(null);
             context.putAttribute(HttpRequestService.class.getName(), service);
+            assertEquals(200, context.httpRequests().execute(context, HttpRequestService.Call.get(
+                    "payments", "warmup", "prepare HTTP fixture", "exclude initialization from stalled POST proof")).status());
+            assertEquals(1, warmups.get());
             var call = HttpRequestService.Call.postText("payments", "payments",
                     "PRIVATE_BODY_CANARY", "submit payment", "confirm external effect");
             Thread request = new Thread(() -> {
@@ -78,10 +80,9 @@ public class HttpResilienceExampleTest {
                 } catch (Throwable failure) { result.set(failure); }
             });
             worker.set(request); request.start();
-            assertTrue("POST must reach the fixture before expiring the clock",
+            assertTrue("POST must reach the fixture before checking its stalled outcome",
                     firstByteSent.await(5, TimeUnit.SECONDS));
-            monotonic.addAndGet(Duration.ofSeconds(6).toNanos());
-            request.join(2000);
+            request.join(profile.totalTimeout().plusSeconds(2).toMillis());
             assertFalse("expired HTTP request did not stop", request.isAlive());
             assertTrue(result.get() instanceof HttpRequestFailure);
             assertEquals(HttpRequestFailure.Code.AMBIGUOUS_OUTCOME, ((HttpRequestFailure) result.get()).code());
