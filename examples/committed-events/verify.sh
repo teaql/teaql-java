@@ -24,4 +24,5 @@ for round in 1 2; do
   cmp "$evidence/generated-before.sha256" "$evidence/generated-after.sha256"
   echo "PASS Java generated committed Q example round $round"
 done
+bash examples/committed-events/verify-process-crash.sh
 echo "Java generated committed Q evidence: $evidence"

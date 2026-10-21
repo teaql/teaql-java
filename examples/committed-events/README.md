@@ -29,3 +29,27 @@ twice. It creates a Customer through generated audited Save on SQLite, delivers
 one committed set to a model-checked DuckDB target, and reads the target through
 generated Q. The checked-in generated library remains byte-for-byte unchanged;
 public-package and production-network qualification are separate.
+
+## Real source-process crash (CMR-03)
+
+`bash examples/committed-events/verify-process-crash.sh` runs a separate bounded
+fixture (also included by the complete verifier above). An actual child performs
+a normal audited save, signals a post-commit/pre-publish barrier, and waits with
+the runtime still open. Its owning test forcibly terminates and reaps it. A new
+process recovers the durable Outbox, lands the event, simulates a lost target
+acknowledgement, accepts the duplicate receipt and advances the source cursor.
+A third process checks persistent rows, versions, Inbox and cursor again.
+
+The same source/target files are used for both rounds: their row/event/cursor
+counts go from one to two, not back to zero. A business-invocation marker also
+stays one-per-writer, not one-per-delivery. A negative control rejects normal
+exit without a ready marker. Logs and waits are bounded; only owned children
+are killed. No production callback, HTTP endpoint or new runtime API is added.
+
+Set `TEAQL_CMR03_EVIDENCE_DIR` to a **fresh** directory to retain the two small
+databases, child logs, barriers and `result.json` at a known location. By default
+an owned temporary evidence directory is printed and retained. Never delete or
+reset a previous database to force success. Module `target` directories remain
+ordinary reusable Maven build outputs; one-off gate owners clean their own
+build directories after recording results. This proves controlled process death,
+not machine/power failure, snapshot restart, all CMR-12 paths or public artifacts.
