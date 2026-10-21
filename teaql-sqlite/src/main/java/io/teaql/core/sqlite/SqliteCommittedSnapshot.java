@@ -54,6 +54,7 @@ public final class SqliteCommittedSnapshot {
         EntityMetaFactory metadata = EntityMetaFactory.requireFrom(context);
         AtomicReference<SnapshotRecord> result = new AtomicReference<>();
         sql.executeInTransaction(() -> {
+            requireTransaction();
             // The first SELECT establishes SQLite's read snapshot, including when N=0.
             long n = position();
             List<Table> tables = tables(metadata);
@@ -103,6 +104,7 @@ public final class SqliteCommittedSnapshot {
         EntityMetaFactory metadata = EntityMetaFactory.requireFrom(context);
         AtomicReference<SqliteCommittedEventStore.InboxOutcome> result = new AtomicReference<>();
         sql.executeInTransaction(() -> {
+            requireTransaction();
             List<Map<String, Object>> prior = sql.queryForList("SELECT snapshot_id,source_sequence,model_hash,payload_sha256,payload_json "
                     + "FROM teaql_event_snapshot WHERE source_runtime_id=?", new Object[] {source});
             if (!prior.isEmpty()) {
@@ -115,7 +117,7 @@ public final class SqliteCommittedSnapshot {
                         || !model.equals(checkpoint.get(0).get("model_hash"))) throw invalid("snapshot checkpoint is inconsistent");
                 result.set(SqliteCommittedEventStore.InboxOutcome.duplicate(record.sourceSequence())); return;
             }
-            for (String table : List.of("teaql_event_snapshot", "teaql_event_checkpoint", "teaql_event_inbox", "teaql_event_applied_payload", "teaql_event_outbox", "teaql_event_sequence"))
+            for (String table : List.of("teaql_event_snapshot", "teaql_event_checkpoint", "teaql_event_inbox", "teaql_event_applied_payload", "teaql_event_outbox", "teaql_event_sequence", "teaql_event_snapshot_publication"))
                 if (count(table) != 0) throw conflict("target already contains stream state");
             List<Table> tables = tables(metadata);
             Set<String> catalog = new TreeSet<>();
@@ -149,7 +151,7 @@ public final class SqliteCommittedSnapshot {
         return result.get();
     }
 
-    private JsonNode validate(SnapshotRecord record, Limits limits) {
+    JsonNode validate(SnapshotRecord record, Limits limits) {
         if (record == null || !source.equals(record.sourceRuntimeId())) throw invalid("snapshot source is not authorized");
         if (!model.equals(record.modelHash())) throw invalid("snapshot model mismatch");
         if (blank(record.snapshotId()) || record.sourceSequence() < 0) throw invalid("snapshot identity/position is invalid");
@@ -208,6 +210,7 @@ public final class SqliteCommittedSnapshot {
     }
     private long count(String table) { return integer(sql.queryForList("SELECT COUNT(*) AS n FROM " + quoted(table), new Object[0]).get(0).get("n")); }
     private void standalone() { if (sql.hasActiveTransaction()) throw invalid("snapshot requires a standalone transaction"); }
+    private void requireTransaction() { if (!sql.hasActiveTransaction()) throw invalid("snapshot adapter must provide an active SQL transaction"); }
     private static Long integer(Object value) { if (!(value instanceof Long || value instanceof Integer || value instanceof Short || value instanceof Byte)) throw invalid("source identity/integer storage is invalid"); return ((Number) value).longValue(); }
     private static int bytes(String text) { return text.getBytes(StandardCharsets.UTF_8).length; }
     private static void bounded(String text, Limits limits) { if (text == null || text.length() > limits.maxPayloadBytes() || bytes(text) > limits.maxPayloadBytes()) throw invalid("snapshot byte budget exceeded"); }

@@ -220,6 +220,94 @@ public class SqliteCommittedSnapshotTest {
         }
     }
 
+    private static SqliteCommittedSnapshotPublisher publisher(Fixture source, String target) { return new SqliteCommittedSnapshotPublisher(source.sql,SOURCE,target,MODEL); }
+    private static void secondTail(Fixture source) {
+        source.sql.executeInTransaction(() -> {
+            assertEquals(1,source.sql.update("UPDATE customer_order_data SET version=9,name='AT TWO' WHERE id=? AND version=8",new Object[]{ORDER}));
+            new SqliteCommittedEventStore(source.sql).append(SOURCE,"tail-2",MODEL,sequence->{
+                try { ObjectNode body=(ObjectNode)JSON.readTree(tail(sequence));body.put("change_set_id","tail-2");var mutations=body.withArray("mutations");var row=(ObjectNode)mutations.get(0);row.put("base_version","8").put("committed_version","9");row.with("fields").removeAll().put("name","AT TWO");mutations.remove(1);return body.toString(); }
+                catch(Exception failure){throw new AssertionError(failure);}
+            });
+        });
+    }
+    @Test public void durableBootstrapKeepsOriginalBytesAndResumesOrdinaryPublisherAfterLostAck() throws Exception {
+        try(Fixture source=new Fixture(true);Fixture target=new Fixture(false)) {
+            commitTail(source);var pub=publisher(source,"analytics");
+            var prepared=pub.prepare(source.context,"bootstrap","copy facts","initialize target",LIMITS);
+            assertEquals(1,prepared.snapshot().sourceSequence());assertFalse(prepared.acknowledged());secondTail(source);
+            assertEquals(prepared,pub.prepare(source.context,"bootstrap","retry copy","retry bootstrap",LIMITS));
+            var normal=new SqliteCommittedOutboxPublisher(source.sql,SOURCE,"analytics",MODEL);
+            expect(()->normal.publishBatch(10,row->{throw new AssertionError("pending bootstrap must block tail");}));
+            assertThrows(IllegalStateException.class,()->pub.publish(source.context,"bootstrap",LIMITS,row->{
+                assertFalse(source.sql.hasActiveTransaction());
+                var receipt=SqliteCommittedSnapshotPublisher.initializeAndAcknowledge(target.context,target.snapshots(),row,"analytics",LIMITS);
+                assertFalse(receipt.duplicate());throw new IllegalStateException("fixture loses committed target ACK");
+            }));
+            assertEquals(0,scalar(source,"SELECT count(*) FROM teaql_event_delivery_cursor"));
+            var restarted=publisher(source,"analytics");
+            assertTrue(restarted.publish(source.context,"bootstrap",LIMITS,row->{
+                var receipt=SqliteCommittedSnapshotPublisher.initializeAndAcknowledge(target.context,target.snapshots(),row,"analytics",LIMITS);assertTrue(receipt.duplicate());return receipt;
+            }).acknowledged());
+            assertEquals(1,normal.status().ackedSequence());
+            assertEquals(1,normal.publishBatch(10,row->{assertEquals(2,row.sourceSequence());return target.target().apply(target.context,row);}).acknowledged());
+            sameState(source,target);assertEquals(2,normal.status().ackedSequence());
+            assertTrue(restarted.publish(source.context,"bootstrap",LIMITS,row->{throw new AssertionError("known ACK must not redeliver");}).acknowledged());
+            assertEquals(2,normal.status().ackedSequence());expect(()->pub.prepare(source.context,"different","copy","bootstrap",LIMITS));
+            System.out.println("CMR12_BOOTSTRAP_PASS language=java baseline=1 tail=2 retained_bytes=1 lost_ack=1 pending_gate=1 no_rewind=1");
+        }
+    }
+    @Test public void acknowledgementAndCursorAreAtomicAndEveryReceiptIdentityIsBound() throws Exception {
+        try(Fixture source=new Fixture(true);Fixture target=new Fixture(false)) {
+            commitTail(source);var pub=publisher(source,"analytics");var snapshot=pub.prepare(source.context,"bootstrap","copy","bootstrap",LIMITS).snapshot();
+            var ack=SqliteCommittedSnapshotPublisher.initializeAndAcknowledge(target.context,target.snapshots(),snapshot,"analytics",LIMITS);
+            for(var bad:List.of(
+                    new SqliteCommittedSnapshotPublisher.Receipt("other",ack.targetId(),ack.snapshotId(),1,MODEL,ack.payloadSha256(),false),
+                    new SqliteCommittedSnapshotPublisher.Receipt(SOURCE,"other",ack.snapshotId(),1,MODEL,ack.payloadSha256(),false),
+                    new SqliteCommittedSnapshotPublisher.Receipt(SOURCE,ack.targetId(),"other",1,MODEL,ack.payloadSha256(),false),
+                    new SqliteCommittedSnapshotPublisher.Receipt(SOURCE,ack.targetId(),ack.snapshotId(),2,MODEL,ack.payloadSha256(),false),
+                    new SqliteCommittedSnapshotPublisher.Receipt(SOURCE,ack.targetId(),ack.snapshotId(),1,"sha256:"+"1".repeat(64),ack.payloadSha256(),false),
+                    new SqliteCommittedSnapshotPublisher.Receipt(SOURCE,ack.targetId(),ack.snapshotId(),1,MODEL,"0".repeat(64),false)))
+                expect(()->pub.publish(source.context,"bootstrap",LIMITS,row->bad));
+            source.sql.execute("CREATE TRIGGER reject_bootstrap_ack BEFORE UPDATE ON teaql_event_snapshot_publication WHEN NEW.acknowledged=1 BEGIN SELECT RAISE(ABORT,'fixture rejects ACK after cursor insert'); END");
+            assertThrows(RuntimeException.class,()->pub.publish(source.context,"bootstrap",LIMITS,row->ack));
+            assertEquals(0,scalar(source,"SELECT count(*) FROM teaql_event_delivery_cursor"));
+            assertEquals(0,scalar(source,"SELECT acknowledged FROM teaql_event_snapshot_publication"));
+            source.sql.execute("DROP TRIGGER reject_bootstrap_ack");assertTrue(pub.publish(source.context,"bootstrap",LIMITS,row->ack).acknowledged());
+            source.sql.execute("DELETE FROM teaql_event_delivery_cursor");
+            expect(()->new SqliteCommittedOutboxPublisher(source.sql,SOURCE,"analytics",MODEL).publishBatch(10,row->{throw new AssertionError("corrupt ACK/cursor must fail before delivery");}));
+            System.out.println("CMR12_ACK_ATOMIC_PASS language=java bound_fields=6 rollback=1 retry=1 corrupt_cursor=1");
+        }
+    }
+    @Test public void bootstrapModeIsExclusiveAndDoesNotJoinCallerTransactionsOrResetPublicationState() throws Exception {
+        try(Fixture source=new Fixture(true);Fixture target=new Fixture(false)) {
+            var normal=new SqliteCommittedOutboxPublisher(source.sql,SOURCE,"incremental",MODEL);
+            expect(()->normal.publishBatch(0,row->{throw new AssertionError();}));assertEquals(0,scalar(source,"SELECT count(*) FROM teaql_event_delivery_cursor"));
+            assertEquals(0,normal.publishBatch(1,row->{throw new AssertionError();}).acknowledged());
+            expect(()->publisher(source,"incremental").prepare(source.context,"bootstrap","copy","bootstrap",LIMITS));
+            assertEquals(0,scalar(source,"SELECT count(*) FROM teaql_event_snapshot_publication"));
+            source.sql.executeInTransaction(()->expect(()->publisher(source,"new-target").prepare(source.context,"bootstrap","copy","bootstrap",LIMITS)));
+            var targetPub=publisher(target,"another-target");targetPub.prepare(target.context,"bootstrap","copy","bootstrap",LIMITS);
+            expect(()->target.snapshots().initializeSnapshot(target.context,source.snapshot(),SqliteCommittedSnapshot.ImportMode.REPLACE_UNINITIALIZED,LIMITS));
+            assertEquals(1,scalar(target,"SELECT count(*) FROM teaql_event_snapshot_publication"));
+        }
+    }
+    @Test public void nontransactionalAdaptersCannotPretendToProvideAtomicBootstrap() throws Exception {
+        try(Fixture source=new Fixture(true);Fixture target=new Fixture(false)) {
+            var queries=new java.util.concurrent.atomic.AtomicInteger();
+            var unsafe=(io.teaql.dataservice.sql.SqlExecutionAdapter)java.lang.reflect.Proxy.newProxyInstance(
+                    getClass().getClassLoader(),new Class<?>[]{io.teaql.dataservice.sql.SqlExecutionAdapter.class},(proxy,method,args)->{
+                        if(method.getName().equals("executeInTransaction")){((Runnable)args[0]).run();return null;}
+                        if(method.getName().startsWith("query")||method.getName().equals("update")||method.getName().equals("execute"))queries.incrementAndGet();
+                        try{return method.invoke(target.sql,args);}catch(java.lang.reflect.InvocationTargetException failure){throw failure.getCause();}
+                    });
+            var snapshot=source.snapshot();
+            expect(()->new SqliteCommittedSnapshot(unsafe,SOURCE,MODEL).exportSnapshot(target.context,"test","copy","bootstrap",LIMITS));
+            expect(()->new SqliteCommittedSnapshot(unsafe,SOURCE,MODEL).initializeSnapshot(target.context,snapshot,LIMITS));
+            expect(()->new SqliteCommittedSnapshotPublisher(unsafe,SOURCE,"target",MODEL).prepare(target.context,"test","copy","bootstrap",LIMITS));
+            expect(()->new SqliteCommittedOutboxPublisher(unsafe,SOURCE,"target",MODEL).publishBatch(1,row->{throw new AssertionError();}));
+            assertEquals(0,queries.get());
+        }
+    }
     @Test public void snapshotHashAuthorityParserReferencesAndConflictingRetryFailClosed() throws Exception {
         try (Fixture source = new Fixture(true); Fixture target = new Fixture(false)) {
             var snapshot = source.snapshot();

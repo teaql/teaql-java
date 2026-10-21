@@ -74,6 +74,8 @@ public final class SqliteCommittedOutboxPublisher {
      */
     public BatchOutcome publishBatch(int limit, DeliverySink sink) {
         Objects.requireNonNull(sink, "sink");
+        if (limit < 1 || limit > 1000) throw failure("INVALID_ENVELOPE", "invalid delivery read limit");
+        claimCursor();
         DeliveryStatus before = status();
         List<OutboxRecord> records = events.outboxAfter(sourceRuntimeId, before.ackedSequence(), limit);
         if (records.isEmpty() && before.backlog() > 0) {
@@ -95,13 +97,9 @@ public final class SqliteCommittedOutboxPublisher {
             if (outcome == null || outcome.checkpoint() != record.sourceSequence()) {
                 throw failure("ACK_MISMATCH", "target acknowledgement does not match delivered sequence");
             }
-            int changed = sql.update("INSERT INTO teaql_event_delivery_cursor "
-                    + "(source_runtime_id, target_id, acked_sequence, model_hash) VALUES (?, ?, ?, ?) "
-                    + "ON CONFLICT(source_runtime_id, target_id) DO UPDATE SET "
-                    + "acked_sequence = excluded.acked_sequence "
-                    + "WHERE teaql_event_delivery_cursor.acked_sequence = ? "
-                    + "AND teaql_event_delivery_cursor.model_hash = excluded.model_hash",
-                    new Object[] {sourceRuntimeId, targetId, record.sourceSequence(), modelHash, acked});
+            int changed = sql.update("UPDATE teaql_event_delivery_cursor SET acked_sequence=? "
+                    + "WHERE source_runtime_id=? AND target_id=? AND acked_sequence=? AND model_hash=?",
+                    new Object[] {record.sourceSequence(),sourceRuntimeId,targetId,acked,modelHash});
             if (changed != 1) {
                 throw failure("CURSOR_CONFLICT", "delivery cursor changed concurrently");
             }
@@ -109,6 +107,26 @@ public final class SqliteCommittedOutboxPublisher {
             count++;
         }
         return new BatchOutcome(count, status());
+    }
+
+    private void claimCursor() {
+        if (sql.hasActiveTransaction()) throw failure("INVALID_ENVELOPE", "publisher requires a standalone transaction");
+        sql.executeInTransaction(() -> {
+            if (!sql.hasActiveTransaction()) throw failure("INVALID_ENVELOPE", "publisher adapter must provide an active SQL transaction");
+            var prepared = sql.queryForList("SELECT source_sequence,model_hash,acknowledged FROM teaql_event_snapshot_publication WHERE source_runtime_id=? AND target_id=?",
+                    new Object[]{sourceRuntimeId,targetId});
+            if (!prepared.isEmpty()) {
+                var row = prepared.get(0);
+                if (number(row.get("acknowledged")) == 0) throw failure("SNAPSHOT_PENDING", "snapshot bootstrap must be acknowledged before incremental delivery");
+                var cursor = sql.queryForList("SELECT acked_sequence,model_hash FROM teaql_event_delivery_cursor WHERE source_runtime_id=? AND target_id=?",new Object[]{sourceRuntimeId,targetId});
+                if (number(row.get("acknowledged")) != 1 || !modelHash.equals(row.get("model_hash")) || cursor.size()!=1
+                        || !modelHash.equals(cursor.get(0).get("model_hash")) || number(cursor.get(0).get("acked_sequence"))<number(row.get("source_sequence")))
+                    throw failure("CURSOR_CONFLICT", "snapshot/cursor state is inconsistent");
+            }
+            sql.update("INSERT INTO teaql_event_delivery_cursor(source_runtime_id,target_id,acked_sequence,model_hash) VALUES (?,?,0,?) "
+                    + "ON CONFLICT(source_runtime_id,target_id) DO NOTHING",new Object[]{sourceRuntimeId,targetId,modelHash});
+            status(); // Validate the claimed model and source position before exposing any event.
+        });
     }
 
     private static long number(Object value) { return ((Number) value).longValue(); }
