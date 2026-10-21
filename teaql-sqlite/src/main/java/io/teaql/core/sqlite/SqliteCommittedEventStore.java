@@ -86,6 +86,10 @@ public final class SqliteCommittedEventStore {
                 + "source_runtime_id TEXT NOT NULL, target_id TEXT NOT NULL, "
                 + "acked_sequence INTEGER NOT NULL CHECK(acked_sequence >= 0), "
                 + "model_hash TEXT NOT NULL, PRIMARY KEY(source_runtime_id, target_id))");
+        sql.execute("CREATE TABLE IF NOT EXISTS teaql_event_snapshot ("
+                + "source_runtime_id TEXT PRIMARY KEY, snapshot_id TEXT NOT NULL, "
+                + "source_sequence INTEGER NOT NULL CHECK(source_sequence >= 0), model_hash TEXT NOT NULL, "
+                + "payload_sha256 TEXT NOT NULL, payload_json TEXT NOT NULL)");
     }
 
     /** Bounded publisher read of one durable, ordered source stream. */

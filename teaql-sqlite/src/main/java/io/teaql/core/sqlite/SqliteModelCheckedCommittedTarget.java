@@ -93,6 +93,28 @@ public final class SqliteModelCheckedCommittedTarget {
     }
 
     private static Mutation decode(EntityMetaFactory metadata, JsonNode fact) {
+        return decode(metadata, fact, false);
+    }
+
+    /** Package-private physical restore mode; never accepted by ordinary event apply. */
+    static Mutation decodeSnapshotRow(EntityMetaFactory metadata, JsonNode row) {
+        if (!row.isObject() || row.size() != 4 || !row.has("entity_type")
+                || !row.has("entity_id") || !row.has("version") || !row.has("fields")) {
+            throw invalid("snapshot row has wrong shape");
+        }
+        long id = positiveId(row.path("entity_id"));
+        long version = signedVersion(row.path("version"));
+        if (!Long.toString(id).equals(row.path("entity_id").asText())
+                || !Long.toString(version).equals(row.path("version").asText())
+                || version == 0 || version == Long.MIN_VALUE) throw invalid("snapshot identity/version is invalid");
+        var fact = row.deepCopy();
+        var object = (com.fasterxml.jackson.databind.node.ObjectNode) fact;
+        object.remove("version"); object.put("committed_version", Long.toString(version));
+        object.put("operation", "create"); object.putNull("base_version"); object.putArray("trace_chain");
+        return decode(metadata, object, true);
+    }
+
+    private static Mutation decode(EntityMetaFactory metadata, JsonNode fact, boolean snapshot) {
         if (!fact.isObject() || !nonblank(fact.path("entity_type"))) {
             throw invalid("mutation entity type is missing");
         }
@@ -126,7 +148,7 @@ public final class SqliteModelCheckedCommittedTarget {
                 ? null : signedVersion(baseNode);
         long committed = signedVersion(fact.path("committed_version"));
         boolean valid = switch (operation) {
-            case "create" -> base == null && committed == 1;
+            case "create" -> base == null && (snapshot ? committed != 0 && committed != Long.MIN_VALUE : committed == 1);
             case "update" -> base != null && base > 0 && base < Long.MAX_VALUE
                     && committed == base + 1;
             case "delete" -> base != null && base > 0 && base < Long.MAX_VALUE
@@ -183,7 +205,7 @@ public final class SqliteModelCheckedCommittedTarget {
         }
     }
 
-    private static Object decodeValue(PropertyDescriptor property, JsonNode value) {
+    static Object decodeValue(PropertyDescriptor property, JsonNode value) {
         if (value.isNull()) {
             if (property.getBoolean("required", false)) throw invalid("non-null field is null");
             return null;
@@ -280,7 +302,7 @@ public final class SqliteModelCheckedCommittedTarget {
         throw invalid("unsupported modeled field type");
     }
 
-    private static void applyOne(SqlExecutionAdapter sql, Mutation mutation) {
+    static void applyOne(SqlExecutionAdapter sql, Mutation mutation) {
         String table = quoted(mutation.table());
         String idColumn = quoted(mutation.idColumn());
         String versionColumn = quoted(mutation.versionColumn());
@@ -323,7 +345,7 @@ public final class SqliteModelCheckedCommittedTarget {
         verifyReadback(sql, mutation);
     }
 
-    private static void verifyReadback(SqlExecutionAdapter sql, Mutation mutation) {
+    static void verifyReadback(SqlExecutionAdapter sql, Mutation mutation) {
         List<String> projections = new ArrayList<>(List.of(quoted(mutation.versionColumn()) + " AS committed_version"));
         for (int i = 0; i < mutation.fields().size(); i++) {
             projections.add(quoted(mutation.fields().get(i).column()) + " AS field_" + i);
@@ -342,7 +364,7 @@ public final class SqliteModelCheckedCommittedTarget {
         }
     }
 
-    private static boolean sameValue(Field field, Object actual) {
+    static boolean sameValue(Field field, Object actual) {
         Object expected = field.value();
         if (expected instanceof byte[] bytes) return actual instanceof byte[] other && Arrays.equals(bytes, other);
         if (expected == null || actual == null) return expected == actual;
@@ -356,7 +378,7 @@ public final class SqliteModelCheckedCommittedTarget {
         return Objects.equals(expected, actual);
     }
 
-    private static Mapping mapping(PropertyDescriptor property) {
+    static Mapping mapping(PropertyDescriptor property) {
         List<SQLColumn> columns = SQLPropertyUtil.getColumns(property);
         if (columns.size() != 1) throw invalid("property has no single SQLite column");
         return new Mapping(columns.get(0).getTableName(), columns.get(0).getColumnName());
@@ -383,7 +405,7 @@ public final class SqliteModelCheckedCommittedTarget {
         }
     }
 
-    private static String quoted(String identifier) {
+    static String quoted(String identifier) {
         if (identifier == null || identifier.isBlank()) throw invalid("model has an empty SQL identifier");
         return "\"" + identifier.replace("\"", "\"\"") + "\"";
     }
@@ -409,9 +431,9 @@ public final class SqliteModelCheckedCommittedTarget {
                 "INVALID_ENVELOPE", "invalid committed-event envelope: " + reason);
     }
 
-    private record Mapping(String table, String column) { }
-    private record Field(String column, Object value, boolean decimal) { }
-    private record Mutation(String entityType, String table, String idColumn,
+    record Mapping(String table, String column) { }
+    record Field(String column, Object value, boolean decimal) { }
+    record Mutation(String entityType, String table, String idColumn,
             String versionColumn, long id, Long baseVersion, long committedVersion,
             String operation, List<Field> fields) { }
 }
