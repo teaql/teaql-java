@@ -1,5 +1,7 @@
 package io.teaql.core.value;
 
+import io.teaql.core.checker.ObjectLocation;
+import io.teaql.core.checker.JsonFieldNamingProfile;
 import java.util.function.Function;
 
 public class ExpressionAdaptor<T, E, U> implements Expression<T, U> {
@@ -36,4 +38,7 @@ public class ExpressionAdaptor<T, E, U> implements Expression<T, U> {
 
     @Override
     public String $path() { return expression.$path(); }
+
+    @Override public ObjectLocation $location() { return expression.$location(); }
+    @Override public JsonFieldNamingProfile $jsonFieldNaming() { return expression.$jsonFieldNaming(); }
 }
