@@ -1,14 +1,11 @@
 package io.teaql.tools.http;
 
-import com.sun.net.httpserver.HttpsConfigurator;
-import com.sun.net.httpserver.HttpsServer;
 import io.teaql.core.UserContext;
 import io.teaql.core.http.HttpRequestFailure;
 import io.teaql.core.http.HttpRequestService;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -25,11 +22,14 @@ import java.util.Base64;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLSocket;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -191,8 +191,10 @@ public class HttpProfileTrustTest {
     }
 
     private static final class Peer implements AutoCloseable {
-        final HttpsServer server;
-        final java.util.concurrent.ExecutorService executor = Executors.newCachedThreadPool();
+        final SSLServerSocket server;
+        final Thread worker;
+        final AtomicBoolean closed = new AtomicBoolean();
+        final AtomicReference<Throwable> error = new AtomicReference<>();
         final AtomicInteger requests = new AtomicInteger();
         Peer(String certificateFile, int rootIndex) throws Exception {
             var factory = CertificateFactory.getInstance("X.509");
@@ -208,14 +210,34 @@ public class HttpProfileTrustTest {
             store.setKeyEntry("server", privateKey, password, new java.security.cert.Certificate[] {certificate, root});
             var managers = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm()); managers.init(store, password);
             var tls = SSLContext.getInstance("TLS"); tls.init(managers.getKeyManagers(), null, null);
-            server = HttpsServer.create(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0), 0);
-            server.setHttpsConfigurator(new HttpsConfigurator(tls)); server.setExecutor(executor);
-            server.createContext("/", exchange -> {
-                try (exchange) { requests.incrementAndGet(); exchange.sendResponseHeaders(200, 2); exchange.getResponseBody().write(new byte[] {'o', 'k'}); }
-            });
-            server.start();
+            server = (SSLServerSocket) tls.getServerSocketFactory().createServerSocket(0, 16, InetAddress.getByName("127.0.0.1"));
+            server.setSoTimeout(100);
+            worker = new Thread(() -> {
+                while (!closed.get()) {
+                    try (var socket = (SSLSocket) server.accept()) {
+                        socket.setSoTimeout(2000);
+                        var reader = new java.io.BufferedReader(new java.io.InputStreamReader(socket.getInputStream(), StandardCharsets.US_ASCII));
+                        String first = reader.readLine();
+                        if (first == null) continue;
+                        assertTrue(first.startsWith("GET /status HTTP/1.1"));
+                        String line;
+                        while ((line = reader.readLine()) != null && !line.isEmpty()) {}
+                        if (line == null) continue;
+                        requests.incrementAndGet();
+                        socket.getOutputStream().write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok".getBytes(StandardCharsets.US_ASCII));
+                        socket.getOutputStream().flush();
+                    } catch (java.io.IOException rejectedOrStopped) {
+                        // Unknown CA and hostname failures cannot enter HTTP.
+                    } catch (Throwable unexpected) { error.compareAndSet(null, unexpected); return; }
+                }
+            }, "teaql-http-trust-peer");
+            worker.start();
         }
-        URI uri() { return URI.create("https://127.0.0.1:" + server.getAddress().getPort() + "/"); }
-        @Override public void close() throws Exception { server.stop(0); executor.shutdownNow(); assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS)); }
+        URI uri() { return URI.create("https://127.0.0.1:" + server.getLocalPort() + "/"); }
+        @Override public void close() throws Exception {
+            closed.set(true); server.close(); worker.join(5000);
+            assertFalse("owned TLS peer did not stop", worker.isAlive());
+            if (error.get() != null) throw new AssertionError("owned TLS peer failed", error.get());
+        }
     }
 }
