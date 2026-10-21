@@ -20,3 +20,6 @@ for round in 1 2; do
   fi
   (( result == 0 )) || exit "$result"
 done
+mvn -B -q -pl teaql-tool-http -am \
+  -Dtest=HttpProfileTrustTest -Dsurefire.failIfNoSpecifiedTests=false test
+echo 'HTTP_TRUST_EXAMPLE_PASS language=java tests=5'
