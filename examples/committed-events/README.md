@@ -53,3 +53,26 @@ reset a previous database to force success. Module `target` directories remain
 ordinary reusable Maven build outputs; one-off gate owners clean their own
 build directories after recording results. This proves controlled process death,
 not machine/power failure, snapshot restart, all CMR-12 paths or public artifacts.
+
+## Consistent snapshot plus tail (CMR-11)
+
+Run `bash examples/committed-events/verify-snapshot.sh`. It copies the current
+local source without build outputs, runs `CommittedSnapshotExampleTest` twice
+offline and deletes its owned build/database scratch on exit. It never selects
+a released runtime. The complete verifier also invokes this gate.
+
+The small fixture has two legacy orders (including a tombstone and an ID above
+JavaScript's exact-integer range), a negative epoch timestamp, Boolean/NULL and
+an empty entity catalog entry. Context `ensureSchema` creates its schema;
+explicit fixture SQL represents old data with no captured journal. A separate
+transaction simulates one captured tail. Actual business audited-save capture
+remains demonstrated by `CommittedEventsExampleTest`, not by this fixture SQL.
+
+The example imports snapshot N=0, applies tail 1, retries both and proves that a
+snapshot retry acknowledges 0 without rewinding checkpoint 1. Optional
+`TEAQL_SNAPSHOT_EXPORT_DIR` writes only `snapshot.json`, `tail.json` and their
+SHA-256 sidecars with create-new semantics. `TEAQL_SNAPSHOT_IMPORT_DIR` consumes
+the same files, including those exported by the Rust example. Use separate
+producer/consumer runs and fresh owned export directories; never overwrite old
+evidence. These files do not define an authenticated network transport. No
+CMR-12 process-crash or production-scale qualification is claimed.

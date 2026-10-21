@@ -25,4 +25,5 @@ for round in 1 2; do
   echo "PASS Java generated committed Q example round $round"
 done
 bash examples/committed-events/verify-process-crash.sh
+bash examples/committed-events/verify-snapshot.sh
 echo "Java generated committed Q evidence: $evidence"
