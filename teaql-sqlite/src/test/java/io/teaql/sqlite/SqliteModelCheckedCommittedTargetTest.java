@@ -317,6 +317,9 @@ public class SqliteModelCheckedCommittedTargetTest {
         try {
             Target t = target(path);
             OutboxRecord first = record(1, "order-graph-0001", created());
+            String unknownEntity = created().replace("\"entity_type\":\"order_item\"",
+                    "\"entity_type\":\"not_in_model\"");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(), record(1, "unknown-entity", unknownEntity)));
             String unknown = created().replace("\"quantity\":\"2\"",
                     "\"quantity\":\"2\",\"not_in_model\":1");
             expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(), record(1, "unknown", unknown)));
