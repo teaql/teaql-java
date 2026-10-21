@@ -240,11 +240,86 @@ public class SqliteModelCheckedCommittedTargetTest {
         } finally { Files.deleteIfExists(path); }
     }
 
+    /** CMR-05/06: all three operations in one set, not separate successful sets. */
+    @Test public void mixedCreateUpdateDeleteRollsBackThenRetriesAndDeduplicates() throws Exception {
+        Path path = Files.createTempFile("teaql-mixed-target-", ".sqlite");
+        try {
+            Target t = target(path);
+            assertEquals(1, t.target().apply(t.context(), record(1, "mixed-baseline", created())).checkpoint());
+            var mutations = (com.fasterxml.jackson.databind.node.ArrayNode) new ObjectMapper().readTree(submitted());
+            mutations.add(new ObjectMapper().readTree("""
+                    {"entity_type":"order_item","entity_id":"9007199254740995","operation":"create",
+                     "base_version":null,"committed_version":"1",
+                     "fields":{"order":{"entity_type":"order","entity_id":"9007199254740993"},
+                               "quantity":"3"},"trace_chain":[]}
+                    """));
+            OutboxRecord mixed = record(2, "mixed-three-operations", mutations.toString());
+            // The fault fires only if update and delete were already executed.
+            // A failure before those writes cannot masquerade as rollback proof.
+            t.sql().execute("CREATE TRIGGER reject_mixed_create BEFORE INSERT ON order_item_data "
+                    + "WHEN NEW.id = 9007199254740995 "
+                    + "AND (SELECT version FROM order_data WHERE id = 9007199254740993) = 2 "
+                    + "AND (SELECT version FROM order_item_data WHERE id = 9007199254740994) = -2 "
+                    + "BEGIN SELECT RAISE(ABORT, 'fixture rejects final create'); END");
+            try {
+                t.target().apply(t.context(), mixed);
+                fail("expected final-create failure after update and delete");
+            } catch (RuntimeException expected) {
+                var order = t.sql().queryForList("SELECT version,status FROM order_data WHERE id = ?",
+                        new Object[] {ORDER_ID}).get(0);
+                assertEquals(1L, ((Number) order.get("version")).longValue());
+                assertEquals("DRAFT", order.get("status"));
+                assertEquals(1L, ((Number) t.sql().queryForList(
+                        "SELECT version FROM order_item_data WHERE id = ?", new Object[] {ITEM_ID})
+                        .get(0).get("version")).longValue());
+                assertTrue(t.sql().queryForList("SELECT id FROM order_item_data WHERE id = ?",
+                        new Object[] {ITEM_ID + 1}).isEmpty());
+                assertEquals(1, count(t.sql(), "teaql_event_inbox"));
+                assertEquals(1, count(t.sql(), "teaql_event_applied_payload"));
+                assertEquals(1L, ((Number) t.sql().queryForList(
+                        "SELECT source_sequence FROM teaql_event_checkpoint WHERE source_runtime_id = ?",
+                        new Object[] {SOURCE}).get(0).get("source_sequence")).longValue());
+            }
+            t.sql().execute("DROP TRIGGER reject_mixed_create"); // disarm fault; do not reset data
+            assertEquals(2, t.target().apply(t.context(), mixed).checkpoint());
+            var duplicate = t.target().apply(t.context(), mixed);
+            assertTrue(duplicate.duplicate());
+            assertEquals(2, duplicate.checkpoint());
+            var order = t.sql().queryForList("SELECT version,status FROM order_data WHERE id = ?",
+                    new Object[] {ORDER_ID}).get(0);
+            assertEquals(2L, ((Number) order.get("version")).longValue());
+            assertEquals("SUBMITTED", order.get("status"));
+            assertEquals(-2L, ((Number) t.sql().queryForList(
+                    "SELECT version FROM order_item_data WHERE id = ?", new Object[] {ITEM_ID})
+                    .get(0).get("version")).longValue());
+            var added = t.sql().queryForList("SELECT version,order_id,quantity FROM order_item_data WHERE id = ?",
+                    new Object[] {ITEM_ID + 1}).get(0);
+            assertEquals(1L, ((Number) added.get("version")).longValue());
+            assertEquals(ORDER_ID, ((Number) added.get("order_id")).longValue());
+            assertEquals(3L, ((Number) added.get("quantity")).longValue());
+            assertEquals(1, count(t.sql(), "order_data"));
+            assertEquals(2, count(t.sql(), "order_item_data"));
+            assertEquals(2, count(t.sql(), "teaql_event_inbox"));
+            assertEquals(2, count(t.sql(), "teaql_event_applied_payload"));
+            assertEquals(2L, ((Number) t.sql().queryForList(
+                    "SELECT source_sequence FROM teaql_event_checkpoint WHERE source_runtime_id = ?",
+                    new Object[] {SOURCE}).get(0).get("source_sequence")).longValue());
+            String retained = (String) t.sql().queryForList(
+                    "SELECT payload_json FROM teaql_event_applied_payload WHERE source_sequence = 2",
+                    new Object[0]).get(0).get("payload_json");
+            assertEquals(3, new ObjectMapper().readTree(retained).path("mutations").size());
+            System.out.println("MIXED_TARGET_ATOMIC_PASS language=java mixed=3 rollback=1 retry=1 duplicate=1");
+        } finally { Files.deleteIfExists(path); }
+    }
+
     @Test public void rejectsUnknownModelAndRollsBackWhenSecondObjectFails() throws Exception {
         Path path = Files.createTempFile("teaql-model-target-negative-", ".sqlite");
         try {
             Target t = target(path);
             OutboxRecord first = record(1, "order-graph-0001", created());
+            String unknownEntity = created().replace("\"entity_type\":\"order_item\"",
+                    "\"entity_type\":\"not_in_model\"");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(), record(1, "unknown-entity", unknownEntity)));
             String unknown = created().replace("\"quantity\":\"2\"",
                     "\"quantity\":\"2\",\"not_in_model\":1");
             expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(), record(1, "unknown", unknown)));
