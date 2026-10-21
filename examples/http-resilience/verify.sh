@@ -13,8 +13,10 @@ for round in 1 2; do
   mvn -B -q -pl examples/http-resilience -am \
     -Dtest=HttpResilienceExampleTest -Dsurefire.failIfNoSpecifiedTests=false test || result=$?
   if [[ -n "$evidence" && -f examples/http-resilience/target/surefire-reports/TEST-io.teaql.examples.http.HttpResilienceExampleTest.xml ]]; then
-    cp examples/http-resilience/target/surefire-reports/TEST-io.teaql.examples.http.HttpResilienceExampleTest.xml \
-      "$evidence/round-$round.xml"
+    if ! cp examples/http-resilience/target/surefire-reports/TEST-io.teaql.examples.http.HttpResilienceExampleTest.xml \
+      "$evidence/round-$round.xml"; then
+      (( result != 0 )) || result=1
+    fi
   fi
   (( result == 0 )) || exit "$result"
 done

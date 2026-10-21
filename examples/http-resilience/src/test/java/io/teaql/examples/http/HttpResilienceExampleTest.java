@@ -124,34 +124,34 @@ public class HttpResilienceExampleTest {
                     });
 
             for (int round = 1; round <= 2; round++) {
-            var response = context.httpRequests().execute(context,
-                    HttpRequestService.Call.get("orders", "orders/1?token=PRIVATE_QUERY_CANARY",
-                            "load order status", "show the order status")
-                            .withParentTraceChain(List.of(
-                                    new TraceNode(TraceKind.PURPOSE, "Order", "render order details"),
-                                    new TraceNode(TraceKind.COMMENT, "Order", "load order graph"))));
-            assertEquals(200, response.status());
-            assertEquals("submitted", ((java.util.Map<?, ?>) response.jsonValue()).get("status"));
-            assertEquals(1, response.attempts());
+                var response = context.httpRequests().execute(context,
+                        HttpRequestService.Call.get("orders", "orders/1?token=PRIVATE_QUERY_CANARY",
+                                "load order status", "show the order status")
+                                .withParentTraceChain(List.of(
+                                        new TraceNode(TraceKind.PURPOSE, "Order", "render order details"),
+                                        new TraceNode(TraceKind.COMMENT, "Order", "load order graph"))));
+                assertEquals(200, response.status());
+                assertEquals("submitted", ((java.util.Map<?, ?>) response.jsonValue()).get("status"));
+                assertEquals(1, response.attempts());
 
-            String viaTool = new JdkHttpTool(context).get("orders", "orders/1")
-                    .comment("load order status for agent")
-                    .purpose("explain the order status")
-                    .execute();
-            assertTrue(viaTool.contains("submitted"));
-            assertEquals(2 * round, requests.get());
-            assertEquals(java.util.Collections.nCopies(2 * round, TRACEPARENT), traceparents);
-            assertEquals(2 * round, observed.size());
-            var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            int offset = 2 * (round - 1);
-            assertEquals(3, mapper.readTree(observed.get(offset).traceChain()).size());
-            assertEquals("load order graph",
-                    mapper.readTree(observed.get(offset).traceChain()).get(1).get("comment").asText());
-            assertEquals(2, mapper.readTree(observed.get(offset + 1).traceChain()).size());
-            assertFalse(observed.toString().contains("PRIVATE_QUERY_CANARY"));
-            assertFalse(observed.get(offset).traceChain().contains("PRIVATE_QUERY_CANARY"));
-            System.out.println("HTTP_SAME_FIXTURE_PASS language=java round=" + round
-                    + " requests=" + requests.get() + " trace=" + observed.size() + " lineage=3");
+                String viaTool = new JdkHttpTool(context).get("orders", "orders/1")
+                        .comment("load order status for agent")
+                        .purpose("explain the order status")
+                        .execute();
+                assertTrue(viaTool.contains("submitted"));
+                assertEquals(2 * round, requests.get());
+                assertEquals(java.util.Collections.nCopies(2 * round, TRACEPARENT), traceparents);
+                assertEquals(2 * round, observed.size());
+                var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                int offset = 2 * (round - 1);
+                assertEquals(3, mapper.readTree(observed.get(offset).traceChain()).size());
+                assertEquals("load order graph",
+                        mapper.readTree(observed.get(offset).traceChain()).get(1).get("comment").asText());
+                assertEquals(2, mapper.readTree(observed.get(offset + 1).traceChain()).size());
+                assertFalse(observed.toString().contains("PRIVATE_QUERY_CANARY"));
+                assertFalse(observed.get(offset).traceChain().contains("PRIVATE_QUERY_CANARY"));
+                System.out.println("HTTP_SAME_FIXTURE_PASS language=java round=" + round
+                        + " requests=" + requests.get() + " trace=" + observed.size() + " lineage=3");
             }
         } finally {
             server.stop(0);
