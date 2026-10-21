@@ -40,11 +40,12 @@ public class CommittedBootstrapCrashExampleTest {
     private static void pause(Path directory, String phase, int round, long visibleRows) {
         try {
             Path temporary = directory.resolve(phase + "-" + round + ".ready.tmp");
+            // Flush diagnostics before announcing readiness; SIGKILL may follow the rename immediately.
+            System.out.println("CMR12_SQL_BARRIER phase=" + phase + " round=" + round + " visible_rows=" + visibleRows);
+            System.out.flush();
             writeNew(temporary, Map.of("pid", ProcessHandle.current().pid(), "phase", phase,
                     "round", round, "visibleRows", visibleRows));
             Files.move(temporary, directory.resolve(phase + "-" + round + ".ready.json"), StandardCopyOption.ATOMIC_MOVE);
-            System.out.println("CMR12_SQL_BARRIER phase=" + phase + " round=" + round + " visible_rows=" + visibleRows);
-            System.out.flush();
             for (;;) Thread.sleep(1000); // parent must SIGKILL; no graceful transaction cleanup
         } catch (Exception failure) { throw new IllegalStateException(failure); }
     }
@@ -77,7 +78,7 @@ public class CommittedBootstrapCrashExampleTest {
             if (armed && phase.equals("capture") && statement.startsWith("SELECT current_sequence")) {
                 assertTrue(hasActiveTransaction());
                 assertEquals(baseline(round), ((Number) rows.get(0).get("current_sequence")).longValue());
-                pause(directory, phase, round, baseline(round) + 1);
+                pause(directory, phase, round, -1); // sequence read is established; domain rows are not read yet
             }
             return rows;
         }
@@ -161,6 +162,29 @@ public class CommittedBootstrapCrashExampleTest {
         }
     }
 
+    /** Actual fresh-connection readback after each owned worker exits; retained for deterministic audit. */
+    private static Map<String,Object> observed(Path directory, int round) throws Exception {
+        Map<String,Object> state = new LinkedHashMap<>();
+        try (Fixture source = fixture(directory, "read", round, true, false)) {
+            var jobs = source.sql.queryForList("SELECT source_sequence,acknowledged,payload_sha256 FROM teaql_event_snapshot_publication WHERE target_id=?", new Object[]{slot(round)});
+            var cursors = source.sql.queryForList("SELECT acked_sequence FROM teaql_event_delivery_cursor WHERE target_id=?", new Object[]{slot(round)});
+            state.put("source", Map.of("high", source.publisher(round).status().sourceHighWatermark(),
+                    "domainRows", count(source, "order_data"), "businessCalls", Files.readAllLines(directory.resolve("business-calls.txt")).size(),
+                    "snapshotSequence", jobs.isEmpty() ? -1 : ((Number) jobs.get(0).get("source_sequence")).longValue(),
+                    "snapshotAcknowledged", jobs.isEmpty() ? -1 : ((Number) jobs.get(0).get("acknowledged")).intValue(),
+                    "snapshotHash", jobs.isEmpty() ? "" : jobs.get(0).get("payload_sha256"),
+                    "cursor", cursors.isEmpty() ? -1 : ((Number) cursors.get(0).get("acked_sequence")).longValue()));
+        }
+        if (Files.exists(directory.resolve("target-" + round + ".sqlite"))) {
+            try (Fixture target = fixture(directory, "read", round, false, false)) {
+                state.put("target", Map.of("present", true, "domainRows", count(target, "order_data"),
+                        "snapshotRows", count(target, "teaql_event_snapshot"), "checkpoint", checkpoint(target),
+                        "inbox", count(target, "teaql_event_inbox"), "applied", count(target, "teaql_event_applied_payload")));
+            }
+        } else state.put("target", Map.of("present", false));
+        return state;
+    }
+
     /** Test worker only. All barriers are in this fixture, not runtime production code. */
     public static void main(String[] args) throws Exception {
         if (args.length != 3) throw new IllegalArgumentException("phase directory round required");
@@ -176,7 +200,7 @@ public class CommittedBootstrapCrashExampleTest {
             } else if (Set.of("capture", "retain", "prepare").contains(phase)) {
                 if (phase.equals("retain")) source.sql.execute("CREATE TRIGGER retain_barrier_" + round
                         + " AFTER INSERT ON teaql_event_snapshot_publication WHEN NEW.target_id='" + slot(round)
-                        + "' BEGIN SELECT cmr12_test_barrier('retain',0); END");
+                        + "' BEGIN SELECT cmr12_test_barrier('retain',(SELECT count(*) FROM teaql_event_snapshot_publication WHERE target_id=NEW.target_id)); END");
                 source.sql.armed = true;
                 var prepared = source.bootstrap(round).prepare(source.context, identity(round), "capture bootstrap facts", "recover analytics without replay", LIMITS);
                 assertFalse(prepared.acknowledged()); assertEquals(baseline(round), prepared.snapshot().sourceSequence());
@@ -193,14 +217,14 @@ public class CommittedBootstrapCrashExampleTest {
                     }
                     if (phase.equals("source_ack")) {
                         source.sql.execute("CREATE TRIGGER ack_barrier_" + round + " AFTER INSERT ON teaql_event_delivery_cursor WHEN NEW.target_id='" + slot(round)
-                                + "' BEGIN SELECT cmr12_test_barrier('source_ack',0); END");
+                                + "' BEGIN SELECT cmr12_test_barrier('source_ack',(SELECT count(*) FROM teaql_event_delivery_cursor WHERE target_id=NEW.target_id)); END");
                         source.sql.armed = true;
                     }
                     if (Set.of("target_apply", "snapshot_receipt_lost", "source_ack", "ack").contains(phase)) {
                         var prepared = source.bootstrap(round).publish(source.context, identity(round), LIMITS, record -> {
                             var receipt = SqliteCommittedSnapshotPublisher.initializeAndAcknowledge(target.context, target.snapshots(), record, slot(round), LIMITS);
                             assertEquals(!phase.equals("snapshot_receipt_lost") && !phase.equals("target_apply"), receipt.duplicate());
-                            if (phase.equals("snapshot_receipt_lost")) pause(directory, phase, round, baseline(round) + 1);
+                            if (phase.equals("snapshot_receipt_lost")) pause(directory, phase, round, count(target, "order_data"));
                             return receipt;
                         });
                         assertTrue(prepared.acknowledged());
@@ -214,7 +238,7 @@ public class CommittedBootstrapCrashExampleTest {
                             assertEquals(baseline(round) + 1, record.sourceSequence());
                             var result = new SqliteModelCheckedCommittedTarget(target.sql, SOURCE, MODEL).apply(target.context, record);
                             assertEquals(phase.equals("tail_ack"), result.duplicate());
-                            if (phase.equals("tail_receipt_lost")) pause(directory, phase, round, baseline(round) + 2);
+                            if (phase.equals("tail_receipt_lost")) pause(directory, phase, round, count(target, "order_data"));
                             return result;
                         });
                         assertEquals(1, outcome.acknowledged());
@@ -264,6 +288,7 @@ public class CommittedBootstrapCrashExampleTest {
                 assertEquals(child.pid(), state.path("pid").asLong()); assertEquals(phase, state.path("phase").asText());
                 assertEquals(round, state.path("round").asInt()); assertTrue(child.isAlive());
                 if (phase.equals("target_apply")) assertEquals(1, state.path("visibleRows").asLong());
+                if (phase.equals("retain") || phase.equals("source_ack")) assertEquals(1, state.path("visibleRows").asLong());
                 if (phase.equals("tail_apply")) assertEquals(baseline(round) + 2, state.path("visibleRows").asLong());
                 child.destroyForcibly(); reap(child); assertEquals("SIGKILL, not orderly close", 137, child.exitValue());
             } else {
@@ -273,7 +298,7 @@ public class CommittedBootstrapCrashExampleTest {
             }
             assertTrue(Files.size(log) <= MAX_LOG);
             return Map.of("phase", phase, "round", round, "pid", child.pid(), "exit", child.exitValue(), "killed", crash,
-                    "logSha256", digest(Files.readString(log)));
+                    "logSha256", digest(Files.readString(log)), "observed", observed(directory, round));
         } finally { reap(child); }
     }
     private static void removeOwnedFixture(Path directory) throws Exception {
