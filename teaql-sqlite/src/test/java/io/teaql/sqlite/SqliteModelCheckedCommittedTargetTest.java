@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.teaql.core.BaseEntity;
 import io.teaql.core.meta.EntityDescriptor;
+import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
 import io.teaql.core.sqlite.SqliteCommittedEventStore;
 import io.teaql.core.sqlite.SqliteCommittedEventStore.CommittedEventException;
@@ -144,6 +145,79 @@ public class SqliteModelCheckedCommittedTargetTest {
     private static long count(JdbcSqlExecutor sql, String table) {
         return ((Number) sql.queryForList("SELECT COUNT(*) AS n FROM " + table,
                 new Object[0]).get(0).get("n")).longValue();
+    }
+
+    private static final class ForbiddenBusinessApi extends RuntimeException {
+        ForbiddenBusinessApi(String method) { super("business API reached: " + method); }
+    }
+
+    /** CMR-09: deny every Context method except its actual metadata capability. */
+    @Test public void committedTargetUsesOnlyMetadataAndNeverReplaysBusinessApis() throws Exception {
+        Path path = Files.createTempFile("teaql-target-nonreplay-", ".sqlite");
+        try {
+            Target t = target(path);
+            EntityMetaFactory metadata = EntityMetaFactory.requireFrom(t.context());
+            var unexpected = new java.util.ArrayList<String>();
+            var metadataReads = new java.util.concurrent.atomic.AtomicInteger();
+            io.teaql.core.UserContext guarded = (io.teaql.core.UserContext)
+                    java.lang.reflect.Proxy.newProxyInstance(io.teaql.core.UserContext.class.getClassLoader(),
+                            new Class<?>[] {io.teaql.core.UserContext.class}, (proxy, method, args) -> {
+                                if (method.getName().equals("capability") && args.length == 1
+                                        && args[0] == EntityMetaFactory.class) {
+                                    metadataReads.incrementAndGet();
+                                    return metadata;
+                                }
+                                unexpected.add(method.getName());
+                                throw new ForbiddenBusinessApi(method.getName());
+                            });
+            // Positive controls: the guard must intercept real entrypoints,
+            // not count zero because a test double was never wired in.
+            Runnable[] controls = {
+                () -> guarded.capability(io.teaql.core.checker.Checker.class),
+                () -> guarded.beginFixEvidence(),
+                () -> guarded.saveGraph((io.teaql.core.Entity) null),
+                () -> guarded.businessTime(),
+                () -> guarded.capability(io.teaql.core.InternalIdGenerationService.class),
+                () -> guarded.httpRequests(),
+                () -> guarded.extension("llm"),
+                () -> guarded.extension("notifications")
+            };
+            for (Runnable control : controls) {
+                boolean intercepted = false;
+                try { control.run(); } catch (ForbiddenBusinessApi expected) { intercepted = true; }
+                assertTrue("positive control did not reach the Context guard", intercepted);
+            }
+            assertEquals(8, unexpected.size());
+            unexpected.clear();
+            String deleted = """
+                    [{"entity_type":"order","entity_id":"9007199254740993","operation":"delete",
+                      "base_version":"2","committed_version":"-3","fields":{},"trace_chain":[]}]
+                    """;
+            String recovered = """
+                    [{"entity_type":"order","entity_id":"9007199254740993","operation":"recover",
+                      "base_version":"-3","committed_version":"4",
+                      "fields":{"status":"RECOVERED"},"trace_chain":[]}]
+                    """;
+            String[] facts = {created(), submitted(), deleted, recovered};
+            for (int index = 0; index < facts.length; index++) {
+                OutboxRecord event = record(index + 1, "nonreplay-" + index, facts[index]);
+                assertEquals(index + 1, t.target().apply(guarded, event).checkpoint());
+                assertTrue(t.target().apply(guarded, event).duplicate());
+                assertTrue("target invoked a forbidden business API: " + unexpected, unexpected.isEmpty());
+            }
+            Map<String, Object> row = t.sql().queryForList(
+                    "SELECT id,version,order_number,status,occurred_at FROM order_data WHERE id=?",
+                    new Object[] {ORDER_ID}).get(0);
+            assertEquals(ORDER_ID, ((Number) row.get("id")).longValue());
+            assertEquals(4, ((Number) row.get("version")).longValue());
+            assertEquals("ORD-0001", row.get("order_number"));
+            assertEquals("RECOVERED", row.get("status"));
+            assertEquals(-315_619_199_877L, ((Number) row.get("occurred_at")).longValue());
+            assertEquals(4, count(t.sql(), "teaql_event_inbox"));
+            assertEquals(4, count(t.sql(), "teaql_event_applied_payload"));
+            assertEquals(8, metadataReads.get());
+            System.out.println("CMR_NONREPLAY_PASS language=java controls=8 business_calls=0 metadata_reads=8 operations=4 duplicates=4");
+        } finally { Files.deleteIfExists(path); }
     }
 
     @Test public void appliesSharedConformanceFixtureWhenConfigured() throws Exception {
