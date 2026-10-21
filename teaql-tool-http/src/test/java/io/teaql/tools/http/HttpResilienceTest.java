@@ -668,7 +668,9 @@ public class HttpResilienceTest {
                         if (line.toLowerCase(java.util.Locale.ROOT).startsWith("content-length:"))
                             contentLength = Integer.parseInt(line.substring(line.indexOf(':') + 1).trim());
                     }
-                    if (target.contains("/retry-post")) {
+                    // Drain the request before replying. Closing a socket with unread POST bytes
+                    // can reset an otherwise valid response on Windows TCP stacks.
+                    if (target.contains("/retry-post") || target.contains("/private-response")) {
                         char[] body = new char[contentLength];
                         int offset = 0;
                         while (offset < body.length) {
@@ -676,7 +678,7 @@ public class HttpResilienceTest {
                             if (count < 0) return;
                             offset += count;
                         }
-                        retryBodies.add(new String(body));
+                        if (target.contains("/retry-post")) retryBodies.add(new String(body));
                     }
                     if (target.contains("/close")) return;
                     if (target.endsWith("/slow")) Thread.sleep(300);

@@ -17,6 +17,7 @@ public class EntityMutationLedger {
     private final Map<EntityKey, List<TraceNode>> traceChains = new TreeMap<>();
     private final Map<EntityKey, Long> originalVersions = new TreeMap<>();
     private boolean committedStateRequiresReload;
+    private boolean transactionOutcomeUnknownRequiresReload;
 
     // --- Change Set Stack ---
 
@@ -47,8 +48,17 @@ public class EntityMutationLedger {
         committedStateRequiresReload = true;
     }
 
-    /** Prevents a stale graph from replaying a write whose outcome is already committed. */
+    /** A provider could not confirm commit or rollback; this graph must not be replayed. */
+    public void markTransactionOutcomeUnknownRequiresReload() {
+        transactionOutcomeUnknownRequiresReload = true;
+    }
+
+    /** Prevents replay of a graph whose persistence outcome needs a fresh read. */
     public void requireSaveable() {
+        if (transactionOutcomeUnknownRequiresReload) {
+            throw new TeaQLRuntimeException(
+                    "TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED: reload the entity graph before another save");
+        }
         if (committedStateRequiresReload) {
             throw new TeaQLRuntimeException(
                     "COMMITTED_STATE_RELOAD_REQUIRED: reload the entity graph before another save");

@@ -10,13 +10,24 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import io.teaql.runtime.*;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.nio.file.Files;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import javax.sql.DataSource;
 import io.teaql.core.checker.Checker;
 import io.teaql.core.checker.CheckException;
 import io.teaql.core.checker.FixEvidence;
@@ -70,15 +81,22 @@ public class GraphTraceSqliteTest {
         final DefaultUserContext context;
         final SqliteCommittedMutationRecorder committedRecorder;
         volatile boolean failReadback;
+        volatile boolean errorReadback;
+        volatile boolean errorReadbackWithoutSuppression;
         volatile boolean unknownUpdateCounts;
 
         Fixture() throws Exception { this(false); }
 
         Fixture(boolean captureCommittedMutations) throws Exception {
+            this(captureCommittedMutations, source -> source);
+        }
+
+        Fixture(boolean captureCommittedMutations,
+                Function<SQLiteDataSource, DataSource> transactionSource) throws Exception {
             var ds = new SQLiteDataSource();
             dataSource = ds;
             ds.setUrl("jdbc:sqlite:" + Files.createTempFile("teaql-graph-trace-", ".db"));
-            driver = new JdbcSqlExecutor(ds) {
+            driver = new JdbcSqlExecutor(transactionSource.apply(ds)) {
                 @Override public int[] batchUpdate(String text, List<Object[]> rows) {
                     if (text.startsWith("INSERT INTO order_item_data")) {
                         itemInsertBatchSizes.add(rows.size());
@@ -98,6 +116,13 @@ public class GraphTraceSqliteTest {
                     return counts;
                 }
                 @Override public List<Map<String, Object>> queryForList(String text, Object[] args) {
+                    if (errorReadbackWithoutSuppression && text.startsWith("SELECT * FROM")
+                            && text.contains("customer_order_data")) {
+                        throw new NoSuppressionError();
+                    }
+                    if (errorReadback && text.startsWith("SELECT * FROM") && text.contains("customer_order_data")) {
+                        throw new AssertionError("synthetic Error after business write");
+                    }
                     if (failReadback && text.startsWith("SELECT * FROM") && text.contains("customer_order_data")) {
                         // A real driver failure after a successful write, inside the same transaction.
                         execute("DROP TABLE customer_order_data");
@@ -200,6 +225,12 @@ public class GraphTraceSqliteTest {
             entity.__internalInitializeNewEntityId(id);
             entity.updateProperty("name", name);
             return entity;
+        }
+    }
+
+    private static final class NoSuppressionError extends Error {
+        private NoSuppressionError() {
+            super("synthetic Error without suppressed diagnostics", null, false, false);
         }
     }
 
@@ -701,6 +732,295 @@ public class GraphTraceSqliteTest {
         assertTrue(fixture.driver.queryForList("SELECT id FROM order_item_data WHERE id = ?",
                 new Object[] {201L}).isEmpty());
         assertTrue("no post-commit audit on rolled back save", fixture.audit.isEmpty());
+    }
+
+    @Test public void lostCommitAcknowledgementAfterDurableWriteRequiresReload() throws Exception {
+        assertCommitAcknowledgementUnknown(true);
+    }
+
+    @Test public void failedCommitBeforeWriteRequiresTheSameConservativeReload() throws Exception {
+        assertCommitAcknowledgementUnknown(false);
+    }
+
+    @Test public void commitErrorAfterDurableWriteRequiresReload() throws Exception {
+        var armed = new AtomicBoolean();
+        var injected = new AtomicBoolean();
+        var fixture = new Fixture(true,
+                source -> commitErrorAfterWrite(source, armed, injected));
+        var order = fixture.create("CustomerOrder", 193, "commit Error after durable write");
+        armed.set(true);
+
+        assertThrows(NoSuppressionError.class,
+                () -> order.auditAs("probe uncertain commit Error").save(fixture.context));
+        assertTrue("the commit Error must be injected", injected.get());
+        assertEquals(1, fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {193L}).size());
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+        var retryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("reject replay after commit Error").save(fixture.context));
+        assertTrue(retryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
+    }
+
+    @Test public void commitFailureAndRollbackErrorMustNotRestoreAutoCommit() throws Exception {
+        var armed = new AtomicBoolean();
+        var rollbackInjected = new AtomicBoolean();
+        var restoredAutoCommit = new AtomicBoolean();
+        var fixture = new Fixture(true, source -> commitRollbackErrorFault(
+                source, armed, rollbackInjected, restoredAutoCommit));
+        var order = fixture.create("CustomerOrder", 195, "commit and rollback uncertain");
+        armed.set(true);
+
+        var failure = assertThrows(TransactionOutcomeUnknownException.class,
+                () -> order.auditAs("probe commit and rollback Error").save(fixture.context));
+        assertTrue(failure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN"));
+        assertTrue("rollback Error must be injected", rollbackInjected.get());
+        assertFalse("unconfirmed rollback must not restore autoCommit", restoredAutoCommit.get());
+        assertTrue("failed commit must not materialize the business row", fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {195L}).isEmpty());
+        assertTrue("failed commit must not materialize Outbox", fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).isEmpty());
+        var retryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("reject replay after commit and rollback Error").save(fixture.context));
+        assertTrue(retryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
+    }
+
+    @Test public void failedRollbackMustNotImplicitlyCommitOnAutoCommitRestoration() throws Exception {
+        var armed = new AtomicBoolean();
+        var injected = new AtomicBoolean();
+        var restoredAutoCommit = new AtomicBoolean();
+        var fixture = new Fixture(true,
+                source -> rollbackFault(source, armed, injected, restoredAutoCommit));
+        fixture.driver.execute("DROP TABLE teaql_event_outbox");
+        armed.set(true);
+        var order = fixture.create("CustomerOrder", 187, "rollback failed after Outbox error");
+
+        var failure = assertThrows(RuntimeException.class,
+                () -> order.auditAs("probe uncertain rollback outcome").save(fixture.context));
+        assertTrue("the rollback failure must be injected", injected.get());
+        assertFalse("restoring autoCommit after failed rollback can commit pending writes",
+                restoredAutoCommit.get());
+        assertEquals(0, fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {187L}).size());
+        assertTrue(failure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN"));
+        var retryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("reject replay after failed rollback").save(fixture.context));
+        assertTrue(retryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
+    }
+
+    @Test public void rollbackErrorMustNotRestoreAutoCommitOrPermitReplay() throws Exception {
+        var armed = new AtomicBoolean();
+        var injected = new AtomicBoolean();
+        var restoredAutoCommit = new AtomicBoolean();
+        var fixture = new Fixture(true,
+                source -> rollbackFault(source, armed, injected, restoredAutoCommit, true));
+        fixture.driver.execute("DROP TABLE teaql_event_outbox");
+        var order = fixture.create("CustomerOrder", 194, "rollback Error after Outbox failure");
+        armed.set(true);
+
+        assertThrows(NoSuppressionError.class,
+                () -> order.auditAs("probe rollback Error").save(fixture.context));
+        assertTrue("the rollback Error must be injected", injected.get());
+        assertFalse("unconfirmed rollback must not restore autoCommit", restoredAutoCommit.get());
+        var retryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("reject replay after rollback Error").save(fixture.context));
+        assertTrue(retryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
+    }
+
+    @Test public void failedRollbackAfterErrorRequiresReloadBeforeRetry() throws Exception {
+        var armed = new AtomicBoolean();
+        var injected = new AtomicBoolean();
+        var restoredAutoCommit = new AtomicBoolean();
+        var fixture = new Fixture(false,
+                source -> rollbackFault(source, armed, injected, restoredAutoCommit));
+        var order = fixture.create("CustomerOrder", 190, "error before rollback");
+        fixture.errorReadback = true;
+        armed.set(true);
+
+        var failure = assertThrows(AssertionError.class,
+                () -> order.auditAs("probe rollback failure after Error").save(fixture.context));
+        assertEquals("synthetic Error after business write", failure.getMessage());
+        assertTrue("rollback fault must be injected", injected.get());
+        assertFalse("failed rollback must not restore autoCommit", restoredAutoCommit.get());
+        fixture.errorReadback = false;
+        var retryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("reject retry after unknown Error outcome").save(fixture.context));
+        assertTrue(retryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
+        var independent = fixture.create("Payment", 191, "independent graph after Error");
+        independent.auditAs("save independent graph after unknown Error outcome")
+                .save(fixture.context);
+        assertEquals(Long.valueOf(1), independent.getVersion());
+    }
+
+    @Test public void failedRollbackAfterUnsuppressibleErrorRequiresReloadBeforeRetry() throws Exception {
+        var armed = new AtomicBoolean();
+        var injected = new AtomicBoolean();
+        var restoredAutoCommit = new AtomicBoolean();
+        var fixture = new Fixture(false,
+                source -> rollbackFault(source, armed, injected, restoredAutoCommit));
+        var order = fixture.create("CustomerOrder", 192, "unsuppressible error before rollback");
+        fixture.errorReadbackWithoutSuppression = true;
+        armed.set(true);
+
+        assertThrows(NoSuppressionError.class,
+                () -> order.auditAs("probe unsuppressible Error rollback failure").save(fixture.context));
+        assertTrue("rollback fault must be injected", injected.get());
+        assertFalse("failed rollback must not restore autoCommit", restoredAutoCommit.get());
+        fixture.errorReadbackWithoutSuppression = false;
+        var retryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("reject retry after unsuppressible Error").save(fixture.context));
+        assertTrue(retryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
+    }
+
+    private static void assertCommitAcknowledgementUnknown(boolean afterActualCommit) throws Exception {
+        var armed = new AtomicBoolean();
+        var injected = new AtomicBoolean();
+        var fixture = new Fixture(true,
+                source -> commitAcknowledgementFault(source, armed, injected, afterActualCommit));
+        armed.set(true);
+        var order = fixture.create("CustomerOrder", afterActualCommit ? 189 : 188,
+                "commit acknowledgement may be lost");
+        var item = fixture.create("OrderItem", afterActualCommit ? 289 : 288,
+                "same uncertain transaction");
+        order.__internalSet("children", List.of(item));
+
+        var warnings = new ArrayList<String>();
+        var logger = Logger.getLogger(JdbcSqlExecutor.class.getName());
+        Handler capture = new Handler() {
+            @Override public void publish(LogRecord record) { warnings.add(record.getMessage()); }
+            @Override public void flush() { }
+            @Override public void close() { }
+        };
+        logger.addHandler(capture);
+        RuntimeException failure;
+        try {
+            failure = assertThrows(RuntimeException.class,
+                    () -> order.auditAs("probe uncertain commit outcome").save(fixture.context));
+        } finally {
+            logger.removeHandler(capture);
+        }
+        assertTrue("fault must reach the actual commit boundary", injected.get());
+        assertEquals(afterActualCommit ? 1 : 0, fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {order.getId()}).size());
+        assertEquals(afterActualCommit ? 1 : 0, fixture.driver.queryForList(
+                "SELECT id FROM order_item_data WHERE id = ?", new Object[] {item.getId()}).size());
+        assertEquals(afterActualCommit ? 1 : 0, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+        assertTrue("the outcome must not be reported as a known rollback",
+                failure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN"));
+        assertFalse("the public message must not contain the JDBC diagnostic",
+                failure.getMessage().contains("COMMIT-ACK-SECRET-CANARY"));
+        assertTrue(warnings.stream().anyMatch(message -> message.contains("outcome unknown")));
+        assertTrue("the operational warning must not contain the JDBC diagnostic",
+                warnings.stream().noneMatch(message -> message.contains("COMMIT-ACK-SECRET-CANARY")));
+        var retryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("reject replay before reload").save(fixture.context));
+        assertTrue(retryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
+        var childRetryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> item.auditAs("reject child replay before reload").save(fixture.context));
+        assertTrue(childRetryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
+        assertThrows(TeaQLRuntimeException.class,
+                () -> order.setEntityMutationLedger(new EntityMutationLedger()));
+    }
+
+    private static DataSource commitAcknowledgementFault(SQLiteDataSource source,
+            AtomicBoolean armed, AtomicBoolean injected, boolean afterActualCommit) {
+        return (DataSource) Proxy.newProxyInstance(DataSource.class.getClassLoader(),
+                new Class<?>[] {DataSource.class}, (proxy, method, args) -> {
+                    Object result = invoke(source, method, args);
+                    if (!method.getName().equals("getConnection")) return result;
+                    Connection actual = (Connection) result;
+                    return Proxy.newProxyInstance(Connection.class.getClassLoader(),
+                            new Class<?>[] {Connection.class}, (connectionProxy, operation, parameters) -> {
+                                if (operation.getName().equals("commit") && armed.get()
+                                        && injected.compareAndSet(false, true)) {
+                                    if (afterActualCommit) invoke(actual, operation, parameters);
+                                    throw new SQLException("COMMIT-ACK-SECRET-CANARY");
+                                }
+                                return invoke(actual, operation, parameters);
+                            });
+                });
+    }
+
+    private static DataSource commitErrorAfterWrite(SQLiteDataSource source,
+            AtomicBoolean armed, AtomicBoolean injected) {
+        return (DataSource) Proxy.newProxyInstance(DataSource.class.getClassLoader(),
+                new Class<?>[] {DataSource.class}, (proxy, method, args) -> {
+                    Object result = invoke(source, method, args);
+                    if (!method.getName().equals("getConnection")) return result;
+                    Connection actual = (Connection) result;
+                    return Proxy.newProxyInstance(Connection.class.getClassLoader(),
+                            new Class<?>[] {Connection.class}, (connectionProxy, operation, parameters) -> {
+                                if (operation.getName().equals("commit") && armed.get()
+                                        && injected.compareAndSet(false, true)) {
+                                    invoke(actual, operation, parameters);
+                                    throw new NoSuppressionError();
+                                }
+                                return invoke(actual, operation, parameters);
+                            });
+                });
+    }
+
+    private static DataSource commitRollbackErrorFault(SQLiteDataSource source,
+            AtomicBoolean armed, AtomicBoolean rollbackInjected, AtomicBoolean restoredAutoCommit) {
+        return (DataSource) Proxy.newProxyInstance(DataSource.class.getClassLoader(),
+                new Class<?>[] {DataSource.class}, (proxy, method, args) -> {
+                    Object result = invoke(source, method, args);
+                    if (!method.getName().equals("getConnection")) return result;
+                    Connection actual = (Connection) result;
+                    return Proxy.newProxyInstance(Connection.class.getClassLoader(),
+                            new Class<?>[] {Connection.class}, (connectionProxy, operation, parameters) -> {
+                                if (operation.getName().equals("commit") && armed.get()) {
+                                    throw new SQLException("COMMIT-ACK-SECRET-CANARY");
+                                }
+                                if (operation.getName().equals("rollback") && armed.get()
+                                        && rollbackInjected.compareAndSet(false, true)) {
+                                    throw new NoSuppressionError();
+                                }
+                                if (operation.getName().equals("setAutoCommit")
+                                        && rollbackInjected.get() && Boolean.TRUE.equals(parameters[0])) {
+                                    restoredAutoCommit.set(true);
+                                }
+                                return invoke(actual, operation, parameters);
+                            });
+                });
+    }
+
+    private static DataSource rollbackFault(SQLiteDataSource source,
+            AtomicBoolean armed, AtomicBoolean injected, AtomicBoolean restoredAutoCommit) {
+        return rollbackFault(source, armed, injected, restoredAutoCommit, false);
+    }
+
+    private static DataSource rollbackFault(SQLiteDataSource source,
+            AtomicBoolean armed, AtomicBoolean injected, AtomicBoolean restoredAutoCommit,
+            boolean throwError) {
+        return (DataSource) Proxy.newProxyInstance(DataSource.class.getClassLoader(),
+                new Class<?>[] {DataSource.class}, (proxy, method, args) -> {
+                    Object result = invoke(source, method, args);
+                    if (!method.getName().equals("getConnection")) return result;
+                    Connection actual = (Connection) result;
+                    return Proxy.newProxyInstance(Connection.class.getClassLoader(),
+                            new Class<?>[] {Connection.class}, (connectionProxy, operation, parameters) -> {
+                                if (operation.getName().equals("rollback") && armed.get()
+                                        && injected.compareAndSet(false, true)) {
+                                    if (throwError) throw new NoSuppressionError();
+                                    throw new SQLException("ROLLBACK-SECRET-CANARY");
+                                }
+                                if (operation.getName().equals("setAutoCommit") && injected.get()
+                                        && Boolean.TRUE.equals(parameters[0])) {
+                                    restoredAutoCommit.set(true);
+                                }
+                                return invoke(actual, operation, parameters);
+                            });
+                });
+    }
+
+    private static Object invoke(Object target, Method method, Object[] args) throws Throwable {
+        try {
+            return method.invoke(target, args);
+        } catch (InvocationTargetException failure) {
+            throw failure.getCause();
+        }
     }
 
     @Test public void postCommitAuditFailureReportsCommittedOutcomeWithoutReplayingLedger() throws Exception {
