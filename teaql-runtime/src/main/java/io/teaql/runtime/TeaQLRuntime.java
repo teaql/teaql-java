@@ -457,9 +457,10 @@ public class TeaQLRuntime implements AutoCloseable {
                         "teaql.mutation.kind", "save")));
         try {
             MutationIntent intent = MutationIntent.of(entity.getComment());
-            checkAndFix(context, entity);
             // Get entity's own EntityMutationLedger
             EntityMutationLedger entityMutationLedger = ((BaseEntity) entity).getEntityMutationLedger();
+            entityMutationLedger.requireSaveable();
+            checkAndFix(context, entity);
 
             // Allocate identifiers before roots are merged. New children commonly
             // receive their field updates while their id is still null, so those
@@ -573,12 +574,30 @@ public class TeaQLRuntime implements AutoCloseable {
                         Collections.newSetFromMap(new IdentityHashMap<>()));
                 throw failure;
             }
-            dynamicReadbacks.forEach((key, values) -> {
-                BaseEntity target = realEntities.get(key);
-                target.__internalHydrateDynamicFields(values, target.__internalLoadState().withDynamicSelection(values.selectedCodes()));
-            });
-            completeLedgerPlan(context, completed);
-            entityMutationLedger.clearCurrentChangeSet();
+            CommittedStateReconciliationException reconciliationOutcome = null;
+            try {
+                dynamicReadbacks.forEach((key, values) -> {
+                    BaseEntity target = realEntities.get(key);
+                    target.__internalHydrateDynamicFields(values, target.__internalLoadState().withDynamicSelection(values.selectedCodes()));
+                });
+                completeLedgerPlan(completed);
+                entityMutationLedger.clearCurrentChangeSet();
+            } catch (RuntimeException reconciliationFailure) {
+                // The provider has returned from its transaction. The graph may be
+                // partially reconciled, so neither its pending ledger nor its
+                // entity instances are safe to save again without a fresh load.
+                entityMutationLedger.markCommittedStateRequiresReload();
+                reconciliationOutcome = new CommittedStateReconciliationException();
+            }
+            try {
+                // The provider has already committed. A failed in-memory readback
+                // must not silently suppress the independent audit delivery.
+                deliverCommittedAuditEvents(context, completed);
+            } catch (AuditDeliveryAfterCommitException auditFailure) {
+                if (reconciliationOutcome == null) throw auditFailure;
+                reconciliationOutcome.addSuppressed(auditFailure);
+            }
+            if (reconciliationOutcome != null) throw reconciliationOutcome;
             telemetryScope.success();
         } catch (RuntimeException | Error error) {
             telemetryScope.failure(error);
@@ -1102,16 +1121,32 @@ public class TeaQLRuntime implements AutoCloseable {
         return completed;
     }
 
-    private void completeLedgerPlan(UserContext context, List<PendingMutation> completed) {
+    private void completeLedgerPlan(List<PendingMutation> completed) {
         for (PendingMutation mutation : completed) {
             applyPersistedEntity(mutation.descriptor(), mutation.target(), mutation.result());
-            emitAuditEvent(
-                    context, mutation.target(), mutation.auditKind(), mutation.changedValues(),
-                    mutation.governance(), mutation.intent(), mutation.traceChain(), mutation.redactions());
             mutation.target().clearUpdatedProperties();
-            // A committed delete supersedes any staged extension edits too.
-            mutation.target().__internalClearDynamicMutations();
         }
+    }
+
+    private void deliverCommittedAuditEvents(UserContext context, List<PendingMutation> completed) {
+        int failures = 0;
+        for (PendingMutation mutation : completed) {
+            try {
+                failures += emitAuditEvent(
+                        context, mutation.target(), mutation.auditKind(), mutation.changedValues(),
+                        mutation.governance(), mutation.intent(), mutation.traceChain(), mutation.redactions(),
+                        mutation.result().persistedEntity().getVersion());
+            } catch (RuntimeException failure) {
+                // The provider transaction has already committed. Continue delivery
+                // for the other graph members and never expose a retryable save error.
+                failures++;
+            } finally {
+                // Preserve dynamic original values until the audit projection has
+                // observed them; then clear staged extension edits even on failure.
+                mutation.target().__internalClearDynamicMutations();
+            }
+        }
+        if (failures != 0) throw new AuditDeliveryAfterCommitException(failures);
     }
 
     private Map<String, Object> snapshotChanges(Map<String, Object> changes) {
@@ -1411,13 +1446,13 @@ public class TeaQLRuntime implements AutoCloseable {
         }
     }
 
-    private void emitAuditEvent(
+    private int emitAuditEvent(
             UserContext context,
             Entity entity,
             MutationAuditKind kind,
             Map<String, Object> changedValues,
             MutationGovernanceSnapshot governance, MutationIntent intent, List<TraceNode> traceChain,
-            SqlIntentRedactions redactions) {
+            SqlIntentRedactions redactions, Long committedVersion) {
         List<AuditFieldChange> changes = new ArrayList<>();
         if (changedValues != null) {
             for (Map.Entry<String, Object> entry : changedValues.entrySet()) {
@@ -1447,7 +1482,7 @@ public class TeaQLRuntime implements AutoCloseable {
                 context.getAttribute(GeneratedSchemaBootstrap.AUDIT_ACTOR_ATTRIBUTE, String.class),
                 context.getAttribute(GeneratedSchemaBootstrap.AUDIT_CATEGORY_ATTRIBUTE, String.class),
                 intent.auditReason(),
-                entity.getVersion(),
+                committedVersion,
                 java.time.Instant.now(),
                 governance);
 
@@ -1457,18 +1492,29 @@ public class TeaQLRuntime implements AutoCloseable {
                         "teaql.mutation.kind", kind.name().toLowerCase(Locale.ROOT),
                         "teaql.audit.changed_field_count", changes.size())));
         try {
+            int failures = 0;
+            // The server-owned and application sinks are independent delivery
+            // attempts. One failure must not suppress the other after commit.
+            if (logSink != null) {
+                try {
+                    logSink.writeAuditEvent(context,
+                            LogPrivacy.audit(rawEvent, LogPrivacy.plaintextEnabled(), redactions));
+                } catch (RuntimeException failure) {
+                    failures++;
+                }
+            }
 
-        // The standard sink is server-owned by TeaQLRuntime and cannot be replaced by
-        // dynamic input or an application capability registered on UserContext.
-        if (logSink != null) {
-            logSink.writeAuditEvent(context, LogPrivacy.audit(rawEvent, LogPrivacy.plaintextEnabled(), redactions));
-        }
-
-        AppAuditEventSink appSink = context.capability(AppAuditEventSink.class);
-        if (appSink != null) {
-            appSink.onAuditEvent(context, buildSafeAuditEvent(rawEvent, redactions));
-        }
-        telemetryScope.success();
+            AppAuditEventSink appSink = context.capability(AppAuditEventSink.class);
+            if (appSink != null) {
+                try {
+                    appSink.onAuditEvent(context, buildSafeAuditEvent(rawEvent, redactions));
+                } catch (RuntimeException failure) {
+                    failures++;
+                }
+            }
+            if (failures == 0) telemetryScope.success();
+            else telemetryScope.failure(new AuditDeliveryAfterCommitException(failures));
+            return failures;
         } catch (RuntimeException | Error error) {
             telemetryScope.failure(error);
             throw error;
