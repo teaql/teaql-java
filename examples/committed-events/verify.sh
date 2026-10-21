@@ -26,4 +26,5 @@ for round in 1 2; do
 done
 bash examples/committed-events/verify-process-crash.sh
 bash examples/committed-events/verify-snapshot.sh
+bash examples/committed-events/verify-bootstrap-crash.sh
 echo "Java generated committed Q evidence: $evidence"

@@ -76,3 +76,29 @@ the same files, including those exported by the Rust example. Use separate
 producer/consumer runs and fresh owned export directories; never overwrite old
 evidence. These files do not define an authenticated network transport. No
 CMR-12 process-crash or production-scale qualification is claimed.
+
+## Managed bootstrap process recovery (CMR-12 candidate)
+
+`bash examples/committed-events/verify-bootstrap-crash.sh` copies the **local**
+source, compiles it offline and runs the process example twice. Each invocation
+keeps one source database throughout two rounds (snapshot/tail 1/2, then 3/4).
+The second target is a new consumer slot, not a reset database. The first target
+then catches up to 4 without replacing its original snapshot or rewinding its
+cursor. Ordinary business writes use audited saves; one retained legacy
+tombstone predates capture.
+
+In each round the owner SIGKILLs and reaps seven distinct workers: during the
+capture read transaction, publication retention, partial target installation,
+after target commit/before snapshot receipt, between source cursor insert and
+ACK commit, partial tail application, and after tail commit/before event receipt.
+Fresh workers recover from the same files. SQL barriers exist only in this
+test fixture; production has no fault hook. A normal exit without the expected
+PID/phase barrier is rejected. Waits and logs are bounded.
+
+Set `TEAQL_CMR12_EVIDENCE_ROOT` to a **nonexistent absolute path** to retain
+compact databases, child logs, PID barriers, JUnit XML and `result.json` for both
+invocations. No existing path is reset. Otherwise successful disposable test
+fixtures are removed after all owned workers exit; failed fixtures print their
+diagnostic location. Temporary source/build outputs are removed by the verifier
+on exit. This controlled Linux/SQLite **source** example is not installed-package,
+power-loss, authenticated transport or whole-CMR-12 acceptance.
