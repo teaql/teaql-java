@@ -219,4 +219,36 @@ public class SqliteCommittedSnapshotTest {
             expect(() -> target.target().apply(target.context, record)); assertEquals(0, scalar(target, "SELECT count(*) FROM customer_order_data"));
         }
     }
+
+    @Test public void snapshotHashAuthorityParserReferencesAndConflictingRetryFailClosed() throws Exception {
+        try (Fixture source = new Fixture(true); Fixture target = new Fixture(false)) {
+            var snapshot = source.snapshot();
+            for (var invalid : List.of(
+                    new SqliteCommittedSnapshot.SnapshotRecord("another-source", 0, snapshot.snapshotId(), MODEL, snapshot.payloadSha256(), snapshot.payloadJson()),
+                    new SqliteCommittedSnapshot.SnapshotRecord(SOURCE, 0, snapshot.snapshotId(), "sha256:" + "1".repeat(64), snapshot.payloadSha256(), snapshot.payloadJson()),
+                    new SqliteCommittedSnapshot.SnapshotRecord(SOURCE, 0, snapshot.snapshotId(), MODEL, "0".repeat(64), snapshot.payloadJson()),
+                    changed(snapshot, body -> body.put("source_sequence", "00")),
+                    changed(snapshot, body -> {
+                        for (JsonNode row : body.withArray("rows")) if (row.path("entity_type").asText().equals("customer_order"))
+                            ((ObjectNode) row.path("fields").path("platform")).put("entity_id", "999");
+                    }))) expect(() -> target.snapshots().initializeSnapshot(target.context, invalid, LIMITS));
+            for (String text : List.of(snapshot.payloadJson() + " {}",
+                    snapshot.payloadJson().replace("\"snapshot_version\":1", "\"snapshot_version\":1,\"snapshot_version\":1"))) {
+                var invalid = new SqliteCommittedSnapshot.SnapshotRecord(SOURCE, 0, snapshot.snapshotId(), MODEL,
+                        HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8))), text);
+                expect(() -> target.snapshots().initializeSnapshot(target.context, invalid, LIMITS));
+            }
+            assertEquals(0, scalar(target, "SELECT count(*) FROM platform_data"));
+            assertEquals(0, scalar(target, "SELECT count(*) FROM customer_order_data"));
+            assertEquals(0, scalar(target, "SELECT count(*) FROM teaql_event_snapshot"));
+            assertEquals(0, scalar(target, "SELECT count(*) FROM teaql_event_checkpoint"));
+            target.sql.executeInTransaction(() -> expect(() -> target.snapshots().initializeSnapshot(target.context, snapshot, LIMITS)));
+            target.snapshots().initializeSnapshot(target.context, snapshot, LIMITS); sameState(source, target);
+            var conflict = changed(snapshot, body -> ((ObjectNode) body.path("audit")).put("comment", "different bytes for same snapshot"));
+            expect(() -> target.snapshots().initializeSnapshot(target.context, conflict, LIMITS));
+            assertTrue(target.snapshots().initializeSnapshot(target.context, snapshot, LIMITS).duplicate());
+            sameState(source, target);
+            System.out.println("CMR11_GUARDS_PASS language=java source=1 model=1 digest=1 parser=2 dangling_fk=1 conflict=1 atomic=1 retry=1");
+        }
+    }
 }
