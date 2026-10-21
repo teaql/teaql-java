@@ -94,6 +94,7 @@ public class HttpResilienceExampleTest {
                         return (outcome, attempts, elapsedMillis) -> {};
                     });
 
+            for (int round = 1; round <= 2; round++) {
             var response = context.httpRequests().execute(context,
                     HttpRequestService.Call.get("orders", "orders/1?token=PRIVATE_QUERY_CANARY",
                             "load order status", "show the order status")
@@ -109,16 +110,20 @@ public class HttpResilienceExampleTest {
                     .purpose("explain the order status")
                     .execute();
             assertTrue(viaTool.contains("submitted"));
-            assertEquals(2, requests.get());
-            assertEquals(List.of(TRACEPARENT, TRACEPARENT), traceparents);
-            assertEquals(2, observed.size());
+            assertEquals(2 * round, requests.get());
+            assertEquals(java.util.Collections.nCopies(2 * round, TRACEPARENT), traceparents);
+            assertEquals(2 * round, observed.size());
             var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            assertEquals(3, mapper.readTree(observed.get(0).traceChain()).size());
+            int offset = 2 * (round - 1);
+            assertEquals(3, mapper.readTree(observed.get(offset).traceChain()).size());
             assertEquals("load order graph",
-                    mapper.readTree(observed.get(0).traceChain()).get(1).get("comment").asText());
-            assertEquals(2, mapper.readTree(observed.get(1).traceChain()).size());
+                    mapper.readTree(observed.get(offset).traceChain()).get(1).get("comment").asText());
+            assertEquals(2, mapper.readTree(observed.get(offset + 1).traceChain()).size());
             assertFalse(observed.toString().contains("PRIVATE_QUERY_CANARY"));
-            assertFalse(observed.get(0).traceChain().contains("PRIVATE_QUERY_CANARY"));
+            assertFalse(observed.get(offset).traceChain().contains("PRIVATE_QUERY_CANARY"));
+            System.out.println("HTTP_SAME_FIXTURE_PASS language=java round=" + round
+                    + " requests=" + requests.get() + " trace=" + observed.size() + " lineage=3");
+            }
         } finally {
             server.stop(0);
         }
