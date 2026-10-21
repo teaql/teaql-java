@@ -9,6 +9,7 @@ import io.teaql.core.http.HttpRequestFailure;
 import io.teaql.core.http.HttpRequestService;
 import io.teaql.runtime.DefaultUserContext;
 import io.teaql.tools.http.HttpServiceProfile;
+import io.teaql.tools.http.HttpOperationalClock;
 import io.teaql.tools.http.JdkHttpRequestService;
 import io.teaql.tools.http.impl.JdkHttpTool;
 import java.net.InetAddress;
@@ -19,6 +20,10 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -28,6 +33,11 @@ public class HttpResilienceExampleTest {
 
     @Test public void postedRequestWithStalledResponseRequiresReconciliation() throws Exception {
         AtomicInteger requests = new AtomicInteger();
+        CountDownLatch firstByteSent = new CountDownLatch(1);
+        CountDownLatch releaseResponse = new CountDownLatch(1);
+        AtomicLong monotonic = new AtomicLong(1);
+        AtomicReference<Throwable> result = new AtomicReference<>();
+        AtomicReference<Thread> worker = new AtomicReference<>();
         HttpServer server = HttpServer.create(new InetSocketAddress(
                 InetAddress.getByAddress(new byte[] {127, 0, 0, 1}), 0), 0);
         server.createContext("/api/payments", exchange -> {
@@ -38,7 +48,8 @@ public class HttpResilienceExampleTest {
             try (var output = exchange.getResponseBody()) {
                 output.write('x');
                 output.flush();
-                try { Thread.sleep(1200); } catch (InterruptedException interrupted) {
+                firstByteSent.countDown();
+                try { releaseResponse.await(10, TimeUnit.SECONDS); } catch (InterruptedException interrupted) {
                     Thread.currentThread().interrupt();
                 }
             } catch (java.io.IOException ignored) {
@@ -49,18 +60,36 @@ public class HttpResilienceExampleTest {
         try {
             var profile = HttpServiceProfile.builder("payments",
                     URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/api/"))
-                    .budgets(Duration.ofMillis(1500), Duration.ofMillis(700), Duration.ofMillis(1000))
+                    .budgets(Duration.ofSeconds(2), Duration.ofSeconds(10), Duration.ofSeconds(5))
                     .build();
-            var service = new JdkHttpRequestService(List.of(profile));
+            HttpOperationalClock clock = new HttpOperationalClock() {
+                @Override public long nanoTime() { return monotonic.get(); }
+                @Override public void pauseNanos(long nanos) { java.util.concurrent.locks.LockSupport.parkNanos(nanos); }
+            };
+            var service = new JdkHttpRequestService(List.of(profile), clock);
             var context = new DefaultUserContext(null);
             context.putAttribute(HttpRequestService.class.getName(), service);
             var call = HttpRequestService.Call.postText("payments", "payments",
                     "PRIVATE_BODY_CANARY", "submit payment", "confirm external effect");
-            assertEquals(HttpRequestFailure.Code.AMBIGUOUS_OUTCOME,
-                    assertThrows(HttpRequestFailure.class,
-                            () -> context.httpRequests().execute(context, call)).code());
+            Thread request = new Thread(() -> {
+                try {
+                    context.httpRequests().execute(context, call);
+                    result.set(new AssertionError("incomplete response unexpectedly succeeded"));
+                } catch (Throwable failure) { result.set(failure); }
+            });
+            worker.set(request); request.start();
+            assertTrue("POST must reach the fixture before expiring the clock",
+                    firstByteSent.await(5, TimeUnit.SECONDS));
+            monotonic.addAndGet(Duration.ofSeconds(6).toNanos());
+            request.join(2000);
+            assertFalse("expired HTTP request did not stop", request.isAlive());
+            assertTrue(result.get() instanceof HttpRequestFailure);
+            assertEquals(HttpRequestFailure.Code.AMBIGUOUS_OUTCOME, ((HttpRequestFailure) result.get()).code());
             assertEquals(1, requests.get());
         } finally {
+            releaseResponse.countDown();
+            Thread request = worker.get();
+            if (request != null && request.isAlive()) { request.interrupt(); request.join(2000); }
             server.stop(0);
         }
     }
