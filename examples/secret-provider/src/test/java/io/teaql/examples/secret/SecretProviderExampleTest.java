@@ -53,6 +53,14 @@ public class SecretProviderExampleTest {
         BoundSecretProvider provider = BoundSecretProvider.builder(root)
                 .file(reference, Path.of("signing-key"), "v1", null).build();
         DefaultUserContext context = new DefaultUserContext(null).withSecretProvider(provider);
+        Object marker = new Object();
+        BusinessClock clock = ignored -> LocalDate.of(2000, 1, 1);
+        context.putAttribute("example.rotation-marker", marker);
+        context.putAttribute(BusinessClock.class.getName(), clock);
+        LedgerProbe pending = new LedgerProbe(42);
+        pending.updateName("pending before rotation");
+        var ledger = pending.getEntityMutationLedger();
+        EntityKey pendingKey = new EntityKey(pending.typeName(), 42L);
 
         assertEquals("private-example-key-v1", new String(
                 context.resolveSecret(reference, "sign document").exposeBytes(), StandardCharsets.UTF_8));
@@ -62,10 +70,16 @@ public class SecretProviderExampleTest {
         var rotated = context.resolveSecret(reference, "sign next document");
         assertEquals("private-example-key-v2", new String(rotated.exposeBytes(), StandardCharsets.UTF_8));
         assertEquals("v2", rotated.version());
+        assertSame(marker, context.getAttribute("example.rotation-marker"));
+        assertSame(clock, context.getAttribute(BusinessClock.class.getName()));
+        assertSame(ledger, pending.getEntityMutationLedger());
+        assertEquals("pending before rotation", ledger.get(pendingKey, "name"));
+        assertTrue(pending.dirtyFields().contains("name"));
         assertFalse(rotated.toString().contains("private-example-key"));
         assertEquals(SecretFailure.Code.INVALID_INPUT,
                 assertThrows(SecretFailure.class,
                         () -> context.resolveSecret(reference, " ")).code());
+        System.out.println("SECRET_ROTATION_LEDGER_UNCHANGED_PASS language=java context=1 clock=1 pending=1");
     }
 
     @Test public void operationalExpiryAndSharedCustomProviderRemainContextIsolated() throws Exception {
@@ -138,5 +152,6 @@ public class SecretProviderExampleTest {
         assertNull(firstEntity.getEntityMutationLedger().get(ledgerKey, "name"));
         assertEquals("second pending", secondEntity.getEntityMutationLedger().get(ledgerKey, "name"));
         assertTrue(secondEntity.dirtyFields().contains("name"));
+        System.out.println("SECRET_CONTEXT_LEDGER_ISOLATION_PASS language=java overlap=1 same_id=1 clear_isolated=1");
     }
 }
