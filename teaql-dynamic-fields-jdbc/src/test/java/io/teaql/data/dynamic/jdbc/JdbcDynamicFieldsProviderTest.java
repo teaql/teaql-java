@@ -21,6 +21,23 @@ public class JdbcDynamicFieldsProviderTest {
     private JdbcDynamicFieldsProvider provider;
 
     @Test
+    public void restrictedTargetCannotMutateDynamicValuesOrDefinitionsButCanRead() {
+        var executor=new JdbcSqlExecutor(new SimpleDataSource("jdbc:h2:mem:readonly_"+System.nanoTime()+";DB_CLOSE_DELAY=-1"));
+        var target=new JdbcDynamicFieldsProvider(executor);target.ensureSchema();var context=globalCtx();
+        var definition=target.registerFieldDef(context,createStringField("note","Note"));var owner=DynamicOwnerRef.of("Platform",1L);
+        target.saveValue(context,DynamicSetCommand.of(owner,"note",DynamicDataType.STRING,"original","verify","create control"));
+        executor.restrictOrdinaryMutations();
+        for(Runnable action:List.<Runnable>of(
+                ()->target.saveValue(context,DynamicSetCommand.of(owner,"note",DynamicDataType.STRING,"changed","verify","attempt restricted save")),
+                ()->target.deleteValue(context,DynamicValueRef.of(owner,definition.getId())),
+                ()->target.registerFieldDef(context,createStringField("other","Other")))) {
+            var error=assertThrows(RuntimeException.class,()->action.run());assertTrue(error.toString(),error.toString().contains("READ_ONLY_TARGET"));
+        }
+        assertEquals("original",target.loadValues(context,owner,new DynamicFieldSelection().selectString("note")).getString("note"));
+        System.out.println("CMR15_DYNAMIC_READ_ONLY_PASS language=java save=1 delete=1 definition=1 read=1");
+    }
+
+    @Test
     public void newEntityMetadataNeedsNoOwnerDataReadAndBindsToExecutorNotProvider() {
         DataSource dataSource = new SimpleDataSource("jdbc:h2:mem:metadata_" + System.nanoTime() + ";DB_CLOSE_DELAY=-1");
         var executor = new JdbcSqlExecutor(dataSource) {

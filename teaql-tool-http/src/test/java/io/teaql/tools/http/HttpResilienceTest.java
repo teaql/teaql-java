@@ -137,6 +137,80 @@ public class HttpResilienceTest {
         assertEquals(3, server.requests.get());
     }
 
+    @Test public void missingContextOrIntentCannotStartNetworkIo() {
+        var service = new JdkHttpRequestService(java.util.List.of(profile().build()));
+        assertEquals(HttpRequestFailure.Code.INVALID_INPUT, assertThrows(HttpRequestFailure.class,
+                () -> service.execute(null, get("ok"))).code());
+        for (String[] intent : new String[][] {{" ", "render order"}, {"load order", " \t"}}) {
+            assertEquals(HttpRequestFailure.Code.INVALID_INPUT, assertThrows(HttpRequestFailure.class,
+                    () -> service.execute(context(service), HttpRequestService.Call.get(
+                            "orders", "ok", intent[0], intent[1]))).code());
+        }
+        assertEquals(0, server.requests.get());
+        System.out.println("HTTP_NUMBERED_PASS language=java case=HTTP-01 requests=0");
+    }
+
+    @Test public void alwaysFailingEndpointStopsAtConfiguredAttemptCeiling() {
+        for (int ceiling : new int[] {1, 2, 3, 5}) {
+            var service = new JdkHttpRequestService(java.util.List.of(profile()
+                    .retry(ceiling, Duration.ofMillis(1), Set.of(HttpRequestService.Method.GET)).build()));
+            int before = server.requests.get();
+            var response = service.execute(context(service), call(HttpRequestService.Method.GET,
+                    "fail", HttpRequestService.RetryMode.CONFIRMED_IDEMPOTENT));
+            assertEquals(503, response.status());
+            assertEquals(ceiling, response.attempts());
+            assertEquals(ceiling, server.requests.get() - before);
+        }
+        System.out.println("HTTP_NUMBERED_PASS language=java case=HTTP-07 ceilings=1,2,3,5");
+    }
+
+    @Test public void oversizedIncompleteResponseReleasesPeerBeforeNextCall() throws Exception {
+        var service = new JdkHttpRequestService(java.util.List.of(profile().maxResponseBytes(16).build()));
+        assertEquals(HttpRequestFailure.Code.RESPONSE_TOO_LARGE, assertThrows(HttpRequestFailure.class,
+                () -> service.execute(context(service), get("overflow-open"))).code());
+        assertTrue("incomplete oversized response did not close at the peer",
+                server.overflowReleased.await(2, TimeUnit.SECONDS));
+        assertEquals(200, service.execute(context(service), get("ok")).status());
+        assertEquals(2, server.requests.get());
+        System.out.println("HTTP_NUMBERED_PASS language=java case=HTTP-09 peer_closed=1 next_call=1");
+    }
+
+    @Test public void successfulHalfOpenProbeClosesCircuitForConcurrentCalls() throws Exception {
+        AtomicLong monotonic = new AtomicLong(1);
+        HttpOperationalClock clock = new HttpOperationalClock() {
+            @Override public long nanoTime() { return monotonic.get(); }
+            @Override public void pauseNanos(long nanos) { monotonic.addAndGet(nanos); }
+        };
+        var service = new JdkHttpRequestService(java.util.List.of(profile()
+                .circuit(1, Duration.ofSeconds(5), 1).build()), clock);
+        assertEquals(503, service.execute(context(service), get("fail")).status());
+        assertEquals(HttpRequestFailure.Code.CIRCUIT_OPEN, assertThrows(HttpRequestFailure.class,
+                () -> service.execute(context(service), get("ok"))).code());
+        monotonic.addAndGet(Duration.ofSeconds(5).toNanos());
+        assertEquals(200, service.execute(context(service), get("ok")).status());
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicInteger completed = new AtomicInteger();
+        Runnable request = () -> {
+            try {
+                assertEquals(200, service.execute(context(service), get("gated")).status());
+                completed.incrementAndGet();
+            } catch (Throwable error) { failure.compareAndSet(null, error); }
+        };
+        Thread first = new Thread(request), second = new Thread(request);
+        first.start(); second.start();
+        try {
+            // Neither response is released until both physical requests arrive.
+            assertTrue("successful probe left circuit in one-at-a-time half-open state",
+                    server.gatedEntered.await(3, TimeUnit.SECONDS));
+        } finally {
+            server.releaseGated.countDown(); first.join(2000); second.join(2000);
+        }
+        assertFalse(first.isAlive()); assertFalse(second.isAlive());
+        if (failure.get() != null) throw new AssertionError(failure.get());
+        assertEquals(2, completed.get()); assertEquals(4, server.requests.get());
+        System.out.println("HTTP_NUMBERED_PASS language=java case=HTTP-11 concurrent_after_probe=2");
+    }
+
     @Test public void retryIsExplicitAndPostTransportFailureIsAmbiguous() {
         HttpServiceProfile configured = profile().retry(3, Duration.ofMillis(1),
                 Set.of(HttpRequestService.Method.GET)).build();
@@ -632,6 +706,9 @@ public class HttpResilienceTest {
         private final AtomicInteger retryPost = new AtomicInteger();
         private final ConcurrentLinkedQueue<String> traceparents = new ConcurrentLinkedQueue<>();
         private final ConcurrentLinkedQueue<String> retryBodies = new ConcurrentLinkedQueue<>();
+        private final CountDownLatch overflowReleased = new CountDownLatch(1);
+        private final CountDownLatch gatedEntered = new CountDownLatch(2);
+        private final CountDownLatch releaseGated = new CountDownLatch(1);
         private volatile boolean closed;
         Fixture() throws IOException {
             socket = new ServerSocket(0, 32, InetAddress.getLoopbackAddress());
@@ -681,6 +758,20 @@ public class HttpResilienceTest {
                         if (target.contains("/retry-post")) retryBodies.add(new String(body));
                     }
                     if (target.contains("/close")) return;
+                    if (target.endsWith("/overflow-open")) {
+                        client.setSoTimeout(3000);
+                        client.getOutputStream().write(("HTTP/1.1 200 OK\r\nContent-Length: 4096\r\n"
+                                + "Connection: close\r\n\r\n" + "L".repeat(32)).getBytes(StandardCharsets.UTF_8));
+                        client.getOutputStream().flush();
+                        // Never finish the body: only the client can release this connection.
+                        try { if (reader.read() == -1) overflowReleased.countDown(); }
+                        catch (java.net.SocketException closedByPeer) { overflowReleased.countDown(); }
+                        return;
+                    }
+                    if (target.endsWith("/gated")) {
+                        gatedEntered.countDown();
+                        if (!releaseGated.await(4, TimeUnit.SECONDS)) return;
+                    }
                     if (target.endsWith("/slow")) Thread.sleep(300);
                     int status = target.contains("/private-response") ? 503
                             : target.contains("/redirect") ? 302 : target.contains("/missing") ? 404

@@ -16,6 +16,8 @@ public class EntityMutationLedger {
     private final Set<EntityKey> newKeys = new TreeSet<>();
     private final Map<EntityKey, List<TraceNode>> traceChains = new TreeMap<>();
     private final Map<EntityKey, Long> originalVersions = new TreeMap<>();
+    private boolean committedStateRequiresReload;
+    private boolean transactionOutcomeUnknownRequiresReload;
 
     // --- Change Set Stack ---
 
@@ -39,6 +41,28 @@ public class EntityMutationLedger {
         // returned by the provider, so the next mutation must capture that value.
         originalVersions.clear();
         traceChains.clear();
+    }
+
+    /** A provider write completed, but the in-memory graph could not be reconciled. */
+    public void markCommittedStateRequiresReload() {
+        committedStateRequiresReload = true;
+    }
+
+    /** A provider could not confirm commit or rollback; this graph must not be replayed. */
+    public void markTransactionOutcomeUnknownRequiresReload() {
+        transactionOutcomeUnknownRequiresReload = true;
+    }
+
+    /** Prevents replay of a graph whose persistence outcome needs a fresh read. */
+    public void requireSaveable() {
+        if (transactionOutcomeUnknownRequiresReload) {
+            throw new TeaQLRuntimeException(
+                    "TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED: reload the entity graph before another save");
+        }
+        if (committedStateRequiresReload) {
+            throw new TeaQLRuntimeException(
+                    "COMMITTED_STATE_RELOAD_REQUIRED: reload the entity graph before another save");
+        }
     }
 
     public void set(EntityKey key, String field, Object value) {
@@ -141,12 +165,14 @@ public class EntityMutationLedger {
      * for a read-only entity, which must retain its private ledger ownership.
      */
     public boolean mergeEntityFrom(EntityMutationLedger other, EntityKey key) {
+        requireSaveable();
         if (other == null || other == this) return false;
         Map<String, Object> fields = other.currentChangeSet().changes().get(key);
         var dynamic = other.currentChangeSet().dynamicChanges().get(key);
         boolean pending = (fields != null && !fields.isEmpty()) || other.newKeys.contains(key)
                 || other.deletedKeys.contains(key) || other.recoveredKeys.contains(key) || (dynamic != null && !dynamic.isEmpty());
         if (!pending) return false;
+        other.requireSaveable();
         if (fields != null) fields.forEach((field, value) -> set(key, field, value));
         if (dynamic != null) dynamic.values().forEach(mutation -> setDynamic(key, mutation));
         if (other.deletedKeys.contains(key)) markAsDelete(key);
@@ -162,7 +188,9 @@ public class EntityMutationLedger {
      * Used when saving an entity graph (e.g., Order + OrderItems).
      */
     public void mergeFrom(EntityMutationLedger other) {
+        requireSaveable();
         if (other == null) return;
+        other.requireSaveable();
         
         // Merge change sets
         EntityChangeSet otherChangeSet = other.currentChangeSet();
