@@ -47,5 +47,6 @@ for round in 1 2; do
   fi
   if [[ "$result" != 0 ]]; then exit "$result"; fi
   rg -Fq 'CMR13_SECURITY_EXAMPLE_PASS language=java snapshot=1 tail=2 audited_saves=2 rejected=5 lost_ack=1 duplicate_no_rewind=1 reopen=1' "$scratch/round-$round.log"
+  rg -Fq 'CMR14_OBSERVABILITY_EXAMPLE_PASS language=java phases=9 attempts=6 retries=4 failures=4 source_rejections=2 target_rejections=5 dead_letters=0' "$scratch/round-$round.log"
   echo "PASS Java authenticated committed receiver example round $round"
 done
