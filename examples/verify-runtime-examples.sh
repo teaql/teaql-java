@@ -85,9 +85,10 @@ for repetition in 1 2; do
 done
 
 bash "$repo_dir/examples/trace-chain/verify.sh"
+bash "$repo_dir/examples/secret-provider/verify.sh"
 if [[ -n "${TEAQL_CODEGEN_DIR:-}" ]]; then
   bash "$repo_dir/examples/shared-load-state/verify.sh" --generate
 else
   bash "$repo_dir/examples/shared-load-state/verify.sh"
 fi
-printf 'PASS Java runtime examples: 4/4\n'
+printf 'PASS Java runtime examples: 5/5\n'
