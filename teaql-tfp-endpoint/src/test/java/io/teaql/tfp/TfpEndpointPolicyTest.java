@@ -78,6 +78,46 @@ public class TfpEndpointPolicyTest {
     }
 
     @Test
+    public void committedReplicationControlsNeverReachOrdinaryExecutors() throws Exception {
+        TfpEndpointHandler handler = handler();
+        ObjectMapper json = new ObjectMapper();
+        String sql = "INSERT INTO probe_data(id,status) VALUES(99,'SQL-CANARY')";
+        for (String control : java.util.List.of("sql", "rawSql", "statement", "statements",
+                "committed_mutation_set", "source_sequence", "replication", "apply")) {
+            var query = (com.fasterxml.jackson.databind.node.ObjectNode) json.readTree(query("id"));
+            query.put(control, sql);
+            assertCode("TFP_INVALID_REQUEST", () -> handler.handleQuery(context, trusted(), json.writeValueAsBytes(query)));
+            var mutation = json.createObjectNode().put("entity", "Probe").put("action", "Create")
+                    .put("comment", "inspect ordinary entry boundary").put(control, sql);
+            mutation.putObject("payload").put("status", "PAID");
+            assertCode("TFP_INVALID_REQUEST", () -> handler.handleMutation(context, trusted(), json.writeValueAsBytes(mutation)));
+            org.junit.Assert.assertNull(capturedQuery);
+            org.junit.Assert.assertNull(capturedMutation);
+        }
+        // Neither a protocol-shaped document nor an action name creates dispatch authority.
+        byte[] committed = json.writeValueAsBytes(json.createObjectNode().put("protocol_version", 1)
+                .put("source_runtime_id", "untrusted-source").put("source_sequence", "1"));
+        assertCode("TFP_INVALID_REQUEST", () -> handler.handleQuery(context, trusted(), committed));
+        assertCode("TFP_INVALID_REQUEST", () -> handler.handleMutation(context, trusted(), committed));
+        for (String action : java.util.List.of("Apply", "Replicate", "CommittedMutationSet", "receive", "rawSql")) {
+            var mutation = json.createObjectNode().put("entity", "Probe").put("action", action)
+                    .put("comment", "attempt replication dispatch");
+            mutation.putObject("payload").put("status", "PAID");
+            assertCode("TFP_POLICY_VIOLATION", () -> handler.handleMutation(context, trusted(), json.writeValueAsBytes(mutation)));
+            org.junit.Assert.assertNull(capturedMutation);
+        }
+        // Ordinary modeled values are not scanned for SQL keywords.
+        handler.handleQuery(context, trusted(), query("id"));
+        org.junit.Assert.assertNotNull(capturedQuery);
+        var allowed = json.createObjectNode().put("entity", "Probe").put("action", "Create")
+                .put("comment", "save SQL-looking ordinary text");
+        allowed.putObject("payload").put("status", sql);
+        handler.handleMutation(context, trusted(), json.writeValueAsBytes(allowed));
+        org.junit.Assert.assertEquals(sql, ((Probe) ((EntityPersistenceMutation) capturedMutation).getEntity()).getStatus());
+        System.out.println("CMR15_ENDPOINT_SOURCE_PASS language=java controls=8 actions=5 executor_spy=true database=false");
+    }
+
+    @Test
     public void rejectsGovernedRequestsWithoutAnInvokingContext() {
         io.teaql.core.TeaQLRuntimeException error = assertThrows(
                 io.teaql.core.TeaQLRuntimeException.class,
