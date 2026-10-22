@@ -20,6 +20,9 @@ import static io.teaql.core.sqlite.SqliteModelCheckedCommittedTarget.*;
 
 /** Trusted startup infrastructure. No ordinary business save or remote request routing. */
 public final class SqliteCommittedSnapshot {
+    private static final Set<String> SNAPSHOT_FIELDS = Set.of("snapshot_version", "snapshot_id",
+            "source_runtime_id", "source_sequence", "source_model_hash", "audit", "entity_types", "rows");
+    private static final Set<String> AUDIT_FIELDS = Set.of("actor_ref", "comment", "purpose", "trace_id");
     private static final ObjectMapper JSON = new ObjectMapper()
             .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
@@ -164,6 +167,8 @@ public final class SqliteCommittedSnapshot {
                 || !Long.toString(record.sourceSequence()).equals(body.path("source_sequence").textValue()) || !model.equals(body.path("source_model_hash").textValue())
                 || !body.path("rows").isArray() || body.path("rows").size() > limits.maxRows()
                 || blank(body.path("audit").path("comment").asText()) || blank(body.path("audit").path("purpose").asText())) throw invalid("snapshot header or rows are invalid");
+        SqliteCommittedEventStore.rejectUnknownControls(body, SNAPSHOT_FIELDS);
+        SqliteCommittedEventStore.rejectUnknownControls(body.path("audit"), AUDIT_FIELDS);
         return body;
     }
     private long position() {
