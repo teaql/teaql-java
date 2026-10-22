@@ -28,6 +28,7 @@ public final class SqliteCommittedReceiver {
     private final SqliteModelCheckedCommittedTarget delegate;
     private final SqliteCommittedSnapshot snapshots;
     private final SqliteCommittedSnapshot.Limits snapshotLimits;
+    private final SqliteCommittedSnapshot.ImportMode snapshotMode;
 
     public record Delivery(OutboxRecord event,String keyId,String targetId,byte[] signature) {
         public Delivery {signature=signature==null?new byte[0]:signature.clone();}
@@ -52,10 +53,17 @@ public final class SqliteCommittedReceiver {
     /** Limits are trusted startup policy, never caller-controlled wire options. */
     public SqliteCommittedReceiver(SqlExecutionAdapter sql,String source,String target,
             String model,Map<String,byte[]> keys,SqliteCommittedSnapshot.Limits snapshotLimits) {
+        this(sql,source,target,model,keys,snapshotLimits,SqliteCommittedSnapshot.ImportMode.REQUIRE_EMPTY);
+    }
+    /** Explicit local policy for bootstrap-populated targets, never a wire flag. */
+    public SqliteCommittedReceiver(SqlExecutionAdapter sql,String source,String target,
+            String model,Map<String,byte[]> keys,SqliteCommittedSnapshot.Limits snapshotLimits,
+            SqliteCommittedSnapshot.ImportMode snapshotMode) {
         this.sql=Objects.requireNonNull(sql,"sql");
-        if(snapshotLimits==null||snapshotLimits.maxPayloadBytes()>MAX_SNAPSHOT_PAYLOAD)
+        if(snapshotLimits==null||snapshotLimits.maxPayloadBytes()>MAX_SNAPSHOT_PAYLOAD||snapshotMode==null)
             throw new IllegalArgumentException("invalid receiver snapshot limits");
         this.snapshotLimits=snapshotLimits;
+        this.snapshotMode=snapshotMode;
         try {
             field(source,MAX_ID);field(target,MAX_ID);
             if(model==null||!model.matches("sha256:[0-9a-f]{64}")||keys==null||keys.isEmpty()||keys.size()>16)throw rejected("INVALID_ENVELOPE");
@@ -110,7 +118,7 @@ public final class SqliteCommittedReceiver {
         field(keyId,MAX_ID);field(target,MAX_ID);key(secret);snapshot(snapshot,MAX_SNAPSHOT_PAYLOAD);
         return new SnapshotDelivery(snapshot,keyId,target,snapshotTag(keyId,target,secret,snapshot));
     }
-    /** Authenticate before restore. Untrusted deliveries cannot request destructive replacement. */
+    /** Authenticate before restore. Deliveries cannot select or relax startup restore policy. */
     public SqliteCommittedSnapshotPublisher.Receipt receiveSnapshot(UserContext context,SnapshotDelivery delivery) {
         Objects.requireNonNull(context,"context");
         if(sql.hasActiveTransaction())throw rejected("AMBIENT_TRANSACTION");
@@ -125,7 +133,7 @@ public final class SqliteCommittedReceiver {
             if(!model.equals(record.modelHash()))throw rejected("MODEL_MISMATCH");
             byte[] secret=keys.get(delivery.keyId());if(secret==null)throw rejected("UNKNOWN_KEY");
             if(!MessageDigest.isEqual(snapshotTag(delivery.keyId(),delivery.targetId(),secret,record),delivery.signature))throw rejected("INVALID_SIGNATURE");
-            return SqliteCommittedSnapshotPublisher.initializeAndAcknowledge(context,snapshots,record,target,snapshotLimits);
+            return SqliteCommittedSnapshotPublisher.initializeAndAcknowledge(context,snapshots,record,target,snapshotMode,snapshotLimits);
         }catch(ReceiverException failure){audit(delivery,failure.code());throw failure;}
         catch(SqliteCommittedEventStore.CommittedEventException failure){
             String code="INVALID_ENVELOPE".equals(failure.code())?"INVALID_SNAPSHOT":failure.code();

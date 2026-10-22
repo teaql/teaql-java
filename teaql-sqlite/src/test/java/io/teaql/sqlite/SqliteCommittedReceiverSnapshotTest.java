@@ -113,4 +113,19 @@ public class SqliteCommittedReceiverSnapshotTest {
         var s=new SnapshotRecord("source",0,"baseline",MODEL,"a".repeat(64),"{\"x\":\"雪\"}");var d=SqliteCommittedReceiver.signSnapshot("key","target",KEY,s);
         assertEquals("21dd4226dec5f6513b30b82b9bc4b8a340421a5663e4635658c54291226fe8d9",HexFormat.of().formatHex(d.signature()));byte[] first=d.signature();Arrays.fill(first,(byte)0);assertFalse(Arrays.equals(first,d.signature()));assertFalse(d.toString().contains(s.payloadJson()));
     }
+    @Test public void trustedStartupReplacementCannotResetAnActiveStream()throws Exception{
+        try(var f=new Fixture()){
+            // Pre-stream fixture, representing existing bootstrap/legacy rows;
+            // not a production seeding API or a wire-selectable restore mode.
+            f.sql.update("INSERT INTO school_data(id,version,name) VALUES(99,1,'pre-stream fixture')",new Object[0]);
+            var original=signed(snapshot(0,"baseline"));f.reject("SNAPSHOT_CONFLICT",original);
+            assertEquals(99L,((Number)f.sql.queryForList("SELECT id FROM school_data",new Object[0]).get(0).get("id")).longValue());
+            var configured=new SqliteCommittedReceiver(f.sql,SOURCE,TARGET,MODEL,Map.of("current",KEY),new Limits(10,65536),io.teaql.core.sqlite.SqliteCommittedSnapshot.ImportMode.REPLACE_UNINITIALIZED);
+            assertFalse(configured.receiveSnapshot(f.context,original).duplicate());
+            configured.receive(f.context,SqliteCommittedReceiver.sign("current",TARGET,KEY,tail(1)));
+            try{configured.receiveSnapshot(f.context,signed(snapshot(0,"different")));fail();}catch(ReceiverException e){assertEquals("SNAPSHOT_CONFLICT",e.code());}
+            assertEquals("updated",f.sql.queryForList("SELECT name FROM school_data",new Object[0]).get(0).get("name"));assertEquals(1,f.count("school_data"));assertEquals(1,f.count("teaql_event_inbox"));assertEquals(2,f.count("teaql_event_rejection"));
+            System.out.println("CMR13_STARTUP_POLICY_PASS language=java default_reject=1 explicit_replace=1 active_stream_fenced=1");
+        }
+    }
 }
