@@ -103,6 +103,7 @@ public final class SqliteCommittedSnapshot {
     public SqliteCommittedEventStore.InboxOutcome initializeSnapshot(UserContext context,
             SnapshotRecord record, ImportMode mode, Limits limits) {
         Objects.requireNonNull(context, "context"); Objects.requireNonNull(mode, "mode"); Objects.requireNonNull(limits, "limits");
+        sql.restrictOrdinaryMutations();
         standalone(); JsonNode body = validate(record, limits);
         EntityMetaFactory metadata = EntityMetaFactory.requireFrom(context);
         AtomicReference<SqliteCommittedEventStore.InboxOutcome> result = new AtomicReference<>();

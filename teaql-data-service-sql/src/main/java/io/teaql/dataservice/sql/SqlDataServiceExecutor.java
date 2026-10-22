@@ -63,11 +63,13 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
 
     @Override
     public MutationResult mutate(UserContext context, PersistenceMutation request) {
+        executionAdapter.requireOrdinaryMutationAllowed();
         return getPortableService(context).mutate(context, request);
     }
 
     @Override
     public java.util.List<MutationResult> mutateBatch(UserContext context, io.teaql.core.MutationBatchRequest request) {
+        executionAdapter.requireOrdinaryMutationAllowed();
         return getPortableService(context).mutateBatch(context, request);
     }
 

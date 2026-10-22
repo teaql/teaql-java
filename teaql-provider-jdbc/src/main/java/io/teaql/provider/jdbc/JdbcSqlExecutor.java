@@ -22,6 +22,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
     private static final Logger LOG = Logger.getLogger(JdbcSqlExecutor.class.getName());
 
     private final DataSource dataSource;
+    private volatile boolean ordinaryMutationsReadOnly;
     // A held view retains only this token, not the executor, connection or DataSource.
     private final Object storageIdentity = new Object();
     private final ThreadLocal<Connection> transactionConnection = new ThreadLocal<>();
@@ -34,6 +35,13 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
 
     @Override
     public Object storageIdentity() { return storageIdentity; }
+
+    @Override public void restrictOrdinaryMutations() { ordinaryMutationsReadOnly = true; }
+
+    @Override public void requireOrdinaryMutationAllowed() {
+        if (ordinaryMutationsReadOnly) throw new io.teaql.core.TeaQLRuntimeException(
+                "READ_ONLY_TARGET: ordinary mutations are disabled on this replication target");
+    }
 
     public JdbcSqlExecutor addConnectionInitializer(Consumer<Connection> initializer) {
         connectionInitializers.add(initializer);

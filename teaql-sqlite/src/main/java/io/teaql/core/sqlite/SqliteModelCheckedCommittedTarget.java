@@ -50,6 +50,7 @@ public final class SqliteModelCheckedCommittedTarget {
         }
         this.sourceRuntimeId = sourceRuntimeId;
         this.modelHash = modelHash;
+        sql.restrictOrdinaryMutations();
         this.events = new SqliteCommittedEventStore(sql);
     }
 
