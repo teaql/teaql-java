@@ -23,6 +23,9 @@ import java.util.function.LongFunction;
  */
 public final class SqliteCommittedEventStore {
     private static final ObjectMapper JSON = new ObjectMapper();
+    private static final java.util.Set<String> ENVELOPE_FIELDS = java.util.Set.of(
+            "protocol_version", "change_set_id", "source_runtime_id", "source_sequence",
+            "source_model_hash", "source_transaction_id", "committed_at", "audit", "mutations");
     private final SqlExecutionAdapter sql;
 
     public SqliteCommittedEventStore(SqlExecutionAdapter sql) {
@@ -238,6 +241,15 @@ public final class SqliteCommittedEventStore {
                 || !payload.path("mutations").isArray() || payload.path("mutations").isEmpty()) {
             throw invalid("required v1 header or mutations mismatch");
         }
+        rejectUnknownControls(payload, ENVELOPE_FIELDS);
+    }
+
+    /** Check protocol control frames, never recursively scan modeled values or audit text. */
+    static void rejectUnknownControls(JsonNode object, java.util.Set<String> allowed) {
+        if (!object.isObject()) throw invalid("noncanonical protocol object");
+        object.fieldNames().forEachRemaining(key -> {
+            if (!allowed.contains(key)) throw invalid("noncanonical protocol control field");
+        });
     }
 
     private <T> T savepoint(String name, java.util.function.Supplier<T> action) {

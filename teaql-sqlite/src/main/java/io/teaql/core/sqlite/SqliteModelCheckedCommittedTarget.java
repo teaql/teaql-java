@@ -28,6 +28,9 @@ import java.util.regex.Pattern;
  * infrastructure, not a business-facing Mutation or remote query endpoint.
  */
 public final class SqliteModelCheckedCommittedTarget {
+    private static final Set<String> AUDIT_FIELDS = Set.of("actor_ref", "comment", "purpose", "trace_id");
+    private static final Set<String> MUTATION_FIELDS = Set.of("entity_type", "entity_id", "operation",
+            "base_version", "committed_version", "fields", "trace_chain");
     private static final Set<String> TRACE_KINDS = Set.of(
             "OPERATION", "REQUEST", "RELATION", "ENTITY", "PROVIDER", "SQL",
             "COMMENT", "PURPOSE", "AUDIT_REASON");
@@ -71,6 +74,7 @@ public final class SqliteModelCheckedCommittedTarget {
 
     private static void applyGraph(SqlExecutionAdapter sql, EntityMetaFactory metadata, JsonNode payload) {
         JsonNode audit = payload.path("audit");
+        SqliteCommittedEventStore.rejectUnknownControls(audit, AUDIT_FIELDS);
         if (!audit.isObject() || !nonblank(audit.path("comment"))
                 || !nonblank(audit.path("purpose"))
                 || !nonblank(payload.path("source_transaction_id"))) {
@@ -118,6 +122,7 @@ public final class SqliteModelCheckedCommittedTarget {
         if (!fact.isObject() || !nonblank(fact.path("entity_type"))) {
             throw invalid("mutation entity type is missing");
         }
+        SqliteCommittedEventStore.rejectUnknownControls(fact, MUTATION_FIELDS);
         validateTraceChain(fact.path("trace_chain"));
         String entityType = fact.path("entity_type").textValue();
         EntityDescriptor entity = metadata.allEntityDescriptors().stream()
