@@ -173,7 +173,8 @@ public class CommittedReceiverExampleTest {
                 assertTrue(reopened.receiver().receiveSnapshot(reopened.context, signed).duplicate());
                 position(reopened, 2, 1, 5, "submitted"); assertEquals(domain(source.sql), domain(reopened.sql));
                 var audits = reopened.sql.queryForList("SELECT * FROM teaql_event_rejection ORDER BY audit_id", new Object[0]);
-                assertEquals(List.of("SNAPSHOT_INVALID_SIGNATURE", "INVALID_SIGNATURE", "UNAUTHORIZED_SOURCE", "SEQUENCE_GAP", "SNAPSHOT_CONFLICT"),
+                // Stored audit namespaces snapshot codes; the public receiver code remains SNAPSHOT_CONFLICT.
+                assertEquals(List.of("SNAPSHOT_INVALID_SIGNATURE", "INVALID_SIGNATURE", "UNAUTHORIZED_SOURCE", "SEQUENCE_GAP", "SNAPSHOT_SNAPSHOT_CONFLICT"),
                         audits.stream().map(row -> row.get("reason_code")).toList());
                 String auditText = JSON.writeValueAsString(audits); assertFalse(auditText.contains(CANARY));
                 assertFalse(auditText.contains("submitted")); assertFalse(auditText.contains(new String(KEY, StandardCharsets.US_ASCII)));
