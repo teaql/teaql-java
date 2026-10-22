@@ -1,5 +1,31 @@
 # SQLite committed-event source example
 
+## Authenticated snapshot and tail (CMR-13)
+
+`bash examples/committed-events/verify-security.sh` executes the local runtime
+example twice; the complete verifier includes it. Two audited Mutation saves,
+not INSERT fixtures, produce baseline 1 and tail 2. A retained signed snapshot
+bootstraps an independent target. A lost snapshot receipt leaves the source
+cursor pending; retry gets a stable duplicate receipt. The signed update then
+catches up without rerunning business methods. A source ID above JavaScript's
+exact-integer range survives unchanged.
+
+Five real rejections cover bad snapshot tag, tampered tail with recomputed
+checksum, unauthorized source, replay of snapshot-covered history and a newer
+snapshot attempting to reset an active stream. Checks inspect rows, source
+cursor, Inbox, checkpoint and durable hash-only audit, including a fresh target
+Context/connection. Exact event/snapshot retries do not rewind the tail.
+
+Builds and disposable fixtures are removed on exit. Explicitly set
+`TEAQL_CMR13_EVIDENCE_ROOT` to an absent absolute path to retain two small
+SQLite pairs, result JSON and native logs/JUnit. For the complete gate,
+`TEAQL_COMMITTED_EVIDENCE_DIR` similarly opts into retaining generated Q proof.
+Never reuse/reset these directories. The key is public test material, not a
+deployment secret. This is authenticated in-process ingress, not a network/TLS
+server, receipt authentication, installed-package or production qualification.
+
+## Existing source and target flows
+
 Run `bash examples/committed-events/verify.sh`. It executes a small, real
 `Order.save(context)` flow twice against a local Java source. Each round uses
 fresh source/target SQLite files and an independent DuckDB target. The test
