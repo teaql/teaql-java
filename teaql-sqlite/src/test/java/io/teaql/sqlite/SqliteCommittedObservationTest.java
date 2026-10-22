@@ -53,7 +53,8 @@ public class SqliteCommittedObservationTest {
             var a=f.observations.source(f.context);assertEquals(2,a.sourceHighWatermark());assertEquals(0,a.ackedSequence());
             assertEquals(2,a.sequenceLag());assertEquals(2,a.backlog());assertEquals(1,a.attempts());assertEquals(1,a.failures());assertEquals(0,a.retries());assertEquals(0,a.deadLetters());
             assertEquals(1,f.publisher.publishBatch(1,event->new InboxOutcome(false,1)).acknowledged());
-            var b=new SqliteCommittedObservation(f.sql,SOURCE,TARGET,MODEL).source(f.context);
+            var reopened=new SQLiteDataSource();reopened.setUrl("jdbc:sqlite:"+f.directory.resolve("source.sqlite"));
+            var b=new SqliteCommittedObservation(new JdbcSqlExecutor(reopened),SOURCE,TARGET,MODEL).source(f.context);
             assertEquals(1,b.ackedSequence());assertEquals(1,b.backlog());assertEquals(2,b.attempts());assertEquals(1,b.retries());assertEquals(1,b.failures());
             assertEquals(2,((Number)f.sql.queryForList("SELECT count(*) n FROM teaql_event_outbox",new Object[0]).get(0).get("n")).intValue());
             assertFalse(f.telemetry.toString().contains("CANARY"));assertTrue(f.telemetry.toString().contains("teaql.replication.retries"));
@@ -96,9 +97,11 @@ public class SqliteCommittedObservationTest {
             var s=f.observations.source(f.context);assertEquals(1,s.rejections());assertEquals(1,s.deadLetters());assertEquals(0,s.ackedSequence());
             var failures=f.observations.deadLetters(f.context,10);assertEquals(1,failures.size());assertEquals("INVALID_SIGNATURE",failures.get(0).reason());assertFalse(failures.toString().contains("CANARY"));
             for(int limit:new int[]{0,1001})try{f.observations.deadLetters(f.context,limit);fail();}catch(SqliteCommittedEventStore.CommittedEventException expected){}
+            try{f.publisher.publishBatch(1,e->{throw new IllegalStateException("network temporarily down");});fail();}catch(IllegalStateException expected){}
+            assertEquals("INVALID_SIGNATURE",f.observations.deadLetters(f.context,10).get(0).reason());
             // This deliberately fake callback ACK is not evidence of target application.
             f.publisher.publishBatch(1,e->new InboxOutcome(false,1));
-            var after=f.observations.source(f.context);assertEquals(0,after.deadLetters());assertEquals(1,after.rejections());assertEquals(1,after.retries());
+            var after=f.observations.source(f.context);assertEquals(0,after.deadLetters());assertEquals(1,after.rejections());assertEquals(2,after.retries());
             var targetView=new SqliteCommittedObservation(target,SOURCE,TARGET,MODEL).target(f.context,OptionalLong.of(2));assertEquals(0,targetView.checkpoint());assertEquals(2,targetView.sequenceLag().getAsLong());assertEquals(1,targetView.rejections());
         }
     }
@@ -135,6 +138,25 @@ public class SqliteCommittedObservationTest {
             publisher.publish(f.context,"baseline",limits,e->new SqliteCommittedSnapshotPublisher.Receipt(SOURCE,TARGET,e.snapshotId(),e.sourceSequence(),MODEL,e.payloadSha256(),false));
             var after=f.observations.source(f.context);assertEquals(0,after.pendingSnapshots());assertEquals(0,after.sourceHighWatermark());assertEquals(0,after.ackedSequence());assertEquals(2,after.attempts());assertEquals(1,after.retries());
             publisher.publish(f.context,"baseline",limits,e->{throw new AssertionError("already acked");});assertEquals(2,f.observations.source(f.context).attempts());
+        }
+    }
+    @Test public void counterOverflowAndWrongModelFailClosed()throws Exception{
+        try(var f=new Fixture()){
+            try{f.publisher.publishBatch(1,e->{throw new IllegalStateException();});fail();}catch(IllegalStateException expected){}
+            f.sql.update("UPDATE teaql_event_delivery_journal SET attempts=?",new Object[]{Long.MAX_VALUE});
+            try{f.publisher.publishBatch(1,e->{fail("overflow must not invoke transport");return null;});fail();}catch(ArithmeticException expected){}
+            assertEquals(Long.MAX_VALUE,f.observations.source(f.context).attempts());
+            f.sql.update("UPDATE teaql_event_delivery_journal SET model_hash=?",new Object[]{"sha256:"+"1".repeat(64)});
+            try{f.observations.source(f.context);fail();}catch(SqliteCommittedEventStore.CommittedEventException expected){assertEquals("OBSERVATION_UNAVAILABLE",expected.code());}
+        }
+    }
+    @Test public void telemetryExporterCannotBreakObservation()throws Exception{
+        try(var f=new Fixture()){
+            RuntimeTelemetry broken=op->{throw new IllegalStateException("exporter unavailable");};
+            var context=new DefaultUserContext(TeaQLRuntime.builder().metadata(new SimpleEntityMetaFactory()).telemetry(broken).build());
+            assertEquals(2,f.observations.source(context).backlog());
+            RuntimeTelemetry brokenScope=op->new RuntimeTelemetry.Scope(){public void success(Map<String,Object> a){throw new IllegalStateException("exporter unavailable");}public void failure(Throwable t){throw new AssertionError();}};
+            context=new DefaultUserContext(TeaQLRuntime.builder().metadata(new SimpleEntityMetaFactory()).telemetry(brokenScope).build());assertEquals(2,f.observations.source(context).backlog());
         }
     }
 }

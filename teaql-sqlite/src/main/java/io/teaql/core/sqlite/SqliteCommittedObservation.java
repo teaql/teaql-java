@@ -32,14 +32,14 @@ public final class SqliteCommittedObservation {
         this.source=source;this.target=target;this.model=model;
     }
     static void ensureSchema(SqlExecutionAdapter sql){
-        sql.execute("CREATE TABLE IF NOT EXISTS teaql_event_delivery_journal (source_runtime_id TEXT NOT NULL,target_id TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN ('event','snapshot')),source_sequence INTEGER NOT NULL CHECK(source_sequence>=0),model_hash TEXT NOT NULL,identity_fingerprint TEXT NOT NULL,payload_fingerprint TEXT NOT NULL,attempts INTEGER NOT NULL CHECK(typeof(attempts)='integer' AND attempts>0),failures INTEGER NOT NULL CHECK(typeof(failures)='integer' AND failures>=0),rejections INTEGER NOT NULL CHECK(typeof(rejections)='integer' AND rejections>=0),dead_letter INTEGER NOT NULL CHECK(dead_letter IN (0,1)),last_outcome TEXT NOT NULL CHECK(last_outcome IN ('STARTED','ACKNOWLEDGED','FAILED')),last_reason TEXT NOT NULL,PRIMARY KEY(source_runtime_id,target_id,kind,source_sequence))");
+        sql.execute("CREATE TABLE IF NOT EXISTS teaql_event_delivery_journal (source_runtime_id TEXT NOT NULL,target_id TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN ('event','snapshot')),source_sequence INTEGER NOT NULL CHECK(source_sequence>=0),model_hash TEXT NOT NULL,identity_fingerprint TEXT NOT NULL,payload_fingerprint TEXT NOT NULL,attempts INTEGER NOT NULL CHECK(typeof(attempts)='integer' AND attempts>0),failures INTEGER NOT NULL CHECK(typeof(failures)='integer' AND failures>=0),rejections INTEGER NOT NULL CHECK(typeof(rejections)='integer' AND rejections>=0),dead_letter INTEGER NOT NULL CHECK(dead_letter IN (0,1)),last_outcome TEXT NOT NULL CHECK(last_outcome IN ('STARTED','ACKNOWLEDGED','FAILED')),last_reason TEXT NOT NULL,dead_reason TEXT NOT NULL,PRIMARY KEY(source_runtime_id,target_id,kind,source_sequence))");
     }
     Attempt begin(String kind,long sequence,String identity,String payload){
         if(!Set.of("event","snapshot").contains(kind)||sequence<0||identity==null||payload==null||!payload.matches("[0-9a-f]{64}"))throw unavailable();
         return transaction(()->{
             var rows=sql.queryForList("SELECT * FROM teaql_event_delivery_journal WHERE source_runtime_id=? AND target_id=? AND kind=? AND source_sequence=?",new Object[]{source,target,kind,sequence});
             long ordinal=1;
-            if(rows.isEmpty())sql.update("INSERT INTO teaql_event_delivery_journal VALUES(?,?,?,?,?,?,?,1,0,0,0,'STARTED','NONE')",new Object[]{source,target,kind,sequence,model,fingerprint(identity),payload});
+            if(rows.isEmpty())sql.update("INSERT INTO teaql_event_delivery_journal VALUES(?,?,?,?,?,?,?,1,0,0,0,'STARTED','NONE','NONE')",new Object[]{source,target,kind,sequence,model,fingerprint(identity),payload});
             else{
                 var row=rows.get(0);long prior=number(row.get("attempts"));
                 if(!model.equals(row.get("model_hash"))||!fingerprint(identity).equals(row.get("identity_fingerprint"))||!payload.equals(row.get("payload_fingerprint"))||"ACKNOWLEDGED".equals(row.get("last_outcome")))throw conflict();
@@ -54,18 +54,19 @@ public final class SqliteCommittedObservation {
         String normalized=code.startsWith("SNAPSHOT_")&&PERMANENT.contains(code.substring(9))?code.substring(9):code;
         boolean permanent=PERMANENT.contains(normalized);
         String safe=permanent?normalized:Set.of("ACK_MISMATCH","AUDIT_UNAVAILABLE","CURSOR_CONFLICT").contains(code)?code:"TRANSPORT_UNAVAILABLE";
-        transaction(()->{if(sql.update("UPDATE teaql_event_delivery_journal SET failures=failures+1,rejections=rejections+?,dead_letter=CASE WHEN ?=1 THEN 1 ELSE dead_letter END,last_outcome='FAILED',last_reason=? WHERE source_runtime_id=? AND target_id=? AND kind=? AND source_sequence=? AND attempts=? AND last_outcome='STARTED'",new Object[]{permanent?1:0,permanent?1:0,safe,source,target,attempt.kind(),attempt.sequence(),attempt.ordinal()})!=1)throw conflict();return null;});
+        transaction(()->{if(sql.update("UPDATE teaql_event_delivery_journal SET failures=failures+1,rejections=rejections+?,dead_letter=CASE WHEN ?=1 THEN 1 ELSE dead_letter END,dead_reason=CASE WHEN ?=1 THEN ? ELSE dead_reason END,last_outcome='FAILED',last_reason=? WHERE source_runtime_id=? AND target_id=? AND kind=? AND source_sequence=? AND attempts=? AND last_outcome='STARTED'",new Object[]{permanent?1:0,permanent?1:0,permanent?1:0,safe,safe,source,target,attempt.kind(),attempt.sequence(),attempt.ordinal()})!=1)throw conflict();return null;});
     }
     <T>T acknowledged(Attempt attempt,Supplier<T> cursorUpdate){
         return transaction(()->{
             T value=cursorUpdate.get();
-            if(sql.update("UPDATE teaql_event_delivery_journal SET last_outcome='ACKNOWLEDGED',last_reason='NONE',dead_letter=0 WHERE source_runtime_id=? AND target_id=? AND kind=? AND source_sequence=? AND attempts=? AND last_outcome='STARTED'",new Object[]{source,target,attempt.kind(),attempt.sequence(),attempt.ordinal()})!=1)throw conflict();
+            if(sql.update("UPDATE teaql_event_delivery_journal SET last_outcome='ACKNOWLEDGED',last_reason='NONE',dead_letter=0,dead_reason='NONE' WHERE source_runtime_id=? AND target_id=? AND kind=? AND source_sequence=? AND attempts=? AND last_outcome='STARTED'",new Object[]{source,target,attempt.kind(),attempt.sequence(),attempt.ordinal()})!=1)throw conflict();
             return value;
         });
     }
     public SourceObservation source(UserContext context){
         require(context);
         SourceObservation value=transaction(()->{
+            if(count("SELECT count(*) n FROM teaql_event_delivery_journal WHERE source_runtime_id=? AND target_id=? AND model_hash<>?",new Object[]{source,target,model})!=0)throw unavailable();
             var cursor=sql.queryForList("SELECT acked_sequence,model_hash FROM teaql_event_delivery_cursor WHERE source_runtime_id=? AND target_id=?",new Object[]{source,target});
             long ack=cursor.isEmpty()?0:number(cursor.get(0).get("acked_sequence"));
             if(!cursor.isEmpty()&&!model.equals(cursor.get(0).get("model_hash")))throw unavailable();
@@ -86,7 +87,8 @@ public final class SqliteCommittedObservation {
             long checkpoint=rows.isEmpty()?0:number(rows.get(0).get("source_sequence"));
             if(!rows.isEmpty()&&!model.equals(rows.get(0).get("model_hash")))throw unavailable();
             if(observedSourceHigh.isPresent()&&observedSourceHigh.getAsLong()<checkpoint)throw unavailable();
-            var baseline=sql.queryForList("SELECT source_sequence FROM teaql_event_snapshot WHERE source_runtime_id=?",new Object[]{source});
+            var baseline=sql.queryForList("SELECT source_sequence,model_hash FROM teaql_event_snapshot WHERE source_runtime_id=?",new Object[]{source});
+            if(!baseline.isEmpty()&&!model.equals(baseline.get(0).get("model_hash")))throw unavailable();
             long n=baseline.isEmpty()?0:number(baseline.get(0).get("source_sequence"));if(n>checkpoint)throw unavailable();
             return new TargetObservation(checkpoint,n,count("SELECT count(*) n FROM teaql_event_inbox WHERE source_runtime_id=?",new Object[]{source}),observedSourceHigh.isPresent()?OptionalLong.of(observedSourceHigh.getAsLong()-checkpoint):OptionalLong.empty(),count("SELECT count(*) n FROM teaql_event_rejection WHERE target_fingerprint=?",new Object[]{fingerprint(target)}));
         });
@@ -94,7 +96,7 @@ public final class SqliteCommittedObservation {
     }
     public List<DeadLetter> deadLetters(UserContext context,int limit){
         require(context);if(limit<1||limit>1000)throw unavailable();
-        return transaction(()->sql.queryForList("SELECT kind,source_sequence,identity_fingerprint,payload_fingerprint,attempts,last_reason FROM teaql_event_delivery_journal WHERE source_runtime_id=? AND target_id=? AND model_hash=? AND dead_letter=1 ORDER BY source_sequence,kind LIMIT ?",new Object[]{source,target,model,limit}).stream().map(r->new DeadLetter((String)r.get("kind"),number(r.get("source_sequence")),(String)r.get("identity_fingerprint"),(String)r.get("payload_fingerprint"),number(r.get("attempts")),(String)r.get("last_reason"))).toList());
+        return transaction(()->sql.queryForList("SELECT kind,source_sequence,identity_fingerprint,payload_fingerprint,attempts,dead_reason FROM teaql_event_delivery_journal WHERE source_runtime_id=? AND target_id=? AND model_hash=? AND dead_letter=1 ORDER BY source_sequence,kind LIMIT ?",new Object[]{source,target,model,limit}).stream().map(r->new DeadLetter((String)r.get("kind"),number(r.get("source_sequence")),(String)r.get("identity_fingerprint"),(String)r.get("payload_fingerprint"),number(r.get("attempts")),(String)r.get("dead_reason"))).toList());
     }
     private void emit(UserContext context,String name,Map<String,?> values,Map<String,?> extra){
         var attributes=new LinkedHashMap<String,Object>();attributes.put("teaql.replication.source_fingerprint",fingerprint(source));attributes.put("teaql.replication.target_fingerprint",fingerprint(target));values.forEach((k,v)->attributes.put("teaql.replication."+k,v));extra.forEach((k,v)->attributes.put("teaql.replication."+k,v));
