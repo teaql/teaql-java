@@ -117,7 +117,7 @@ public final class SqliteCommittedSnapshot {
                         || !model.equals(checkpoint.get(0).get("model_hash"))) throw invalid("snapshot checkpoint is inconsistent");
                 result.set(SqliteCommittedEventStore.InboxOutcome.duplicate(record.sourceSequence())); return;
             }
-            for (String table : List.of("teaql_event_snapshot", "teaql_event_checkpoint", "teaql_event_inbox", "teaql_event_applied_payload", "teaql_event_outbox", "teaql_event_sequence", "teaql_event_snapshot_publication"))
+            for (String table : List.of("teaql_event_snapshot", "teaql_event_checkpoint", "teaql_event_inbox", "teaql_event_applied_payload", "teaql_event_outbox", "teaql_event_sequence", "teaql_event_snapshot_publication", "teaql_event_delivery_journal"))
                 if (count(table) != 0) throw conflict("target already contains stream state");
             List<Table> tables = tables(metadata);
             Set<String> catalog = new TreeSet<>();

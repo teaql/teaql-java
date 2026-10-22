@@ -93,16 +93,23 @@ public final class SqliteCommittedOutboxPublisher {
             if (!modelHash.equals(record.modelHash())) {
                 throw failure("MODEL_MISMATCH", "source Outbox model hash mismatch");
             }
-            InboxOutcome outcome = sink.deliver(record);
-            if (outcome == null || outcome.checkpoint() != record.sourceSequence()) {
-                throw failure("ACK_MISMATCH", "target acknowledgement does not match delivered sequence");
-            }
+            var journal = new SqliteCommittedObservation(sql,sourceRuntimeId,targetId,modelHash);
+            var attempt = journal.begin("event",record.sourceSequence(),record.changeSetId(),record.payloadSha256());
+            try {
+                InboxOutcome outcome = sink.deliver(record);
+                if (outcome == null || outcome.checkpoint() != record.sourceSequence())
+                    throw failure("ACK_MISMATCH", "target acknowledgement does not match delivered sequence");
+            } catch (RuntimeException error) { journal.failed(attempt,error); throw error; }
+            long prior = acked;
+            journal.acknowledged(attempt, () -> {
             int changed = sql.update("UPDATE teaql_event_delivery_cursor SET acked_sequence=? "
                     + "WHERE source_runtime_id=? AND target_id=? AND acked_sequence=? AND model_hash=?",
-                    new Object[] {record.sourceSequence(),sourceRuntimeId,targetId,acked,modelHash});
+                    new Object[] {record.sourceSequence(),sourceRuntimeId,targetId,prior,modelHash});
             if (changed != 1) {
                 throw failure("CURSOR_CONFLICT", "delivery cursor changed concurrently");
             }
+            return null;
+            });
             acked = record.sourceSequence();
             count++;
         }

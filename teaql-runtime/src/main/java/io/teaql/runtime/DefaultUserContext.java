@@ -145,6 +145,9 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
             return null;
         }
         Object value = getObj(capabilityType.getName());
+        if (value == null && capabilityType == RuntimeTelemetry.class) {
+            value = runtime == null ? RuntimeTelemetry.NOOP : runtime.getTelemetry();
+        }
         if (value == null && capabilityType == SchemaExecutor.class) {
             value = runtime.getSchemaExecutor();
             if (value == null) {

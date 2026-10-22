@@ -53,12 +53,17 @@ public final class SqliteCommittedSnapshotPublisher {
         if (prepared == null) throw failure("INVALID_SNAPSHOT", "snapshot has not been durably prepared");
         if (prepared.acknowledged()) return prepared;
         SnapshotRecord record = prepared.snapshot();
-        Receipt receipt = sink.deliver(record); // No source SQL transaction/connection held across transport.
+        var journal = new SqliteCommittedObservation(sql,source,target,model);
+        var attempt = journal.begin("snapshot",record.sourceSequence(),record.snapshotId(),record.payloadSha256());
+        Receipt receipt;
+        try {
+        receipt = sink.deliver(record); // No source SQL transaction/connection held across transport.
         if (receipt == null || !source.equals(receipt.sourceRuntimeId()) || !target.equals(receipt.targetId())
                 || !record.snapshotId().equals(receipt.snapshotId()) || record.sourceSequence() != receipt.sourceSequence()
                 || !model.equals(receipt.modelHash()) || !record.payloadSha256().equals(receipt.payloadSha256()))
             throw failure("ACK_MISMATCH", "snapshot receipt does not match this source/target record");
-        return transaction(() -> {
+        } catch (RuntimeException error) { journal.failed(attempt,error); throw error; }
+        return journal.acknowledged(attempt, () -> {
             PreparedSnapshot current = existing(snapshotId, limits);
             if (current == null || !current.snapshot().equals(record)) throw failure("SNAPSHOT_CONFLICT", "prepared snapshot changed");
             if (current.acknowledged()) return current; // Tail may already have advanced; never rewind.

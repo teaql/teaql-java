@@ -59,6 +59,7 @@ public final class SqliteCommittedEventStore {
     }
 
     public void ensureSchema() {
+        SqliteCommittedObservation.ensureSchema(sql);
         sql.execute("CREATE TABLE IF NOT EXISTS teaql_event_sequence ("
                 + "source_runtime_id TEXT PRIMARY KEY, "
                 + "current_sequence INTEGER NOT NULL CHECK(current_sequence >= 0))");
