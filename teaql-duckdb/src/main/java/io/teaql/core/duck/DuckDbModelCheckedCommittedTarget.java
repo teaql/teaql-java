@@ -60,6 +60,7 @@ public final class DuckDbModelCheckedCommittedTarget {
             String sourceRuntimeId, String modelHash) {
         this.sql = Objects.requireNonNull(sql, "sql");
         this.inbox = new DuckDbCommittedInbox(sql, sourceRuntimeId, modelHash);
+        sql.restrictOrdinaryMutations();
     }
 
     /** Infrastructure schema only; domain schema belongs to Context.ensureSchema(). */

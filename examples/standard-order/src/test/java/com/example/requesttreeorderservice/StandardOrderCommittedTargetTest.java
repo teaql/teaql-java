@@ -125,6 +125,16 @@ public class StandardOrderCommittedTargetTest {
                 assertNotNull(replicated);
                 assertEquals("Committed target customer", replicated.getName());
                 assertEquals(customer.getVersion(), replicated.getVersion());
+                replicated.updateName("must not modify the analytical target");
+                var denied=assertThrows(RuntimeException.class,()->replicated.auditAs("attempt ordinary target write").save(targetContext));
+                assertTrue(denied.toString(),denied.toString().contains("READ_ONLY_TARGET"));
+                var unchanged=Q.customers().withIdIs(customer.getId()).limit(1)
+                        .comment("reload target after denied ordinary write")
+                        .purpose("verify generated mutation did not change replicated facts")
+                        .executeForOne(targetContext);
+                assertEquals("Committed target customer",unchanged.getName());assertEquals(customer.getVersion(),unchanged.getVersion());
+                assertEquals(1,recorder.eventStore().outboxAfter(SOURCE,0,10).size());
+                System.out.println("CMR15_GENERATED_READ_ONLY_PASS language=java backend=duckdb generated_audited_save=1 fresh_query=1 source_isolated=1");
             }
         }
         System.out.println("JAVA_COMMITTED_GENERATED_Q_PASS source=sqlite target=duckdb outbox=1");
