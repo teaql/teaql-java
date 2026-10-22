@@ -78,7 +78,7 @@ public class CommittedReceiverExampleTest {
         return ((Number) sql.queryForList(query, new Object[0]).get(0).values().iterator().next()).longValue();
     }
     private static Map<String,Object> domain(JdbcSqlExecutor sql) {
-        var rows = sql.queryForList("SELECT id,version,name,memo FROM customer_order_data", new Object[0]);
+        var rows = sql.queryForList("SELECT CAST(id AS TEXT) AS id,version,name,memo FROM customer_order_data", new Object[0]);
         assertEquals(1, rows.size()); return rows.get(0);
     }
     private static void position(Fixture target, long checkpoint, long inbox, long audits, String name) {
