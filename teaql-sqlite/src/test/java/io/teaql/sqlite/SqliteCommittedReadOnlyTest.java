@@ -27,7 +27,7 @@ public class SqliteCommittedReadOnlyTest {
         return new Application(context,provider);
     }
     private static School school(){var s=new School();s.updateProperty("name","ordinary write");s.setComment("verify default analytical target write boundary");return s;}
-    private static void readonly(Runnable action){var error=assertThrows("analytical target ordinary mutation must be read-only",RuntimeException.class,action);assertTrue(error.toString(),error.toString().contains("READ_ONLY_TARGET"));}
+    private static void readonly(Runnable action){var error=assertThrows("analytical target ordinary mutation must be read-only",RuntimeException.class,()->action.run());assertTrue(error.toString(),error.toString().contains("READ_ONLY_TARGET"));}
     @Test public void graphSaveCannotWriteThroughReceiverAuthority()throws Exception{
         try(var f=new SqliteCommittedBoundaryTest.Fixture()){
             var app=application(f.sql,EntityMetaFactory.requireFrom(f.context));
@@ -38,7 +38,7 @@ public class SqliteCommittedReadOnlyTest {
     }
     @Test public void directAndBatchMutationCannotBypassReadOnlyTarget()throws Exception{
         for(boolean batch:List.of(false,true))try(var f=new SqliteCommittedBoundaryTest.Fixture()){
-            var app=application(f.sql,EntityMetaFactory.requireFrom(f.context));var s=school();s.setId(99L);
+            var app=application(f.sql,EntityMetaFactory.requireFrom(f.context));var s=school();s.setProperty("id",99L);
             var request=new EntityPersistenceMutation(s,EntityPersistenceMutation.Action.SAVE);
             if(batch)readonly(()->app.provider().mutateBatch(app.context(),new MutationBatchRequest(request.intent(),List.of(request))));
             else readonly(()->app.provider().mutate(app.context(),request));
