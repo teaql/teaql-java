@@ -136,6 +136,43 @@ public class CommittedReceiverExampleTest {
         Files.writeString(directory.resolve("business-calls.txt"), comment + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         order.auditAs(comment).save(context);
     }
+
+    @Test public void ordinaryTfpReadsButCannotWriteOrDispatchReplicationOnRealSqlite() throws Exception {
+        Path directory=Files.createTempDirectory("teaql-cmr15-tfp-");
+        try(Fixture source=new Fixture(directory.resolve("source.sqlite"),true);
+            Fixture target=new Fixture(directory.resolve("target.sqlite"),false)) {
+            var receiver=target.receiver();var order=new CustomerOrder();order.__internalInitializeNewEntityId(ID);
+            order.updateProperty("name","original");order.updateProperty("memo",CANARY);
+            order.auditAs("seed real TFP boundary example through audited save").save(source.context);
+            var event=source.recorder.eventStore().outboxAfter(SOURCE,0,1).get(0);
+            var delivery=SqliteCommittedReceiver.sign("current",TARGET,KEY,event);receiver.receive(target.context,delivery);
+            var endpoint=new io.teaql.tfp.TfpEndpointHandler(new SqliteDataServiceExecutor("sqlite",target.sql,null),JSON);
+            var trusted=new io.teaql.tfp.TrustedFederalContext("id",ID,"example:analyst","verify actual target boundary",Set.of("CustomerOrder"),
+                    Map.of("CustomerOrder",Map.of("id","id","version","version","name","name","memo","memo")),
+                    Map.of("CustomerOrder",Map.of("name","name","memo","memo")),Map.of("CustomerOrder",Set.of("Update")),10);
+            var query=JSON.createObjectNode().put("entity","CustomerOrder").put("limitValue",1)
+                    .put("commentText","read real analytical target").put("purposeText","verify bounded TFP target reads");
+            query.putArray("selectItems").add("id").add("version").add("name").add("memo");
+            var rows=(List<?>)endpoint.handleQuery(target.context,trusted,JSON.writeValueAsBytes(query)).get("data");
+            assertEquals(1,rows.size());assertEquals("original",((io.teaql.core.Entity)rows.get(0)).getProperty("name"));
+            var mutation=JSON.createObjectNode().put("entity","CustomerOrder").put("action","Update").put("id",ID)
+                    .put("expectedVersion",1).put("comment","attempt ordinary TFP write on target");
+            mutation.putObject("payload").put("name","must not save").put("memo",CANARY);
+            var denied=assertThrows(RuntimeException.class,()->endpoint.handleMutation(target.context,trusted,JSON.writeValueAsBytes(mutation)));
+            assertTrue(denied.toString(),denied.toString().contains("READ_ONLY_TARGET"));
+            mutation.put("action","Apply");
+            assertEquals("TFP_POLICY_VIOLATION",assertThrows(io.teaql.tfp.TfpEndpointException.class,()->endpoint.handleMutation(target.context,trusted,JSON.writeValueAsBytes(mutation))).getCode());
+            query.put("sql","DELETE FROM customer_order_data");
+            assertEquals("TFP_INVALID_REQUEST",assertThrows(io.teaql.tfp.TfpEndpointException.class,()->endpoint.handleQuery(target.context,trusted,JSON.writeValueAsBytes(query))).getCode());
+            var frame=JSON.writeValueAsBytes(Map.of("protocol_version",1,"source_sequence","1","source_runtime_id",SOURCE));
+            assertEquals("TFP_INVALID_REQUEST",assertThrows(io.teaql.tfp.TfpEndpointException.class,()->endpoint.handleMutation(target.context,trusted,frame)).getCode());
+            assertEquals("TFP_INVALID_REQUEST",assertThrows(io.teaql.tfp.TfpEndpointException.class,()->endpoint.handleQuery(target.context,trusted,frame)).getCode());
+            assertEquals("original",domain(target.sql).get("name"));assertEquals(1,((Number)domain(target.sql).get("version")).longValue());
+            assertEquals(1,scalar(target.sql,"SELECT count(*) FROM teaql_event_inbox"));assertEquals(0,scalar(target.sql,"SELECT count(*) FROM teaql_event_rejection"));
+            assertTrue(receiver.receive(target.context,delivery).duplicate());
+            System.out.println("CMR15_TFP_SQLITE_E2E_PASS language=java bounded_query=1 readonly_mutation=1 fake_apply=1 raw_sql=1 protocol_frame=1 unchanged=1");
+        } finally {try(var paths=Files.walk(directory)){for(var p:paths.sorted(Comparator.reverseOrder()).toList())Files.delete(p);}}
+    }
     @Test public void auditedSaveSnapshotAndTailAuthenticateBeforeApplication() throws Exception {
         String retained = System.getenv("TEAQL_CMR13_EVIDENCE_DIR");
         Path directory;

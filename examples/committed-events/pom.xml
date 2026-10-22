@@ -8,6 +8,7 @@
   </parent>
   <artifactId>teaql-committed-events-example</artifactId>
   <dependencies>
+    <dependency><groupId>io.teaql</groupId><artifactId>teaql-tfp-endpoint</artifactId><version>${project.version}</version><scope>test</scope></dependency>
     <dependency><groupId>io.teaql</groupId><artifactId>teaql-runtime</artifactId></dependency>
     <dependency><groupId>io.teaql</groupId><artifactId>teaql-sqlite</artifactId></dependency>
     <dependency><groupId>io.teaql</groupId><artifactId>teaql-duckdb</artifactId><version>${project.version}</version></dependency>
