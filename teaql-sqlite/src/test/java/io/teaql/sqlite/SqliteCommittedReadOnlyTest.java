@@ -34,6 +34,10 @@ public class SqliteCommittedReadOnlyTest {
             readonly(()->app.context().saveGraph(school()));assertEquals(0,f.count("school_data"));
             assertFalse(f.receive(SqliteCommittedBoundaryTest.body()).duplicate());assertEquals(1,f.count("school_data"));
             assertEquals(1,f.count("teaql_event_inbox"));assertEquals(0,f.count("teaql_event_rejection"));
+            var query=new BaseRequest.TempRequest(EntityMetaFactory.requireFrom(app.context()).resolveEntityDescriptor("school"));
+            query.selectProperty("name");query.getSlice().setSize(1);
+            var result=(DefaultQueryResult)app.provider().query(app.context(),new DefaultQueryRequest(query,QueryIntent.of("read analytical target","verify reads remain available")));
+            assertEquals(1,result.getResult().size());assertEquals("original",((Entity)result.getResult().getData().get(0)).getProperty("name"));
         }
     }
     @Test public void directAndBatchMutationCannotBypassReadOnlyTarget()throws Exception{
