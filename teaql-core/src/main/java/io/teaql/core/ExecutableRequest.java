@@ -42,6 +42,11 @@ public class ExecutableRequest<T extends Entity> {
         if (!(entity instanceof BaseEntity base)) {
             throw new IllegalArgumentException("Explicit-ID creation requires a generated BaseEntity");
         }
+        InternalIdGenerationService ids = context.capability(InternalIdGenerationService.class);
+        if (ids == null) {
+            throw new IllegalStateException("Explicit-ID creation requires an InternalIdGenerationService");
+        }
+        ids.ensureFloor(base.typeName(), id);
         base.__internalInitializeNewEntityId(id);
         return context.initializeEntity(request.getTypeName(), entity);
     }

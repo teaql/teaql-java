@@ -328,9 +328,15 @@ public class BaseRequestTest {
     @Test
     public void testExplicitIdCreationInitializesBeforeTrustedContextAndDoesNotExposeSystemUpdaters() throws Exception {
         java.util.concurrent.atomic.AtomicInteger initialized = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.atomic.AtomicLong floor = new java.util.concurrent.atomic.AtomicLong();
+        InternalIdGenerationService ids = new InternalIdGenerationService() {
+            public Long generateId(UserContext current, Entity entity) { return floor.incrementAndGet(); }
+            public void ensureFloor(String type, long value) { floor.accumulateAndGet(value, Math::max); }
+        };
         UserContext context = (UserContext) Proxy.newProxyInstance(
                 UserContext.class.getClassLoader(), new Class<?>[] { UserContext.class },
                 (proxy, method, args) -> {
+                    if (method.getName().equals("capability") && args[0] == InternalIdGenerationService.class) return ids;
                     if (method.getName().equals("initializeEntity")) {
                         BaseEntity value = (BaseEntity) args[1];
                         assertEquals(Long.valueOf(1234L), value.getId());
@@ -345,9 +351,15 @@ public class BaseRequestTest {
         BaseEntity entity = (BaseEntity) executable.newEntityWithId(1234L, context);
         assertEquals(Long.valueOf(1234L), entity.getId());
         assertEquals(1, initialized.get());
+        assertEquals(1234L, floor.get());
+        assertEquals(Long.valueOf(1235L), ids.generateId(context, entity));
         org.junit.Assert.assertThrows(IllegalArgumentException.class, () -> executable.newEntityWithId(0L, context));
         org.junit.Assert.assertThrows(IllegalArgumentException.class, () -> executable.newEntityWithId(null, context));
         assertEquals(1, initialized.get());
+        UserContext missingIds = (UserContext) Proxy.newProxyInstance(
+                UserContext.class.getClassLoader(), new Class<?>[] { UserContext.class },
+                (proxy, method, args) -> null);
+        org.junit.Assert.assertThrows(IllegalStateException.class, () -> executable.newEntityWithId(7L, missingIds));
         org.junit.Assert.assertThrows(NoSuchMethodException.class, () -> BaseEntity.class.getMethod("updateId", Long.class));
         org.junit.Assert.assertThrows(NoSuchMethodException.class, () -> BaseEntity.class.getMethod("updateVersion", Long.class));
         org.junit.Assert.assertThrows(NoSuchMethodException.class, () -> io.teaql.core.value.BaseEntityExpression.class.getMethod("updateId", Long.class));
