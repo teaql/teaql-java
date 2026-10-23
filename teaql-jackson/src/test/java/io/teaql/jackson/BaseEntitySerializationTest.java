@@ -117,8 +117,8 @@ public class BaseEntitySerializationTest {
 
     @Test
     public void cyclicIndexedGraphsUseIdentityReferencesAndDoNotRetainAPathAcrossWrites() throws Exception {
-        var first = new CyclicEntity(); first.updateId(1L); first.updateVersion(1L);
-        var second = new CyclicEntity(); second.updateId(2L); second.updateVersion(1L);
+        var first = new CyclicEntity(); first.__internalSet("id", 1L); first.__internalSet("version", 1L);
+        var second = new CyclicEntity(); second.__internalSet("id", 2L); second.__internalSet("version", 1L);
         first.__internalSet("peer", second); second.__internalSet("peer", first);
         var mapper = new ObjectMapper().registerModule(TeaQLModule.INSTANCE);
         var json = mapper.readTree(mapper.writeValueAsString(first));
@@ -130,8 +130,8 @@ public class BaseEntitySerializationTest {
 
     @Test
     public void sharedReferencesOutsideTheActivePathAreNotReducedToIdentityOnly() throws Exception {
-        var first = new CyclicEntity(); first.updateId(1L); first.updateVersion(1L);
-        var second = new CyclicEntity(); second.updateId(2L); second.updateVersion(1L);
+        var first = new CyclicEntity(); first.__internalSet("id", 1L); first.__internalSet("version", 1L);
+        var second = new CyclicEntity(); second.__internalSet("id", 2L); second.__internalSet("version", 1L);
         first.__internalSet("peer", second);
         second.putAdditional("_label", "shared child");
         first.putAdditional("_again", second);
@@ -209,8 +209,8 @@ public class BaseEntitySerializationTest {
     @Test
     public void serializesDynamicPropertiesWithTeaQLModule() throws Exception {
         BaseEntity entity = new BaseEntity();
-        entity.updateId(1001L);
-        entity.updateVersion(7L);
+        entity.__internalSet("id", 1001L);
+        entity.__internalSet("version", 7L);
         entity.setComment("internal comment");
         entity.setTraceChain(java.util.List.of(new io.teaql.core.TraceNode(
                 io.teaql.core.TraceKind.AUDIT_REASON, entity.typeName(), 1001L, "internal trace")));
@@ -248,7 +248,7 @@ public class BaseEntitySerializationTest {
     @Test
     public void serializesBaseEntitySubclassesWithTeaQLSerializer() throws Exception {
         NamedEntity entity = new NamedEntity();
-        entity.updateId(1001L);
+        entity.__internalSet("id", 1001L);
         entity.setName("should-not-use-bean-getter");
         entity.putAdditional("#customer_asset_no", "A-10086");
 

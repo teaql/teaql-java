@@ -124,17 +124,17 @@ public final class TfpConformanceServer {
         return new QueryExecutor() {
             public QueryResult query(io.teaql.core.UserContext context, QueryRequest request) {
                 CustomerOrder order = new CustomerOrder();
-                order.updateId(7L); order.updateVersion(1L); order.setTenantId(1L);
+                order.__internalSet("id", 7L); order.__internalSet("version", 1L); order.setTenantId(1L);
                 order.setStatus("NEW"); order.setOrderNumber("ORD-007");
                 order.setReviewed(Boolean.TRUE);
                 SmartList<CustomerOrder> rows = new SmartList<>(); rows.add(order);
                 var searchRequest = ((io.teaql.runtime.DefaultQueryRequest) request).getSearchRequest();
                 if (!searchRequest.getFacetRequests().isEmpty()) {
                     SmartList<OrderStatus> statuses = new SmartList<>();
-                    OrderStatus newest = new OrderStatus(); newest.updateId(1001L);
+                    OrderStatus newest = new OrderStatus(); newest.__internalSet("id", 1001L);
                     newest.setCode("NEW"); newest.setLabel("New");
                     newest.addDynamicProperty("orderCount", 1); statuses.add(newest);
-                    OrderStatus paid = new OrderStatus(); paid.updateId(1002L);
+                    OrderStatus paid = new OrderStatus(); paid.__internalSet("id", 1002L);
                     paid.setCode("PAID"); paid.setLabel("Paid");
                     paid.addDynamicProperty("orderCount", 0); statuses.add(paid);
                     rows.addFacet(searchRequest.getFacetRequests().get(0).getFacetName(), statuses);

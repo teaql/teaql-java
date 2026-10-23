@@ -183,7 +183,7 @@ public class TeaQLRuntimeTest {
             SmartList<DummyEntity> rows = new SmartList<>();
             for (int id = request.getSlice().getOffset() + 1;
                     id <= request.getSlice().getOffset() + request.getSlice().getSize(); id++) {
-                DummyEntity entity = new DummyEntity(); entity.updateId((long) id); rows.add(entity);
+                DummyEntity entity = new DummyEntity(); entity.__internalSet("id", (long) id); rows.add(entity);
             }
             return new DefaultQueryResult(rows);
         }
@@ -224,7 +224,7 @@ public class TeaQLRuntimeTest {
 
     private static DummyEntity changedEntity(long id, String comment) {
         DummyEntity entity = new DummyEntity();
-        entity.updateId(id);
+        entity.__internalSet("id", id);
         entity.__internalSet("version", 1L);
         entity.set$status(EntityStatus.PERSISTED);
         entity.updateProperty("name", "private-value");
@@ -354,7 +354,7 @@ public class TeaQLRuntimeTest {
                 .mutationPolicyRegistry(key -> java.util.Optional.of(policy))
                 .build();
         ContainerEntity root = new ContainerEntity();
-        root.updateId(910L);
+        root.__internalSet("id", 910L);
         root.set$status(EntityStatus.PERSISTED);
         DummyEntity child = changedEntity(911L, "child change");
         root.updateProperty("rel1", child);
@@ -903,26 +903,26 @@ public class TeaQLRuntimeTest {
         root.setComment("root comment");
 
         DummyEntity e1 = new DummyEntity(); // to delete
-        e1.updateId(101L);
+        e1.__internalSet("id", 101L);
         e1.set$status(EntityStatus.PERSISTED);
         e1.setEntityMutationLedger(root);
         e1.markForDeletion();
 
         DummyEntity e2 = new DummyEntity(); // to update
-        e2.updateId(102L);
+        e2.__internalSet("id", 102L);
         e2.set$status(EntityStatus.PERSISTED);
         e2.setEntityMutationLedger(root);
         e2.updateProperty("name", "updated");
 
         DummyEntity e3 = new DummyEntity(); // to insert
-        e3.updateId(103L);
+        e3.__internalSet("id", 103L);
         e3.set$status(EntityStatus.NEW);
         e3.setEntityMutationLedger(root);
         e3.updateProperty("name", "inserted");
         root.markAsNew(new EntityKey(e3.typeName(), e3.getId()));
 
         DummyEntity e4 = new DummyEntity(); // to delete only
-        e4.updateId(104L);
+        e4.__internalSet("id", 104L);
         e4.set$status(EntityStatus.PERSISTED);
         e4.setEntityMutationLedger(root);
         e4.markForDeletion();
@@ -984,19 +984,19 @@ public class TeaQLRuntimeTest {
                 .build();
 
         ContainerEntity rootEntity = new ContainerEntity();
-        rootEntity.updateId(1L);
+        rootEntity.__internalSet("id", 1L);
         rootEntity.set$status(EntityStatus.PERSISTED);
 
         DummyEntity toOneChild = new DummyEntity();
-        toOneChild.updateId(2L);
+        toOneChild.__internalSet("id", 2L);
         toOneChild.set$status(EntityStatus.PERSISTED);
         
         DummyEntity listChild1 = new DummyEntity();
-        listChild1.updateId(3L);
+        listChild1.__internalSet("id", 3L);
         listChild1.set$status(EntityStatus.PERSISTED);
 
         DummyEntity listChild2 = new DummyEntity();
-        listChild2.updateId(4L);
+        listChild2.__internalSet("id", 4L);
         listChild2.set$status(EntityStatus.PERSISTED);
         
         rootEntity.updateProperty("rel1", toOneChild);
@@ -1030,13 +1030,13 @@ public class TeaQLRuntimeTest {
         DefaultUserContext context = new DefaultUserContext(runtime);
 
         DummyEntity first = new DummyEntity();
-        first.updateId(11L);
+        first.__internalSet("id", 11L);
         first.set$status(EntityStatus.PERSISTED);
         first.updateProperty("name", "save me");
         first.setComment("save first graph only");
 
         DummyEntity independent = new DummyEntity();
-        independent.updateId(22L);
+        independent.__internalSet("id", 22L);
         independent.set$status(EntityStatus.PERSISTED);
         independent.updateProperty("name", "keep pending");
 
@@ -1069,13 +1069,13 @@ public class TeaQLRuntimeTest {
         DefaultUserContext context = new DefaultUserContext(runtime);
 
         DummyEntity failing = new DummyEntity();
-        failing.updateId(31L);
+        failing.__internalSet("id", 31L);
         failing.set$status(EntityStatus.PERSISTED);
         failing.updateProperty("name", "must remain pending");
         failing.setComment("fail this graph");
 
         DummyEntity independent = new DummyEntity();
-        independent.updateId(32L);
+        independent.__internalSet("id", 32L);
         independent.set$status(EntityStatus.PERSISTED);
         independent.updateProperty("name", "independent pending");
 

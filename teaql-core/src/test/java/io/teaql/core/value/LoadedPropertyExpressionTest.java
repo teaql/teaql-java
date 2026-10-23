@@ -15,19 +15,19 @@ public class LoadedPropertyExpressionTest {
 
     @Test
     public void distinguishesValueLoadedNullAndNotLoaded() {
-        Subject value = new Subject(); value.updateId(1L); value.loadName("TeaQL");
+        Subject value = new Subject(); value.__internalSet("id", 1L); value.loadName("TeaQL");
         Expression<Subject, Subject> root = new ValueExpression<>(value);
         Expression<Subject, String> expression = new LoadedPropertyExpression<>(root, "name", Subject::getName);
         assertEquals("TeaQL", expression.eval());
         assertEquals("TeaQL", expression.orIfNull("fallback"));
 
-        Subject loadedNull = new Subject(); loadedNull.updateId(2L); loadedNull.loadName(null);
+        Subject loadedNull = new Subject(); loadedNull.__internalSet("id", 2L); loadedNull.loadName(null);
         Expression<Subject, String> nullExpression = new LoadedPropertyExpression<>(
                 new ValueExpression<>(loadedNull), "name", Subject::getName);
         assertNull(nullExpression.eval());
         assertEquals("fallback", nullExpression.orIfNull("fallback"));
 
-        Subject partial = new Subject(); partial.updateId(3L);
+        Subject partial = new Subject(); partial.__internalSet("id", 3L);
         Expression<Subject, String> missing = new LoadedPropertyExpression<>(
                 new ValueExpression<>(partial), "name", Subject::getName);
         TeaQLNotLoadedException error = assertThrows(TeaQLNotLoadedException.class, missing::eval);
