@@ -34,6 +34,18 @@ public class ExecutableRequest<T extends Entity> {
         return context.initializeEntity(request.getTypeName(), request.internalNewEntity());
     }
 
+    /** Creates a new aggregate with an explicit ID; never changes an existing entity. */
+    public T newEntityWithId(Long id, UserContext context) {
+        if (context == null) throw new IllegalArgumentException("UserContext is required for entity creation");
+        if (id == null || id <= 0) throw new IllegalArgumentException("Creation ID must be positive");
+        T entity = request.internalNewEntity();
+        if (!(entity instanceof BaseEntity base)) {
+            throw new IllegalArgumentException("Explicit-ID creation requires a generated BaseEntity");
+        }
+        base.__internalInitializeNewEntityId(id);
+        return context.initializeEntity(request.getTypeName(), entity);
+    }
+
     public SmartList<T> executeForList(UserContext context) {
         return context.executeForList(this);
     }

@@ -9,7 +9,7 @@ import static org.junit.Assert.*;
 public class SmartListExpressionTest {
 
     static class DummyEntity extends BaseEntity {
-        public DummyEntity(Long id) { updateId(id); }
+        public DummyEntity(Long id) { __internalSet("id", id); }
         @Override public String typeName() { return "dummy"; }
     }
 

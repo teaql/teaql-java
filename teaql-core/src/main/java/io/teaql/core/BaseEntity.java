@@ -104,7 +104,7 @@ public class BaseEntity implements Entity {
         return id;
     }
 
-    public BaseEntity updateId(Long id) {
+    BaseEntity updateId(Long id) {
 		markPropertyLoaded(ID_PROPERTY);
         if (ObjectUtil.equals(this.id, id)) return this;
         handleUpdate(ID_PROPERTY, getId(), id);
@@ -112,13 +112,13 @@ public class BaseEntity implements Entity {
         return this;
     }
 
-    @FrameworkInternal("Generated schema bootstrap fixed-ID creation only")
+    @FrameworkInternal("New entity ID initialization for Q creation and generated bootstrap")
     public void __internalInitializeNewEntityId(Long fixedId) {
         if (fixedId == null || fixedId <= 0) {
-            throw new IllegalArgumentException("Generated bootstrap ID must be positive");
+            throw new IllegalArgumentException("Creation ID must be positive");
         }
         if (id != null || !newItem()) {
-            throw new IllegalStateException("Fixed bootstrap ID can only initialize a new entity");
+            throw new IllegalStateException("Creation ID can only initialize a new entity");
         }
         id = fixedId;
         markPropertyLoaded(ID_PROPERTY);
@@ -130,7 +130,7 @@ public class BaseEntity implements Entity {
         return version;
     }
 
-    public BaseEntity updateVersion(Long version) {
+    BaseEntity updateVersion(Long version) {
 		markPropertyLoaded(VERSION_PROPERTY);
         if (ObjectUtil.equals(this.version, version)) return this;
         handleUpdate(VERSION_PROPERTY, getVersion(), version);

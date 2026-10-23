@@ -326,6 +326,34 @@ public class BaseRequestTest {
     }
 
     @Test
+    public void testExplicitIdCreationInitializesBeforeTrustedContextAndDoesNotExposeSystemUpdaters() throws Exception {
+        java.util.concurrent.atomic.AtomicInteger initialized = new java.util.concurrent.atomic.AtomicInteger();
+        UserContext context = (UserContext) Proxy.newProxyInstance(
+                UserContext.class.getClassLoader(), new Class<?>[] { UserContext.class },
+                (proxy, method, args) -> {
+                    if (method.getName().equals("initializeEntity")) {
+                        BaseEntity value = (BaseEntity) args[1];
+                        assertEquals(Long.valueOf(1234L), value.getId());
+                        assertEquals(EntityStatus.NEW, value.get$status());
+                        initialized.incrementAndGet();
+                        return value;
+                    }
+                    throw new UnsupportedOperationException(method.getName());
+                });
+        var executable = new BaseRequest.TempRequest(BaseEntity.class, "BaseEntity", BaseEntity::new)
+                .internalComment("Create imported entity").purpose("Preserve external identity");
+        BaseEntity entity = (BaseEntity) executable.newEntityWithId(1234L, context);
+        assertEquals(Long.valueOf(1234L), entity.getId());
+        assertEquals(1, initialized.get());
+        org.junit.Assert.assertThrows(IllegalArgumentException.class, () -> executable.newEntityWithId(0L, context));
+        org.junit.Assert.assertThrows(IllegalArgumentException.class, () -> executable.newEntityWithId(null, context));
+        assertEquals(1, initialized.get());
+        org.junit.Assert.assertThrows(NoSuchMethodException.class, () -> BaseEntity.class.getMethod("updateId", Long.class));
+        org.junit.Assert.assertThrows(NoSuchMethodException.class, () -> BaseEntity.class.getMethod("updateVersion", Long.class));
+        org.junit.Assert.assertThrows(NoSuchMethodException.class, () -> io.teaql.core.value.BaseEntityExpression.class.getMethod("updateId", Long.class));
+    }
+
+    @Test
     public void testEnhanceChildren() {
         BaseRequest.TempRequest subReq = new BaseRequest.TempRequest(BaseEntity.class, "ChildEntity");
         request.enhanceSelf(subReq);
