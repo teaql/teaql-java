@@ -88,5 +88,50 @@ public class ExpressionLocationTest {
         assertFalse(wire.has("root"));
         assertFalse(wire.has("inputValue"));
         assertFalse(wire.has("accessPath"));
+        assertFalse(wire.get("location").get(0).has("index"));
+    }
+
+    @Test public void earlyMissingRelationRetainsTheFullExpressionAndOnePositionalBreakpoint() {
+        Row row = new Row();
+        Expression<Row, Row> root = new ValueExpression<>(row, JsonFieldNamingProfile.CAMEL_CASE, "E.row(<root>)");
+        var parent = new LoadedPropertyExpression<>(root, "parent", r -> r.child);
+        var repeated = new LoadedPropertyExpression<>(parent, "parent", r -> r.child);
+        var leaf = new LoadedPropertyExpression<>(repeated, "user_url", r -> r.text);
+        var error = assertThrows(TeaQLNotLoadedException.class, leaf::eval);
+        var wire = error.toWire();
+        assertEquals("/parent", wire.instancePath());
+        assertEquals("/parent/parent/userUrl", wire.attemptedInstancePath());
+        assertEquals("E.row(<root>).getParent().getParent().getUserUrl().eval()", wire.originalExpression());
+        assertEquals("E.row(<root>).getParent()<broken>.getParent().getUserUrl().eval()", wire.expressionWithBrokenPoint());
+        assertEquals(0, wire.breakPointIndex());
+        assertEquals(wire.location(), wire.suggestedFix().location());
+        assertFalse(row.__internalHasMutationLedger());
+    }
+
+    @Test public void listFirstSizeAndFallbackOperationsAreReconstructedWithoutArgumentValues() {
+        Row row = new Row();
+        var root = new ValueExpression<>(row, JsonFieldNamingProfile.SNAKE_CASE, "E.row(<root>)");
+        var list = new SmartListExpression<>(new LoadedPropertyExpression<>(root, "order_items", r -> r.children));
+        var first = new LoadedPropertyExpression<>(list.first(), "user_url", r -> r.text);
+        var missing = assertThrows(TeaQLNotLoadedException.class, () -> first.orIfNull("PRIVATE-FALLBACK"));
+        assertEquals("E.row(<root>).getOrderItems()<broken>.first().getUserUrl().orIfNull(<fallback>)", missing.getExpressionWithBrokenPoint());
+        assertEquals("/order_items/0/user_url", missing.toWire().attemptedInstancePath());
+        assertFalse(missing.getMessage().contains("PRIVATE-FALLBACK"));
+        var size = assertThrows(TeaQLNotLoadedException.class, () -> list.size().eval());
+        assertEquals("E.row(<root>).getOrderItems()<broken>.size().eval()", size.getExpressionWithBrokenPoint());
+        assertEquals("/order_items", size.toWire().attemptedInstancePath());
+        var indexed = new LoadedPropertyExpression<>(list.get(12), "user_url", r -> r.text);
+        assertEquals("/order_items/12/user_url", assertThrows(TeaQLNotLoadedException.class, indexed::eval).toWire().attemptedInstancePath());
+    }
+
+    @Test public void explicitRootEvaluationRetainsTheTerminalWithoutExportingTheArgument() {
+        Row row = new Row();
+        var root = new ValueExpression<>(row, JsonFieldNamingProfile.CAMEL_CASE, "E.row(<root>)");
+        var child = new LoadedPropertyExpression<>(root, "school_type", r -> r.child);
+        var name = new LoadedPropertyExpression<>(child, "user_url", r -> r.text);
+        var error = assertThrows(TeaQLNotLoadedException.class, () -> name.eval(row));
+        assertEquals("E.row(<root>).getSchoolType()<broken>.getUserUrl().eval(<root>)", error.toWire().expressionWithBrokenPoint());
+        assertEquals("/schoolType", error.getInstancePath());
+        assertEquals("/schoolType/userUrl", error.toWire().attemptedInstancePath());
     }
 }

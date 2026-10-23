@@ -19,12 +19,20 @@ public interface Expression<E, T> {
     }
 
     default T eval() {
-        return eval($getRoot());
+        return $evaluate("eval()");
     }
 
     default T resolve() {
-        return eval();
+        return $evaluate("resolve()");
     }
+
+    /** Resolves only already-loaded values; diagnostic rendering performs no I/O. */
+    default T $evaluate(String terminal) {
+        try { return eval($getRoot()); }
+        catch (TeaQLNotLoadedException error) { throw error.withAttempt($trace().operation(terminal)); }
+    }
+
+    default ExpressionTrace $trace() { return ExpressionTrace.root("E.entity(<root>)"); }
 
     default String $path() { return ""; }
 
@@ -34,14 +42,14 @@ public interface Expression<E, T> {
     default JsonFieldNamingProfile $jsonFieldNaming() { return JsonFieldNamingProfile.CAMEL_CASE; }
 
     default T orIfNull(T defaultValue) {
-        T value = resolve();
+        T value = $evaluate("orIfNull(<fallback>)");
         if(value == null){
             return defaultValue;
         }
         return value;
     }
     default T orElseThrow() {
-        T value = resolve();
+        T value = $evaluate("orElseThrow()");
         if (value == null) {
             throw new NoSuchElementException("No value present");
         }
@@ -51,7 +59,7 @@ public interface Expression<E, T> {
     default <X> T orElseThrow(Supplier<? extends Throwable> exceptionSupplier)
             throws Throwable{
 
-        T value = resolve();
+        T value = $evaluate("orElseThrow(<supplier>)");
         if(value == null){
             throw exceptionSupplier.get();
         }
@@ -60,19 +68,19 @@ public interface Expression<E, T> {
     }
 
     default boolean isNull() {
-        return null == resolve();
+        return null == $evaluate("isNull()");
     }
 
     default boolean isNotNull() {
-        return null != resolve();
+        return null != $evaluate("isNotNull()");
     }
 
     default boolean isEmpty() {
-        return io.teaql.core.utils.ObjectUtil.isEmpty(resolve());
+        return io.teaql.core.utils.ObjectUtil.isEmpty($evaluate("isEmpty()"));
     }
 
     default boolean isNotEmpty() {
-        return io.teaql.core.utils.ObjectUtil.isNotEmpty(resolve());
+        return io.teaql.core.utils.ObjectUtil.isNotEmpty($evaluate("isNotEmpty()"));
     }
 
     default void whenIsNull(Runnable function) {

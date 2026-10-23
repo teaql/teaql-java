@@ -19,7 +19,9 @@ public class ExpressionAdaptor<T, E, U> implements Expression<T, U> {
 
     @Override
     public U eval(T pT) {
-        Object eval = expression.eval(pT);
+        Object eval;
+        try { eval = expression.eval(pT); }
+        catch (TeaQLNotLoadedException error) { throw error.withAttempt($trace().operation("eval(<root>)")); }
         if (eval == null) {
             return null;
         }
@@ -41,4 +43,5 @@ public class ExpressionAdaptor<T, E, U> implements Expression<T, U> {
 
     @Override public ObjectLocation $location() { return expression.$location(); }
     @Override public JsonFieldNamingProfile $jsonFieldNaming() { return expression.$jsonFieldNaming(); }
+    @Override public ExpressionTrace $trace() { return expression.$trace(); }
 }

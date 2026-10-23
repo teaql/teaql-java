@@ -17,14 +17,20 @@ public class SmartListExpression<T, E, U extends BaseEntity>
     }
 
     public Expression<T, Integer> size() {
-        return apply(list -> list.size());
+        return new ExpressionAdaptor<T, SmartList<U>, Integer>(this, SmartList::size) {
+            @Override public ExpressionTrace $trace() { return SmartListExpression.this.$trace().operation("size()"); }
+        };
     }
 
     public Expression<T, U> first() {
-		return get(0);
+        return element(0, true);
     }
 
     public Expression<T, U> get(int index) {
+        return element(index, false);
+    }
+
+    private Expression<T, U> element(int index, boolean first) {
         return new ExpressionAdaptor<T, SmartList<U>, U>(this,
                 list -> {
                     if (index < 0 || index > list.size() - 1) {
@@ -37,6 +43,7 @@ public class SmartListExpression<T, E, U extends BaseEntity>
                 return parent == null ? ObjectLocation.arrayRoot(index) : parent.element(index);
             }
             @Override public String $path() { return $location().modelPath(); }
+            @Override public ExpressionTrace $trace() { return SmartListExpression.this.$trace().element(index, first); }
         };
     }
 }
