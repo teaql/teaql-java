@@ -109,13 +109,19 @@ public class StandardOrderTelemetryTest {
         assertEquals("Box 1", E.customerOrder(row).getOrderItemList().first().getProductName().eval());
         assertEquals(5, ((Number) row.getDynamicProperty("itemCount")).intValue());
         var facets = rows.getFacet("statusCounts"); assertEquals(3, facets.size());
-        int[] counts = {1, 2, 0}, sums = {100, 500, 0};
+        int[] counts = {1, 2, 0}, sums = {100, 500};
         String[] names = {"New", "Paid", "Cancelled"};
         for (int index = 0; index < 3; index++) {
             var facet = (OrderStatus) facets.get(index);
             assertEquals(names[index], E.orderStatus(facet).getName().eval());
             assertEquals(counts[index], ((Number) facet.getDynamicProperty("orderCount")).intValue());
-            assertEquals(0, new BigDecimal(facet.getDynamicProperty("orderTotalAmount").toString()).compareTo(BigDecimal.valueOf(sums[index])));
+            if (counts[index] == 0) {
+                assertNull("empty SUM is null unless a default is explicitly requested",
+                        facet.getDynamicProperty("orderTotalAmount"));
+            } else {
+                assertEquals(0, new BigDecimal(facet.getDynamicProperty("orderTotalAmount").toString())
+                        .compareTo(BigDecimal.valueOf(sums[index])));
+            }
         }
         var unloaded = assertThrows(RuntimeException.class, () -> E.customerOrder(row).getTotalAmount().eval());
         assertTrue("an omitted amount must be NotLoaded, not null", unloaded.getClass().getSimpleName().contains("NotLoaded"));

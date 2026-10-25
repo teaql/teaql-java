@@ -44,17 +44,19 @@ public class BaseEntityJsonSerializer extends JsonSerializer<BaseEntity> {
                     String member = layout.memberName(field);
                     // Preserve this provider's graph path, configured serializers
                     // and per-call attributes during nested serialization.
-                    serializers.defaultSerializeField(member, value.__internalGet(member), gen);
+                    // The wire/member spelling is not the model key used by
+                    // generated entity access and the mutation ledger.
+                    serializers.defaultSerializeField(member, value.__internalGet(field), gen);
                 }
                 for (String relation : layout.relationNames()) {
                     if (layout.findIndex(relation) != null || !state.isLoaded(relation)) continue;
-                    serializers.defaultSerializeField(relation, value.__internalGet(relation), gen);
+                    serializers.defaultSerializeField(layout.memberName(relation), value.__internalGet(relation), gen);
                 }
             }
             for (Map.Entry<String, Object> entry : value.getAdditionalInfo().entrySet()) {
                 if (BaseEntity.ID_PROPERTY.equals(entry.getKey()) || BaseEntity.VERSION_PROPERTY.equals(entry.getKey())
                         || layout.findIndex(entry.getKey()) != null
-                        || layout.relationNames().contains(entry.getKey())) continue;
+                        || layout.canonicalRelationName(entry.getKey()) != null) continue;
                 serializers.defaultSerializeField(entry.getKey(), entry.getValue(), gen);
             }
             gen.writeEndObject();

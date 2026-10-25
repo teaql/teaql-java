@@ -66,7 +66,9 @@ final class TypedEntityJsonDeserializer extends JsonDeserializer<BaseEntity> {
 
     private Binding binding(String name) {
         Integer index = layout.findIndex(name);
-        return index == null ? relations.get(name) : fixed.get(index);
+        if (index != null) return fixed.get(index);
+        String relation = layout.canonicalRelationName(name);
+        return relation == null ? null : relations.get(relation);
     }
 
     @Override public BaseEntity deserialize(JsonParser parser, DeserializationContext context) throws IOException {
@@ -121,14 +123,17 @@ final class TypedEntityJsonDeserializer extends JsonDeserializer<BaseEntity> {
             }
             Binding binding = binding(name);
             Object converted;
-            if (binding.element() != null && !value.isNull()) {
-                if (!value.isArray()) return context.reportInputMismatch(target, "Expected relation array: %s", name);
-                List<Entity> children = new ArrayList<>(value.size());
-                for (JsonNode child : value) {
-                    if (child.isNull()) return context.reportInputMismatch(target, "Null relation-list element: %s", name);
-                    children.add(parser.getCodec().treeToValue(child, binding.element()));
+            if (binding.element() != null) {
+                if (value.isNull()) converted = null;
+                else {
+                    if (!value.isArray()) return context.reportInputMismatch(target, "Expected relation array: %s", name);
+                    List<Entity> children = new ArrayList<>(value.size());
+                    for (JsonNode child : value) {
+                        if (child.isNull()) return context.reportInputMismatch(target, "Null relation-list element: %s", name);
+                        children.add(parser.getCodec().treeToValue(child, binding.element()));
+                    }
+                    converted = SmartList.takeOwnership(children);
                 }
-                converted = SmartList.takeOwnership(children);
             } else converted = parser.getCodec().treeToValue(value, binding.type());
             if (binding.index() >= 0) entity.__internalHydrate(binding.member(), converted, binding.index());
             else entity.__internalSet(binding.member(), converted);

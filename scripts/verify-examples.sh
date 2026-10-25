@@ -2,8 +2,16 @@
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-verification_dir="$(mktemp -d)"
-trap 'rm -rf -- "$verification_dir"' EXIT
+evidence_dir="${TEAQL_EXAMPLES_EVIDENCE_DIR:-$(mktemp -d -t teaql-java-examples-evidence.XXXXXXXX)}"
+verification_dir="$evidence_dir/runtime"
+mkdir -p "$verification_dir"
+build_dir="$(mktemp -d -t teaql-java-examples-build.XXXXXXXX)"
+cleanup() { result=$?; trap - EXIT; wait; rm -rf -- "$build_dir"; exit "$result"; }
+trap cleanup EXIT
+: "${TEAQL_CODEGEN_DIR:?Set TEAQL_CODEGEN_DIR to the local generator checkout}"
+node "$repo/scripts/prepare-example-isolation.cjs" "$build_dir" "$TEAQL_CODEGEN_DIR" "$evidence_dir"
+export MAVEN_OPTS="${MAVEN_OPTS:-} -Dmaven.repo.local=$build_dir/maven"
+echo "Native example artifacts use an isolated disposable Maven repository; compact evidence: $evidence_dir"
 expected=(business-id-runtime conformance exact-decimal fix-e-alignment http-resilience object-storage order-management round-trip-reference-runtime school-management security-foundations shared-load-state standard-order trace-chain)
 mapfile -t actual < <(find "$repo/examples" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
 if [[ "${actual[*]}" != "${expected[*]}" ]]; then
@@ -12,7 +20,9 @@ if [[ "${actual[*]}" != "${expected[*]}" ]]; then
 fi
 
 cd "$repo"
-node examples/fix-e-alignment/verify-local.cjs
+# This verifier needs original Git provenance and already creates its own
+# disposable source-paired reactor. It never builds in the source repository.
+node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/fix-e-alignment/verify-local.cjs"
 bash examples/object-storage/verify.sh
 bash examples/http-resilience/verify.sh
 mvn -q -DskipTests install
@@ -37,4 +47,7 @@ mvn -q -f examples/order-management/pom.xml install -DskipTests
 bash examples/trace-chain/verify.sh
 bash examples/trace-chain/verify-standard-telemetry.sh
 bash examples/standard-order/verify.sh
-echo "PASS: standard Java examples; shared-load-state and exact-decimal have separate generator-backed gates"
+TEAQL_CODEGEN_DIR="$build_dir/generator" bash examples/shared-load-state/verify.sh --generate
+TEAQL_JAVA_EXACT_EVIDENCE_DIR="$evidence_dir/exact-decimal" \
+  bash "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/exact-decimal/verify.sh"
+echo "PASS: all Java examples"

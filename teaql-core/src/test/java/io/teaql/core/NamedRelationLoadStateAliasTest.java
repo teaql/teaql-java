@@ -48,4 +48,15 @@ public class NamedRelationLoadStateAliasTest {
     @Test public void ambiguousNamedRelationAliasesAreRejectedLikeFixedAliases() {
         assertThrows(IllegalArgumentException.class, () -> layout(Set.of("school_list", "schoolList")));
     }
+
+    @Test public void presentationNamesAndCanonicalRelationLookupShareTypeLocalMetadata() {
+        var layout = layout(Set.of("school_list"));
+        assertEquals("schoolList", layout.memberName("school_list"));
+        assertSame(layout.memberName("school_list"), layout.memberName("school_list"));
+        assertEquals("school_list", layout.canonicalRelationName("schoolList"));
+        assertEquals("school_list", layout.canonicalRelationName("school_list"));
+        assertNull(layout.canonicalRelationName("missing"));
+        assertNull(layout.findIndex("school_list"));
+        assertEquals(3, layout.indexes().size());
+    }
 }

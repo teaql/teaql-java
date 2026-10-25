@@ -24,7 +24,7 @@ public class TypedEntityJsonDeserializerTest {
                 Map.of("id", List.of("id", "id"), "version", List.of("version", "version"),
                         "name", List.of("name", "name"), "address", List.of("address", "address"),
                         "count", List.of("count", "count"), "active", List.of("active", "active"),
-                        "base_url", List.of("baseUrl", "legacy_url")), Set.of("child", "childList")));
+                        "base_url", List.of("baseUrl", "legacy_url")), Set.of("child", "child_list")));
         String name, address, baseUrl, owner;
         Integer count;
         Boolean active;
@@ -35,18 +35,18 @@ public class TypedEntityJsonDeserializerTest {
             switch (field) {
                 case "name" -> name = (String) value;
                 case "address" -> address = (String) value;
-                case "baseUrl" -> baseUrl = (String) value;
+                case "base_url" -> baseUrl = (String) value;
                 case "count" -> count = (Integer) value;
                 case "active" -> active = (Boolean) value;
                 case "child" -> child = (Row) value;
-                case "childList" -> childList = (SmartList<Row>) value;
+                case "child_list" -> childList = (SmartList<Row>) value;
                 default -> super.__internalSet(field, value);
             }
         }
         @Override public Object __internalGet(String field) {
             return switch (field) {
-                case "name" -> name; case "address" -> address; case "baseUrl" -> baseUrl;
-                case "count" -> count; case "active" -> active; case "child" -> child; case "childList" -> childList;
+                case "name" -> name; case "address" -> address; case "base_url" -> baseUrl;
+                case "count" -> count; case "active" -> active; case "child" -> child; case "child_list" -> childList;
                 default -> super.__internalGet(field);
             };
         }
@@ -60,9 +60,41 @@ public class TypedEntityJsonDeserializerTest {
         descriptor.addSimpleProperty("id", Long.class); descriptor.addSimpleProperty("version", Long.class);
         descriptor.addSimpleProperty("name", String.class); descriptor.addSimpleProperty("address", String.class);
         descriptor.addSimpleProperty("count", Integer.class); descriptor.addSimpleProperty("active", Boolean.class);
-        descriptor.addSimpleProperty("baseUrl", String.class);
+        descriptor.addSimpleProperty("base_url", String.class);
         metadata.register(descriptor);
+        descriptor.addObjectProperty(metadata, "child", "Row", "child_list", Row.class);
         return new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata).build());
+    }
+
+    @Test public void canonicalNamedRelationsRoundTripThroughNativeJsonWithoutChangingAvailability() throws Exception {
+        var constructed = new AtomicInteger();
+        var mapper = new ObjectMapper().registerModule(new TeaQLModule(context("A", constructed)));
+        var row = mapper.readValue("{\"childList\":[{\"baseUrl\":\"\"}],\"_childList\":\"derived\"}", Row.class);
+        assertTrue(row.isPropertyLoaded("child_list"));
+        assertTrue(row.isPropertyLoaded("childList"));
+        assertEquals("", row.childList.first().baseUrl);
+        var state = row.__internalLoadState();
+        var json = mapper.readTree(mapper.writeValueAsString(row));
+        assertEquals("", json.get("childList").get(0).get("baseUrl").asText());
+        assertEquals("derived", json.get("_childList").asText());
+        assertFalse(json.has("child_list"));
+        assertSame(state, row.__internalLoadState());
+        assertFalse(row.__internalHasMutationLedger());
+        assertFalse(row.childList.first().__internalHasMutationLedger());
+        assertEquals(json, mapper.readTree(mapper.writeValueAsString(mapper.treeToValue(json, Row.class))));
+        for (String value : List.of("[]", "null")) {
+            var selected = mapper.readValue("{\"childList\":" + value + "}", Row.class);
+            var selectedJson = mapper.readTree(mapper.writeValueAsString(selected));
+            assertTrue(selected.isPropertyLoaded("child_list"));
+            assertEquals(mapper.readTree(value), selectedJson.get("childList"));
+        }
+        var omitted = mapper.readValue("{}", Row.class);
+        assertFalse(omitted.isPropertyLoaded("child_list"));
+        assertFalse(mapper.readTree(mapper.writeValueAsString(omitted)).has("childList"));
+        int before = constructed.get();
+        assertThrows(JsonMappingException.class,
+                () -> mapper.readValue("{\"childList\":[],\"child_list\":[]}", Row.class));
+        assertEquals(before, constructed.get());
     }
 
     @Test public void typedRoundTripPreservesLoadedNullOmissionAndFalsyValuesWithoutMutation() throws Exception {

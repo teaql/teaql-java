@@ -86,14 +86,15 @@ public final class FieldLayout {
             throw new IllegalArgumentException("Generated layout must include id and version: " + entityType.getName());
         }
         this.aliases = Map.copyOf(aliases);
-        this.members = Map.copyOf(members);
         Map<String, String> relationAliases = new HashMap<>();
         for (String relation : this.relations) {
             if (aliases.containsKey(relation)) continue;
             bindRelationAlias(relationAliases, relation, relation);
             String member = io.teaql.core.utils.NamingCase.toCamelCase(relation);
+            members.put(relation, member);
             if (!aliases.containsKey(member)) bindRelationAlias(relationAliases, member, relation);
         }
+        this.members = Map.copyOf(members);
         this.relationAliases = Map.copyOf(relationAliases);
         empty = LoadState.empty(this);
     }
@@ -126,6 +127,9 @@ public final class FieldLayout {
     /** Shared named relation metadata; these members do not consume fixed-field positions. */
     @FrameworkInternal("Typed graph hydration and presentation only")
     public Set<String> relationNames() { return relations; }
+    /** Shared alias mapping for named relations; null for fixed or unknown fields. */
+    @FrameworkInternal("Typed graph hydration and presentation only")
+    public String canonicalRelationName(String name) { return relationAliases.get(name); }
     String selectionName(String fieldOrAlias) { return relationAliases.getOrDefault(fieldOrAlias, fieldOrAlias); }
     public LoadState emptyState() { return empty; }
 
