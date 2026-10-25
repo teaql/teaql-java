@@ -43,7 +43,7 @@ public class FileBlobStoreTest {
             var again=store.write(null,target,new ByteArrayInputStream(bytes),bytes.length); assertEquals(content,again);
             assertFalse(content.toString().contains(target.location()));
         }
-        try (var paths=Files.list(root().resolve("tmp"))) { assertEquals(0,paths.count()); }
+        try (var paths=Files.list(root().resolve("tmp"))) { var names=paths.map(path -> path.getFileName().toString()).collect(java.util.stream.Collectors.toSet()); assertTrue(names.isEmpty() || names.equals(Set.of("staging.format","staging.guard"))); }
     }
 
     @Test public void streamingLimitConsumesAtMostOneExtraByteAndFailurePublishesNothing() throws Exception {
@@ -54,7 +54,7 @@ public class FileBlobStoreTest {
         var target=store.createUpload(null,"bounded");
         assertEquals(BlobException.Code.BLOB_SIZE_EXCEEDED,assertThrows(BlobException.class,() -> store.write(null,target,source,65536)).code());
         assertEquals(65537,consumed[0]); assertTrue(store.stat(null,target.location()).isEmpty());
-        try (var paths=Files.list(root().resolve("tmp"))) { assertEquals(0,paths.count()); }
+        try (var paths=Files.list(root().resolve("tmp"))) { var names=paths.map(path -> path.getFileName().toString()).collect(java.util.stream.Collectors.toSet()); assertTrue(names.isEmpty() || names.equals(Set.of("staging.format","staging.guard"))); }
         var empty=store.write(null,target,new ByteArrayInputStream(new byte[0]),1);
         try (var read=store.openRange(null,target.location(),empty.contentVersion(),0,0)) { assertEquals(-1,read.stream().read()); }
     }

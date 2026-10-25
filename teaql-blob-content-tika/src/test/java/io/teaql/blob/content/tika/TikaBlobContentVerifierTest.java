@@ -62,6 +62,14 @@ public class TikaBlobContentVerifierTest {
                 () -> verifier().verify(new ByteArrayInputStream(header),"mp4",100000,false)).code());
         assertEmpty();
     }
+    @Test public void truncatedImagesAndAudioTagsCannotPassFromMagicAlone() throws Exception {
+        for (var item:Map.of("jpg",32,"png",33,"mp3",45).entrySet()) {
+            byte[] bytes=Arrays.copyOf(file(item.getKey()),item.getValue());
+            assertEquals(item.getKey(),BlobException.Code.BLOB_FORMAT_NOT_ALLOWED,assertThrows(BlobException.class,
+                    () -> verifier().verify(new ByteArrayInputStream(bytes),item.getKey(),100000,false)).code());
+        }
+        assertEmpty();
+    }
     @Test public void stagingFailuresAreDistinctFromInvalidContentAndInsecureConfiguration() throws Exception {
         byte[] bytes=file("pdf"); Path obstruction=temporary.newFile().toPath();
         var unavailable=new TikaBlobContentVerifier(obstruction,TikaBlobContentVerifier.Limits.defaults());
@@ -73,6 +81,20 @@ public class TikaBlobContentVerifierTest {
         assertEquals(BlobException.Code.BLOB_POLICY_INVALID,assertThrows(BlobException.class,
                 () -> insecure.verify(new ByteArrayInputStream(bytes),"pdf",100000,false)).code());
         try (var paths=Files.list(shared)) { assertEquals(0,paths.count()); }
+    }
+    @Test public void actualPdfCacheSpillsInsideTheLeaseAndEnforcesItsStorageBudget() throws Exception {
+        var area=new io.teaql.blob.staging.file.PrivateStagingArea(staging());
+        try (var stage=area.open()) {
+            var parser=new TikaBlobContentVerifier.StagedPdfParser(stage.directory(),10L*1024*1024);
+            try (var cache=parser.cache().create(); var buffer=cache.createBuffer()) {
+                byte[] block=new byte[1024*1024]; for (int i=0;i<9;i++) buffer.write(block);
+                try (var entries=Files.list(stage.directory())) {
+                    assertTrue(entries.anyMatch(path -> !Set.of("lease","content.bin").contains(path.getFileName().toString())));
+                }
+                assertThrows(IOException.class,() -> { for (int i=0;i<3;i++) buffer.write(block); });
+            }
+        }
+        assertEmpty();
     }
     @Test public void expandedPackagesTraversalAndExternalXmlRejectBeforeParsing() throws Exception {
         var small=new TikaBlobContentVerifier(staging(),new TikaBlobContentVerifier.Limits(64,100,1000,1));
@@ -102,7 +124,7 @@ public class TikaBlobContentVerifierTest {
             release.countDown(); assertEquals("application/pdf",first.get(10,TimeUnit.SECONDS).contentType()); assertEmpty();
         } finally { release.countDown(); pool.shutdownNow(); assertTrue(pool.awaitTermination(5,TimeUnit.SECONDS)); }
     }
-    private void assertEmpty() throws IOException { if (Files.exists(staging())) try (var paths=Files.list(staging())) { assertEquals(0,paths.count()); } }
+    private void assertEmpty() throws IOException { if (Files.exists(staging())) try (var paths=Files.list(staging())) { var names=paths.map(path -> path.getFileName().toString()).collect(java.util.stream.Collectors.toSet()); assertTrue(names.isEmpty() || names.equals(Set.of("staging.format","staging.guard"))); } }
     private static byte[] zip(String name,String text) throws IOException {
         var bytes=new ByteArrayOutputStream(); try (var zip=new ZipOutputStream(bytes)) { zip.putNextEntry(new ZipEntry(name)); zip.write(text.getBytes(StandardCharsets.UTF_8)); zip.closeEntry(); } return bytes.toByteArray();
     }

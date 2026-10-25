@@ -2,6 +2,7 @@ package io.teaql.blob.store.file;
 
 import io.teaql.core.UserContext;
 import io.teaql.core.blob.*;
+import io.teaql.blob.staging.file.PrivateStagingArea;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -26,10 +27,17 @@ public final class FileBlobStore implements BlobStore {
     static { for (int i=0;i<LOCKS.length;i++) LOCKS[i]=new ReentrantLock(); }
     private final Path configuredRoot;
     private final SecureRandom random=new SecureRandom();
+    private final PrivateStagingArea staging;
     private volatile Path root;
 
     /** Passive. No directory, file, socket or background job is created. */
-    public FileBlobStore(Path root) { configuredRoot=Objects.requireNonNull(root).toAbsolutePath().normalize(); }
+    public FileBlobStore(Path root) {
+        configuredRoot=Objects.requireNonNull(root).toAbsolutePath().normalize();
+        staging=new PrivateStagingArea(configuredRoot.resolve("tmp"));
+    }
+    public PrivateStagingArea.Maintenance stagingMaintenance(PrivateStagingArea.Permission permission) {
+        return staging.maintenance(permission);
+    }
 
     /** Explicit provisioning of a private, dedicated, empty or already initialized root. */
     public synchronized void initialize() {
@@ -77,8 +85,8 @@ public final class FileBlobStore implements BlobStore {
         if (target.directUrl()!=null || !createUpload(context,target.uploadId()).location().equals(target.location())) throw new BlobException(BLOB_REFERENCE_INVALID);
         if (maxBytes<=0) throw new BlobException(BLOB_POLICY_INVALID);
         return locked(target.location(),actual -> {
-            Path temporary=Files.createTempFile(actual.resolve("tmp"),"upload-"+target.location()+"-",".part");
-            try {
+            try (PrivateStagingArea.Job stage=staging.open()) {
+                Path temporary=stage.content();
                 byte[] version=new byte[16]; random.nextBytes(version); MessageDigest digest=digest(); long size=0;
                 try (FileChannel output=FileChannel.open(temporary,WRITE,NOFOLLOW_LINKS)) {
                     output.position(HEADER); byte[] buffer=new byte[65536];
@@ -104,7 +112,7 @@ public final class FileBlobStore implements BlobStore {
                 Files.move(temporary,destination,StandardCopyOption.ATOMIC_MOVE);
                 forceDirectory(actual.resolve("objects"));
                 return staged;
-            } finally { Files.deleteIfExists(temporary); }
+            }
         });
     }
 

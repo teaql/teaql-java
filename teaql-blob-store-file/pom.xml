@@ -6,6 +6,7 @@
     <properties><argLine></argLine></properties>
     <dependencies>
         <dependency><groupId>io.teaql</groupId><artifactId>teaql-core</artifactId></dependency>
+        <dependency><groupId>io.teaql</groupId><artifactId>teaql-blob-staging-file</artifactId></dependency>
         <dependency><groupId>junit</groupId><artifactId>junit</artifactId><scope>test</scope></dependency>
     </dependencies>
     <build><plugins><plugin><artifactId>maven-compiler-plugin</artifactId><executions><execution>

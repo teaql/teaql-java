@@ -335,8 +335,8 @@ public class BlobMaintenanceIT {
             assertEquals("deleted",f.otherSql.queryForList("SELECT state FROM teaql_blob_object WHERE blob_key=?",new Object[]{key.key()}).get(0).get("state"));
         }
         void assertNoStages() throws IOException {
-            try (var paths=Files.list(root.resolve("store/tmp"))) { assertEquals(0,paths.count()); }
-            if (Files.exists(root.resolve("staging"))) try (var paths=Files.list(root.resolve("staging"))) { assertEquals(0,paths.count()); }
+            try (var paths=Files.list(root.resolve("store/tmp"))) { var names=paths.map(path -> path.getFileName().toString()).collect(java.util.stream.Collectors.toSet()); assertTrue(names.isEmpty() || names.equals(Set.of("staging.format","staging.guard"))); }
+            if (Files.exists(root.resolve("staging"))) try (var paths=Files.list(root.resolve("staging"))) { var names=paths.map(path -> path.getFileName().toString()).collect(java.util.stream.Collectors.toSet()); assertTrue(names.isEmpty() || names.equals(Set.of("staging.format","staging.guard"))); }
         }
         @Override public void close() { f.close(); }
     }

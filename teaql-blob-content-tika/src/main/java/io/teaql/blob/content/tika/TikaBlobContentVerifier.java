@@ -1,9 +1,9 @@
 package io.teaql.blob.content.tika;
 
 import io.teaql.core.blob.*;
+import io.teaql.blob.staging.file.PrivateStagingArea;
 import java.io.*;
 import java.nio.file.*;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.Semaphore;
@@ -23,6 +23,11 @@ import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.HttpHeaders;
 import org.apache.tika.metadata.TIFF;
+import org.apache.tika.metadata.XMPDM;
+import org.apache.pdfbox.io.MemoryUsageSetting;
+import org.apache.pdfbox.io.RandomAccessRead;
+import org.apache.pdfbox.io.RandomAccessStreamCache;
+import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.tika.mime.MimeTypes;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
@@ -46,12 +51,12 @@ public final class TikaBlobContentVerifier implements BlobContentVerifier {
         }
         public static Limits defaults() { return new Limits(104857600,10000,1048576,2); }
     }
-    private final Path temporaryRoot;
+    private final PrivateStagingArea staging;
     private final Limits limits;
     private final Semaphore permits;
     /** Passive assembly. Private staging directories are created only during verification. */
     public TikaBlobContentVerifier(Path temporaryRoot,Limits limits) {
-        this.temporaryRoot=Objects.requireNonNull(temporaryRoot).toAbsolutePath().normalize(); this.limits=Objects.requireNonNull(limits);
+        this.staging=new PrivateStagingArea(Objects.requireNonNull(temporaryRoot)); this.limits=Objects.requireNonNull(limits);
         permits=new Semaphore(limits.concurrentVerifications());
     }
 
@@ -61,11 +66,10 @@ public final class TikaBlobContentVerifier implements BlobContentVerifier {
         if (extension==null || !Set.of("jpg","jpeg","png","mp3","mp4","pdf","doc","docx","xls","xlsx").contains(extension)) throw new BlobException(BLOB_FORMAT_NOT_ALLOWED);
         String expected=BlobFieldSpec.of("Blob","content",List.of(extension),true,"default").allowedContentTypes().first();
         if (!permits.tryAcquire()) throw new BlobException(BLOB_VERIFICATION_BUSY);
-        Path temporary=null;
-        try {
-            temporary=createStage();
+        try (PrivateStagingArea.Job stage=staging.open()) {
+            Path temporary=stage.content();
             long size=0; MessageDigest digest=MessageDigest.getInstance("SHA-256"); byte[] buffer=new byte[65536];
-            try (OutputStream output=Files.newOutputStream(temporary)) {
+            try (OutputStream output=Files.newOutputStream(temporary,StandardOpenOption.WRITE,StandardOpenOption.TRUNCATE_EXISTING,LinkOption.NOFOLLOW_LINKS)) {
                 while (true) {
                     long remaining=maximumBytes-size; int count=source.read(buffer,0,(int)Math.min(buffer.length,remaining==Long.MAX_VALUE?buffer.length:remaining+1));
                     if (count<0) break;
@@ -81,16 +85,16 @@ public final class TikaBlobContentVerifier implements BlobContentVerifier {
             var detector=new CompositeDetector(mimeTypes.getMediaTypeRegistry(),List.of(mimeTypes,new POIFSContainerDetector(),
                     new DefaultZipContainerDetector(List.of(new OPCPackageDetector()))));
             String actual;
-            try (TemporaryResources resources=temporaryResources(); TikaInputStream input=TikaInputStream.get(temporary,metadata,resources)) {
+            try (TemporaryResources resources=temporaryResources(stage.directory()); TikaInputStream input=TikaInputStream.get(temporary,metadata,resources)) {
                 actual=mimeTypes.getMediaTypeRegistry().normalize(detector.detect(input,metadata,context)).toString();
             }
             boolean mp4=extension.equals("mp4");
             if (!expected.equals(actual) && !(mp4 && Set.of("video/quicktime","application/mp4").contains(actual))) {
                 throw new BlobException(BLOB_FORMAT_NOT_ALLOWED);
             }
-            Parser parser=parser(extension);
-            Metadata parsed=new Metadata();
-            try (TemporaryResources resources=temporaryResources(); TikaInputStream input=TikaInputStream.get(temporary,parsed,resources)) {
+            Parser parser=parser(extension,stage.directory());
+            Metadata parsed=new Metadata(); parsed.set(HttpHeaders.CONTENT_TYPE,actual);
+            try (TemporaryResources resources=temporaryResources(stage.directory()); TikaInputStream input=TikaInputStream.get(temporary,parsed,resources)) {
                 parser.parse(input,new TextBudget(limits.maximumTextCharacters()),parsed,context);
             }
             if (mp4) {
@@ -99,30 +103,21 @@ public final class TikaBlobContentVerifier implements BlobContentVerifier {
                     throw new BlobException(BLOB_FORMAT_NOT_ALLOWED);
                 }
             }
+            if (Set.of("jpg","jpeg","png").contains(extension)
+                    && (!positive(parsed.get(TIFF.IMAGE_WIDTH)) || !positive(parsed.get(TIFF.IMAGE_LENGTH)))) throw new BlobException(BLOB_FORMAT_NOT_ALLOWED);
+            if (extension.equals("mp3") && !positive(parsed.get(XMPDM.AUDIO_SAMPLE_RATE))) throw new BlobException(BLOB_FORMAT_NOT_ALLOWED);
             return new Verified(actual,size,HexFormat.of().formatHex(digest.digest()));
         } catch (BlobException known) { throw known; }
         catch (Exception invalid) { throw new BlobException(BLOB_FORMAT_NOT_ALLOWED); }
-        finally {
-            try { if (temporary!=null) Files.deleteIfExists(temporary); }
-            catch (IOException cleanupFailed) { throw new BlobException(BLOB_STORE_FAILED); }
-            finally { permits.release(); }
-        }
+        finally { permits.release(); }
     }
 
-    private Path createStage() {
-        try {
-            Files.createDirectories(temporaryRoot,PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
-            if (!Files.isDirectory(temporaryRoot,LinkOption.NOFOLLOW_LINKS)
-                    || Files.getPosixFilePermissions(temporaryRoot,LinkOption.NOFOLLOW_LINKS).stream().anyMatch(p -> p.name().startsWith("GROUP_") || p.name().startsWith("OTHERS_"))) {
-                throw new BlobException(BLOB_POLICY_INVALID);
-            }
-            return Files.createTempFile(temporaryRoot,"verify-",".bin");
-        } catch (IOException unavailable) { throw new BlobException(BLOB_STORE_FAILED); }
-        catch (UnsupportedOperationException unsupported) { throw new BlobException(BLOB_POLICY_INVALID); }
+    public PrivateStagingArea.Maintenance stagingMaintenance(PrivateStagingArea.Permission permission) {
+        return staging.maintenance(permission);
     }
 
-    private TemporaryResources temporaryResources() {
-        TemporaryResources resources=new TemporaryResources(); resources.setTemporaryFileDirectory(temporaryRoot); return resources;
+    private static TemporaryResources temporaryResources(Path directory) {
+        TemporaryResources resources=new TemporaryResources(); resources.setTemporaryFileDirectory(directory); return resources;
     }
 
     private static boolean positive(String value) {
@@ -140,18 +135,35 @@ public final class TikaBlobContentVerifier implements BlobContentVerifier {
         pdf.setExtractAcroFormContent(false); pdf.setMaxMainMemoryBytes(8*1024*1024); pdf.setMaxPages(10000); context.set(PDFParserConfig.class,pdf);
         return context;
     }
-    private static Parser parser(String extension) {
+    private Parser parser(String extension,Path directory) {
         OfficeParserConfig office=new OfficeParserConfig(); office.setExtractMacros(false); office.setExtractThumbnail(false);
         return switch (extension) {
             case "jpg","jpeg" -> new JpegParser();
             case "png" -> new ImageParser();
-            case "pdf" -> new PDFParser();
+            case "pdf" -> new StagedPdfParser(directory,limits.maximumExpandedBytes());
             case "doc","xls" -> new OfficeParser(office);
             case "docx","xlsx" -> new OOXMLParser(office);
             case "mp3" -> new Mp3Parser();
             case "mp4" -> new MP4Parser();
             default -> throw new BlobException(BLOB_FORMAT_NOT_ALLOWED);
         };
+    }
+    static final class StagedPdfParser extends PDFParser {
+        private static final long serialVersionUID=1L;
+        private final File directory;
+        private final long maximum;
+        StagedPdfParser(Path directory,long maximum) { this.directory=directory.toFile(); this.maximum=maximum; }
+        RandomAccessStreamCache.StreamCacheCreateFunction cache() {
+            return MemoryUsageSetting.setupMixed(Math.min(8L*1024*1024,maximum),maximum).setTempDir(directory).streamCache;
+        }
+        @Override protected PDDocument getPDDocument(Path path,String password,
+                RandomAccessStreamCache.StreamCacheCreateFunction ignored,Metadata metadata,ParseContext context) throws IOException {
+            return super.getPDDocument(path,password,cache(),metadata,context);
+        }
+        @Override protected PDDocument getPDDocument(RandomAccessRead source,String password,
+                RandomAccessStreamCache.StreamCacheCreateFunction ignored,Metadata metadata,ParseContext context) throws IOException {
+            return super.getPDDocument(source,password,cache(),metadata,context);
+        }
     }
     private void preflightPackage(Path path) throws Exception {
         try (var source=Files.newInputStream(path)) {

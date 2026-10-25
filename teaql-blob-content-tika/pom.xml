@@ -6,11 +6,14 @@
     <properties><tika.version>4.1.0</tika.version></properties>
     <dependencies>
         <dependency><groupId>io.teaql</groupId><artifactId>teaql-core</artifactId></dependency>
+        <dependency><groupId>io.teaql</groupId><artifactId>teaql-blob-staging-file</artifactId></dependency>
         <dependency><groupId>org.apache.tika</groupId><artifactId>tika-core</artifactId><version>${tika.version}</version></dependency>
         <dependency><groupId>org.apache.tika</groupId><artifactId>tika-parser-microsoft-module</artifactId><version>${tika.version}</version></dependency>
         <dependency><groupId>org.apache.tika</groupId><artifactId>tika-parser-image-module</artifactId><version>${tika.version}</version></dependency>
         <dependency><groupId>org.apache.tika</groupId><artifactId>tika-parser-pdf-module</artifactId><version>${tika.version}</version></dependency>
         <dependency><groupId>org.apache.tika</groupId><artifactId>tika-parser-audiovideo-module</artifactId><version>${tika.version}</version></dependency>
+        <dependency><groupId>org.apache.pdfbox</groupId><artifactId>pdfbox</artifactId><version>3.0.8</version></dependency>
+        <dependency><groupId>org.apache.pdfbox</groupId><artifactId>pdfbox-io</artifactId><version>3.0.8</version></dependency>
         <dependency><groupId>junit</groupId><artifactId>junit</artifactId><scope>test</scope></dependency>
     </dependencies>
 </project>

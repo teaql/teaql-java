@@ -4,7 +4,8 @@ Tracking [Java #272](https://github.com/teaql/teaql-java/issues/272) and
 [conformance #237](https://github.com/teaql/teaql-conformance/issues/237).
 
 This optional Java 17 artifact implements the core `BlobStore` transport SPI.
-It depends on core and the JDK HTTP server, without a SQL, Spring, runtime or
+It depends on core, the private file staging helper and the JDK HTTP server,
+without a SQL, Spring, runtime or
 secure-document implementation dependency. The base runtime never installs it
 automatically. Constructing the store/gateway does no I/O or background work.
 
@@ -16,6 +17,11 @@ payload length and SHA-256, followed by the exact uploaded bytes. Writes are bou
 fsynced and atomically published; unsupported operations fail without a weaker
 publication fallback. Identical upload retries keep the existing generation;
 different bytes conflict. Partial stages are removed on ordinary failure.
+Each upload now owns a leased private scratch job; an explicit global host
+`stagingMaintenance(permission)` can reap abandoned jobs after process termination.
+Active jobs remain protected by OS leases even if their timestamps are old. This
+authority is separate from tenant catalog collection; it never deletes published
+objects. See `teaql-blob-staging-file` for limits/cursors and legacy drain rules.
 
 A fixed set of JVM locks plus OS file locks coordinates all instances/processes
 using a root. Version-conditional deletion compares and unlinks under that same
@@ -46,15 +52,15 @@ entity/field permissions and additional Blob policy belong to Blob services abov
 this SPI. These URLs are transferable bearer capabilities. Direct upload and
 context-checked reads are explicitly unsupported by this adapter.
 
-The component gate has 13 new test methods: all ten retained real formats, exact
+The transport suite has 13 test methods: all ten retained real formats, exact
 size/digest/stream bounds, immutable retry, stale-version deletion, path/symlink and
 header-corruption controls, concurrent instances, a separate JVM's OS lock, actual
 HTTP/Range/HEAD/TTL/cache/token controls, and an independent curl process using the
 returned URL. Fixture copies retain the shared conformance manifest/digests.
 Test directories, listeners, worker pools and child processes have explicit cleanup.
 
-R3 remains in progress: production MIME/Office-container verification, upload
-orchestration with the SQL catalog, complete BlobRuntime/BlobReferenceModule,
-maintenance/crash reconciliation, S3, external-host clients and generated/release
-gates are still pending. Byte round trips do not establish production format
-validation or authorized presentation acceptance.
+The optional reference/verifier modules now supply actual format verification,
+SQL upload/binding and physical collection, with separate crash/staging gates.
+Complete BlobRuntime/BlobReferenceModule assembly, authorized presentation, S3,
+external-host clients and generated/release gates remain pending. Transport byte
+round trips alone do not establish those service-level acceptance results.

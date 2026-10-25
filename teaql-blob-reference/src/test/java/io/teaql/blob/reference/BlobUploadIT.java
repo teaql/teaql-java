@@ -291,8 +291,8 @@ public class BlobUploadIT {
         }
         BlobUploadService.Session begin(String request) { return service.begin(f.context(),TARGET,new BlobUploadService.FileInfo("application.pdf",null,null),request); }
         void assertStagesEmpty() throws IOException {
-            if (Files.exists(root.resolve("staging"))) try (var paths=Files.list(root.resolve("staging"))) { assertEquals(0,paths.count()); }
-            try (var paths=Files.list(root.resolve("objects/tmp"))) { assertEquals(0,paths.count()); }
+            if (Files.exists(root.resolve("staging"))) try (var paths=Files.list(root.resolve("staging"))) { var names=paths.map(path -> path.getFileName().toString()).collect(java.util.stream.Collectors.toSet()); assertTrue(names.isEmpty() || names.equals(Set.of("staging.format","staging.guard"))); }
+            try (var paths=Files.list(root.resolve("objects/tmp"))) { var names=paths.map(path -> path.getFileName().toString()).collect(java.util.stream.Collectors.toSet()); assertTrue(names.isEmpty() || names.equals(Set.of("staging.format","staging.guard"))); }
         }
         @Override public void close() { f.close(); }
     }

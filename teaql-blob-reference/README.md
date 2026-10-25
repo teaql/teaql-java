@@ -145,6 +145,11 @@ Select `-Dtest=PostgresBlobCatalogIT,BlobUploadIT,BlobMaintenanceIT` explicitly.
 
 This collector supports server-stream uploads. Direct upload needs a provider's
 proven request quiescence/fencing before collection and currently rejects explicitly.
-Provider scratch files left by a process crash (file upload/Tika staging), full
-runtime assembly and S3 integration are still pending; logical `deleted` does not
-claim destruction of deployment backups or all storage versions.
+File upload and Tika providers use leased private request directories. Their
+`stagingMaintenance(permission)` is explicit shared service-account management,
+with a separate current-context permission; catalog maintenance authority alone
+does not grant it. `BlobScratchIT` kills real upload/verification processes while
+leases are held, confirms active stages remain untouched, reaps abandoned scratch,
+and verifies retry through actual confirmation, SQL binding and physical collection.
+Full runtime assembly and S3 integration remain pending; logical `deleted` does
+not claim destruction of deployment backups or all storage versions.
