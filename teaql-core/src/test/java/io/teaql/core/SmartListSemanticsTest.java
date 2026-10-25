@@ -132,6 +132,19 @@ public class SmartListSemanticsTest {
         assertTrue(taken.containsKey("empty")); assertTrue(list.getFacets().isEmpty());
     }
 
+    @Test public void projectionRecordIdentitySelectorsPreserveMixedIdKindsAndMissingValues() throws Exception {
+        JsonNode fixture = vectors().get("identity");
+        List<Map<String, Object>> data = JSON.convertValue(fixture.get("rows"), new com.fasterxml.jackson.core.type.TypeReference<>() {});
+        SmartList<Map<String, Object>> rows = new SmartList<>(data);
+        assertEquals(JSON.convertValue(fixture.get("ids"), List.class), rows.toList(row -> row.get("id")));
+        assertEquals(JSON.convertValue(fixture.get("versions"), List.class), rows.toList(row -> row.get("version")));
+        var index = rows.filter(row -> row.get("id") != null).identityMap(row -> row.get("id"));
+        assertEquals(4, index.size()); assertFalse(index.containsKey(null));
+        var keys = List.of(0, 1, "1", "");
+        for (int position = 0; position < keys.size(); position++)
+            assertSame(rows.get(fixture.get("indexedPositions").get(position).intValue()), index.get(keys.get(position)));
+    }
+
     @Test public void alignmentAddsNoPublicStateOrSummarySetter() throws Exception {
         assertTrue(Arrays.stream(SmartList.class.getMethods()).noneMatch(method ->
             method.getName().equals("setLoaded") || method.getName().equals("setSummary")));
