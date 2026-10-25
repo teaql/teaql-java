@@ -181,6 +181,9 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
         if (value == null && capabilityType == io.teaql.core.blob.BlobRuntime.class) {
             value = runtime == null ? null : runtime.getBlobRuntime();
         }
+        if (value == null && capabilityType == io.teaql.core.blob.BlobCommandService.class && runtime != null && runtime.getBlobRuntime()!=null) {
+            value=runtime.getBlobRuntime().commands().orElse(null);
+        }
         if (value == null && capabilityType == io.teaql.core.blob.BlobMutationParticipant.class) {
             value = runtime == null ? null : runtime.getBlobMutationParticipant();
         }

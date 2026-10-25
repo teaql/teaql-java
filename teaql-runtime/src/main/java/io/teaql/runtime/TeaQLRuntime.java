@@ -179,7 +179,10 @@ public class TeaQLRuntime implements AutoCloseable {
                 blobRuntime.validateConfiguration(metadata,registry);
                 continue;
             }
-            String code = "blob.v1".equals(capability) ? "BLOB_CAPABILITY_MISSING" : "VIEW_CAPABILITY_MISSING";
+            if ("blob.command.v1".equals(capability) && blobRuntime!=null && blobRuntime.commands().isPresent()) {
+                blobRuntime.validateConfiguration(metadata,registry); continue;
+            }
+            String code = capability.startsWith("blob.") ? "BLOB_CAPABILITY_MISSING" : "VIEW_CAPABILITY_MISSING";
             throw new TeaQLRuntimeException(code + ": required capability " + capability + " is not installed");
         }
     }
@@ -519,6 +522,7 @@ public class TeaQLRuntime implements AutoCloseable {
             if (mutationExecutor == null) {
                 throw new TeaQLRuntimeException("No MutationExecutor registered for route: " + route);
             }
+            io.teaql.core.blob.BlobCommandScope.requireResource(mutationExecutor instanceof TransactionExecutor tx?tx.transactionResource():null);
             entityMutationLedger.requireSubmissionOwner(mutationExecutor instanceof TransactionExecutor transaction
                     ?transaction.activeTransactionIdentity():null);
 
@@ -584,6 +588,7 @@ public class TeaQLRuntime implements AutoCloseable {
                             throw new TeaQLRuntimeException("Physical transaction identity is required for graph completion");
                         }
                         entityMutationLedger.requireSubmissionOwner(physicalOwner);
+                        io.teaql.core.blob.BlobCommandScope.requireOwner(transactionExecutor.transactionResource(),physicalOwner);
                         if (transactionExecutor.supportsTransactionCompletion()) {
                             SaveCompletion attempt=new SaveCompletion(context,entityMutationLedger,physicalOwner,persistenceStates,previousChanges,telemetryScope);
                             try { transactionExecutor.afterTransaction(attempt); }

@@ -24,6 +24,26 @@ import static org.junit.Assert.*;
 public class BlobModuleIT {
     @Rule public TemporaryFolder temporary=new TemporaryFolder();
 
+    @Test public void optionalCommandCapabilityInstallsPassivelyAndRequiresItsOwnExplicitMigration() throws Exception {
+        try (ModuleFixture m=new ModuleFixture(true,true,BlobPolicies.defaults(),false,true)) {
+            m.runtime.install(RuntimeModule.of().withRequiredCapabilities(BlobCommandService.CAPABILITY)); m.runtime.validateCapabilities();
+            var actor=m.context(); actor.putAttribute("principal","alice");
+            BlobCommandService service=actor.capability(BlobCommandService.class);
+            assertSame(m.module.runtime().commands().orElseThrow(),service);
+            assertEquals(0,m.f.scalar("SELECT count(*) FROM pg_tables WHERE schemaname=current_schema() AND tablename='teaql_blob_command'"));
+            assertEquals(BLOB_SCHEMA_MISSING,assertThrows(BlobException.class,m.runtime::validateReadiness).code());
+            new PostgresBlobCommandJournal(m.f.sql).migrate(); m.runtime.validateReadiness();
+            BlobRef key=m.upload(); var asset=m.f.newAsset(42,key);
+            assertFalse(service.execute(actor,BlobCommandIT.request("typed"),() -> { m.runtime.saveGraph(actor,asset); return BlobCommandIT.revisions(asset); }).replayed());
+            m.f.assertOracle(42,key); assertTrue(service.execute(actor,BlobCommandIT.request("typed"),BlobCommandIT.never()).replayed());
+        }
+        try (ModuleFixture m=new ModuleFixture(true,true,BlobPolicies.defaults())) {
+            assertTrue(m.module.runtime().commands().isEmpty()); assertNull(m.context().capability(BlobCommandService.class)); m.runtime.validateReadiness();
+            m.runtime.install(RuntimeModule.of().withRequiredCapabilities(BlobCommandService.CAPABILITY));
+            assertTrue(assertThrows(TeaQLRuntimeException.class,m.runtime::validateCapabilities).getMessage().contains("BLOB_CAPABILITY_MISSING"));
+        }
+    }
+
     @Test public void assemblyIsPassiveAndReadinessNeverRepairsMissingInfrastructure() throws Exception {
         try (ModuleFixture m=new ModuleFixture(false,false,BlobPolicies.defaults())) {
             assertFalse(Files.exists(m.root.resolve("files"))); assertEquals(0,m.f.scalar("SELECT count(*) FROM information_schema.tables WHERE table_schema=current_schema() AND table_name='teaql_blob_schema'"));
@@ -172,17 +192,22 @@ public class BlobModuleIT {
         final CountingStore store; final BlobReferenceModule module; final TeaQLRuntime runtime;
         ModuleFixture(boolean schema,boolean storage,BlobPolicies policies) throws Exception { this(schema,storage,policies,false); }
         ModuleFixture(boolean schema,boolean storage,BlobPolicies policies,boolean manifestFirst) throws Exception {
+            this(schema,storage,policies,manifestFirst,false);
+        }
+        ModuleFixture(boolean schema,boolean storage,BlobPolicies policies,boolean manifestFirst,boolean commands) throws Exception {
             f=new Fixture(schema,policies); root=temporary.newFolder().toPath(); files=new FileBlobStore(root.resolve("files"));
             gateway=new FileBlobHttpGateway(files,new InetSocketAddress("127.0.0.1",0),URI.create("http://127.0.0.1:0/blob-read"),"test",Map.of("test",new byte[32]),f.clock,Duration.ofHours(1));
             try {
                 store=new CountingStore(gateway);
                 var scopes=(BlobBindingAuthorization.ScopeProvider)context -> context.getAttribute("scope",BlobScope.class);
-                module=BlobReferenceModule.builder().catalog(f.catalog).store(store).policies(policies).clock(f.clock)
+                var moduleBuilder=BlobReferenceModule.builder().catalog(f.catalog).store(store).policies(policies).clock(f.clock)
                         .verifier(new TikaBlobContentVerifier(root.resolve("verify"),TikaBlobContentVerifier.Limits.defaults()))
                         .uploadAuthorization(new BlobUploadAuthorization(scopes,(context,target) -> !Boolean.FALSE.equals(context.getAttribute("field")),(context,target,action,info) -> !Boolean.FALSE.equals(context.getAttribute("policy"))))
                         .bindingAuthorization(new BlobBindingAuthorization(scopes,(context,target,kind) -> !Boolean.FALSE.equals(context.getAttribute("field")),(context,target,blob) -> !Boolean.FALSE.equals(context.getAttribute("policy"))))
                         .readAuthorization(new BlobReadAuthorization(scopes,(context,target) -> !Boolean.FALSE.equals(context.getAttribute("field")),(context,target,blob) -> !Boolean.FALSE.equals(context.getAttribute("policy"))))
-                        .maintenancePermission((context,scope) -> Boolean.TRUE.equals(context.getAttribute("maintenance"))).build();
+                        .maintenancePermission((context,scope) -> Boolean.TRUE.equals(context.getAttribute("maintenance")));
+                if (commands) moduleBuilder.commands(new PostgresBlobCommandJournal(f.sql),BlobCommandIT.authorization());
+                module=moduleBuilder.build();
                 var metadata=new io.teaql.core.meta.SimpleEntityMetaFactory();
                 RuntimeModule business=RuntimeModule.of(target -> f.runtime.getMetadata().allEntityDescriptors().forEach(target::register)).withRequiredCapabilities("blob.v1");
                 if (manifestFirst) business.install(metadata);

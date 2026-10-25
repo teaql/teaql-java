@@ -271,3 +271,60 @@ field profiles, removes those bindings in stages, and verifies physical collecti
 only at the greatest historical minimum/unreferenced deadline. Policy relaxation
 or removal of the long field cannot shorten an accepted promise. These graph gates
 still do not implement durable command idempotency or process-crash reconciliation.
+
+## Optional durable commands
+
+`blob.command.v1` adds an explicit command coordinator through the core
+`BlobCommandService` API. It is optional alongside ordinary `blob.v1`; the host
+configures a `PostgresBlobCommandJournal` and `BlobCommandAuthorization` with
+separate current execute/replay policies and a trusted scope/principal provider:
+
+```java
+// Explicit infrastructure provisioning, outside business transactions:
+PostgresBlobCommandJournal journal = new PostgresBlobCommandJournal(sql);
+journal.migrate();
+// Add this to the normal BlobReferenceModule builder before build/install:
+// .commands(journal, commandAuthorization)
+BlobCommandService commands = context.capability(BlobCommandService.class);
+BlobCommandService.Request request = new BlobCommandService.Request(
+    "Asset.bind/v1", invocationKey, canonicalValidatedRequestBytes);
+BlobCommandService.Execution result = commands.execute(context, request, () -> {
+    runtime.saveGraph(context, asset);
+    return List.of(new BlobCommandService.EntityRevision(
+        asset.typeName(), asset.getId(), asset.getVersion()));
+});
+```
+
+Canonical bytes come from trusted versioned command code and include every
+semantic input, including purpose/intent where applicable. The service computes
+the fingerprint itself. Do not accept a client hash as proof of the command
+payload. The stable identity is scope + operation + opaque invocation key;
+principal and fingerprint are bound separately. Changed canonical input conflicts.
+An identical committed replay checks current authority and returns the original
+metadata receipt without running the action. The action's native graph writes,
+Blob bindings and receipt borrow the same physical SQL owner and commit atomically.
+Receipt revisions come from the authoritative provisional results in that owner.
+
+The coordinator owns the outer transaction. Already active caller transactions,
+nested commands and graph saves through another physical resource reject. The
+synchronous action must not manage commit, dispatch independent threads, write
+unrelated SQL or perform irreversible external I/O. Prepare uploads beforehand.
+Installation is passive; readiness checks but never creates the separate fixed
+command schema. Catalog migration v1 stays unchanged. Keep receipts durable with
+the business database: no automatic expiry/deletion can make an old identity run
+again. This implementation provides no online receipt removal API.
+
+Only a known commit returns normally. `TransactionCompletionException` preserves
+UNKNOWN or COMMITTED when acknowledgement/notification fails. `resolve` uses an
+independent committed read and current replay permission; an empty result does
+not establish rollback while an earlier owner is in flight. Executing the same
+identity again safely serializes against that owner. A durable receipt can resolve
+an acknowledgement loss without clearing the original graph's UNKNOWN protection.
+Reload currently authorized state into fresh entities before further mutation.
+Receipt metadata is historical proof, not a current view or authority to restore
+an old Blob binding. No payload, business values or URLs are persisted in receipts.
+
+`BlobCommandIT` exercises these boundaries against real PostgreSQL, including
+native business/binding/receipt oracles, current authority, concurrent replay,
+rollback, corrupt/incomplete markers and commit fault injection. Its component
+evidence does not establish Rust, generated-consumer, registry or R3-R8 acceptance.

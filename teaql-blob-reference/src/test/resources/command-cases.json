@@ -1,0 +1,60 @@
+{
+  "protocol": "blob.command.v1",
+  "fingerprints": [
+    {
+      "id": "bind",
+      "operation": "Asset.bind/v1",
+      "invocationKey": "cmd-1",
+      "canonicalHex": "7b226964223a34322c226669656c64223a22646f63756d656e74222c226b6579223a22626c6f625f66697874757265227d",
+      "fingerprint": "84b94e74e6cf068275536593c98821310c3afbb8aca2089311bbd261d14b8726"
+    },
+    {
+      "id": "other-key",
+      "operation": "Asset.bind/v1",
+      "invocationKey": "cmd-2",
+      "canonicalHex": "7b226964223a34322c226669656c64223a22646f63756d656e74222c226b6579223a22626c6f625f66697874757265227d",
+      "fingerprint": "84b94e74e6cf068275536593c98821310c3afbb8aca2089311bbd261d14b8726"
+    },
+    {
+      "id": "changed",
+      "operation": "Asset.bind/v1",
+      "invocationKey": "cmd-1",
+      "canonicalHex": "7b226964223a34332c226669656c64223a22646f63756d656e74222c226b6579223a22626c6f625f66697874757265227d",
+      "fingerprint": "ad7054e11731f196f7f0a396f77ba8141abaa64e11abb7d16012e21f4e15439f"
+    },
+    {
+      "id": "operation",
+      "operation": "Asset.clear/v1",
+      "invocationKey": "cmd-1",
+      "canonicalHex": "7b226964223a34322c226669656c64223a22646f63756d656e74222c226b6579223a22626c6f625f66697874757265227d",
+      "fingerprint": "68a233b2f1151d17c019fa3bc0c45daba0ed4f63c688063a142a4c446c974597"
+    },
+    {
+      "id": "binary",
+      "operation": "Asset.bind/v1",
+      "invocationKey": "binary-1",
+      "canonicalHex": "00ff01ff",
+      "fingerprint": "f69df0843a5d2708ded1bb6da61abd97c60983aca113004f87c899366713d267"
+    }
+  ],
+  "requiredScenarios": [
+    "create-and-replay",
+    "changed-payload",
+    "different-operation",
+    "cross-scope",
+    "different-principal",
+    "revoked-execute",
+    "revoked-replay",
+    "rollback-retry",
+    "concurrent-replay",
+    "incomplete-marker",
+    "corrupt-receipt",
+    "active-owner",
+    "scope-change",
+    "principal-change",
+    "commit-ack-loss",
+    "crash-before-commit",
+    "crash-after-commit",
+    "postcommit-audit-error"
+  ]
+}

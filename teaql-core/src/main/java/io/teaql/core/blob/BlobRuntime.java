@@ -16,6 +16,7 @@ public interface BlobRuntime {
     BlobMutationParticipant mutation();
     Reads reads();
     Maintenance maintenance();
+    default java.util.Optional<BlobCommandService> commands() { return java.util.Optional.empty(); }
 
     /** Pure configuration/route checks, safe during a caller-owned transaction. */
     void validateConfiguration(EntityMetaFactory metadata, DataServiceRegistry registry);

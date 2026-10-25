@@ -18,11 +18,14 @@ public final class BlobReferenceModule {
         BlobPolicies policies=builder.policies; Clock clock=builder.clock;
         BlobContentVerifier verifier=Objects.requireNonNull(builder.verifier,"verifier");
         var binding=Objects.requireNonNull(builder.binding,"bindingAuthorization");
+        if ((builder.commandJournal==null)!=(builder.commandAuthorization==null)) throw new BlobException(BLOB_CAPABILITY_MISSING);
+        if (builder.commandJournal!=null) builder.commandJournal.requireCatalog(catalog);
+        BlobCommandService commands=builder.commandJournal==null?null:new PostgresBlobCommandExecutor(builder.commandJournal,builder.commandAuthorization,clock);
         services=new Services(catalog,store,policies,verifier,
                 new BlobUploadService(catalog,store,verifier,policies,Objects.requireNonNull(builder.upload,"uploadAuthorization"),clock),
                 new PostgresBlobMutationParticipant(catalog,policies,binding,clock),
                 new BlobReadService(catalog,store,policies,Objects.requireNonNull(builder.read,"readAuthorization"),clock),
-                new BlobMaintenanceService(catalog,store,binding::scope,Objects.requireNonNull(builder.maintenance,"maintenancePermission"),clock,builder.batchSize));
+                new BlobMaintenanceService(catalog,store,binding::scope,Objects.requireNonNull(builder.maintenance,"maintenancePermission"),clock,builder.batchSize),Optional.ofNullable(commands),builder.commandJournal);
     }
     public static Builder builder() { return new Builder(); }
     public BlobRuntime runtime() { return services; }
@@ -30,9 +33,10 @@ public final class BlobReferenceModule {
 
     private record Services(PostgresBlobCatalog catalog,BlobStore store,BlobPolicies policies,BlobContentVerifier verifier,
                             BlobUploadService upload,PostgresBlobMutationParticipant mutation,
-                            BlobReadService reads,BlobMaintenanceService maintenance) implements BlobRuntime {
+                            BlobReadService reads,BlobMaintenanceService maintenance,Optional<BlobCommandService> commands,PostgresBlobCommandJournal commandJournal) implements BlobRuntime {
         @Override public void validateConfiguration(EntityMetaFactory metadata,DataServiceRegistry registry) {
             Objects.requireNonNull(metadata); Objects.requireNonNull(registry);
+            if (commandJournal!=null) commandJournal.requireCatalog(catalog);
             BlobStore.Capabilities capabilities=store.capabilities();
             if (!capabilities.signedReads() || !capabilities.range() || !capabilities.versionConditionalDelete()) throw new BlobException(BLOB_CAPABILITY_MISSING);
             List<BlobFieldSpec> model=new ArrayList<>();
@@ -53,7 +57,8 @@ public final class BlobReferenceModule {
             policies.validate(model);
         }
         @Override public void validateReadiness() {
-            catalog.requireNoActiveTransaction(); catalog.validateSchema(); store.validateReady();
+            BlobCommandScope.requireAbsent(); catalog.requireNoActiveTransaction(); catalog.validateSchema(); store.validateReady();
+            if (commandJournal!=null) commandJournal.validateReadiness();
         }
     }
 
@@ -67,6 +72,8 @@ public final class BlobReferenceModule {
         private BlobReadAuthorization read;
         private BlobMaintenanceService.Permission maintenance;
         private Clock clock=Clock.systemUTC();
+        private PostgresBlobCommandJournal commandJournal;
+        private BlobCommandAuthorization commandAuthorization;
         private int batchSize=100;
         private Builder() {}
         public Builder catalog(PostgresBlobCatalog value) { catalog=Objects.requireNonNull(value); return this; }
@@ -79,6 +86,7 @@ public final class BlobReferenceModule {
         public Builder maintenancePermission(BlobMaintenanceService.Permission value) { maintenance=Objects.requireNonNull(value); return this; }
         public Builder clock(Clock value) { clock=Objects.requireNonNull(value); return this; }
         public Builder maintenanceBatchSize(int value) { if (value<1 || value>1000) throw new BlobException(BLOB_POLICY_INVALID); batchSize=value; return this; }
+        public Builder commands(PostgresBlobCommandJournal journal,BlobCommandAuthorization authorization) { commandJournal=Objects.requireNonNull(journal); commandAuthorization=Objects.requireNonNull(authorization); return this; }
         public BlobReferenceModule build() { return new BlobReferenceModule(this); }
     }
 }
