@@ -13,6 +13,8 @@
         <dependency><groupId>junit</groupId><artifactId>junit</artifactId><scope>test</scope></dependency>
         <dependency><groupId>io.teaql</groupId><artifactId>teaql-provider-jdbc</artifactId><scope>test</scope></dependency>
         <dependency><groupId>io.teaql</groupId><artifactId>teaql-runtime</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>io.teaql</groupId><artifactId>teaql-blob-store-file</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>io.teaql</groupId><artifactId>teaql-blob-content-tika</artifactId><scope>test</scope></dependency>
         <dependency><groupId>org.postgresql</groupId><artifactId>postgresql</artifactId><version>42.7.3</version><scope>test</scope></dependency>
     </dependencies>
     <build><plugins><plugin>

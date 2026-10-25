@@ -11,8 +11,9 @@ changing retained object lifetime. Historical retention promises take the maximu
 Private cache settings are explicit; automatic public caching is rejected.
 
 The shared policy fixtures verify these rules. The PostgreSQL catalog and save
-participant additionally have a real SQL component gate described below. Production
-upload verification, real object-store I/O and HTTP read authorization remain pending.
+participant additionally have a real SQL component gate described below. Upload
+orchestration now combines actual verification with private file storage and SQL;
+S3 integration and HTTP read authorization remain pending.
 A known Key or a resolved profile is not a read/binding credential. The module does
 not yet register `blob.v1`; full runtime assembly and its remaining service gates
 are still in progress.
@@ -48,8 +49,8 @@ for its own infrastructure tables. It checks columns and named primary/unique/fo
 key constraints. This is separate from model schema reconciliation; no general DDL
 diff or global model registry is introduced. Constructors never open connections.
 Upload begin/complete catalog transitions are idempotent, with immutable policy
-snapshots; `VerifiedContent` is a trusted internal input from the future content
-verifier, and is not evidence that a client uploaded valid bytes.
+snapshots; `VerifiedContent` remains a trusted internal input. Public callers use
+`BlobUploadService` so actual immutable bytes are verified before completion.
 
 `PostgresBlobMutationParticipant` borrows the exact SQL adapter and its opaque active
 physical transaction identity. It locks target bindings and sorted old/new object
@@ -68,4 +69,40 @@ post-commit audit failure, and actual compiled/generic typed SQL hydration. It r
 `TEAQL_BLOB_TEST_PG_URL`, `TEAQL_BLOB_TEST_PG_USER`, `TEAQL_BLOB_TEST_PG_PASSWORD`, and
 `TEAQL_BLOB_TEST_FIXTURES` pointing to the shared real-file fixture directory. It does
 not establish public artifact, generated-workspace, caller-owned Java transaction
-completion, production MIME/container validation, or full R3 acceptance.
+completion or full R3 acceptance.
+
+`BlobUploadService` receives the catalog, transport and content verifier explicitly.
+Every operation resolves its trusted target against current context metadata and
+intersects current host field permission with an additional upload policy. Scope
+and permission are rechecked after streaming/verification. No actor is cached.
+Begin normalizes a basename, checks format/declared size and snapshots policy.
+Identical scoped requests replay the original upload/Key/deadline and snapshot;
+changed caller parameters conflict. Later profile edits cannot rewrite that
+snapshot, while current deployment hard limits and disabled formats still apply.
+
+Write is bounded, checks the session deadline during stream reads, preserves caller
+stream ownership, and records immutable storage version/size/hash without making
+the object bindable. Complete opens that exact version, verifies actual MIME,
+container, size and digest, then rechecks current authorization/deadline before
+promoting to `uploaded_unbound`. Request MIME/size hints never supply actual facts.
+Failed verification leaves the upload initiated for bounded later collection.
+Successful retries return the same Key without extending any deadline. Changed
+storage generations conflict. Unsupported direct upload fails explicitly.
+
+`BlobUploadAuthorization.AccessPolicy` receives available file facts: before
+verification the content type can be absent and declared hints are untrusted;
+after verification the confirmation check receives the actual type and size.
+Permission policies must still authorize the target in both checks. Format and
+size enforcement is performed by the service independently of those callbacks.
+
+`BlobUploadIT` is a second explicit PostgreSQL gate using the optional
+`teaql-blob-store-file` and `teaql-blob-content-tika` providers as test dependencies.
+It runs all ten real formats and all seven shared upload cases through actual
+begin/write/complete; unverified binding attempts roll back and verified native
+SQL saves are checked through an independent connection. It also covers retries,
+concurrent callers, current scope/both permission layers, revocation, deadlines,
+I/O failure, empty content, changed generations and policy/deployment changes.
+Use the same environment as `PostgresBlobCatalogIT`, selecting
+`-Dtest=PostgresBlobCatalogIT,BlobUploadIT` explicitly. The module still does not
+advertise full `blob.v1`; runtime assembly, maintenance/recovery, authorized view
+projection, S3 and the remaining R3-R8 gates are unfinished.

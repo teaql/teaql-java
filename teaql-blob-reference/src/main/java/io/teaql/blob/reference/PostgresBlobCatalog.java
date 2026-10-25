@@ -140,6 +140,10 @@ public final class PostgresBlobCatalog {
                 return blob;
             }
             if (!now.isBefore(blob.uploadExpiresAt())) throw new BlobException(BLOB_UPLOAD_EXPIRED);
+            if (blob.contentVersion()!=null && !blob.contentVersion().equals(content.contentVersion())) throw new BlobException(BLOB_IDEMPOTENCY_CONFLICT);
+            if (blob.sizeBytes()!=null && blob.sizeBytes()!=content.sizeBytes() || blob.sha256()!=null && !blob.sha256().equals(content.sha256())) {
+                throw new BlobException(BLOB_UPLOAD_INCOMPLETE);
+            }
             String expectedMime = BlobFieldSpec.of("Blob","content",List.of(blob.extension()),true,"default").allowedContentTypes().first();
             if (!expectedMime.equals(content.contentType())) throw new BlobException(BLOB_FORMAT_NOT_ALLOWED);
             if (content.sizeBytes() > blob.policy().maxSizeBytes() || content.sizeBytes()==0 && !blob.policy().allowEmpty()) {
@@ -157,6 +161,44 @@ public final class PostgresBlobCatalog {
             var rows=query("SELECT * FROM teaql_blob_object WHERE blob_key=? AND scope_realm=? AND scope_boundary=?",
                     reference.key(),scope.realm(),scope.boundary());
             return rows.isEmpty()?Optional.empty():Optional.of(record(one(rows)));
+        });
+    }
+
+    public Optional<BlobCatalogRecord> findUpload(BlobScope scope,String uploadId) {
+        text(uploadId,128);
+        return guarded(() -> {
+            validateSchema(); var rows=query("SELECT * FROM teaql_blob_object WHERE scope_realm=? AND scope_boundary=? AND upload_id=?",
+                    scope.realm(),scope.boundary(),uploadId);
+            return rows.isEmpty()?Optional.empty():Optional.of(record(one(rows)));
+        });
+    }
+
+    @FrameworkInternal("Trusted upload request replay; digest must describe canonical caller parameters")
+    public Optional<BlobCatalogRecord> findUploadRequest(BlobScope scope,String idempotencyKey,String requestDigest) {
+        text(idempotencyKey,128);
+        if (requestDigest==null || !requestDigest.matches("[0-9a-f]{64}")) throw new BlobException(BLOB_REFERENCE_INVALID);
+        return guarded(() -> {
+            validateSchema(); var rows=query("SELECT * FROM teaql_blob_object WHERE scope_realm=? AND scope_boundary=? AND request_key=?",
+                    scope.realm(),scope.boundary(),idempotencyKey);
+            if (rows.isEmpty()) return Optional.empty();
+            Map<String,Object> row=one(rows);
+            if (!requestDigest.equals(row.get("request_digest"))) throw new BlobException(BLOB_IDEMPOTENCY_CONFLICT);
+            return Optional.of(record(row));
+        });
+    }
+
+    /** Records immutable storage facts without promoting unverified bytes to uploaded_unbound. */
+    @FrameworkInternal("Trusted bounded upload write only; MIME verification remains mandatory")
+    public BlobCatalogRecord recordWrite(BlobScope scope,BlobRef reference,BlobStore.StoredContent content,Instant now) {
+        return transaction(() -> {
+            validateSchema(); BlobCatalogRecord blob=lockBlob(scope,reference);
+            if (blob.state()==BlobState.DELETING || blob.state()==BlobState.DELETED || !now.isBefore(blob.uploadExpiresAt())) throw new BlobException(BLOB_UPLOAD_EXPIRED);
+            if (!blob.storageLocation().equals(content.location())) throw new BlobException(BLOB_REFERENCE_INVALID);
+            if (blob.contentVersion()!=null && (!blob.contentVersion().equals(content.contentVersion()) || !Objects.equals(blob.sizeBytes(),content.sizeBytes())
+                    || blob.sha256()!=null && content.sha256()!=null && !blob.sha256().equals(content.sha256()))) throw new BlobException(BLOB_IDEMPOTENCY_CONFLICT);
+            if (blob.state()==BlobState.INITIATED) update("UPDATE teaql_blob_object SET size_bytes=?,sha256=?,content_version=? WHERE blob_key=?",
+                    content.sizeBytes(),content.sha256(),content.contentVersion(),reference.key());
+            return lockBlob(scope,reference);
         });
     }
 

@@ -22,8 +22,8 @@ import static org.junit.Assert.*;
 
 /** Explicit opt-in integration suite. Requires the task-owned PostgreSQL and real fixture paths. */
 public class PostgresBlobCatalogIT {
-    private static final BlobScope SCOPE=new BlobScope("test","tenant-a");
-    private static final Instant NOW=Instant.parse("2026-10-25T00:00:00Z");
+    static final BlobScope SCOPE=new BlobScope("test","tenant-a");
+    static final Instant NOW=Instant.parse("2026-10-25T00:00:00Z");
 
     @Test public void explicitMigrationAndUploadCatalogIdempotency() throws Exception {
         try (Fixture f=new Fixture(false,BlobPolicies.defaults())) {
@@ -293,19 +293,19 @@ public class PostgresBlobCatalogIT {
             return switch (field) { case "document" -> document; case "title" -> title; default -> super.__internalGet(field); };
         }
     }
-    private static final class MutableClock extends Clock {
+    static final class MutableClock extends Clock {
         volatile Instant now=NOW;
         @Override public Instant instant() { return now; }
         @Override public ZoneId getZone() { return ZoneOffset.UTC; }
         @Override public Clock withZone(ZoneId zone) { if (!zone.equals(ZoneOffset.UTC)) throw new IllegalArgumentException(); return this; }
     }
-    private static final class Fixture implements AutoCloseable {
+    static final class Fixture implements AutoCloseable {
         final String schema="r3_blob_it_"+UUID.randomUUID().toString().replace("-","");
         final DataSource dataSource;
         final JdbcSqlExecutor sql,otherSql;
         final PostgresBlobCatalog catalog;
         final BlobPolicies policies;
-        final BlobFieldSpec spec=BlobFieldSpec.of("Asset","document",List.of("pdf"),true,"default");
+        final BlobFieldSpec spec;
         final MutableClock clock=new MutableClock();
         final PostgresBlobMutationParticipant participant;
         final TeaQLRuntime runtime;
@@ -315,8 +315,10 @@ public class PostgresBlobCatalogIT {
         volatile Long prepareTransaction,businessTransaction,applyTransaction;
         volatile CountDownLatch preparedLatch,releasePrepared;
         Fixture() throws Exception { this(true,BlobPolicies.defaults()); }
-        Fixture(boolean migrate,BlobPolicies policies) throws Exception {
+        Fixture(boolean migrate,BlobPolicies policies) throws Exception { this(migrate,policies,List.of("pdf")); }
+        Fixture(boolean migrate,BlobPolicies policies,List<String> extensions) throws Exception {
             this.policies=policies;
+            spec=BlobFieldSpec.of("Asset","document",extensions,true,"default");
             String url=required("TEAQL_BLOB_TEST_PG_URL"),user=required("TEAQL_BLOB_TEST_PG_USER"),password=required("TEAQL_BLOB_TEST_PG_PASSWORD");
             dataSource=new TestDataSource(url,user,password,schema);
             try (Connection c=DriverManager.getConnection(url,user,password); Statement s=c.createStatement()) { s.execute("CREATE SCHEMA "+schema); }

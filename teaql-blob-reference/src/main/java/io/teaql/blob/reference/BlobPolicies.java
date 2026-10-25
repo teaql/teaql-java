@@ -48,6 +48,10 @@ public final class BlobPolicies {
     public static BlobPolicies defaults() {
         return new BlobPolicies(Limits.defaults(), BlobPolicyProfile.named("default").build(), Map.of(), Map.of());
     }
+    public long maximumUploadSizeBytes() { return limits.maxUploadSizeBytes(); }
+    public void requireUploadFormat(String extension) {
+        if (!limits.allowedExtensions().contains(extension)) throw new BlobException(BLOB_FORMAT_NOT_ALLOWED);
+    }
 
     public void validate(Iterable<BlobFieldSpec> model) {
         Set<String> found = new TreeSet<>();
