@@ -194,8 +194,9 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             AggregationResult aggregation =
                     aggregateRepository.doAggregateInternal(userContext, request, intent == null ? null : intent.copy());
             if (attribute.isSingleNumber()) {
+                Number emptyValue = emptySingleAggregateValue(aggregateRequest);
                 for (Entity parent : parentsById.values()) {
-                    parent.addDynamicProperty(attribute.getName(), 0);
+                    parent.addDynamicProperty(attribute.getName(), emptyValue);
                 }
                 aggregation
                         .toSimpleMap()
@@ -217,6 +218,19 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                 }
             }
         }
+    }
+
+    private static Number emptySingleAggregateValue(SearchRequest<?> request) {
+        var expressions = request.getAggregations().getAggregates();
+        if (expressions.size() == 1
+                && expressions.get(0).getExpression() instanceof AggrExpression aggregate
+                && aggregate.getOperator() == AggrFunction.SUM) {
+            // A missing grouped row has no contributing values. It is not a
+            // numeric zero; retain a present null property for callers/JSON.
+            return null;
+        }
+        // Preserve implicit/explicit COUNT and other existing aggregate policies.
+        return 0;
     }
 
     private SqlDiagnosticRequest dynamicAggregateRequest(SearchRequest<?> aggregateRequest,

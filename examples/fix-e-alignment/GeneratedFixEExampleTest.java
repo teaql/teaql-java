@@ -78,23 +78,28 @@ public class GeneratedFixEExampleTest {
                     .comment("Load the identity projection without eager data")
                     .purpose("Verify complete E diagnostics without implicit loading").executeForOne(context);
             var diagnostics = new ArrayList<TeaQLNotLoadedException.WireError>();
+            var humanMessages = new ArrayList<String>();
             var error = assertThrows(TeaQLNotLoadedException.class, () -> E.purchaseOrder(partial).getTenant().getName().eval());
             assertEquals("/tenant", error.toWire().instancePath());
             assertEquals("/tenant/name", error.toWire().attemptedInstancePath());
             assertEquals("E.purchaseOrder(<root>).getTenant()<broken>.getName().eval()", error.getExpressionWithBrokenPoint());
             diagnostics.add(error.toWire());
+            humanMessages.add(error.getMessage());
             error = assertThrows(TeaQLNotLoadedException.class, () -> E.purchaseOrder(partial)
                     .getTenant().getPurchaseOrderList().first().getTenant().getName().eval());
             assertEquals("E.purchaseOrder(<root>).getTenant()<broken>.getPurchaseOrderList().first().getTenant().getName().eval()", error.getExpressionWithBrokenPoint());
             diagnostics.add(error.toWire());
+            humanMessages.add(error.getMessage());
             error = assertThrows(TeaQLNotLoadedException.class, () -> E.purchaseOrder(partial).getOrderItemList().get(2).getProductName().eval());
             assertEquals("/orderItemList", error.toWire().instancePath());
             assertEquals("/orderItemList/2/productName", error.toWire().attemptedInstancePath());
             diagnostics.add(error.toWire());
+            humanMessages.add(error.getMessage());
             error = assertThrows(TeaQLNotLoadedException.class, () -> E.purchaseOrder(partial).getContactPhone().orIfNull("PRIVATE-FALLBACK"));
             assertEquals("E.purchaseOrder(<root>).getContactPhone()<broken>.orIfNull(<fallback>)", error.getExpressionWithBrokenPoint());
             assertFalse(error.getMessage().contains("PRIVATE-FALLBACK"));
             diagnostics.add(error.toWire());
+            humanMessages.add(error.getMessage());
 
             time.set(second);
             var loaded = Q.purchaseOrders().withIdIs(order.getId()).limit(1)
@@ -107,10 +112,21 @@ public class GeneratedFixEExampleTest {
             assertEquals(first, E.purchaseOrder(persisted).getCreateTime().eval());
             assertEquals(second, E.purchaseOrder(persisted).getUpdateTime().eval());
             assertEquals("5550101", E.purchaseOrder(persisted).getContactPhone().eval());
+
+            var itemSum = Q.orderItems().limit(10).comment("sum order item prices");
+            itemSum.sum("itemPrice", "unit_price"); itemSum.setPartitionProperty("purchase_order");
+            var withSum = Q.purchaseOrders().withIdIs(order.getId()).limit(1);
+            withSum.addSingleAggregateDynamicProperty("emptyItemSum", itemSum);
+            var aggregate = withSum.comment("load order with its selected total")
+                    .purpose("verify empty SUM through generated Q and E").executeForOne(context);
+            assertEquals(order.getId(), E.purchaseOrder(aggregate).getId().eval());
+            assertTrue(aggregate.hasDynamicProperty("emptyItemSum"));
+            assertNull(aggregate.getDynamicProperty("emptyItemSum"));
+            System.out.println("GENERATED_EMPTY_SUM_PASS language=java present=true value=null");
             System.out.println("FIX_E_EXAMPLE=" + new ObjectMapper().writeValueAsString(Map.of(
                     "language", "java", "passed", true, "normalGeneratedSave", true,
                     "createTimePreserved", true, "updateTimeAdvanced", true,
-                    "declaredContextRootInjected", true, "diagnostics", diagnostics)));
+                    "declaredContextRootInjected", true, "diagnostics", diagnostics, "humanMessages", humanMessages)));
         }
     }
 }
