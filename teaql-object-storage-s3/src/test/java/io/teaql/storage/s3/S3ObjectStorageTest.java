@@ -18,6 +18,37 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.core.retry.RetryPolicy;
 
 public class S3ObjectStorageTest {
+    @Test public void conditionalDeleteSendsExactVersionAndFailsClosedOnMismatch() throws Exception {
+        var matches = new java.util.concurrent.CopyOnWriteArrayList<String>();
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", request -> {
+            String match = request.getRequestHeaders().getFirst("If-Match");
+            matches.add(String.valueOf(match));
+            if ("\"current-version\"".equals(match)) request.sendResponseHeaders(204, -1);
+            else {
+                byte[] body = "<Error><Code>PreconditionFailed</Code><Message>PRIVATE-CONFLICT-CANARY</Message></Error>".getBytes(StandardCharsets.UTF_8);
+                request.getResponseHeaders().set("Content-Type", "application/xml");
+                request.sendResponseHeaders(412, body.length); request.getResponseBody().write(body);
+            }
+            request.close();
+        });
+        server.start();
+        var credentials = StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "secret"));
+        try (var provider = S3ObjectStorage.connect(URI.create("http://127.0.0.1:" + server.getAddress().getPort()), Region.US_EAST_1, credentials, "bucket", true)) {
+            var context = new DefaultUserContext(null);
+            var storage = ObjectStorage.forProvider(context, "verify conditional Blob reclamation", provider);
+            assertNull(context.capability(ObjectStorageProvider.class));
+            assertTrue(storage.supportsVersionConditionalDelete());
+            storage.deleteIfVersionMatches(new Key("conditional-fixture"), "\"current-version\"");
+            StorageException error = assertThrows(StorageException.class,
+                    () -> storage.deleteIfVersionMatches(new Key("conditional-fixture"), "\"old-version\""));
+            assertEquals(StorageException.Code.CONFLICT, error.code());
+            assertNull(error.getCause()); assertFalse(error.toString().contains("CANARY"));
+            assertEquals(java.util.List.of("\"current-version\"", "\"old-version\""), matches);
+            expect(StorageException.Code.INVALID_INPUT, () -> storage.deleteIfVersionMatches(new Key("conditional-fixture"), "*"));
+            assertEquals(2, matches.size());
+        } finally { server.stop(0); }
+    }
     @Test public void socketTimeoutIsSanitizedAndRetainsItsCategory() {
         var source = software.amazon.awssdk.core.exception.SdkClientException.builder()
                 .message("PRIVATE-PROVIDER-CANARY")
