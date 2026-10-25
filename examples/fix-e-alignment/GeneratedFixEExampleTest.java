@@ -123,6 +123,8 @@ public class GeneratedFixEExampleTest {
             assertTrue(aggregate.hasDynamicProperty("emptyItemSum"));
             assertNull(aggregate.getDynamicProperty("emptyItemSum"));
             System.out.println("GENERATED_EMPTY_SUM_PASS language=java present=true value=null");
+            LoadingProbe.verify(context, order.getId());
+            OwnershipProbe.verify(context);
             System.out.println("FIX_E_EXAMPLE=" + new ObjectMapper().writeValueAsString(Map.of(
                     "language", "java", "passed", true, "normalGeneratedSave", true,
                     "createTimePreserved", true, "updateTimeAdvanced", true,

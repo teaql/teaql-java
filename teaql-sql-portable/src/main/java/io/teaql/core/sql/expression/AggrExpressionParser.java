@@ -39,7 +39,9 @@ public class AggrExpressionParser implements SQLExpressionParser<AggrExpression>
         String sqlColumn =
                 ExpressionHelper.toSql(
                         userContext, expressions.get(0), idTable, parameters, sqlColumnResolver);
-        return genAggrSQL((AggrFunction) operator, sqlColumn);
+        String specialized = sqlColumnResolver.aggregateSql(
+                userContext, (AggrFunction) operator, expressions.get(0), sqlColumn);
+        return specialized == null ? genAggrSQL((AggrFunction) operator, sqlColumn) : specialized;
     }
 
     public String genAggrSQL(AggrFunction operator, String sqlColumn) {

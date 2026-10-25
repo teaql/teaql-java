@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 public class JdbcSqlExecutorTest {
@@ -158,6 +159,22 @@ public class JdbcSqlExecutorTest {
                     assertTrue(result.next());
                     assertEquals(2, result.getInt(1));
                 }
+            }
+        }
+    }
+
+    @Test
+    public void sqliteDecimalBindingRejectsExponentExpansionBeforeMaterialization() throws Exception {
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite::memory:");
+             java.sql.PreparedStatement query = connection.prepareStatement("SELECT ?")) {
+            assertThrows(SQLException.class, () -> JdbcSqlExecutor.bind(
+                    query, 1, new java.math.BigDecimal("1E-1000000000")));
+            assertThrows(SQLException.class, () -> JdbcSqlExecutor.bind(
+                    query, 1, new java.math.BigDecimal("1E+1000000000")));
+            JdbcSqlExecutor.bind(query, 1, new java.math.BigDecimal("1E-7"));
+            try (ResultSet result = query.executeQuery()) {
+                assertTrue(result.next());
+                assertEquals("0.0000001", result.getString(1));
             }
         }
     }

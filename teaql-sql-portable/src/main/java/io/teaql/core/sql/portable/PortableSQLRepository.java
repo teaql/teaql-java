@@ -124,6 +124,22 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         this.dialect = dialect;
     }
 
+    @Override
+    public String aggregateSql(UserContext context, io.teaql.core.AggrFunction function,
+                               io.teaql.core.Expression operand, String columnSql) {
+        boolean direct = operand instanceof io.teaql.core.PropertyReference;
+        for (String name : operand.properties(context)) {
+            PropertyDescriptor property = allProperties.stream()
+                    .filter(candidate -> name.equals(candidate.getName()))
+                    .findFirst().orElse(null);
+            if (property != null && property.getType() != null
+                    && property.getType().javaType() == BigDecimal.class) {
+                return dialect.decimalAggregateSql(function, columnSql, direct);
+            }
+        }
+        return null;
+    }
+
         public String escapeIdentifier(String identifier) {
         return dialect.escapeIdentifier(identifier);
     }
@@ -2103,7 +2119,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     private static boolean isDecimalFamily(String family) {
         return "DECIMAL".equals(family)
                 || "NUMERIC".equals(family)
-                || "NUMBER".equals(family);
+                || "NUMBER".equals(family)
+                || "DECIMAL_TEXT".equals(family);
     }
 
     private String metadataColumnName(Map<String, Object> column, String table) {
@@ -2123,7 +2140,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         sb.append("CREATE TABLE ").append(table).append(" (\n");
         sb.append(columns.stream()
                 .map(column -> {
-                    String dbColumn = dialect.escapeIdentifier(column.getColumnName()) + " " + dialect.mapColumnType(column.getType());
+                    String dbColumn = dialect.escapeIdentifier(column.getColumnName()) + " "
+                            + dialect.columnTypeAndConstraintsSql(column);
                     if (column.isIdColumn()) dbColumn += " NOT NULL PRIMARY KEY";
                     else if (column.isRequired()) dbColumn += " NOT NULL";
                     return dbColumn;
@@ -2143,7 +2161,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     protected void addColumn(UserContext context, SQLColumn column) {
         String sql = StrUtil.format("ALTER TABLE {} ADD COLUMN {} {}{}",
                 dialect.escapeIdentifier(column.getTableName()), dialect.escapeIdentifier(column.getColumnName()),
-                dialect.mapColumnType(column.getType()), column.isRequired() ? " NOT NULL" : "");
+                dialect.columnTypeAndConstraintsSql(column), column.isRequired() ? " NOT NULL" : "");
         logInfo(sql + ";");
         if (ensureTableEnabled(context)) {
             try {
@@ -2434,7 +2452,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 AggregationItem item = new AggregationItem();
                 for (SimpleNamedExpression function : request.getAggregations().getAggregates()) {
                     String columnKey = findColumnKey(row, function.name());
-                    item.addValue(function, columnKey == null ? null : row.get(columnKey));
+                    Object raw = columnKey == null ? null : row.get(columnKey);
+                    item.addValue(function, decodeAggregateValue(function, raw));
                 }
                 for (SimpleNamedExpression dimension : request.getAggregations().getDimensions()) {
                     String columnKey = findColumnKey(row, dimension.name());
@@ -2447,6 +2466,21 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         } finally {
             userContext.putAttribute(MULTI_TABLE, preConfig);
         }
+    }
+
+    private Object decodeAggregateValue(SimpleNamedExpression selected, Object raw) {
+        if (raw == null || !(selected.getExpression() instanceof io.teaql.core.AggrExpression aggregate)
+                || aggregate.getOperator() == io.teaql.core.AggrFunction.COUNT
+                || aggregate.getExpressions().size() != 1
+                || !(aggregate.getExpressions().get(0) instanceof io.teaql.core.PropertyReference reference)) {
+            return raw;
+        }
+        PropertyDescriptor property = allProperties.stream()
+                .filter(candidate -> reference.getPropertyName().equals(candidate.getName()))
+                .findFirst().orElse(null);
+        return property != null && property.getType() != null
+                && property.getType().javaType() == BigDecimal.class
+                ? dialect.decodeDecimalAggregate(raw) : raw;
     }
 
     // ==========================================
