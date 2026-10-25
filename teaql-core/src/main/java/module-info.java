@@ -18,6 +18,7 @@ module io.teaql.core {
     exports io.teaql.core.http;
     exports io.teaql.core.businessid;
     exports io.teaql.core.reference;
+    exports io.teaql.core.blob;
     
     uses io.teaql.core.spi.ContextAssembler;
     uses io.teaql.core.spi.RemoteCacheProvider;

@@ -17,6 +17,8 @@ public class TeaQLModule extends SimpleModule {
 
     public TeaQLModule() {
         super("TeaQL");
+        addSerializer(io.teaql.core.blob.BlobRef.class, new BlobRefJsonSerializer());
+        addDeserializer(io.teaql.core.blob.BlobRef.class, new BlobRefJsonDeserializer());
         addSerializer(BaseEntity.class, new BaseEntityJsonSerializer());
         addDeserializer(BaseEntity.class, new BaseEntityJsonDeserializer());
         addSerializer(SmartList.class, new SmartListAsListSerializer(SmartList.class));
