@@ -15,6 +15,9 @@ import io.teaql.core.businessid.BusinessClock;
 import io.teaql.runtime.businessid.DefaultBusinessIdService;
 import io.teaql.core.reference.RoundTripReferenceCodec;
 import io.teaql.core.reference.RoundTripReferenceProvider;
+import io.teaql.core.blob.BlobException;
+import io.teaql.core.blob.BlobMutationParticipant;
+import io.teaql.core.blob.BlobRef;
 import io.teaql.runtime.businessid.SystemBusinessClock;
 import java.util.*;
 import java.util.stream.Stream;
@@ -37,6 +40,7 @@ public class TeaQLRuntime implements AutoCloseable {
     private final BusinessIdSchemaContributor businessIdSchemaContributor;
     private final BusinessIdKeyProvider businessIdKeyProvider;
     private final RoundTripReferenceCodec roundTripReferenceCodec;
+    private final BlobMutationParticipant blobMutationParticipant;
     private final BusinessClock businessClock;
     private final Map<String, Checker<?>> checkers = new java.util.concurrent.ConcurrentHashMap<>();
     private final List<GeneratedSchemaBootstrap> generatedBootstraps =
@@ -66,6 +70,7 @@ public class TeaQLRuntime implements AutoCloseable {
                 ? null
                 : new RoundTripReferenceCodec(builder.roundTripReferenceProvider);
         this.businessClock = builder.businessClock;
+        this.blobMutationParticipant = builder.blobMutationParticipant;
     }
 
     public static Builder builder() {
@@ -146,6 +151,10 @@ public class TeaQLRuntime implements AutoCloseable {
 
     RoundTripReferenceCodec getRoundTripReferenceCodec() {
         return roundTripReferenceCodec;
+    }
+
+    BlobMutationParticipant getBlobMutationParticipant() {
+        return blobMutationParticipant;
     }
 
     /** Installs a passive generated manifest. Database schemas remain unchanged. */
@@ -460,6 +469,7 @@ public class TeaQLRuntime implements AutoCloseable {
                         "teaql.mutation.kind", "save")));
         try {
             MutationIntent intent = MutationIntent.of(entity.getComment());
+            validateCapabilities();
             checkAndFix(context, entity);
             // Get entity's own EntityMutationLedger
             EntityMutationLedger entityMutationLedger = ((BaseEntity) entity).getEntityMutationLedger();
@@ -513,6 +523,7 @@ public class TeaQLRuntime implements AutoCloseable {
             MutationPlan mutationPlan = buildMutationPlan(entity, entityMutationLedger, realEntities, intent);
             requireSingleMutationRoute(mutationPlan, route);
             MutationGovernanceSnapshot governance = reviewMutationPlan(context, mutationPlan);
+            BlobSavePlan blobPlan = planBlobMutations(context, mutationPlan, mutationExecutor);
             var dynamicChanges = entityMutationLedger.currentChangeSet().dynamicChanges();
             var dynamicRequests = new ArrayList<io.teaql.data.dynamic.DynamicGraphMutation>();
             dynamicChanges.forEach((key, mutations) -> {
@@ -525,6 +536,11 @@ public class TeaQLRuntime implements AutoCloseable {
             try {
                 if (mutationExecutor instanceof TransactionExecutor transactionExecutor) {
                     completed = transactionExecutor.executeInTransaction(context, () -> {
+                        BlobMutationParticipant.Prepared blobPrepared = blobPlan == null ? null
+                                : blobPlan.plan().prepare(context, blobPlan.resource());
+                        if (blobPlan != null && blobPrepared == null) {
+                            throw new BlobException(BlobException.Code.BLOB_CAPABILITY_MISSING);
+                        }
                         io.teaql.data.dynamic.DynamicFieldsFacade dynamic = null;
                         if (!dynamicRequests.isEmpty()) {
                             dynamic = context.dynamicFields().comment(intent.comment()).purpose("runtime: persist audited graph extensions");
@@ -546,6 +562,9 @@ public class TeaQLRuntime implements AutoCloseable {
                                 if (value == null) throw new TeaQLRuntimeException("Dynamic mutation readback omitted owner");
                                 dynamicReadbacks.put(entry.getKey(), value);
                             }
+                        }
+                        if (blobPrepared != null) {
+                            blobPrepared.apply(context, blobPlan.resource(), persistedBlobEntities(results));
                         }
                         return results;
                     });
@@ -573,6 +592,55 @@ public class TeaQLRuntime implements AutoCloseable {
             telemetryScope.failure(error);
             throw error;
         }
+    }
+
+    private BlobSavePlan planBlobMutations(
+            UserContext context, MutationPlan plan, MutationExecutor executor) {
+        boolean touchesBlob = false;
+        for (MutationOperation operation : plan.operations()) {
+            for (EntityDescriptor descriptor = metadata.resolveEntityDescriptor(operation.entity().entity());
+                    descriptor != null; descriptor = descriptor.getParent()) {
+                for (PropertyDescriptor property : descriptor.getProperties()) {
+                    if (property.blobFieldSpec() == null
+                            && (property.getType() == null || property.getType().javaType() != BlobRef.class)) continue;
+                    if (operation.kind() != MutationOperationKind.UPDATE
+                            || operation.changedValues().containsKey(property.getName())) {
+                        touchesBlob = true;
+                    }
+                }
+            }
+        }
+        if (!touchesBlob) return null;
+        BlobMutationParticipant participant = context.capability(BlobMutationParticipant.class);
+        if (participant == null) throw new BlobException(BlobException.Code.BLOB_CAPABILITY_MISSING);
+        if (!(executor instanceof TransactionExecutor transaction)) {
+            throw new BlobException(BlobException.Code.BLOB_TRANSACTION_REQUIRED);
+        }
+        Object resource = transaction.transactionResource();
+        if (resource == null) throw new BlobException(BlobException.Code.BLOB_TRANSACTION_REQUIRED);
+        BlobMutationParticipant.Plan result = participant.plan(context, plan);
+        if (result == null) throw new BlobException(BlobException.Code.BLOB_CAPABILITY_MISSING);
+        result.requireTransaction(resource);
+        return new BlobSavePlan(result, resource);
+    }
+
+    private record BlobSavePlan(BlobMutationParticipant.Plan plan, Object resource) {}
+
+    private List<BlobMutationParticipant.PersistedEntity> persistedBlobEntities(List<PendingMutation> results) {
+        List<BlobMutationParticipant.PersistedEntity> identities = new ArrayList<>();
+        for (PendingMutation result : results) {
+            Entity persisted = result.result() == null ? null : result.result().persistedEntity();
+            if (persisted == null) throw new BlobException(BlobException.Code.BLOB_TRANSACTION_REQUIRED);
+            MutationOperationKind kind = switch (result.auditKind()) {
+                case CREATED -> MutationOperationKind.CREATE;
+                case UPDATED -> MutationOperationKind.UPDATE;
+                case DELETED -> MutationOperationKind.DELETE;
+                case RECOVERED -> MutationOperationKind.RECOVER;
+            };
+            identities.add(new BlobMutationParticipant.PersistedEntity(result.plannedEntity(),
+                    new EntityKey(persisted.typeName(), persisted.getId()), persisted.getVersion(), kind));
+        }
+        return List.copyOf(identities);
     }
 
     /** One atomic plan cannot borrow a root provider for a different entity route. */
@@ -971,7 +1039,7 @@ public class TeaQLRuntime implements AutoCloseable {
             List<MutationResult> results = mutateBatchWithTelemetry(
                     context, mutationExecutor, intent, requests, batch.getKey(), "delete");
             for (int index = 0; index < requests.size(); index++) {
-                completed.add(new PendingMutation(descriptor, targets.get(index), results.get(index),
+                completed.add(new PendingMutation(batch.getValue().get(index), descriptor, targets.get(index), results.get(index),
                         MutationAuditKind.DELETED, Collections.emptyMap(), governance, intent, requests.get(index).getTraceChain(), graphRedactions));
             }
         }
@@ -1030,7 +1098,7 @@ public class TeaQLRuntime implements AutoCloseable {
                     context, mutationExecutor, intent, requests, entityName, "save");
             for (int index = 0; index < requests.size(); index++) {
                 completed.add(new PendingMutation(
-                        descriptor, targets.get(index), results.get(index),
+                        keys.get(index), descriptor, targets.get(index), results.get(index),
                         MutationAuditKind.CREATED, snapshots.get(index), governance, intent, requests.get(index).getTraceChain(), graphRedactions));
             }
         }
@@ -1046,6 +1114,7 @@ public class TeaQLRuntime implements AutoCloseable {
             // Separate recover from update: they use different version transitions.
             Collections.sort(keys);
             for (boolean recovering : List.of(false, true)) {
+                List<EntityKey> requestKeys = new ArrayList<>();
                 List<EntityPersistenceMutation> requests = new ArrayList<>();
                 List<BaseEntity> targets = new ArrayList<>();
                 List<Map<String, Object>> snapshots = new ArrayList<>();
@@ -1070,6 +1139,7 @@ public class TeaQLRuntime implements AutoCloseable {
                     EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
                         entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(root, key, traceScopes, graphScope), target, graphRedactions);
                     requests.add(mutationRequest);
+                    requestKeys.add(key);
                     targets.add(target == null ? entity : target);
                     snapshots.add(snapshotChanges(changesWithDynamic(changeSet, key)));
                 }
@@ -1077,7 +1147,7 @@ public class TeaQLRuntime implements AutoCloseable {
                 List<MutationResult> results = mutateBatchWithTelemetry(
                         context, mutationExecutor, intent, requests, entityName, auditKind.name().toLowerCase(Locale.ROOT));
                 for (int index = 0; index < requests.size(); index++) {
-                    completed.add(new PendingMutation(descriptor, targets.get(index), results.get(index),
+                    completed.add(new PendingMutation(requestKeys.get(index), descriptor, targets.get(index), results.get(index),
                             auditKind, snapshots.get(index), governance, intent, requests.get(index).getTraceChain(), graphRedactions));
                 }
             }
@@ -1117,6 +1187,7 @@ public class TeaQLRuntime implements AutoCloseable {
     }
 
     private record PendingMutation(
+            EntityKey plannedEntity,
             EntityDescriptor descriptor,
             BaseEntity target,
             MutationResult result,
@@ -1373,6 +1444,7 @@ public class TeaQLRuntime implements AutoCloseable {
         private BusinessIdSchemaContributor businessIdSchemaContributor;
         private BusinessIdKeyProvider businessIdKeyProvider;
         private RoundTripReferenceProvider roundTripReferenceProvider;
+        private BlobMutationParticipant blobMutationParticipant;
         private BusinessClock businessClock = SystemBusinessClock.INSTANCE;
 
         public Builder metadata(EntityMetaFactory metadata) {
@@ -1455,6 +1527,15 @@ public class TeaQLRuntime implements AutoCloseable {
                 throw new IllegalStateException("Secure document reference capability is already installed");
             }
             this.roundTripReferenceProvider = java.util.Objects.requireNonNull(provider, "provider");
+            return this;
+        }
+
+        /** Installs the optional transaction participant. This alone does not advertise full blob.v1 readiness. */
+        public Builder blobMutationParticipant(BlobMutationParticipant participant) {
+            if (this.blobMutationParticipant != null) {
+                throw new IllegalStateException("Blob mutation participant is already installed");
+            }
+            this.blobMutationParticipant = Objects.requireNonNull(participant, "participant");
             return this;
         }
 
