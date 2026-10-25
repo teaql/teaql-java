@@ -58,6 +58,7 @@
         <module>teaql-query-json</module>
         <module>teaql-runtime</module>
         <module>teaql-secure-document-reference</module>
+        <module>teaql-blob-reference</module>
         <module>teaql-runtime-log</module>
         <module>teaql-context-runtime-tools</module>
         <module>teaql-tool-http</module>
@@ -173,6 +174,11 @@
             <dependency>
                 <groupId>io.teaql</groupId>
                 <artifactId>teaql-secure-document-reference</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-blob-reference</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
