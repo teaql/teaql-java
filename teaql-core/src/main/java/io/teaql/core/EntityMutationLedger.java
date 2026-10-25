@@ -16,18 +16,28 @@ public class EntityMutationLedger {
     private final Set<EntityKey> newKeys = new TreeSet<>();
     private final Map<EntityKey, List<TraceNode>> traceChains = new TreeMap<>();
     private final Map<EntityKey, Long> originalVersions = new TreeMap<>();
+    private final List<Submission> submissions = new ArrayList<>();
+    private Object submissionOwner;
+    private boolean outcomeUnknown;
 
     // --- Change Set Stack ---
 
     public void pushChangeSet() {
+        requireNoSubmissions();
         changeSets.push();
     }
 
     public EntityChangeSet popChangeSet() {
+        requireNoSubmissions();
         return changeSets.pop();
     }
 
     public void clearCurrentChangeSet() {
+        requireNoSubmissions();
+        clearWorkingChanges();
+    }
+
+    private void clearWorkingChanges() {
         changeSets.clearCurrent();
         newKeys.clear();
         deletedKeys.clear();
@@ -39,6 +49,82 @@ public class EntityMutationLedger {
         // returned by the provider, so the next mutation must capture that value.
         originalVersions.clear();
         traceChains.clear();
+    }
+
+    /** Submitted intent remains retained until the owning physical transaction resolves. */
+    public boolean hasUncommittedChanges() { return !submissions.isEmpty(); }
+    public boolean hasUnknownTransactionOutcome() { return outcomeUnknown; }
+
+    @FrameworkInternal("Validate the physical owner before a graph can write again")
+    public void requireSubmissionOwner(Object owner) {
+        if (outcomeUnknown) throw new TransactionCompletionException(TransactionCompletion.Outcome.UNKNOWN,null);
+        if (submissionOwner!=null && submissionOwner!=owner) throw new TeaQLRuntimeException("Graph has an unfinished physical transaction");
+    }
+
+    @FrameworkInternal("Retain submitted working intent while later edits form a separate batch")
+    public Submission submit(Object owner) {
+        Objects.requireNonNull(owner); requireSubmissionOwner(owner);
+        Submission value=new Submission(this,copyWorking());
+        submissionOwner=owner; submissions.add(value); clearWorkingChanges();
+        return value;
+    }
+
+    private void requireNoSubmissions() {
+        if (!submissions.isEmpty()) throw new TeaQLRuntimeException("Cannot discard an unfinished transaction journal");
+    }
+
+    private EntityMutationLedger copyWorking() {
+        EntityMutationLedger copy=new EntityMutationLedger(); copy.mergeFrom(this); copy.comment=comment; return copy;
+    }
+
+    /** A framework-owned journal ticket, never a durable commit or retry credential. */
+    public static final class Submission {
+        private final EntityMutationLedger ledger,changes;
+        private TransactionCompletion.Outcome outcome;
+        private Submission(EntityMutationLedger ledger,EntityMutationLedger changes) { this.ledger=ledger; this.changes=changes; }
+
+        @FrameworkInternal("Physical owner completion only")
+        public void complete(TransactionCompletion.Outcome value) {
+            Objects.requireNonNull(value);
+            if (outcome!=null) {
+                if (outcome==value) return;
+                throw new TeaQLRuntimeException("Transaction journal outcome cannot change");
+            }
+            if (value==TransactionCompletion.Outcome.UNKNOWN) {
+                ledger.outcomeUnknown=true; outcome=value; return;
+            }
+            if (value==TransactionCompletion.Outcome.COMMITTED) {
+                // All registered batches for this owner are physically committed.
+                // Retire their intent before the first audit delivery can reenter.
+                for (Submission pending:ledger.submissions) pending.outcome=value;
+                ledger.submissions.clear(); ledger.submissionOwner=null; return;
+            }
+            if (ledger.submissions.isEmpty() || ledger.submissions.get(ledger.submissions.size()-1)!=this) {
+                throw new TeaQLRuntimeException("Transaction journal must unwind in reverse order");
+            }
+            EntityMutationLedger later=ledger.copyWorking();
+            ledger.clearWorkingChanges(); ledger.mergeFrom(changes); ledger.mergeFrom(later);
+            // A retry guards the earliest restored database baseline, not the
+            // provisional version captured by a later batch in this transaction.
+            changes.originalVersions.forEach(ledger.originalVersions::put);
+            ledger.submissions.remove(ledger.submissions.size()-1); outcome=value;
+            if (ledger.submissions.isEmpty()) ledger.submissionOwner=null;
+        }
+    }
+
+    @FrameworkInternal("Rebase retained lifecycle intent onto the rolled-back persistence baseline")
+    public boolean rebaseAfterRollback(EntityKey key,Long version,boolean created) {
+        if (created) {
+            if (deletedKeys.remove(key)) {
+                newKeys.remove(key); recoveredKeys.remove(key); changeSets.clearEntity(key); originalVersions.remove(key); return true;
+            }
+            recoveredKeys.remove(key); newKeys.add(key); return false;
+        }
+        if (version!=null && version>0) recoveredKeys.remove(key);
+        if (version!=null && version<0 && deletedKeys.remove(key)) {
+            recoveredKeys.remove(key); changeSets.clearEntity(key);
+        }
+        return false;
     }
 
     public void set(EntityKey key, String field, Object value) {
@@ -147,6 +233,7 @@ public class EntityMutationLedger {
         boolean pending = (fields != null && !fields.isEmpty()) || other.newKeys.contains(key)
                 || other.deletedKeys.contains(key) || other.recoveredKeys.contains(key) || (dynamic != null && !dynamic.isEmpty());
         if (!pending) return false;
+        if (other.hasUncommittedChanges()) throw new TeaQLRuntimeException("Cannot move a pending graph journal to another graph");
         if (fields != null) fields.forEach((field, value) -> set(key, field, value));
         if (dynamic != null) dynamic.values().forEach(mutation -> setDynamic(key, mutation));
         if (other.deletedKeys.contains(key)) markAsDelete(key);

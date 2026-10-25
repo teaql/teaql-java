@@ -467,12 +467,19 @@ public class TeaQLRuntime implements AutoCloseable {
                 new RuntimeTelemetry.Operation("mutation", entity.typeName() + ".save", Map.of(
                         "teaql.entity.type", entity.typeName(),
                         "teaql.mutation.kind", "save")));
+        SaveCompletion[] completion={null};
         try {
             MutationIntent intent = MutationIntent.of(entity.getComment());
             validateCapabilities();
+            if (entity instanceof BaseEntity base && base.__internalHasMutationLedger() && base.getEntityMutationLedger().hasUnknownTransactionOutcome()) {
+                throw new TransactionCompletionException(TransactionCompletion.Outcome.UNKNOWN,null);
+            }
             checkAndFix(context, entity);
             // Get entity's own EntityMutationLedger
             EntityMutationLedger entityMutationLedger = ((BaseEntity) entity).getEntityMutationLedger();
+            if (entityMutationLedger.hasUnknownTransactionOutcome()) {
+                throw new TransactionCompletionException(TransactionCompletion.Outcome.UNKNOWN,null);
+            }
 
             // Allocate identifiers before roots are merged. New children commonly
             // receive their field updates while their id is still null, so those
@@ -508,6 +515,8 @@ public class TeaQLRuntime implements AutoCloseable {
             if (mutationExecutor == null) {
                 throw new TeaQLRuntimeException("No MutationExecutor registered for route: " + route);
             }
+            entityMutationLedger.requireSubmissionOwner(mutationExecutor instanceof TransactionExecutor transaction
+                    ?transaction.activeTransactionIdentity():null);
 
             Map<io.teaql.core.EntityKey, io.teaql.core.BaseEntity> realEntities = new java.util.HashMap<>();
             collectRealEntities(
@@ -515,11 +524,13 @@ public class TeaQLRuntime implements AutoCloseable {
                     realEntities,
                     Collections.newSetFromMap(new IdentityHashMap<>()));
             Map<BaseEntity, PersistenceState> persistenceStates = new IdentityHashMap<>();
+            Map<BaseEntity,BaseEntity.PendingChanges> previousChanges=new IdentityHashMap<>();
             realEntities.values().forEach(value -> persistenceStates.put(
                     value,
                     new PersistenceState(
                             value.getVersion(), value.get$status(),
-                            value.isPropertyLoaded(BaseEntity.VERSION_PROPERTY))));
+                            value.isPropertyLoaded(BaseEntity.VERSION_PROPERTY),entityMutationLedger.isNew(new EntityKey(value.typeName(),value.getId())))));
+            realEntities.values().forEach(value -> previousChanges.put(value,value.__internalSnapshotChanges()));
             MutationPlan mutationPlan = buildMutationPlan(entity, entityMutationLedger, realEntities, intent);
             requireSingleMutationRoute(mutationPlan, route);
             MutationGovernanceSnapshot governance = reviewMutationPlan(context, mutationPlan);
@@ -536,6 +547,11 @@ public class TeaQLRuntime implements AutoCloseable {
             try {
                 if (mutationExecutor instanceof TransactionExecutor transactionExecutor) {
                     completed = transactionExecutor.executeInTransaction(context, () -> {
+                        Object physicalOwner=transactionExecutor.activeTransactionIdentity();
+                        if (transactionExecutor.supportsTransactionCompletion() && physicalOwner==null) {
+                            throw new TeaQLRuntimeException("Physical transaction identity is required for graph completion");
+                        }
+                        entityMutationLedger.requireSubmissionOwner(physicalOwner);
                         BlobMutationParticipant.Prepared blobPrepared = blobPlan == null ? null
                                 : blobPlan.plan().prepare(context, blobPlan.resource());
                         if (blobPlan != null && blobPrepared == null) {
@@ -566,6 +582,21 @@ public class TeaQLRuntime implements AutoCloseable {
                         if (blobPrepared != null) {
                             blobPrepared.apply(context, blobPlan.resource(), persistedBlobEntities(results));
                         }
+                        if (transactionExecutor.supportsTransactionCompletion()) {
+                            SaveCompletion staged=new SaveCompletion(context,entityMutationLedger,physicalOwner,
+                                    results,persistenceStates,previousChanges,telemetryScope);
+                            try { transactionExecutor.afterTransaction(staged); }
+                            catch (RuntimeException | Error registrationFailure) { staged.cancel(); throw registrationFailure; }
+                            completion[0]=staged;
+                            for (PendingMutation mutation:results) {
+                                applyPersistedEntity(mutation.descriptor(),mutation.target(),mutation.result());
+                                mutation.target().__internalStartUnsubmittedChanges();
+                            }
+                            dynamicReadbacks.forEach((key,values) -> {
+                                BaseEntity target=realEntities.get(key);
+                                target.__internalHydrateDynamicFields(values,target.__internalLoadState().withDynamicSelection(values.selectedCodes()));
+                            });
+                        }
                         return results;
                     });
                 } else {
@@ -574,13 +605,12 @@ public class TeaQLRuntime implements AutoCloseable {
                             context, entityMutationLedger, mutationExecutor, realEntities, governance, intent, traceScopes, graphScope);
                 }
             } catch (RuntimeException | Error failure) {
-                restoreGraphPersistenceState(
-                        entity,
-                        entityMutationLedger,
-                        persistenceStates,
-                        Collections.newSetFromMap(new IdentityHashMap<>()));
+                if (completion[0]!=null) {
+                    if (completion[0].outcome==null) completion[0].cancel();
+                } else restoreGraphPersistenceState(entity,entityMutationLedger,persistenceStates,Collections.newSetFromMap(new IdentityHashMap<>()));
                 throw failure;
             }
+            if (completion[0]!=null) return;
             dynamicReadbacks.forEach((key, values) -> {
                 BaseEntity target = realEntities.get(key);
                 target.__internalHydrateDynamicFields(values, target.__internalLoadState().withDynamicSelection(values.selectedCodes()));
@@ -589,7 +619,7 @@ public class TeaQLRuntime implements AutoCloseable {
             entityMutationLedger.clearCurrentChangeSet();
             telemetryScope.success();
         } catch (RuntimeException | Error error) {
-            telemetryScope.failure(error);
+            if (completion[0]==null || !completion[0].telemetryFinished) telemetryScope.failure(error);
             throw error;
         }
     }
@@ -616,6 +646,7 @@ public class TeaQLRuntime implements AutoCloseable {
         if (!(executor instanceof TransactionExecutor transaction)) {
             throw new BlobException(BlobException.Code.BLOB_TRANSACTION_REQUIRED);
         }
+        if (!transaction.supportsTransactionCompletion()) throw new BlobException(BlobException.Code.BLOB_TRANSACTION_REQUIRED);
         Object resource = transaction.transactionResource();
         if (resource == null) throw new BlobException(BlobException.Code.BLOB_TRANSACTION_REQUIRED);
         BlobMutationParticipant.Plan result = participant.plan(context, plan);
@@ -783,6 +814,14 @@ public class TeaQLRuntime implements AutoCloseable {
                 && baseEntity.get$status() != io.teaql.core.EntityStatus.REFER) {
             EntityKey key = new EntityKey(baseEntity.typeName(), baseEntity.getId());
             if (baseEntity.recoverItem()) targetRoot.markAsRecover(key);
+            if (targetRoot.isNew(key)) {
+                for (EntityDescriptor descriptor=metadata.resolveEntityDescriptor(entity.typeName());descriptor!=null;descriptor=descriptor.getParent()) {
+                    for (PropertyDescriptor property:descriptor.getProperties()) {
+                        String field=property.getName();
+                        if (!field.equals("id") && !field.equals("version") && baseEntity.isPropertyLoaded(field)) targetRoot.set(key,field,baseEntity.__internalGet(field));
+                    }
+                }
+            }
             for (String property : baseEntity.getUpdatedProperties()) {
                 targetRoot.set(key, property, baseEntity.__internalGet(property));
             }
@@ -1197,7 +1236,63 @@ public class TeaQLRuntime implements AutoCloseable {
             SqlIntentRedactions redactions) {}
 
     private record PersistenceState(
-            Long version, io.teaql.core.EntityStatus status, boolean versionLoaded) {}
+            Long version, io.teaql.core.EntityStatus status, boolean versionLoaded,boolean created) {}
+
+    private record PreparedAudit(RawAuditEvent event,SqlIntentRedactions redactions) {}
+
+    private final class SaveCompletion implements TransactionCompletion {
+        private final UserContext context;
+        private final EntityMutationLedger ledger;
+        private final EntityMutationLedger.Submission submission;
+        private final Map<BaseEntity,PersistenceState> states;
+        private final Map<BaseEntity,BaseEntity.PendingChanges> previousChanges;
+        private final List<PreparedAudit> audits;
+        private final RuntimeTelemetry.Scope telemetryScope;
+        private Outcome outcome;
+        private boolean telemetryFinished;
+        SaveCompletion(UserContext context,EntityMutationLedger ledger,Object owner,List<PendingMutation> results,
+                Map<BaseEntity,PersistenceState> states,Map<BaseEntity,BaseEntity.PendingChanges> previousChanges,RuntimeTelemetry.Scope scope) {
+            this.context=context; this.ledger=ledger; this.states=states; this.previousChanges=previousChanges; telemetryScope=scope;
+            audits=results.stream().map(mutation -> new PreparedAudit(prepareAuditEvent(context,mutation.target(),mutation.result().persistedEntity(),
+                    mutation.auditKind(),mutation.changedValues(),mutation.governance(),mutation.intent(),mutation.traceChain()),mutation.redactions())).toList();
+            submission=ledger.submit(owner);
+        }
+        void cancel() { afterCompletion(Outcome.ROLLED_BACK); }
+        @Override public void afterCompletion(Outcome value) {
+            if (outcome!=null) return;
+            outcome=value; submission.complete(value);
+            if (value==Outcome.ROLLED_BACK) {
+                states.forEach((target,state) -> {
+                    EntityKey key=new EntityKey(target.typeName(),target.getId());
+                    boolean cancelled=ledger.rebaseAfterRollback(key,state.version(),state.created());
+                    if (cancelled) target.__internalStartUnsubmittedChanges();
+                    else target.__internalRestoreChanges(previousChanges.get(target));
+                    EntityStatus status=state.status();
+                    if (state.created()) status=EntityStatus.NEW;
+                    else if (ledger.isMarkedAsDelete(key)) status=EntityStatus.UPDATED_DELETED;
+                    else if (ledger.recoveredKeys().contains(key)) status=EntityStatus.UPDATED_RECOVER;
+                    else if (!ledger.currentChangeSet().fieldNames(key).isEmpty() && state.version()!=null && state.version()>0) status=EntityStatus.UPDATED;
+                    else if (state.version()!=null && state.version()<0) status=EntityStatus.PERSISTED_DELETED;
+                    else if (state.version()!=null && state.version()>0 && state.status()!=EntityStatus.REFER) status=EntityStatus.PERSISTED;
+                    target.__internalRestorePersistenceState(state.created()?null:state.version(),status,state.versionLoaded());
+                });
+            }
+            telemetryFinished=true;
+            if (value!=Outcome.COMMITTED) { telemetryScope.failure(new TransactionCompletionException(value,null)); return; }
+            telemetryScope.success();
+            Throwable failure=null;
+            for (PreparedAudit audit:audits) {
+                try { emitPreparedAuditEvent(context,audit.event(),audit.redactions()); }
+                catch (RuntimeException | Error error) {
+                    if (failure==null) failure=error;
+                    else if (error instanceof Error && !(failure instanceof Error)) { error.addSuppressed(failure); failure=error; }
+                    else if (failure!=error) failure.addSuppressed(error);
+                }
+            }
+            if (failure instanceof Error fatal) throw fatal;
+            if (failure instanceof RuntimeException failed) throw failed;
+        }
+    }
 
     private void restoreGraphPersistenceState(
             Entity entity,
@@ -1308,6 +1403,11 @@ public class TeaQLRuntime implements AutoCloseable {
             Map<String, Object> changedValues,
             MutationGovernanceSnapshot governance, MutationIntent intent, List<TraceNode> traceChain,
             SqlIntentRedactions redactions) {
+        emitPreparedAuditEvent(context,prepareAuditEvent(context,entity,entity,kind,changedValues,governance,intent,traceChain),redactions);
+    }
+
+    private RawAuditEvent prepareAuditEvent(UserContext context,Entity entity,Entity persisted,MutationAuditKind kind,
+            Map<String,Object> changedValues,MutationGovernanceSnapshot governance,MutationIntent intent,List<TraceNode> traceChain) {
         List<AuditFieldChange> changes = new ArrayList<>();
         if (changedValues != null) {
             for (Map.Entry<String, Object> entry : changedValues.entrySet()) {
@@ -1324,28 +1424,56 @@ public class TeaQLRuntime implements AutoCloseable {
                     if (mutation.kind() == io.teaql.data.dynamic.DynamicFieldMutation.Kind.SET) details.put("value", mutation.value());
                     value = Collections.unmodifiableMap(details);
                 }
-                changes.add(new AuditFieldChange(entry.getKey(), previous, value));
+                changes.add(new AuditFieldChange(entry.getKey(), snapshotAuditValue(previous), snapshotAuditValue(value)));
             }
         }
         changes.sort(Comparator.comparing(AuditFieldChange::field));
-        RawAuditEvent rawEvent = new RawAuditEvent(
+        return new RawAuditEvent(
                 kind,
-                entity.typeName(),
-                entity.getId(),
+                persisted.typeName(),
+                persisted.getId(),
                 changes,
                 traceChain,
                 context.getAttribute(GeneratedSchemaBootstrap.AUDIT_ACTOR_ATTRIBUTE, String.class),
                 context.getAttribute(GeneratedSchemaBootstrap.AUDIT_CATEGORY_ATTRIBUTE, String.class),
                 intent.auditReason(),
-                entity.getVersion(),
+                persisted.getVersion(),
                 java.time.Instant.now(),
                 governance);
+    }
+
+    Object snapshotAuditValue(Object value) {
+        return snapshotAuditValue(value,Collections.newSetFromMap(new IdentityHashMap<>()),0,new int[]{0});
+    }
+    private Object snapshotAuditValue(Object value,Set<Object> visited,int depth,int[] nodes) {
+        if (++nodes[0]>10000 || depth>32) throw new TeaQLRuntimeException("Audit value exceeds snapshot bounds");
+        if (value instanceof Entity entity) return new EntityKey(entity.typeName(),entity.getId());
+        if (value instanceof byte[] bytes) return bytes.clone();
+        if (value instanceof java.util.Date date) return new java.util.Date(date.getTime());
+        if (value instanceof com.fasterxml.jackson.databind.JsonNode json) return json.deepCopy();
+        if (!(value instanceof Map<?,?>) && !(value instanceof Collection<?>) && !(value instanceof Object[])) return value;
+        if (!visited.add(value)) throw new TeaQLRuntimeException("Cyclic audit value");
+        try {
+            if (value instanceof Map<?,?> map) {
+                Map<Object,Object> copy=new LinkedHashMap<>();
+                map.forEach((key,entry) -> copy.put(key,snapshotAuditValue(entry,visited,depth+1,nodes))); return Collections.unmodifiableMap(copy);
+            }
+            Collection<?> entries=value instanceof Collection<?> collection?collection:Arrays.asList((Object[])value);
+            List<Object> copy=new ArrayList<>(entries.size());
+            for (Object entry:entries) copy.add(snapshotAuditValue(entry,visited,depth+1,nodes));
+            return Collections.unmodifiableList(copy);
+        } finally { visited.remove(value); }
+    }
+
+    private void emitPreparedAuditEvent(UserContext context,RawAuditEvent prepared,SqlIntentRedactions redactions) {
+        RawAuditEvent rawEvent=new RawAuditEvent(prepared.kind(),prepared.entityType(),prepared.entityId(),prepared.changes(),prepared.traceChain(),
+                prepared.actor(),prepared.category(),prepared.reason(),prepared.resultingVersion(),java.time.Instant.now(),prepared.governance());
 
         RuntimeTelemetry.Scope telemetryScope = RuntimeTelemetry.startSafely(telemetry,
-                new RuntimeTelemetry.Operation("audit", entity.typeName() + ".audit", Map.of(
-                        "teaql.entity.type", entity.typeName(),
-                        "teaql.mutation.kind", kind.name().toLowerCase(Locale.ROOT),
-                        "teaql.audit.changed_field_count", changes.size())));
+                new RuntimeTelemetry.Operation("audit", rawEvent.entityType() + ".audit", Map.of(
+                        "teaql.entity.type", rawEvent.entityType(),
+                        "teaql.mutation.kind", rawEvent.kind().name().toLowerCase(Locale.ROOT),
+                        "teaql.audit.changed_field_count", rawEvent.changes().size())));
         try {
 
         // The standard sink is server-owned by TeaQLRuntime and cannot be replaced by

@@ -65,7 +65,8 @@ public class BlobS3IT {
             var asset=h.f.load(42); asset.updateProperty("document",next); h.f.failure="after-apply";
             assertThrows(IllegalStateException.class,() -> h.f.save(asset)); h.f.assertOracle(42,first);
             assertEquals(BlobState.UPLOADED_UNBOUND,h.f.find(next).state());
-            h.f.failure="audit"; assertThrows(IllegalStateException.class,() -> h.f.save(asset)); h.f.assertOracle(42,next);
+            h.f.failure="audit"; assertEquals(io.teaql.core.TransactionCompletion.Outcome.COMMITTED,
+                    assertThrows(io.teaql.core.TransactionCompletionException.class,() -> h.f.save(asset)).outcome()); h.f.assertOracle(42,next);
             assertEquals(BlobState.AVAILABLE,h.f.find(next).state()); h.f.failure="";
             assertNull(h.f.find(first).unreferencedAt());
             var last=h.f.load(43); last.updateProperty("document",null); h.f.save(last); h.f.assertOracle(43,null);

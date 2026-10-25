@@ -48,7 +48,7 @@ public class BlobMutationIntegrationTest {
     }
 
     @Test public void missingParticipantAndIncompatibleTransactionFailBeforeBusinessWrites() {
-        for (String failure : List.of("missing", "incompatible", "no-resource", "no-transaction")) {
+        for (String failure : List.of("missing", "incompatible", "no-resource", "no-transaction", "no-completion")) {
             Fixture f = new Fixture(); f.failure = failure;
             try (TeaQLRuntime runtime = f.runtime(!failure.equals("missing"))) {
                 Asset entity = asset(); entity.updateProperty("document", NEXT);
@@ -325,17 +325,27 @@ public class BlobMutationIntegrationTest {
         BlobRef business = OLD;
         BlobRef binding = OLD;
         boolean active;
+        Object physicalOwner;
+        final List<TransactionCompletion> completions=new ArrayList<>();
         Long persistedId;
         Executor(Fixture fixture) { this.fixture = fixture; }
         @Override public Object transactionResource() { return fixture.failure.equals("no-resource") ? null : this; }
+        @Override public Object activeTransactionIdentity() { return active?physicalOwner:null; }
+        @Override public boolean supportsTransactionCompletion() { return !fixture.failure.equals("no-completion"); }
+        @Override public void afterTransaction(TransactionCompletion completion) { Assert.assertTrue(active); completions.add(completion); }
         @Override public <T> T executeInTransaction(UserContext context, TransactionCallback<T> action) {
             Assert.assertFalse(active); BlobRef oldBusiness = business; BlobRef oldBinding = binding;
-            fixture.events.add("begin"); active = true;
+            fixture.events.add("begin"); active = true; physicalOwner=new Object(); completions.clear();
+            T result;
             try {
-                T result = action.doInTransaction(); fixture.fail("commit"); fixture.events.add("commit"); return result;
+                result = action.doInTransaction(); fixture.fail("commit"); fixture.events.add("commit");
             } catch (RuntimeException | Error failure) {
-                business = oldBusiness; binding = oldBinding; fixture.events.add("rollback"); throw failure;
+                business = oldBusiness; binding = oldBinding; fixture.events.add("rollback"); active=false;
+                for (int i=completions.size()-1;i>=0;i--) completions.get(i).afterCompletion(TransactionCompletion.Outcome.ROLLED_BACK);
+                throw failure;
             } finally { active = false; }
+            for (TransactionCompletion completion:completions) completion.afterCompletion(TransactionCompletion.Outcome.COMMITTED);
+            return result;
         }
         @Override public MutationResult mutate(UserContext context, PersistenceMutation mutation) {
             Assert.assertTrue(active); fixture.events.add("business");

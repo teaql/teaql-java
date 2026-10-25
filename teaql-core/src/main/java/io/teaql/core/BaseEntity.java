@@ -374,6 +374,39 @@ public class BaseEntity implements Entity {
         if (!updatedProperties.isEmpty()) updatedProperties.clear();
     }
 
+    /** Opaque retained edits for a provisional graph save, not a commit credential. */
+    public static final class PendingChanges {
+        private final Map<String,PropertyChange> properties;
+        private final Map<String,io.teaql.data.dynamic.DynamicFieldMutation> dynamic;
+        private final Map<String,DynamicFieldValue> originals;
+        private PendingChanges(BaseEntity entity) {
+            properties=new HashMap<>(entity.updatedProperties);
+            dynamic=new HashMap<>(entity.dynamicMutations);
+            originals=new HashMap<>(entity.dynamicOriginalValues);
+        }
+    }
+
+    @FrameworkInternal("Retain edits before transaction-local authoritative readback")
+    public PendingChanges __internalSnapshotChanges() { return new PendingChanges(this); }
+
+    @FrameworkInternal("A transaction journal retains the submitted batch while new edits start")
+    public void __internalStartUnsubmittedChanges() {
+        clearUpdatedProperties(); dynamicMutations=Map.of(); dynamicOriginalValues=Map.of();
+    }
+
+    @FrameworkInternal("Restore rolled-back intent without discarding later user edits")
+    public void __internalRestoreChanges(PendingChanges previous) {
+        Map<String,PropertyChange> merged=new HashMap<>(previous.properties);
+        updatedProperties.forEach((field,later) -> merged.merge(field,later,(first,last) ->
+                new PropertyChange(field,first.getOldValue(),last.getNewValue())));
+        updatedProperties=merged.isEmpty()?NO_UPDATES:new ConcurrentHashMap<>(merged);
+        Map<String,io.teaql.data.dynamic.DynamicFieldMutation> mutations=new HashMap<>(previous.dynamic);
+        mutations.putAll(dynamicMutations); dynamicMutations=mutations.isEmpty()?Map.of():mutations;
+        Map<String,DynamicFieldValue> originals=new HashMap<>(previous.originals);
+        dynamicOriginalValues.forEach((field,value) -> { if (!originals.containsKey(field)) originals.put(field,value); });
+        dynamicOriginalValues=originals.isEmpty()?Map.of():originals;
+    }
+
     public void addAction(Object action) {
         synchronized (this) {
             if (actionList == null) {
@@ -572,6 +605,7 @@ public class BaseEntity implements Entity {
         if (id != null) {
             EntityMutationLedger entityMutationLedger = getEntityMutationLedger();
             EntityKey key = new EntityKey(typeName(), id);
+            if (newItem()) entityMutationLedger.markAsNew(key);
             entityMutationLedger.set(key, propertyName, newValue);
             if (!_traceChain.isEmpty()) {
                 entityMutationLedger.setTraceChain(key, _traceChain);

@@ -246,7 +246,7 @@ public class PostgresBlobCatalogIT {
     @Test public void postCommitAuditFailureLeavesBothAuthoritativeWritesCommitted() throws Exception {
         try (Fixture f=new Fixture()) {
             BlobRef key=f.upload(); f.failure="audit";
-            assertThrows(IllegalStateException.class,() -> f.save(f.newAsset(42,key)));
+            assertEquals(TransactionCompletion.Outcome.COMMITTED,assertThrows(TransactionCompletionException.class,() -> f.save(f.newAsset(42,key))).outcome());
             f.assertOracle(42,key); assertEquals(BlobState.AVAILABLE,f.find(key).state());
             assertEquals(1L,f.scalar("SELECT count(*) FROM asset_data"));
             assertFalse(f.sql.hasActiveTransaction());
@@ -311,6 +311,8 @@ public class PostgresBlobCatalogIT {
         final TeaQLRuntime runtime;
         final AtomicLong uploadSequence=new AtomicLong();
         final AtomicLong compiledQueries=new AtomicLong(),mappedBusinessQueries=new AtomicLong();
+        final List<RawAuditEvent> audits=new CopyOnWriteArrayList<>();
+        volatile java.util.function.Consumer<RawAuditEvent> auditHook=event -> {};
         volatile String failure="";
         volatile Long prepareTransaction,businessTransaction,applyTransaction;
         volatile CountDownLatch preparedLatch,releasePrepared;
@@ -377,7 +379,8 @@ public class PostgresBlobCatalogIT {
                     .telemetry(RuntimeTelemetry.NOOP).executionLogging(false).logSink(new RuntimeLogSink() {
                         @Override public void writeExecutionLog(UserContext context,ExecutionMetadata execution) {}
                         @Override public void writeAuditEvent(UserContext context,RawAuditEvent event) {
-                            assertFalse(sql.hasActiveTransaction()); if (failure.equals("audit")) throw new IllegalStateException("audit delivery failed");
+                            assertFalse(sql.hasActiveTransaction()); audits.add(event); auditHook.accept(event);
+                            if (failure.equals("audit")) throw new IllegalStateException("audit delivery failed");
                         }
                     }).build();
         }

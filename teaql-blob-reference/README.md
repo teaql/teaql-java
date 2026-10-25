@@ -71,7 +71,8 @@ post-commit audit failure, and actual compiled/generic typed SQL hydration. It r
 `TEAQL_BLOB_TEST_PG_URL`, `TEAQL_BLOB_TEST_PG_USER`, `TEAQL_BLOB_TEST_PG_PASSWORD`, and
 `TEAQL_BLOB_TEST_FIXTURES` pointing to the shared real-file fixture directory. It does
 not establish public artifact, generated-workspace, caller-owned Java transaction
-completion or full R3 acceptance.
+completion or full R3 acceptance at that earlier component gate. The direct-JDBC
+owner now also supports the runtime journal integration described below.
 
 `BlobUploadService` receives the catalog, transport and content verifier explicitly.
 Every operation resolves its trusted target against current context metadata and
@@ -162,3 +163,15 @@ authorization revocation and physical collection recovery. Source tests require
 the S3 test variables listed in that provider's README in addition to PostgreSQL.
 Full runtime assembly and external-network validation remain pending; logical `deleted` does
 not claim destruction of deployment backups or all storage versions.
+
+`BlobOuterTransactionIT` adds caller-owned PostgreSQL transaction coverage. Runtime
+uses the physical owner completion API and a reversible submitted-intent journal:
+multiple saves consume provisional authoritative versions, later edits remain
+unsubmitted, rollback restores intent/version, and only real commit delivers frozen
+audits. Actual Blob/dynamic/ordinary fields share that SQL transaction. Commit-time
+notification failure preserves committed state; UNKNOWN blocks blind same-object
+retry pending durable reconciliation. See
+[runtime completion semantics](../teaql-runtime/TRANSACTION_COMPLETION.md).
+Blob executors without physical completion support fail before writes. Full
+cross-root pending journal transfer, graph/cascade/idempotency acceptance and
+module assembly remain pending; this component does not advertise full `blob.v1`.
