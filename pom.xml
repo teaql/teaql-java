@@ -61,6 +61,7 @@
         <module>teaql-blob-reference</module>
         <module>teaql-blob-staging-file</module>
         <module>teaql-blob-store-file</module>
+        <module>teaql-blob-store-s3</module>
         <module>teaql-blob-content-tika</module>
         <module>teaql-runtime-log</module>
         <module>teaql-context-runtime-tools</module>
@@ -187,6 +188,11 @@
             <dependency>
                 <groupId>io.teaql</groupId>
                 <artifactId>teaql-blob-store-file</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-blob-store-s3</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

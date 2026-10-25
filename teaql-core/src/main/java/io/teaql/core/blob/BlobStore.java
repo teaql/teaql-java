@@ -73,6 +73,18 @@ public interface BlobStore {
     /** Bounded immutable write. A repeated identical write may return the original generation. */
     StoredContent write(UserContext context, UploadTarget target, InputStream source, long maxBytes);
     Optional<StoredContent> stat(UserContext context, String location);
+    /**
+     * Called only after a committed catalog deleting claim. Remote publishers must close the
+     * namespace against delayed immutable writes before absence can acknowledge deletion.
+     * The default is for synchronous providers already fenced by the catalog transaction.
+     */
+    default Optional<StoredContent> sealForDeletion(UserContext context,String location,String expectedVersion) {
+        Optional<StoredContent> content=stat(context,location);
+        if (expectedVersion!=null && content.isPresent() && !expectedVersion.equals(content.orElseThrow().contentVersion())) {
+            throw new BlobException(BlobException.Code.BLOB_IDEMPOTENCY_CONFLICT);
+        }
+        return content;
+    }
     RangeContent openRange(UserContext context, String location, String expectedVersion, long offset, long length);
     List<SignedRead> signReadBatch(UserContext context, List<ReadRequest> requests);
     /** Atomic precondition. A stat followed by an unguarded delete does not implement this method. */

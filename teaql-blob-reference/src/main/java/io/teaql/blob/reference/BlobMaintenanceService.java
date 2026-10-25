@@ -66,10 +66,10 @@ public final class BlobMaintenanceService {
         var claim=catalog.claimDeletion(scope,candidate.reference(),clock.instant());
         if (claim.isEmpty()) return new Outcome(candidate.reference(),Status.NOT_ELIGIBLE,null);
         BlobCatalogRecord blob=claim.orElseThrow();
+        authorize(context,scope);
+        var observed=store.sealForDeletion(context,blob.storageLocation(),blob.contentVersion());
+        authorize(context,scope);
         if (blob.contentVersion()==null) {
-            authorize(context,scope);
-            var observed=store.stat(context,blob.storageLocation());
-            authorize(context,scope);
             if (observed.isEmpty()) {
                 catalog.finishDeletion(scope,blob.reference(),null,clock.instant());
                 return new Outcome(blob.reference(),Status.ALREADY_MISSING,null);

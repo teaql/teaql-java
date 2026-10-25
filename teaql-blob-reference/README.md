@@ -13,14 +13,15 @@ Private cache settings are explicit; automatic public caching is rejected.
 The shared policy fixtures verify these rules. The PostgreSQL catalog and save
 participant additionally have a real SQL component gate described below. Upload
 orchestration now combines actual verification with private file storage and SQL;
-S3 integration and HTTP read authorization remain pending.
+the optional versioned S3 transport now has a real backend/SQL component gate.
+Unified current-context read authorization remains pending.
 A known Key or a resolved profile is not a read/binding credential. The module does
 not yet register `blob.v1`; full runtime assembly and its remaining service gates
 are still in progress.
 
 Concrete transport remains optional. The low-level object storage SPI adds an
 explicit version-conditional-delete capability; unsupported providers reject.
-The S3 adapter uses the SDK's `DeleteObject.ifMatch` and preserves precondition
+The existing `teaql-object-storage-s3` adapter uses the SDK's `DeleteObject.ifMatch` and preserves precondition
 conflicts without an unconditional fallback, following
 [Amazon's DeleteObject contract](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html).
 The loopback HTTP/SDK negative control passes; each actual S3-compatible backend
@@ -109,8 +110,8 @@ concurrent callers, current scope/both permission layers, revocation, deadlines,
 I/O failure, empty content, changed generations and policy/deployment changes.
 Use the same environment as `PostgresBlobCatalogIT`, selecting
 `-Dtest=PostgresBlobCatalogIT,BlobUploadIT` explicitly. The module still does not
-advertise full `blob.v1`; runtime assembly, complete maintenance/recovery, authorized view
-projection, S3 and the remaining R3-R8 gates are unfinished.
+advertise full `blob.v1`; runtime assembly, authorized view projection, outer
+transaction completion and the remaining R3-R8 gates are unfinished.
 
 `BlobMaintenanceService` is explicit host-scheduled work. Its constructor starts no
 timer and performs no I/O; the host owns scheduler/worker lifecycle and supplies the
@@ -130,7 +131,10 @@ deleting row. A missing object is an idempotent success; a changed version remai
 pinned and reports a conflict, with no unconditional fallback or automatic retarget.
 An expired initiated upload with unrecorded bytes first pins the observed generation
 for deletion without claiming its contents were verified. Its row lock fences all
-public server-stream writers before the generation is observed or absence accepted.
+public synchronous server-stream writers before the generation is observed or
+absence accepted. Remote providers additionally implement `sealForDeletion` after
+the committed claim, before absent content may acknowledge deletion. The S3
+provider leaves a persistent ordinary-object fence against delayed remote PUTs.
 
 `BlobMaintenanceIT` combines the same PostgreSQL/file/verifier stack with 13 methods:
 separate lifecycle deadlines, live/shared references and historical retention floors,
@@ -151,5 +155,10 @@ with a separate current-context permission; catalog maintenance authority alone
 does not grant it. `BlobScratchIT` kills real upload/verification processes while
 leases are held, confirms active stages remain untouched, reaps abandoned scratch,
 and verifies retry through actual confirmation, SQL binding and physical collection.
-Full runtime assembly and S3 integration remain pending; logical `deleted` does
+The optional [S3 transport](../teaql-blob-store-s3/README.md) and six-method
+`BlobS3IT` gate combine actual versioned storage, ten-format verification, native
+SQL binding, rollback, committed audit failure, shared retention, abandoned uploads,
+authorization revocation and physical collection recovery. Source tests require
+the S3 test variables listed in that provider's README in addition to PostgreSQL.
+Full runtime assembly and external-network validation remain pending; logical `deleted` does
 not claim destruction of deployment backups or all storage versions.

@@ -169,8 +169,8 @@ public class BlobMaintenanceIT {
                 u.files.write(u.f.context(),u.files.createUpload(u.f.context(),session.uploadId()),new ByteArrayInputStream(u.bytes),100000);
                 u.f.clock.now=NOW.plusSeconds(5); var context=u.context();
                 var revoking=new BlobStoreDelegate(u.files) {
-                    @Override public Optional<StoredContent> stat(UserContext actor,String location) {
-                        var value=super.stat(actor,location); if (!afterDelete) actor.putAttribute("maintain",Boolean.FALSE); return value;
+                    @Override public Optional<StoredContent> sealForDeletion(UserContext actor,String location,String expectedVersion) {
+                        var value=super.sealForDeletion(actor,location,expectedVersion); if (!afterDelete) actor.putAttribute("maintain",Boolean.FALSE); return value;
                     }
                     @Override public DeleteResult deleteIfVersion(UserContext actor,String location,String version) {
                         var value=super.deleteIfVersion(actor,location,version); actor.putAttribute("maintain",Boolean.FALSE); return value;
