@@ -298,6 +298,11 @@ public class TeaQLRuntime implements AutoCloseable {
     @SuppressWarnings("unchecked")
     private <T extends Entity> Stream<T> executeForStreamResolved(
             UserContext context, SearchRequest<T> request, QueryIntent intent) {
+        var aggregations = request.getAggregations();
+        if (request.hasSimpleAgg() || (aggregations != null && !aggregations.getDimensions().isEmpty())) {
+            throw new TeaQLRuntimeException(
+                    "Entity streams require entity rows; use an aggregation or projection result for aggregate/grouped queries");
+        }
         EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
         String route = descriptor != null ? descriptor.getDataService() : null;
         if (route == null || route.isEmpty()) {
