@@ -341,9 +341,11 @@ public class BlobMutationIntegrationTest {
                 result = action.doInTransaction(); fixture.fail("commit"); fixture.events.add("commit");
             } catch (RuntimeException | Error failure) {
                 business = oldBusiness; binding = oldBinding; fixture.events.add("rollback"); active=false;
+                for (int i=completions.size()-1;i>=0;i--) completions.get(i).beforeNotifications(TransactionCompletion.Outcome.ROLLED_BACK);
                 for (int i=completions.size()-1;i>=0;i--) completions.get(i).afterCompletion(TransactionCompletion.Outcome.ROLLED_BACK);
                 throw failure;
             } finally { active = false; }
+            for (TransactionCompletion completion:completions) completion.beforeNotifications(TransactionCompletion.Outcome.COMMITTED);
             for (TransactionCompletion completion:completions) completion.afterCompletion(TransactionCompletion.Outcome.COMMITTED);
             return result;
         }

@@ -16,6 +16,36 @@ import static org.junit.Assert.*;
 
 /** Real H2 transactions with explicit non-reflective driver-boundary fault injection. */
 public class JdbcTransactionCompletionTest {
+    @Test public void allStatePreparationFinishesBeforeAnyCallbackCanReenter() throws Exception {
+        try (Fixture f=new Fixture()) {
+            List<String> events=new ArrayList<>();
+            f.sql.executeInTransaction(() -> {
+                for (String name:List.of("first","second")) f.sql.afterTransaction(new TransactionCompletion() {
+                    @Override public void beforeNotifications(Outcome outcome) { assertEquals(COMMITTED,outcome); f.assertCompleted(); events.add("prepare-"+name); }
+                    @Override public void afterCompletion(Outcome outcome) { assertTrue(events.contains("prepare-second")); events.add("deliver-"+name); }
+                });
+            });
+            assertEquals(List.of("prepare-first","prepare-second","deliver-first","deliver-second"),events);
+        }
+    }
+
+    @Test public void failedPreparationDoesNotSkipOtherStateOrDeliveryAndKeepsCommittedOutcome() throws Exception {
+        try (Fixture f=new Fixture()) {
+            List<String> events=new ArrayList<>();
+            var failure=assertThrows(TransactionCompletionException.class,() -> f.sql.executeInTransaction(() -> {
+                f.insert(1); f.sql.afterTransaction(new TransactionCompletion() {
+                    @Override public void beforeNotifications(Outcome outcome) { events.add("prepare-first"); throw new IllegalArgumentException("test preparation failure"); }
+                    @Override public void afterCompletion(Outcome outcome) { events.add("deliver-first"); }
+                });
+                f.sql.afterTransaction(new TransactionCompletion() {
+                    @Override public void beforeNotifications(Outcome outcome) { events.add("prepare-second"); }
+                    @Override public void afterCompletion(Outcome outcome) { events.add("deliver-second"); }
+                });
+            }));
+            assertEquals(COMMITTED,failure.outcome()); assertEquals(1,f.count()); assertEquals(List.of("prepare-first","prepare-second","deliver-first","deliver-second"),events);
+        }
+    }
+
     @Test public void nestedCompletionWaitsForOuterCommitAndSeesClosedResourcesAndCommittedRows() throws Exception {
         try (Fixture f=new Fixture()) {
             List<String> events=new ArrayList<>(); var service=new SqlDataServiceExecutor("test",f.sql);

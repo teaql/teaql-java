@@ -14,7 +14,10 @@ they cannot approximate completion with a nested return. Registration requires a
 active physical transaction. Constructors and capability checks do no I/O.
 
 The owner clears transaction thread state and closes its connection before
-delivering notifications. Commit notifications run in registration order.
+delivering notifications. It runs every registration's framework-only
+`beforeNotifications` state phase first, then starts delivery. State preparation
+must not run business I/O or reenter notification code. Commit notifications run
+in registration order.
 Rollback and unknown notifications run in reverse order, so staged state can be
 unwound. Every registered notification runs once even if another fails; failures
 are retained through cause/suppression. A callback can open a new independent
@@ -56,8 +59,8 @@ rollback-only, callback failure/draining/reentry and concurrent identity isolati
 PostgreSQL catalog/business writes, independent SQL oracles and a real deferred
 foreign-key failure at commit. Test DDL belongs only to its owned test schema.
 
-This is a transaction-owner substrate. Runtime graph ledger/audit completion,
-repeated saves within caller-owned transactions, reconciliation and complete Blob
-module assembly require their own integration. This API alone does not establish
-full `blob.v1` or R3 acceptance, and other adapters must implement and prove their
+The runtime graph journal now consumes the physical owner in two phases; see
+[graph completion](../teaql-runtime/TRANSACTION_COMPLETION.md). Durable
+reconciliation and complete Blob module assembly remain separate work. This API
+alone does not establish full `blob.v1` or R3 acceptance, and other adapters must implement and prove their
 own physical completion behavior.

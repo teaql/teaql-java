@@ -281,16 +281,18 @@ public class PostgresBlobCatalogIT {
 
     public static final class Asset extends BaseEntity {
         BlobRef document; String title;
+        List<Asset> children=List.of();
         @Override public String typeName() { return "Asset"; }
         @Override public void __internalSet(String field,Object value) {
             switch (field) {
                 case "document" -> { document=(BlobRef)value; markPropertyLoaded(field); }
                 case "title" -> { title=(String)value; markPropertyLoaded(field); }
+                case "children" -> { children=(List<Asset>)value; markPropertyLoaded(field); }
                 default -> super.__internalSet(field,value);
             }
         }
         @Override public Object __internalGet(String field) {
-            return switch (field) { case "document" -> document; case "title" -> title; default -> super.__internalGet(field); };
+            return switch (field) { case "document" -> document; case "title" -> title; case "children" -> children; default -> super.__internalGet(field); };
         }
     }
     static final class MutableClock extends Clock {
@@ -312,6 +314,7 @@ public class PostgresBlobCatalogIT {
         final AtomicLong uploadSequence=new AtomicLong();
         final AtomicLong compiledQueries=new AtomicLong(),mappedBusinessQueries=new AtomicLong();
         final List<RawAuditEvent> audits=new CopyOnWriteArrayList<>();
+        final List<MutationPlan> approvedPlans=new CopyOnWriteArrayList<>();
         volatile java.util.function.Consumer<RawAuditEvent> auditHook=event -> {};
         volatile String failure="";
         volatile Long prepareTransaction,businessTransaction,applyTransaction;
@@ -319,6 +322,9 @@ public class PostgresBlobCatalogIT {
         Fixture() throws Exception { this(true,BlobPolicies.defaults()); }
         Fixture(boolean migrate,BlobPolicies policies) throws Exception { this(migrate,policies,List.of("pdf")); }
         Fixture(boolean migrate,BlobPolicies policies,List<String> extensions) throws Exception {
+            this(migrate,policies,extensions,false);
+        }
+        Fixture(boolean migrate,BlobPolicies policies,List<String> extensions,boolean graph) throws Exception {
             this.policies=policies;
             spec=BlobFieldSpec.of("Asset","document",extensions,true,"default");
             String url=required("TEAQL_BLOB_TEST_PG_URL"),user=required("TEAQL_BLOB_TEST_PG_USER"),password=required("TEAQL_BLOB_TEST_PG_PASSWORD");
@@ -343,11 +349,16 @@ public class PostgresBlobCatalogIT {
             ((GenericSQLProperty)descriptor.addSimpleProperty("title",String.class)).setColumnType("VARCHAR(100)");
             BlobSQLProperty document=(BlobSQLProperty)descriptor.addSimpleProperty("document",BlobRef.class,BlobSQLProperty::new);
             document.setTableName("asset_data"); document.setColumnType("VARCHAR(128)"); document.withBlobFieldSpec(spec); metadata.register(descriptor);
+            if (graph) {
+                var relation=new io.teaql.core.meta.Relation(); relation.setName("children"); relation.setOwner(descriptor);
+                var properties=new ArrayList<>(descriptor.getProperties()); properties.add(relation); descriptor.setProperties(properties);
+            }
             var authorization=new BlobBindingAuthorization(context -> context.getAttribute("scope",BlobScope.class),
                     (context,target,kind) -> !Boolean.FALSE.equals(context.getAttribute("field")),
                     (context,target,blob) -> !Boolean.FALSE.equals(context.getAttribute("policy")));
             participant=new PostgresBlobMutationParticipant(catalog,policies,authorization,clock);
             BlobMutationParticipant observed=(context,approved) -> {
+                approvedPlans.add(approved);
                 BlobMutationParticipant.Plan plan=participant.plan(context,approved);
                 return new BlobMutationParticipant.Plan() {
                     @Override public void requireTransaction(Object resource) { plan.requireTransaction(resource); }
@@ -360,6 +371,20 @@ public class PostgresBlobCatalogIT {
                         }
                         return (current,transaction,entities) -> {
                             applyTransaction=scalar("SELECT txid_current()");
+                            if (failure.equals("terminate-before-apply")) {
+                                assertTrue(scalar("SELECT count(*) FROM asset_data")>0);
+                                long pid=scalar("SELECT pg_backend_pid()");
+                                sql.queryForList("SELECT set_config('application_name',?,true)",new Object[]{schema});
+                                var terminated=otherSql.queryForList("SELECT pg_terminate_backend(pid) AS terminated FROM pg_catalog.pg_stat_activity "
+                                        +"WHERE pid=? AND application_name=? AND usename=current_user AND datname=current_database()",new Object[]{Math.toIntExact(pid),schema});
+                                assertEquals(1,terminated.size()); assertEquals(Boolean.TRUE,terminated.get(0).get("terminated"));
+                                long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(5);
+                                while (!otherSql.queryForList("SELECT pid FROM pg_catalog.pg_stat_activity WHERE pid=? AND application_name=?",new Object[]{Math.toIntExact(pid),schema}).isEmpty()) {
+                                    if (System.nanoTime()>deadline) throw new IllegalStateException("Owned backend termination deadline");
+                                    try { Thread.sleep(10); } catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); throw new IllegalStateException(interrupted); }
+                                }
+                                throw new IllegalStateException("Owned connection terminated before binding apply");
+                            }
                             if (failure.equals("before-apply")) throw new IllegalStateException("before apply");
                             prepared.apply(current,transaction,entities);
                             if (failure.equals("after-apply")) throw new IllegalStateException("after apply");

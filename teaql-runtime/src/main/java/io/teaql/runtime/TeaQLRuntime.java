@@ -481,30 +481,6 @@ public class TeaQLRuntime implements AutoCloseable {
                 throw new TransactionCompletionException(TransactionCompletion.Outcome.UNKNOWN,null);
             }
 
-            // Allocate identifiers before roots are merged. New children commonly
-            // receive their field updates while their id is still null, so those
-            // updates cannot yet have been recorded in an EntityMutationLedger ledger.
-            assignMissingGraphIds(
-                    context, entity, Collections.newSetFromMap(new IdentityHashMap<>()));
-
-            // Merge related entities' EntityMutationLedgers into this one
-            mergeRelatedEntityMutationLedgers(
-                    entity,
-                    entityMutationLedger,
-                    Collections.newSetFromMap(new IdentityHashMap<>()));
-            recordGraphChanges(
-                    entity,
-                    entityMutationLedger,
-                    Collections.newSetFromMap(new IdentityHashMap<>()));
-
-            Map<EntityKey, MutationTraceScope> traceScopes = new HashMap<>();
-            MutationTraceScope graphScope = MutationTraceScope.append(
-                    null, entity.typeName(), entity.getId(), intent.comment());
-            traceScopes.put(new EntityKey(entity.typeName(), entity.getId()), graphScope);
-            Set<Entity> traceVisited = Collections.newSetFromMap(new IdentityHashMap<>());
-            traceVisited.add(entity);
-            visitRelatedEntities(entity, child -> collectMutationTraceScopes(child, graphScope, traceScopes, traceVisited));
-
             EntityDescriptor descriptor = metadata.resolveEntityDescriptor(entity.typeName());
             String route = descriptor.getDataService();
             if (route == null || route.isEmpty()) {
@@ -517,6 +493,32 @@ public class TeaQLRuntime implements AutoCloseable {
             }
             entityMutationLedger.requireSubmissionOwner(mutationExecutor instanceof TransactionExecutor transaction
                     ?transaction.activeTransactionIdentity():null);
+
+            Object graphOwner=mutationExecutor instanceof TransactionExecutor owner?owner.activeTransactionIdentity():null;
+
+            // Allocate identifiers before roots are merged. New children commonly
+            // receive their field updates while their id is still null, so those
+            // updates cannot yet have been recorded in an EntityMutationLedger ledger.
+            assignMissingGraphIds(
+                    context, entity, Collections.newSetFromMap(new IdentityHashMap<>()));
+
+            // Merge related entities' EntityMutationLedgers into this one
+            mergeRelatedEntityMutationLedgers(
+                    entity,
+                    entityMutationLedger,
+                    Collections.newSetFromMap(new IdentityHashMap<>()),graphOwner);
+            recordGraphChanges(
+                    entity,
+                    entityMutationLedger,
+                    Collections.newSetFromMap(new IdentityHashMap<>()));
+
+            Map<EntityKey, MutationTraceScope> traceScopes = new HashMap<>();
+            MutationTraceScope graphScope = MutationTraceScope.append(
+                    null, entity.typeName(), entity.getId(), intent.comment());
+            traceScopes.put(new EntityKey(entity.typeName(), entity.getId()), graphScope);
+            Set<Entity> traceVisited = Collections.newSetFromMap(new IdentityHashMap<>());
+            traceVisited.add(entity);
+            visitRelatedEntities(entity, child -> collectMutationTraceScopes(child, graphScope, traceScopes, traceVisited));
 
             Map<io.teaql.core.EntityKey, io.teaql.core.BaseEntity> realEntities = new java.util.HashMap<>();
             collectRealEntities(
@@ -552,6 +554,12 @@ public class TeaQLRuntime implements AutoCloseable {
                             throw new TeaQLRuntimeException("Physical transaction identity is required for graph completion");
                         }
                         entityMutationLedger.requireSubmissionOwner(physicalOwner);
+                        if (transactionExecutor.supportsTransactionCompletion()) {
+                            SaveCompletion attempt=new SaveCompletion(context,entityMutationLedger,physicalOwner,persistenceStates,previousChanges,telemetryScope);
+                            try { transactionExecutor.afterTransaction(attempt); }
+                            catch (RuntimeException | Error registrationFailure) { attempt.beforeNotifications(TransactionCompletion.Outcome.ROLLED_BACK); throw registrationFailure; }
+                            completion[0]=attempt;
+                        }
                         BlobMutationParticipant.Prepared blobPrepared = blobPlan == null ? null
                                 : blobPlan.plan().prepare(context, blobPlan.resource());
                         if (blobPlan != null && blobPrepared == null) {
@@ -583,11 +591,7 @@ public class TeaQLRuntime implements AutoCloseable {
                             blobPrepared.apply(context, blobPlan.resource(), persistedBlobEntities(results));
                         }
                         if (transactionExecutor.supportsTransactionCompletion()) {
-                            SaveCompletion staged=new SaveCompletion(context,entityMutationLedger,physicalOwner,
-                                    results,persistenceStates,previousChanges,telemetryScope);
-                            try { transactionExecutor.afterTransaction(staged); }
-                            catch (RuntimeException | Error registrationFailure) { staged.cancel(); throw registrationFailure; }
-                            completion[0]=staged;
+                            completion[0].stage(results);
                             for (PendingMutation mutation:results) {
                                 applyPersistedEntity(mutation.descriptor(),mutation.target(),mutation.result());
                                 mutation.target().__internalStartUnsubmittedChanges();
@@ -605,9 +609,7 @@ public class TeaQLRuntime implements AutoCloseable {
                             context, entityMutationLedger, mutationExecutor, realEntities, governance, intent, traceScopes, graphScope);
                 }
             } catch (RuntimeException | Error failure) {
-                if (completion[0]!=null) {
-                    if (completion[0].outcome==null) completion[0].cancel();
-                } else restoreGraphPersistenceState(entity,entityMutationLedger,persistenceStates,Collections.newSetFromMap(new IdentityHashMap<>()));
+                if (completion[0]==null) restoreGraphPersistenceState(entity,entityMutationLedger,persistenceStates,Collections.newSetFromMap(new IdentityHashMap<>()));
                 throw failure;
             }
             if (completion[0]!=null) return;
@@ -619,7 +621,9 @@ public class TeaQLRuntime implements AutoCloseable {
             entityMutationLedger.clearCurrentChangeSet();
             telemetryScope.success();
         } catch (RuntimeException | Error error) {
-            if (completion[0]==null || !completion[0].telemetryFinished) telemetryScope.failure(error);
+            if (completion[0]==null || !completion[0].telemetryFinished) {
+                telemetryScope.failure(error); if (completion[0]!=null) completion[0].telemetryFinished=true;
+            }
             throw error;
         }
     }
@@ -783,7 +787,7 @@ public class TeaQLRuntime implements AutoCloseable {
     }
 
     private void mergeRelatedEntityMutationLedgers(
-            Entity entity, EntityMutationLedger targetRoot, Set<Entity> visited) {
+            Entity entity, EntityMutationLedger targetRoot, Set<Entity> visited,Object owner) {
         if (!(entity instanceof BaseEntity) || !visited.add(entity)) {
             return;
         }
@@ -794,10 +798,10 @@ public class TeaQLRuntime implements AutoCloseable {
             EntityMutationLedger relatedRoot = relatedBase.getEntityMutationLedger();
             EntityKey relatedKey = new EntityKey(related.typeName(), related.getId());
             if (relatedBase.get$status() != EntityStatus.REFER
-                    && targetRoot.mergeEntityFrom(relatedRoot, relatedKey)) {
+                    && targetRoot.moveEntityFrom(relatedRoot, relatedKey,owner)) {
                 relatedBase.setEntityMutationLedger(targetRoot);
             }
-            mergeRelatedEntityMutationLedgers(related, targetRoot, visited);
+            mergeRelatedEntityMutationLedgers(related, targetRoot, visited,owner);
         });
     }
 
@@ -1242,27 +1246,30 @@ public class TeaQLRuntime implements AutoCloseable {
 
     private final class SaveCompletion implements TransactionCompletion {
         private final UserContext context;
-        private final EntityMutationLedger ledger;
         private final EntityMutationLedger.Submission submission;
         private final Map<BaseEntity,PersistenceState> states;
         private final Map<BaseEntity,BaseEntity.PendingChanges> previousChanges;
-        private final List<PreparedAudit> audits;
+        private List<PreparedAudit> audits=List.of();
         private final RuntimeTelemetry.Scope telemetryScope;
         private Outcome outcome;
         private boolean telemetryFinished;
-        SaveCompletion(UserContext context,EntityMutationLedger ledger,Object owner,List<PendingMutation> results,
+        private boolean notified;
+        SaveCompletion(UserContext context,EntityMutationLedger ledger,Object owner,
                 Map<BaseEntity,PersistenceState> states,Map<BaseEntity,BaseEntity.PendingChanges> previousChanges,RuntimeTelemetry.Scope scope) {
-            this.context=context; this.ledger=ledger; this.states=states; this.previousChanges=previousChanges; telemetryScope=scope;
+            this.context=context; this.states=states; this.previousChanges=previousChanges; telemetryScope=scope;
+            submission=ledger.beginSubmission(owner);
+        }
+        void stage(List<PendingMutation> results) {
             audits=results.stream().map(mutation -> new PreparedAudit(prepareAuditEvent(context,mutation.target(),mutation.result().persistedEntity(),
                     mutation.auditKind(),mutation.changedValues(),mutation.governance(),mutation.intent(),mutation.traceChain()),mutation.redactions())).toList();
-            submission=ledger.submit(owner);
+            submission.stage();
         }
-        void cancel() { afterCompletion(Outcome.ROLLED_BACK); }
-        @Override public void afterCompletion(Outcome value) {
+        @Override public void beforeNotifications(Outcome value) {
             if (outcome!=null) return;
             outcome=value; submission.complete(value);
             if (value==Outcome.ROLLED_BACK) {
                 states.forEach((target,state) -> {
+                    EntityMutationLedger ledger=target.getEntityMutationLedger();
                     EntityKey key=new EntityKey(target.typeName(),target.getId());
                     boolean cancelled=ledger.rebaseAfterRollback(key,state.version(),state.created());
                     if (cancelled) target.__internalStartUnsubmittedChanges();
@@ -1277,9 +1284,16 @@ public class TeaQLRuntime implements AutoCloseable {
                     target.__internalRestorePersistenceState(state.created()?null:state.version(),status,state.versionLoaded());
                 });
             }
-            telemetryFinished=true;
-            if (value!=Outcome.COMMITTED) { telemetryScope.failure(new TransactionCompletionException(value,null)); return; }
-            telemetryScope.success();
+            if (!telemetryFinished) {
+                telemetryFinished=true;
+                if (value==Outcome.COMMITTED) telemetryScope.success();
+                else telemetryScope.failure(new TransactionCompletionException(value,null));
+            }
+        }
+        @Override public void afterCompletion(Outcome value) {
+            beforeNotifications(value);
+            if (notified || value!=Outcome.COMMITTED) return;
+            notified=true;
             Throwable failure=null;
             for (PreparedAudit audit:audits) {
                 try { emitPreparedAuditEvent(context,audit.event(),audit.redactions()); }

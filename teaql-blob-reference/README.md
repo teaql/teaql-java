@@ -172,6 +172,8 @@ audits. Actual Blob/dynamic/ordinary fields share that SQL transaction. Commit-t
 notification failure preserves committed state; UNKNOWN blocks blind same-object
 retry pending durable reconciliation. See
 [runtime completion semantics](../teaql-runtime/TRANSACTION_COMPLETION.md).
-Blob executors without physical completion support fail before writes. Full
-cross-root pending journal transfer, graph/cascade/idempotency acceptance and
+Blob executors without physical completion support fail before writes. Shared
+pending entities can now move between graph roots under the same physical owner
+while unrelated working intent stays isolated. All graph state settles
+before audit delivery. Full graph/cascade/cross-policy/idempotency acceptance and
 module assembly remain pending; this component does not advertise full `blob.v1`.

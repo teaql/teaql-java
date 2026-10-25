@@ -5,7 +5,9 @@ commits, rolls back, or has an unknown outcome. `SqlDataServiceExecutor` exposes
 the exact owner's identity and completion capability. A nested transaction return
 does not authorize committed audit or destructive ledger cleanup.
 
-After a successful graph write, runtime retains an `EntityMutationLedger.Submission`
+Before business writes, runtime registers a recoverable attempt so a failed first
+write followed by an unconfirmed rollback cannot lose UNKNOWN protection. After a
+successful graph write, runtime retains an `EntityMutationLedger.Submission`
 containing that batch's fields, lifecycle intent, original versions and trace data.
 The current change set starts a new unsubmitted batch; the submitted intent is
 still retained in the journal. `hasUncommittedChanges()` distinguishes this state
@@ -13,7 +15,10 @@ from a completed save. Tentative authoritative IDs/versions/values are applied
 inside the transaction, so another save in the same owner can use the correct
 optimistic version. They are not a claim that the outer transaction committed.
 
-On physical commit, submitted journal batches retire before audit delivery, while
+The physical owner first runs state preparation for every registration; only
+after all graph state is settled does it deliver any completion notification.
+The preparation phase contains no business I/O or delivery reentry. On physical
+commit, submitted journal batches retire before audit delivery, while
 later unsubmitted edits remain dirty. Commit callbacks do not reapply old readback
 or erase later fields. Each batch's audit identity, resulting version, actor,
 category, reason, field values and trace are captured before later edits. Delivery
@@ -43,10 +48,15 @@ database/idempotency state and reload an appropriate graph. This in-memory guard
 does not replace durable command idempotency across process failure.
 
 Public ledger discard and change-set stack operations reject while a submission
-is pending. Moving a dirty pending journal to a different graph root also rejects
-before writes. Cross-root pending journal transfer and the complete graph/cascade
-matrix remain unfinished; this guard is not evidence that those workflows are
-implemented. Independent graph roots in one physical owner retain separate batches.
+is pending. A dirty shared entity may move between roots under the same verified
+physical owner. Only that entity's working intent moves; other unapproved fields
+remain in their source ledger. Submitted history joins a state-only cohort whose
+rollback routes each entity to its current holder in physical submission order.
+Earlier empty graph ownership is released before any audit can reenter, including
+for independent graphs under the owner. Direct unvalidated ledger reassignment,
+foreign owners and independently submitted conflicting histories reject before
+a move. Use a canonical mutable entity when composing related graphs. The full
+graph/cascade and durable idempotency matrices still require separate acceptance.
 
 Blob saves require a transaction executor with physical completion support and an
 active opaque identity. Unsupported providers reject before business writes.

@@ -439,6 +439,11 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             int size=identity.completions.size();
             for (int i=0;i<size;i++) {
                 int index=outcome==TransactionCompletion.Outcome.COMMITTED?i:size-1-i;
+                try { identity.completions.get(index).beforeNotifications(outcome); }
+                catch (RuntimeException | Error preparationFailure) { failure=appendFailure(failure,preparationFailure); }
+            }
+            for (int i=0;i<size;i++) {
+                int index=outcome==TransactionCompletion.Outcome.COMMITTED?i:size-1-i;
                 try { identity.completions.get(index).afterCompletion(outcome); }
                 catch (RuntimeException | Error notificationFailure) { failure=appendFailure(failure,notificationFailure); }
             }
