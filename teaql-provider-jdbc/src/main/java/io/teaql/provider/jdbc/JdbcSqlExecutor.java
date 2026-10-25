@@ -2,6 +2,8 @@ package io.teaql.provider.jdbc;
 
 import io.teaql.dataservice.sql.SqlExecutionAdapter;
 import io.teaql.dataservice.sql.SqlRowMapper;
+import io.teaql.core.TransactionCompletion;
+import io.teaql.core.TransactionCompletionException;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -11,6 +13,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Stream;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
@@ -21,7 +24,10 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
     // A held view retains only this token, not the executor, connection or DataSource.
     private final Object storageIdentity = new Object();
     private final ThreadLocal<Connection> transactionConnection = new ThreadLocal<>();
-    private static final class TransactionIdentity {}
+    private static final class TransactionIdentity {
+        final List<TransactionCompletion> completions=new ArrayList<>();
+        boolean rollbackOnly;
+    }
     private final ThreadLocal<TransactionIdentity> transactionIdentity = new ThreadLocal<>();
     private final List<Consumer<Connection>> connectionInitializers = new CopyOnWriteArrayList<>();
 
@@ -383,29 +389,79 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
 
     @Override
     public void executeInTransaction(Runnable action) {
+        Objects.requireNonNull(action);
         if (transactionConnection.get() != null) {
-            action.run();
+            try { action.run(); }
+            catch (RuntimeException | Error failure) {
+                transactionIdentity.get().rollbackOnly=true;
+                throw failure;
+            }
             return;
         }
-        try (Connection connection = openConnection()) {
-            boolean autoCommit = connection.getAutoCommit();
+        TransactionIdentity identity=new TransactionIdentity();
+        TransactionCompletion.Outcome outcome=TransactionCompletion.Outcome.ROLLED_BACK;
+        Connection connection=null; Boolean autoCommit=null;
+        boolean active=false,settled=false;
+        Throwable failure=null;
+        try {
+            connection=openConnection(); autoCommit=connection.getAutoCommit();
             connection.setAutoCommit(false);
             transactionConnection.set(connection);
-            transactionIdentity.set(new TransactionIdentity());
-            try {
-                action.run();
-                connection.commit();
-            } catch (RuntimeException | Error failure) {
-                connection.rollback();
-                throw failure;
-            } finally {
-                transactionConnection.remove();
-                transactionIdentity.remove();
-                connection.setAutoCommit(autoCommit);
+            transactionIdentity.set(identity); active=true;
+            action.run();
+            if (identity.rollbackOnly) throw new TransactionCompletionException(TransactionCompletion.Outcome.ROLLED_BACK,null);
+            outcome=TransactionCompletion.Outcome.UNKNOWN;
+            connection.commit();
+            outcome=TransactionCompletion.Outcome.COMMITTED; settled=true;
+        } catch (SQLException | RuntimeException | Error operationFailure) {
+            failure=operationFailure;
+            if (active && outcome!=TransactionCompletion.Outcome.COMMITTED) {
+                try { connection.rollback(); settled=true; }
+                catch (SQLException | RuntimeException | Error rollbackFailure) {
+                    outcome=TransactionCompletion.Outcome.UNKNOWN;
+                    failure=appendFailure(failure,rollbackFailure);
+                }
             }
-        } catch (SQLException e) {
-            throw new RuntimeException("JDBC transaction failed", e);
+        } finally {
+            transactionConnection.remove(); transactionIdentity.remove();
+            if (connection!=null) {
+                // Changing autoCommit may itself commit. Never do so until a commit
+                // or rollback returned successfully, including after commit errors.
+                if (settled && autoCommit!=null) {
+                    try { connection.setAutoCommit(autoCommit); }
+                    catch (SQLException | RuntimeException | Error resetFailure) { failure=appendFailure(failure,resetFailure); }
+                }
+                try { connection.close(); }
+                catch (SQLException | RuntimeException | Error closeFailure) { failure=appendFailure(failure,closeFailure); }
+            }
         }
+        try {
+            int size=identity.completions.size();
+            for (int i=0;i<size;i++) {
+                int index=outcome==TransactionCompletion.Outcome.COMMITTED?i:size-1-i;
+                try { identity.completions.get(index).afterCompletion(outcome); }
+                catch (RuntimeException | Error notificationFailure) { failure=appendFailure(failure,notificationFailure); }
+            }
+        } finally { identity.completions.clear(); }
+        if (failure instanceof Error fatal) throw fatal;
+        if (failure!=null) {
+            if (outcome==TransactionCompletion.Outcome.ROLLED_BACK && failure instanceof RuntimeException known) throw known;
+            throw new TransactionCompletionException(outcome,failure);
+        }
+    }
+
+    private static Throwable appendFailure(Throwable first,Throwable next) {
+        if (first==null) return next;
+        if (next instanceof Error && !(first instanceof Error)) { next.addSuppressed(first); return next; }
+        if (first!=next) first.addSuppressed(next);
+        return first;
+    }
+
+    @Override public boolean supportsTransactionCompletion() { return true; }
+    @Override public void afterTransaction(TransactionCompletion completion) {
+        TransactionIdentity identity=transactionIdentity.get();
+        if (identity==null || transactionConnection.get()==null) throw new IllegalStateException("An active physical transaction is required");
+        identity.completions.add(Objects.requireNonNull(completion));
     }
 
     @Override public boolean hasActiveTransaction() { return transactionConnection.get() != null; }
