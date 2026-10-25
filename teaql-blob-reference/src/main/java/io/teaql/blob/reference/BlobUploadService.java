@@ -74,13 +74,17 @@ public final class BlobUploadService {
     }
     public WriteReceipt write(UserContext context,String uploadId,InputStream source) {
         BlobCatalogRecord blob=upload(context,uploadId,WRITE); requireWriteTime(blob);
-        if (blob.policy().uploadMode()!=BlobPolicyProfile.UploadMode.SERVER_STREAM) throw new BlobException(BLOB_CAPABILITY_MISSING);
-        BlobStore.UploadTarget target=store.createUpload(context,blob.uploadId()); requireLocation(blob,target);
-        BlobStore.StoredContent content=store.write(context,target,new DeadlineInput(source,blob.uploadExpiresAt()),maximum(blob));
-        requireScope(context,blob); requireWriteTime(blob);
-        authorization.require(context,blob.uploadTarget(),WRITE,new FileInfo(blob.originalName(),content.sizeBytes(),null));
-        catalog.recordWrite(blob.scope(),blob.reference(),content,clock.instant());
-        return new WriteReceipt(blob.uploadId(),content.sizeBytes());
+        return catalog.withUploadLock(blob.scope(),blob.reference(),locked -> {
+            requireScope(context,locked); requireWriteTime(locked);
+            authorization.require(context,locked.uploadTarget(),WRITE,new FileInfo(locked.originalName(),locked.sizeBytes(),locked.contentType()));
+            if (locked.policy().uploadMode()!=BlobPolicyProfile.UploadMode.SERVER_STREAM) throw new BlobException(BLOB_CAPABILITY_MISSING);
+            BlobStore.UploadTarget target=store.createUpload(context,locked.uploadId()); requireLocation(locked,target);
+            BlobStore.StoredContent content=store.write(context,target,new DeadlineInput(source,locked.uploadExpiresAt()),maximum(locked));
+            requireScope(context,locked); requireWriteTime(locked);
+            authorization.require(context,locked.uploadTarget(),WRITE,new FileInfo(locked.originalName(),content.sizeBytes(),null));
+            catalog.recordWrite(locked.scope(),locked.reference(),content,clock.instant());
+            return new WriteReceipt(locked.uploadId(),content.sizeBytes());
+        });
     }
     public BlobRef complete(UserContext context,String uploadId) {
         BlobCatalogRecord blob=upload(context,uploadId,CONFIRM);

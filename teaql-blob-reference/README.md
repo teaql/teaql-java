@@ -59,7 +59,8 @@ checks scope/formats/size/state/deadlines/sharing, and applies changes before co
 Empty/deleted target rows retain monotonic binding versions; a retired Key supports
 authoritative recovery and grants no read authority. Accepted retention maxima survive
 unbind. A logical deleting claim rechecks live references under the same object lock;
-physical version-conditional deletion is still a separate pending maintenance stage.
+the explicit maintenance service performs physical version-conditional deletion
+after that claim commits.
 
 The explicit opt-in `PostgresBlobCatalogIT` suite runs against a real PostgreSQL:
 native business saves plus independent-connection SQL oracles, commit/rollback,
@@ -82,7 +83,11 @@ snapshot, while current deployment hard limits and disabled formats still apply.
 
 Write is bounded, checks the session deadline during stream reads, preserves caller
 stream ownership, and records immutable storage version/size/hash without making
-the object bindable. Complete opens that exact version, verifies actual MIME,
+the object bindable. Server-stream publication holds the upload's catalog row lock
+through immutable storage write and fact recording. This fences a collection claim
+against an in-flight upload, including a file published just before a deadline or
+failed database acknowledgement. Host transports still own stalled-input timeouts;
+deadline checks occur around source reads. Complete opens that exact version, verifies actual MIME,
 container, size and digest, then rechecks current authorization/deadline before
 promoting to `uploaded_unbound`. Request MIME/size hints never supply actual facts.
 Failed verification leaves the upload initiated for bounded later collection.
@@ -104,5 +109,42 @@ concurrent callers, current scope/both permission layers, revocation, deadlines,
 I/O failure, empty content, changed generations and policy/deployment changes.
 Use the same environment as `PostgresBlobCatalogIT`, selecting
 `-Dtest=PostgresBlobCatalogIT,BlobUploadIT` explicitly. The module still does not
-advertise full `blob.v1`; runtime assembly, maintenance/recovery, authorized view
+advertise full `blob.v1`; runtime assembly, complete maintenance/recovery, authorized view
 projection, S3 and the remaining R3-R8 gates are unfinished.
+
+`BlobMaintenanceService` is explicit host-scheduled work. Its constructor starts no
+timer and performs no I/O; the host owns scheduler/worker lifecycle and supplies the
+current context on each run. A required maintenance permission and scope provider
+authorize each stage, including after storage I/O. Missing/revoked authorization
+fails with `BLOB_MAINTENANCE_DENIED`. Maintenance rejects a caller-owned active SQL
+transaction so no file can be deleted on the strength of an uncommitted claim.
+
+Each batch processes at most its configured candidate count (default 100, maximum
+1,000). A scoped
+continuation cursor lets the host advance past persistent failures and restart a
+new sweep when `next` is absent. Candidate discovery uses accepted upload/retention
+snapshots; locking and reference/deadline rechecks remain authoritative. The service
+commits `deleting`, performs the provider's atomic version-conditional delete, then
+commits `deleted` and its timestamp. Store/catalog failures leave a recoverable
+deleting row. A missing object is an idempotent success; a changed version remains
+pinned and reports a conflict, with no unconditional fallback or automatic retarget.
+An expired initiated upload with unrecorded bytes first pins the observed generation
+for deletion without claiming its contents were verified. Its row lock fences all
+public server-stream writers before the generation is observed or absence accepted.
+
+`BlobMaintenanceIT` combines the same PostgreSQL/file/verifier stack with 13 methods:
+separate lifecycle deadlines, live/shared references and historical retention floors,
+failure before/after delete, failed catalog acknowledgement, scope/permission/cursor
+checks, version conflicts, current revocation, in-flight publication and binding
+competition, concurrent confirmation and its independent unbound deadline,
+concurrent collectors, and an explicitly started/stopped host timer.
+Owned separate JVMs call `Runtime.halt` after a committed claim and after actual
+file deletion; a new service instance recovers the durable directory state. Probe
+credentials stay in the inherited environment, and all owned children are reaped.
+Select `-Dtest=PostgresBlobCatalogIT,BlobUploadIT,BlobMaintenanceIT` explicitly.
+
+This collector supports server-stream uploads. Direct upload needs a provider's
+proven request quiescence/fencing before collection and currently rejects explicitly.
+Provider scratch files left by a process crash (file upload/Tika staging), full
+runtime assembly and S3 integration are still pending; logical `deleted` does not
+claim destruction of deployment backups or all storage versions.

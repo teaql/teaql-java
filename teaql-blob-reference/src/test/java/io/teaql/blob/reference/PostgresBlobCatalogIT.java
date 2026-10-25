@@ -419,7 +419,7 @@ public class PostgresBlobCatalogIT {
     private static String required(String name) {
         String value=System.getenv(name); if (value==null || value.isBlank()) throw new IllegalStateException("Integration environment missing: "+name); return value;
     }
-    private static final class TestDataSource implements DataSource {
+    static final class TestDataSource implements DataSource {
         private final String url,user,password,schema;
         TestDataSource(String url,String user,String password,String schema) { this.url=url; this.user=user; this.password=password; this.schema=schema; }
         @Override public Connection getConnection() throws SQLException {

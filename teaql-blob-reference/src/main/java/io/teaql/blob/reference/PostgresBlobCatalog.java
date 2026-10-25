@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.Supplier;
+import java.util.function.Function;
 import static io.teaql.core.blob.BlobException.Code.*;
 
 /** PostgreSQL catalog. Binding operations borrow the business adapter and never own its commit. */
@@ -31,6 +32,18 @@ public final class PostgresBlobCatalog {
     }
     void requireActive(Object resource, Object transaction) {
         if (requireActive(resource) != transaction) throw new BlobException(BLOB_TRANSACTION_REQUIRED);
+    }
+    void requireNoActiveTransaction() {
+        if (sql.hasActiveTransaction() || sql.activeTransactionIdentity()!=null) throw new BlobException(BLOB_TRANSACTION_REQUIRED);
+    }
+
+    /** Fences server-stream publication against a committed deletion claim, including failed writes. */
+    <T> T withUploadLock(BlobScope scope,BlobRef reference,Function<BlobCatalogRecord,T> operation) {
+        return transaction(() -> {
+            validateSchema(); BlobCatalogRecord blob=lockBlob(scope,reference);
+            if (blob.state()==BlobState.DELETING || blob.state()==BlobState.DELETED) throw new BlobException(BLOB_UPLOAD_EXPIRED);
+            return operation.apply(blob);
+        });
     }
 
     /** Fixed infrastructure migration, separate from model ensureSchema and from installation. */
@@ -258,6 +271,7 @@ public final class PostgresBlobCatalog {
     /** Atomic logical claim only; the maintenance service must subsequently perform version-conditional storage deletion. */
     @FrameworkInternal("Maintenance only; not a physical deletion acknowledgement")
     public Optional<BlobCatalogRecord> claimDeletion(BlobScope scope, BlobRef key, Instant now) {
+        requireNoActiveTransaction();
         return transaction(() -> {
             validateSchema(); BlobCatalogRecord blob=lockBlob(scope,key);
             Instant eligible=blob.unreferencedAt()==null?null:BlobRetention.unreferencedEligibleAt(blob.unreferencedAt(),
@@ -267,6 +281,55 @@ public final class PostgresBlobCatalog {
             }
             update("UPDATE teaql_blob_object SET state='deleting' WHERE blob_key=?",key.key());
             return Optional.of(lockBlob(scope,key));
+        });
+    }
+
+    /** Bounded scoped scan; a continuation key lets failed deletions coexist with forward progress. */
+    List<BlobCatalogRecord> deletionCandidates(BlobScope scope,BlobRef after,Instant now,int limit) {
+        requireNoActiveTransaction();
+        if (limit<1 || limit>1000) throw new BlobException(BLOB_POLICY_INVALID);
+        return guarded(() -> {
+            validateSchema();
+            return query("SELECT o.* FROM teaql_blob_object o WHERE o.scope_realm=? AND o.scope_boundary=? AND o.blob_key>? AND ("
+                    + "o.state='deleting' OR (o.state='initiated' AND o.upload_expires_at<=?) OR "
+                    + "(o.state='uploaded_unbound' AND o.completed_at::numeric+(o.policy_json::jsonb->>'unbound')::numeric*1000<=?) OR "
+                    + "(o.state='available' AND o.unreferenced_at IS NOT NULL AND o.unreferenced_at::numeric+o.effective_unref_seconds::numeric*1000<=? "
+                    + "AND (o.retention_floor_at IS NULL OR o.retention_floor_at<=?))) "
+                    + "AND NOT EXISTS (SELECT 1 FROM teaql_blob_binding b WHERE b.blob_key=o.blob_key) ORDER BY o.blob_key LIMIT ?",
+                    scope.realm(),scope.boundary(),after==null?"":after.key(),millis(now),millis(now),millis(now),millis(now),limit)
+                    .stream().map(PostgresBlobCatalog::record).toList();
+        });
+    }
+
+    /** Pins a previously unrecorded abandoned generation once; never retargets a known version. */
+    BlobCatalogRecord captureDeletionContent(BlobScope scope,BlobRef key,BlobStore.StoredContent content) {
+        requireNoActiveTransaction();
+        return transaction(() -> {
+            validateSchema(); BlobCatalogRecord blob=lockBlob(scope,key);
+            if (blob.state()==BlobState.DELETED) return blob;
+            if (blob.state()!=BlobState.DELETING || bindingCount(key)!=0) throw new BlobException(BLOB_IDEMPOTENCY_CONFLICT);
+            if (!blob.storageLocation().equals(content.location())) throw new BlobException(BLOB_REFERENCE_INVALID);
+            if (blob.contentVersion()!=null) {
+                if (!blob.contentVersion().equals(content.contentVersion())) throw new BlobException(BLOB_IDEMPOTENCY_CONFLICT);
+                return blob;
+            }
+            update("UPDATE teaql_blob_object SET content_version=?,size_bytes=?,sha256=? WHERE blob_key=?",
+                    content.contentVersion(),content.sizeBytes(),content.sha256(),key.key());
+            return lockBlob(scope,key);
+        });
+    }
+
+    /** Acknowledges only the pinned generation, after the transport's conditional delete/missing result. */
+    BlobCatalogRecord finishDeletion(BlobScope scope,BlobRef key,String expectedVersion,Instant now) {
+        requireNoActiveTransaction();
+        return transaction(() -> {
+            validateSchema(); BlobCatalogRecord blob=lockBlob(scope,key);
+            if (blob.state()==BlobState.DELETED) return blob;
+            if (blob.state()!=BlobState.DELETING || bindingCount(key)!=0 || !Objects.equals(blob.contentVersion(),expectedVersion)) {
+                throw new BlobException(BLOB_IDEMPOTENCY_CONFLICT);
+            }
+            update("UPDATE teaql_blob_object SET state='deleted',deleted_at=? WHERE blob_key=?",millis(now),key.key());
+            return lockBlob(scope,key);
         });
     }
 

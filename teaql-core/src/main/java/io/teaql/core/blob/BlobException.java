@@ -9,7 +9,7 @@ public final class BlobException extends RuntimeException {
         BLOB_BIND_DENIED, BLOB_READ_DENIED, BLOB_NOT_FOUND, BLOB_TRANSACTION_REQUIRED,
         BLOB_SIGN_FAILED, BLOB_IDEMPOTENCY_CONFLICT, BLOB_SELECTION_INVALID,
         BLOB_SELECTION_SCOPE_MISMATCH, BLOB_SELECTION_EXPIRED, BLOB_CATALOG_FAILED, BLOB_STORE_FAILED,
-        BLOB_VERIFICATION_BUSY
+        BLOB_VERIFICATION_BUSY, BLOB_MAINTENANCE_DENIED
     }
     private final Code code;
     public BlobException(Code code) { super(java.util.Objects.requireNonNull(code).name()); this.code = code; }
