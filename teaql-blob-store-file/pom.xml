@@ -1,0 +1,18 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent><groupId>io.teaql</groupId><artifactId>teaql-java-parent</artifactId><version>1.555-RELEASE</version></parent>
+    <artifactId>teaql-blob-store-file</artifactId>
+    <description>Explicit filesystem Blob store and optional HTTP read gateway</description>
+    <properties><argLine></argLine></properties>
+    <dependencies>
+        <dependency><groupId>io.teaql</groupId><artifactId>teaql-core</artifactId></dependency>
+        <dependency><groupId>junit</groupId><artifactId>junit</artifactId><scope>test</scope></dependency>
+    </dependencies>
+    <build><plugins><plugin><artifactId>maven-compiler-plugin</artifactId><executions><execution>
+        <id>default-testCompile</id><configuration>
+            <compilerArgs><arg>--add-modules</arg><arg>java.net.http</arg><arg>--add-reads</arg><arg>io.teaql.blob.store.file=java.net.http</arg></compilerArgs>
+        </configuration>
+    </execution></executions></plugin><plugin><artifactId>maven-surefire-plugin</artifactId><configuration>
+        <argLine>@{argLine} --add-modules java.net.http --add-reads io.teaql.blob.store.file=java.net.http</argLine>
+    </configuration></plugin></plugins></build>
+</project>
