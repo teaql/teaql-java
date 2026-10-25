@@ -1,4 +1,4 @@
-package io.teaql.runtime.reference;
+package io.teaql.secure.document.reference;
 
 public final class RoundTripReferenceConfiguration {
     public static final String RAW_ID_ENV = "TEAQL_UNSAFE_EXPOSE_RAW_ENTITY_IDS";

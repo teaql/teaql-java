@@ -11,10 +11,11 @@ import io.teaql.core.reference.RoundTripReferenceException;
 import io.teaql.core.reference.TrustedReferencePrincipal;
 import io.teaql.runtime.DefaultUserContext;
 import io.teaql.runtime.TeaQLRuntime;
-import io.teaql.runtime.reference.AeadRoundTripReferenceProvider;
-import io.teaql.runtime.reference.DeploymentProfile;
-import io.teaql.runtime.reference.RoundTripReferenceKey;
-import io.teaql.runtime.reference.StaticRoundTripReferenceKeyProvider;
+import io.teaql.secure.document.reference.SecureDocumentReferenceModule;
+import io.teaql.secure.document.reference.AeadRoundTripReferenceProvider;
+import io.teaql.secure.document.reference.DeploymentProfile;
+import io.teaql.secure.document.reference.RoundTripReferenceKey;
+import io.teaql.secure.document.reference.StaticRoundTripReferenceKeyProvider;
 import java.time.Duration;
 import java.util.Arrays;
 import org.junit.Test;
@@ -43,9 +44,8 @@ public class SecurityFoundationsExampleTest {
                 "test-a",
                 new StaticRoundTripReferenceKeyProvider(new RoundTripReferenceKey("k2", key)),
                 (context, principal, scope, identity) -> {});
-        TeaQLRuntime runtime = TeaQLRuntime.builder()
-                .metadata(new SimpleEntityMetaFactory())
-                .roundTripReferenceProvider(provider)
+        TeaQLRuntime runtime = SecureDocumentReferenceModule.of(provider)
+                .installInto(TeaQLRuntime.builder().metadata(new SimpleEntityMetaFactory()))
                 .build();
         UserContext context = new DefaultUserContext(runtime).withTrustedReferencePrincipal(
                 new TrustedReferencePrincipal("oidc", "alice", "Platform", 7));

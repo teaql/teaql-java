@@ -1,4 +1,4 @@
-package io.teaql.runtime.reference;
+package io.teaql.secure.document.reference;
 
 public enum DeploymentProfile {
     DEVELOPMENT("development"), TEST("test"), PRODUCTION("production");

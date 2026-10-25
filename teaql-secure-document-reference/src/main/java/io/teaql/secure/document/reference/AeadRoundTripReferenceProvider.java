@@ -1,4 +1,4 @@
-package io.teaql.runtime.reference;
+package io.teaql.secure.document.reference;
 
 import io.teaql.core.UserContext;
 import io.teaql.core.reference.ExternalEntityReference;

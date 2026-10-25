@@ -43,6 +43,7 @@ public class TeaQLRuntime implements AutoCloseable {
             new java.util.concurrent.CopyOnWriteArrayList<>();
     private final Set<String> emittedMutationGovernanceWarnings =
             java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final Set<String> requiredCapabilities = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private TeaQLRuntime(Builder builder) {
         this.metadata = builder.metadata;
@@ -152,7 +153,17 @@ public class TeaQLRuntime implements AutoCloseable {
         module.install(metadata);
         module.checkers().forEach(checker -> checkers.put(checker.type(), checker));
         generatedBootstraps.addAll(module.bootstraps());
+        requiredCapabilities.addAll(module.requiredCapabilities());
         return this;
+    }
+
+    /** Explicit readiness after passive business and infrastructure assembly. Never creates a schema. */
+    public void validateCapabilities() {
+        for (String capability : requiredCapabilities) {
+            if ("secure_document.v1".equals(capability) && roundTripReferenceCodec != null) continue;
+            String code = "blob.v1".equals(capability) ? "BLOB_CAPABILITY_MISSING" : "VIEW_CAPABILITY_MISSING";
+            throw new TeaQLRuntimeException(code + ": required capability " + capability + " is not installed");
+        }
     }
 
     GeneratedSchemaBootstrap getGeneratedSchemaBootstrap() {
@@ -1440,6 +1451,9 @@ public class TeaQLRuntime implements AutoCloseable {
 
         /** Installs context-bound identity serialization without coupling it to a Web framework. */
         public Builder roundTripReferenceProvider(RoundTripReferenceProvider provider) {
+            if (this.roundTripReferenceProvider != null) {
+                throw new IllegalStateException("Secure document reference capability is already installed");
+            }
             this.roundTripReferenceProvider = java.util.Objects.requireNonNull(provider, "provider");
             return this;
         }
