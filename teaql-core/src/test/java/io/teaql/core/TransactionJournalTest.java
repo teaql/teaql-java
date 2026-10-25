@@ -8,6 +8,15 @@ import static org.junit.Assert.*;
 public class TransactionJournalTest {
     private static final EntityKey KEY=new EntityKey("Asset",42L);
 
+    @Test public void entityScopedPendingHistoryDoesNotConfuseUnrelatedWorkingOrJoinedMembers() {
+        var first=new EntityMutationLedger(); var second=new EntityMutationLedger(); Object owner=new Object(); var other=new EntityKey("Asset",43L);
+        first.set(KEY,"document","submitted"); var ticket=first.submit(owner); first.set(other,"title","unsubmitted"); first.set(KEY,"title","later");
+        assertTrue(first.hasUncommittedChanges(KEY)); assertFalse(first.hasUncommittedChanges(other));
+        second.moveEntityFrom(first,KEY,owner); assertTrue(second.hasUncommittedChanges(KEY)); assertFalse(second.hasUncommittedChanges(other));
+        ticket.complete(COMMITTED); assertFalse(first.hasUncommittedChanges(KEY)); assertFalse(second.hasUncommittedChanges(KEY));
+        assertEquals("unsubmitted",first.get(other,"title")); assertEquals("later",second.get(KEY,"title"));
+    }
+
     @Test public void committedJournalRetiresSubmittedBatchesAndPreservesLaterUnsubmittedEdits() {
         var ledger=new EntityMutationLedger(); Object owner=new Object(); ledger.set(KEY,"document","first");
         var first=ledger.submit(owner); assertTrue(ledger.hasUncommittedChanges()); assertTrue(ledger.currentChangeSet().isEmpty());

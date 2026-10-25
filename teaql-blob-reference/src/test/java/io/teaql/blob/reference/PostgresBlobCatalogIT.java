@@ -280,19 +280,20 @@ public class PostgresBlobCatalogIT {
     }
 
     public static final class Asset extends BaseEntity {
-        BlobRef document; String title;
+        BlobRef document,preview; String title;
         List<Asset> children=List.of();
         @Override public String typeName() { return "Asset"; }
         @Override public void __internalSet(String field,Object value) {
             switch (field) {
                 case "document" -> { document=(BlobRef)value; markPropertyLoaded(field); }
+                case "preview" -> { preview=(BlobRef)value; markPropertyLoaded(field); }
                 case "title" -> { title=(String)value; markPropertyLoaded(field); }
                 case "children" -> { children=(List<Asset>)value; markPropertyLoaded(field); }
                 default -> super.__internalSet(field,value);
             }
         }
         @Override public Object __internalGet(String field) {
-            return switch (field) { case "document" -> document; case "title" -> title; case "children" -> children; default -> super.__internalGet(field); };
+            return switch (field) { case "document" -> document; case "preview" -> preview; case "title" -> title; case "children" -> children; default -> super.__internalGet(field); };
         }
     }
     static final class MutableClock extends Clock {
@@ -315,6 +316,7 @@ public class PostgresBlobCatalogIT {
         final AtomicLong compiledQueries=new AtomicLong(),mappedBusinessQueries=new AtomicLong(),blobReadQueries=new AtomicLong();
         final List<RawAuditEvent> audits=new CopyOnWriteArrayList<>();
         final List<MutationPlan> approvedPlans=new CopyOnWriteArrayList<>();
+        volatile java.util.function.Consumer<List<Map<String,Object>>> candidateReadHook=rows -> {};
         volatile java.util.function.Consumer<RawAuditEvent> auditHook=event -> {};
         volatile String failure="";
         volatile Long prepareTransaction,businessTransaction,applyTransaction;
@@ -325,6 +327,9 @@ public class PostgresBlobCatalogIT {
             this(migrate,policies,extensions,false);
         }
         Fixture(boolean migrate,BlobPolicies policies,List<String> extensions,boolean graph) throws Exception {
+            this(migrate,policies,extensions,graph,false);
+        }
+        Fixture(boolean migrate,BlobPolicies policies,List<String> extensions,boolean graph,boolean multiFields) throws Exception {
             this.policies=policies;
             spec=BlobFieldSpec.of("Asset","document",extensions,true,"default");
             String url=required("TEAQL_BLOB_TEST_PG_URL"),user=required("TEAQL_BLOB_TEST_PG_USER"),password=required("TEAQL_BLOB_TEST_PG_PASSWORD");
@@ -337,11 +342,14 @@ public class PostgresBlobCatalogIT {
                 @Override public List<Map<String,Object>> queryForList(String statement,Object[] parameters) {
                     if (statement.contains(" AS read_entity")) blobReadQueries.incrementAndGet();
                     if (statement.startsWith("SELECT ") && statement.contains("asset_data")) mappedBusinessQueries.incrementAndGet();
-                    return super.queryForList(statement,parameters);
+                    var rows=super.queryForList(statement,parameters);
+                    if (statement.startsWith("SELECT o.* FROM teaql_blob_object o WHERE")) candidateReadHook.accept(rows);
+                    return rows;
                 }
             };
             otherSql=new JdbcSqlExecutor(dataSource); catalog=new PostgresBlobCatalog(sql);
             sql.execute("CREATE TABLE asset_data(id BIGINT PRIMARY KEY, version BIGINT NOT NULL, document VARCHAR(128), title VARCHAR(100) CHECK (title <> 'fail'))");
+            if (multiFields) sql.execute("ALTER TABLE asset_data ADD COLUMN preview VARCHAR(128)");
             if (migrate) catalog.migrate();
             SimpleEntityMetaFactory metadata=new SimpleEntityMetaFactory(); SQLEntityDescriptor descriptor=new SQLEntityDescriptor();
             descriptor.setType("Asset"); descriptor.setEntitySupplier(Asset::new); descriptor.setTargetType(Asset.class);
@@ -350,13 +358,18 @@ public class PostgresBlobCatalogIT {
             ((GenericSQLProperty)descriptor.addSimpleProperty("title",String.class)).setColumnType("VARCHAR(100)");
             BlobSQLProperty document=(BlobSQLProperty)descriptor.addSimpleProperty("document",BlobRef.class,BlobSQLProperty::new);
             document.setTableName("asset_data"); document.setColumnType("VARCHAR(128)"); document.withBlobFieldSpec(spec); metadata.register(descriptor);
+            if (multiFields) {
+                BlobSQLProperty preview=(BlobSQLProperty)descriptor.addSimpleProperty("preview",BlobRef.class,BlobSQLProperty::new);
+                preview.setTableName("asset_data"); preview.setColumnType("VARCHAR(128)");
+                preview.withBlobFieldSpec(BlobFieldSpec.of("Asset","preview",extensions,true,"default"));
+            }
             if (graph) {
                 var relation=new io.teaql.core.meta.Relation(); relation.setName("children"); relation.setOwner(descriptor);
                 var properties=new ArrayList<>(descriptor.getProperties()); properties.add(relation); descriptor.setProperties(properties);
             }
             var authorization=new BlobBindingAuthorization(context -> context.getAttribute("scope",BlobScope.class),
-                    (context,target,kind) -> !Boolean.FALSE.equals(context.getAttribute("field")),
-                    (context,target,blob) -> !Boolean.FALSE.equals(context.getAttribute("policy")));
+                    (context,target,kind) -> !Boolean.FALSE.equals(context.getAttribute("field")) && !target.equals(context.getAttribute("deniedTarget")),
+                    (context,target,blob) -> !Boolean.FALSE.equals(context.getAttribute("policy")) && !target.equals(context.getAttribute("deniedPolicyTarget")));
             participant=new PostgresBlobMutationParticipant(catalog,policies,authorization,clock);
             BlobMutationParticipant observed=(context,approved) -> {
                 approvedPlans.add(approved);
@@ -420,6 +433,7 @@ public class PostgresBlobCatalogIT {
         Asset load(long id) {
             var row=row(id); Asset asset=new Asset(); asset.__internalSet("id",id); asset.__internalSet("version",((Number)row.get("version")).longValue());
             asset.__internalSet("title",row.get("title")); asset.__internalSet("document",row.get("document")==null?null:BlobRef.of((String)row.get("document")));
+            if (row.containsKey("preview")) asset.__internalSet("preview",row.get("preview")==null?null:BlobRef.of((String)row.get("preview")));
             asset.set$status(asset.getVersion()<0?EntityStatus.PERSISTED_DELETED:EntityStatus.PERSISTED); asset.setComment("change asset document"); return asset;
         }
         Map<String,Object> row(long id) { return otherSql.queryForList("SELECT * FROM asset_data WHERE id=?",new Object[]{id}).get(0); }

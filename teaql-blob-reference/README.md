@@ -244,3 +244,30 @@ The unreleased upload and maintenance DTOs now live in `BlobRuntime.Uploads` and
 implementing service remain inherited; imports must use the canonical core name.
 Previously compiled development consumers must be rebuilt against matching sources.
 This does not change persisted BlobRef, catalog migration v1 or tqr1/tqd1 protocols.
+
+
+## Native graph acceptance
+
+`BlobGraphIT` uses a three-level/cyclic native PostgreSQL graph with two Blob fields.
+It covers net single-binding field swaps/transfers, explicit approved cascade
+DELETE/RECOVER with unloaded field values, partial title-only updates, per-field
+format/current permission rejection, whole-batch rollback and retry, stale-child
+optimistic conflicts, concurrent swaps, REFER aliases and cross-route rejection.
+Deletion intent still comes from the application: marking a root does not silently
+mark every related entity. Every planned deletion releases its authoritative Blob
+bindings, including fields absent from a partial object; recovery uses retired
+binding history. Unmarked related rows/bindings stay live.
+
+The graph must use one canonical mutable instance for each logical entity key.
+Distinct materialized aliases with working/submitted intent now reject before
+Checker/Fix and ledger merge; the check repeats after ID allocation. This prevents
+one alias's local placeholders from overwriting another alias's requested fields.
+Read-only copies and REFER relation aliases retain existing behavior, including
+when a different entity in the same cohort has pending writes. Reconcile
+edits onto a canonical instance before retrying an ambiguous graph.
+
+The actual file-provider retention gate binds one Key through short and long
+field profiles, removes those bindings in stages, and verifies physical collection
+only at the greatest historical minimum/unreferenced deadline. Policy relaxation
+or removal of the long field cannot shorten an accepted promise. These graph gates
+still do not implement durable command idempotency or process-crash reconciliation.

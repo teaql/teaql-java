@@ -282,6 +282,9 @@ public class BlobMaintenanceIT {
         try (FixtureWithFiles u=new FixtureWithFiles()) {
             var session=u.begin("complete-race"); u.write(session); u.f.clock.now=NOW.plusSeconds(4);
             CountDownLatch completed=new CountDownLatch(1),release=new CountDownLatch(1); ExecutorService pool=Executors.newFixedThreadPool(2);
+            CountDownLatch scanned=new CountDownLatch(1),continueScan=new CountDownLatch(1);
+            AtomicReference<List<Map<String,Object>>> snapshot=new AtomicReference<>();
+            u.f.candidateReadHook=rows -> { snapshot.set(rows); scanned.countDown(); await(continueScan); };
             try {
                 Future<?> confirming=pool.submit(() -> u.f.sql.executeInTransaction(() -> {
                     assertEquals(session.reference(),u.uploads(u.files).complete(u.f.context(),session.uploadId()));
@@ -290,13 +293,17 @@ public class BlobMaintenanceIT {
                 assertTrue(completed.await(5,TimeUnit.SECONDS));
                 assertEquals(BlobState.INITIATED,u.f.find(session.reference()).state());
                 Future<BlobMaintenanceService.Batch> collecting=pool.submit(() -> u.maintenance(u.files,100,Clock.fixed(NOW.plusSeconds(5),ZoneOffset.UTC)).runBatch(u.context()));
-                assertThrows(TimeoutException.class,() -> collecting.get(150,TimeUnit.MILLISECONDS));
+                assertTrue(scanned.await(5,TimeUnit.SECONDS)); assertEquals(1,snapshot.get().size());
+                assertEquals("initiated",snapshot.get().get(0).get("state")); assertEquals(session.reference().key(),snapshot.get().get(0).get("blob_key"));
+                assertFalse(collecting.isDone());
                 release.countDown(); confirming.get(10,TimeUnit.SECONDS);
+                assertEquals(BlobState.UPLOADED_UNBOUND,u.f.find(session.reference()).state()); continueScan.countDown();
                 assertEquals(NOT_ELIGIBLE,collecting.get(10,TimeUnit.SECONDS).outcomes().get(0).status());
+                u.f.candidateReadHook=rows -> {};
                 assertEquals(BlobState.UPLOADED_UNBOUND,u.f.find(session.reference()).state());
                 assertEquals(NOW.plusSeconds(4),u.f.find(session.reference()).completedAt()); assertTrue(u.exists(session.reference()));
                 u.f.clock.now=NOW.plusSeconds(11); u.maintenance().runBatch(u.context()); u.assertDeleted(session.reference());
-            } finally { release.countDown(); pool.shutdownNow(); assertTrue(pool.awaitTermination(5,TimeUnit.SECONDS)); }
+            } finally { release.countDown(); continueScan.countDown(); u.f.candidateReadHook=rows -> {}; pool.shutdownNow(); assertTrue(pool.awaitTermination(5,TimeUnit.SECONDS)); }
         }
     }
 

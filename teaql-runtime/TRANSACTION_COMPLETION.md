@@ -55,7 +55,12 @@ rollback routes each entity to its current holder in physical submission order.
 Earlier empty graph ownership is released before any audit can reenter, including
 for independent graphs under the owner. Direct unvalidated ledger reassignment,
 foreign owners and independently submitted conflicting histories reject before
-a move. Use a canonical mutable entity when composing related graphs. The full
+a move. A graph with distinct materialized instances for one logical key rejects if any
+instance has working or submitted intent for that entity. Pending history for a
+different key in the same cohort does not make read-only aliases mutable. The pure check runs before Checker/Fix
+and again after ID allocation, before ledgers merge; generated ID collisions also
+reject. Read-only duplicates and REFER relations retain their existing behavior.
+Use a canonical mutable entity when composing related graphs. The full
 graph/cascade and durable idempotency matrices still require separate acceptance.
 
 Blob saves require a transaction executor with physical completion support and an

@@ -67,6 +67,13 @@ public class EntityMutationLedger {
 
     /** Submitted intent remains retained until the owning physical transaction resolves. */
     public boolean hasUncommittedChanges() { return journal!=null && !journal.submissions.isEmpty(); }
+    @FrameworkInternal("Inspect retained history for one entity without confusing unrelated cohort members")
+    public boolean hasUncommittedChanges(EntityKey key) {
+        Objects.requireNonNull(key);
+        if (journal==null) return false;
+        for (Submission submission:journal.submissions) if (submission.changes.workingKeys().contains(key)) return true;
+        return false;
+    }
     public boolean hasUnknownTransactionOutcome() { return journal!=null && journal.unknown; }
 
     @FrameworkInternal("Validate the physical owner before a graph can write again")

@@ -501,6 +501,7 @@ public class TeaQLRuntime implements AutoCloseable {
             if (entity instanceof BaseEntity base && base.__internalHasMutationLedger() && base.getEntityMutationLedger().hasUnknownTransactionOutcome()) {
                 throw new TransactionCompletionException(TransactionCompletion.Outcome.UNKNOWN,null);
             }
+            requireUnambiguousMutableGraph(entity,new HashMap<>(),Collections.newSetFromMap(new IdentityHashMap<>()));
             checkAndFix(context, entity);
             // Get entity's own EntityMutationLedger
             EntityMutationLedger entityMutationLedger = ((BaseEntity) entity).getEntityMutationLedger();
@@ -528,6 +529,8 @@ public class TeaQLRuntime implements AutoCloseable {
             // updates cannot yet have been recorded in an EntityMutationLedger ledger.
             assignMissingGraphIds(
                     context, entity, Collections.newSetFromMap(new IdentityHashMap<>()));
+            // Check again after Fix/ID allocation, before sharing any working intent.
+            requireUnambiguousMutableGraph(entity,new HashMap<>(),Collections.newSetFromMap(new IdentityHashMap<>()));
 
             // Merge related entities' EntityMutationLedgers into this one
             mergeRelatedEntityMutationLedgers(
@@ -830,6 +833,22 @@ public class TeaQLRuntime implements AutoCloseable {
             }
             mergeRelatedEntityMutationLedgers(related, targetRoot, visited,owner);
         });
+    }
+
+    private void requireUnambiguousMutableGraph(Entity entity,Map<EntityKey,BaseEntity> materialized,Set<Entity> visited) {
+        if (!(entity instanceof BaseEntity base) || !visited.add(entity)) return;
+        if (base.getId()!=null && base.get$status()!=EntityStatus.REFER) {
+            EntityKey key=new EntityKey(base.typeName(),base.getId()); BaseEntity previous=materialized.putIfAbsent(key,base);
+            if (previous!=null && previous!=base && (hasMutableIntent(previous) || hasMutableIntent(base))) {
+                throw new TeaQLRuntimeException("Graph contains ambiguous materialized entity instances; use one canonical mutable instance and REFER relations");
+            }
+        }
+        visitRelatedEntities(entity,related -> requireUnambiguousMutableGraph(related,materialized,visited));
+    }
+
+    private static boolean hasMutableIntent(BaseEntity entity) {
+        return entity.needPersist() || !entity.getUpdatedProperties().isEmpty() || !entity.__internalDynamicMutations().isEmpty()
+                || entity.__internalHasMutationLedger() && entity.getEntityMutationLedger().hasUncommittedChanges(new EntityKey(entity.typeName(),entity.getId()));
     }
 
     private void recordGraphChanges(
