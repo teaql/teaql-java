@@ -219,8 +219,14 @@ public final class PostgresBlobCatalog {
                           long version, Instant boundAt, Instant retainUntil) {}
     /** One bounded snapshot of currently bound targets. Caller authorization precedes this query. */
     public Map<BlobFieldTarget,BlobCatalogRecord> readBindings(BlobScope scope,Map<BlobFieldTarget,BlobRef> targets) {
+        return readBindings(scope,targets,BlobRuntime.Reads.MAX_BATCH);
+    }
+    Map<BlobFieldTarget,BlobCatalogRecord> readGraphBindings(BlobScope scope,Map<BlobFieldTarget,BlobRef> targets) {
+        return readBindings(scope,targets,io.teaql.core.view.AuthorizedResponseGraph.MAX_NODES);
+    }
+    private Map<BlobFieldTarget,BlobCatalogRecord> readBindings(BlobScope scope,Map<BlobFieldTarget,BlobRef> targets,int maximum) {
         Objects.requireNonNull(scope); Objects.requireNonNull(targets);
-        if (targets.size()>BlobRuntime.Reads.MAX_BATCH) throw new BlobException(BLOB_POLICY_INVALID);
+        if (targets.size()>maximum) throw new BlobException(BLOB_POLICY_INVALID);
         if (targets.isEmpty()) return Map.of();
         requireNoActiveTransaction();
         return guarded(() -> {

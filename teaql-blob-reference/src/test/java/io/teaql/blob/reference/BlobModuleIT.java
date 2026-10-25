@@ -7,6 +7,7 @@ import io.teaql.core.blob.*;
 import io.teaql.core.blob.BlobRuntime.Reads.*;
 import io.teaql.dataservice.sql.SqlDataServiceExecutor;
 import io.teaql.runtime.*;
+import io.teaql.core.view.*;
 import java.io.*;
 import java.net.*;
 import java.nio.file.*;
@@ -23,6 +24,102 @@ import static org.junit.Assert.*;
 /** Public module/capability consumer with real PostgreSQL, actual verification and file HTTP transport. */
 public class BlobModuleIT {
     @Rule public TemporaryFolder temporary=new TemporaryFolder();
+
+    @Test public void finalViewProjectsOnlyTheFrozenCopyAndNestedRenderersReuseOnePresentation() throws Exception {
+        try (ModuleFixture m=new ModuleFixture(true,true,BlobPolicies.defaults())) {
+            BlobRef key=m.bound(); var entity=m.f.load(42); var actor=m.context(); var options=ViewOptions.readOnly();
+            var state=entity.__internalLoadState(); boolean ledger=entity.__internalHasMutationLedger();
+            var prepared=m.runtime.prepareView(actor,Map.of("data",List.of(entity),"prepared",true),options);
+            var body=(Map<?,?>)((List<?>)((Map<?,?>)prepared.value()).get("data")).get(0);
+            assertArrayEquals(file(),download(URI.create((String)body.get("document")))); assertEquals(NOW.plusSeconds(600),prepared.expiresAt().orElseThrow());
+            assertSame(prepared,actor.capability(ViewPreparationService.class).prepare(actor,prepared,options)); assertEquals(1,m.store.signCalls.get());
+            assertEquals(key,entity.document); assertSame(state,entity.__internalLoadState()); assertEquals(ledger,entity.__internalHasMutationLedger());
+            m.f.assertOracle(42,key); assertEquals("private, no-store",prepared.cachePolicy());
+            String json=new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(prepared.value()); assertFalse(json.contains(key.key())); assertTrue(json.contains("document"));
+            actor.putAttribute("policy",Boolean.FALSE);
+            assertEquals(ViewPreparationException.Code.VIEW_PREPARATION_FAILED,assertThrows(ViewPreparationException.class,() -> m.runtime.prepareView(actor,prepared,options)).code()); assertEquals(1,m.store.signCalls.get());
+            actor.putAttribute("policy",Boolean.TRUE); actor.putAttribute("viewScope",SCOPE); actor.putAttribute("scope",new BlobScope("test","tenant-b"));
+            assertEquals(ViewPreparationException.Code.VIEW_PREPARATION_FAILED,assertThrows(ViewPreparationException.class,() -> m.runtime.prepareView(actor,prepared,options)).code());
+            actor.putAttribute("scope",SCOPE); actor.putAttribute("field",Boolean.FALSE);
+            assertEquals(ViewPreparationException.Code.VIEW_PREPARATION_FAILED,assertThrows(ViewPreparationException.class,() -> m.runtime.prepareView(actor,prepared,options)).code()); actor.putAttribute("field",Boolean.TRUE);
+            var changed=m.f.load(42); changed.updateProperty("document",null); m.runtime.saveGraph(m.context(),changed);
+            assertEquals(ViewPreparationException.Code.VIEW_PREPARATION_FAILED,assertThrows(ViewPreparationException.class,() -> m.runtime.prepareView(actor,prepared,options)).code());
+            assertEquals(1,m.store.signCalls.get()); m.f.assertOracle(42,null);
+        }
+    }
+
+    @Test public void hiddenMaskedAndUnloadedFinalViewFieldsDoNotRequestCredentials() throws Exception {
+        try (ModuleFixture m=new ModuleFixture(true,true,BlobPolicies.defaults())) {
+            m.bound(); var actor=m.context(); actor.putAttribute("viewHide","document");
+            assertFalse(((Map<?,?>)m.runtime.prepareView(actor,m.f.load(42),ViewOptions.readOnly()).value()).containsKey("document"));
+            actor.putAttribute("viewHide","none"); actor.putAttribute("viewMask","document");
+            assertEquals("***",((Map<?,?>)m.runtime.prepareView(actor,m.f.load(42),ViewOptions.readOnly()).value()).get("document"));
+            actor.putAttribute("viewMask","none"); var partial=new Asset(); partial.__internalSet("id",42L); partial.__internalSet("version",1L); partial.__internalSet("title","partial");
+            assertFalse(((Map<?,?>)m.runtime.prepareView(actor,partial,ViewOptions.readOnly()).value()).containsKey("document")); assertEquals(0,m.store.signCalls.get());
+        }
+    }
+
+    @Test public void finalViewRechecksVisibilityAfterSigningAndRejectsActivePhysicalOwners() throws Exception {
+        try (ModuleFixture m=new ModuleFixture(true,true,BlobPolicies.defaults())) {
+            m.bound(); var actor=m.context(); var entity=m.f.load(42);
+            m.f.sql.executeInTransaction(() -> assertEquals(ViewPreparationException.Code.VIEW_TRANSACTION_UNFINISHED,
+                    assertThrows(ViewPreparationException.class,() -> m.runtime.prepareView(actor,entity,ViewOptions.readOnly())).code()));
+            assertEquals(0,m.store.signCalls.get()); m.store.afterSign=() -> actor.putAttribute("viewHide","document");
+            assertEquals(ViewPreparationException.Code.VIEW_ACCESS_DENIED,assertThrows(ViewPreparationException.class,() -> m.runtime.prepareView(actor,entity,ViewOptions.readOnly())).code());
+            assertEquals(1,m.store.signCalls.get()); m.f.assertOracle(42,entity.document);
+        }
+    }
+
+    @Test public void committedCommandSurvivesPresentationFailureAndViewRetryNeverRepeatsTheAction() throws Exception {
+        try (ModuleFixture m=new ModuleFixture(true,true,BlobPolicies.defaults(),false,true)) {
+            new PostgresBlobCommandJournal(m.f.sql).migrate(); var actor=m.context(); actor.putAttribute("principal","alice");
+            BlobRef key=m.upload(); var entity=m.f.newAsset(42,key); var calls=new AtomicInteger();
+            var commands=actor.capability(BlobCommandService.class);
+            commands.execute(actor,BlobCommandIT.request("present"),() -> { calls.incrementAndGet(); m.runtime.saveGraph(actor,entity); return BlobCommandIT.revisions(entity); });
+            m.store.mode="failure";
+            var failed=assertThrows(ViewPreparationException.class,() -> m.runtime.prepareView(actor,entity,ViewOptions.afterCommit())); assertTrue(failed.businessCommitted());
+            m.f.assertOracle(42,key); assertEquals(1,m.f.scalar("SELECT count(*) FROM teaql_blob_command"));
+            m.store.mode=""; var prepared=m.runtime.prepareView(actor,m.f.load(42),ViewOptions.afterCommit());
+            assertArrayEquals(file(),download(URI.create((String)((Map<?,?>)prepared.value()).get("document"))));
+            assertEquals(1,calls.get()); assertEquals(1L,((Number)m.f.row(42).get("version")).longValue());
+        }
+    }
+
+    @Test public void largeGraphRechecksOneBindingSnapshotAfterEveryTransportBatch() throws Exception {
+        for (boolean revoke:List.of(false,true)) try (ModuleFixture m=new ModuleFixture(true,true,BlobPolicies.defaults())) {
+            var actor=m.context(); BlobRef verified=m.upload(); byte[] content=file(); List<Asset> entities=new ArrayList<>();
+            for (int index=0;index<260;index++) {
+                BlobRef key=verified;
+                if (index!=0) {
+                    var draft=m.f.draft("graph-read-"+index,"a".repeat(64)); var target=m.files.createUpload(actor,draft.uploadId());
+                    var located=new PostgresBlobCatalog.UploadDraft(draft.scope(),draft.reference(),draft.uploadId(),draft.idempotencyKey(),draft.requestDigest(),draft.originalName(),draft.extension(),target.location(),draft.target(),draft.policy());
+                    key=m.f.catalog.begin(located,NOW).reference(); var stored=m.files.write(actor,target,new ByteArrayInputStream(content),content.length);
+                    assertEquals(m.f.find(verified).sha256(),stored.sha256());
+                    m.f.catalog.complete(SCOPE,key,new PostgresBlobCatalog.VerifiedContent("application/pdf",stored.sizeBytes(),stored.sha256(),stored.contentVersion()),NOW);
+                }
+                var entity=m.f.newAsset(42+index,key); m.runtime.saveGraph(actor,entity); entities.add(entity);
+            }
+            if (revoke) m.store.afterSign=() -> {
+                if (m.store.signCalls.get()==2) { var changed=m.f.load(42); changed.updateProperty("document",null); m.runtime.saveGraph(m.context(),changed); }
+            };
+            long before=m.f.blobReadQueries.get();
+            if (revoke) {
+                assertEquals(ViewPreparationException.Code.VIEW_PREPARATION_FAILED,assertThrows(ViewPreparationException.class,() -> m.runtime.prepareView(actor,entities,ViewOptions.readOnly())).code());
+                m.f.assertOracle(42,null);
+            } else {
+                var prepared=m.runtime.prepareView(actor,entities,ViewOptions.readOnly()); assertEquals(260,((List<?>)prepared.value()).size());
+                assertArrayEquals(content,download(URI.create((String)((Map<?,?>)((List<?>)prepared.value()).get(259)).get("document"))));
+            }
+            assertEquals(2,m.store.signCalls.get()); assertEquals(2,m.f.blobReadQueries.get()-before);
+        }
+    }
+
+    @Test public void duplicateGraphOccurrencesShareAnEquivalentSignedTransport() throws Exception {
+        try (ModuleFixture m=new ModuleFixture(true,true,BlobPolicies.defaults())) {
+            m.bound(); var entity=m.f.load(42); var prepared=m.runtime.prepareView(m.context(),Collections.nCopies(260,entity),ViewOptions.readOnly());
+            assertEquals(260,((List<?>)prepared.value()).size()); assertEquals(1,m.store.signCalls.get()); assertEquals(1,m.store.signedRequests);
+        }
+    }
 
     @Test public void optionalCommandCapabilityInstallsPassivelyAndRequiresItsOwnExplicitMigration() throws Exception {
         try (ModuleFixture m=new ModuleFixture(true,true,BlobPolicies.defaults(),false,true)) {
@@ -81,6 +178,9 @@ public class BlobModuleIT {
             assertThrows(IllegalStateException.class,() -> m.module.installInto(builder)); assertThrows(IllegalStateException.class,() -> builder.blobMutationParticipant(m.f.participant));
             var partial=TeaQLRuntime.builder().metadata(m.f.runtime.getMetadata()).blobMutationParticipant(m.f.participant);
             assertThrows(IllegalStateException.class,() -> m.module.installInto(partial));
+            var occupied=TeaQLRuntime.builder().metadata(m.f.runtime.getMetadata()).viewBlobs((context,graph,options,document) -> { throw new AssertionError("Uninstalled view must not run"); });
+            assertThrows(IllegalStateException.class,() -> m.module.installInto(occupied));
+            try (var unchanged=occupied.telemetry(RuntimeTelemetry.NOOP).build()) { assertNull(new DefaultUserContext(unchanged).capability(BlobRuntime.class)); }
             assertEquals(BLOB_CAPABILITY_MISSING,assertThrows(BlobException.class,m.f.runtime::validateReadiness).code());
             for (boolean sameResource:List.of(false,true)) {
                 var executor=new SqlDataServiceExecutor("default",sameResource?m.f.sql:m.f.otherSql) {
@@ -211,7 +311,8 @@ public class BlobModuleIT {
                 var metadata=new io.teaql.core.meta.SimpleEntityMetaFactory();
                 RuntimeModule business=RuntimeModule.of(target -> f.runtime.getMetadata().allEntityDescriptors().forEach(target::register)).withRequiredCapabilities("blob.v1");
                 if (manifestFirst) business.install(metadata);
-                var builder=TeaQLRuntime.builder().metadata(metadata).registry(f.runtime.getRegistry()).telemetry(RuntimeTelemetry.NOOP).executionLogging(false);
+                var builder=TeaQLRuntime.builder().metadata(metadata).registry(f.runtime.getRegistry()).telemetry(RuntimeTelemetry.NOOP).executionLogging(false)
+                        .viewAuthorization(viewAuthorization()).viewClock(f.clock);
                 runtime=module.installInto(builder).build();
                 runtime.install(manifestFirst?RuntimeModule.of().withRequiredCapabilities("blob.v1"):business);
                 if (storage) { files.initialize(); gateway.start(); }
@@ -239,5 +340,18 @@ public class BlobModuleIT {
             if (mode.equals("beyond-document")) return List.of(new SignedRead(result.get(0).url(),NOW.plusSeconds(31)));
             return result;
         }
+    }
+    private static ViewAuthorization viewAuthorization() {
+        return new ViewAuthorization() {
+            @Override public Identity identity(UserContext context) {
+                BlobScope scope=context.getAttribute("viewScope",BlobScope.class); if (scope==null) scope=context.getAttribute("scope",BlobScope.class);
+                return new Identity(scope.realm(),Objects.toString(context.getAttribute("principal"),"alice"),scope.boundary());
+            }
+            @Override public boolean canReadEntity(UserContext context,EntityTarget entity,String path) { return !Boolean.FALSE.equals(context.getAttribute("viewEntity")); }
+            @Override public FieldDecision field(UserContext context,EntityTarget entity,String field,String path,ViewOptions.Mode mode) {
+                if (field.equals(context.getAttribute("viewHide"))) return FieldDecision.hide();
+                if (field.equals(context.getAttribute("viewMask"))) return FieldDecision.mask("***"); return FieldDecision.show();
+            }
+        };
     }
 }

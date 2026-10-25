@@ -328,3 +328,24 @@ an old Blob binding. No payload, business values or URLs are persisted in receip
 native business/binding/receipt oracles, current authority, concurrent replay,
 rollback, corrupt/incomplete markers and commit fault injection. Its component
 evidence does not establish Rust, generated-consumer, registry or R3-R8 acceptance.
+
+## Authorized final views
+
+Module installation now also registers BlobResponseContributor with the runtime's
+explicit [view preparation boundary](../teaql-runtime/VIEW_PREPARATION.md). The
+host supplies ViewAuthorization; the contributor receives only the immutable
+visible/loaded graph. It never decides ordinary business field visibility or issues
+document tokens. Hidden/masked/unloaded fields are excluded before signing.
+URL/descriptor values appear only in the prepared copy; native entities and SQL
+continue to hold stable Keys.
+
+Public target-read batches retain their 256-request bound. Internal graph reads
+use a bounded full-graph catalog snapshot before and after all transport signing
+batches, with at most 256 unique requests per transport call. Equivalent transports
+deduplicate across the graph. A later signing batch invalidating an earlier binding
+causes the entire projection to fail. The fixed catalog schema is unchanged.
+
+Java governed document implementation and Rust delegation remain separate work;
+the optional outbound SPI alone does not establish those capabilities. Standalone
+base/Blob CLI examples and their actual source evidence are linked from the runtime
+guide. Existing ordinary serializers/getters remain pure and do not invoke prepare.

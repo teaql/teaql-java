@@ -11,7 +11,7 @@ import static io.teaql.core.blob.BlobException.Code.*;
 /** Passive assembly of the optional Blob services. The host owns all resources and scheduling. */
 public final class BlobReferenceModule {
     public static final String CAPABILITY=BlobFieldSpec.CAPABILITY;
-    private final BlobRuntime services;
+    private final Services services;
     private BlobReferenceModule(Builder builder) {
         PostgresBlobCatalog catalog=Objects.requireNonNull(builder.catalog,"catalog");
         BlobStore store=Objects.requireNonNull(builder.store,"store");
@@ -29,7 +29,9 @@ public final class BlobReferenceModule {
     }
     public static Builder builder() { return new Builder(); }
     public BlobRuntime runtime() { return services; }
-    public TeaQLRuntime.Builder installInto(TeaQLRuntime.Builder builder) { return Objects.requireNonNull(builder).blobRuntime(services); }
+    public TeaQLRuntime.Builder installInto(TeaQLRuntime.Builder builder) {
+        return Objects.requireNonNull(builder).blobRuntime(services,new BlobResponseContributor(services.reads()));
+    }
 
     private record Services(PostgresBlobCatalog catalog,BlobStore store,BlobPolicies policies,BlobContentVerifier verifier,
                             BlobUploadService upload,PostgresBlobMutationParticipant mutation,

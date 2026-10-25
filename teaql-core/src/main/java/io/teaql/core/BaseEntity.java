@@ -459,6 +459,12 @@ public class BaseEntity implements Entity {
     @com.fasterxml.jackson.annotation.JsonIgnore
     public boolean __internalHasMutationLedger() { return entityMutationLedger != null; }
 
+    @FrameworkInternal("Read-only final presentation snapshot; never allocates or changes entity state")
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public Map<String,Object> __internalAdditionalInfoSnapshot() {
+        return additionalInfo.isEmpty()?Map.of():java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(additionalInfo));
+    }
+
     public void setEntityMutationLedger(EntityMutationLedger entityMutationLedger) {
         if (this.entityMutationLedger!=null && this.entityMutationLedger!=entityMutationLedger && this.entityMutationLedger.hasUncommittedChanges()
                 && !this.entityMutationLedger.permitsMove(new EntityKey(typeName(),id),entityMutationLedger)) {

@@ -19,9 +19,18 @@ public final class BlobReadService implements BlobRuntime.Reads {
         this.authorization=Objects.requireNonNull(authorization); this.clock=Objects.requireNonNull(clock);
     }
     @Override public List<Read> readBatch(UserContext context,List<Request> input,Options options) {
+        return readBatch(context,input,options,false).reads();
+    }
+    io.teaql.core.view.ViewBlobContributor.Projection readGraph(UserContext context,io.teaql.core.view.AuthorizedResponseGraph graph,Options options) {
+        var result=readBatch(context,graph.blobs(),options,true);
+        return new io.teaql.core.view.ViewBlobContributor.Projection(result.reads(),(current,viewOptions,document) -> revalidate(current,result,options));
+    }
+    private record Reading(BlobScope scope,List<Request> requests,Map<BlobFieldTarget,BlobCatalogRecord> facts,
+                           List<BlobPolicySnapshot> policies,BlobStore.Capabilities capabilities,List<Read> reads) {}
+    private Reading readBatch(UserContext context,List<Request> input,Options options,boolean graph) {
         Objects.requireNonNull(context); Objects.requireNonNull(input); Objects.requireNonNull(options);
-        if (input.size()>MAX_BATCH) throw new BlobException(BLOB_POLICY_INVALID);
-        if (input.isEmpty()) return List.of();
+        if (input.size()>(graph?io.teaql.core.view.AuthorizedResponseGraph.MAX_NODES:MAX_BATCH)) throw new BlobException(BLOB_POLICY_INVALID);
+        if (input.isEmpty()) return new Reading(null,List.of(),Map.of(),List.of(),null,List.of());
         List<Request> requests=List.copyOf(input); BlobScope scope=authorization.scope(context);
         Map<BlobFieldTarget,BlobRef> targets=new LinkedHashMap<>(); List<BlobPolicySnapshot> current=new ArrayList<>();
         for (Request request:requests) {
@@ -32,7 +41,7 @@ public final class BlobReadService implements BlobRuntime.Reads {
         }
         BlobStore.Capabilities capabilities=store.capabilities();
         if (!capabilities.signedReads() || options.requireContextCheckedRead() && !capabilities.contextCheckedReads()) throw new BlobException(BLOB_CAPABILITY_MISSING);
-        Map<BlobFieldTarget,BlobCatalogRecord> blobs=catalog.readBindings(scope,targets);
+        Map<BlobFieldTarget,BlobCatalogRecord> blobs=graph?catalog.readGraphBindings(scope,targets):catalog.readBindings(scope,targets);
         Instant started=clock.instant(); List<BlobStore.ReadRequest> signing=new ArrayList<>(); List<Integer> positions=new ArrayList<>();
         Map<BlobStore.ReadRequest,Integer> unique=new LinkedHashMap<>();
         for (int i=0;i<requests.size();i++) {
@@ -50,12 +59,20 @@ public final class BlobReadService implements BlobRuntime.Reads {
         requireScope(context,scope);
         for (Request request:requests) authorization.requireRead(context,request.target(),requireBlob(blobs,request));
         List<BlobStore.SignedRead> signed;
-        try { signed=List.copyOf(store.signReadBatch(context,List.copyOf(signing))); }
+        try {
+            List<BlobStore.SignedRead> all=new ArrayList<>();
+            for (int start=0;start<signing.size();start+=MAX_BATCH) {
+                var batch=List.copyOf(signing.subList(start,Math.min(start+MAX_BATCH,signing.size())));
+                var projected=List.copyOf(store.signReadBatch(context,batch));
+                if (projected.size()!=batch.size()) throw new BlobException(BLOB_SIGN_FAILED); all.addAll(projected);
+            }
+            signed=List.copyOf(all);
+        }
         catch (BlobException known) { throw known; }
         catch (RuntimeException unavailable) { throw new BlobException(BLOB_SIGN_FAILED); }
         if (signed.size()!=signing.size()) throw new BlobException(BLOB_SIGN_FAILED);
         requireScope(context,scope);
-        if (!blobs.equals(catalog.readBindings(scope,targets))) throw new BlobException(BLOB_READ_DENIED);
+        if (!blobs.equals(graph?catalog.readGraphBindings(scope,targets):catalog.readBindings(scope,targets))) throw new BlobException(BLOB_READ_DENIED);
         Instant observed=clock.instant(); List<Read> result=new ArrayList<>();
         for (int i=0;i<requests.size();i++) {
             Request request=requests.get(i); BlobCatalogRecord blob=requireBlob(blobs,request); authorization.requireRead(context,request.target(),blob);
@@ -67,7 +84,27 @@ public final class BlobReadService implements BlobRuntime.Reads {
             result.add(new Read(request.reference(),read.url(),read.expiresAt(),blob.originalName(),blob.contentType(),blob.sizeBytes(),cache,current.get(i).responseShape()));
         }
         requireScope(context,scope);
-        return List.copyOf(result);
+        return new Reading(scope,requests,blobs,List.copyOf(current),capabilities,List.copyOf(result));
+    }
+    /** Reuse performs current catalog/policy checks without issuing another transport credential. */
+    private void revalidate(UserContext context,Reading issued,Options options) {
+        if (issued.requests().isEmpty()) return;
+        requireScope(context,issued.scope());
+        if (!issued.capabilities().equals(store.capabilities())) throw new BlobException(BLOB_READ_DENIED);
+        Map<BlobFieldTarget,BlobRef> targets=new LinkedHashMap<>();
+        for (int index=0;index<issued.requests().size();index++) {
+            Request request=issued.requests().get(index); authorization.requireField(context,request.target());
+            if (!issued.policies().get(index).equals(policies.resolve(BlobModel.field(EntityMetaFactory.requireFrom(context),request.target())))) throw new BlobException(BLOB_READ_DENIED);
+            targets.put(request.target(),request.reference());
+        }
+        var current=catalog.readGraphBindings(issued.scope(),targets);
+        if (!issued.facts().equals(current)) throw new BlobException(BLOB_READ_DENIED);
+        for (int index=0;index<issued.requests().size();index++) {
+            Request request=issued.requests().get(index); authorization.requireRead(context,request.target(),requireBlob(current,request));
+            if (!clock.instant().isBefore(issued.reads().get(index).expiresAt())) throw new BlobException(BLOB_REFERENCE_EXPIRED);
+        }
+        if (options.documentExpiresAt()!=null && !clock.instant().isBefore(options.documentExpiresAt())) throw new BlobException(BLOB_REFERENCE_EXPIRED);
+        requireScope(context,issued.scope());
     }
     private static BlobCatalogRecord requireBlob(Map<BlobFieldTarget,BlobCatalogRecord> blobs,Request request) {
         BlobCatalogRecord blob=blobs.get(request.target());

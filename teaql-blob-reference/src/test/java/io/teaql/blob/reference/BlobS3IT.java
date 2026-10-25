@@ -4,6 +4,7 @@ import io.teaql.blob.content.tika.TikaBlobContentVerifier;
 import io.teaql.blob.store.s3.S3BlobStore;
 import io.teaql.core.UserContext;
 import io.teaql.core.blob.*;
+import io.teaql.core.view.*;
 import io.teaql.runtime.DefaultUserContext;
 import java.io.*;
 import java.net.*;
@@ -152,7 +153,12 @@ public class BlobS3IT {
                     .readAuthorization(new BlobReadAuthorization(scopes,(actor,target) -> true,(actor,target,blob) -> true))
                     .maintenancePermission((actor,scope) -> false).build();
             try (var runtime=module.installInto(io.teaql.runtime.TeaQLRuntime.builder().metadata(h.f.runtime.getMetadata())
-                    .registry(h.f.runtime.getRegistry()).telemetry(io.teaql.runtime.RuntimeTelemetry.NOOP).executionLogging(false)).build()) {
+                    .registry(h.f.runtime.getRegistry()).telemetry(io.teaql.runtime.RuntimeTelemetry.NOOP).executionLogging(false)
+                    .viewAuthorization(new ViewAuthorization() {
+                        @Override public Identity identity(UserContext context) { var scope=context.getAttribute("scope",BlobScope.class); return new Identity(scope.realm(),"reader",scope.boundary()); }
+                        @Override public boolean canReadEntity(UserContext context,EntityTarget target,String path) { return true; }
+                        @Override public FieldDecision field(UserContext context,EntityTarget target,String field,String path,ViewOptions.Mode mode) { return FieldDecision.show(); }
+                    })).build()) {
                 runtime.install(io.teaql.core.RuntimeModule.of().withRequiredCapabilities("blob.v1")); runtime.validateReadiness();
                 var actor=new DefaultUserContext(runtime); actor.putAttribute("scope",SCOPE); BlobRuntime blobs=actor.capability(BlobRuntime.class);
                 var session=blobs.upload().begin(actor,TARGET,new BlobRuntime.Uploads.FileInfo("application.pdf",null,null),"module-native");
@@ -165,6 +171,13 @@ public class BlobS3IT {
                 var connection=(HttpURLConnection)read.url().toURL().openConnection(); connection.setConnectTimeout(5000); connection.setReadTimeout(5000); connection.setRequestProperty("Range","bytes=2-7");
                 try (var bytes=connection.getInputStream()) { assertEquals(206,connection.getResponseCode()); assertArrayEquals(Arrays.copyOfRange(file("pdf"),2,8),bytes.readAllBytes()); }
                 finally { connection.disconnect(); }
+                var presentation=new ViewOptions(ViewOptions.Mode.READ_ONLY,ViewOptions.BusinessCompletion.COMMITTED,Duration.ofSeconds(20),Duration.ZERO,false);
+                var prepared=runtime.prepareView(actor,entity,presentation); URI projected=URI.create((String)((Map<?,?>)prepared.value()).get("document"));
+                assertTrue(projected.getRawQuery().contains("versionId="));
+                var projectedConnection=(HttpURLConnection)projected.toURL().openConnection(); projectedConnection.setConnectTimeout(5000); projectedConnection.setReadTimeout(5000);
+                try (var bytes=projectedConnection.getInputStream()) { assertEquals("application/pdf",projectedConnection.getContentType()); assertArrayEquals(file("pdf"),bytes.readAllBytes()); }
+                finally { projectedConnection.disconnect(); }
+                assertSame(prepared,runtime.prepareView(actor,prepared,presentation));
                 assertEquals(key,entity.document); assertTrue(entity.getEntityMutationLedger().currentChangeSet().isEmpty()); h.assertScratchEmpty();
             }
         }

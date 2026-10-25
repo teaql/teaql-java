@@ -88,6 +88,8 @@
         <module>examples/business-id-runtime</module>
         <module>examples/security-foundations</module>
         <module>examples/round-trip-reference-runtime</module>
+        <module>examples/view-preparation</module>
+        <module>examples/blob-view-preparation</module>
         <module>teaql-tfp-endpoint</module>
         <module>teaql-opentelemetry</module>
         <module>examples/conformance/lib</module>

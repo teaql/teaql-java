@@ -19,6 +19,7 @@ import io.teaql.core.blob.BlobException;
 import io.teaql.core.blob.BlobMutationParticipant;
 import io.teaql.core.blob.BlobRef;
 import io.teaql.core.blob.BlobRuntime;
+import io.teaql.core.view.*;
 import io.teaql.runtime.businessid.SystemBusinessClock;
 import java.util.*;
 import java.util.stream.Stream;
@@ -43,6 +44,8 @@ public class TeaQLRuntime implements AutoCloseable {
     private final RoundTripReferenceCodec roundTripReferenceCodec;
     private final BlobMutationParticipant blobMutationParticipant;
     private final BlobRuntime blobRuntime;
+    private final ViewPreparationService viewPreparation;
+    private final boolean hasViewAuthorization,hasViewDocuments;
     private final BusinessClock businessClock;
     private final Map<String, Checker<?>> checkers = new java.util.concurrent.ConcurrentHashMap<>();
     private final List<GeneratedSchemaBootstrap> generatedBootstraps =
@@ -74,6 +77,8 @@ public class TeaQLRuntime implements AutoCloseable {
         this.businessClock = builder.businessClock;
         this.blobRuntime = builder.blobRuntime;
         this.blobMutationParticipant = builder.blobMutationParticipant;
+        this.hasViewAuthorization=builder.viewAuthorization!=null; this.hasViewDocuments=builder.viewDocuments!=null;
+        this.viewPreparation=new DefaultViewPreparationService(this,builder.viewAuthorization,builder.viewDocuments,builder.viewBlobs,builder.viewClock);
     }
 
     public static Builder builder() {
@@ -87,6 +92,9 @@ public class TeaQLRuntime implements AutoCloseable {
     public DataServiceRegistry getRegistry() {
         return registry;
     }
+
+    public ViewPreparationService getViewPreparationService() { return viewPreparation; }
+    public PreparedView prepareView(UserContext context,Object result,ViewOptions options) { return viewPreparation.prepare(context,result,options); }
 
     public QueryPolicy getQueryPolicy() {
         return queryPolicy;
@@ -174,6 +182,8 @@ public class TeaQLRuntime implements AutoCloseable {
     /** Pure required-capability check; infrastructure readiness is a separate explicit operation. */
     public void validateCapabilities() {
         for (String capability : requiredCapabilities) {
+            if (ViewPreparationService.CAPABILITY.equals(capability) && hasViewAuthorization) continue;
+            if (ViewDocumentContributor.CAPABILITY.equals(capability) && hasViewAuthorization && hasViewDocuments) continue;
             if ("secure_document.v1".equals(capability) && roundTripReferenceCodec != null) continue;
             if ("blob.v1".equals(capability) && blobRuntime != null) {
                 blobRuntime.validateConfiguration(metadata,registry);
@@ -1639,6 +1649,10 @@ public class TeaQLRuntime implements AutoCloseable {
         private RoundTripReferenceProvider roundTripReferenceProvider;
         private BlobMutationParticipant blobMutationParticipant;
         private BlobRuntime blobRuntime;
+        private ViewAuthorization viewAuthorization;
+        private ViewDocumentContributor viewDocuments;
+        private ViewBlobContributor viewBlobs;
+        private java.time.Clock viewClock=java.time.Clock.systemUTC();
         private BusinessClock businessClock = SystemBusinessClock.INSTANCE;
 
         public Builder metadata(EntityMetaFactory metadata) {
@@ -1733,6 +1747,17 @@ public class TeaQLRuntime implements AutoCloseable {
             return this;
         }
 
+        public Builder viewAuthorization(ViewAuthorization value) {
+            if (viewAuthorization!=null) throw new IllegalStateException("View authorization is already installed"); viewAuthorization=Objects.requireNonNull(value); return this;
+        }
+        public Builder viewDocuments(ViewDocumentContributor value) {
+            if (viewDocuments!=null) throw new IllegalStateException("View document contributor is already installed"); viewDocuments=Objects.requireNonNull(value); return this;
+        }
+        public Builder viewBlobs(ViewBlobContributor value) {
+            if (viewBlobs!=null) throw new IllegalStateException("View Blob contributor is already installed"); viewBlobs=Objects.requireNonNull(value); return this;
+        }
+        public Builder viewClock(java.time.Clock value) { viewClock=Objects.requireNonNull(value); return this; }
+
         /** Passive typed installation. Duplicate/replacement installation must be resolved before building. */
         public Builder blobRuntime(BlobRuntime services) {
             if (this.blobRuntime!=null || this.blobMutationParticipant!=null) throw new IllegalStateException("Blob capability is already installed");
@@ -1741,6 +1766,12 @@ public class TeaQLRuntime implements AutoCloseable {
             Objects.requireNonNull(services.upload(),"upload"); Objects.requireNonNull(services.reads(),"reads"); Objects.requireNonNull(services.maintenance(),"maintenance");
             this.blobRuntime=services; this.blobMutationParticipant=participant;
             return this;
+        }
+
+        /** Install both optional slots only after checking duplicate configuration. */
+        public Builder blobRuntime(BlobRuntime services,ViewBlobContributor contributor) {
+            if (this.viewBlobs!=null) throw new IllegalStateException("View Blob contributor is already installed");
+            Objects.requireNonNull(contributor); blobRuntime(services); this.viewBlobs=contributor; return this;
         }
 
         public Builder logSink(RuntimeLogSink logSink) {
