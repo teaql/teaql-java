@@ -194,8 +194,12 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             AggregationResult aggregation =
                     aggregateRepository.doAggregateInternal(userContext, request, intent == null ? null : intent.copy());
             if (attribute.isSingleNumber()) {
+                var expressions = aggregateRequest.getAggregations().getAggregates();
+                boolean count = expressions.isEmpty() || expressions.size() == 1
+                        && expressions.get(0).getExpression() instanceof AggrExpression expression
+                        && expression.getOperator() == AggrFunction.COUNT;
                 for (Entity parent : parentsById.values()) {
-                    parent.addDynamicProperty(attribute.getName(), 0);
+                    parent.addDynamicProperty(attribute.getName(), count ? 0 : null);
                 }
                 aggregation
                         .toSimpleMap()
