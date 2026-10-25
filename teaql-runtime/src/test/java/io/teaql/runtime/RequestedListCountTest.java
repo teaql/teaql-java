@@ -54,9 +54,45 @@ public class RequestedListCountTest {
         var runtime = TeaQLRuntime.builder().metadata(new TeaQLRuntimeTest.DummyMetaFactory()).dataService("dummy", executor).build();
         var source = request();
         source.getAggregations().getSimpleDimensions().add(new SimpleNamedExpression("name", new PropertyReference("name")));
-        runtime.executeForList(new DefaultUserContext(runtime), source);
+        runtime.aggregation(new DefaultUserContext(runtime), source);
         assertEquals(1, executor.requests.size()); assertTrue(executor.requests.get(0).hasSimpleAgg());
         assertEquals(1, executor.requests.get(0).getAggregations().getSimpleDimensions().size());
+    }
+
+    @Test public void scalarAliasesAndNullRemainMetadataAlongsideOptionalExactCount() {
+        for (boolean counted : new boolean[]{false, true}) for (Object value : new Object[]{600L, null}) {
+            var executor = new TeaQLRuntimeTest.PageQueryExecutor() {
+                @Override public QueryResult query(UserContext context, QueryRequest query) {
+                    SearchRequest<?> source = ((DefaultQueryRequest) query).getSearchRequest();
+                    requests.add(source);
+                    var values = new java.util.HashMap<SimpleNamedExpression, Object>();
+                    for (var aggregate : source.getAggregations().getAggregates())
+                        values.put(new SimpleNamedExpression(aggregate.name()),
+                            ((AggrExpression) aggregate.getExpression()).getOperator() == AggrFunction.COUNT ? 3L : value);
+                    var item = new AggregationItem(); item.setValues(values);
+                    var result = new AggregationResult(); result.setData(List.of(item));
+                    return new DefaultQueryResult(new SmartList<>(), result);
+                }
+            };
+            var runtime = TeaQLRuntime.builder().metadata(new TeaQLRuntimeTest.DummyMetaFactory()).dataService("dummy", executor).build();
+            var source = request();
+            if (!counted) source.getAggregations().getAggregates().clear();
+            source.sum("sum", "amount");
+            var rows = runtime.executeForList(new DefaultUserContext(runtime), source);
+            assertTrue(rows.isEmpty()); assertTrue(rows.aggregationProperties().containsKey("sum"));
+            assertEquals(value, rows.aggregationProperties().get("sum"));
+            assertEquals(counted ? Long.valueOf(3) : null, rows.getExactTotalCount());
+            assertEquals(counted ? 2 : 1, executor.requests.size());
+        }
+    }
+
+    @Test public void groupedProjectionIsRejectedAtTheEntityListBoundary() {
+        var executor = new TeaQLRuntimeTest.PageQueryExecutor();
+        var runtime = TeaQLRuntime.builder().metadata(new TeaQLRuntimeTest.DummyMetaFactory()).dataService("dummy", executor).build();
+        var source = request();
+        source.getAggregations().getSimpleDimensions().add(new SimpleNamedExpression("name", new PropertyReference("name")));
+        assertThrows(TeaQLRuntimeException.class, () -> runtime.executeForList(new DefaultUserContext(runtime), source));
+        assertTrue(executor.requests.isEmpty());
     }
 
     @Test public void noSeparatePageExecutionEntryRemainsInCoreOrRuntime() {
