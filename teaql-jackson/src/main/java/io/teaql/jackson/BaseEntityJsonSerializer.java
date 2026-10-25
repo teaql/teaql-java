@@ -47,8 +47,14 @@ public class BaseEntityJsonSerializer extends JsonSerializer<BaseEntity> {
                     serializers.defaultSerializeField(member, value.__internalGet(member), gen);
                 }
                 for (String relation : layout.relationNames()) {
-                    if (layout.findIndex(relation) != null || !state.isLoaded(relation)) continue;
-                    serializers.defaultSerializeField(relation, value.__internalGet(relation), gen);
+                    if (layout.findIndex(relation) != null) continue;
+                    Object children = value.__internalGet(relation);
+                    // Pending business edits are present without certifying that
+                    // this relation was queried. Merely reading never loads it.
+                    boolean pending = children instanceof io.teaql.core.SmartList<?> list
+                            && list.stream().anyMatch(child -> child instanceof io.teaql.core.Entity entity && entity.needPersist());
+                    if (!state.isLoaded(relation) && !pending) continue;
+                    serializers.defaultSerializeField(relation, children, gen);
                 }
             }
             for (Map.Entry<String, Object> entry : value.getAdditionalInfo().entrySet()) {
