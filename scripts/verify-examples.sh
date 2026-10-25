@@ -4,7 +4,7 @@ set -euo pipefail
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 verification_dir="$(mktemp -d)"
 trap 'rm -rf -- "$verification_dir"' EXIT
-expected=(business-id-runtime conformance exact-decimal http-resilience object-storage order-management round-trip-reference-runtime school-management security-foundations shared-load-state standard-order trace-chain)
+expected=(business-id-runtime conformance exact-decimal fix-e-alignment http-resilience object-storage order-management round-trip-reference-runtime school-management security-foundations shared-load-state standard-order trace-chain)
 mapfile -t actual < <(find "$repo/examples" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
 if [[ "${actual[*]}" != "${expected[*]}" ]]; then
   echo "example inventory changed; update scripts/verify-examples.sh: ${actual[*]}" >&2
@@ -12,6 +12,7 @@ if [[ "${actual[*]}" != "${expected[*]}" ]]; then
 fi
 
 cd "$repo"
+node examples/fix-e-alignment/verify-local.cjs
 bash examples/object-storage/verify.sh
 bash examples/http-resilience/verify.sh
 mvn -q -DskipTests install

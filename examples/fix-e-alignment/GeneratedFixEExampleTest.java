@@ -44,6 +44,14 @@ public class GeneratedFixEExampleTest {
     }
 
     @Test public void localGeneratedSaveAndEConsumeTheBusinessClock() throws Exception {
+        String expectedRuntime = System.getProperty("teaql.expected.runtime.root");
+        if (expectedRuntime != null) {
+            var root = java.nio.file.Path.of(expectedRuntime).toRealPath();
+            for (Class<?> type : List.of(UserContext.class, TeaQLRuntime.class, SqliteDataServiceExecutor.class)) {
+                var origin = java.nio.file.Path.of(type.getProtectionDomain().getCodeSource().getLocation().toURI()).toRealPath();
+                assertTrue("runtime class must come from the source-paired reactor: " + type.getName(), origin.startsWith(root));
+            }
+        }
         var first = LocalDateTime.of(2032, 2, 29, 10, 15, 30);
         var second = first.plusHours(25);
         var time = new AtomicReference<>(first);
@@ -52,7 +60,9 @@ public class GeneratedFixEExampleTest {
             public LocalDateTime businessDateTime(UserContext context) { return time.get(); }
         };
         var source = new SQLiteDataSource();
-        source.setUrl("jdbc:sqlite:file:teaql-fix-e-" + UUID.randomUUID() + "?mode=memory&cache=shared");
+        String database = System.getenv("TEAQL_FIX_E_DB");
+        source.setUrl(database == null ? "jdbc:sqlite:file:teaql-fix-e-" + UUID.randomUUID() + "?mode=memory&cache=shared"
+                : "jdbc:sqlite:" + database);
         // Keep this named in-memory database alive across provider connections.
         try (var keeper = source.getConnection()) {
             var sql = new JdbcSqlExecutor(source);
