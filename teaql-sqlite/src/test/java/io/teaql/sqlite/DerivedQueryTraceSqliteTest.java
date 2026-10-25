@@ -590,7 +590,7 @@ public class DerivedQueryTraceSqliteTest {
                     var rows = results.get(i); var label = i == 0 ? "alpha" : "beta";
                     assertEquals(1, rows.size());
                     assertEquals(Long.valueOf(i == 0 ? 100 : 200), rows.get(0).getId());
-                    SmartList<?> children = rows.get(0).getProperty("lines");
+                    SmartList<? extends Entity> children = rows.get(0).getProperty("lines");
                     assertEquals(i == 0 ? 2 : 1, children.size());
                     assertEquals(i == 0 ? List.of(101L, 102L) : List.of(201L),
                             children.stream().map(Entity::getId).sorted().toList());
@@ -689,7 +689,7 @@ public class DerivedQueryTraceSqliteTest {
                 TraceDocument owner = nested
                         ? (TraceDocument) result.getResult().get(0).getProperty("document")
                         : (TraceDocument) result.getResult().get(0);
-                SmartList<?> loaded = owner.getProperty("lines");
+                SmartList<? extends Entity> loaded = owner.getProperty("lines");
                 assertNotNull(loaded);
                 assertEquals(2, loaded.size());
                 assertEquals(1, ((Number) owner.getDynamicProperty("openLineCount")).intValue());

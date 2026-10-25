@@ -87,7 +87,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                     repository.doAggregateInternal(context, (SearchRequest) searchRequest, intent);
             return new DefaultQueryResult(new SmartList<>(), aggregation, statements);
         }
-        SmartList<?> result = repository.loadInternal(context, (SearchRequest) searchRequest, intent);
+        SmartList<? extends Entity> result = repository.loadInternal(context, (SearchRequest) searchRequest, intent);
         
         if (searchRequest.enhanceRelations() != null && !searchRequest.enhanceRelations().isEmpty()) {
             enhanceRelations(context, (SmartList<Entity>) result, searchRequest, intent);
@@ -99,11 +99,11 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         return new DefaultQueryResult((SmartList<Entity>) result, null, statements);
     }
 
-    private void attachDynamicFields(UserContext context, SmartList<?> results, SearchRequest<?> request) {
+    private void attachDynamicFields(UserContext context, SmartList<? extends Entity> results, SearchRequest<?> request) {
         attachDynamicFields(context, results, request, new java.util.HashMap<>());
     }
 
-    private void attachDynamicFields(UserContext context, SmartList<?> results, SearchRequest<?> request,
+    private void attachDynamicFields(UserContext context, SmartList<? extends Entity> results, SearchRequest<?> request,
             Map<LoadState, Map<Set<String>, LoadState>> shapes) {
         var selection = request.getDynamicFieldSelection();
         if (selection == null || results.isEmpty()) return;
