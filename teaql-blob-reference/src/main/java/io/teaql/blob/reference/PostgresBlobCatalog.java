@@ -217,6 +217,35 @@ public final class PostgresBlobCatalog {
 
     public record Binding(BlobScope scope, BlobFieldTarget target, BlobRef reference, BlobRef retiredReference,
                           long version, Instant boundAt, Instant retainUntil) {}
+    /** One bounded snapshot of currently bound targets. Caller authorization precedes this query. */
+    public Map<BlobFieldTarget,BlobCatalogRecord> readBindings(BlobScope scope,Map<BlobFieldTarget,BlobRef> targets) {
+        Objects.requireNonNull(scope); Objects.requireNonNull(targets);
+        if (targets.size()>BlobRuntime.Reads.MAX_BATCH) throw new BlobException(BLOB_POLICY_INVALID);
+        if (targets.isEmpty()) return Map.of();
+        requireNoActiveTransaction();
+        return guarded(() -> {
+            validateSchema(); List<Object> args=new ArrayList<>(); args.add(scope.realm()); args.add(scope.boundary());
+            List<String> predicates=new ArrayList<>();
+            for (var entry:targets.entrySet()) {
+                BlobFieldTarget target=entry.getKey();
+                if (target.entityId()==null || entry.getValue()==null) throw new BlobException(BLOB_REFERENCE_INVALID);
+                predicates.add("(b.entity_type=? AND b.entity_id=? AND b.field_name=? AND b.blob_key=?)");
+                args.add(target.entity()); args.add(target.entityId()); args.add(target.field()); args.add(entry.getValue().key());
+            }
+            String statement="SELECT o.*,b.entity_type AS read_entity,b.entity_id AS read_id,b.field_name AS read_field "
+                    + "FROM teaql_blob_binding b JOIN teaql_blob_object o ON o.blob_key=b.blob_key "
+                    + "AND o.scope_realm=b.scope_realm AND o.scope_boundary=b.scope_boundary "
+                    + "WHERE b.scope_realm=? AND b.scope_boundary=? AND ("+String.join(" OR ",predicates)+")";
+            Map<BlobFieldTarget,BlobCatalogRecord> result=new LinkedHashMap<>();
+            for (var row:query(statement,args.toArray())) {
+                BlobFieldTarget target=new BlobFieldTarget((String)row.get("read_entity"),number(row,"read_id"),(String)row.get("read_field"));
+                BlobCatalogRecord blob=record(row);
+                if (!Objects.equals(targets.get(target),blob.reference()) || result.putIfAbsent(target,blob)!=null) throw new BlobException(BLOB_CATALOG_FAILED);
+            }
+            return Map.copyOf(result);
+        });
+    }
+
     public Optional<Binding> binding(BlobScope scope, BlobFieldTarget target) {
         return guarded(() -> {
             validateSchema();

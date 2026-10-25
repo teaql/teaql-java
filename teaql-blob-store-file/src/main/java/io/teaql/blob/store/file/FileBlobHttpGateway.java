@@ -71,7 +71,7 @@ public final class FileBlobHttpGateway implements BlobStore,AutoCloseable {
             base=null; if (created!=null) created.stop(0); if (workers!=null) workers.shutdownNow(); throw new BlobException(BLOB_CAPABILITY_MISSING);
         }
     }
-    public void validateReady() { if (base==null) throw new BlobException(BLOB_CAPABILITY_MISSING); files.validateReady(); }
+    @Override public void validateReady() { if (base==null) throw new BlobException(BLOB_CAPABILITY_MISSING); files.validateReady(); }
     @Override public synchronized void close() {
         base=null;
         if (server!=null) { server.stop(0); server=null; }
@@ -82,6 +82,7 @@ public final class FileBlobHttpGateway implements BlobStore,AutoCloseable {
             finally { executor=null; }
         }
     }
+    @Override public long maximumWriteBytes() { return files.maximumWriteBytes(); }
     @Override public Capabilities capabilities() { return new Capabilities(false,true,true,false,true,maximumTtl); }
     @Override public UploadTarget createUpload(UserContext context,String uploadId) { return files.createUpload(context,uploadId); }
     @Override public StoredContent write(UserContext context,UploadTarget target,InputStream source,long maxBytes) { return files.write(context,target,source,maxBytes); }

@@ -7,21 +7,9 @@ import java.util.*;
 import static io.teaql.core.blob.BlobException.Code.*;
 
 /** Explicit host-scheduled collection. No installation I/O, cached actor, timer or worker. */
-public final class BlobMaintenanceService {
+public final class BlobMaintenanceService implements BlobRuntime.Maintenance {
     @FunctionalInterface public interface Permission {
         boolean canMaintain(UserContext context,BlobScope scope);
-    }
-    public record Cursor(BlobScope scope,BlobRef after) {
-        public Cursor { Objects.requireNonNull(scope); Objects.requireNonNull(after); }
-        @Override public String toString() { return "BlobCollectionCursor[redacted]"; }
-    }
-    public enum Status { DELETED, ALREADY_MISSING, NOT_ELIGIBLE, VERSION_CONFLICT, FAILED }
-    public record Outcome(BlobRef reference,Status status,BlobException.Code error) {
-        public Outcome { Objects.requireNonNull(reference); Objects.requireNonNull(status); }
-        @Override public String toString() { return "BlobCollectionOutcome[status="+status+",error="+error+"]"; }
-    }
-    public record Batch(List<Outcome> outcomes,Cursor next) {
-        public Batch { outcomes=List.copyOf(outcomes); }
     }
     private final PostgresBlobCatalog catalog;
     private final BlobStore store;

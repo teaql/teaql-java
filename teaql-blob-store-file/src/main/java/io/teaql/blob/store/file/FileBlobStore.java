@@ -64,7 +64,7 @@ public final class FileBlobStore implements BlobStore {
         catch (UnsupportedOperationException unsupported) { throw new BlobException(BLOB_CAPABILITY_MISSING); }
         catch (IOException unavailable) { throw new BlobException(BLOB_STORE_FAILED); }
     }
-    public void validateReady() {
+    @Override public void validateReady() {
         Path actual=ready();
         try {
             requirePrivateDirectory(actual); checkFormat(actual.resolve("store.format"));
@@ -73,6 +73,7 @@ public final class FileBlobStore implements BlobStore {
         catch (IOException unavailable) { throw new BlobException(BLOB_STORE_FAILED); }
     }
 
+    @Override public long maximumWriteBytes() { return Long.MAX_VALUE; }
     @Override public Capabilities capabilities() { return new Capabilities(false,true,false,false,true,Duration.ZERO); }
     @Override public UploadTarget createUpload(UserContext context,String uploadId) {
         if (uploadId==null || !uploadId.matches("[A-Za-z0-9_-]{1,128}")) throw new BlobException(BLOB_REFERENCE_INVALID);

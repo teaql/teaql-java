@@ -12,6 +12,8 @@ public interface BlobContentVerifier {
         }
         @Override public String toString() { return "VerifiedBlobContent[sizeBytes="+sizeBytes+"]"; }
     }
+    /** Explicit format attestation for module readiness; legacy implementations remain unadvertised. */
+    default java.util.Set<String> supportedExtensions() { return java.util.Set.of(); }
     /** Source stays caller-owned. The expected extension is a restriction, never a detection hint. */
     Verified verify(InputStream source, String expectedExtension, long maximumBytes, boolean allowEmpty);
 }

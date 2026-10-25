@@ -13,7 +13,7 @@
         <dependency><groupId>junit</groupId><artifactId>junit</artifactId><scope>test</scope></dependency>
         <dependency><groupId>io.teaql</groupId><artifactId>teaql-provider-jdbc</artifactId><scope>test</scope></dependency>
         <dependency><groupId>io.teaql</groupId><artifactId>teaql-dynamic-fields-jdbc</artifactId><scope>test</scope></dependency>
-        <dependency><groupId>io.teaql</groupId><artifactId>teaql-runtime</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>io.teaql</groupId><artifactId>teaql-runtime</artifactId></dependency>
         <dependency><groupId>io.teaql</groupId><artifactId>teaql-blob-store-file</artifactId><scope>test</scope></dependency>
         <dependency><groupId>io.teaql</groupId><artifactId>teaql-blob-store-s3</artifactId><scope>test</scope></dependency>
         <dependency><groupId>io.teaql</groupId><artifactId>teaql-blob-content-tika</artifactId><scope>test</scope></dependency>

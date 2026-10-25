@@ -14,10 +14,10 @@ The shared policy fixtures verify these rules. The PostgreSQL catalog and save
 participant additionally have a real SQL component gate described below. Upload
 orchestration now combines actual verification with private file storage and SQL;
 the optional versioned S3 transport now has a real backend/SQL component gate.
-Unified current-context read authorization remains pending.
-A known Key or a resolved profile is not a read/binding credential. The module does
-not yet register `blob.v1`; full runtime assembly and its remaining service gates
-are still in progress.
+Current-context target-authorized batch reads and passive typed assembly are now
+available as described below. A known Key or a resolved profile grants no read or
+binding authority. Full graph/cascade/idempotency acceptance, authorized response
+projection and the remaining R3-R8 gates are still in progress.
 
 Concrete transport remains optional. The low-level object storage SPI adds an
 explicit version-conditional-delete capability; unsupported providers reject.
@@ -110,9 +110,9 @@ SQL saves are checked through an independent connection. It also covers retries,
 concurrent callers, current scope/both permission layers, revocation, deadlines,
 I/O failure, empty content, changed generations and policy/deployment changes.
 Use the same environment as `PostgresBlobCatalogIT`, selecting
-`-Dtest=PostgresBlobCatalogIT,BlobUploadIT` explicitly. The module still does not
-advertise full `blob.v1`; runtime assembly, authorized view projection, outer
-transaction completion and the remaining R3-R8 gates are unfinished.
+`-Dtest=PostgresBlobCatalogIT,BlobUploadIT` explicitly. These upload gates cover
+the underlying services. The passive module below adds typed assembly and reads;
+authorized view projection and the remaining R3-R8 gates are unfinished.
 
 `BlobMaintenanceService` is explicit host-scheduled work. Its constructor starts no
 timer and performs no I/O; the host owns scheduler/worker lifecycle and supplies the
@@ -156,12 +156,13 @@ with a separate current-context permission; catalog maintenance authority alone
 does not grant it. `BlobScratchIT` kills real upload/verification processes while
 leases are held, confirms active stages remain untouched, reaps abandoned scratch,
 and verifies retry through actual confirmation, SQL binding and physical collection.
-The optional [S3 transport](../teaql-blob-store-s3/README.md) and six-method
+The optional [S3 transport](../teaql-blob-store-s3/README.md) and seven-method
 `BlobS3IT` gate combine actual versioned storage, ten-format verification, native
 SQL binding, rollback, committed audit failure, shared retention, abandoned uploads,
 authorization revocation and physical collection recovery. Source tests require
 the S3 test variables listed in that provider's README in addition to PostgreSQL.
-Full runtime assembly and external-network validation remain pending; logical `deleted` does
+The public module also has a native S3 URL/Range gate. Full four-combination
+consumer and external-network validation remain pending; logical `deleted` does
 not claim destruction of deployment backups or all storage versions.
 
 `BlobOuterTransactionIT` adds caller-owned PostgreSQL transaction coverage. Runtime
@@ -175,5 +176,71 @@ retry pending durable reconciliation. See
 Blob executors without physical completion support fail before writes. Shared
 pending entities can now move between graph roots under the same physical owner
 while unrelated working intent stays isolated. All graph state settles
-before audit delivery. Full graph/cascade/cross-policy/idempotency acceptance and
-module assembly remain pending; this component does not advertise full `blob.v1`.
+before audit delivery. Full graph/cascade/cross-policy/idempotency acceptance
+remains pending.
+
+
+## Passive module assembly and reads
+
+`BlobReferenceModule` assembles the existing PostgreSQL catalog, upload verifier,
+binding participant, target-authorized read service and bounded maintenance service.
+It depends on the runtime API for installation; core/runtime still have no concrete
+Blob/S3/Tika/secure-document implementation dependency. Store, verifier, current
+scope/host permissions/additional policies and maintenance permission are supplied
+by the trusted host. No user identity is retained.
+
+```java
+BlobReferenceModule module = BlobReferenceModule.builder()
+    .catalog(catalog).store(store).verifier(verifier).policies(policies)
+    .uploadAuthorization(uploadAuthorization)
+    .bindingAuthorization(bindingAuthorization)
+    .readAuthorization(readAuthorization)
+    .maintenancePermission(maintenancePermission)
+    .build();
+TeaQLRuntime runtime = module.installInto(TeaQLRuntime.builder()
+    .metadata(metadata).dataService("default", businessExecutor)).build();
+runtime.install(businessModule);
+// The host provisions/migrates infrastructure separately, before this probe.
+runtime.validateReadiness();
+BlobRuntime blobs = context.capability(BlobRuntime.class);
+```
+
+Construction/installation does no catalog/storage I/O, migration, upload, signing,
+or worker startup. Business manifests and Blob assembly can be installed in either
+order. Duplicate or participant/module replacement is rejected by the builder.
+`validateCapabilities()` checks required slots and pure model/policy/route/provider
+configuration; saves can repeat it within an existing physical transaction.
+`validateReadiness()` additionally detects Blob fields even without a generated
+requirement, checks the fixed catalog schema and invokes the store's read-only
+probe. It rejects an active catalog transaction. Missing infrastructure is never
+created or repaired by either method. Maintenance remains explicitly host-scheduled.
+
+Every effective field must have compatible BlobRef metadata, a known profile,
+formats attested by the verifier and a completion-capable business route borrowing
+the same physical adapter as the catalog. Range, signed reads, conditional deletion
+and the adapter's declared single-write bound are checked. Unsupported providers
+fail closed. Direct upload remains unsupported by this module until its remote
+publisher fencing/collection contract is implemented and verified.
+
+`BlobRuntime.Reads.readBatch` accepts at most 256 currently authorized, visible,
+loaded field targets with their expected BlobRef. It checks current scope, host
+field visibility, separate read policy and an authoritative target-to-Key binding;
+knowing a Key alone grants nothing. It batches catalog lookups and deduplicates
+only equivalent transport requests within the call. Empty input performs no
+catalog/signing I/O. Reads reject an unfinished catalog transaction. Signing is
+followed by binding and current permission/scope rechecks before any URL is returned.
+
+Results contain the provider's complete URL and actual expiry, original name,
+actual MIME/size and private cache policy, with no storage locator. Current policy,
+request, store and optional document deadlines cap lifetimes. An overlong/expired
+or malformed signer result is rejected, never relabeled with a false expiry.
+Context-checked reads require a provider that explicitly supports them; current
+file/S3 bearer providers reject that option. Entity fields and ledgers are untouched.
+No serializer/getter/SQL codec signs URLs. The R4 authorized response graph and
+ViewPreparationService still need to consume this service.
+
+The unreleased upload and maintenance DTOs now live in `BlobRuntime.Uploads` and
+`BlobRuntime.Maintenance` in core. Ordinary qualified source references through the
+implementing service remain inherited; imports must use the canonical core name.
+Previously compiled development consumers must be rebuilt against matching sources.
+This does not change persisted BlobRef, catalog migration v1 or tqr1/tqd1 protocols.

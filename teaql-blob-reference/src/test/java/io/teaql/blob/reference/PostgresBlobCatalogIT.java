@@ -312,7 +312,7 @@ public class PostgresBlobCatalogIT {
         final PostgresBlobMutationParticipant participant;
         final TeaQLRuntime runtime;
         final AtomicLong uploadSequence=new AtomicLong();
-        final AtomicLong compiledQueries=new AtomicLong(),mappedBusinessQueries=new AtomicLong();
+        final AtomicLong compiledQueries=new AtomicLong(),mappedBusinessQueries=new AtomicLong(),blobReadQueries=new AtomicLong();
         final List<RawAuditEvent> audits=new CopyOnWriteArrayList<>();
         final List<MutationPlan> approvedPlans=new CopyOnWriteArrayList<>();
         volatile java.util.function.Consumer<RawAuditEvent> auditHook=event -> {};
@@ -335,6 +335,7 @@ public class PostgresBlobCatalogIT {
                     compiledQueries.incrementAndGet(); return super.query(statement,parameters,mapper);
                 }
                 @Override public List<Map<String,Object>> queryForList(String statement,Object[] parameters) {
+                    if (statement.contains(" AS read_entity")) blobReadQueries.incrementAndGet();
                     if (statement.startsWith("SELECT ") && statement.contains("asset_data")) mappedBusinessQueries.incrementAndGet();
                     return super.queryForList(statement,parameters);
                 }

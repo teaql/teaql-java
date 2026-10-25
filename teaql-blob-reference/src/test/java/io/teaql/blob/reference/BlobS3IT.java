@@ -21,7 +21,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 import static io.teaql.blob.reference.PostgresBlobCatalogIT.*;
-import static io.teaql.blob.reference.BlobMaintenanceService.Status.*;
+import static io.teaql.core.blob.BlobRuntime.Maintenance.Status.*;
 import static io.teaql.core.blob.BlobException.Code.*;
 import static org.junit.Assert.*;
 
@@ -139,6 +139,34 @@ public class BlobS3IT {
             assertEquals(BlobState.DELETING,h.f.find(key).state());
             assertArrayEquals(file("pdf"),h.admin.getObjectAsBytes(b -> b.bucket(h.bucket).key(original.storageLocation()).versionId(original.contentVersion())).asByteArray());
             assertEquals(DELETED,h.maintenance(h.store).runBatch(h.context()).outcomes().get(0).status()); h.assertDeleted(key);
+        }
+    }
+
+    @Test public void publicModuleProvidesAuthorizedFullS3UrlsForNativeCommittedBindings() throws Exception {
+        try (Harness h=new Harness()) {
+            var scopes=(BlobBindingAuthorization.ScopeProvider)actor -> actor.getAttribute("scope",BlobScope.class);
+            var module=BlobReferenceModule.builder().catalog(h.f.catalog).store(h.store).clock(Clock.systemUTC())
+                    .verifier(new TikaBlobContentVerifier(h.root.resolve("module-parser"),TikaBlobContentVerifier.Limits.defaults()))
+                    .uploadAuthorization(new BlobUploadAuthorization(scopes,(actor,target) -> true,(actor,target,action,info) -> true))
+                    .bindingAuthorization(new BlobBindingAuthorization(scopes,(actor,target,kind) -> true,(actor,target,blob) -> true))
+                    .readAuthorization(new BlobReadAuthorization(scopes,(actor,target) -> true,(actor,target,blob) -> true))
+                    .maintenancePermission((actor,scope) -> false).build();
+            try (var runtime=module.installInto(io.teaql.runtime.TeaQLRuntime.builder().metadata(h.f.runtime.getMetadata())
+                    .registry(h.f.runtime.getRegistry()).telemetry(io.teaql.runtime.RuntimeTelemetry.NOOP).executionLogging(false)).build()) {
+                runtime.install(io.teaql.core.RuntimeModule.of().withRequiredCapabilities("blob.v1")); runtime.validateReadiness();
+                var actor=new DefaultUserContext(runtime); actor.putAttribute("scope",SCOPE); BlobRuntime blobs=actor.capability(BlobRuntime.class);
+                var session=blobs.upload().begin(actor,TARGET,new BlobRuntime.Uploads.FileInfo("application.pdf",null,null),"module-native");
+                blobs.upload().write(actor,session.uploadId(),new ByteArrayInputStream(file("pdf"))); BlobRef key=blobs.upload().complete(actor,session.uploadId());
+                var entity=h.f.newAsset(42,key); runtime.saveGraph(actor,entity); h.f.assertOracle(42,key);
+                Instant deadline=Instant.now().plusSeconds(15);
+                var read=blobs.reads().readBatch(actor,List.of(new BlobRuntime.Reads.Request(new BlobFieldTarget("Asset",42L,"document"),key)),
+                        new BlobRuntime.Reads.Options(Duration.ofSeconds(20),deadline,false)).get(0);
+                assertFalse(read.expiresAt().isAfter(deadline)); assertTrue(read.url().getRawQuery().contains("versionId="));
+                var connection=(HttpURLConnection)read.url().toURL().openConnection(); connection.setConnectTimeout(5000); connection.setReadTimeout(5000); connection.setRequestProperty("Range","bytes=2-7");
+                try (var bytes=connection.getInputStream()) { assertEquals(206,connection.getResponseCode()); assertArrayEquals(Arrays.copyOfRange(file("pdf"),2,8),bytes.readAllBytes()); }
+                finally { connection.disconnect(); }
+                assertEquals(key,entity.document); assertTrue(entity.getEntityMutationLedger().currentChangeSet().isEmpty()); h.assertScratchEmpty();
+            }
         }
     }
 

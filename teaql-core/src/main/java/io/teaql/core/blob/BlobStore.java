@@ -68,6 +68,10 @@ public interface BlobStore {
     }
     enum DeleteResult { DELETED, ALREADY_MISSING, VERSION_MISMATCH }
 
+    /** Read-only explicit readiness; unsupported adapters fail closed. */
+    default void validateReady() { throw new BlobException(BlobException.Code.BLOB_CAPABILITY_MISSING); }
+    /** Largest single immutable write supported by this adapter, independently of deployment policy. */
+    default long maximumWriteBytes() { return 0; }
     Capabilities capabilities();
     UploadTarget createUpload(UserContext context, String uploadId);
     /** Bounded immutable write. A repeated identical write may return the original generation. */

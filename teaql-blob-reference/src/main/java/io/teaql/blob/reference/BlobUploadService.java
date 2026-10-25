@@ -13,21 +13,7 @@ import static io.teaql.core.blob.BlobException.Code.*;
 import static io.teaql.blob.reference.BlobUploadAuthorization.Action.*;
 
 /** Current-context upload orchestration. File bytes become bindable only after actual verification. */
-public final class BlobUploadService {
-    /** Declared size and MIME are hints used for early bounds/idempotency, never the authoritative MIME. */
-    public record FileInfo(String fileName,Long declaredSize,String declaredContentType) {
-        public FileInfo {
-            if (fileName==null || fileName.isBlank() || fileName.indexOf('\0')>=0 || declaredSize!=null && declaredSize<0
-                    || declaredContentType!=null && declaredContentType.length()>160) throw new BlobException(BLOB_REFERENCE_INVALID);
-        }
-        @Override public String toString() { return "BlobFileInfo[redacted]"; }
-    }
-    public record Session(String uploadId,BlobRef reference,Instant uploadExpiresAt,URI directUploadUrl,Instant directUrlExpiresAt) {
-        @Override public String toString() { return "BlobUploadSession[redacted]"; }
-    }
-    public record WriteReceipt(String uploadId,long sizeBytes) {
-        @Override public String toString() { return "BlobWriteReceipt[sizeBytes="+sizeBytes+"]"; }
-    }
+public final class BlobUploadService implements BlobRuntime.Uploads {
     private final PostgresBlobCatalog catalog;
     private final BlobStore store;
     private final BlobContentVerifier verifier;

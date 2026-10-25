@@ -60,6 +60,8 @@ public final class TikaBlobContentVerifier implements BlobContentVerifier {
         permits=new Semaphore(limits.concurrentVerifications());
     }
 
+    @Override public Set<String> supportedExtensions() { return Set.of("jpg","jpeg","png","mp3","mp4","pdf","doc","docx","xls","xlsx"); }
+
     @Override public Verified verify(InputStream source,String extension,long maximumBytes,boolean allowEmpty) {
         Objects.requireNonNull(source);
         if (maximumBytes<=0) throw new BlobException(BLOB_POLICY_INVALID);

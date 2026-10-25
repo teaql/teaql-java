@@ -53,14 +53,14 @@ public final class S3BlobStore implements BlobStore,AutoCloseable {
         catch (RuntimeException failed) { try { client.close(); } finally { if (presigner!=null) presigner.close(); } throw new BlobException(BLOB_POLICY_INVALID); }
     }
     /** Explicit read-only readiness. Provisioning/enabling versioning is a separate trusted host operation. */
-    public void validateReady() {
+    @Override public void validateReady() {
         ready=false;
         try { client.headBucket(b -> b.bucket(bucket)); requireVersioning(); ready=true; }
         catch (BlobException known) { throw known; }
         catch (SdkException unavailable) { throw new BlobException(BLOB_CAPABILITY_MISSING); }
     }
     public PrivateStagingArea.Maintenance stagingMaintenance(PrivateStagingArea.Permission permission) { return staging.maintenance(permission); }
-    public long maximumWriteBytes() { return MAX_PUT_BYTES; }
+    @Override public long maximumWriteBytes() { return MAX_PUT_BYTES; }
     @Override public Capabilities capabilities() { return new Capabilities(false,true,true,false,true,maximumReadTtl); }
     @Override public UploadTarget createUpload(UserContext context,String uploadId) {
         if (uploadId==null || !uploadId.matches("[A-Za-z0-9_-]{1,128}")) throw new BlobException(BLOB_REFERENCE_INVALID);

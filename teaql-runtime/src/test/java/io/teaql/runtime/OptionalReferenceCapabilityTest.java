@@ -14,8 +14,10 @@ public class OptionalReferenceCapabilityTest {
     @Test public void ordinaryRuntimeNeedsNoSecureImplementationOrKey() {
         try (TeaQLRuntime runtime = TeaQLRuntime.builder().metadata(new SimpleEntityMetaFactory()).build()) {
             runtime.validateCapabilities();
+            runtime.validateReadiness();
             DefaultUserContext context = new DefaultUserContext(runtime);
             Assert.assertNull(context.capability(RoundTripReferenceCodec.class));
+            Assert.assertNull(context.capability(io.teaql.core.blob.BlobRuntime.class));
             Assert.assertThrows(RoundTripReferenceException.class, context::roundTripReferences);
             ClassLoader loader = TeaQLRuntime.class.getClassLoader();
             Assert.assertNull(loader.getResource("io/teaql/runtime/reference/AeadRoundTripReferenceProvider.class"));

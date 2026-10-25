@@ -10,6 +10,8 @@ import java.util.Optional;
 class BlobStoreDelegate implements BlobStore {
     final BlobStore delegate;
     BlobStoreDelegate(BlobStore delegate) { this.delegate=delegate; }
+    @Override public void validateReady() { delegate.validateReady(); }
+    @Override public long maximumWriteBytes() { return delegate.maximumWriteBytes(); }
     @Override public Capabilities capabilities() { return delegate.capabilities(); }
     @Override public UploadTarget createUpload(UserContext context,String id) { return delegate.createUpload(context,id); }
     @Override public StoredContent write(UserContext context,UploadTarget target,InputStream source,long maximum) { return delegate.write(context,target,source,maximum); }

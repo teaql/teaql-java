@@ -18,6 +18,7 @@ import io.teaql.core.reference.RoundTripReferenceProvider;
 import io.teaql.core.blob.BlobException;
 import io.teaql.core.blob.BlobMutationParticipant;
 import io.teaql.core.blob.BlobRef;
+import io.teaql.core.blob.BlobRuntime;
 import io.teaql.runtime.businessid.SystemBusinessClock;
 import java.util.*;
 import java.util.stream.Stream;
@@ -41,6 +42,7 @@ public class TeaQLRuntime implements AutoCloseable {
     private final BusinessIdKeyProvider businessIdKeyProvider;
     private final RoundTripReferenceCodec roundTripReferenceCodec;
     private final BlobMutationParticipant blobMutationParticipant;
+    private final BlobRuntime blobRuntime;
     private final BusinessClock businessClock;
     private final Map<String, Checker<?>> checkers = new java.util.concurrent.ConcurrentHashMap<>();
     private final List<GeneratedSchemaBootstrap> generatedBootstraps =
@@ -70,6 +72,7 @@ public class TeaQLRuntime implements AutoCloseable {
                 ? null
                 : new RoundTripReferenceCodec(builder.roundTripReferenceProvider);
         this.businessClock = builder.businessClock;
+        this.blobRuntime = builder.blobRuntime;
         this.blobMutationParticipant = builder.blobMutationParticipant;
     }
 
@@ -153,6 +156,8 @@ public class TeaQLRuntime implements AutoCloseable {
         return roundTripReferenceCodec;
     }
 
+    BlobRuntime getBlobRuntime() { return blobRuntime; }
+
     BlobMutationParticipant getBlobMutationParticipant() {
         return blobMutationParticipant;
     }
@@ -166,12 +171,34 @@ public class TeaQLRuntime implements AutoCloseable {
         return this;
     }
 
-    /** Explicit readiness after passive business and infrastructure assembly. Never creates a schema. */
+    /** Pure required-capability check; infrastructure readiness is a separate explicit operation. */
     public void validateCapabilities() {
         for (String capability : requiredCapabilities) {
             if ("secure_document.v1".equals(capability) && roundTripReferenceCodec != null) continue;
+            if ("blob.v1".equals(capability) && blobRuntime != null) {
+                blobRuntime.validateConfiguration(metadata,registry);
+                continue;
+            }
             String code = "blob.v1".equals(capability) ? "BLOB_CAPABILITY_MISSING" : "VIEW_CAPABILITY_MISSING";
             throw new TeaQLRuntimeException(code + ": required capability " + capability + " is not installed");
+        }
+    }
+
+    /** Explicit startup probe after all modules/routes are installed. Never migrates or starts workers. */
+    public void validateReadiness() {
+        validateCapabilities();
+        boolean hasBlob=false;
+        for (EntityDescriptor root:metadata.allEntityDescriptors()) {
+            for (EntityDescriptor descriptor=root;descriptor!=null;descriptor=descriptor.getParent()) {
+                for (PropertyDescriptor property:descriptor.getProperties()) {
+                    if (property.blobFieldSpec()!=null || property.getType()!=null && property.getType().javaType()==BlobRef.class) hasBlob=true;
+                }
+            }
+        }
+        if (hasBlob && blobRuntime==null) throw new BlobException(BlobException.Code.BLOB_CAPABILITY_MISSING);
+        if (blobRuntime!=null) {
+            blobRuntime.validateConfiguration(metadata,registry);
+            blobRuntime.validateReadiness();
         }
     }
 
@@ -1587,6 +1614,7 @@ public class TeaQLRuntime implements AutoCloseable {
         private BusinessIdKeyProvider businessIdKeyProvider;
         private RoundTripReferenceProvider roundTripReferenceProvider;
         private BlobMutationParticipant blobMutationParticipant;
+        private BlobRuntime blobRuntime;
         private BusinessClock businessClock = SystemBusinessClock.INSTANCE;
 
         public Builder metadata(EntityMetaFactory metadata) {
@@ -1674,10 +1702,20 @@ public class TeaQLRuntime implements AutoCloseable {
 
         /** Installs the optional transaction participant. This alone does not advertise full blob.v1 readiness. */
         public Builder blobMutationParticipant(BlobMutationParticipant participant) {
-            if (this.blobMutationParticipant != null) {
+            if (this.blobMutationParticipant != null || this.blobRuntime != null) {
                 throw new IllegalStateException("Blob mutation participant is already installed");
             }
             this.blobMutationParticipant = Objects.requireNonNull(participant, "participant");
+            return this;
+        }
+
+        /** Passive typed installation. Duplicate/replacement installation must be resolved before building. */
+        public Builder blobRuntime(BlobRuntime services) {
+            if (this.blobRuntime!=null || this.blobMutationParticipant!=null) throw new IllegalStateException("Blob capability is already installed");
+            Objects.requireNonNull(services,"services");
+            BlobMutationParticipant participant=Objects.requireNonNull(services.mutation(),"mutation");
+            Objects.requireNonNull(services.upload(),"upload"); Objects.requireNonNull(services.reads(),"reads"); Objects.requireNonNull(services.maintenance(),"maintenance");
+            this.blobRuntime=services; this.blobMutationParticipant=participant;
             return this;
         }
 

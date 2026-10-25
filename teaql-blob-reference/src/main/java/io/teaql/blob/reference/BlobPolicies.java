@@ -49,6 +49,10 @@ public final class BlobPolicies {
         return new BlobPolicies(Limits.defaults(), BlobPolicyProfile.named("default").build(), Map.of(), Map.of());
     }
     public long maximumUploadSizeBytes() { return limits.maxUploadSizeBytes(); }
+    public Disposition readDisposition(BlobPolicySnapshot policy,String contentType) {
+        if (policy.disposition()!=Disposition.AUTO) return policy.disposition();
+        return limits.inlineContentTypes().contains(contentType)?Disposition.INLINE:Disposition.ATTACHMENT;
+    }
     public void requireUploadFormat(String extension) {
         if (!limits.allowedExtensions().contains(extension)) throw new BlobException(BLOB_FORMAT_NOT_ALLOWED);
     }

@@ -17,7 +17,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import static io.teaql.blob.reference.PostgresBlobCatalogIT.*;
 import static io.teaql.core.blob.BlobException.Code.*;
-import static io.teaql.blob.reference.BlobMaintenanceService.Status.*;
+import static io.teaql.core.blob.BlobRuntime.Maintenance.Status.*;
 import static org.junit.Assert.*;
 
 /** Explicit real database + immutable file provider collection and failure-recovery gate. */
