@@ -38,4 +38,16 @@ public class BlobContractTest {
         Assert.assertThrows(IllegalArgumentException.class, () -> BlobFieldSpec.of("Asset", "document", List.of(), true, "default"));
         Assert.assertThrows(IllegalArgumentException.class, () -> BlobFieldSpec.of("Asset", "document", List.of("DOCX"), true, "default"));
     }
+
+    @Test public void trustedScopesAndCanonicalTargetsDoNotRequireDocumentKeysOrAsciiModelNames() {
+        var scope=new BlobScope("realm","tenant-a");
+        Assert.assertEquals(scope,new BlobScope("realm","tenant-a"));
+        Assert.assertNotEquals(scope,new BlobScope("realm","tenant-b"));
+        Assert.assertFalse(scope.toString().contains("tenant-a"));
+        Assert.assertEquals("文件",new BlobFieldTarget("附件",null,"文件").field());
+        Assert.assertThrows(BlobException.class,() -> new BlobFieldTarget("Asset",0L,"document"));
+        Assert.assertThrows(BlobException.class,() -> new BlobFieldTarget("Asset",1L,"document\n"));
+        Assert.assertThrows(BlobException.class,() -> new BlobScope("realm","tenant\0a"));
+        Assert.assertThrows(BlobException.class,() -> new BlobScope("realm","x".repeat(257)));
+    }
 }

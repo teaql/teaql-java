@@ -21,6 +21,8 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
     // A held view retains only this token, not the executor, connection or DataSource.
     private final Object storageIdentity = new Object();
     private final ThreadLocal<Connection> transactionConnection = new ThreadLocal<>();
+    private static final class TransactionIdentity {}
+    private final ThreadLocal<TransactionIdentity> transactionIdentity = new ThreadLocal<>();
     private final List<Consumer<Connection>> connectionInitializers = new CopyOnWriteArrayList<>();
 
     public JdbcSqlExecutor(DataSource dataSource) {
@@ -389,6 +391,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             boolean autoCommit = connection.getAutoCommit();
             connection.setAutoCommit(false);
             transactionConnection.set(connection);
+            transactionIdentity.set(new TransactionIdentity());
             try {
                 action.run();
                 connection.commit();
@@ -397,6 +400,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 throw failure;
             } finally {
                 transactionConnection.remove();
+                transactionIdentity.remove();
                 connection.setAutoCommit(autoCommit);
             }
         } catch (SQLException e) {
@@ -405,6 +409,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
     }
 
     @Override public boolean hasActiveTransaction() { return transactionConnection.get() != null; }
+    @Override public Object activeTransactionIdentity() { return transactionIdentity.get(); }
 
     static void bind(PreparedStatement statement, int index, Object value) throws SQLException {
         if (value == null) {

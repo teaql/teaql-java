@@ -46,6 +46,10 @@ public interface SqlExecutionAdapter {
     }
     default boolean hasActiveTransaction() { return false; }
 
+    /** Opaque identity of the current physical transaction, stable only until commit/rollback. */
+    @io.teaql.core.FrameworkInternal("Transaction participant ownership; never a workspace credential")
+    default Object activeTransactionIdentity() { return null; }
+
     /** Opaque, non-reused instance token for held storage views; never a URL or transaction handle. */
     default Object storageIdentity() { return null; }
 }
