@@ -71,6 +71,14 @@ public interface ContextBoundDocumentService {
                 "Document service does not support governed presentation");
     }
 
+    /** Current authority for a tqd2 document, including its protected Blob bindings. */
+    default void validatePreparedBoundDocument(
+            UserContext context, TrustedReferencePrincipal principal, VerifiedBoundDocumentSnapshot verified) {
+        throw new RoundTripReferenceException(
+                RoundTripReferenceErrorCode.PROVIDER_NOT_CONFIGURED,
+                "Document service does not support governed bound presentation");
+    }
+
     @SuppressWarnings("unchecked")
     private static Map<String, Object> freezeBody(Map<String, Object> body) {
         return (Map<String, Object>) freeze(body, 0, new AtomicInteger(100_000));

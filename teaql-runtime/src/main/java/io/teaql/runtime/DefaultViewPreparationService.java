@@ -64,10 +64,22 @@ public final class DefaultViewPreparationService implements ViewPreparationServi
         try {
             requireCompleted(options);
             requireSame(context,identity,principal,options);
-            VerifiedDocumentSnapshot verified=context.consumeDocumentSnapshot(document.documentToken(),aggregate,purpose);
-            if (!verified.snapshot().businessId().equals(document.businessId())) throw error(VIEW_ACCESS_DENIED,options);
-            var source=DocumentView.issue(issuer,document,verified,principal,
-                    context.contextBoundDocumentService(),context.roundTripReferences(),completion);
+            DocumentView source;
+            if (document.documentToken().startsWith("tqd2.")) {
+                VerifiedBoundDocumentSnapshot verified=context.consumeBoundDocumentSnapshot(
+                        document.documentToken(),aggregate,purpose);
+                if (!verified.document().snapshot().businessId().equals(document.businessId()))
+                    throw error(VIEW_ACCESS_DENIED,options);
+                source=DocumentView.issueBound(issuer,document,verified,principal,
+                        context.contextBoundDocumentService(),context.roundTripReferences(),completion);
+            } else {
+                VerifiedDocumentSnapshot verified=context.consumeDocumentSnapshot(
+                        document.documentToken(),aggregate,purpose);
+                if (!verified.snapshot().businessId().equals(document.businessId()))
+                    throw error(VIEW_ACCESS_DENIED,options);
+                source=DocumentView.issue(issuer,document,verified,principal,
+                        context.contextBoundDocumentService(),context.roundTripReferences(),completion);
+            }
             source.validateCurrent(issuer,context);
             requireSame(context,identity,principal,options);
             return source;
