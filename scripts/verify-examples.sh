@@ -4,7 +4,7 @@ set -euo pipefail
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 verification_dir="$(mktemp -d)"
 trap 'rm -rf -- "$verification_dir"' EXIT
-expected=(business-id-runtime conformance http-resilience object-storage order-management round-trip-reference-runtime school-management security-foundations shared-load-state standard-order trace-chain)
+expected=(blob-view-preparation business-id-runtime conformance http-resilience object-storage order-management round-trip-reference-runtime school-management security-foundations shared-load-state standard-order trace-chain view-preparation)
 mapfile -t actual < <(find "$repo/examples" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
 if [[ "${actual[*]}" != "${expected[*]}" ]]; then
   echo "example inventory changed; update scripts/verify-examples.sh: ${actual[*]}" >&2
@@ -15,6 +15,14 @@ cd "$repo"
 bash examples/object-storage/verify.sh
 bash examples/http-resilience/verify.sh
 mvn -q -DskipTests install
+mvn -q -pl examples/view-preparation exec:java \
+  -Dexec.mainClass=io.teaql.examples.view.BaseViewExample
+if [[ -n "${TEAQL_BLOB_TEST_PG_URL:-}" && -n "${TEAQL_BLOB_TEST_PG_USER:-}" && -n "${TEAQL_BLOB_TEST_PG_PASSWORD:-}" && -n "${TEAQL_VIEW_PDF:-}" ]]; then
+  mvn -q -pl examples/blob-view-preparation exec:java \
+    -Dexec.mainClass=io.teaql.examples.blobview.BlobViewExample
+else
+  echo "PASS: Blob view example compiled; standalone run requires an isolated PostgreSQL peer and TEAQL_VIEW_PDF"
+fi
 mvn -q -pl teaql-sqlite \
   -Dtest=DerivedQueryTraceSqliteTest,LikeIntentPrivacySqliteTest,TypedIntentPrivacySqliteTest test
 mvn -q -pl examples/business-id-runtime \
