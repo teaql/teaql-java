@@ -65,14 +65,20 @@ final class TypedEntityJsonDeserializer extends JsonDeserializer<BaseEntity> {
     }
 
     private Binding binding(String name) {
-        Integer index = layout.findIndex(name);
+        String canonical = layout.canonicalJsonField(name);
+        if (canonical == null) return null;
+        Integer index = layout.findIndex(canonical);
         if (index != null) return fixed.get(index);
-        String relation = layout.canonicalRelationName(name);
+        String relation = layout.canonicalRelationName(canonical);
         return relation == null ? null : relations.get(relation);
     }
 
     @Override public BaseEntity deserialize(JsonParser parser, DeserializationContext context) throws IOException {
-        JsonNode node = parser.getCodec().readTree(parser);
+        boolean strictDuplicates = parser.isEnabled(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
+        JsonNode node;
+        parser.enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
+        try { node = parser.getCodec().readTree(parser); }
+        finally { if (!strictDuplicates) parser.disable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION); }
         if (!node.isObject()) return context.reportInputMismatch(target, "Expected a model entity object");
         List<String> members = new ArrayList<>();
         var names = node.fieldNames();

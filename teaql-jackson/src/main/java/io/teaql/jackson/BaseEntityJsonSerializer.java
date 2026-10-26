@@ -23,11 +23,13 @@ public class BaseEntityJsonSerializer extends JsonSerializer<BaseEntity> {
         boolean added = path.add(value);
         try {
             gen.writeStartObject();
+            var state = value.__internalLoadState();
+            var layout = state.layout();
             if (value.getId() != null) {
-                serializers.defaultSerializeField(BaseEntity.ID_PROPERTY, value.getId(), gen);
+                serializers.defaultSerializeField(layout.isGenerated() ? layout.jsonFieldName(BaseEntity.ID_PROPERTY) : BaseEntity.ID_PROPERTY, value.getId(), gen);
             }
             if (value.getVersion() != null) {
-                serializers.defaultSerializeField(BaseEntity.VERSION_PROPERTY, value.getVersion(), gen);
+                serializers.defaultSerializeField(layout.isGenerated() ? layout.jsonFieldName(BaseEntity.VERSION_PROPERTY) : BaseEntity.VERSION_PROPERTY, value.getVersion(), gen);
             }
             // A cycle retains the existing identity-only reference shape, without
             // recursively reserializing the same object's business fields.
@@ -35,22 +37,20 @@ public class BaseEntityJsonSerializer extends JsonSerializer<BaseEntity> {
                 gen.writeEndObject();
                 return;
             }
-            var state = value.__internalLoadState();
-            var layout = state.layout();
             if (layout.isGenerated()) {
                 for (String field : layout.indexes().keySet()) {
                     if (BaseEntity.ID_PROPERTY.equals(field) || BaseEntity.VERSION_PROPERTY.equals(field)) continue;
                     if (!state.isLoaded(field)) continue;
-                    String member = layout.memberName(field);
+                    String member = layout.jsonFieldName(field);
                     // Preserve this provider's graph path, configured serializers
                     // and per-call attributes during nested serialization.
-                    // The wire/member spelling is not the model key used by
+                    // The selected wire spelling is not the native/member or model key used by
                     // generated entity access and the mutation ledger.
                     serializers.defaultSerializeField(member, value.__internalGet(field), gen);
                 }
                 for (String relation : layout.relationNames()) {
                     if (layout.findIndex(relation) != null || !state.isLoaded(relation)) continue;
-                    serializers.defaultSerializeField(layout.memberName(relation), value.__internalGet(relation), gen);
+                    serializers.defaultSerializeField(layout.jsonFieldName(relation), value.__internalGet(relation), gen);
                 }
             }
             for (Map.Entry<String, Object> entry : value.getAdditionalInfo().entrySet()) {

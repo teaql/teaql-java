@@ -24,7 +24,8 @@ public class TypedEntityJsonDeserializerTest {
                 Map.of("id", List.of("id", "id"), "version", List.of("version", "version"),
                         "name", List.of("name", "name"), "address", List.of("address", "address"),
                         "count", List.of("count", "count"), "active", List.of("active", "active"),
-                        "base_url", List.of("baseUrl", "legacy_url")), Set.of("child", "child_list")));
+                        "base_url", List.of("baseUrl", "legacy_url")), Set.of("child", "child_list"),
+                io.teaql.core.checker.JsonFieldNamingProfile.CAMEL_CASE, Map.of("legacy_url", "base_url")));
         String name, address, baseUrl, owner;
         Integer count;
         Boolean active;

@@ -14,5 +14,15 @@ real second-UPDATE failure after the first UPDATE executes. The same object grap
 is retried after rollback, preserving versions and producing two committed audits.
 Raw generic mutations are used only for the explicitly labelled negative tests.
 
-This does not yet qualify all JSON naming profiles, cross-runtime schema parity,
-or a published artifact. Source-fixture provenance is in `fixture-manifest.json`.
+`node examples/scalar-type-probe/verify-json-profiles.cjs` additionally compiles
+three evaluated model variants and runs each twice. Only the documented root
+`json_field_naming` option differs. Native Q/E and database names stay canonical;
+JSON names and diagnostic pointers follow camelCase, snake_case or PascalCase.
+The standard example entry point runs both verifiers. Set
+`TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR` to a new directory to retain these logs and
+three databases. The type-local mapping accepts canonical keys and explicitly
+declared aliases, not incidental physical columns or other profiles' spellings.
+
+This does not qualify all scalar wire boundaries, cross-runtime DDL parity or a
+published artifact. Provenance is in `fixture-manifest.json` and
+`json-profiles/provenance.json`; generated sources are never edited by the probes.
