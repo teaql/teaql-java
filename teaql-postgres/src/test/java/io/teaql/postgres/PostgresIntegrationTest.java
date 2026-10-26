@@ -312,6 +312,40 @@ public class PostgresIntegrationTest {
                 1, indexes.size());
     }
 
+    @Test
+    public void testSchemaReconciliationUsesCurrentPostgresSchema() {
+        String schema = "teaql_it_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        JdbcSqlExecutor owner = new JdbcSqlExecutor(dataSource);
+        owner.execute("CREATE SCHEMA " + schema);
+        try {
+            String baseUrl = System.getenv("TEAQL_TEST_POSTGRES_URL");
+            String scopedUrl = baseUrl + (baseUrl.contains("?") ? "&" : "?") + "currentSchema=" + schema;
+            DataSource scoped = new SimpleDataSource(scopedUrl,
+                    System.getenv("TEAQL_TEST_POSTGRES_USER"),
+                    System.getenv("TEAQL_TEST_POSTGRES_PASSWORD"));
+            JdbcSqlExecutor jdbc = new JdbcSqlExecutor(scoped);
+            try (TeaQLRuntime isolatedRuntime = TeaQLRuntime.builder()
+                    .metadata(relationMetadata("postgres"))
+                    .dataService("postgres", new PostgresDataServiceExecutor("postgres", jdbc))
+                    .build()) {
+                UserContext actor = new DefaultUserContext(isolatedRuntime);
+                actor.ensureSchema();
+                actor.ensureSchema();
+                assertEquals(2, jdbc.queryForList(
+                        "SELECT table_name FROM information_schema.tables "
+                                + "WHERE table_schema = current_schema() "
+                                + "AND table_name IN ('rel_parent_data','rel_child_data')",
+                        new Object[0]).size());
+                assertEquals(1, jdbc.queryForList(
+                        "SELECT table_name FROM information_schema.tables "
+                                + "WHERE table_schema = current_schema() AND table_name='teaql_id_space'",
+                        new Object[0]).size());
+            }
+        } finally {
+            owner.execute("DROP SCHEMA " + schema + " CASCADE");
+        }
+    }
+
     private static SimpleEntityMetaFactory relationMetadata(String dataService) {
         SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
         SQLEntityDescriptor parent = relationEntity(
