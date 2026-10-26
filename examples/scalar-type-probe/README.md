@@ -49,6 +49,14 @@ Instant; its LocalDateTime and Business Clock behavior are deliberately unchange
 pending the separate local-date-time precision decision. This does not qualify
 LocalDateTime wire semantics, generated Instant persistence or all providers.
 
+`--rejected` uses one evaluated model twice to test Core lifecycle rejection,
+not JSON profile equivalence. A generated FK-only reference rejects typed/generic
+updates, version edits and an explicit legacy-cache fault injection without
+changing payload, availability or ledger state. A failed generic cast stays
+NotLoaded, an incomplete modified object is rejected before provider access, and
+the complete owner still saves without writing the reference. Equal-null setter
+behavior is a separate generator follow-up and is not qualified by this scenario.
+
 This does not qualify all scalar wire boundaries, cross-runtime DDL parity or a
 published artifact. Provenance is in `fixture-manifest.json` and
 `json-profiles/provenance.json`; generated sources are never edited by the probes.

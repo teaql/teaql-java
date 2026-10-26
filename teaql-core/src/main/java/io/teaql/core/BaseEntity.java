@@ -105,8 +105,10 @@ public class BaseEntity implements Entity {
     }
 
     public BaseEntity updateId(Long id) {
-		markPropertyLoaded(ID_PROPERTY);
-        if (ObjectUtil.equals(this.id, id)) return this;
+        if (ObjectUtil.equals(this.id, id)) {
+            markPropertyLoaded(ID_PROPERTY);
+            return this;
+        }
         handleUpdate(ID_PROPERTY, getId(), id);
         this.id = id;
         return this;
@@ -131,8 +133,10 @@ public class BaseEntity implements Entity {
     }
 
     public BaseEntity updateVersion(Long version) {
-		markPropertyLoaded(VERSION_PROPERTY);
-        if (ObjectUtil.equals(this.version, version)) return this;
+        if (ObjectUtil.equals(this.version, version)) {
+            markPropertyLoaded(VERSION_PROPERTY);
+            return this;
+        }
         handleUpdate(VERSION_PROPERTY, getVersion(), version);
         this.version = version;
         return this;
@@ -471,8 +475,17 @@ public class BaseEntity implements Entity {
 
     @Override
     public void setProperty(String propertyName, Object value) {
-		markPropertyLoaded(propertyName);
-        this.__internalSet(propertyName, value);
+        // Generated internal setters cast the value before assignment, but may
+        // mark it loaded first. Publish availability only after the assignment
+        // succeeds; this is not hydration and must not replace the version baseline.
+        boolean previousHydrating = hydratingProperty;
+        hydratingProperty = true;
+        try {
+            this.__internalSet(propertyName, value);
+        } finally {
+            hydratingProperty = previousHydrating;
+        }
+        if (!previousHydrating) markPropertyLoaded(propertyName);
     }
 
     @FrameworkInternal("Expression and hydration infrastructure only")
@@ -537,6 +550,9 @@ public class BaseEntity implements Entity {
 
     @Override
     public Entity updateProperty(String propertyName, Object value) {
+        // Validate a forbidden lifecycle before a generic assignment can change
+        // either the payload or its loaded state. This lookup has no side effects.
+        get$status().next(EntityAction.UPDATE);
         Object oldValue = getProperty(propertyName);
         setProperty(propertyName, value);
         handleUpdate(propertyName, oldValue, value);
@@ -557,8 +573,8 @@ public class BaseEntity implements Entity {
     }
 
     public void handleUpdate(String propertyName, Object oldValue, Object newValue) {
-		markPropertyLoaded(propertyName);
         gotoNextStatus(EntityAction.UPDATE);
+        markPropertyLoaded(propertyName);
         PropertyChange propertyChange = updatedProperties.get(propertyName);
         if (propertyChange != null) {
             oldValue = propertyChange.getOldValue();
@@ -589,6 +605,9 @@ public class BaseEntity implements Entity {
     }
 
     public void cacheRelation(String relationName, Entity relation) {
+        // Preserve the existing cache contract for allowed states, but do not
+        // attach/replace anything before a read-only lifecycle has been rejected.
+        get$status().next(EntityAction.UPDATE);
 		markPropertyLoaded(relationName);
         if (relationCache.isEmpty()) relationCache = new HashMap<>();
         relationCache.put(relationName, relation);
