@@ -20,11 +20,12 @@ final class ModelScalarJson {
         return type == String.class || type == Boolean.class || type == boolean.class
                 || type == Integer.class || type == int.class || type == Long.class || type == long.class
                 || type == BigDecimal.class || type == Float.class || type == float.class
-                || type == Double.class || type == double.class;
+                || type == Double.class || type == double.class || ModelTemporalJson.supports(type);
     }
 
     static Object read(JsonNode node, Class<?> type, Object owner, String field) throws JsonMappingException {
         if (node.isNull() && !type.isPrimitive()) return null;
+        if (ModelTemporalJson.supports(type)) return ModelTemporalJson.read(node, type, owner, field);
         if (type == String.class && node.isTextual()) return node.textValue();
         if ((type == Boolean.class || type == boolean.class) && node.isBoolean()) return node.booleanValue();
         if ((type == Integer.class || type == int.class) && node.isIntegralNumber() && node.canConvertToInt()) return node.intValue();
@@ -33,7 +34,7 @@ final class ModelScalarJson {
                 long value = node.longValue();
                 if (value >= -SAFE_INTEGER && value <= SAFE_INTEGER) return value;
             }
-            if (node.isTextual() && node.textValue().matches("-?(?:0|[1-9][0-9]*)")) {
+            if (node.isTextual() && canonicalInteger(node.textValue())) {
                 try { return Long.parseLong(node.textValue()); } catch (NumberFormatException ignored) { /* reject below */ }
             }
         }
@@ -56,6 +57,8 @@ final class ModelScalarJson {
             // BigDecimal.toString retains exact value and scale, including a
             // negative scale, without expanding attacker-sized exponents.
             output.writeStringField(field, value.toString());
+        } else if (value != null && ModelTemporalJson.supports(value.getClass())) {
+            ModelTemporalJson.writeField(owner, field, value, output);
         } else {
             if ((value instanceof Float floatValue && !Float.isFinite(floatValue))
                     || (value instanceof Double doubleValue && !Double.isFinite(doubleValue))) {
@@ -66,12 +69,22 @@ final class ModelScalarJson {
         }
     }
 
-    private static JsonMappingException invalid(Object owner, String field, String expected) {
+    static JsonMappingException invalid(Object owner, String field, String expected) {
         // A source-less diagnostic cannot copy private input values from the
         // parser's source reference; the wire field remains structured in path.
         var error = JsonMappingException.from((JsonParser) null, "Invalid model scalar; expected " + expected);
         error.prependPath(owner, field);
         return error;
+    }
+
+    private static boolean canonicalInteger(String value) {
+        int start = !value.isEmpty() && value.charAt(0) == '-' ? 1 : 0;
+        if (start == value.length() || (value.charAt(start) == '0' && start + 1 < value.length())) return false;
+        for (int index = start; index < value.length(); index++) {
+            char digit = value.charAt(index);
+            if (digit < '0' || digit > '9') return false;
+        }
+        return true;
     }
 
     /** Preserve numeric tokens before narrowing, without changing reader/mapper flags. */

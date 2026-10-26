@@ -38,7 +38,16 @@ strings; Integer remains a number; native Float/Double remain approximate finite
 numbers. Decimal scale, 64-bit extremes, signed Integer endpoints, nonfinite
 output, wrong-type/unsafe-number input and precise field paths are checked.
 This is a numeric boundary gate, not full temporal, dynamic-property or wire
-envelope acceptance. All three modes are part of the standard example script.
+envelope acceptance. These modes are part of the standard example script.
+
+`--temporal` verifies generated calendar Date and wall Time through typed save,
+Q/E, JSON and decoded update for all profiles twice. It preserves leap dates,
+nine-digit native Time fractions, loaded Null and exact field diagnostics. Native
+codec tests separately qualify Instant as offset-input/UTC-output milliseconds,
+including rejection of excess precision. The generated model does not contain
+Instant; its LocalDateTime and Business Clock behavior are deliberately unchanged
+pending the separate local-date-time precision decision. This does not qualify
+LocalDateTime wire semantics, generated Instant persistence or all providers.
 
 This does not qualify all scalar wire boundaries, cross-runtime DDL parity or a
 published artifact. Provenance is in `fixture-manifest.json` and

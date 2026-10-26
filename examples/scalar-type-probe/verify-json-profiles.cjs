@@ -2,11 +2,12 @@
 'use strict';
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os'), cp = require('node:child_process'), crypto = require('node:crypto'), assert = require('node:assert/strict');
 const {createOwnedRunner, ownedBytes} = require('../fix-e-alignment/owned-command.cjs');
-assert(process.argv.length === 2 || (process.argv.length === 3 && ['--lifecycle','--numeric'].includes(process.argv[2])));
+assert(process.argv.length === 2 || (process.argv.length === 3 && ['--lifecycle','--numeric','--temporal'].includes(process.argv[2])));
 const lifecycle = process.argv[2] === '--lifecycle';
 const numeric = process.argv[2] === '--numeric';
-const testClass = numeric ? 'GeneratedJsonNumericTest' : lifecycle ? 'GeneratedJsonLifecycleTest' : 'GeneratedJsonProfileTest';
-const marker = numeric ? 'JAVA_JSON_NUMERIC' : lifecycle ? 'JAVA_JSON_LIFECYCLE' : 'JAVA_JSON_MODEL_PROFILE';
+const temporal = process.argv[2] === '--temporal';
+const testClass = temporal ? 'GeneratedJsonTemporalTest' : numeric ? 'GeneratedJsonNumericTest' : lifecycle ? 'GeneratedJsonLifecycleTest' : 'GeneratedJsonProfileTest';
+const marker = temporal ? 'JAVA_JSON_TEMPORAL' : numeric ? 'JAVA_JSON_NUMERIC' : lifecycle ? 'JAVA_JSON_LIFECYCLE' : 'JAVA_JSON_MODEL_PROFILE';
 const repo = path.resolve(__dirname, '../..'), inputs = path.join(__dirname, 'json-profiles');
 const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const requested = process.env.TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR;
@@ -34,7 +35,7 @@ function fixture() {
   return {provenance, provenanceSha256: sha(bytes), manifest};
 }
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'teaql-java-json-build-')), runner = createOwnedRunner();
-const report = {schema: numeric ? 'teaql.java-model-json-numeric-example/v1' : lifecycle ? 'teaql.java-model-json-lifecycle-example/v1' : 'teaql.java-model-json-profiles-example/v1', passed: false, profiles: {}, commands: [], publicPublication: false, internalArtifactAccepted: false};
+const report = {schema: temporal ? 'teaql.java-model-json-temporal-example/v1' : numeric ? 'teaql.java-model-json-numeric-example/v1' : lifecycle ? 'teaql.java-model-json-lifecycle-example/v1' : 'teaql.java-model-json-profiles-example/v1', passed: false, profiles: {}, commands: [], publicPublication: false, internalArtifactAccepted: false};
 async function main() {
   try {
     const disk = fs.statfsSync(scratch); assert(disk.bavail * disk.bsize > 8 * 1024 ** 3);
@@ -65,7 +66,7 @@ async function main() {
         assert.equal(result.status, 0, bytes.toString().slice(-8000)); assert.equal(result.signal, null);
         const markers = [...bytes.toString().matchAll(new RegExp('^' + marker + '=(.+)$', 'gm'))]; assert.equal(markers.length, 1);
         const value = JSON.parse(markers[0][1]); assert.equal(value.passed, true); assert.equal(value.profile, profile); assert.equal(value.round, round);
-        const checks = numeric ? ['exactLong','exactDecimalScale','integerBounds','nativeFloatDouble','passiveCodec','typedQAndE','decodedSave','nonfiniteOutputRejected'] : lifecycle ? ['cleanDecode', 'updateNotInsert', 'independentLedgers', 'staleConflict', 'failedIntentRetained',
+        const checks = temporal ? ['calendarDate','wallTimeNanoseconds','loadedNull','passiveCodec','typedQAndE','decodedSave','localDateTimeUnchanged'] : numeric ? ['exactLong','exactDecimalScale','integerBounds','nativeFloatDouble','passiveCodec','typedQAndE','decodedSave','nonfiniteOutputRejected'] : lifecycle ? ['cleanDecode', 'updateNotInsert', 'independentLedgers', 'staleConflict', 'failedIntentRetained',
           'partialRejectedBeforeProvider', 'untouchedPartialReference', 'deleteRecover', 'zeroProviderCodec']
           : ['nestedIdentity', 'loadedNull', 'notLoaded', 'zeroProviderCodec', 'duplicateKeysRejected'];
         for (const key of checks) assert.equal(value[key], true);
@@ -73,7 +74,7 @@ async function main() {
       }
       report.profiles[profile] = {rounds, sameDatabase: true, databaseSha256: sha(fs.readFileSync(path.join(evidence, 'fixture.sqlite')))};
     }
-    report.passed = true; console.log('PASS three generated Java model JSON ' + (numeric ? 'numeric boundaries' : lifecycle ? 'lifecycles' : 'profiles') + ' twice with local runtime');
+    report.passed = true; console.log('PASS three generated Java model JSON ' + (temporal ? 'calendar/time boundaries' : numeric ? 'numeric boundaries' : lifecycle ? 'lifecycles' : 'profiles') + ' twice with local runtime');
   } catch (error) { report.error = error.stack; console.error(error.stack); process.exitCode ||= 1; }
   finally {
     report.disposedOwnedBytes = runner.safeToClean ? ownedBytes(scratch) : 0;
