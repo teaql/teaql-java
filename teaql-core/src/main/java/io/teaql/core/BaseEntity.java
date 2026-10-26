@@ -594,6 +594,20 @@ public class BaseEntity implements Entity {
         }
         if (originalWasLoaded && ObjectUtil.equals(oldValue, newValue)) {
             if (!updatedProperties.isEmpty()) updatedProperties.remove(propertyName);
+            EntityKey key = id == null ? null : new EntityKey(typeName(), id);
+            if (entityMutationLedger != null && key != null) {
+                entityMutationLedger.clearField(key, propertyName);
+            }
+            // Reverting one fixed property cannot cancel another fixed/dynamic
+            // edit, creation, deletion or recovery, nor another entity's intent.
+            boolean hasPendingIntent = entityMutationLedger != null && key != null && (
+                    !entityMutationLedger.changedFieldNames(key).isEmpty()
+                    || entityMutationLedger.isNew(key)
+                    || entityMutationLedger.isMarkedAsDelete(key)
+                    || entityMutationLedger.recoveredKeys().contains(key));
+            if (get$status() == EntityStatus.UPDATED && updatedProperties.isEmpty() && !hasPendingIntent) {
+                set$status(EntityStatus.PERSISTED);
+            }
             return;
         }
         mutableUpdatedProperties().put(propertyName, new PropertyChange(propertyName, oldValue, newValue, originalWasLoaded));

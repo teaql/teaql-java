@@ -2,14 +2,15 @@
 'use strict';
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os'), cp = require('node:child_process'), crypto = require('node:crypto'), assert = require('node:assert/strict');
 const {createOwnedRunner, ownedBytes} = require('../fix-e-alignment/owned-command.cjs');
-assert(process.argv.length === 2 || (process.argv.length === 3 && ['--lifecycle','--numeric','--temporal','--rejected','--explicit-null'].includes(process.argv[2])));
+assert(process.argv.length === 2 || (process.argv.length === 3 && ['--lifecycle','--numeric','--temporal','--rejected','--explicit-null','--loaded-revert'].includes(process.argv[2])));
+const loadedRevert = process.argv[2] === '--loaded-revert';
 const explicitNull = process.argv[2] === '--explicit-null';
 const lifecycle = process.argv[2] === '--lifecycle';
 const numeric = process.argv[2] === '--numeric';
 const temporal = process.argv[2] === '--temporal';
 const rejected = process.argv[2] === '--rejected';
-const testClass = explicitNull ? 'GeneratedExplicitNullTest' : rejected ? 'GeneratedRejectedMutationTest' : temporal ? 'GeneratedJsonTemporalTest' : numeric ? 'GeneratedJsonNumericTest' : lifecycle ? 'GeneratedJsonLifecycleTest' : 'GeneratedJsonProfileTest';
-const marker = explicitNull ? 'JAVA_EXPLICIT_NULL' : rejected ? 'JAVA_REJECTED_MUTATION' : temporal ? 'JAVA_JSON_TEMPORAL' : numeric ? 'JAVA_JSON_NUMERIC' : lifecycle ? 'JAVA_JSON_LIFECYCLE' : 'JAVA_JSON_MODEL_PROFILE';
+const testClass = loadedRevert ? 'GeneratedLoadedRevertTest' : explicitNull ? 'GeneratedExplicitNullTest' : rejected ? 'GeneratedRejectedMutationTest' : temporal ? 'GeneratedJsonTemporalTest' : numeric ? 'GeneratedJsonNumericTest' : lifecycle ? 'GeneratedJsonLifecycleTest' : 'GeneratedJsonProfileTest';
+const marker = loadedRevert ? 'JAVA_LOADED_REVERT' : explicitNull ? 'JAVA_EXPLICIT_NULL' : rejected ? 'JAVA_REJECTED_MUTATION' : temporal ? 'JAVA_JSON_TEMPORAL' : numeric ? 'JAVA_JSON_NUMERIC' : lifecycle ? 'JAVA_JSON_LIFECYCLE' : 'JAVA_JSON_MODEL_PROFILE';
 const repo = path.resolve(__dirname, '../..'), inputs = path.join(__dirname, 'json-profiles');
 const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const requested = process.env.TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR;
@@ -37,7 +38,7 @@ function fixture() {
   return {provenance, provenanceSha256: sha(bytes), manifest};
 }
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'teaql-java-json-build-')), runner = createOwnedRunner();
-const report = {schema: explicitNull ? 'teaql.java-explicit-null-example/v1' : rejected ? 'teaql.java-rejected-mutation-example/v1' : temporal ? 'teaql.java-model-json-temporal-example/v1' : numeric ? 'teaql.java-model-json-numeric-example/v1' : lifecycle ? 'teaql.java-model-json-lifecycle-example/v1' : 'teaql.java-model-json-profiles-example/v1', passed: false, profiles: {}, commands: [], publicPublication: false, internalArtifactAccepted: false};
+const report = {schema: loadedRevert ? 'teaql.java-loaded-revert-example/v1' : explicitNull ? 'teaql.java-explicit-null-example/v1' : rejected ? 'teaql.java-rejected-mutation-example/v1' : temporal ? 'teaql.java-model-json-temporal-example/v1' : numeric ? 'teaql.java-model-json-numeric-example/v1' : lifecycle ? 'teaql.java-model-json-lifecycle-example/v1' : 'teaql.java-model-json-profiles-example/v1', passed: false, profiles: {}, commands: [], publicPublication: false, internalArtifactAccepted: false};
 async function main() {
   try {
     const disk = fs.statfsSync(scratch); assert(disk.bavail * disk.bsize > 8 * 1024 ** 3);
@@ -51,7 +52,7 @@ async function main() {
     report.applications = Object.fromEntries(['GeneratedCanonicalNameTest.java', testClass + '.java'].map(name => [name, sha(fs.readFileSync(path.join(__dirname, name)))]));
     // Lifecycle rejection is independent of JSON vocabulary; use one small
     // model twice rather than recompiling the same Core behavior in all profiles.
-    for (const profile of rejected || explicitNull ? ['camelCase'] : ['camelCase', 'snake_case', 'PascalCase']) {
+    for (const profile of rejected || explicitNull || loadedRevert ? ['camelCase'] : ['camelCase', 'snake_case', 'PascalCase']) {
       const work = path.join(scratch, profile), consumer = path.join(work, 'consumer'), evidence = path.join(output, profile);
       fs.mkdirSync(evidence); const tests = path.join(consumer, 'src/test/java/com/example/scalartypeconformanceservice'); fs.mkdirSync(tests, {recursive: true});
       for (const name of Object.keys(report.applications)) fs.copyFileSync(path.join(__dirname, name), path.join(tests, name));
@@ -70,7 +71,7 @@ async function main() {
         assert.equal(result.status, 0, bytes.toString().slice(-8000)); assert.equal(result.signal, null);
         const markers = [...bytes.toString().matchAll(new RegExp('^' + marker + '=(.+)$', 'gm'))]; assert.equal(markers.length, 1);
         const value = JSON.parse(markers[0][1]); assert.equal(value.passed, true); assert.equal(value.profile, profile); assert.equal(value.round, round);
-        const checks = explicitNull ? ['typedExplicitNull','genericExplicitNull','unknownBaselineRetained','partialRejectedBeforeProvider','loadedEqualNoop','referenceNullRejected','savedNullReadback'] : rejected ? ['payloadRetained','loadStateRetained','ledgerRetained','referenceNotLoaded','failedCastNotLoaded','zeroProviderOnRejection','completeOwnerSave','unrelatedParentUnchanged'] : temporal ? ['calendarDate','wallTimeNanoseconds','loadedNull','passiveCodec','typedQAndE','decodedSave','localDateTimeUnchanged'] : numeric ? ['exactLong','exactDecimalScale','integerBounds','nativeFloatDouble','passiveCodec','typedQAndE','decodedSave','nonfiniteOutputRejected'] : lifecycle ? ['cleanDecode', 'updateNotInsert', 'independentLedgers', 'staleConflict', 'failedIntentRetained',
+        const checks = loadedRevert ? ['knownValueRestored','knownNullRestored','emptyPlanNoWrite','otherFieldPreserved','typedQAndE','versionUnchangedUntilRealEdit','unrelatedParentUnchanged','managedUpdateTimeRetained'] : explicitNull ? ['typedExplicitNull','genericExplicitNull','unknownBaselineRetained','partialRejectedBeforeProvider','loadedEqualNoop','referenceNullRejected','savedNullReadback'] : rejected ? ['payloadRetained','loadStateRetained','ledgerRetained','referenceNotLoaded','failedCastNotLoaded','zeroProviderOnRejection','completeOwnerSave','unrelatedParentUnchanged'] : temporal ? ['calendarDate','wallTimeNanoseconds','loadedNull','passiveCodec','typedQAndE','decodedSave','localDateTimeUnchanged'] : numeric ? ['exactLong','exactDecimalScale','integerBounds','nativeFloatDouble','passiveCodec','typedQAndE','decodedSave','nonfiniteOutputRejected'] : lifecycle ? ['cleanDecode', 'updateNotInsert', 'independentLedgers', 'staleConflict', 'failedIntentRetained',
           'partialRejectedBeforeProvider', 'untouchedPartialReference', 'deleteRecover', 'zeroProviderCodec']
           : ['nestedIdentity', 'loadedNull', 'notLoaded', 'zeroProviderCodec', 'duplicateKeysRejected'];
         for (const key of checks) assert.equal(value[key], true);
@@ -78,7 +79,7 @@ async function main() {
       }
       report.profiles[profile] = {rounds, sameDatabase: true, databaseSha256: sha(fs.readFileSync(path.join(evidence, 'fixture.sqlite')))};
     }
-    report.passed = true; console.log('PASS ' + (explicitNull ? 'generated Java explicit-null/no-op boundaries' : rejected ? 'generated Java mutation rejection' : 'three generated Java model JSON ' + (temporal ? 'calendar/time boundaries' : numeric ? 'numeric boundaries' : lifecycle ? 'lifecycles' : 'profiles')) + ' twice with local runtime');
+    report.passed = true; console.log('PASS ' + (loadedRevert ? 'generated Java restored-value boundaries' : explicitNull ? 'generated Java explicit-null/no-op boundaries' : rejected ? 'generated Java mutation rejection' : 'three generated Java model JSON ' + (temporal ? 'calendar/time boundaries' : numeric ? 'numeric boundaries' : lifecycle ? 'lifecycles' : 'profiles')) + ' twice with local runtime');
   } catch (error) { report.error = error.stack; console.error(error.stack); process.exitCode ||= 1; }
   finally {
     report.disposedOwnedBytes = runner.safeToClean ? ownedBytes(scratch) : 0;

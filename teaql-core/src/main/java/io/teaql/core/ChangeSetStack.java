@@ -55,6 +55,13 @@ public class ChangeSetStack {
         }
     }
 
+    // Like clearEntity, this is an explicit cancellation against the entity's
+    // persistent baseline, not a scope pop/rollback. No older intermediate value
+    // of this one field may reappear; other fields, keys and frames remain.
+    void clearField(EntityKey key, String field) {
+        for (EntityChangeSet changeSet : stack) changeSet.clearField(key, field);
+    }
+
     public Set<String> changedFieldNames(EntityKey key) {
         Set<String> fields = new TreeSet<>();
         for (EntityChangeSet changeSet : stack) {

@@ -45,6 +45,10 @@ public class EntityMutationLedger {
         changeSets.set(key, field, value);
     }
 
+    void clearField(EntityKey key, String field) {
+        changeSets.clearField(key, field);
+    }
+
     public void setDynamic(EntityKey key, io.teaql.data.dynamic.DynamicFieldMutation mutation) {
         changeSets.currentMut().setDynamic(key, mutation);
     }

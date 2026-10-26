@@ -66,6 +66,18 @@ the version was loaded. A complete object's value-to-null update persists and
 reads back through Q/E and an independent SQL oracle. These checks run from the
 standard example entry point; they are not full graph or artifact acceptance.
 
+`--loaded-revert` verifies one model twice for known-value and known-null
+restoration. An intermediate edit followed by the original loaded value removes
+that field's pending ledger entry and does not write, audit or bump the version.
+Restoring one field retains a different field's actual change; the policy and
+SQL readback retain that real edit plus the model's normal managed `update_time`
+Fix. A no-op save does not trigger that Fix. Core tests additionally preserve dynamic
+intent, deletion, type-qualified sibling keys, loaded snapshots, original versions
+and lineage. A missing original value remains unknown and cannot be cancelled
+merely because its backing storage was null. Cancelling a field against its
+persistent baseline is distinct from popping a change-set scope; it cannot expose
+an older intermediate value of that field or erase unrelated staged values.
+
 This does not qualify all scalar wire boundaries, cross-runtime DDL parity or a
 published artifact. Provenance is in `fixture-manifest.json` and
 `json-profiles/provenance.json`; generated sources are never edited by the probes.

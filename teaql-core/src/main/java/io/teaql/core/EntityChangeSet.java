@@ -49,6 +49,13 @@ public class EntityChangeSet {
         if (dynamicChanges != null) dynamicChanges.remove(key);
     }
 
+    void clearField(EntityKey key, String field) {
+        Map<String, Object> record = changes.get(key);
+        if (record == null) return;
+        record.remove(field);
+        if (record.isEmpty()) changes.remove(key);
+    }
+
     public Set<String> fieldNames(EntityKey key) {
         Map<String, Object> record = changes.get(key);
         var dynamic = dynamicChanges == null ? null : dynamicChanges.get(key);
