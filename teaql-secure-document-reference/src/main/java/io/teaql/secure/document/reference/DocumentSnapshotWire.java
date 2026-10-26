@@ -1,6 +1,9 @@
 package io.teaql.secure.document.reference;
 
 import io.teaql.core.reference.DocumentSnapshot;
+import io.teaql.core.reference.BoundDocumentSnapshot;
+import io.teaql.core.reference.DocumentBlobBindingSnapshot;
+import io.teaql.core.blob.BlobRef;
 import io.teaql.core.reference.InternalEntityIdentity;
 import io.teaql.core.reference.ReferenceDocumentScope;
 import io.teaql.core.reference.RoundTripReferenceErrorCode;
@@ -25,6 +28,8 @@ final class DocumentSnapshotWire {
 
     record Decoded(byte[] actorFingerprint, long issuedAt, long expiresAt,
                    DocumentSnapshot snapshot) {}
+    record DecodedBound(byte[] actorFingerprint, long issuedAt, long expiresAt,
+                        BoundDocumentSnapshot document) {}
 
     static byte[] aad(String prefix, String keyId, String service,
                       String environment, String purpose) {
@@ -69,49 +74,126 @@ final class DocumentSnapshotWire {
         return out.toByteArray();
     }
 
+    static byte[] encodeBound(BoundDocumentSnapshot document, byte[] actorFingerprint,
+                              long issuedAt, long expiresAt) {
+        byte[] base = encode(document.snapshot(), actorFingerprint, issuedAt, expiresAt);
+        base[0] = 2;
+        var out = new ByteArrayOutputStream();
+        out.writeBytes(base);
+        count(out, document.bindings().size());
+        for (var binding : document.bindings()) {
+            text(out, binding.rowKey());
+            text(out, binding.canonicalField());
+            text(out, binding.entityType());
+            out.write(binding.reference() == null ? 0 : 1);
+            if (binding.reference() != null) text(out, binding.reference().key());
+            longValue(out, binding.bindingVersion());
+            out.write(binding.nullable() ? 1 : 0);
+            out.write(binding.writable() ? 1 : 0);
+        }
+        return out.toByteArray();
+    }
+
     static Decoded decode(byte[] bytes) {
         try {
             var in = ByteBuffer.wrap(bytes).order(ByteOrder.BIG_ENDIAN);
-            if (unsigned(in) != 1) throw invalid();
-            byte[] actor = take(in, 32);
-            long issued = in.getLong();
-            long expires = in.getLong();
-            String fingerprint = text(in);
-            String businessId = text(in);
-            var scope = scope(in);
-            var aggregate = identity(in);
-            int entityCount = count(in, 10000);
-            var entities = new ArrayList<DocumentSnapshot.Entity>(entityCount);
-            for (int index = 0; index < entityCount; index++) {
-                entities.add(new DocumentSnapshot.Entity(
-                        text(in), identity(in), textSet(in), textSet(in), mutations(in)));
-            }
-            int relationCount = count(in, 1024);
-            var relations = new ArrayList<DocumentSnapshot.Relation>(relationCount);
-            for (int index = 0; index < relationCount; index++) {
-                String name = text(in);
-                int kind = unsigned(in);
-                if (kind != 1 && kind != 2) throw invalid();
-                int flag = unsigned(in);
-                if (flag != 0 && flag != 1) throw invalid();
-                Set<DocumentSnapshot.MutationKind> allowed = mutations(in);
-                int rowCount = count(in, 10000);
-                var keys = new ArrayList<String>(rowCount);
-                for (int row = 0; row < rowCount; row++) keys.add(text(in));
-                relations.add(new DocumentSnapshot.Relation(name, keys,
-                        kind == 1 ? DocumentSnapshot.Completeness.COMPLETE
-                                : DocumentSnapshot.Completeness.PARTIAL,
-                        flag == 1, allowed));
-            }
+            var decoded = decodeBody(in, 1);
             if (in.hasRemaining()) throw invalid();
-            return new Decoded(actor, issued, expires,
-                    new DocumentSnapshot(fingerprint, businessId, scope, aggregate,
-                            entities, relations));
+            return decoded;
         } catch (RoundTripReferenceException error) {
             throw error;
         } catch (RuntimeException error) {
             throw invalid();
         }
+    }
+
+    static DecodedBound decodeBound(byte[] bytes) {
+        try {
+            var in = ByteBuffer.wrap(bytes).order(ByteOrder.BIG_ENDIAN);
+            var decoded = decodeBody(in, 2);
+            int bindingCount = count(in, 10000);
+            var bindings = new ArrayList<DocumentBlobBindingSnapshot>(bindingCount);
+            byte[] priorRow = null, priorField = null;
+            for (int index = 0; index < bindingCount; index++) {
+                String rowKey = text(in);
+                String field = text(in);
+                String entityType = text(in);
+                byte[] rowBytes = rowKey.getBytes(StandardCharsets.UTF_8);
+                byte[] fieldBytes = field.getBytes(StandardCharsets.UTF_8);
+                if (priorRow != null) {
+                    int comparison = compareUnsigned(priorRow, rowBytes);
+                    if (comparison > 0 || comparison == 0
+                            && compareUnsigned(priorField, fieldBytes) >= 0) throw invalid();
+                }
+                priorRow = rowBytes;
+                priorField = fieldBytes;
+                int hasKey = flag(in);
+                BlobRef key = hasKey == 1 ? BlobRef.of(text(in)) : null;
+                long version = in.getLong();
+                boolean nullable = flag(in) == 1;
+                boolean writable = flag(in) == 1;
+                bindings.add(new DocumentBlobBindingSnapshot(
+                        rowKey, field, entityType, key, version, nullable, writable));
+            }
+            if (in.hasRemaining()) throw invalid();
+            return new DecodedBound(decoded.actorFingerprint(), decoded.issuedAt(),
+                    decoded.expiresAt(), new BoundDocumentSnapshot(decoded.snapshot(), bindings));
+        } catch (RoundTripReferenceException error) {
+            throw error;
+        } catch (RuntimeException error) {
+            throw invalid();
+        }
+    }
+
+    private static Decoded decodeBody(ByteBuffer in, int expectedVersion) {
+        if (unsigned(in) != expectedVersion) throw invalid();
+        byte[] actor = take(in, 32);
+        long issued = in.getLong();
+        long expires = in.getLong();
+        String fingerprint = text(in);
+        String businessId = text(in);
+        var scope = scope(in);
+        var aggregate = identity(in);
+        int entityCount = count(in, 10000);
+        var entities = new ArrayList<DocumentSnapshot.Entity>(entityCount);
+        for (int index = 0; index < entityCount; index++) {
+            entities.add(new DocumentSnapshot.Entity(
+                    text(in), identity(in), textSet(in), textSet(in), mutations(in)));
+        }
+        int relationCount = count(in, 1024);
+        var relations = new ArrayList<DocumentSnapshot.Relation>(relationCount);
+        for (int index = 0; index < relationCount; index++) {
+            String name = text(in);
+            int kind = unsigned(in);
+            if (kind != 1 && kind != 2) throw invalid();
+            int flag = unsigned(in);
+            if (flag != 0 && flag != 1) throw invalid();
+            Set<DocumentSnapshot.MutationKind> allowed = mutations(in);
+            int rowCount = count(in, 10000);
+            var keys = new ArrayList<String>(rowCount);
+            for (int row = 0; row < rowCount; row++) keys.add(text(in));
+            relations.add(new DocumentSnapshot.Relation(name, keys,
+                    kind == 1 ? DocumentSnapshot.Completeness.COMPLETE
+                            : DocumentSnapshot.Completeness.PARTIAL,
+                    flag == 1, allowed));
+        }
+        return new Decoded(actor, issued, expires,
+                new DocumentSnapshot(fingerprint, businessId, scope, aggregate,
+                        entities, relations));
+    }
+
+    private static int flag(ByteBuffer in) {
+        int value = unsigned(in);
+        if (value > 1) throw invalid();
+        return value;
+    }
+
+    private static int compareUnsigned(byte[] left, byte[] right) {
+        for (int index = 0; index < Math.min(left.length, right.length); index++) {
+            int difference = Byte.toUnsignedInt(left[index]) - Byte.toUnsignedInt(right[index]);
+            if (difference != 0) return difference;
+        }
+        return Integer.compare(left.length, right.length);
     }
 
     private static void scope(ByteArrayOutputStream out, ReferenceDocumentScope value) {

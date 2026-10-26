@@ -14,6 +14,9 @@ import io.teaql.core.businessid.BusinessIdSchemaContributor;
 import io.teaql.core.businessid.BusinessIdService;
 import io.teaql.core.reference.ResolvedRoundTripReference;
 import io.teaql.core.reference.DocumentSnapshot;
+import io.teaql.core.reference.BoundDocumentSnapshot;
+import io.teaql.core.reference.BlobSelectionClaim;
+import io.teaql.core.reference.BlobSelectionTarget;
 import io.teaql.core.reference.ContextBoundDocumentService;
 import io.teaql.core.reference.ReferenceDocumentScope;
 import io.teaql.core.reference.RoundTripReferenceCodec;
@@ -21,6 +24,8 @@ import io.teaql.core.reference.RoundTripReferenceErrorCode;
 import io.teaql.core.reference.RoundTripReferenceException;
 import io.teaql.core.reference.TrustedReferencePrincipal;
 import io.teaql.core.reference.VerifiedDocumentSnapshot;
+import io.teaql.core.reference.VerifiedBoundDocumentSnapshot;
+import io.teaql.core.reference.VerifiedBlobSelection;
 import java.time.Duration;
 
 public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
@@ -318,6 +323,30 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
             String token, String expectedAggregateType, String expectedPurpose) {
         return roundTripReferences().consumeDocumentSnapshot(
                 this, trustedReferencePrincipal(), token, expectedAggregateType, expectedPurpose);
+    }
+
+    default String issueBoundDocumentSnapshot(
+            BoundDocumentSnapshot document, Duration lifetime) {
+        return roundTripReferences().issueBoundDocumentSnapshot(
+                this, trustedReferencePrincipal(), document, lifetime);
+    }
+
+    default VerifiedBoundDocumentSnapshot consumeBoundDocumentSnapshot(
+            String token, String expectedAggregateType, String expectedPurpose) {
+        return roundTripReferences().consumeBoundDocumentSnapshot(
+                this, trustedReferencePrincipal(), token, expectedAggregateType, expectedPurpose);
+    }
+
+    default String issueBlobSelection(
+            String documentToken, BlobSelectionClaim claim, Duration lifetime) {
+        return roundTripReferences().issueBlobSelection(
+                this, trustedReferencePrincipal(), documentToken, claim, lifetime);
+    }
+
+    default VerifiedBlobSelection consumeBlobSelection(
+            String documentToken, String token, BlobSelectionTarget expectedTarget) {
+        return roundTripReferences().consumeBlobSelection(
+                this, trustedReferencePrincipal(), documentToken, token, expectedTarget);
     }
 
     default UserContext withContextBoundDocumentService(ContextBoundDocumentService service) {

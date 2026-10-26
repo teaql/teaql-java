@@ -1,7 +1,12 @@
 package io.teaql.secure.document.reference;
 
 import io.teaql.core.UserContext;
+import io.teaql.core.blob.BlobRef;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
+import io.teaql.core.reference.BoundDocumentSnapshot;
+import io.teaql.core.reference.BlobSelectionClaim;
+import io.teaql.core.reference.BlobSelectionTarget;
+import io.teaql.core.reference.DocumentBlobBindingSnapshot;
 import io.teaql.core.reference.DocumentSnapshot;
 import io.teaql.core.reference.InternalEntityIdentity;
 import io.teaql.core.reference.ReferenceDocumentScope;
@@ -15,6 +20,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.security.MessageDigest;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
@@ -42,6 +48,19 @@ public class DocumentSnapshotProtocolTest {
 
     private static TrustedReferencePrincipal principal(String subject) {
         return new TrustedReferencePrincipal("oidc", subject, "Merchant", 7);
+    }
+
+    private static BoundDocumentSnapshot boundSnapshot() {
+        var original = snapshot();
+        var item = original.entities().get(0);
+        var entity = new DocumentSnapshot.Entity(item.rowKey(), item.identity(),
+                Set.of("product_code", "quantity", "attachment"),
+                Set.of("quantity", "attachment"), item.allowedMutations());
+        var document = new DocumentSnapshot(original.modelFingerprint(), original.businessId(),
+                original.scope(), original.aggregate(), List.of(entity), original.relations());
+        return new BoundDocumentSnapshot(document,
+                List.of(new DocumentBlobBindingSnapshot("item:0", "attachment", "OrderItem",
+                        BlobRef.of("blob_A"), -1L, true, true)));
     }
 
     private static AeadRoundTripReferenceProvider provider(
@@ -151,5 +170,201 @@ public class DocumentSnapshotProtocolTest {
                 () -> new DocumentSnapshot.Relation("items", List.of("missing"),
                         DocumentSnapshot.Completeness.PARTIAL, false,
                         Set.of(DocumentSnapshot.MutationKind.CREATE_CHILD)));
+    }
+
+    @Test
+    public void tqd2RoundTripsEncryptedBindingAndRejectsOldProtocolAndForeignContext() {
+        AtomicBoolean allowed = new AtomicBoolean(true);
+        var provider = provider("test", "k1", false, (c, p, s, i) -> {
+            if (!allowed.get()) throw new RoundTripReferenceException(
+                    RoundTripReferenceErrorCode.AUTHORIZATION_REQUIRED,
+                    "ROUND_TRIP_REFERENCE_AUTHORIZATION_REQUIRED");
+        }, NOW);
+        var alice = context(provider, "alice");
+        String token = alice.issueBoundDocumentSnapshot(boundSnapshot(), Duration.ofSeconds(600));
+        Assert.assertTrue(token.startsWith("tqd2.k1."));
+        Assert.assertFalse(token.contains("blob_A"));
+        Assert.assertEquals(boundSnapshot(), alice.consumeBoundDocumentSnapshot(
+                token, "Order", "edit-order").document());
+        Assert.assertEquals("k1", alice.consumeBoundDocumentSnapshot(
+                token, "Order", "edit-order").keyId());
+        code(RoundTripReferenceErrorCode.INVALID_REFERENCE,
+                () -> alice.consumeDocumentSnapshot(token, "Order", "edit-order"));
+        String legacy = alice.issueDocumentSnapshot(snapshot(), Duration.ofSeconds(600));
+        code(RoundTripReferenceErrorCode.INVALID_REFERENCE,
+                () -> alice.consumeBoundDocumentSnapshot(legacy, "Order", "edit-order"));
+        code(RoundTripReferenceErrorCode.SCOPE_MISMATCH,
+                () -> context(provider, "bob").consumeBoundDocumentSnapshot(
+                        token, "Order", "edit-order"));
+        code(RoundTripReferenceErrorCode.SCOPE_MISMATCH,
+                () -> alice.consumeBoundDocumentSnapshot(token, "Invoice", "edit-order"));
+        code(RoundTripReferenceErrorCode.INVALID_REFERENCE,
+                () -> alice.consumeBoundDocumentSnapshot(token, "Order", "other-purpose"));
+        code(RoundTripReferenceErrorCode.INVALID_REFERENCE,
+                () -> context(provider("production", "k1", false,
+                        (c, p, s, i) -> {}, NOW), "alice")
+                        .consumeBoundDocumentSnapshot(token, "Order", "edit-order"));
+        allowed.set(false);
+        code(RoundTripReferenceErrorCode.AUTHORIZATION_REQUIRED,
+                () -> alice.consumeBoundDocumentSnapshot(token, "Order", "edit-order"));
+    }
+
+    @Test
+    public void tqd2RotationExpiryAndMalformedBindingWireFailClosed() {
+        var provider = provider("test", "k1", false, (c, p, s, i) -> {}, NOW);
+        var alice = context(provider, "alice");
+        String token = alice.issueBoundDocumentSnapshot(boundSnapshot(), Duration.ofSeconds(60));
+        var rotated = provider("test", "k2", true, (c, p, s, i) -> {}, NOW.plusSeconds(30));
+        Assert.assertEquals(boundSnapshot(), context(rotated, "alice")
+                .consumeBoundDocumentSnapshot(token, "Order", "edit-order").document());
+        var expired = provider("test", "k2", true, (c, p, s, i) -> {}, NOW.plusSeconds(61));
+        code(RoundTripReferenceErrorCode.EXPIRED,
+                () -> context(expired, "alice").consumeBoundDocumentSnapshot(
+                        token, "Order", "edit-order"));
+        code(RoundTripReferenceErrorCode.INVALID_REFERENCE,
+                () -> alice.consumeBoundDocumentSnapshot(token + "=", "Order", "edit-order"));
+
+        byte[] actor = new byte[32];
+        Arrays.fill(actor, (byte) 0x11);
+        byte[] wire = DocumentSnapshotWire.encodeBound(boundSnapshot(), actor, 10, 20);
+        Assert.assertEquals(boundSnapshot(), DocumentSnapshotWire.decodeBound(wire).document());
+        byte[] trailing = Arrays.copyOf(wire, wire.length + 1);
+        code(RoundTripReferenceErrorCode.INVALID_REFERENCE,
+                () -> DocumentSnapshotWire.decodeBound(trailing));
+        byte[] invalidFlag = wire.clone();
+        invalidFlag[invalidFlag.length - 1] = 2;
+        code(RoundTripReferenceErrorCode.INVALID_REFERENCE,
+                () -> DocumentSnapshotWire.decodeBound(invalidFlag));
+        int base = DocumentSnapshotWire.encode(boundSnapshot().snapshot(), actor, 10, 20).length;
+        int hasKeyOffset = base + 4;
+        for (int index = 0; index < 3; index++) {
+            hasKeyOffset += 4 + ByteBuffer.wrap(wire, hasKeyOffset, 4).getInt();
+        }
+        byte[] invalidKeyFlag = wire.clone();
+        invalidKeyFlag[hasKeyOffset] = 2;
+        code(RoundTripReferenceErrorCode.INVALID_REFERENCE,
+                () -> DocumentSnapshotWire.decodeBound(invalidKeyFlag));
+        byte[] oldVersion = wire.clone();
+        oldVersion[0] = 1;
+        code(RoundTripReferenceErrorCode.INVALID_REFERENCE,
+                () -> DocumentSnapshotWire.decodeBound(oldVersion));
+        byte[] duplicated = Arrays.copyOf(wire, wire.length + wire.length - base - 4);
+        ByteBuffer.wrap(duplicated, base, 4).putInt(2);
+        System.arraycopy(wire, base + 4, duplicated, wire.length, wire.length - base - 4);
+        code(RoundTripReferenceErrorCode.INVALID_REFERENCE,
+                () -> DocumentSnapshotWire.decodeBound(duplicated));
+        code(RoundTripReferenceErrorCode.DOCUMENT_PROJECTION_VIOLATION,
+                () -> new BoundDocumentSnapshot(snapshot(), boundSnapshot().bindings()));
+    }
+
+    @Test
+    public void tqs1BindsCurrentTqd2ActorTargetCommandAndExpiryWithoutEarlyConsumption()
+            throws Exception {
+        AtomicBoolean allowed = new AtomicBoolean(true);
+        var provider = provider("test", "k1", false, (c, p, s, i) -> {
+            if (!allowed.get()) throw new RoundTripReferenceException(
+                    RoundTripReferenceErrorCode.AUTHORIZATION_REQUIRED,
+                    "ROUND_TRIP_REFERENCE_AUTHORIZATION_REQUIRED");
+        }, NOW);
+        var alice = context(provider, "alice");
+        String document = alice.issueBoundDocumentSnapshot(
+                boundSnapshot(), Duration.ofSeconds(300));
+        var target = new BlobSelectionTarget(boundSnapshot().snapshot().scope(),
+                "OrderItem", "attachment", BlobSelectionTarget.Kind.EXISTING_ROW,
+                "item:0", "command-1");
+        var claim = new BlobSelectionClaim(target, BlobRef.of("blob_B"));
+        String selection = alice.issueBlobSelection(document, claim, Duration.ofSeconds(120));
+        Assert.assertEquals("e7c81ca089b0a3e0585faefcc275aeb44b456d666d9a4a17949c92b1891089d7",
+                HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                        .digest(document.getBytes(java.nio.charset.StandardCharsets.US_ASCII))));
+        Assert.assertEquals("31303e3e251dd0e8963bf2a4d8897d1eccde63a485aaf287f88f29d40757ba96",
+                HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                        .digest(selection.getBytes(java.nio.charset.StandardCharsets.US_ASCII))));
+        Assert.assertTrue(selection.startsWith("tqs1.k1."));
+        Assert.assertFalse(selection.contains("blob_B"));
+        Assert.assertEquals(claim, alice.consumeBlobSelection(document, selection, target).claim());
+        Assert.assertEquals(claim, alice.consumeBlobSelection(document, selection, target).claim());
+        code(RoundTripReferenceErrorCode.SCOPE_MISMATCH,
+                () -> alice.consumeBlobSelection(document, selection,
+                        new BlobSelectionTarget(target.scope(), target.targetEntity(),
+                                target.canonicalField(), target.kind(), target.targetKey(),
+                                "other-command")));
+        code(RoundTripReferenceErrorCode.SCOPE_MISMATCH,
+                () -> context(provider, "bob").consumeBlobSelection(document, selection, target));
+        code(RoundTripReferenceErrorCode.INVALID_REFERENCE,
+                () -> alice.issueBlobSelection(document, claim, Duration.ofSeconds(301)));
+        code(RoundTripReferenceErrorCode.INVALID_REFERENCE,
+                () -> alice.issueBlobSelection(
+                        alice.issueDocumentSnapshot(snapshot(), Duration.ofSeconds(300)),
+                        claim, Duration.ofSeconds(120)));
+        code(RoundTripReferenceErrorCode.INVALID_REFERENCE,
+                () -> alice.consumeBlobSelection(document, document, target));
+        var expired = provider("test", "k1", false, (c, p, s, i) -> {},
+                NOW.plusSeconds(121));
+        code(RoundTripReferenceErrorCode.EXPIRED,
+                () -> context(expired, "alice").consumeBlobSelection(
+                        document, selection, target));
+        var rotated = provider("test", "k2", true, (c, p, s, i) -> {},
+                NOW.plusSeconds(30));
+        Assert.assertEquals(claim, context(rotated, "alice")
+                .consumeBlobSelection(document, selection, target).claim());
+        allowed.set(false);
+        code(RoundTripReferenceErrorCode.AUTHORIZATION_REQUIRED,
+                () -> alice.consumeBlobSelection(document, selection, target));
+    }
+
+    @Test
+    public void tqs1NewClientKeyAndMalformedWireAreExplicit() {
+        var provider = provider("test", "k1", false, (c, p, s, i) -> {}, NOW);
+        var alice = context(provider, "alice");
+        String document = alice.issueBoundDocumentSnapshot(
+                boundSnapshot(), Duration.ofSeconds(300));
+        var target = new BlobSelectionTarget(boundSnapshot().snapshot().scope(),
+                "OrderItem", "attachment", BlobSelectionTarget.Kind.NEW_CLIENT_KEY,
+                "client-row-7", "command-new");
+        var claim = new BlobSelectionClaim(target, BlobRef.of("blob_C"));
+        String selection = alice.issueBlobSelection(document, claim, Duration.ofSeconds(120));
+        Assert.assertEquals(claim, alice.consumeBlobSelection(document, selection, target).claim());
+        code(RoundTripReferenceErrorCode.SCOPE_MISMATCH,
+                () -> alice.consumeBlobSelection(document, selection,
+                        new BlobSelectionTarget(target.scope(), target.targetEntity(),
+                                target.canonicalField(), BlobSelectionTarget.Kind.EXISTING_ROW,
+                                "item:0", target.commandId())));
+        byte[] actor = new byte[32];
+        byte[] wire = BlobSelectionWire.encode(claim, actor, 10, 20);
+        Assert.assertEquals(claim, BlobSelectionWire.decode(wire).claim());
+        byte[] trailing = Arrays.copyOf(wire, wire.length + 1);
+        code(RoundTripReferenceErrorCode.INVALID_REFERENCE,
+                () -> BlobSelectionWire.decode(trailing));
+        byte[] wrongVersion = wire.clone();
+        wrongVersion[0] = 2;
+        code(RoundTripReferenceErrorCode.INVALID_REFERENCE,
+                () -> BlobSelectionWire.decode(wrongVersion));
+        byte[] truncated = Arrays.copyOf(wire, wire.length - 1);
+        code(RoundTripReferenceErrorCode.INVALID_REFERENCE,
+                () -> BlobSelectionWire.decode(truncated));
+        var noCreate = new BoundDocumentSnapshot(new DocumentSnapshot(
+                boundSnapshot().snapshot().modelFingerprint(),
+                boundSnapshot().snapshot().businessId(),
+                boundSnapshot().snapshot().scope(),
+                boundSnapshot().snapshot().aggregate(),
+                boundSnapshot().snapshot().entities(), List.of()),
+                boundSnapshot().bindings());
+        String noCreateDocument = alice.issueBoundDocumentSnapshot(
+                noCreate, Duration.ofSeconds(300));
+        code(RoundTripReferenceErrorCode.DOCUMENT_PROJECTION_VIOLATION,
+                () -> alice.issueBlobSelection(
+                        noCreateDocument, claim, Duration.ofSeconds(120)));
+        var readOnly = new BoundDocumentSnapshot(boundSnapshot().snapshot(),
+                List.of(new DocumentBlobBindingSnapshot("item:0", "attachment", "OrderItem",
+                        BlobRef.of("blob_A"), 1L, true, false)));
+        String readOnlyDocument = alice.issueBoundDocumentSnapshot(
+                readOnly, Duration.ofSeconds(300));
+        var existing = new BlobSelectionTarget(target.scope(), "OrderItem", "attachment",
+                BlobSelectionTarget.Kind.EXISTING_ROW, "item:0", "command-new");
+        code(RoundTripReferenceErrorCode.DOCUMENT_PROJECTION_VIOLATION,
+                () -> alice.issueBlobSelection(readOnlyDocument,
+                        new BlobSelectionClaim(existing, BlobRef.of("blob_C")),
+                        Duration.ofSeconds(120)));
     }
 }

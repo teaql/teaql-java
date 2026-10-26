@@ -62,5 +62,32 @@ public final class RoundTripReferenceCodec {
                 expectedAggregateType, expectedPurpose);
     }
 
+    public String issueBoundDocumentSnapshot(
+            UserContext context, TrustedReferencePrincipal principal,
+            BoundDocumentSnapshot document, Duration lifetime) {
+        return provider.issueBoundDocumentSnapshot(context, principal, document, lifetime);
+    }
+
+    public VerifiedBoundDocumentSnapshot consumeBoundDocumentSnapshot(
+            UserContext context, TrustedReferencePrincipal principal, String token,
+            String expectedAggregateType, String expectedPurpose) {
+        return provider.consumeBoundDocumentSnapshot(context, principal, token,
+                expectedAggregateType, expectedPurpose);
+    }
+
+    public String issueBlobSelection(
+            UserContext context, TrustedReferencePrincipal principal,
+            String documentToken, BlobSelectionClaim claim, Duration lifetime) {
+        return provider.issueBlobSelection(context, principal, documentToken, claim, lifetime);
+    }
+
+    public VerifiedBlobSelection consumeBlobSelection(
+            UserContext context, TrustedReferencePrincipal principal,
+            String documentToken, String token,
+            BlobSelectionTarget expectedTarget) {
+        return provider.consumeBlobSelection(
+                context, principal, documentToken, token, expectedTarget);
+    }
+
     public ReferenceMode mode() { return provider.mode(); }
 }
