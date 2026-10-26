@@ -54,8 +54,17 @@ not JSON profile equivalence. A generated FK-only reference rejects typed/generi
 updates, version edits and an explicit legacy-cache fault injection without
 changing payload, availability or ledger state. A failed generic cast stays
 NotLoaded, an incomplete modified object is rejected before provider access, and
-the complete owner still saves without writing the reference. Equal-null setter
-behavior is a separate generator follow-up and is not qualified by this scenario.
+the complete owner still saves without writing the reference.
+
+`--explicit-null` runs the same small model twice: an explicit null edit on a
+NotLoaded field becomes loaded Null and retains pending intent. Changing it again
+does not turn the unknown original value into a known null. Incomplete modified
+objects still fail Checker before provider access. Equal values on already loaded
+fields are true no-ops (no lifecycle change, ledger allocation, SQL, audit or
+version bump). ID-only references cannot use a null-version edit to claim that
+the version was loaded. A complete object's value-to-null update persists and
+reads back through Q/E and an independent SQL oracle. These checks run from the
+standard example entry point; they are not full graph or artifact acceptance.
 
 This does not qualify all scalar wire boundaries, cross-runtime DDL parity or a
 published artifact. Provenance is in `fixture-manifest.json` and

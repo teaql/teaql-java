@@ -53,7 +53,7 @@ public class TypePlatform extends BaseEntity implements RemoteInput {
     }
     public TypePlatform updateName(String name){
         name = (name == null ? null : name.trim());
-        if(Objects.equals(this.name, name)){
+        if(isPropertyLoaded(NAME_PROPERTY) && Objects.equals(this.name, name)){
             return this;
         }
         handleUpdate(NAME_PROPERTY, getName(), name);

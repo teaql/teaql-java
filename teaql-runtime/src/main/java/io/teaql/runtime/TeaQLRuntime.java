@@ -503,6 +503,13 @@ public class TeaQLRuntime implements AutoCloseable {
                             value.isPropertyLoaded(BaseEntity.VERSION_PROPERTY))));
             MutationPlan mutationPlan = buildMutationPlan(entity, entityMutationLedger, realEntities, intent);
             requireSingleMutationRoute(mutationPlan, route);
+            // Inspect the complete post-Fix graph plan, not only the root's
+            // status: an untouched root can still own a dirty descendant.
+            // An actually empty plan needs no policy review or transaction.
+            if (mutationPlan.operations().isEmpty()) {
+                telemetryScope.success();
+                return;
+            }
             MutationGovernanceSnapshot governance = reviewMutationPlan(context, mutationPlan);
             var dynamicChanges = entityMutationLedger.currentChangeSet().dynamicChanges();
             var dynamicRequests = new ArrayList<io.teaql.data.dynamic.DynamicGraphMutation>();

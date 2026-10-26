@@ -1,15 +1,15 @@
 {
-  "producerReceiptSha256": "dee0c471fbb7d95006dd003af207b6aa3bb6f056ab9b018dfc1538cb38b644ee",
+  "producerReceiptSha256": "c0fbde7f4b41f654de22e11ba464748d8d8aa3793834a697c588ec1cb697145e",
   "producerSource": {
-    "commit": "55dd17219bba6f42a27f89fe784b4e2e911a851a",
-    "diff": "59ca6828784bddb22ad044ea6d9396e3a34effa865c7844a275fcac6b71a8461",
-    "status": "ec329e1d0bda07ec823ee604a88e00a5f38653175c0d20225877ead83ed73544",
-    "sourceContentsSha256": "353a0373f5c9409d35ff3f26e3ef25f6e2b28532c0e758637b666700f384c731",
+    "commit": "59bca0d0bd6d10cd0861519678d7970badcfba56",
+    "diff": "21aea9943e6746640a951bb9167cc675d0a1a5b04826f1bc9cc1f2ac08925d06",
+    "status": "78d4f0328b25ccd9d1896ad0ae87f76b046413e46dfa8b6bb423a740072dab46",
+    "sourceContentsSha256": "cba9561e0ed417f5aaf9bac5fa94503e2062a1daa4cd43ee28c299a7290e2e5a",
     "assistExporterSha256": "2583414a9d656e89b43b85f1d4e993dcc774b74e2bed0f9b7120d7cb7ea47efd"
   },
   "files": {
     "base-model.xml": "8d3017392ffd00abbc06be2555ced27ac6360e2d05fabc4299e27a5ef8f1c762",
-    "manifest.json": "a87da74597197b948aa4ed33a0934eb1d7aa1564942df1ec8a416a1657339cf8",
+    "manifest.json": "93b17d7847e586836a97746950f3aec2a6536617223da5a10906276f65c7eb8b",
     "camelCase/model.xml": "8d3017392ffd00abbc06be2555ced27ac6360e2d05fabc4299e27a5ef8f1c762",
     "camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/GeneratedRuntimeModule.java": "5c3acc14ce9185a24460c9b85afba2dd57f39c240b04fbd8ccea443e436a001e",
     "camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/Q.java": "1323cb489c5002e29f1df2d059815954391f6a520d82c0dc6c13deda1d381264",
@@ -31,8 +31,8 @@
     "camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformRequest.java": "bc9ff294276679c85901678f972a393317be901a96987c0cd05eff2fbf20f766",
     "camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeRequest.java": "af9f46c490740eea0cfaca791741e3984275224d9135570f8e043470ed792d7a",
     "camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/EntityMetaRegistry.java": "4853306dd5be58ed2d2871e3ba52c7efa43f56a1852968d4a2874f1f9ec4ff3e",
-    "camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatform.java": "02786b8cdf2e4eedabf23140ca489d7705faefc1e5e8b57159d5849448715290",
-    "camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbe.java": "b7efbe5178579964bb432aff12fcc190aa531ec08e2c72d7828ce0e4705153f2",
+    "camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatform.java": "8c0dc1f8945933a86e9a5fac31c07fb977e858916441b50d3b84bbed83bf0341",
+    "camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbe.java": "78dfd21f0e6918121c43028dc5cce7ecbdb7e1467b447db0d3dac07b17433a69",
     "snake_case/model.xml": "2dbbcfea6057a5dc7c7c356ea4d0dacec5d5165538f6a9c5903d4d3b64ee13c6",
     "snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/GeneratedRuntimeModule.java": "a912abea3e686e5dcf4de14fc4fb594c53e5fb3bd36e0d565baa4035a398f793",
     "snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/Q.java": "1323cb489c5002e29f1df2d059815954391f6a520d82c0dc6c13deda1d381264",
@@ -54,8 +54,8 @@
     "snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformRequest.java": "bc9ff294276679c85901678f972a393317be901a96987c0cd05eff2fbf20f766",
     "snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeRequest.java": "af9f46c490740eea0cfaca791741e3984275224d9135570f8e043470ed792d7a",
     "snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/EntityMetaRegistry.java": "4853306dd5be58ed2d2871e3ba52c7efa43f56a1852968d4a2874f1f9ec4ff3e",
-    "snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatform.java": "cdb32d8fd96c300f1dd9648e73457d6ea91245e9eb77754722c7c3b8de721e37",
-    "snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbe.java": "c2b573d4d2ea88a18d6e319a5150edd59aad4c23e182dfbb2a8b893a18f26161",
+    "snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatform.java": "d5eb32050c3d76724f5728a9a98cf1af5b97e280dc57018c12531a5af470b7b3",
+    "snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbe.java": "bc983ba89daad16e2e522e7c6b68b1c9c202db923e4d86f9d0858e37f63032b1",
     "PascalCase/model.xml": "f836540a765f8c372bd7103a25a83ca316797253079ac63f8a1ef5ee4ded027d",
     "PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/GeneratedRuntimeModule.java": "67278565b479fbd509b7087d03c1fbebe206707529fb3aa0b2b32f175afe48fb",
     "PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/Q.java": "1323cb489c5002e29f1df2d059815954391f6a520d82c0dc6c13deda1d381264",
@@ -77,7 +77,7 @@
     "PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformRequest.java": "bc9ff294276679c85901678f972a393317be901a96987c0cd05eff2fbf20f766",
     "PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeRequest.java": "af9f46c490740eea0cfaca791741e3984275224d9135570f8e043470ed792d7a",
     "PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/EntityMetaRegistry.java": "4853306dd5be58ed2d2871e3ba52c7efa43f56a1852968d4a2874f1f9ec4ff3e",
-    "PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatform.java": "ef9d49f877e6bd5b2a9f2be5e6ac50f4c8021d39510eae2c422a14d0fb46b71d",
-    "PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbe.java": "5437c03e674f0c03fc07c1330e99144de432580e92f2916a4223cfb689d3644d"
+    "PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatform.java": "942fbe9038116a9330f01da69cb807a03b5630447e4ad9b9fddf1670547bfaec",
+    "PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbe.java": "5f6fd4941b22a8a77ba523ff082ac4290aa00c076dc44726d28d5a786e83f097"
   }
 }

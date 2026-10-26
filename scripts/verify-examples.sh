@@ -62,4 +62,6 @@ TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/json-temporal" \
   node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs" --temporal
 TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/rejected-mutation" \
   node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs" --rejected
+TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/explicit-null" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs" --explicit-null
 echo "PASS: all Java examples"

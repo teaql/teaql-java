@@ -105,8 +105,7 @@ public class BaseEntity implements Entity {
     }
 
     public BaseEntity updateId(Long id) {
-        if (ObjectUtil.equals(this.id, id)) {
-            markPropertyLoaded(ID_PROPERTY);
+        if (isPropertyLoaded(ID_PROPERTY) && ObjectUtil.equals(this.id, id)) {
             return this;
         }
         handleUpdate(ID_PROPERTY, getId(), id);
@@ -133,8 +132,7 @@ public class BaseEntity implements Entity {
     }
 
     public BaseEntity updateVersion(Long version) {
-        if (ObjectUtil.equals(this.version, version)) {
-            markPropertyLoaded(VERSION_PROPERTY);
+        if (isPropertyLoaded(VERSION_PROPERTY) && ObjectUtil.equals(this.version, version)) {
             return this;
         }
         handleUpdate(VERSION_PROPERTY, getVersion(), version);
@@ -553,9 +551,11 @@ public class BaseEntity implements Entity {
         // Validate a forbidden lifecycle before a generic assignment can change
         // either the payload or its loaded state. This lookup has no side effects.
         get$status().next(EntityAction.UPDATE);
+        boolean wasLoaded = isPropertyLoaded(propertyName);
         Object oldValue = getProperty(propertyName);
+        if (wasLoaded && ObjectUtil.equals(oldValue, value)) return this;
         setProperty(propertyName, value);
-        handleUpdate(propertyName, oldValue, value);
+        handleUpdate(propertyName, oldValue, value, wasLoaded);
         return this;
     }
 
@@ -573,17 +573,30 @@ public class BaseEntity implements Entity {
     }
 
     public void handleUpdate(String propertyName, Object oldValue, Object newValue) {
+        handleUpdate(propertyName, oldValue, newValue, isPropertyLoaded(propertyName));
+    }
+
+    private void handleUpdate(String propertyName, Object oldValue, Object newValue, boolean wasLoaded) {
+        // Check before publishing state, including the equal-null case on an
+        // ID-only reference. Null backing storage is not proof of loaded Null.
+        get$status().next(EntityAction.UPDATE);
+        if (wasLoaded && ObjectUtil.equals(oldValue, newValue)) return;
         gotoNextStatus(EntityAction.UPDATE);
         markPropertyLoaded(propertyName);
         PropertyChange propertyChange = updatedProperties.get(propertyName);
+        // A NEW object has no hidden persisted value to preserve. Its initial
+        // null can still be restored; only a persisted unselected baseline is
+        // unknown across later edits.
+        boolean originalWasLoaded = wasLoaded || newItem();
         if (propertyChange != null) {
             oldValue = propertyChange.getOldValue();
+            originalWasLoaded = propertyChange.wasOldValueLoaded();
         }
-        if (ObjectUtil.equals(oldValue, newValue)) {
+        if (originalWasLoaded && ObjectUtil.equals(oldValue, newValue)) {
             if (!updatedProperties.isEmpty()) updatedProperties.remove(propertyName);
             return;
         }
-        mutableUpdatedProperties().put(propertyName, new PropertyChange(propertyName, oldValue, newValue));
+        mutableUpdatedProperties().put(propertyName, new PropertyChange(propertyName, oldValue, newValue, originalWasLoaded));
 
         if (id != null) {
             EntityMutationLedger entityMutationLedger = getEntityMutationLedger();
