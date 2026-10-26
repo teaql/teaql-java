@@ -347,6 +347,26 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
         return contextBoundDocumentService().acceptDocument(this, trustedReferencePrincipal(), request);
     }
 
+    default io.teaql.core.view.DocumentView openDocumentForView(
+            ContextBoundDocumentService.OpenRequest request) {
+        io.teaql.core.view.ViewPreparationService views = capability(
+                io.teaql.core.view.ViewPreparationService.class);
+        if (views == null) throw new io.teaql.core.view.ViewPreparationException(
+                io.teaql.core.view.ViewPreparationException.Code.VIEW_CAPABILITY_MISSING,
+                io.teaql.core.view.ViewOptions.BusinessCompletion.QUERY);
+        return views.openDocumentForView(this, request);
+    }
+
+    default io.teaql.core.view.AcceptedDocumentView acceptDocumentForView(
+            ContextBoundDocumentService.AcceptRequest request) {
+        io.teaql.core.view.ViewPreparationService views = capability(
+                io.teaql.core.view.ViewPreparationService.class);
+        if (views == null) throw new io.teaql.core.view.ViewPreparationException(
+                io.teaql.core.view.ViewPreparationException.Code.VIEW_CAPABILITY_MISSING,
+                io.teaql.core.view.ViewOptions.BusinessCompletion.QUERY);
+        return views.acceptDocumentForView(this, request);
+    }
+
     /**
      * Returns the domain-visible time for this operation. Operational clocks
      * used for timeouts, durations and logging are intentionally separate.

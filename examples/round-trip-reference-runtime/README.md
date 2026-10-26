@@ -27,9 +27,20 @@ The public document DTOs freeze nested JSON values before digesting or saving,
 and the service rejects a directly supplied principal that differs from the
 current `UserContext` principal.
 
-This example demonstrates the Java document SPI and actual SQL consumer. It
-does not implement generated Order models, governed ViewPreparation provenance,
-Blob field selection, or the four module combinations required for R5 exit.
+For governed responses, `UserContext.openDocumentForView` and
+`acceptDocumentForView` adopt only a successful call to the installed service.
+The resulting `DocumentView` carries private presentation provenance, so the
+same token enters `ViewPreparationService.prepare` without a second issue.
+Preparation and reuse re-authenticate the token and current application
+permission; changing the service, runtime, Actor or database revision fails.
+A presentation error after a successful accept reports committed business
+state, directing the caller to re-read instead of replaying the command.
+Client JSON with an alleged `documentToken` or `prepared` field has no such
+provenance.
+
+This example demonstrates the Java document SPI, actual SQL consumer and
+governed outbound handoff. Generated Order models, Blob field selection and
+the four module combinations required for R5 exit remain open.
 
 Run locally against repository sources:
 

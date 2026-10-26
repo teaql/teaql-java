@@ -37,5 +37,12 @@ The core now exposes an application-owned `ContextBoundDocumentService` SPI and
 example implements current authorization, version checks, editable projection
 validation, and transactional command receipts. The secure module itself remains
 passive: the application must install its own service and persistence boundary.
-Generated-model integration, unified governed view contribution, versioned Blob
-selection, and the four module combinations remain R5 work.
+Generated-model integration, governed contribution for newly prepared editable
+graphs, versioned Blob selection, and the four module combinations remain R5 work.
+
+The focused SQLite application consumer now also exercises the unified
+`ViewPreparationService` handoff for a previously issued document. It opts in
+through `ContextBoundDocumentService.supportsViewPreparation()` and checks
+current application authority in `validatePreparedDocument`. The optional
+secure module itself still installs only the provider; it does not start a
+document service or change all responses to governed mode.

@@ -10,6 +10,13 @@ import io.teaql.core.reference.ContextBoundDocumentService.SubmittedDocument;
 import io.teaql.core.reference.RoundTripReferenceErrorCode;
 import io.teaql.core.reference.RoundTripReferenceException;
 import io.teaql.core.reference.TrustedReferencePrincipal;
+import io.teaql.core.view.AcceptedDocumentView;
+import io.teaql.core.view.DocumentView;
+import io.teaql.core.view.PreparedView;
+import io.teaql.core.view.ViewAuthorization;
+import io.teaql.core.view.ViewOptions;
+import io.teaql.core.view.ViewPreparationException;
+import io.teaql.core.view.ViewPreparationService;
 import io.teaql.runtime.DefaultUserContext;
 import io.teaql.runtime.TeaQLRuntime;
 import io.teaql.secure.document.reference.AeadRoundTripReferenceProvider;
@@ -85,7 +92,20 @@ public class SqliteOrderDocumentServiceTest {
                     }
                 });
         TeaQLRuntime runtime = SecureDocumentReferenceModule.of(provider)
-                .installInto(TeaQLRuntime.builder().metadata(new SimpleEntityMetaFactory()))
+                .installInto(TeaQLRuntime.builder().metadata(new SimpleEntityMetaFactory())
+                        .viewAuthorization(new ViewAuthorization() {
+                            @Override public Identity identity(UserContext context) {
+                                TrustedReferencePrincipal principal = context.trustedReferencePrincipal();
+                                return new Identity(principal.authenticationRealm(), principal.subject(),
+                                        principal.domainRootType() + ":" + principal.domainRootId());
+                            }
+                            @Override public boolean canReadEntity(
+                                    UserContext context, EntityTarget entity, String path) { return false; }
+                            @Override public FieldDecision field(UserContext context, EntityTarget entity,
+                                    String field, String path, ViewOptions.Mode mode) {
+                                return FieldDecision.hide();
+                            }
+                        }))
                 .build();
         return new DefaultUserContext(runtime)
                 .withTrustedReferencePrincipal(new TrustedReferencePrincipal("oidc", subject, "Customer", 7))
@@ -121,6 +141,11 @@ public class SqliteOrderDocumentServiceTest {
 
     private static OpenRequest openRequest() {
         return new OpenRequest("Order", NUMBER, PURPOSE, Duration.ofMinutes(15));
+    }
+
+    private static ViewOptions viewOptions(ViewOptions.BusinessCompletion completion) {
+        return new ViewOptions(ViewOptions.Mode.GOVERNED, completion,
+                null, Duration.ofMinutes(15), false);
     }
 
     @SuppressWarnings("unchecked")
@@ -245,5 +270,79 @@ public class SqliteOrderDocumentServiceTest {
                 () -> alice.contextBoundDocumentService().openDocument(
                         alice, new TrustedReferencePrincipal("oidc", "bob", "Customer", 7),
                         openRequest()));
+    }
+
+    @Test
+    public void adoptedOpenAndAcceptedDocumentUseOneTokenAndRecheckCurrentAuthority()
+            throws Exception {
+        setup();
+        ViewPreparationService views = alice.capability(ViewPreparationService.class);
+        DocumentView opened = alice.openDocumentForView(openRequest());
+        ViewOptions query = viewOptions(ViewOptions.BusinessCompletion.QUERY);
+        PreparedView prepared = views.prepare(alice, opened, query);
+        String token = prepared.documentCredentials().get("documentToken");
+        Assert.assertTrue(token.startsWith("tqd1.k1."));
+        Assert.assertEquals(NUMBER, prepared.documentCredentials().get("businessId"));
+        Assert.assertFalse(prepared.toString().contains(token));
+        Assert.assertFalse(opened.toString().contains(token));
+        Assert.assertSame(prepared, views.prepare(alice, prepared, query));
+        Assert.assertEquals(token, views.prepare(alice, opened, query)
+                .documentCredentials().get("documentToken"));
+        UserContext anotherContext = context("alice");
+        Assert.assertEquals(ViewPreparationException.Code.VIEW_PREPARED_MISMATCH,
+                Assert.assertThrows(ViewPreparationException.class,
+                        () -> anotherContext.capability(ViewPreparationService.class)
+                                .prepare(anotherContext, opened, query)).code());
+        var originalService = alice.contextBoundDocumentService();
+        alice.withContextBoundDocumentService(new SqliteOrderDocumentService(url));
+        Assert.assertEquals(ViewPreparationException.Code.VIEW_ACCESS_DENIED,
+                Assert.assertThrows(ViewPreparationException.class,
+                        () -> views.prepare(alice, prepared, query)).code());
+        alice.withContextBoundDocumentService(originalService);
+        Assert.assertEquals(ViewPreparationException.Code.VIEW_CAPABILITY_MISSING,
+                Assert.assertThrows(ViewPreparationException.class,
+                        () -> views.prepare(alice, Map.of("documentToken", token, "prepared", true),
+                                query)).code());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) prepared.value();
+        Map<String, Object> changed = edit(
+                new ContextualDocument(NUMBER, token, body), 5, false);
+        AcceptedDocumentView accepted = alice.acceptDocumentForView(accept(
+                new ContextualDocument(NUMBER, token, body), "view-command", changed));
+        Assert.assertEquals(2, accepted.newRevision());
+        ViewOptions committed = viewOptions(ViewOptions.BusinessCompletion.COMMITTED);
+        PreparedView afterSave = views.prepare(alice, accepted.document(), committed);
+        Assert.assertEquals(5, scalar("SELECT quantity FROM order_items WHERE id=101"));
+        Assert.assertNotEquals(token, afterSave.documentCredentials().get("documentToken"));
+        Assert.assertTrue(afterSave.documentContext().isPresent());
+        Assert.assertEquals(ViewPreparationException.Code.VIEW_PREPARED_MISMATCH,
+                Assert.assertThrows(ViewPreparationException.class,
+                        () -> views.prepare(alice, accepted.document(), query)).code());
+        sql("UPDATE document_permissions SET can_edit=0 WHERE subject='alice'");
+        Assert.assertEquals(ViewPreparationException.Code.VIEW_ACCESS_DENIED,
+                Assert.assertThrows(ViewPreparationException.class,
+                        () -> views.prepare(alice, afterSave, committed)).code());
+    }
+
+    @Test
+    public void postCommitViewFailureReportsCommittedStateWithoutReplayingMutation() throws Exception {
+        setup();
+        DocumentView opened = alice.openDocumentForView(openRequest());
+        PreparedView prepared = alice.capability(ViewPreparationService.class)
+                .prepare(alice, opened, viewOptions(ViewOptions.BusinessCompletion.QUERY));
+        String token = prepared.documentCredentials().get("documentToken");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) prepared.value();
+        sql("CREATE TRIGGER revoke_on_command AFTER INSERT ON document_commands "
+                + "BEGIN UPDATE document_permissions SET can_edit=0 WHERE subject='alice'; END");
+        ViewPreparationException failed = Assert.assertThrows(ViewPreparationException.class,
+                () -> alice.acceptDocumentForView(accept(
+                        new ContextualDocument(NUMBER, token, body), "committed-view-failure",
+                        edit(new ContextualDocument(NUMBER, token, body), 5, false))));
+        Assert.assertTrue(failed.businessCommitted());
+        Assert.assertEquals(ViewPreparationException.Code.VIEW_ACCESS_DENIED, failed.code());
+        Assert.assertEquals(2, scalar("SELECT version FROM orders WHERE id=10"));
+        Assert.assertEquals(5, scalar("SELECT quantity FROM order_items WHERE id=101"));
+        Assert.assertEquals(1, scalar("SELECT count(*) FROM document_commands"));
     }
 }

@@ -11,6 +11,7 @@ import io.teaql.core.reference.ReferenceDocumentScope;
 import io.teaql.core.reference.RoundTripReferenceErrorCode;
 import io.teaql.core.reference.RoundTripReferenceException;
 import io.teaql.core.reference.TrustedReferencePrincipal;
+import io.teaql.core.reference.VerifiedDocumentSnapshot;
 import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -49,6 +50,26 @@ public final class SqliteOrderDocumentService implements ContextBoundDocumentSer
     private record Change(Item item, long quantity) {}
     private record Receipt(long previous, long next, List<InternalEntityIdentity> changed,
                            ContextualDocument document) {}
+
+    @Override public boolean supportsViewPreparation() { return true; }
+
+    @Override public void validatePreparedDocument(
+            UserContext context, TrustedReferencePrincipal principal, VerifiedDocumentSnapshot verified) {
+        currentPrincipal(context, principal);
+        DocumentSnapshot snapshot = verified.snapshot();
+        if (!MODEL.equals(snapshot.modelFingerprint())
+                || !PURPOSE.equals(snapshot.scope().purpose())
+                || !AGGREGATE.equals(snapshot.scope().aggregateType())) throw projection();
+        try (Connection connection = DriverManager.getConnection(jdbcUrl)) {
+            authorize(connection, principal);
+            Order order = order(connection, snapshot.businessId());
+            owner(principal, order);
+            if (order.id() != snapshot.aggregate().id()
+                    || order.version() != snapshot.aggregate().version()) throw revision();
+        } catch (SQLException exception) {
+            throw databaseFailure(exception);
+        }
+    }
 
     @Override
     public ContextualDocument openDocument(

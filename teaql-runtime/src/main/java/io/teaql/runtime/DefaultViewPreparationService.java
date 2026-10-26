@@ -3,7 +3,7 @@ package io.teaql.runtime;
 import io.teaql.core.*;
 import io.teaql.core.blob.*;
 import io.teaql.core.meta.*;
-import io.teaql.core.reference.TrustedReferencePrincipal;
+import io.teaql.core.reference.*;
 import io.teaql.core.view.*;
 import io.teaql.core.view.AuthorizedResponseGraph.*;
 import io.teaql.core.view.ViewAuthorization.*;
@@ -26,24 +26,93 @@ public final class DefaultViewPreparationService implements ViewPreparationServi
     public DefaultViewPreparationService(TeaQLRuntime runtime,ViewAuthorization authorization,ViewDocumentContributor documents,ViewBlobContributor blobs,Clock clock) {
         this.runtime=Objects.requireNonNull(runtime); this.authorization=authorization; this.documents=documents; this.blobs=blobs; this.clock=Objects.requireNonNull(clock);
     }
+    @Override public DocumentView openDocumentForView(UserContext context,ContextBoundDocumentService.OpenRequest request) {
+        documentReady(context);
+        var principal=context.trustedReferencePrincipal();
+        var identity=authorization.identity(context);
+        var document=context.openDocument(request);
+        return captureDocument(context,document,request.aggregateType(),request.purpose(),
+                principal,identity,ViewOptions.BusinessCompletion.QUERY);
+    }
+    @Override public AcceptedDocumentView acceptDocumentForView(UserContext context,ContextBoundDocumentService.AcceptRequest request) {
+        documentReady(context);
+        var principal=context.trustedReferencePrincipal();
+        var identity=authorization.identity(context);
+        var accepted=context.acceptDocument(request);
+        DocumentView document=captureDocument(context,accepted.document(),request.aggregateType(),request.purpose(),
+                principal,identity,ViewOptions.BusinessCompletion.COMMITTED);
+        return new AcceptedDocumentView(document,accepted.previousRevision(),accepted.newRevision(),accepted.changedEntities());
+    }
+    private void documentReady(UserContext context) {
+        ViewOptions options=documentOptions(ViewOptions.BusinessCompletion.QUERY);
+        try {
+            if (authorization==null || context==null || context.capability(ViewPreparationService.class)!=this
+                    || context.capability(EntityMetaFactory.class)!=runtime.getMetadata()
+                    || !context.contextBoundDocumentService().supportsViewPreparation()
+                    || context.roundTripReferences().mode()!=ReferenceMode.GOVERNED) throw error(VIEW_CAPABILITY_MISSING,options);
+            requireCompleted(options);
+            context.trustedReferencePrincipal();
+            Objects.requireNonNull(authorization.identity(context));
+        } catch (ViewPreparationException known) { throw known; }
+        catch (RoundTripReferenceException unavailable) { throw documentError(unavailable,options); }
+        catch (RuntimeException failed) { throw error(VIEW_PREPARATION_FAILED,options); }
+    }
+    private DocumentView captureDocument(UserContext context,ContextBoundDocumentService.ContextualDocument document,
+            String aggregate,String purpose,TrustedReferencePrincipal principal,Identity identity,
+            ViewOptions.BusinessCompletion completion) {
+        ViewOptions options=documentOptions(completion);
+        try {
+            requireCompleted(options);
+            requireSame(context,identity,principal,options);
+            VerifiedDocumentSnapshot verified=context.consumeDocumentSnapshot(document.documentToken(),aggregate,purpose);
+            if (!verified.snapshot().businessId().equals(document.businessId())) throw error(VIEW_ACCESS_DENIED,options);
+            var source=DocumentView.issue(issuer,document,verified,principal,
+                    context.contextBoundDocumentService(),context.roundTripReferences(),completion);
+            source.validateCurrent(issuer,context);
+            requireSame(context,identity,principal,options);
+            return source;
+        } catch (ViewPreparationException known) { throw known; }
+        catch (RoundTripReferenceException invalid) { throw documentError(invalid,options); }
+        catch (RuntimeException failed) { throw error(VIEW_PREPARATION_FAILED,options); }
+    }
+    private static ViewOptions documentOptions(ViewOptions.BusinessCompletion completion) {
+        return new ViewOptions(ViewOptions.Mode.GOVERNED,completion,null,Duration.ZERO,false);
+    }
+    private static ViewPreparationException documentError(RoundTripReferenceException failed,ViewOptions options) {
+        return switch (failed.getCode()) {
+            case EXPIRED -> error(VIEW_EXPIRED,options);
+            case PROVIDER_NOT_CONFIGURED, CONFIGURATION_INVALID -> error(VIEW_CAPABILITY_MISSING,options);
+            case AUTHORIZATION_REQUIRED, CONTEXT_MISMATCH, CONTEXT_BINDING_REQUIRED, SCOPE_MISMATCH -> error(VIEW_ACCESS_DENIED,options);
+            default -> error(VIEW_PREPARATION_FAILED,options);
+        };
+    }
     @Override public PreparedView prepare(UserContext context,Object result,ViewOptions options) {
         Objects.requireNonNull(options);
         try {
             if (authorization==null || context==null) throw error(VIEW_CAPABILITY_MISSING,options);
             if (context.capability(EntityMetaFactory.class)!=runtime.getMetadata()) throw error(VIEW_ACCESS_DENIED,options);
             requireCompleted(options); Identity identity=Objects.requireNonNull(authorization.identity(context));
-            if (options.mode()==ViewOptions.Mode.GOVERNED && documents==null) throw error(VIEW_CAPABILITY_MISSING,options);
+            DocumentView source=result instanceof DocumentView view?view:null;
             TrustedReferencePrincipal principal=options.mode()==ViewOptions.Mode.GOVERNED?context.trustedReferencePrincipal():null;
             if (result instanceof PreparedView prepared) {
                 if (!prepared.matches(issuer,options,identity)) throw error(VIEW_PREPARED_MISMATCH,options);
+                if (options.mode()==ViewOptions.Mode.GOVERNED && documents==null
+                        && prepared.documentSource(issuer).isEmpty()) throw error(VIEW_CAPABILITY_MISSING,options);
                 if (prepared.expiresAt().isPresent() && !clock.instant().isBefore(prepared.expiresAt().orElseThrow())) throw error(VIEW_EXPIRED,options);
                 if (prepared.documentContext().isPresent() && !prepared.documentContext().orElseThrow().principal().equals(principal)) throw error(VIEW_ACCESS_DENIED,options);
                 recheck(context,prepared.graph(issuer).root(),"",options); requireSame(context,identity,principal,options);
-                if (prepared.documentContext().isPresent()) documents.validateCurrent(context,prepared.graph(issuer),prepared.documentContext().orElseThrow(),options);
+                if (prepared.documentContext().isPresent()) validateDocumentCurrent(context,prepared,options);
                 prepared.validateBlobs(issuer,context,options);
                 recheck(context,prepared.graph(issuer).root(),"",options); requireSame(context,identity,principal,options); requireCompleted(options);
                 if (prepared.expiresAt().isPresent() && !clock.instant().isBefore(prepared.expiresAt().orElseThrow())) throw error(VIEW_EXPIRED,options);
                 return prepared;
+            }
+            if (options.mode()==ViewOptions.Mode.GOVERNED && documents==null && source==null) throw error(VIEW_CAPABILITY_MISSING,options);
+            if (source!=null) {
+                if (options.mode()!=ViewOptions.Mode.GOVERNED || source.businessCompletion()!=options.businessCompletion()) throw error(VIEW_PREPARED_MISMATCH,options);
+                if (!source.matches(issuer)) throw error(VIEW_PREPARED_MISMATCH,options);
+                source.validateCurrent(issuer,context);
+                result=source.document(issuer).body();
             }
             var frozen=new Freeze(context,options); Node root=frozen.node(result,"",0);
             if (root==null) throw error(VIEW_ACCESS_DENIED,options);
@@ -51,13 +120,17 @@ public final class DefaultViewPreparationService implements ViewPreparationServi
             requireSame(context,identity,principal,options); recheck(context,root,"",options);
             DocumentContext document=null; Map<String,String> credentials=Map.of();
             if (options.mode()==ViewOptions.Mode.GOVERNED) {
-                var prepared=Objects.requireNonNull(documents.prepare(context,graph,options));
-                if (!surface(root,prepared.graph().root()) || !principal.equals(prepared.context().principal())) throw error(VIEW_ACCESS_DENIED,options);
-                document=prepared.context(); credentials=prepared.credentials();
+                if (source!=null) {
+                    document=source.context(issuer); credentials=source.credentials(issuer);
+                } else {
+                    var prepared=Objects.requireNonNull(documents.prepare(context,graph,options));
+                    if (!surface(root,prepared.graph().root()) || !principal.equals(prepared.context().principal())) throw error(VIEW_ACCESS_DENIED,options);
+                    document=prepared.context(); credentials=prepared.credentials(); graph=prepared.graph();
+                }
                 if (credentials.size()>32) throw error(VIEW_LIMIT_EXCEEDED,options);
                 for (var entry:credentials.entrySet()) { frozen.text(entry.getKey()); frozen.text(entry.getValue()); }
                 if (!clock.instant().isBefore(document.expiresAt())) throw error(VIEW_EXPIRED,options);
-                graph=prepared.graph(); requireSame(context,identity,principal,options); recheck(context,root,"",options); requireCompleted(options);
+                requireSame(context,identity,principal,options); recheck(context,root,"",options); requireCompleted(options);
             }
             List<BlobRuntime.Reads.Request> requests=graph.blobs(); List<BlobRuntime.Reads.Read> reads=List.of(); ViewBlobContributor.Projection projection=null;
             if (!requests.isEmpty()) {
@@ -78,12 +151,21 @@ public final class DefaultViewPreparationService implements ViewPreparationServi
             if (cacheSeconds>0) expiresAt=min(expiresAt,now.plusSeconds(cacheSeconds));
             Budget rendered=new Budget(options); for (var entry:credentials.entrySet()) { rendered.text(entry.getKey()); rendered.text(entry.getValue()); }
             Object value=render(graph.root(),reads.iterator(),rendered,0);
-            if (document!=null) documents.validateCurrent(context,new AuthorizedResponseGraph(root),document,options);
+            if (document!=null) {
+                if (source!=null) source.validateCurrent(issuer,context);
+                else documents.validateCurrent(context,new AuthorizedResponseGraph(root),document,options);
+            }
             recheck(context,root,"",options); requireSame(context,identity,principal,options); requireCompleted(options);
             if (expiresAt!=null && !clock.instant().isBefore(expiresAt)) throw error(VIEW_EXPIRED,options);
-            return PreparedView.issue(issuer,value,options,identity,new AuthorizedResponseGraph(root),document,credentials,expiresAt,cache,projection);
+            return PreparedView.issue(issuer,value,options,identity,new AuthorizedResponseGraph(root),document,credentials,expiresAt,cache,projection,source);
         } catch (ViewPreparationException known) { throw error(known.code(),options); }
+        catch (RoundTripReferenceException invalid) { throw documentError(invalid,options); }
         catch (RuntimeException failed) { throw error(VIEW_PREPARATION_FAILED,options); }
+    }
+    private void validateDocumentCurrent(UserContext context,PreparedView prepared,ViewOptions options) {
+        var source=prepared.documentSource(issuer);
+        if (source.isPresent()) source.orElseThrow().validateCurrent(issuer,context);
+        else documents.validateCurrent(context,prepared.graph(issuer),prepared.documentContext().orElseThrow(),options);
     }
     private void requireSame(UserContext context,Identity identity,TrustedReferencePrincipal principal,ViewOptions options) {
         if (!identity.equals(authorization.identity(context)) || principal!=null && !principal.equals(context.trustedReferencePrincipal())) throw error(VIEW_ACCESS_DENIED,options);

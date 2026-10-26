@@ -60,6 +60,17 @@ public interface ContextBoundDocumentService {
     AcceptedDocument acceptDocument(
             UserContext context, TrustedReferencePrincipal principal, AcceptRequest request);
 
+    /** Explicit opt-in to reusing an already issued document in governed presentation. */
+    default boolean supportsViewPreparation() { return false; }
+
+    /** Current authority for this issued document; must not save, reload its graph or issue a token. */
+    default void validatePreparedDocument(
+            UserContext context, TrustedReferencePrincipal principal, VerifiedDocumentSnapshot verified) {
+        throw new RoundTripReferenceException(
+                RoundTripReferenceErrorCode.PROVIDER_NOT_CONFIGURED,
+                "Document service does not support governed presentation");
+    }
+
     @SuppressWarnings("unchecked")
     private static Map<String, Object> freezeBody(Map<String, Object> body) {
         return (Map<String, Object>) freeze(body, 0, new AtomicInteger(100_000));

@@ -15,21 +15,35 @@ public final class PreparedView {
     private final Instant expiresAt;
     private final String cachePolicy;
     private final ViewBlobContributor.Projection blobs;
+    private final DocumentView documentSource;
     private PreparedView(Object issuer,Object value,ViewOptions options,ViewAuthorization.Identity identity,AuthorizedResponseGraph graph,
-                         DocumentContext document,Map<String,String> credentials,Instant expiresAt,String cachePolicy,ViewBlobContributor.Projection blobs) {
+                         DocumentContext document,Map<String,String> credentials,Instant expiresAt,String cachePolicy,ViewBlobContributor.Projection blobs,
+                         DocumentView documentSource) {
         this.issuer=Objects.requireNonNull(issuer); this.value=value; this.options=Objects.requireNonNull(options); this.identity=Objects.requireNonNull(identity);
         this.graph=Objects.requireNonNull(graph); this.document=document; this.credentials=Map.copyOf(credentials); this.expiresAt=expiresAt; this.cachePolicy=Objects.requireNonNull(cachePolicy);
         this.blobs=blobs;
+        this.documentSource=documentSource;
     }
     @FrameworkInternal("Only an installed service can supply its private presentation issuer")
     public static PreparedView issue(Object issuer,Object value,ViewOptions options,ViewAuthorization.Identity identity,AuthorizedResponseGraph graph,
                                      DocumentContext document,Map<String,String> credentials,Instant expiresAt,String cachePolicy,ViewBlobContributor.Projection blobs) {
-        return new PreparedView(issuer,value,options,identity,graph,document,credentials,expiresAt,cachePolicy,blobs);
+        return issue(issuer,value,options,identity,graph,document,credentials,expiresAt,cachePolicy,blobs,null);
+    }
+    @FrameworkInternal("Only an installed service can supply its private presentation issuer")
+    public static PreparedView issue(Object issuer,Object value,ViewOptions options,ViewAuthorization.Identity identity,AuthorizedResponseGraph graph,
+                                     DocumentContext document,Map<String,String> credentials,Instant expiresAt,String cachePolicy,ViewBlobContributor.Projection blobs,
+                                     DocumentView documentSource) {
+        return new PreparedView(issuer,value,options,identity,graph,document,credentials,expiresAt,cachePolicy,blobs,documentSource);
     }
     @FrameworkInternal("Presentation-local reuse; JSON flags never establish this provenance")
     public boolean matches(Object issuer,ViewOptions options,ViewAuthorization.Identity identity) { return this.issuer==issuer && this.options==options && this.identity.equals(identity); }
     @FrameworkInternal("Recheck only this installed service's frozen authorization surface")
     public AuthorizedResponseGraph graph(Object issuer) { if (this.issuer!=issuer) throw new IllegalArgumentException("Foreign presentation issuer"); return graph; }
+    @FrameworkInternal("Recheck one adopted service document without creating a new token")
+    public Optional<DocumentView> documentSource(Object issuer) {
+        if (this.issuer!=issuer) throw new IllegalArgumentException("Foreign presentation issuer");
+        return Optional.ofNullable(documentSource);
+    }
     @FrameworkInternal("Recheck only this installed service's private Blob presentation state")
     public void validateBlobs(Object issuer,io.teaql.core.UserContext context,ViewOptions options) {
         if (this.issuer!=issuer) throw new IllegalArgumentException("Foreign presentation issuer");
