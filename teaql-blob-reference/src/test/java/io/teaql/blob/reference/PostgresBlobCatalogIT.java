@@ -29,7 +29,12 @@ public class PostgresBlobCatalogIT {
         try (Fixture f=new Fixture(false,BlobPolicies.defaults())) {
             assertEquals(BlobException.Code.BLOB_SCHEMA_MISSING,assertThrows(BlobException.class,f.catalog::validateSchema).code());
             assertEquals(0L,f.scalar("SELECT count(*) FROM pg_tables WHERE schemaname=current_schema() AND tablename LIKE 'teaql_blob_%'"));
+            f.sql.update("INSERT INTO asset_data(id,version,document) VALUES (1,1,?),(2,1,?)",
+                    new Object[]{"legacy-invoice.pdf","https://legacy.example.test/files/2.pdf"});
             f.catalog.migrate(); f.catalog.migrate(); f.catalog.validateSchema();
+            assertEquals("legacy-invoice.pdf",f.row(1).get("document"));
+            assertEquals("https://legacy.example.test/files/2.pdf",f.row(2).get("document"));
+            assertEquals(0L,f.scalar("SELECT count(*) FROM teaql_blob_binding"));
             var draft=f.draft("same-request","a".repeat(64));
             var first=f.catalog.begin(draft,NOW);
             var retry=f.draft("same-request","a".repeat(64));
