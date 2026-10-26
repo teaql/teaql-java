@@ -9,6 +9,6 @@
         <dependency><groupId>io.teaql</groupId><artifactId>teaql-blob-store-file</artifactId></dependency>
         <dependency><groupId>io.teaql</groupId><artifactId>teaql-blob-content-tika</artifactId></dependency>
         <dependency><groupId>io.teaql</groupId><artifactId>teaql-provider-jdbc</artifactId></dependency>
-        <dependency><groupId>org.postgresql</groupId><artifactId>postgresql</artifactId><version>42.7.11</version></dependency>
+        <dependency><groupId>org.postgresql</groupId><artifactId>postgresql</artifactId><version>42.7.14</version></dependency>
     </dependencies>
 </project>
