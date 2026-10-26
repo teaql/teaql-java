@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.teaql.core.BaseEntity;
 import io.teaql.core.Entity;
+import io.teaql.core.EntityStatus;
 import io.teaql.core.FieldLayout;
 import io.teaql.core.LoadState;
 import io.teaql.core.SmartList;
@@ -143,6 +144,18 @@ final class TypedEntityJsonDeserializer extends JsonDeserializer<BaseEntity> {
             } else converted = parser.getCodec().treeToValue(value, binding.type());
             if (binding.index() >= 0) entity.__internalHydrate(binding.member(), converted, binding.index());
             else entity.__internalSet(binding.member(), converted);
+        }
+        // Persistence state is derived from the hydrated identity, never accepted
+        // as wire metadata or invented as mutation intent. Hydrate all members
+        // first so JSON order cannot change the lifecycle or original version.
+        if (entity.getId() != null && entity.getVersion() != null && entity.getVersion() != 0) {
+            entity.set$status(entity.getVersion() > 0 ? EntityStatus.PERSISTED : EntityStatus.PERSISTED_DELETED);
+        } else if (entity.getId() != null && entity.getVersion() == null
+                && members.stream().allMatch(name -> BaseEntity.ID_PROPERTY.equals(name) || BaseEntity.VERSION_PROPERTY.equals(name))) {
+            // Native FK stubs carry identity but no editable snapshot/version.
+            // Retain that reference-only contract across JSON without loading
+            // target details, validating them as a new entity, or permitting edits.
+            entity.set$status(EntityStatus.REFER);
         }
         return entity;
     }
