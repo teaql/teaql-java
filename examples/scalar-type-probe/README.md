@@ -32,6 +32,14 @@ Decoded deletion and recovery retain the version baseline (1 -> 2 -> -3 -> 4).
 The standard example entry point also runs this scenario. It retains compact
 logs and three test databases, not disposable reactors or dependency copies.
 
+`--numeric` tests generated typed mutation -> Q/E -> JSON -> decoded audited
+update for the three profiles, twice each. Long/ID/version/Decimal are exact
+strings; Integer remains a number; native Float/Double remain approximate finite
+numbers. Decimal scale, 64-bit extremes, signed Integer endpoints, nonfinite
+output, wrong-type/unsafe-number input and precise field paths are checked.
+This is a numeric boundary gate, not full temporal, dynamic-property or wire
+envelope acceptance. All three modes are part of the standard example script.
+
 This does not qualify all scalar wire boundaries, cross-runtime DDL parity or a
 published artifact. Provenance is in `fixture-manifest.json` and
 `json-profiles/provenance.json`; generated sources are never edited by the probes.

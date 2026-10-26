@@ -26,10 +26,10 @@ public class BaseEntityJsonSerializer extends JsonSerializer<BaseEntity> {
             var state = value.__internalLoadState();
             var layout = state.layout();
             if (value.getId() != null) {
-                serializers.defaultSerializeField(layout.isGenerated() ? layout.jsonFieldName(BaseEntity.ID_PROPERTY) : BaseEntity.ID_PROPERTY, value.getId(), gen);
+                ModelScalarJson.writeField(value, layout.isGenerated() ? layout.jsonFieldName(BaseEntity.ID_PROPERTY) : BaseEntity.ID_PROPERTY, value.getId(), gen, serializers);
             }
             if (value.getVersion() != null) {
-                serializers.defaultSerializeField(layout.isGenerated() ? layout.jsonFieldName(BaseEntity.VERSION_PROPERTY) : BaseEntity.VERSION_PROPERTY, value.getVersion(), gen);
+                ModelScalarJson.writeField(value, layout.isGenerated() ? layout.jsonFieldName(BaseEntity.VERSION_PROPERTY) : BaseEntity.VERSION_PROPERTY, value.getVersion(), gen, serializers);
             }
             // A cycle retains the existing identity-only reference shape, without
             // recursively reserializing the same object's business fields.
@@ -46,11 +46,11 @@ public class BaseEntityJsonSerializer extends JsonSerializer<BaseEntity> {
                     // and per-call attributes during nested serialization.
                     // The selected wire spelling is not the native/member or model key used by
                     // generated entity access and the mutation ledger.
-                    serializers.defaultSerializeField(member, value.__internalGet(field), gen);
+                    ModelScalarJson.writeField(value, member, value.__internalGet(field), gen, serializers);
                 }
                 for (String relation : layout.relationNames()) {
                     if (layout.findIndex(relation) != null || !state.isLoaded(relation)) continue;
-                    serializers.defaultSerializeField(layout.jsonFieldName(relation), value.__internalGet(relation), gen);
+                    ModelScalarJson.writeField(value, layout.jsonFieldName(relation), value.__internalGet(relation), gen, serializers);
                 }
             }
             for (Map.Entry<String, Object> entry : value.getAdditionalInfo().entrySet()) {

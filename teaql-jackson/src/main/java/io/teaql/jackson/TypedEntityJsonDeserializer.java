@@ -3,6 +3,7 @@ package io.teaql.jackson;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.teaql.core.BaseEntity;
 import io.teaql.core.Entity;
@@ -78,7 +79,7 @@ final class TypedEntityJsonDeserializer extends JsonDeserializer<BaseEntity> {
         boolean strictDuplicates = parser.isEnabled(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
         JsonNode node;
         parser.enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
-        try { node = parser.getCodec().readTree(parser); }
+        try { node = ModelScalarJson.readTree(parser); }
         finally { if (!strictDuplicates) parser.disable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION); }
         if (!node.isObject()) return context.reportInputMismatch(target, "Expected a model entity object");
         List<String> members = new ArrayList<>();
@@ -137,11 +138,18 @@ final class TypedEntityJsonDeserializer extends JsonDeserializer<BaseEntity> {
                     List<Entity> children = new ArrayList<>(value.size());
                     for (JsonNode child : value) {
                         if (child.isNull()) return context.reportInputMismatch(target, "Null relation-list element: %s", name);
-                        children.add(parser.getCodec().treeToValue(child, binding.element()));
+                        try { children.add(parser.getCodec().treeToValue(child, binding.element())); }
+                        catch (JsonMappingException error) {
+                            error.prependPath(children, children.size()); error.prependPath(target, name); throw error;
+                        }
                     }
                     converted = SmartList.takeOwnership(children);
                 }
-            } else converted = parser.getCodec().treeToValue(value, binding.type());
+            } else if (ModelScalarJson.supports(binding.type())) converted = ModelScalarJson.read(value, binding.type(), target, name);
+            else {
+                try { converted = parser.getCodec().treeToValue(value, binding.type()); }
+                catch (JsonMappingException error) { error.prependPath(target, name); throw error; }
+            }
             if (binding.index() >= 0) entity.__internalHydrate(binding.member(), converted, binding.index());
             else entity.__internalSet(binding.member(), converted);
         }
