@@ -10,11 +10,13 @@ import io.teaql.core.blob.BlobFieldTarget;
 import io.teaql.core.blob.BlobMutationParticipant;
 import io.teaql.core.blob.BlobRef;
 import io.teaql.core.blob.BlobScope;
+import io.teaql.core.blob.BlobStore;
 import io.teaql.core.reference.BlobSelectionClaim;
 import io.teaql.core.reference.BlobSelectionTarget;
 import io.teaql.core.reference.BoundDocumentSnapshot;
 import io.teaql.core.reference.ContextBoundDocumentService;
 import io.teaql.core.reference.DocumentBlobBindingSnapshot;
+import io.teaql.core.reference.DocumentBlobSlot;
 import io.teaql.core.reference.DocumentSnapshot;
 import io.teaql.core.reference.InternalEntityIdentity;
 import io.teaql.core.reference.ReferenceDocumentScope;
@@ -34,17 +36,23 @@ import io.teaql.secure.document.reference.RoundTripReferenceKey;
 import io.teaql.secure.document.reference.StaticRoundTripReferenceKeyProvider;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.net.URI;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.io.InputStream;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicLong;
 import org.junit.Test;
 import static io.teaql.blob.reference.PostgresBlobCatalogIT.*;
 import static org.junit.Assert.*;
@@ -64,8 +72,14 @@ public class PostgresAssetDocumentServiceIT {
     private static final class Service implements ContextBoundDocumentService {
         final Fixture f;
         final PostgresDocumentBlobSelectionParticipant selections;
-        Service(Fixture f) {
+        final boolean projectFile;
+        final DocumentBlobSlot displaySlot;
+        Service(Fixture f) { this(f,false); }
+        Service(Fixture f,boolean projectFile) { this(f,projectFile,new DocumentBlobSlot(ROW,"document")); }
+        Service(Fixture f,boolean projectFile,DocumentBlobSlot displaySlot) {
             this.f=f;
+            this.projectFile=projectFile;
+            this.displaySlot=displaySlot;
             f.sql.execute("CREATE TABLE asset_document_permissions(subject TEXT PRIMARY KEY, tenant_id BIGINT NOT NULL, can_edit BOOLEAN NOT NULL)");
             f.sql.update("INSERT INTO asset_document_permissions VALUES('alice',7,true)",new Object[0]);
             f.sql.execute("CREATE TABLE asset_document_commands(subject TEXT NOT NULL, command_id TEXT NOT NULL, digest BYTEA NOT NULL,"
@@ -127,8 +141,10 @@ public class PostgresAssetDocumentServiceIT {
                     List.of(entity),List.of());
             var bound=new BoundDocumentSnapshot(snapshot,List.of(new DocumentBlobBindingSnapshot(
                     ROW,"document","Asset",key,binding.version(),true,true)));
-            return new ContextualDocument(BUSINESS,context.issueBoundDocumentSnapshot(bound,lifetime),
-                    Map.of("rowKey",ROW,"hasDocument",key!=null));
+            Map<String,Object> body=projectFile
+                    ? Map.of("rowKey",ROW,"hasDocument",key!=null,"document",displaySlot)
+                    : Map.of("rowKey",ROW,"hasDocument",key!=null);
+            return new ContextualDocument(BUSINESS,context.issueBoundDocumentSnapshot(bound,lifetime),body);
         }
         @Override public ContextualDocument openDocument(UserContext context,
                 TrustedReferencePrincipal principal,OpenRequest request) {
@@ -246,7 +262,8 @@ public class PostgresAssetDocumentServiceIT {
         } catch (NoSuchAlgorithmException failed) { throw new IllegalStateException(failed); }
     }
 
-    private static TeaQLRuntime runtime(Fixture f) {
+    private static TeaQLRuntime runtime(Fixture f) { return runtime(f,null); }
+    private static TeaQLRuntime runtime(Fixture f,BlobStore store) {
         byte[] key=new byte[32]; Arrays.fill(key,(byte)0x51);
         var provider=AeadRoundTripReferenceProvider.governed(DeploymentProfile.TEST,"asset-document-it","test",
                 new StaticRoundTripReferenceKeyProvider(new RoundTripReferenceKey("k1",key)),
@@ -256,12 +273,28 @@ public class PostgresAssetDocumentServiceIT {
                 var p=context.trustedReferencePrincipal();
                 return new Identity(p.authenticationRealm(),p.subject(),p.domainRootType()+":"+p.domainRootId());
             }
-            @Override public boolean canReadEntity(UserContext context,EntityTarget target,String path) { return true; }
+            @Override public boolean canReadEntity(UserContext context,EntityTarget target,String path) {
+                return !Boolean.TRUE.equals(context.getAttribute("denyEntityRoot")) || !path.isEmpty();
+            }
             @Override public FieldDecision field(UserContext context,EntityTarget target,
-                    String canonicalField,String path,ViewOptions.Mode mode) { return FieldDecision.show(); }
+                    String canonicalField,String path,ViewOptions.Mode mode) {
+                return "document".equals(canonicalField) && Boolean.TRUE.equals(context.getAttribute("hideDocument"))
+                        ? FieldDecision.hide() : FieldDecision.show();
+            }
         };
-        return TeaQLRuntime.builder().metadata(f.runtime.getMetadata()).roundTripReferenceProvider(provider)
-                .viewAuthorization(authorization).telemetry(RuntimeTelemetry.NOOP).executionLogging(false).build();
+        var builder=TeaQLRuntime.builder().metadata(f.runtime.getMetadata()).roundTripReferenceProvider(provider)
+                .viewAuthorization(authorization).telemetry(RuntimeTelemetry.NOOP).executionLogging(false);
+        if (store!=null) {
+            var readAuthorization=new BlobReadAuthorization(
+                    context -> context.getAttribute("scope",BlobScope.class),
+                    (context,target) -> FIELD.equals(target) && !Boolean.TRUE.equals(context.getAttribute("denyBlobRead"))
+                            && ((Service)context.contextBoundDocumentService()).allowed(context),
+                    (context,target,blob) -> FIELD.equals(target) && !Boolean.TRUE.equals(context.getAttribute("denyBlobRead"))
+                            && ((Service)context.contextBoundDocumentService()).allowed(context));
+            var reads=new BlobReadService(f.catalog,store,f.policies,readAuthorization,Clock.systemUTC());
+            builder.viewBlobs(new BlobResponseContributor(reads));
+        }
+        return builder.build();
     }
     private static DefaultUserContext context(TeaQLRuntime runtime,Service service) {
         var context=new DefaultUserContext(runtime);
@@ -279,6 +312,143 @@ public class PostgresAssetDocumentServiceIT {
     private static String xid(Fixture f,String table,String where) {
         return (String)f.otherSql.queryForList("SELECT xmin::text AS xid FROM "+table+" WHERE "+where,new Object[0])
                 .get(0).get("xid");
+    }
+
+    private static final class SigningStore implements BlobStore {
+        final AtomicLong calls=new AtomicLong();
+        final AtomicReference<Instant> lastExpiry=new AtomicReference<>();
+        final AtomicReference<String> lastLocation=new AtomicReference<>();
+        @Override public Capabilities capabilities() {
+            return new Capabilities(false,false,true,false,false,Duration.ofMinutes(10));
+        }
+        @Override public UploadTarget createUpload(UserContext context,String uploadId) { throw new UnsupportedOperationException(); }
+        @Override public StoredContent write(UserContext context,UploadTarget target,InputStream source,long maxBytes) {
+            throw new UnsupportedOperationException();
+        }
+        @Override public Optional<StoredContent> stat(UserContext context,String location) { throw new UnsupportedOperationException(); }
+        @Override public RangeContent openRange(UserContext context,String location,String version,long offset,long length) {
+            throw new UnsupportedOperationException();
+        }
+        @Override public List<SignedRead> signReadBatch(UserContext context,List<ReadRequest> requests) {
+            calls.incrementAndGet();
+            return requests.stream().map(request -> {
+                lastLocation.set(request.location());
+                Instant expiry=Instant.now().plus(request.lifetime()); lastExpiry.set(expiry);
+                return new SignedRead(URI.create("https://blob.example.test/read/fixture"),expiry);
+            }).toList();
+        }
+        @Override public DeleteResult deleteIfVersion(UserContext context,String location,String version) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    @Test public void boundBlobSlotProjectsOnlyAuthorizedCurrentUrlWithinDocumentLifetime() throws Exception {
+        try (Fixture f=new Fixture()) {
+            BlobRef key=f.upload(); f.create(42,key);
+            var store=new SigningStore();
+            try (TeaQLRuntime runtime=runtime(f,store)) {
+                var service=new Service(f,true); var alice=context(runtime,service);
+                var source=alice.openDocumentForView(new ContextBoundDocumentService.OpenRequest(
+                        "Asset",BUSINESS,PURPOSE,Duration.ofMinutes(5)));
+                var prepared=runtime.prepareView(alice,source,QUERY_VIEW);
+                var value=(Map<?,?>)prepared.value();
+                assertEquals("https://blob.example.test/read/fixture",value.get("document"));
+                assertEquals(1,store.calls.get());
+                assertFalse(value.toString().contains(key.key()));
+                assertFalse(source.toString().contains(key.key()));
+                assertFalse(store.lastExpiry.get().isAfter(prepared.documentContext().orElseThrow().expiresAt()));
+                assertSame(prepared,runtime.prepareView(alice,prepared,QUERY_VIEW));
+                assertEquals(1,store.calls.get());
+                alice.putAttribute("hideDocument",true);
+                assertEquals(ViewPreparationException.Code.VIEW_ACCESS_DENIED,
+                        assertThrows(ViewPreparationException.class,
+                                () -> runtime.prepareView(alice,prepared,QUERY_VIEW)).code());
+                var hidden=runtime.prepareView(alice,alice.openDocumentForView(new ContextBoundDocumentService.OpenRequest(
+                        "Asset",BUSINESS,PURPOSE,Duration.ofMinutes(5))),QUERY_VIEW);
+                assertFalse(((Map<?,?>)hidden.value()).containsKey("document"));
+                assertEquals(1,store.calls.get());
+                alice.putAttribute("hideDocument",false);
+                alice.putAttribute("denyEntityRoot",true);
+                assertEquals(ViewPreparationException.Code.VIEW_ACCESS_DENIED,
+                        assertThrows(ViewPreparationException.class,() -> runtime.prepareView(alice,
+                                alice.openDocumentForView(new ContextBoundDocumentService.OpenRequest(
+                                        "Asset",BUSINESS,PURPOSE,Duration.ofMinutes(5))),QUERY_VIEW)).code());
+                assertEquals(1,store.calls.get());
+                alice.putAttribute("denyEntityRoot",false);
+                alice.putAttribute("denyBlobRead",true);
+                assertEquals(ViewPreparationException.Code.VIEW_PREPARATION_FAILED,
+                        assertThrows(ViewPreparationException.class,() -> runtime.prepareView(alice,
+                                alice.openDocumentForView(new ContextBoundDocumentService.OpenRequest(
+                                        "Asset",BUSINESS,PURPOSE,Duration.ofMinutes(5))),QUERY_VIEW)).code());
+                assertEquals(1,store.calls.get());
+                alice.putAttribute("denyBlobRead",false);
+                service.revoke();
+                assertEquals(ViewPreparationException.Code.VIEW_ACCESS_DENIED,
+                        assertThrows(ViewPreparationException.class,
+                                () -> runtime.prepareView(alice,prepared,QUERY_VIEW)).code());
+                assertThrows(RoundTripReferenceException.class,() -> new ContextBoundDocumentService.SubmittedDocument(
+                        BUSINESS,"tqd2.fake","command-x",Map.of("document",new DocumentBlobSlot(ROW,"document"))));
+            }
+        }
+    }
+
+    @Test public void unboundDocumentSlotFailsBeforeSigning() throws Exception {
+        try (Fixture f=new Fixture()) {
+            f.create(42,f.upload()); var store=new SigningStore();
+            try (TeaQLRuntime runtime=runtime(f,store)) {
+                var service=new Service(f,true,new DocumentBlobSlot("asset:outside","document"));
+                var alice=context(runtime,service);
+                var source=alice.openDocumentForView(new ContextBoundDocumentService.OpenRequest(
+                        "Asset",BUSINESS,PURPOSE,Duration.ofMinutes(5)));
+                assertEquals(ViewPreparationException.Code.VIEW_ACCESS_DENIED,
+                        assertThrows(ViewPreparationException.class,
+                                () -> runtime.prepareView(alice,source,QUERY_VIEW)).code());
+                assertEquals(0,store.calls.get());
+            }
+        }
+    }
+
+    @Test public void clearedDocumentSlotProjectsNullWithoutSigning() throws Exception {
+        try (Fixture f=new Fixture()) {
+            f.create(42,f.upload()); var asset=f.load(42); asset.updateProperty("document",null); f.save(asset);
+            var store=new SigningStore();
+            try (TeaQLRuntime runtime=runtime(f,store)) {
+                var alice=context(runtime,new Service(f,true));
+                var prepared=runtime.prepareView(alice,alice.openDocumentForView(
+                        new ContextBoundDocumentService.OpenRequest("Asset",BUSINESS,PURPOSE,Duration.ofMinutes(5))),
+                        QUERY_VIEW);
+                assertNull(((Map<?,?>)prepared.value()).get("document"));
+                assertEquals(0,store.calls.get());
+            }
+        }
+    }
+
+    @Test public void committedReplacementProjectsTheNewBindingAndInvalidatesTheOldView() throws Exception {
+        try (Fixture f=new Fixture()) {
+            BlobRef old=f.upload(),next=f.upload(); f.create(42,old);
+            var store=new SigningStore();
+            try (TeaQLRuntime runtime=runtime(f,store)) {
+                var service=new Service(f,true); var alice=context(runtime,service);
+                var oldView=runtime.prepareView(alice,alice.openDocumentForView(
+                        new ContextBoundDocumentService.OpenRequest("Asset",BUSINESS,PURPOSE,Duration.ofMinutes(5))),
+                        QUERY_VIEW);
+                assertEquals(f.find(old).storageLocation(),store.lastLocation.get());
+                var opened=alice.openDocument(new ContextBoundDocumentService.OpenRequest(
+                        "Asset",BUSINESS,PURPOSE,Duration.ofMinutes(5)));
+                var accepted=alice.acceptDocumentForView(request(opened,
+                        service.choose(alice,opened.documentToken(),next,"replace-and-project"),"replace-and-project"));
+                assertFalse(f.sql.hasActiveTransaction());
+                var committed=runtime.prepareView(alice,accepted.document(),COMMITTED_VIEW);
+                assertEquals(f.find(next).storageLocation(),store.lastLocation.get());
+                assertEquals(2,store.calls.get());
+                assertEquals("https://blob.example.test/read/fixture",((Map<?,?>)committed.value()).get("document"));
+                assertFalse(committed.value().toString().contains(next.key()));
+                f.assertOracle(42,next);
+                assertEquals(ViewPreparationException.Code.VIEW_PREPARATION_FAILED,
+                        assertThrows(ViewPreparationException.class,
+                                () -> runtime.prepareView(alice,oldView,QUERY_VIEW)).code());
+            }
+        }
     }
 
     @Test public void openChooseAcceptViewAndReceiptCommitOnOnePostgresOwner() throws Exception {

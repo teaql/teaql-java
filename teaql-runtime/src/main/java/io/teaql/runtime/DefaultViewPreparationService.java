@@ -126,7 +126,7 @@ public final class DefaultViewPreparationService implements ViewPreparationServi
                 source.validateCurrent(issuer,context);
                 result=source.document(issuer).body();
             }
-            var frozen=new Freeze(context,options); Node root=frozen.node(result,"",0);
+            var frozen=new Freeze(context,options,source==null?null:source.boundDocument(issuer)); Node root=frozen.node(result,"",0);
             if (root==null) throw error(VIEW_ACCESS_DENIED,options);
             AuthorizedResponseGraph graph=new AuthorizedResponseGraph(root);
             requireSame(context,identity,principal,options); recheck(context,root,"",options);
@@ -191,7 +191,11 @@ public final class DefaultViewPreparationService implements ViewPreparationServi
         for (String route:routes) if (runtime.getRegistry().resolveTransactionExecutor(route).map(value -> value.activeTransactionIdentity()!=null).orElse(false)) throw error(VIEW_TRANSACTION_UNFINISHED,options);
     }
     private void recheck(UserContext context,Node node,String path,ViewOptions options) {
-        if (node instanceof EntityNode entity) {
+        if (node instanceof DocumentBlobNode blob) {
+            if (!authorization.canReadEntity(context,blob.entity(),parent(path))
+                    || !blob.decision().equals(authorization.field(context,blob.entity(),
+                    blob.request().target().field(),path,options.mode()))) throw error(VIEW_ACCESS_DENIED,options);
+        } else if (node instanceof EntityNode entity) {
             if (!authorization.canReadEntity(context,entity.target(),path)) throw error(VIEW_ACCESS_DENIED,options);
             for (var entry:entity.fields().entrySet()) {
                 Field field=entity.policy().get(entry.getKey()); String child=path(path,entry.getKey());
@@ -203,10 +207,26 @@ public final class DefaultViewPreparationService implements ViewPreparationServi
     }
     private final class Freeze extends Budget {
         final UserContext context;
+        final BoundDocumentSnapshot bound;
+        final Map<String,DocumentSnapshot.Entity> boundRows;
+        final Map<DocumentBlobSlot,DocumentBlobBindingSnapshot> boundBindings;
         final IdentityHashMap<Object,Boolean> active=new IdentityHashMap<>();
-        Freeze(UserContext context,ViewOptions options) { super(options); this.context=context; }
+        Freeze(UserContext context,ViewOptions options,BoundDocumentSnapshot bound) {
+            super(options); this.context=context; this.bound=bound;
+            if (bound==null) {
+                boundRows=Map.of(); boundBindings=Map.of();
+            } else {
+                Map<String,DocumentSnapshot.Entity> rows=new HashMap<>();
+                for (var entity:bound.snapshot().entities()) rows.put(entity.rowKey(),entity);
+                Map<DocumentBlobSlot,DocumentBlobBindingSnapshot> bindings=new HashMap<>();
+                for (var binding:bound.bindings()) bindings.put(
+                        new DocumentBlobSlot(binding.rowKey(),binding.canonicalField()),binding);
+                boundRows=Map.copyOf(rows); boundBindings=Map.copyOf(bindings);
+            }
+        }
         Node node(Object value,String path,int depth) {
             visit(depth);
+            if (value instanceof DocumentBlobSlot slot) return documentBlob(slot,path,depth);
             if (value instanceof JsonNode json) return json(json,path,depth);
             if (value instanceof BaseEntity entity) return entity(entity,path,depth);
             if (value instanceof Entity || value instanceof BlobRef || value instanceof PreparedView) throw error(VIEW_RESULT_UNSUPPORTED,options);
@@ -262,6 +282,34 @@ public final class DefaultViewPreparationService implements ViewPreparationServi
             throw error(VIEW_RESULT_UNSUPPORTED,options);
         }
         void enter(Object value) { if (active.put(value,Boolean.TRUE)!=null) throw error(VIEW_RESULT_UNSUPPORTED,options); }
+        Node documentBlob(DocumentBlobSlot slot,String path,int depth) {
+            if (bound==null) throw error(VIEW_RESULT_UNSUPPORTED,options);
+            var entity=boundRows.get(slot.rowKey());
+            if (entity==null) throw error(VIEW_ACCESS_DENIED,options);
+            var identity=entity.identity();
+            if (!entity.loadedFields().contains(slot.canonicalField())) throw error(VIEW_ACCESS_DENIED,options);
+            EntityTarget target=new EntityTarget(identity.entityType(),identity.id(),identity.version());
+            if (!authorization.canReadEntity(context,target,parent(path))) throw error(VIEW_ACCESS_DENIED,options);
+            FieldDecision decision=Objects.requireNonNull(authorization.field(context,target,
+                    slot.canonicalField(),path,options.mode()));
+            if (decision.projection()==Projection.HIDDEN) return null;
+            if (decision.projection()==Projection.MASK) return node(decision.mask(),path,depth+1);
+            var descriptor=runtime.getMetadata().resolveEntityDescriptor(identity.entityType());
+            boolean blobField=false;
+            for (var current=descriptor;current!=null;current=current.getParent()) {
+                var property=current.findProperty(slot.canonicalField());
+                if (property!=null) { blobField=property.blobFieldSpec()!=null; break; }
+            }
+            if (!blobField) throw error(VIEW_RESULT_UNSUPPORTED,options);
+            var binding=boundBindings.get(slot);
+            if (binding==null || !binding.entityType().equals(identity.entityType()))
+                throw error(VIEW_ACCESS_DENIED,options);
+            if (binding.reference()==null) return new Scalar(null);
+            var request=new BlobRuntime.Reads.Request(new BlobFieldTarget(identity.entityType(),identity.id(),
+                    slot.canonicalField()),binding.reference());
+            visit(depth+1);
+            return new DocumentBlobNode(request,target,decision);
+        }
         Node entity(BaseEntity entity,String path,int depth) {
             if (entity.__internalHasMutationLedger() && (entity.getEntityMutationLedger().hasUncommittedChanges() || entity.getEntityMutationLedger().hasUnknownTransactionOutcome())) throw error(VIEW_TRANSACTION_UNFINISHED,options);
             EntityTarget target=new EntityTarget(entity.typeName(),entity.getId(),entity.getVersion());
@@ -316,7 +364,7 @@ public final class DefaultViewPreparationService implements ViewPreparationServi
         if (node instanceof Scalar scalar) {
             if (scalar.value() instanceof String || scalar.value() instanceof BigInteger || scalar.value() instanceof BigDecimal) budget.text(scalar.value().toString()); return scalar.value();
         }
-        if (node instanceof BlobNode) {
+        if (node instanceof BlobNode || node instanceof DocumentBlobNode) {
             var read=reads.next();
             if (read.responseShape()==BlobPolicyProfile.ResponseShape.URL) { budget.text(read.url().toString()); return read.url().toString(); }
             Map<String,Object> result=new LinkedHashMap<>(); result.put("url",read.url().toString()); result.put("expiresAt",read.expiresAt().toString());
@@ -331,6 +379,7 @@ public final class DefaultViewPreparationService implements ViewPreparationServi
     private static boolean surface(Node before,Node after) {
         if (before instanceof Scalar) return after instanceof Scalar;
         if (before instanceof BlobNode blob) return blob.equals(after);
+        if (before instanceof DocumentBlobNode blob) return blob.equals(after);
         if (before instanceof ArrayNode array) {
             if (!(after instanceof ArrayNode other) || array.items().size()!=other.items().size()) return false;
             for (int index=0;index<array.items().size();index++) if (!surface(array.items().get(index),other.items().get(index))) return false; return true;
@@ -350,5 +399,9 @@ public final class DefaultViewPreparationService implements ViewPreparationServi
     }
     private static Instant min(Instant left,Instant right) { return left==null || right.isBefore(left)?right:left; }
     private static String path(String parent,String member) { return parent+"/"+member.replace("~","~0").replace("/","~1"); }
+    private static String parent(String fieldPath) {
+        int separator=fieldPath.lastIndexOf('/');
+        return separator<=0?"":fieldPath.substring(0,separator);
+    }
     private static ViewPreparationException error(ViewPreparationException.Code code,ViewOptions options) { return new ViewPreparationException(code,options.businessCompletion()); }
 }

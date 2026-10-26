@@ -4,6 +4,7 @@ import io.teaql.core.FrameworkInternal;
 import io.teaql.core.UserContext;
 import io.teaql.core.reference.ContextBoundDocumentService;
 import io.teaql.core.reference.ContextBoundDocumentService.ContextualDocument;
+import io.teaql.core.reference.BoundDocumentSnapshot;
 import io.teaql.core.reference.RoundTripReferenceCodec;
 import io.teaql.core.reference.RoundTripReferenceErrorCode;
 import io.teaql.core.reference.RoundTripReferenceException;
@@ -69,6 +70,12 @@ public final class DocumentView {
     public ContextualDocument document(Object expectedIssuer) {
         requireIssuer(expectedIssuer);
         return document;
+    }
+
+    @FrameworkInternal("Only the installed view service may project authenticated bound Blob slots")
+    public BoundDocumentSnapshot boundDocument(Object expectedIssuer) {
+        requireIssuer(expectedIssuer);
+        return bound == null ? null : bound.document();
     }
 
     @FrameworkInternal("The private issuer binds this source to one installed view service")

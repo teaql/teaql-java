@@ -22,7 +22,7 @@ public interface ContextBoundDocumentService {
     record ContextualDocument(String businessId, String documentToken, Map<String, Object> body) {
         public ContextualDocument {
             text(businessId); text(documentToken);
-            body = freezeBody(Objects.requireNonNull(body, "body"));
+            body = freezeBody(Objects.requireNonNull(body, "body"), true);
         }
         @Override public String toString() { return "ContextualDocument[redacted]"; }
     }
@@ -31,7 +31,7 @@ public interface ContextBoundDocumentService {
             String businessId, String documentToken, String commandId, Map<String, Object> body) {
         public SubmittedDocument {
             text(businessId); text(documentToken); text(commandId);
-            body = freezeBody(Objects.requireNonNull(body, "body"));
+            body = freezeBody(Objects.requireNonNull(body, "body"), false);
         }
         @Override public String toString() { return "SubmittedDocument[redacted]"; }
     }
@@ -80,12 +80,13 @@ public interface ContextBoundDocumentService {
     }
 
     @SuppressWarnings("unchecked")
-    private static Map<String, Object> freezeBody(Map<String, Object> body) {
-        return (Map<String, Object>) freeze(body, 0, new AtomicInteger(100_000));
+    private static Map<String, Object> freezeBody(Map<String, Object> body, boolean outbound) {
+        return (Map<String, Object>) freeze(body, 0, new AtomicInteger(100_000), outbound);
     }
 
-    private static Object freeze(Object value, int depth, AtomicInteger remaining) {
+    private static Object freeze(Object value, int depth, AtomicInteger remaining, boolean outbound) {
         if (depth > 64 || remaining.decrementAndGet() < 0) throw invalid();
+        if (outbound && value instanceof DocumentBlobSlot) return value;
         if (value == null || value instanceof String || value instanceof Boolean
                 || value instanceof Byte || value instanceof Short || value instanceof Integer
                 || value instanceof Long || value instanceof java.math.BigInteger
@@ -97,13 +98,13 @@ public interface ContextBoundDocumentService {
             for (Map.Entry<?, ?> entry : map.entrySet()) {
                 if (!(entry.getKey() instanceof String key)) throw invalid();
                 text(key);
-                copy.put(key, freeze(entry.getValue(), depth + 1, remaining));
+                copy.put(key, freeze(entry.getValue(), depth + 1, remaining, outbound));
             }
             return Collections.unmodifiableMap(copy);
         }
         if (value instanceof List<?> list) {
             List<Object> copy = new ArrayList<>(list.size());
-            for (Object entry : list) copy.add(freeze(entry, depth + 1, remaining));
+            for (Object entry : list) copy.add(freeze(entry, depth + 1, remaining, outbound));
             return Collections.unmodifiableList(copy);
         }
         throw invalid();
