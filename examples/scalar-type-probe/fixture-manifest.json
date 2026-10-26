@@ -1,0 +1,37 @@
+{
+  "language": "java",
+  "modelSha256": "8d3017392ffd00abbc06be2555ced27ac6360e2d05fabc4299e27a5ef8f1c762",
+  "evaluationErrors": 0,
+  "producerReceiptSha256": "fbff9d53812a89f88ef3edb6a299e197f41912f95fdb025b481a3b0250c8810d",
+  "producerSource": {
+    "commit": "096d0e1345661ba2fdfadc311af38b578bab4016",
+    "diff": "0596dfec78d9d19bb9fea5206fcf54e689757362e9d2a8684de112fc180b78ab",
+    "status": "442cb38583d0f2e4edecb11ca28c27e8d2093d106dfb440a92a99703e393083b",
+    "sourceContentsSha256": "53a2d5280ca7f4774ef9ed8bdf427b5b87fb3aa7ce6a906894bc93c66f31fc96",
+    "assistExporterSha256": "2583414a9d656e89b43b85f1d4e993dcc774b74e2bed0f9b7120d7cb7ea47efd"
+  },
+  "files": {
+    "lib/src/main/java/com/example/scalartypeconformanceservice/BaseServiceConfiguration.java": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "lib/src/main/java/com/example/scalartypeconformanceservice/ScalarTypeConformanceServiceUserContext.java": "da51c7752e2e3ad48a51a74fc4e30d8b5d624528967c93cb8289c496aa68c153",
+    "lib/src/main/java/com/example/scalartypeconformanceservice/Repositories.java": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatform.java": "6d77bea0bef4cebd11bfa2446d8da3e25bd1e94d2276ff20c92b2466d939be1c",
+    "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbe.java": "8ddd890d1ce47f268820aeae3e3f92617ecedb6833ab2932c0d84ad11f0f5e09",
+    "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformRequest.java": "bc9ff294276679c85901678f972a393317be901a96987c0cd05eff2fbf20f766",
+    "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeRequest.java": "af9f46c490740eea0cfaca791741e3984275224d9135570f8e043470ed792d7a",
+    "lib/src/main/java/com/example/scalartypeconformanceservice/Constants.java": "532173f7d3bf649e53a770c582a0b7992783c7d7c0c091690f930a3006be7051",
+    "lib/src/main/java/com/example/scalartypeconformanceservice/sampledata/SampleDataService.java": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "lib/src/main/java/com/example/scalartypeconformanceservice/GeneratedRuntimeModule.java": "5c3acc14ce9185a24460c9b85afba2dd57f39c240b04fbd8ccea443e436a001e",
+    "lib/src/main/java/com/example/scalartypeconformanceservice/E.java": "5b30ec087b361856c32a7cfaa7adaf494a1351692256004bfdefe834d7011d99",
+    "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformExpression.java": "892aa2db6927d1076e41ac6e9c0e6a382cb31d8e2530cdcbe87c37d540b53a11",
+    "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeExpression.java": "f8d1e40d33d446ef9bc8b07755216ee85664591fcddeddbf8841feff2a7877fe",
+    "lib/src/main/java/com/example/scalartypeconformanceservice/Q.java": "1323cb489c5002e29f1df2d059815954391f6a520d82c0dc6c13deda1d381264",
+    "lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler": "a2834fd53f1a3c377863d4c74804dae9ecec56022c99d645a7d6aa29e1608629",
+    "lib/src/main/java/com/example/scalartypeconformanceservice/Checkers.java": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformChecker.java": "31da8b9467fb4b1153f80347916bbd09a5d1b03c5afa060fd8cdc1b7d0a79221",
+    "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeChecker.java": "a30881e5f49a63e363c5be84a76fd464b531fdc90754b0b4c013e040e730713a",
+    "lib/src/main/java/com/example/scalartypeconformanceservice/EntityMetaRegistry.java": "4853306dd5be58ed2d2871e3ba52c7efa43f56a1852968d4a2874f1f9ec4ff3e",
+    "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformListExpression.java": "30aee627dec3b9ce89f23d90cc615ba22bb94b44a6af420b0f9683781cddb72a",
+    "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeListExpression.java": "5bde5287effdfbe050f53f9735cdf56c84cc337dd5c38d1bc180f55312423fdc",
+    "lib/pom.xml": "beb527ffbd3b312ae3ce63c03ecc904ee979481d275873d514891b5a0a605e2b"
+  }
+}

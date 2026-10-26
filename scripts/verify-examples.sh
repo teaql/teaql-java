@@ -12,7 +12,7 @@ trap cleanup EXIT
 node "$repo/scripts/prepare-example-isolation.cjs" "$build_dir" "$TEAQL_CODEGEN_DIR" "$evidence_dir"
 export MAVEN_OPTS="${MAVEN_OPTS:-} -Dmaven.repo.local=$build_dir/maven"
 echo "Native example artifacts use an isolated disposable Maven repository; compact evidence: $evidence_dir"
-expected=(business-id-runtime conformance exact-decimal fix-e-alignment http-resilience object-storage order-management round-trip-reference-runtime school-management security-foundations shared-load-state standard-order trace-chain)
+expected=(business-id-runtime conformance exact-decimal fix-e-alignment http-resilience object-storage order-management round-trip-reference-runtime scalar-type-probe school-management security-foundations shared-load-state standard-order trace-chain)
 mapfile -t actual < <(find "$repo/examples" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
 if [[ "${actual[*]}" != "${expected[*]}" ]]; then
   echo "example inventory changed; update scripts/verify-examples.sh: ${actual[*]}" >&2
@@ -50,4 +50,6 @@ bash examples/standard-order/verify.sh
 TEAQL_CODEGEN_DIR="$build_dir/generator" bash examples/shared-load-state/verify.sh --generate
 TEAQL_JAVA_EXACT_EVIDENCE_DIR="$evidence_dir/exact-decimal" \
   bash "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/exact-decimal/verify.sh"
+TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/scalar-type-probe" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs"
 echo "PASS: all Java examples"
