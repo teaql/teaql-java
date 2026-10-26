@@ -274,6 +274,9 @@ public class TeaQLRuntime implements AutoCloseable {
         // Freeze their result only after that hook, while the intent header was
         // captured beforehand and cannot be overwritten by the policy.
         request = new QueryRequestSnapshot<>(request, requestScope);
+        if (request.getAggregations() != null && !request.getAggregations().getDimensions().isEmpty()) {
+            throw new TeaQLRuntimeException("Grouped projections require the aggregation result boundary");
+        }
         QueryOperation countOperation = requestedListCount(request);
         SearchRequest<?> countRequest = null;
         String countAlias = null;
@@ -306,18 +309,16 @@ public class TeaQLRuntime implements AutoCloseable {
         }
     }
 
-    /** A declared ungrouped count accompanies rows through the normal list entry.
-     * Grouped/mixed aggregate requests retain their existing aggregate semantics. */
+    /** A declared count accompanies entity rows or independent scalar aliases. */
     private static QueryOperation requestedListCount(SearchRequest<?> request) {
         QueryOperation operation = request.pageCountOperation();
         if (operation == null || !(request instanceof BaseRequest<?>)) return null;
         var aggregations = request.getAggregations();
-        if (aggregations == null || !aggregations.getSimpleDimensions().isEmpty()
-                || !aggregations.getComplexDimensions().isEmpty() || aggregations.getAggregates().size() != 1) return null;
+        if (aggregations == null || !aggregations.getDimensions().isEmpty()) return null;
         String alias = operation.alias() == null ? TeaQLConstants.ROOT_LIST_PARAMETER_NAME : operation.alias();
-        var aggregate = aggregations.getAggregates().get(0);
-        return alias.equals(aggregate.name()) && aggregate.getExpression() instanceof AggrExpression expression
-                && expression.getOperator() == AggrFunction.COUNT ? operation : null;
+        return aggregations.getAggregates().stream().anyMatch(aggregate -> alias.equals(aggregate.name())
+                && aggregate.getExpression() instanceof AggrExpression expression
+                && expression.getOperator() == AggrFunction.COUNT) ? operation : null;
     }
 
     /** Executes a business-facing streaming query after the same policy gate as list queries. */
@@ -357,6 +358,11 @@ public class TeaQLRuntime implements AutoCloseable {
     @SuppressWarnings("unchecked")
     private <T extends Entity> Stream<T> executeForStreamResolved(
             UserContext context, SearchRequest<T> request, QueryIntent intent) {
+        var aggregations = request.getAggregations();
+        if (request.hasSimpleAgg() || (aggregations != null && !aggregations.getDimensions().isEmpty())) {
+            throw new TeaQLRuntimeException(
+                    "Entity streams require entity rows; use an aggregation or projection result for aggregate/grouped queries");
+        }
         EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
         String route = descriptor != null ? descriptor.getDataService() : null;
         if (route == null || route.isEmpty()) {
@@ -463,8 +469,13 @@ public class TeaQLRuntime implements AutoCloseable {
             providerScope.failure(error);
             throw error;
         }
-        if (queryResult instanceof DefaultQueryResult) {
-            return (SmartList<T>) ((DefaultQueryResult) queryResult).getResult();
+        if (queryResult instanceof DefaultQueryResult result) {
+            SmartList<T> rows = (SmartList<T>) result.getResult();
+            if (result.getAggregationResult() != null) {
+                if (rows.isSharedEmpty()) rows = new SmartList<>();
+                rows.addAggregationResult(context, result.getAggregationResult());
+            }
+            return rows;
         }
         throw new TeaQLRuntimeException(
                 "Unsupported QueryResult type: " + queryResult.getClass().getName());
