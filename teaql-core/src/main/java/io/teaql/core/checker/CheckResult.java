@@ -30,6 +30,13 @@ public class CheckResult {
         return checkResult;
     }
 
+    public static CheckResult unknownField(ObjectLocation location) {
+        CheckResult result = new CheckResult();
+        result.setLocation(location);
+        result.setRuleId(RuleId.UNKNOWN_FIELD);
+        return result;
+    }
+
     public static CheckResult min(ObjectLocation location, Number minNumber, Number current) {
         CheckResult checkResult = new CheckResult();
         checkResult.setLocation(location);
@@ -175,6 +182,7 @@ public class CheckResult {
         MIN_DATE,
         MAX_DATE,
         REQUIRED,
-        INVALID_TYPE
+        INVALID_TYPE,
+        UNKNOWN_FIELD
     }
 }

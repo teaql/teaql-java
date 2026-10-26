@@ -449,7 +449,9 @@ public class TeaQLRuntime implements AutoCloseable {
                         "teaql.mutation.kind", "save")));
         try {
             MutationIntent intent = MutationIntent.of(entity.getComment());
+            CanonicalMutationFields.validateGraph(context, metadata, entity);
             checkAndFix(context, entity);
+            CanonicalMutationFields.validateGraph(context, metadata, entity);
             // Get entity's own EntityMutationLedger
             EntityMutationLedger entityMutationLedger = ((BaseEntity) entity).getEntityMutationLedger();
 
@@ -829,6 +831,7 @@ public class TeaQLRuntime implements AutoCloseable {
 
     private MutationGovernanceSnapshot reviewMutationPlan(
             UserContext context, MutationPlan plan) {
+        CanonicalMutationFields.validatePlan(context, metadata, plan);
         Optional<MutationPolicy> resolved = mutationPolicyRegistry.resolve(plan.requestKey());
         MutationPolicySource source;
         MutationPolicyIdentity identity = null;
