@@ -57,6 +57,7 @@
         <module>teaql-jackson</module>
         <module>teaql-query-json</module>
         <module>teaql-runtime</module>
+        <module>teaql-web-integration-spring-mvc</module>
         <module>teaql-secure-document-reference</module>
         <module>teaql-blob-reference</module>
         <module>teaql-blob-staging-file</module>
@@ -165,6 +166,11 @@
             <dependency>
                 <groupId>io.teaql</groupId>
                 <artifactId>teaql-runtime</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-web-integration-spring-mvc</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
