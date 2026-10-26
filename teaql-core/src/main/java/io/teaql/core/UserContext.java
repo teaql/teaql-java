@@ -14,6 +14,7 @@ import io.teaql.core.businessid.BusinessIdSchemaContributor;
 import io.teaql.core.businessid.BusinessIdService;
 import io.teaql.core.reference.ResolvedRoundTripReference;
 import io.teaql.core.reference.DocumentSnapshot;
+import io.teaql.core.reference.ContextBoundDocumentService;
 import io.teaql.core.reference.ReferenceDocumentScope;
 import io.teaql.core.reference.RoundTripReferenceCodec;
 import io.teaql.core.reference.RoundTripReferenceErrorCode;
@@ -30,6 +31,7 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
     String TEAQL_FIX_EVIDENCE_CURRENT = "teaql.fix.evidence.current";
     String TEAQL_FIX_EVIDENCE_LAST = "teaql.fix.evidence.last";
     String TEAQL_TRUSTED_REFERENCE_PRINCIPAL = TrustedReferencePrincipal.class.getName();
+    String TEAQL_CONTEXT_BOUND_DOCUMENT_SERVICE = ContextBoundDocumentService.class.getName();
 
     default void beginFixEvidence() {
         if (CheckerInvocation.current(this) == null) CheckerInvocation.forgetLastEvidence(this);
@@ -316,6 +318,33 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
             String token, String expectedAggregateType, String expectedPurpose) {
         return roundTripReferences().consumeDocumentSnapshot(
                 this, trustedReferencePrincipal(), token, expectedAggregateType, expectedPurpose);
+    }
+
+    default UserContext withContextBoundDocumentService(ContextBoundDocumentService service) {
+        putAttribute(TEAQL_CONTEXT_BOUND_DOCUMENT_SERVICE,
+                java.util.Objects.requireNonNull(service, "service"));
+        return this;
+    }
+
+    default ContextBoundDocumentService contextBoundDocumentService() {
+        ContextBoundDocumentService service = getAttribute(
+                TEAQL_CONTEXT_BOUND_DOCUMENT_SERVICE, ContextBoundDocumentService.class);
+        if (service == null) {
+            throw new RoundTripReferenceException(
+                    RoundTripReferenceErrorCode.PROVIDER_NOT_CONFIGURED,
+                    "ContextBoundDocumentService is not installed");
+        }
+        return service;
+    }
+
+    default ContextBoundDocumentService.ContextualDocument openDocument(
+            ContextBoundDocumentService.OpenRequest request) {
+        return contextBoundDocumentService().openDocument(this, trustedReferencePrincipal(), request);
+    }
+
+    default ContextBoundDocumentService.AcceptedDocument acceptDocument(
+            ContextBoundDocumentService.AcceptRequest request) {
+        return contextBoundDocumentService().acceptDocument(this, trustedReferencePrincipal(), request);
     }
 
     /**

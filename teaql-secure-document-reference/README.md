@@ -32,7 +32,10 @@ and consume; a valid token alone does not authorize an edit. The `tqd1` wire
 matches the Rust implementation byte-for-byte under fixed test inputs, while
 the existing `tqr1` vector stays unchanged. Do not log complete tokens.
 
-The application-owned document open/accept service, current database revision
-checks, unified governed view contribution, and versioned Blob selection are
-still R5 work. This snapshot codec by itself does not provide editable document
-transactions or complete the four module combinations.
+The core now exposes an application-owned `ContextBoundDocumentService` SPI and
+`UserContext.openDocument` / `acceptDocument` facades. The focused SQLite Order
+example implements current authorization, version checks, editable projection
+validation, and transactional command receipts. The secure module itself remains
+passive: the application must install its own service and persistence boundary.
+Generated-model integration, unified governed view contribution, versioned Blob
+selection, and the four module combinations remain R5 work.
