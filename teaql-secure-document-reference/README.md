@@ -22,7 +22,17 @@ Source imports and dependencies must be updated together; existing governed
 applications retain their protection mode and keys. tqr1 behavior and golden
 vectors are unchanged. The original tests moved with the implementation.
 
-This first extraction preserves Java's existing entity-reference capability.
-Full Java document snapshot/open/accept and Blob binding/selection integration
-remain R5 work; the module name does not claim those gates have passed. Rust's
-existing tqd1 compatibility remains independently verified in its own crate.
+Java can now issue and consume the original `tqd1` document snapshot through
+`UserContext.issueDocumentSnapshot(snapshot, lifetime)` and
+`UserContext.consumeDocumentSnapshot(token, expectedAggregateType, expectedPurpose)`.
+The snapshot records the model fingerprint, business ID, aggregate, loaded and
+writable fields, allowed mutations, and relation completeness. The current
+trusted principal and application authorization policy are checked at issue
+and consume; a valid token alone does not authorize an edit. The `tqd1` wire
+matches the Rust implementation byte-for-byte under fixed test inputs, while
+the existing `tqr1` vector stays unchanged. Do not log complete tokens.
+
+The application-owned document open/accept service, current database revision
+checks, unified governed view contribution, and versioned Blob selection are
+still R5 work. This snapshot codec by itself does not provide editable document
+transactions or complete the four module combinations.

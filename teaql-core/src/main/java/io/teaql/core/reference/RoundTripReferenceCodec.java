@@ -49,5 +49,18 @@ public final class RoundTripReferenceCodec {
                 expectedEntityType);
     }
 
+    public String issueDocumentSnapshot(
+            UserContext context, TrustedReferencePrincipal principal,
+            DocumentSnapshot snapshot, Duration lifetime) {
+        return provider.issueDocumentSnapshot(context, principal, snapshot, lifetime);
+    }
+
+    public VerifiedDocumentSnapshot consumeDocumentSnapshot(
+            UserContext context, TrustedReferencePrincipal principal, String token,
+            String expectedAggregateType, String expectedPurpose) {
+        return provider.consumeDocumentSnapshot(context, principal, token,
+                expectedAggregateType, expectedPurpose);
+    }
+
     public ReferenceMode mode() { return provider.mode(); }
 }

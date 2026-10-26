@@ -5,6 +5,23 @@ import java.time.Duration;
 
 /** Provider SPI; implementations must authenticate, not merely obscure, identities. */
 public interface RoundTripReferenceProvider {
+    /** Optional tqd1 document snapshot, separate from entity-level tqr1 references. */
+    default String issueDocumentSnapshot(
+            UserContext context, TrustedReferencePrincipal principal,
+            DocumentSnapshot snapshot, Duration lifetime) {
+        throw new RoundTripReferenceException(
+                RoundTripReferenceErrorCode.PROVIDER_NOT_CONFIGURED,
+                "ROUND_TRIP_REFERENCE_PROVIDER_NOT_CONFIGURED");
+    }
+
+    default VerifiedDocumentSnapshot consumeDocumentSnapshot(
+            UserContext context, TrustedReferencePrincipal principal, String token,
+            String expectedAggregateType, String expectedPurpose) {
+        throw new RoundTripReferenceException(
+                RoundTripReferenceErrorCode.PROVIDER_NOT_CONFIGURED,
+                "ROUND_TRIP_REFERENCE_PROVIDER_NOT_CONFIGURED");
+    }
+
     ExternalEntityReference issue(
             UserContext context,
             TrustedReferencePrincipal principal,

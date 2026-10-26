@@ -2,6 +2,7 @@ package io.teaql.secure.document.reference;
 
 import io.teaql.core.UserContext;
 import io.teaql.core.reference.ExternalEntityReference;
+import io.teaql.core.reference.DocumentSnapshot;
 import io.teaql.core.reference.InternalEntityIdentity;
 import io.teaql.core.reference.ReferenceDocumentScope;
 import io.teaql.core.reference.ReferenceMode;
@@ -10,6 +11,7 @@ import io.teaql.core.reference.RoundTripReferenceErrorCode;
 import io.teaql.core.reference.RoundTripReferenceException;
 import io.teaql.core.reference.RoundTripReferenceProvider;
 import io.teaql.core.reference.TrustedReferencePrincipal;
+import io.teaql.core.reference.VerifiedDocumentSnapshot;
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -30,13 +32,15 @@ import javax.crypto.Mac;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-/** Context-bound AES-256-GCM implementation shared with TeaQL Rust's tqr1 format. */
+/** Context-bound AES-256-GCM implementation of TeaQL's tqr1 and tqd1 formats. */
 public final class AeadRoundTripReferenceProvider implements RoundTripReferenceProvider {
     private static final String PREFIX = "tqr1";
+    private static final String DOCUMENT_PREFIX = "tqd1";
     private static final byte[] HKDF_SALT = "teaql.round-trip-reference.v1".getBytes(StandardCharsets.US_ASCII);
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final int MAX_TEXT_BYTES = 4096;
     private static final int MAX_TOKEN_LENGTH = 24000;
+    private static final int MAX_DOCUMENT_TOKEN_LENGTH = 256000;
 
     private final DeploymentProfile profile;
     private final ReferenceMode mode;
@@ -133,6 +137,117 @@ public final class AeadRoundTripReferenceProvider implements RoundTripReferenceP
 
     @Override
     public ReferenceMode mode() { return mode; }
+
+    @Override
+    public String issueDocumentSnapshot(
+            UserContext context, TrustedReferencePrincipal principal,
+            DocumentSnapshot snapshot, Duration lifetime) {
+        Objects.requireNonNull(context, "context");
+        Objects.requireNonNull(principal, "principal");
+        Objects.requireNonNull(snapshot, "snapshot");
+        requireCurrentPrincipal(context, principal);
+        if (lifetime == null || lifetime.isZero() || lifetime.isNegative()) throw invalid(null);
+        authorizeDocument(context, principal, snapshot);
+        try {
+            RoundTripReferenceKey key = requireKey(keys.currentKey());
+            Instant issuedAt = clock.instant();
+            Instant expiresAt = issuedAt.plus(lifetime);
+            byte[] plaintext = DocumentSnapshotWire.encode(snapshot,
+                    actorFingerprint(key, principal),
+                    issuedAt.getEpochSecond(), expiresAt.getEpochSecond());
+            byte[] nonce = nonceSource.get();
+            if (nonce == null || nonce.length != 12) {
+                throw configuration("nonce must contain 12 bytes", null);
+            }
+            byte[] encrypted = documentCipher(Cipher.ENCRYPT_MODE, key, nonce,
+                    snapshot.scope().purpose()).doFinal(plaintext);
+            byte[] envelope = ByteBuffer.allocate(nonce.length + encrypted.length)
+                    .put(nonce).put(encrypted).array();
+            String token = DOCUMENT_PREFIX + "." + key.keyId() + "."
+                    + Base64.getUrlEncoder().withoutPadding().encodeToString(envelope);
+            if (token.length() > MAX_DOCUMENT_TOKEN_LENGTH) throw invalid(null);
+            return token;
+        } catch (RoundTripReferenceException error) {
+            throw error;
+        } catch (Exception error) {
+            throw invalid(error);
+        }
+    }
+
+    @Override
+    public VerifiedDocumentSnapshot consumeDocumentSnapshot(
+            UserContext context, TrustedReferencePrincipal principal, String token,
+            String expectedAggregateType, String expectedPurpose) {
+        Objects.requireNonNull(context, "context");
+        Objects.requireNonNull(principal, "principal");
+        requireCurrentPrincipal(context, principal);
+        requireText(expectedAggregateType);
+        requireText(expectedPurpose);
+        try {
+            if (token == null || token.length() > MAX_DOCUMENT_TOKEN_LENGTH) throw invalid(null);
+            String[] parts = token.split("\\.", -1);
+            if (parts.length != 3 || !DOCUMENT_PREFIX.equals(parts[0])
+                    || parts[1].isEmpty() || parts[2].isEmpty()) throw invalid(null);
+            if (!parts[2].matches("[A-Za-z0-9_-]+")) throw invalid(null);
+            RoundTripReferenceKey key = keys.keyById(parts[1]);
+            if (key == null) throw invalid(null);
+            byte[] envelope = Base64.getUrlDecoder().decode(parts[2]);
+            if (!Base64.getUrlEncoder().withoutPadding().encodeToString(envelope)
+                    .equals(parts[2])) throw invalid(null);
+            if (envelope.length < 28) throw invalid(null);
+            byte[] plaintext = documentCipher(Cipher.DECRYPT_MODE, key,
+                    Arrays.copyOfRange(envelope, 0, 12), expectedPurpose)
+                    .doFinal(envelope, 12, envelope.length - 12);
+            var decoded = DocumentSnapshotWire.decode(plaintext);
+            long now = clock.instant().getEpochSecond();
+            if (decoded.expiresAt() <= now) {
+                throw new RoundTripReferenceException(RoundTripReferenceErrorCode.EXPIRED,
+                        "ROUND_TRIP_REFERENCE_EXPIRED");
+            }
+            if (decoded.issuedAt() > Math.addExact(now, 60)) throw invalid(null);
+            DocumentSnapshot snapshot = decoded.snapshot();
+            if (!MessageDigest.isEqual(decoded.actorFingerprint(), actorFingerprint(key, principal))
+                    || !snapshot.scope().purpose().equals(expectedPurpose)
+                    || !snapshot.scope().aggregateType().equals(expectedAggregateType)) {
+                throw new RoundTripReferenceException(RoundTripReferenceErrorCode.SCOPE_MISMATCH,
+                        "ROUND_TRIP_REFERENCE_SCOPE_MISMATCH");
+            }
+            authorizeDocument(context, principal, snapshot);
+            return new VerifiedDocumentSnapshot(snapshot, key.keyId(),
+                    Instant.ofEpochSecond(decoded.issuedAt()),
+                    Instant.ofEpochSecond(decoded.expiresAt()));
+        } catch (RoundTripReferenceException error) {
+            throw error;
+        } catch (Exception error) {
+            throw invalid(error);
+        }
+    }
+
+    private void authorizeDocument(UserContext context, TrustedReferencePrincipal principal,
+                                   DocumentSnapshot snapshot) {
+        authorization.authorize(context, principal, snapshot.scope(), snapshot.aggregate());
+        for (var entity : snapshot.entities()) {
+            authorization.authorize(context, principal, snapshot.scope(), entity.identity());
+        }
+    }
+
+    private static void requireCurrentPrincipal(
+            UserContext context, TrustedReferencePrincipal principal) {
+        if (!context.trustedReferencePrincipal().equals(principal)) {
+            throw new RoundTripReferenceException(RoundTripReferenceErrorCode.CONTEXT_MISMATCH,
+                    "ROUND_TRIP_REFERENCE_CONTEXT_MISMATCH");
+        }
+    }
+
+    private Cipher documentCipher(int mode, RoundTripReferenceKey key, byte[] nonce, String purpose)
+            throws GeneralSecurityException {
+        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        cipher.init(mode, new SecretKeySpec(deriveKey(key, "document-snapshot-encryption"), "AES"),
+                new GCMParameterSpec(128, nonce));
+        cipher.updateAAD(DocumentSnapshotWire.aad(
+                DOCUMENT_PREFIX, key.keyId(), service, environment, purpose));
+        return cipher;
+    }
 
     @Override
     public ExternalEntityReference issue(

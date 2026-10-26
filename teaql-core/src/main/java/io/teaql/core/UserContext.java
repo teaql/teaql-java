@@ -13,11 +13,13 @@ import io.teaql.core.businessid.BusinessClock;
 import io.teaql.core.businessid.BusinessIdSchemaContributor;
 import io.teaql.core.businessid.BusinessIdService;
 import io.teaql.core.reference.ResolvedRoundTripReference;
+import io.teaql.core.reference.DocumentSnapshot;
 import io.teaql.core.reference.ReferenceDocumentScope;
 import io.teaql.core.reference.RoundTripReferenceCodec;
 import io.teaql.core.reference.RoundTripReferenceErrorCode;
 import io.teaql.core.reference.RoundTripReferenceException;
 import io.teaql.core.reference.TrustedReferencePrincipal;
+import io.teaql.core.reference.VerifiedDocumentSnapshot;
 import java.time.Duration;
 
 public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
@@ -303,6 +305,17 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
             Object reference, ReferenceDocumentScope scope, String expectedEntityType) {
         return roundTripReferences().deserialize(
                 this, trustedReferencePrincipal(), scope, reference, expectedEntityType);
+    }
+
+    default String issueDocumentSnapshot(DocumentSnapshot snapshot, Duration lifetime) {
+        return roundTripReferences().issueDocumentSnapshot(
+                this, trustedReferencePrincipal(), snapshot, lifetime);
+    }
+
+    default VerifiedDocumentSnapshot consumeDocumentSnapshot(
+            String token, String expectedAggregateType, String expectedPurpose) {
+        return roundTripReferences().consumeDocumentSnapshot(
+                this, trustedReferencePrincipal(), token, expectedAggregateType, expectedPurpose);
     }
 
     /**
