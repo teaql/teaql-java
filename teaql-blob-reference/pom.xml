@@ -14,13 +14,16 @@
         <dependency><groupId>io.teaql</groupId><artifactId>teaql-provider-jdbc</artifactId><scope>test</scope></dependency>
         <dependency><groupId>io.teaql</groupId><artifactId>teaql-dynamic-fields-jdbc</artifactId><scope>test</scope></dependency>
         <dependency><groupId>io.teaql</groupId><artifactId>teaql-runtime</artifactId></dependency>
+        <dependency><groupId>io.teaql</groupId><artifactId>teaql-secure-document-reference</artifactId><scope>test</scope></dependency>
         <dependency><groupId>io.teaql</groupId><artifactId>teaql-blob-store-file</artifactId><scope>test</scope></dependency>
         <dependency><groupId>io.teaql</groupId><artifactId>teaql-blob-store-s3</artifactId><scope>test</scope></dependency>
         <dependency><groupId>io.teaql</groupId><artifactId>teaql-blob-content-tika</artifactId><scope>test</scope></dependency>
         <dependency><groupId>org.postgresql</groupId><artifactId>postgresql</artifactId><version>42.7.3</version><scope>test</scope></dependency>
     </dependencies>
-    <build><plugins><plugin>
+    <build><plugins><plugin><artifactId>maven-compiler-plugin</artifactId><executions><execution>
+        <id>default-testCompile</id><configuration><useModulePath>false</useModulePath></configuration>
+    </execution></executions></plugin><plugin>
         <artifactId>maven-surefire-plugin</artifactId>
-        <configuration><argLine>@{argLine} --add-reads io.teaql.blob.reference=io.teaql.runtime --add-reads io.teaql.blob.reference=java.sql</argLine></configuration>
+        <configuration><useModulePath>false</useModulePath><argLine>@{argLine}</argLine></configuration>
     </plugin></plugins></build>
 </project>
