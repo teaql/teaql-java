@@ -81,6 +81,11 @@ public class MemoryDataService implements DataServiceExecutor, QueryExecutor, Mu
         }
         EntityPersistenceMutation mutation = (EntityPersistenceMutation) request;
         Entity entity = mutation.getEntity();
+        var kind = mutation.getAction() == EntityPersistenceMutation.Action.DELETE ? MutationOperationKind.DELETE
+                : entity.newItem() ? MutationOperationKind.CREATE
+                : entity.recoverItem() ? MutationOperationKind.RECOVER : MutationOperationKind.UPDATE;
+        // Validate before publishing a row into storage or changing its state.
+        long nextVersion = MutationVersions.next(kind, entity.getVersion());
         String typeName = entity.typeName();
         TypeStorage storage = database.computeIfAbsent(typeName, k -> new TypeStorage(maxEntriesPerType));
 
@@ -91,12 +96,13 @@ public class MemoryDataService implements DataServiceExecutor, QueryExecutor, Mu
                     throw new TeaQLRuntimeException("Entity ID must be allocated before save");
                 }
                 storage.data.put(entity.getId(), entity);
-                ((BaseEntity) entity).__internalSet("version", entity.getVersion() == null ? 1L : entity.getVersion() + 1);
+                ((BaseEntity) entity).__internalSet("version", nextVersion);
                 if (entity instanceof BaseEntity) {
                     ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);
                 }
             } else if (mutation.getAction() == EntityPersistenceMutation.Action.DELETE) {
                 storage.data.remove(entity.getId());
+                ((BaseEntity) entity).__internalSet("version", nextVersion);
                 if (entity instanceof BaseEntity) {
                     ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);
                 }

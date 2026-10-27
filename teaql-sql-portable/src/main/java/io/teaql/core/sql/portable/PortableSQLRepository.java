@@ -1551,6 +1551,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     void updateBatchInternal(UserContext context, List<T> entities, io.teaql.core.SqlIntentRedactions intent,
             List<io.teaql.core.SqlExecutionTrace> traces) {
         requireMemberTraces(entities, traces);
+        entities.forEach(entity -> io.teaql.core.MutationVersions.next(io.teaql.core.MutationOperationKind.UPDATE, entity.getVersion()));
         Map<PreparedWriteShape, List<PreparedWriteRow>> rows = new java.util.LinkedHashMap<>();
         var compiler = new io.teaql.core.sql.SqlAstCompiler();
         for (int index = 0; index < entities.size(); index++) {
@@ -1571,7 +1572,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                         versionUpdated = true;
                         columns.add("version");
                         bindings.add("version"); bindings.add("id"); bindings.add("version");
-                        values.add(entity.getVersion() + 1); values.add(entity.getId()); values.add(entity.getVersion());
+                        values.add(io.teaql.core.MutationVersions.next(io.teaql.core.MutationOperationKind.UPDATE, entity.getVersion())); values.add(entity.getId()); values.add(entity.getVersion());
                         sql = compiler.buildUpdateVersionSQL(this, table, columns, null);
                     } else if (primary) {
                         bindings.add("id"); values.add(entity.getId());
@@ -1589,7 +1590,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                         compiler.buildUpdateVersionTableVersionSQL(this, versionTableName),
                         List.of("version", "id", "version"), true, true);
                 rows.computeIfAbsent(shape, ignored -> new ArrayList<>()).add(new PreparedWriteRow(
-                        new Object[]{entity.getVersion() + 1, entity.getId(), entity.getVersion()}, traces.get(index)));
+                        new Object[]{io.teaql.core.MutationVersions.next(io.teaql.core.MutationOperationKind.UPDATE, entity.getVersion()), entity.getId(), entity.getVersion()}, traces.get(index)));
             }
         }
         executePreparedWrites(context, rows, intent);
@@ -1616,11 +1617,9 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         for (int index = 0; index < entities.size(); index++) {
             T entity = entities.get(index);
             Long version = entity.getVersion();
-            if (version == null || (recover ? version >= 0 : version <= 0)) {
-                throw new IllegalArgumentException("Delete/recover batch requires the matching persisted version sign");
-            }
+            long nextVersion = io.teaql.core.MutationVersions.next(recover ? io.teaql.core.MutationOperationKind.RECOVER : io.teaql.core.MutationOperationKind.DELETE, version);
             if (intent != null) intent.captureTargetId(entity.getId());
-            members.add(new PreparedWriteRow(new Object[]{recover ? -version + 1 : -(version + 1),
+            members.add(new PreparedWriteRow(new Object[]{nextVersion,
                     entity.getId(), version}, traces.get(index)));
         }
         executePreparedWrites(context, Map.of(shape, members), intent);
@@ -1674,6 +1673,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             io.teaql.core.SqlExecutionTrace trace) {
         if (intent != null) updateItems.forEach(item -> intent.captureTargetId(item.getId()));
         if (ObjectUtil.isEmpty(updateItems)) return;
+        updateItems.forEach(entity -> io.teaql.core.MutationVersions.next(io.teaql.core.MutationOperationKind.UPDATE, entity.getVersion()));
         List<SQLEntity> sqlEntities = CollectionUtil.map(updateItems,
                 i -> convertToSQLEntityForUpdate(userContext, i), true);
         if (ObjectUtil.isEmpty(sqlEntities)) return;
@@ -1717,7 +1717,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             io.teaql.core.SqlExecutionTrace trace) {
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
         String updateSql = compiler.buildUpdateVersionTableVersionSQL(this, this.versionTableName);
-        Object[] parameters = {sqlEntity.getVersion() + 1, sqlEntity.getId(), sqlEntity.getVersion()};
+        Object[] parameters = {io.teaql.core.MutationVersions.next(io.teaql.core.MutationOperationKind.UPDATE, sqlEntity.getVersion()), sqlEntity.getId(), sqlEntity.getVersion()};
         var bindings = logBindings(this.versionTableName, List.of("version", "id", "version")).withTrace(trace);
         if (intent != null) intent.capture(bindings.policies(), parameters);
         int update = database.executeUpdate(userContext, updateSql, parameters, withMutationIntent(bindings, intent));
@@ -1741,7 +1741,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                                      io.teaql.core.SqlIntentRedactions intent, io.teaql.core.SqlExecutionTrace trace) {
         versionTableUpdated.set(true);
         columns.add("version");
-        l.add(sqlEntity.getVersion() + 1);
+        l.add(io.teaql.core.MutationVersions.next(io.teaql.core.MutationOperationKind.UPDATE, sqlEntity.getVersion()));
         l.add(sqlEntity.getId());
         l.add(sqlEntity.getVersion());
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
@@ -1768,8 +1768,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
         String updateSql = compiler.buildDeleteSQL(this, this.versionTableName);
         List<Object[]> args = entities.stream()
-                .filter(e -> e.getVersion() > 0)
-                .map(e -> new Object[]{-(e.getVersion() + 1), e.getId(), e.getVersion()})
+                .map(e -> new Object[]{io.teaql.core.MutationVersions.next(io.teaql.core.MutationOperationKind.DELETE, e.getVersion()), e.getId(), e.getVersion()})
                 .collect(Collectors.toList());
         var bindings = logBindings(this.versionTableName, List.of("version", "id", "version")).withTrace(trace);
         if (intent != null) for (Object[] row : args) intent.capture(bindings.policies(), row);
@@ -1794,8 +1793,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
         String updateSql = compiler.buildDeleteSQL(this, this.versionTableName);
         List<Object[]> args = entities.stream()
-                .filter(e -> e.getVersion() < 0)
-                .map(e -> new Object[]{(-e.getVersion() + 1), e.getId(), e.getVersion()})
+                .map(e -> new Object[]{io.teaql.core.MutationVersions.next(io.teaql.core.MutationOperationKind.RECOVER, e.getVersion()), e.getId(), e.getVersion()})
                 .collect(Collectors.toList());
         var bindings = logBindings(this.versionTableName, List.of("version", "id", "version")).withTrace(trace);
         if (intent != null) for (Object[] row : args) intent.capture(bindings.policies(), row);

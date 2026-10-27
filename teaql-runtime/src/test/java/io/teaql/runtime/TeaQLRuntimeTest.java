@@ -355,6 +355,7 @@ public class TeaQLRuntimeTest {
                 .build();
         ContainerEntity root = new ContainerEntity();
         root.updateId(910L);
+        root.__internalSet("version", 1L);
         root.set$status(EntityStatus.PERSISTED);
         DummyEntity child = changedEntity(911L, "child change");
         root.updateProperty("rel1", child);
@@ -477,9 +478,12 @@ public class TeaQLRuntimeTest {
                 .install(RuntimeModule.of().withCheckers(checker));
         var context = new DefaultUserContext(runtime);
         var root = new DummyEntity(); root.name = "complete parent";
+        root.__internalSet("id", 1L); root.__internalSet("version", 1L);
         root.set$status(EntityStatus.UPDATED); root.setComment("check modified descendants");
         root.child = new DummyEntity(); root.child.set$status(EntityStatus.PERSISTED);
+        root.child.__internalSet("id", 2L); root.child.__internalSet("version", 1L);
         root.child.child = new DummyEntity(); root.child.child.set$status(EntityStatus.UPDATED);
+        root.child.child.__internalSet("id", 3L); root.child.child.__internalSet("version", 1L);
         // Cycle exercises the independent persistence walk's identity boundary.
         root.child.child.child = root;
         var error = Assert.assertThrows(CheckException.class, () -> runtime.saveGraph(context, root));
@@ -985,18 +989,22 @@ public class TeaQLRuntimeTest {
 
         ContainerEntity rootEntity = new ContainerEntity();
         rootEntity.updateId(1L);
+        rootEntity.__internalSet("version", 1L);
         rootEntity.set$status(EntityStatus.PERSISTED);
 
         DummyEntity toOneChild = new DummyEntity();
         toOneChild.updateId(2L);
+        toOneChild.__internalSet("version", 1L);
         toOneChild.set$status(EntityStatus.PERSISTED);
         
         DummyEntity listChild1 = new DummyEntity();
         listChild1.updateId(3L);
+        listChild1.__internalSet("version", 1L);
         listChild1.set$status(EntityStatus.PERSISTED);
 
         DummyEntity listChild2 = new DummyEntity();
         listChild2.updateId(4L);
+        listChild2.__internalSet("version", 1L);
         listChild2.set$status(EntityStatus.PERSISTED);
         
         rootEntity.updateProperty("rel1", toOneChild);
@@ -1031,12 +1039,14 @@ public class TeaQLRuntimeTest {
 
         DummyEntity first = new DummyEntity();
         first.updateId(11L);
+        first.__internalSet("version", 1L);
         first.set$status(EntityStatus.PERSISTED);
         first.updateProperty("name", "save me");
         first.setComment("save first graph only");
 
         DummyEntity independent = new DummyEntity();
         independent.updateId(22L);
+        independent.__internalSet("version", 1L);
         independent.set$status(EntityStatus.PERSISTED);
         independent.updateProperty("name", "keep pending");
 
@@ -1070,12 +1080,14 @@ public class TeaQLRuntimeTest {
 
         DummyEntity failing = new DummyEntity();
         failing.updateId(31L);
+        failing.__internalSet("version", 1L);
         failing.set$status(EntityStatus.PERSISTED);
         failing.updateProperty("name", "must remain pending");
         failing.setComment("fail this graph");
 
         DummyEntity independent = new DummyEntity();
         independent.updateId(32L);
+        independent.__internalSet("version", 1L);
         independent.set$status(EntityStatus.PERSISTED);
         independent.updateProperty("name", "independent pending");
 

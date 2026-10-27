@@ -78,6 +78,16 @@ merely because its backing storage was null. Cancelling a field against its
 persistent baseline is distinct from popping a change-set scope; it cannot expose
 an older intermediate value of that field or erase unrelated staged values.
 
+`--version-lifecycle` runs generated Q/E/JSON and audited Save twice on one small
+SQLite database. Ordinary generated creates precede deliberate SQL boundary
+injection. The last update reaches `Long.MAX_VALUE` exactly; further updates fail
+at `/version` before the generated Checker, policy, provider or audit. Unchanged
+exhausted rows remain no-ops. Deleting `MAX` produces exactly `MIN`, recovery of
+that exhausted tombstone rejects, and recovery of `MIN+2` reaches `MAX` exactly.
+Both loaded-null and non-null notes, independent pending objects and the untouched
+parent remain intact. The complete example inventory includes this mode; passing
+this probe alone is not private-artifact or full-runtime qualification.
+
 This does not qualify all scalar wire boundaries, cross-runtime DDL parity or a
 published artifact. Provenance is in `fixture-manifest.json` and
 `json-profiles/provenance.json`; generated sources are never edited by the probes.

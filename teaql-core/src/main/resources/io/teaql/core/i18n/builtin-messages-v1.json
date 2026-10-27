@@ -6,6 +6,8 @@
       "messages": {
         "checker.required": "The {location} is required",
         "checker.unknown_field": "Unknown model field at {location}; expected a canonical field name",
+        "checker.invalid_version_state": "The optimistic version at {location} has an invalid lifecycle state",
+        "checker.version_exhausted": "The optimistic version at {location} is exhausted",
         "checker.min": "The {location} should be equal or greater than {system}, but input is {input}",
         "checker.max": "The {location} should be equal or less than {system}, but input is {input}",
         "checker.minLength": "The length of {location} should be equal or greater than {system}, but the length of {input} is {input_len}",
@@ -17,6 +19,8 @@
       "messages": {
         "checker.required": "{location} 是必填项",
         "checker.unknown_field": "{location} 不是已声明的模型字段，请使用规范字段名",
+        "checker.invalid_version_state": "{location} 的乐观锁版本不符合当前生命周期状态",
+        "checker.version_exhausted": "{location} 的乐观锁版本空间已耗尽",
         "checker.min": "{location} 应该大于等于 {system}，但输入值为 {input}",
         "checker.max": "{location} 应该小于等于 {system}，但输入值为 {input}",
         "checker.minLength": "{location} 的长度应大于等于 {system}，但实际长度为 {input_len}",

@@ -183,6 +183,8 @@ public class CheckResult {
         MAX_DATE,
         REQUIRED,
         INVALID_TYPE,
-        UNKNOWN_FIELD
+        UNKNOWN_FIELD,
+        INVALID_VERSION_STATE,
+        VERSION_EXHAUSTED
     }
 }

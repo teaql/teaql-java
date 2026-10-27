@@ -539,6 +539,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         }
         EntityPersistenceMutation mutation = (EntityPersistenceMutation) request;
         Entity entity = mutation.getEntity();
+        long nextVersion = MutationVersions.next(mutationKind(mutation), entity.getVersion());
         String typeName = entity.typeName();
         PortableSQLRepository repository = getRepository(typeName);
         // Local to this mutation, never stored on context or a shared repository.
@@ -563,17 +564,17 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                 repository.createInternal(context, Collections.singletonList(entity), readbackIntent, trace);
             } else if (entity.updateItem()) {
                 repository.updateInternal(context, Collections.singletonList(entity), readbackIntent, trace);
-                ((BaseEntity) entity).__internalSet("version", entity.getVersion() + 1);
+                ((BaseEntity) entity).__internalSet("version", nextVersion);
             } else if (entity.recoverItem()) {
                 repository.recoverInternal(context, Collections.singletonList(entity), readbackIntent, trace);
-                ((BaseEntity) entity).__internalSet("version", -entity.getVersion() + 1);
+                ((BaseEntity) entity).__internalSet("version", nextVersion);
             }
             if (entity instanceof BaseEntity) {
                 ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);
             }
         } else if (mutation.getAction() == EntityPersistenceMutation.Action.DELETE) {
             repository.deleteInternal(context, Collections.singletonList(entity), readbackIntent, trace);
-            ((BaseEntity) entity).__internalSet("version", -(entity.getVersion() + 1));
+            ((BaseEntity) entity).__internalSet("version", nextVersion);
             if (entity instanceof BaseEntity) {
                 ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);
             }
@@ -606,6 +607,8 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                 || !batchOperation(item).equals(operation))) {
             throw new TeaQLRuntimeException("Portable SQL prepared batch requires one entity type and mutation operation");
         }
+        // Admit every original before the first transaction, ID allocation or write.
+        var nextVersions = items.stream().map(item -> MutationVersions.next(mutationKind(item), item.getEntity().getVersion())).toList();
         return executeInTransaction(context, () -> {
             PortableSQLRepository repository = getRepository(type);
             var redactions = new SqlIntentRedactions();
@@ -644,9 +647,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                 var item = items.get(index);
                 var entity = (BaseEntity) item.getEntity();
                 if (!operation.equals("insert")) {
-                    long version = entity.getVersion();
-                    entity.__internalSet("version", operation.equals("delete") ? -(version + 1)
-                            : operation.equals("recover") ? -version + 1 : version + 1);
+                    entity.__internalSet("version", nextVersions.get(index));
                 }
                 entity.gotoNextStatus(EntityAction.PERSIST);
                 Entity persisted = repository.loadPersistedById(context, entity.getId(), redactions,
@@ -667,6 +668,15 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             if (entity.recoverItem()) return "recover";
         }
         throw new TeaQLRuntimeException("Prepared mutation member has no executable persistence state");
+    }
+
+    private MutationOperationKind mutationKind(EntityPersistenceMutation item) {
+        return switch (batchOperation(item)) {
+            case "insert" -> MutationOperationKind.CREATE;
+            case "delete" -> MutationOperationKind.DELETE;
+            case "recover" -> MutationOperationKind.RECOVER;
+            default -> MutationOperationKind.UPDATE;
+        };
     }
 
     @Override
