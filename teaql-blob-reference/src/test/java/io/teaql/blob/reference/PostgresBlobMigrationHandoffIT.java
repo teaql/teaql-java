@@ -13,7 +13,7 @@ public class PostgresBlobMigrationHandoffIT {
     private static final BlobScope SCOPE=new BlobScope("test","tenant-a");
     private static final Instant NOW=Instant.ofEpochMilli(1_000_000);
 
-    @Test public void currentCatalogCanHandOffToOrFromRust() {
+    @Test public void currentCatalogCanHandOffToOrFromRust() throws Exception {
         String phase=System.getenv("TEAQL_R7_HANDOFF_PHASE");
         Assume.assumeTrue("explicit R7 handoff phase required",phase!=null && phase.startsWith("java-"));
         assertTrue("unknown R7 handoff phase",phase.equals("java-first") || phase.equals("java-second") || phase.equals("java-verify"));
@@ -21,8 +21,8 @@ public class PostgresBlobMigrationHandoffIT {
         var sql=new JdbcSqlExecutor(new PostgresBlobCatalogIT.TestDataSource(url,user,password,"public"));
         var catalog=new PostgresBlobCatalog(sql);
         if (phase.equals("java-first")) {
-            sql.execute("CREATE TABLE asset_data(id BIGINT PRIMARY KEY,version BIGINT NOT NULL,document VARCHAR(128))");
-            sql.execute("INSERT INTO asset_data VALUES (1,1,'legacy-invoice.pdf'),(2,1,'https://legacy.example.test/files/2.pdf')");
+            sql.execute("CREATE TABLE asset_data(id BIGINT PRIMARY KEY,version BIGINT NOT NULL,document VARCHAR(128),title VARCHAR(100) CHECK(title <> 'fail'))");
+            sql.execute("INSERT INTO asset_data(id,version,document) VALUES (1,1,'legacy-invoice.pdf'),(2,1,'https://legacy.example.test/files/2.pdf')");
             assertEquals(BlobException.Code.BLOB_SCHEMA_MISSING,
                     assertThrows(BlobException.class,catalog::validateSchema).code());
         }
@@ -56,6 +56,18 @@ public class PostgresBlobMigrationHandoffIT {
                 new PostgresBlobCatalog.VerifiedContent("application/pdf",1,"b".repeat(64),"version-java"),NOW.plusMillis(1));
         assertEquals(BlobState.UPLOADED_UNBOUND,complete.state());
         assertEquals(complete,catalog.find(SCOPE,draft.reference()).orElseThrow());
+        if (phase.equals("java-second")) {
+            BlobRef rust=BlobRef.of("blob_r7_rust");
+            try (var host=new PostgresBlobCatalogIT.Fixture("public")) {
+                host.clock.now=NOW.plusMillis(2);
+                host.create(5,rust);
+                host.assertOracle(5,rust);
+                assertEquals(1L,host.binding(5).version());
+                assertEquals(BlobState.AVAILABLE,host.find(rust).state());
+                assertEquals(host.prepareTransaction,host.businessTransaction);
+                assertEquals(host.prepareTransaction,host.applyTransaction);
+            }
+        }
     }
 
     private static String required(String name) {

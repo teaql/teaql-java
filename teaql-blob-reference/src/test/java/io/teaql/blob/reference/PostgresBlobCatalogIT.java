@@ -308,7 +308,8 @@ public class PostgresBlobCatalogIT {
         @Override public Clock withZone(ZoneId zone) { if (!zone.equals(ZoneOffset.UTC)) throw new IllegalArgumentException(); return this; }
     }
     static final class Fixture implements AutoCloseable {
-        final String schema="r3_blob_it_"+UUID.randomUUID().toString().replace("-","");
+        final String schema;
+        final boolean ownsSchema;
         final DataSource dataSource;
         final JdbcSqlExecutor sql,otherSql;
         final PostgresBlobCatalog catalog;
@@ -335,11 +336,25 @@ public class PostgresBlobCatalogIT {
             this(migrate,policies,extensions,graph,false);
         }
         Fixture(boolean migrate,BlobPolicies policies,List<String> extensions,boolean graph,boolean multiFields) throws Exception {
+            this(null,true,migrate,policies,extensions,graph,multiFields);
+        }
+        /** Reuse only the conformance runner's disposable public schema; never drop it here. */
+        Fixture(String externalSchema) throws Exception {
+            this(externalSchema,false,false,BlobPolicies.defaults(),List.of("pdf"),false,false);
+        }
+        Fixture(String externalSchema,boolean ownsSchema,boolean migrate,BlobPolicies policies,
+                List<String> extensions,boolean graph,boolean multiFields) throws Exception {
+            if (!ownsSchema && (!"public".equals(externalSchema)
+                    || !"java-second".equals(System.getenv("TEAQL_R7_HANDOFF_PHASE")))) {
+                throw new IllegalArgumentException("Only the disposable Java handoff phase may reuse public schema");
+            }
+            this.ownsSchema=ownsSchema;
+            schema=ownsSchema?"r3_blob_it_"+UUID.randomUUID().toString().replace("-",""):externalSchema;
             this.policies=policies;
             spec=BlobFieldSpec.of("Asset","document",extensions,true,"default");
             String url=required("TEAQL_BLOB_TEST_PG_URL"),user=required("TEAQL_BLOB_TEST_PG_USER"),password=required("TEAQL_BLOB_TEST_PG_PASSWORD");
             dataSource=new TestDataSource(url,user,password,schema);
-            try (Connection c=DriverManager.getConnection(url,user,password); Statement s=c.createStatement()) { s.execute("CREATE SCHEMA "+schema); }
+            if (ownsSchema) try (Connection c=DriverManager.getConnection(url,user,password); Statement s=c.createStatement()) { s.execute("CREATE SCHEMA "+schema); }
             sql=new JdbcSqlExecutor(dataSource) {
                 @Override public <T extends Entity> List<T> query(String statement,Object[] parameters,CompiledRowMapper<T> mapper) {
                     compiledQueries.incrementAndGet(); return super.query(statement,parameters,mapper);
@@ -353,8 +368,10 @@ public class PostgresBlobCatalogIT {
                 }
             };
             otherSql=new JdbcSqlExecutor(dataSource); catalog=new PostgresBlobCatalog(sql);
-            sql.execute("CREATE TABLE asset_data(id BIGINT PRIMARY KEY, version BIGINT NOT NULL, document VARCHAR(128), title VARCHAR(100) CHECK (title <> 'fail'))");
-            if (multiFields) sql.execute("ALTER TABLE asset_data ADD COLUMN preview VARCHAR(128)");
+            if (ownsSchema) {
+                sql.execute("CREATE TABLE asset_data(id BIGINT PRIMARY KEY, version BIGINT NOT NULL, document VARCHAR(128), title VARCHAR(100) CHECK (title <> 'fail'))");
+                if (multiFields) sql.execute("ALTER TABLE asset_data ADD COLUMN preview VARCHAR(128)");
+            }
             if (migrate) catalog.migrate();
             SimpleEntityMetaFactory metadata=new SimpleEntityMetaFactory(); SQLEntityDescriptor descriptor=new SQLEntityDescriptor();
             descriptor.setType("Asset"); descriptor.setEntitySupplier(Asset::new); descriptor.setTargetType(Asset.class);
@@ -462,7 +479,7 @@ public class PostgresBlobCatalogIT {
             long next=uploadSequence.get()+1; var draft=draft("request_"+next,"a".repeat(64));
             BlobRef key=catalog.begin(draft,NOW).reference(); catalog.complete(SCOPE,key,content(),NOW); return key;
         }
-        @Override public void close() { runtime.close(); sql.execute("DROP SCHEMA "+schema+" CASCADE"); }
+        @Override public void close() { runtime.close(); if (ownsSchema) sql.execute("DROP SCHEMA "+schema+" CASCADE"); }
     }
     private static String required(String name) {
         String value=System.getenv(name); if (value==null || value.isBlank()) throw new IllegalStateException("Integration environment missing: "+name); return value;
