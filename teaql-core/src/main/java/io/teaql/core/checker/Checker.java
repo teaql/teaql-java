@@ -137,8 +137,11 @@ public interface Checker<T extends BaseEntity> {
      * Standalone entry point. Recursive checks inside an existing graph/check
      * share that invocation; a top-level check owns and releases its clock,
      * traversal guard and detached evidence receipt just like graph save.
+     * A standalone owner throws collected violations before releasing them;
+     * joined callbacks leave that decision to the existing graph/check owner.
      * The three-argument method is the implementation/traversal callback.
      */
+    @SuppressWarnings("unchecked")
     default void checkAndFix(UserContext context, T entity) {
         if (CheckerInvocation.current(context) != null) {
             checkAndFix(context, entity, null);
@@ -146,6 +149,11 @@ public interface Checker<T extends BaseEntity> {
         }
         try (var invocation = CheckerInvocation.open(context)) {
             checkAndFix(context, entity, null);
+            java.util.List<CheckResult> violations = (java.util.List<CheckResult>)
+                    invocation.attribute(TEAQL_DATA_CHECK_RESULT);
+            if (violations != null && !violations.isEmpty()) {
+                throw new CheckException(new java.util.ArrayList<>(violations));
+            }
         }
     }
 }

@@ -179,4 +179,28 @@ public class StandaloneCheckerInvocationTest {
         } finally { workers.shutdownNow(); assertTrue(workers.awaitTermination(10,TimeUnit.SECONDS)); }
         assertEquals(2,context.calls.get()); released(context);
     }
+
+    @Test public void standaloneValidationFailuresSurviveClosingAsARealCheckException() {
+        var context = new Context();
+        var expected = CheckResult.required(ObjectLocation.hashRoot("contact_phone"));
+        var error = assertThrows(CheckException.class, () -> checker((ctx, item) -> {
+            evidence(ctx,"invalid");
+            CheckerInvocation.current(ctx).attribute(Checker.TEAQL_DATA_CHECK_RESULT,new ArrayList<>(List.of(expected)));
+        }).checkAndFix(context.value,new Entity()));
+        assertEquals(1,error.getViolates().size()); assertSame(expected,error.getViolates().get(0));
+        assertEquals(1,context.calls.get()); assertEquals(1,context.value.lastFixEvidence().size()); released(context);
+    }
+
+    @Test public void joinedGraphChecksLeaveValidationFailuresForTheGraphOwner() {
+        var context = new Context(); var expected = CheckResult.required(ObjectLocation.hashRoot("contact_phone"));
+        try (var outer = CheckerInvocation.openMutation(context.value)) {
+            var violations = new ArrayList<CheckResult>();
+            outer.attribute(Checker.TEAQL_DATA_CHECK_RESULT,violations);
+            checker((ctx,item)->violations.add(expected)).checkAndFix(context.value,new Entity());
+            assertSame(outer,CheckerInvocation.current(context.value));
+            assertSame(violations,outer.attribute(Checker.TEAQL_DATA_CHECK_RESULT));
+            assertEquals(List.of(expected),violations); assertEquals(1,context.calls.get());
+        }
+        released(context);
+    }
 }
