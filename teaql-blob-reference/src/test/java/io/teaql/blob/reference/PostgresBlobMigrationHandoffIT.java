@@ -16,7 +16,7 @@ public class PostgresBlobMigrationHandoffIT {
     @Test public void currentCatalogCanHandOffToOrFromRust() {
         String phase=System.getenv("TEAQL_R7_HANDOFF_PHASE");
         Assume.assumeTrue("explicit R7 handoff phase required",phase!=null && phase.startsWith("java-"));
-        assertTrue("unknown R7 handoff phase",phase.equals("java-first") || phase.equals("java-second"));
+        assertTrue("unknown R7 handoff phase",phase.equals("java-first") || phase.equals("java-second") || phase.equals("java-verify"));
         String url=required("TEAQL_BLOB_TEST_PG_URL"),user=required("TEAQL_BLOB_TEST_PG_USER"),password=required("TEAQL_BLOB_TEST_PG_PASSWORD");
         var sql=new JdbcSqlExecutor(new PostgresBlobCatalogIT.TestDataSource(url,user,password,"public"));
         var catalog=new PostgresBlobCatalog(sql);
@@ -28,8 +28,18 @@ public class PostgresBlobMigrationHandoffIT {
         }
         catalog.migrate(); catalog.validateSchema();
         assertEquals(List.of("legacy-invoice.pdf","https://legacy.example.test/files/2.pdf"),
-                sql.queryForList("SELECT document FROM asset_data ORDER BY id",new Object[0]).stream().map(row -> row.get("document")).toList());
-        assertEquals(0L,((Number)sql.queryForList("SELECT count(*) AS count FROM teaql_blob_binding",new Object[0]).get(0).get("count")).longValue());
+                sql.queryForList("SELECT document FROM asset_data WHERE id<=2 ORDER BY id",new Object[0]).stream().map(row -> row.get("document")).toList());
+        long bindings=((Number)sql.queryForList("SELECT count(*) AS count FROM teaql_blob_binding",new Object[0]).get(0).get("count")).longValue();
+        assertEquals(phase.equals("java-verify")?1L:0L,bindings);
+        if (phase.equals("java-verify")) {
+            var target=new BlobFieldTarget("Asset",4L,"document");
+            var binding=catalog.binding(SCOPE,target).orElseThrow();
+            assertEquals(BlobRef.of("blob_r7_java"),binding.reference());
+            assertEquals(1L,binding.version());
+            assertEquals("blob_r7_java",sql.queryForList("SELECT document FROM asset_data WHERE id=4",new Object[0]).get(0).get("document"));
+            assertEquals(BlobState.AVAILABLE,catalog.find(SCOPE,binding.reference()).orElseThrow().state());
+            return;
+        }
         if (phase.equals("java-second")) {
             BlobCatalogRecord foreign=catalog.find(SCOPE,BlobRef.of("blob_r7_rust")).orElseThrow();
             assertEquals(BlobState.UPLOADED_UNBOUND,foreign.state());
