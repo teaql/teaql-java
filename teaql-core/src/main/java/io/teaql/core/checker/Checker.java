@@ -133,7 +133,19 @@ public interface Checker<T extends BaseEntity> {
         list.add(result);
     }
 
+    /**
+     * Standalone entry point. Recursive checks inside an existing graph/check
+     * share that invocation; a top-level check owns and releases its clock,
+     * traversal guard and detached evidence receipt just like graph save.
+     * The three-argument method is the implementation/traversal callback.
+     */
     default void checkAndFix(UserContext context, T entity) {
-        checkAndFix(context, entity, null);
+        if (CheckerInvocation.current(context) != null) {
+            checkAndFix(context, entity, null);
+            return;
+        }
+        try (var invocation = CheckerInvocation.open(context)) {
+            checkAndFix(context, entity, null);
+        }
     }
 }
