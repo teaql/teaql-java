@@ -59,9 +59,9 @@ final class GeneratedDynamicRollbackAcceptance {
         assertArrayEquals(beforeStreamRejection, sql.counts(), "incomplete stream mutation must reject before provider entry");
         // The declared timestamp Fix may detach only this modified row's state.
         assertNotSame(streamedState, streamed.get(0).__internalLoadState());
-        assertTrue(streamed.get(0).isPropertyLoaded("updateTime"));
+        assertTrue(streamed.get(0).isPropertyLoaded("update_time"));
         assertSame(streamedState, streamed.get(1).__internalLoadState());
-        assertFalse(streamedState.isLoaded("updateTime"));
+        assertFalse(streamedState.isLoaded("update_time"));
         assertFalse(streamed.get(0).isPropertyLoaded("address"));
         assertFalse(streamed.get(0).__internalDynamicMutations().isEmpty());
         assertEquals(DynamicFieldValue.State.NULL, streamed.get(1).dynamicFields().field(code).state());

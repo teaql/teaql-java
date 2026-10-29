@@ -13,14 +13,14 @@ final class GeneratedPartialGraphCheckerAcceptance {
                 .purpose("why: Checker must reject mutation of a partial referenced object").executeForOne(context);
         assertTrue(row.isPropertyLoaded("address"));
         assertTrue(row.getPlatform().isPropertyLoaded("name"));
-        assertFalse(row.getPlatform().isPropertyLoaded("baseUrl"));
+        assertFalse(row.getPlatform().isPropertyLoaded("base_url"));
         var untouched = row.getPlatform();
         var untouchedState = untouched.__internalLoadState();
         row.updateName("Complete parent control");
         row.auditAs("save complete parent without modifying partial Platform").save(context);
         assertSame(untouchedState, untouched.__internalLoadState());
-        assertFalse(untouched.isPropertyLoaded("baseUrl"));
-        assertFalse(untouched.isPropertyLoaded("updateTime"));
+        assertFalse(untouched.isPropertyLoaded("base_url"));
+        assertFalse(untouched.isPropertyLoaded("update_time"));
         var restored = Q.schools().withNameIn("Complete parent control").limit(1)
                 .comment("what: read saved complete parent")
                 .purpose("why: verify untouched partial reference does not block persistence").executeForOne(context);
@@ -38,13 +38,13 @@ final class GeneratedPartialGraphCheckerAcceptance {
         assertThrows(CheckException.class, () -> child.auditAs("reject mutation of the incomplete referenced object").save(context));
         assertArrayEquals(before, sql.counts(), "partial graph must reject before any provider entry");
         assertSame(state, row.__internalLoadState());
-        assertFalse(row.getPlatform().isPropertyLoaded("baseUrl"));
-        assertFalse(row.getPlatform().isPropertyLoaded("createTime"));
+        assertFalse(row.getPlatform().isPropertyLoaded("base_url"));
+        assertFalse(row.getPlatform().isPropertyLoaded("create_time"));
         // The declared updateTime Fix is a real assignment and may detach the
         // child's snapshot. It must not mark missing business fields loaded.
-        assertTrue(row.getPlatform().isPropertyLoaded("updateTime"));
-        assertFalse(untouchedState.isLoaded("baseUrl"));
-        assertFalse(untouchedState.isLoaded("updateTime"));
+        assertTrue(row.getPlatform().isPropertyLoaded("update_time"));
+        assertFalse(untouchedState.isLoaded("base_url"));
+        assertFalse(untouchedState.isLoaded("update_time"));
         System.out.println("PASS generated Java modified partial referenced object rejects before provider entry without loading missing business fields");
     }
 }

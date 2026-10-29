@@ -225,7 +225,7 @@ class GeneratedSchoolLoadStateTest {
                 "Checker must reject before read, write or transaction provider entry");
         assertFalse(sparse.get(0).isPropertyLoaded("active"),
                 "checker cannot promote an absent false default into loaded state");
-        assertFalse(sparse.get(0).isPropertyLoaded("establishedDate"));
+        assertFalse(sparse.get(0).isPropertyLoaded("established_date"));
         assertTrue(sparse.get(0).isPropertyLoaded("address"), "the explicit caller mutation must remain loaded");
         assertSame(sparseState, sparse.get(1).__internalLoadState(), "validation cannot widen a sibling projection");
         System.out.println("PASS generated Java Checker preserves NotLoaded and sibling load boundaries");

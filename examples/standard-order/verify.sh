@@ -2,7 +2,7 @@
 set -euo pipefail
 example="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(cd "$example/../.." && pwd)"
-evidence="$(mktemp -d /tmp/teaql-java-standard-order-evidence-XXXXXX)"
+evidence="$(mktemp -d "${TMPDIR:-/tmp}/teaql-java-standard-order-evidence-XXXXXX")"
 hash_library() {
   (cd "$example" && find generated/lib -type f ! -path '*/target/*' -print0 | sort -z | xargs -0 sha256sum)
 }

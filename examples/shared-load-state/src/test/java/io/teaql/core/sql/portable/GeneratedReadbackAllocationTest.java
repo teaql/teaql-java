@@ -93,7 +93,7 @@ class GeneratedReadbackAllocationTest {
                 assertSame(state,row.__internalLoadState());assertSame(layout,state.layout());
                 assertEquals(layout.indexes().size(),layout.indexes().keySet().stream().filter(row::isPropertyLoaded).count());
                 assertEquals(reference.<String>getProperty("name"),row.<String>getProperty("name"));
-                assertEquals(LocalDate.of(1995,9,1),row.getProperty("establishedDate"));
+                assertEquals(LocalDate.of(1995,9,1),row.getProperty("established_date"));
                 for(var binding:bindings) {
                     Object expected=reference.__internalGet(binding.property().getName());
                     Object actual=row.__internalGet(binding.property().getName());
