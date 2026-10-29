@@ -66,7 +66,7 @@ final class GeneratedNativeRollbackAcceptance {
         sql.omitNativeDateAfterWrite();
         try {
             var error=assertThrows(RuntimeException.class,()->pending.auditAs("Reject incomplete native readback").save(context));
-            assertTrue(error.getMessage().contains("missing mapped field School.establishedDate"));
+            assertTrue(error.getMessage().contains("missing mapped field School.established_date"));
         } finally {sql.clearNativeOmission();}
         assertTrue(sql.nativeOmissionObserved(),"omission must happen after successful native DML");
         assertEquals(version,pending.getVersion());assertSame(state,pending.__internalLoadState());

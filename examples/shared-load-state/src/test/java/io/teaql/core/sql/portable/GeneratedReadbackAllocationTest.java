@@ -29,7 +29,7 @@ class GeneratedReadbackAllocationTest {
     static Object value(PropertyDescriptor property) {
         Class<?> type=property.getType().javaType();
         if(property.getName().startsWith("probe"))return null;
-        if(Entity.class.isAssignableFrom(type))return property.getName().equals("schoolType")?1001L:1L;
+        if(Entity.class.isAssignableFrom(type))return property.getName().equals("school_type")?1001L:1L;
         if(type==String.class)return "readback name";
         if(type==Long.class||type==long.class)return 1L;
         if(type==Integer.class||type==int.class)return 0;
