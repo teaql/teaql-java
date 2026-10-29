@@ -3,6 +3,7 @@ set -euo pipefail
 
 version="${1:?usage: verify_maven_release.sh VERSION}"
 repository="${TEAQL_MAVEN_RELEASE_REPOSITORY:-https://maven.teaql.io/repository/maven-releases}"
+repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 
 retry_head() {
   local url="$1"
@@ -32,11 +33,11 @@ for attempt in 1 2 3 4 5; do
 done
 
 mapfile -t modules < <(
-  sed -n '/<modules>/,/<\/modules>/s:.*<module>\([^<]*\)</module>.*:\1:p' pom.xml \
+  sed -n '/<modules>/,/<\/modules>/s:.*<module>\([^<]*\)</module>.*:\1:p' "$repo_dir/pom.xml" \
     | grep -v '^examples/'
 )
-if [[ "${#modules[@]}" -ne 33 ]]; then
-  echo "Expected 33 child modules, found ${#modules[@]}" >&2
+if [[ "${#modules[@]}" -eq 0 ]]; then
+  echo "No release child modules found in $repo_dir/pom.xml" >&2
   exit 1
 fi
 

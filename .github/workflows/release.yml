@@ -41,6 +41,8 @@ jobs:
         run: test "$(git rev-list -n 1 "$GITHUB_REF_NAME")" = "$GITHUB_SHA"
       - name: Test all modules
         run: mvn -B test
+      - name: Check release completeness verifier
+        run: python3 tools/test_verify_maven_release.py
       - name: Refuse to overwrite an existing release
         if: github.event_name == 'push'
         env:
