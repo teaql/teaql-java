@@ -648,6 +648,12 @@ public class BaseEntity implements Entity {
         return propertyChange.getOldValue();
     }
 
+    /** Immutable first-change provenance; no ledger allocation or change publication. */
+    @FrameworkInternal("Generated Checker original-value admission only; canonical model keys required")
+    public PropertyChange __internalPropertyChange(String propertyName) {
+        return updatedProperties.get(propertyName);
+    }
+
     public Object getNewValue(String propertyName) {
         PropertyChange propertyChange = updatedProperties.get(propertyName);
         if (propertyChange == null) return null;

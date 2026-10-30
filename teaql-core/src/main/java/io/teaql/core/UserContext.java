@@ -108,6 +108,9 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
         if (!root.entityType().equals(expectedType)) {
             throw new ContextRootException(ContextRootException.Reason.TYPE_MISMATCH, expectedType, root);
         }
+        if (root.id() <= 0) {
+            throw new ContextRootException(ContextRootException.Reason.INVALID_ID, expectedType, root);
+        }
         return root;
     }
 

@@ -26,6 +26,8 @@ public class TenantChecker implements Checker<Tenant>{
       if((tenant == null)){
          return;
       }
+      if(tenant.needPersist()){
+      }
       if(tenant.newItem()){
       }else if(tenant.updateItem()){
         if(!tenant.isPropertyLoaded("name")){

@@ -57,6 +57,12 @@ public class EntityMutationLedger {
         return changeSets.get(key, field);
     }
 
+    /** Read-only presence test, including explicit null, without copying field sets. */
+    @FrameworkInternal("Generated Checker pending-field admission only")
+    public boolean containsField(EntityKey key, String field) {
+        return changeSets.contains(key, field);
+    }
+
     public EntityChangeSet currentChangeSet() {
         EntityChangeSet cs = changeSets.current();
         return cs != null ? cs : new EntityChangeSet();

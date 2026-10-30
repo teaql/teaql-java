@@ -10,6 +10,7 @@ import io.teaql.core.FieldLayout;
 import io.teaql.core.FrameworkInternal;
 import io.teaql.core.RemoteInput;
 import io.teaql.core.SmartList;
+import io.teaql.core.checker.JsonFieldNamingProfile;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -35,7 +36,8 @@ public class PurchaseOrder extends BaseEntity implements RemoteInput {
     public static final FieldLayout __TEAQL_FIELD_LAYOUT =
         FieldLayout.installGenerated(FieldLayout.generated(
             PurchaseOrder.class, __TEAQL_FIELD_LAYOUT_REVISION,
-            __TEAQL_FIXED_FIELD_INDEXES, __TEAQL_FIXED_FIELD_MAPPINGS, __TEAQL_FIXED_RELATION_NAMES));
+            __TEAQL_FIXED_FIELD_INDEXES, __TEAQL_FIXED_FIELD_MAPPINGS, __TEAQL_FIXED_RELATION_NAMES,
+            JsonFieldNamingProfile.fromModelValue("camelCase")));
 
 
     public static final String TENANT_PROPERTY = "tenant";
@@ -80,7 +82,7 @@ public class PurchaseOrder extends BaseEntity implements RemoteInput {
         return this.orderItemList;
     }
      PurchaseOrder updateTenant(Tenant tenant){
-        if(Objects.equals(this.tenant, tenant)){
+        if(isPropertyLoaded(TENANT_PROPERTY) && Objects.equals(this.tenant, tenant)){
             return this;
         }
         handleUpdate(TENANT_PROPERTY, getTenant(), tenant);
@@ -90,7 +92,7 @@ public class PurchaseOrder extends BaseEntity implements RemoteInput {
 
     public PurchaseOrder updateContactPhone(String contactPhone){
         contactPhone = (contactPhone == null ? null : contactPhone.trim());
-        if(Objects.equals(this.contactPhone, contactPhone)){
+        if(isPropertyLoaded(CONTACT_PHONE_PROPERTY) && Objects.equals(this.contactPhone, contactPhone)){
             return this;
         }
         handleUpdate(CONTACT_PHONE_PROPERTY, getContactPhone(), contactPhone);
@@ -100,7 +102,7 @@ public class PurchaseOrder extends BaseEntity implements RemoteInput {
 
     public PurchaseOrder updateInternalNote(String internalNote){
         internalNote = (internalNote == null ? null : internalNote.trim());
-        if(Objects.equals(this.internalNote, internalNote)){
+        if(isPropertyLoaded(INTERNAL_NOTE_PROPERTY) && Objects.equals(this.internalNote, internalNote)){
             return this;
         }
         handleUpdate(INTERNAL_NOTE_PROPERTY, getInternalNote(), internalNote);
@@ -109,7 +111,7 @@ public class PurchaseOrder extends BaseEntity implements RemoteInput {
     }
 
     public PurchaseOrder updateCreateTime(LocalDateTime createTime){
-        if(Objects.equals(this.createTime, createTime)){
+        if(isPropertyLoaded(CREATE_TIME_PROPERTY) && Objects.equals(this.createTime, createTime)){
             return this;
         }
         handleUpdate(CREATE_TIME_PROPERTY, getCreateTime(), createTime);
@@ -118,7 +120,7 @@ public class PurchaseOrder extends BaseEntity implements RemoteInput {
     }
 
     public PurchaseOrder updateUpdateTime(LocalDateTime updateTime){
-        if(Objects.equals(this.updateTime, updateTime)){
+        if(isPropertyLoaded(UPDATE_TIME_PROPERTY) && Objects.equals(this.updateTime, updateTime)){
             return this;
         }
         handleUpdate(UPDATE_TIME_PROPERTY, getUpdateTime(), updateTime);

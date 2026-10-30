@@ -28,6 +28,10 @@ public class OrderItemChecker implements Checker<OrderItem>{
       if((orderItem == null)){
          return;
       }
+      if(orderItem.needPersist()){
+        verifyContextRoot(_context, orderItem, "tenant", "Tenant", newLocation(_parentLocation, "tenant"));
+
+      }
       if(orderItem.newItem()){
         if(orderItem.getTenant() == null){
            orderItem.updateTenant(Tenant.refer(_context.requireActiveRoot("Tenant").id()));
@@ -43,9 +47,6 @@ public class OrderItemChecker implements Checker<OrderItem>{
            _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
         }
       }else if(orderItem.updateItem()){
-        if(orderItem.getTenant() != null){
-           _context.verifyActiveRoot("Tenant", orderItem.getTenant().getId());
-        }
         orderItem.updateUpdateTime(_context.evaluate("now"));
         _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
         if(!orderItem.isPropertyLoaded("purchase_order")){

@@ -10,6 +10,7 @@ import io.teaql.core.FieldLayout;
 import io.teaql.core.FrameworkInternal;
 import io.teaql.core.RemoteInput;
 import io.teaql.core.SmartList;
+import io.teaql.core.checker.JsonFieldNamingProfile;
 import java.util.Objects;
 
 /**
@@ -34,7 +35,8 @@ public class Tenant extends BaseEntity implements RemoteInput {
     public static final FieldLayout __TEAQL_FIELD_LAYOUT =
         FieldLayout.installGenerated(FieldLayout.generated(
             Tenant.class, __TEAQL_FIELD_LAYOUT_REVISION,
-            __TEAQL_FIXED_FIELD_INDEXES, __TEAQL_FIXED_FIELD_MAPPINGS, __TEAQL_FIXED_RELATION_NAMES));
+            __TEAQL_FIXED_FIELD_INDEXES, __TEAQL_FIXED_FIELD_MAPPINGS, __TEAQL_FIXED_RELATION_NAMES,
+            JsonFieldNamingProfile.fromModelValue("camelCase")));
 
 
     public static final String NAME_PROPERTY = "name";
@@ -57,7 +59,7 @@ public class Tenant extends BaseEntity implements RemoteInput {
     }
     public Tenant updateName(String name){
         name = (name == null ? null : name.trim());
-        if(Objects.equals(this.name, name)){
+        if(isPropertyLoaded(NAME_PROPERTY) && Objects.equals(this.name, name)){
             return this;
         }
         handleUpdate(NAME_PROPERTY, getName(), name);

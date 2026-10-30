@@ -9,6 +9,7 @@ import io.teaql.core.EntityStatus;
 import io.teaql.core.FieldLayout;
 import io.teaql.core.FrameworkInternal;
 import io.teaql.core.RemoteInput;
+import io.teaql.core.checker.JsonFieldNamingProfile;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -35,7 +36,8 @@ public class OrderItem extends BaseEntity implements RemoteInput {
     public static final FieldLayout __TEAQL_FIELD_LAYOUT =
         FieldLayout.installGenerated(FieldLayout.generated(
             OrderItem.class, __TEAQL_FIELD_LAYOUT_REVISION,
-            __TEAQL_FIXED_FIELD_INDEXES, __TEAQL_FIXED_FIELD_MAPPINGS, __TEAQL_FIXED_RELATION_NAMES));
+            __TEAQL_FIXED_FIELD_INDEXES, __TEAQL_FIXED_FIELD_MAPPINGS, __TEAQL_FIXED_RELATION_NAMES,
+            JsonFieldNamingProfile.fromModelValue("camelCase")));
 
 
     public static final String PURCHASE_ORDER_PROPERTY = "purchase_order";
@@ -82,7 +84,7 @@ public class OrderItem extends BaseEntity implements RemoteInput {
     }
 
     public OrderItem updatePurchaseOrder(PurchaseOrder purchaseOrder){
-        if(Objects.equals(this.purchaseOrder, purchaseOrder)){
+        if(isPropertyLoaded(PURCHASE_ORDER_PROPERTY) && Objects.equals(this.purchaseOrder, purchaseOrder)){
             return this;
         }
         handleUpdate(PURCHASE_ORDER_PROPERTY, getPurchaseOrder(), purchaseOrder);
@@ -91,7 +93,7 @@ public class OrderItem extends BaseEntity implements RemoteInput {
     }
 
      OrderItem updateTenant(Tenant tenant){
-        if(Objects.equals(this.tenant, tenant)){
+        if(isPropertyLoaded(TENANT_PROPERTY) && Objects.equals(this.tenant, tenant)){
             return this;
         }
         handleUpdate(TENANT_PROPERTY, getTenant(), tenant);
@@ -101,7 +103,7 @@ public class OrderItem extends BaseEntity implements RemoteInput {
 
     public OrderItem updateProductName(String productName){
         productName = (productName == null ? null : productName.trim());
-        if(Objects.equals(this.productName, productName)){
+        if(isPropertyLoaded(PRODUCT_NAME_PROPERTY) && Objects.equals(this.productName, productName)){
             return this;
         }
         handleUpdate(PRODUCT_NAME_PROPERTY, getProductName(), productName);
@@ -110,7 +112,7 @@ public class OrderItem extends BaseEntity implements RemoteInput {
     }
 
     public OrderItem updateUnitPrice(BigDecimal unitPrice){
-        if(Objects.equals(this.unitPrice, unitPrice)){
+        if(isPropertyLoaded(UNIT_PRICE_PROPERTY) && Objects.equals(this.unitPrice, unitPrice)){
             return this;
         }
         handleUpdate(UNIT_PRICE_PROPERTY, getUnitPrice(), unitPrice);
@@ -119,7 +121,7 @@ public class OrderItem extends BaseEntity implements RemoteInput {
     }
 
     public OrderItem updateCreateTime(LocalDateTime createTime){
-        if(Objects.equals(this.createTime, createTime)){
+        if(isPropertyLoaded(CREATE_TIME_PROPERTY) && Objects.equals(this.createTime, createTime)){
             return this;
         }
         handleUpdate(CREATE_TIME_PROPERTY, getCreateTime(), createTime);
@@ -128,7 +130,7 @@ public class OrderItem extends BaseEntity implements RemoteInput {
     }
 
     public OrderItem updateUpdateTime(LocalDateTime updateTime){
-        if(Objects.equals(this.updateTime, updateTime)){
+        if(isPropertyLoaded(UPDATE_TIME_PROPERTY) && Objects.equals(this.updateTime, updateTime)){
             return this;
         }
         handleUpdate(UPDATE_TIME_PROPERTY, getUpdateTime(), updateTime);

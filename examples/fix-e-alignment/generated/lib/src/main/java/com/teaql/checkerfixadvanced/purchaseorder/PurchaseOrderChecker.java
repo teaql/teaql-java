@@ -27,6 +27,10 @@ public class PurchaseOrderChecker implements Checker<PurchaseOrder>{
       if((purchaseOrder == null)){
          return;
       }
+      if(purchaseOrder.needPersist()){
+        verifyContextRoot(_context, purchaseOrder, "tenant", "Tenant", newLocation(_parentLocation, "tenant"));
+
+      }
       if(purchaseOrder.newItem()){
         if(purchaseOrder.getTenant() == null){
            purchaseOrder.updateTenant(Tenant.refer(_context.requireActiveRoot("Tenant").id()));
@@ -42,9 +46,6 @@ public class PurchaseOrderChecker implements Checker<PurchaseOrder>{
            _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
         }
       }else if(purchaseOrder.updateItem()){
-        if(purchaseOrder.getTenant() != null){
-           _context.verifyActiveRoot("Tenant", purchaseOrder.getTenant().getId());
-        }
         purchaseOrder.updateUpdateTime(_context.evaluate("now"));
         _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
         if(!purchaseOrder.isPropertyLoaded("tenant")){

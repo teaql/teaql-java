@@ -39,6 +39,13 @@ public class ChangeSetStack {
         return null;
     }
 
+    boolean contains(EntityKey key, String field) {
+        for (int i = stack.size() - 1; i >= 0; i--) {
+            if (stack.get(i).contains(key, field)) return true;
+        }
+        return false;
+    }
+
     public void set(EntityKey key, String field, Object value) {
         currentMut().set(key, field, value);
     }

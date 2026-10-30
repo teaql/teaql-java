@@ -136,6 +136,7 @@ public class GeneratedFixEExampleTest {
             LoadingProbe.verify(context, order.getId());
             OwnershipProbe.verify(context);
             ExpressionBoundaryProbe.verify();
+            ContextRootProbe.verify();
             System.out.println("FIX_E_EXAMPLE=" + new ObjectMapper().writeValueAsString(Map.of(
                     "language", "java", "passed", true, "normalGeneratedSave", true,
                     "createTimePreserved", true, "updateTimeAdvanced", true,

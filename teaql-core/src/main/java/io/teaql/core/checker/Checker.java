@@ -80,6 +80,61 @@ public interface Checker<T extends BaseEntity> {
         result.setNaturalLanguageStatement(message);
     }
 
+    /** Model-derived ownership admission, before any Fix or provider activity. */
+    default void verifyContextRoot(UserContext context, T entity, String property,
+            String expectedType, ObjectLocation location) {
+        var root = context.requireActiveRoot(expectedType);
+        Object current = entity.getProperty(property);
+        if (!entity.newItem()) {
+            var change = entity.__internalPropertyChange(property);
+            boolean loaded = change == null ? entity.isPropertyLoaded(property) : change.wasOldValueLoaded();
+            Object original = change == null ? current : change.getOldValue();
+            Long originalId = contextRootId(original, expectedType);
+            if (!loaded || originalId == null) {
+                invalidTypeCheck(context, location, "Mutation requires a loaded context-bound root");
+                return;
+            }
+            if (!root.id().equals(originalId)) {
+                throw new io.teaql.core.ContextRootException(
+                        io.teaql.core.ContextRootException.Reason.VALUE_MISMATCH, expectedType, root);
+            }
+        }
+        if (current != null || !entity.newItem()) {
+            verifySuppliedContextRoot(context, current, root, expectedType, location);
+        }
+        // The raw ledger can carry a canonical relation ID independently of
+        // the generated getter. Validate it too; never overwrite a conflict.
+        if (entity.__internalHasMutationLedger() && entity.getId() != null) {
+            var ledger = entity.getEntityMutationLedger();
+            var key = new io.teaql.core.EntityKey(entity.typeName(), entity.getId());
+            if (ledger.containsField(key, property)) {
+                Object supplied = ledger.get(key, property);
+                if (supplied != null || !entity.newItem()) {
+                    verifySuppliedContextRoot(context, supplied, root, expectedType, location);
+                }
+            }
+        }
+    }
+
+    private void verifySuppliedContextRoot(UserContext context, Object value,
+            io.teaql.core.ContextEntityRef root, String expectedType, ObjectLocation location) {
+        Long id = contextRootId(value, expectedType);
+        if (id == null) {
+            invalidTypeCheck(context, location, "Mutation requires a loaded context-bound root");
+        } else if (!root.id().equals(id)) {
+            throw new io.teaql.core.ContextRootException(
+                    io.teaql.core.ContextRootException.Reason.VALUE_MISMATCH, expectedType, root);
+        }
+    }
+
+    private static Long contextRootId(Object value, String expectedType) {
+        if (value instanceof io.teaql.core.Entity reference) {
+            return expectedType.equals(reference.typeName()) && reference.getId() != null && reference.getId() > 0
+                    ? reference.getId() : null;
+        }
+        return value instanceof Long id && id > 0 ? id : null;
+    }
+
     default void minNumberCheck(
             UserContext context, ObjectLocation location, Number minNumber, Number current) {
         if (NumberUtil.isLess(NumberUtil.toBigDecimal(current), NumberUtil.toBigDecimal(minNumber))) {
