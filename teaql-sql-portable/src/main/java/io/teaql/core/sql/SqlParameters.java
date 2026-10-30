@@ -48,7 +48,17 @@ public final class SqlParameters extends HashMap<String, Object> {
 
     public static void bind(Map<String, Object> parameters, String name, Object value,
                             SqlParameterLogPolicy policy) {
-        parameters.put(name, value);
+        parameters.put(name, stableValue(value));
         if (parameters instanceof SqlParameters tracked) tracked.policies.put(name, policy);
+    }
+
+    private static Object stableValue(Object value) {
+        if (value instanceof io.teaql.core.blob.BlobRef ref) return ref.key();
+        if (value instanceof io.teaql.core.blob.BlobRef[] refs) {
+            return java.util.Arrays.stream(refs).map(ref -> ref == null ? null : ref.key()).toArray(String[]::new);
+        }
+        if (value instanceof java.util.List<?> values) return values.stream().map(SqlParameters::stableValue).toList();
+        if (value instanceof Object[] values) return java.util.Arrays.stream(values).map(SqlParameters::stableValue).toArray();
+        return value;
     }
 }

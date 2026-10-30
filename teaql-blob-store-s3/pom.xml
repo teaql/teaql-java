@@ -1,0 +1,18 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent><groupId>io.teaql</groupId><artifactId>teaql-java-parent</artifactId><version>1.555-RELEASE</version></parent>
+    <artifactId>teaql-blob-store-s3</artifactId>
+    <description>Version-bound S3-compatible Blob transport</description>
+    <properties><aws.sdk.version>2.55.16</aws.sdk.version></properties>
+    <dependencies>
+        <dependency><groupId>io.teaql</groupId><artifactId>teaql-core</artifactId></dependency>
+        <dependency><groupId>io.teaql</groupId><artifactId>teaql-blob-staging-file</artifactId></dependency>
+        <dependency><groupId>software.amazon.awssdk</groupId><artifactId>s3</artifactId><version>${aws.sdk.version}</version></dependency>
+        <dependency><groupId>software.amazon.awssdk</groupId><artifactId>apache5-client</artifactId><version>${aws.sdk.version}</version></dependency>
+        <dependency><groupId>junit</groupId><artifactId>junit</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>io.teaql</groupId><artifactId>teaql-runtime</artifactId><scope>test</scope></dependency>
+    </dependencies>
+    <build><plugins><plugin><artifactId>maven-jar-plugin</artifactId><configuration><archive><manifestEntries>
+        <Automatic-Module-Name>io.teaql.blob.store.s3</Automatic-Module-Name>
+    </manifestEntries></archive></configuration></plugin></plugins></build>
+</project>

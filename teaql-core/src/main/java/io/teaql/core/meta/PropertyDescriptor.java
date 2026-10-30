@@ -29,6 +29,18 @@ public class PropertyDescriptor implements EntityProperty {
     private PropertyType type;
 
     private Map<String, String> additionalInfo = new LinkedHashMap<>();
+    private io.teaql.core.blob.BlobFieldSpec blobFieldSpec;
+
+    public PropertyDescriptor withBlobFieldSpec(io.teaql.core.blob.BlobFieldSpec spec) {
+        java.util.Objects.requireNonNull(spec, "spec");
+        if (!spec.field().equals(getName()) || getType().javaType() != io.teaql.core.blob.BlobRef.class) {
+            throw new IllegalArgumentException("BLOB_POLICY_INVALID: incompatible field metadata");
+        }
+        blobFieldSpec = spec;
+        return this;
+    }
+
+    public io.teaql.core.blob.BlobFieldSpec blobFieldSpec() { return blobFieldSpec; }
 
     public PropertyDescriptor() {
     }

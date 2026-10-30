@@ -55,7 +55,7 @@ public class PostgresDataServiceExecutor extends SqlDataServiceExecutor {
                         + "numeric_precision, numeric_scale AS decimal_digits, "
                         + "CASE WHEN is_nullable = 'YES' THEN 1 ELSE 0 END AS nullable "
                         + "FROM information_schema.columns "
-                        + "WHERE table_name = ? AND table_schema = 'public'";
+                        + "WHERE table_name = ? AND table_schema = current_schema()";
                 return getExecutionAdapter().queryForList(sql, new Object[] {tableName.toLowerCase()});
             }
 

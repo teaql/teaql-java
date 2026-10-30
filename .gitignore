@@ -37,6 +37,10 @@ build/
 !tools/test_error_catalog.py
 !tools/test_schema_context_contract.py
 !tools/test_dialect_integration_guide.py
+!tools/test_verify_maven_release.py
+!tools/test_verify_maven_release_absence.py
+!tools/verify_signed_release_tag.py
+!tools/test_verify_signed_release_tag.py
 __pycache__/
 
 # Sensitive

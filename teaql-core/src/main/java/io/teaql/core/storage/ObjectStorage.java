@@ -94,6 +94,27 @@ public final class ObjectStorage {
         if (provider == null) throw new StorageException(NOT_CONFIGURED);
         return new ObjectStorage(context, comment, provider);
     }
+
+    /** Trusted adapter composition; preserves this invocation's context and observer. */
+    @io.teaql.core.FrameworkInternal("Configured storage adapter composition, not client input")
+    public static ObjectStorage forProvider(UserContext context, String comment, ObjectStorageProvider provider) {
+        return new ObjectStorage(Objects.requireNonNull(context), comment, provider);
+    }
+
+    public boolean supportsVersionConditionalDelete() { return provider.supportsVersionConditionalDelete(); }
+
+    public void deleteIfVersionMatches(Key key, String expectedVersion) {
+        if (expectedVersion == null || expectedVersion.isBlank() || expectedVersion.length() > 1024
+                || expectedVersion.equals("*") || expectedVersion.contains(",")
+                || !expectedVersion.chars().allMatch(ch -> ch >= 33 && ch <= 126)) {
+            throw new StorageException(INVALID_INPUT);
+        }
+        execute("delete_conditional", () -> {
+            if (!provider.supportsVersionConditionalDelete()) throw new StorageException(UNSUPPORTED);
+            provider.deleteIfVersionMatches(invocation, Objects.requireNonNull(key), expectedVersion);
+            return null;
+        });
+    }
     public Metadata put(Key key, InputStream content, PutOptions options) {
         Objects.requireNonNull(content);
         return execute("put", () -> {

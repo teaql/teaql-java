@@ -10,5 +10,10 @@ public interface ObjectStorageProvider {
     Content get(Invocation invocation, Key key);
     Optional<Metadata> head(Invocation invocation, Key key);
     void delete(Invocation invocation, Key key);
+    /** Must be an atomic provider precondition, never a stat followed by unconditional delete. */
+    default boolean supportsVersionConditionalDelete() { return false; }
+    default void deleteIfVersionMatches(Invocation invocation, Key key, String expectedVersion) {
+        throw new StorageException(StorageException.Code.UNSUPPORTED);
+    }
     ReadUrl getReadUrl(Invocation invocation, Key key, ReadUrlOptions options);
 }

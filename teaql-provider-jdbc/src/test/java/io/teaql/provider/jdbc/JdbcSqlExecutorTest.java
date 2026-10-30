@@ -327,6 +327,22 @@ public class JdbcSqlExecutorTest {
         public boolean isWrapperFor(Class<?> iface) throws SQLException { return false; }
     }
 
+    @Test public void transactionIdentityIsStableWithinNestedScopeAndNeverReusedAfterCompletion() {
+        org.junit.Assert.assertNull(sqlExecutor.activeTransactionIdentity());
+        Object[] token=new Object[1];
+        sqlExecutor.executeInTransaction(() -> {
+            token[0]=sqlExecutor.activeTransactionIdentity(); org.junit.Assert.assertNotNull(token[0]);
+            sqlExecutor.executeInTransaction(() -> org.junit.Assert.assertSame(token[0],sqlExecutor.activeTransactionIdentity()));
+        });
+        org.junit.Assert.assertNull(sqlExecutor.activeTransactionIdentity());
+        org.junit.Assert.assertThrows(IllegalStateException.class,() -> sqlExecutor.executeInTransaction(() -> {
+            org.junit.Assert.assertNotSame(token[0],sqlExecutor.activeTransactionIdentity()); token[0]=sqlExecutor.activeTransactionIdentity();
+            throw new IllegalStateException("rollback");
+        }));
+        org.junit.Assert.assertNull(sqlExecutor.activeTransactionIdentity());
+        sqlExecutor.executeInTransaction(() -> org.junit.Assert.assertNotSame(token[0],sqlExecutor.activeTransactionIdentity()));
+    }
+
     private static final class TypedUser extends io.teaql.core.BaseEntity {
         private final Long id;
         private final String name;

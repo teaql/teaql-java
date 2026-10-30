@@ -77,6 +77,9 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
     }
 
     @Override public Object transactionResource() { return executionAdapter; }
+    @Override public Object activeTransactionIdentity() { return executionAdapter.activeTransactionIdentity(); }
+    @Override public boolean supportsTransactionCompletion() { return executionAdapter.supportsTransactionCompletion(); }
+    @Override public void afterTransaction(io.teaql.core.TransactionCompletion completion) { executionAdapter.afterTransaction(completion); }
 
     @Override
     public void ensureSchema(UserContext context, io.teaql.core.SchemaExecutor.Invocation invocation) {

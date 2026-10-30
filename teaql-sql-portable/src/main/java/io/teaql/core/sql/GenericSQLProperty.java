@@ -53,7 +53,12 @@ public class GenericSQLProperty extends PropertyDescriptor implements SQLPropert
             d.setValue(((Entity) value).getId());
         }
         else {
-            d.setValue(value);
+            if (getType() != null && getType().javaType() == io.teaql.core.blob.BlobRef.class) {
+                if (value != null && !(value instanceof io.teaql.core.blob.BlobRef)) {
+                    throw new IllegalArgumentException("BLOB_REFERENCE_INVALID");
+                }
+                d.setValue(value == null ? null : ((io.teaql.core.blob.BlobRef) value).key());
+            } else d.setValue(value);
         }
         return ListUtil.of(d);
     }
@@ -70,7 +75,8 @@ public class GenericSQLProperty extends PropertyDescriptor implements SQLPropert
         }
         else {
             Object value = getValue(rs);
-            entity.setProperty(getName(), Convert.convert(targetType, value));
+            entity.setProperty(getName(), targetType == io.teaql.core.blob.BlobRef.class
+                    ? BlobSQLProperty.decode(value) : Convert.convert(targetType, value));
         }
     }
 

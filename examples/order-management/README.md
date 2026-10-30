@@ -15,6 +15,33 @@ an unauthorized high-value order as one complete graph, and queries SQLite to
 prove that zero order rows were written. The second run demonstrates
 idempotency and repeats the policy proof.
 
+## Generated Order document round trip
+
+The application-owned `GeneratedOrderDocumentService` uses the generated
+`CustomerOrder` and `OrderLine` queries and saves with a context-bound `tqd1`
+document. It allows changing item quantities and removing listed items after
+checking the current customer grant, owner, aggregate and item versions, and the
+complete issued relation. An application-owned command receipt shares the same
+SQLite JDBC transaction as the generated entity saves. The terminal entry point
+creates a temporary database and key, opens and accepts an Order document, then
+checks the saved generated entities and single receipt. It requires no web server.
+
+Install the current TeaQL SQLite and secure-document modules from the repository
+root, then run the Java 21 example:
+
+```bash
+mvn -pl teaql-sqlite,teaql-secure-document-reference -am -DskipTests install
+cd examples/order-management
+mvn -pl java-app-console -am install
+mvn -pl java-app-console exec:java -Dexec.mainClass=com.teaql.example.GeneratedDocumentCli
+```
+
+The generated consumer tests use real SQLite and cover a successful update and
+removal, idempotent replay, rejected projection and stale revision, rollback when
+an item write or receipt insert fails, and a presentation failure after commit.
+This example covers only the listed Order fields and mutations; adding another
+generated model requires its own application-owned document adapter.
+
 Read `java-app-console/.../OrderManagementApp.java` first (handwritten), then `java-lib-core/lib/.../Q.java`, `CustomerOrderRequest.java`, and `CustomerOrder.java` (generated). Java is the naming and governance gold standard: `comment(...)` may appear anywhere before `purpose(...)`; only the purposed request exposes execute methods.
 
 ## Verify the first result

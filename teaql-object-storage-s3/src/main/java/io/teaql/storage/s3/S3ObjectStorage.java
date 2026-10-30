@@ -119,6 +119,15 @@ public final class S3ObjectStorage implements ObjectStorageProvider, AutoCloseab
         catch (SdkException error) { throw translate(error); }
     }
 
+    @Override public boolean supportsVersionConditionalDelete() { return true; }
+
+    /** S3 DeleteObject If-Match; a mismatch remains CONFLICT and is never retried unconditionally. */
+    @Override public void deleteIfVersionMatches(Invocation invocation, Key key, String expectedVersion) {
+        Objects.requireNonNull(invocation);
+        try { client.deleteObject(b -> b.bucket(bucket).key(key.value()).ifMatch(expectedVersion)); }
+        catch (SdkException error) { throw translate(error); }
+    }
+
     @Override public ReadUrl getReadUrl(Invocation invocation, Key key, ReadUrlOptions options) {
         Objects.requireNonNull(invocation);
         try {

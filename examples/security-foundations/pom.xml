@@ -22,6 +22,10 @@
             <artifactId>teaql-runtime</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.teaql</groupId>
+            <artifactId>teaql-secure-document-reference</artifactId>
+        </dependency>
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <scope>test</scope>

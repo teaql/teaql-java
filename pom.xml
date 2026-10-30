@@ -57,6 +57,13 @@
         <module>teaql-jackson</module>
         <module>teaql-query-json</module>
         <module>teaql-runtime</module>
+        <module>teaql-web-integration-spring-mvc</module>
+        <module>teaql-secure-document-reference</module>
+        <module>teaql-blob-reference</module>
+        <module>teaql-blob-staging-file</module>
+        <module>teaql-blob-store-file</module>
+        <module>teaql-blob-store-s3</module>
+        <module>teaql-blob-content-tika</module>
         <module>teaql-runtime-log</module>
         <module>teaql-context-runtime-tools</module>
         <module>teaql-tool-http</module>
@@ -82,6 +89,8 @@
         <module>examples/business-id-runtime</module>
         <module>examples/security-foundations</module>
         <module>examples/round-trip-reference-runtime</module>
+        <module>examples/view-preparation</module>
+        <module>examples/blob-view-preparation</module>
         <module>teaql-tfp-endpoint</module>
         <module>teaql-opentelemetry</module>
         <module>examples/conformance/lib</module>
@@ -161,12 +170,47 @@
             </dependency>
             <dependency>
                 <groupId>io.teaql</groupId>
+                <artifactId>teaql-web-integration-spring-mvc</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
                 <artifactId>teaql-context-runtime-tools</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.teaql</groupId>
                 <artifactId>teaql-tool-http</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-secure-document-reference</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-blob-reference</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-blob-store-file</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-blob-store-s3</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-blob-staging-file</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.teaql</groupId>
+                <artifactId>teaql-blob-content-tika</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

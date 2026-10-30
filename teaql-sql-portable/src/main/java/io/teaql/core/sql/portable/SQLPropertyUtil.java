@@ -38,7 +38,9 @@ public class SQLPropertyUtil {
         String defaultType = "VARCHAR(255)";
         if (property.getType() != null && property.getType().javaType() != null) {
             Class<?> jType = property.getType().javaType();
-            if (io.teaql.core.Entity.class.isAssignableFrom(jType) || jType == Long.class || jType == long.class) {
+            if (jType == io.teaql.core.blob.BlobRef.class) {
+                defaultType = "VARCHAR(128)";
+            } else if (io.teaql.core.Entity.class.isAssignableFrom(jType) || jType == Long.class || jType == long.class) {
                 defaultType = "BIGINT";
             } else if (jType == Integer.class || jType == int.class) {
                 defaultType = "INTEGER";
@@ -76,7 +78,12 @@ public class SQLPropertyUtil {
             SQLData d = new SQLData();
             d.setColumnName(columnName);
             d.setTableName(tableName);
-            d.setValue(unwrapEntityId(value));
+            if (property.getType().javaType() == io.teaql.core.blob.BlobRef.class) {
+                if (value != null && !(value instanceof io.teaql.core.blob.BlobRef)) {
+                    throw new IllegalArgumentException("BLOB_REFERENCE_INVALID");
+                }
+                d.setValue(value == null ? null : ((io.teaql.core.blob.BlobRef) value).key());
+            } else d.setValue(unwrapEntityId(value));
             return ListUtil.of(d);
         }
         throw new TeaQLRuntimeException("Cannot derive SQL metadata for property: " + property.getName() + " (class: " + property.getClass().getName() + ")");

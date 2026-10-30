@@ -52,9 +52,9 @@ final class GeneratedNestedGraphAssertions {
         assertSame(rows.get(0).__internalLoadState(), rows.get(2).__internalLoadState());
         assertNotSame(rows.get(0).__internalLoadState(), rows.get(1).__internalLoadState());
         var json = mapper.readTree(mapper.writeValueAsString(loaded));
-        assertEquals("Private extension", json.get("schoolList").get(0).get("#" + extension).asText());
-        assertFalse(json.get("schoolList").get(1).has("#" + extension));
-        assertTrue(json.get("schoolList").get(2).get("#" + extension).isNull());
+        assertEquals("Private extension", json.get("school_list").get(0).get("#" + extension).asText());
+        assertFalse(json.get("school_list").get(1).has("#" + extension));
+        assertTrue(json.get("school_list").get(2).get("#" + extension).isNull());
 
         var nestedChild = Q.schoolsWithMinimalFields().withNameIn(renamed, nullName).selectName();
         nestedChild.selectDynamicFieldsWith(new DynamicFieldSelection().selectString(extension));
@@ -64,8 +64,8 @@ final class GeneratedNestedGraphAssertions {
                 .limit(1).comment("what: retain dynamic children through a forward ancestor")
                 .purpose("why: verify nested graph presentation").executeForOne(context);
         json = mapper.readTree(mapper.writeValueAsString(nested));
-        assertEquals("Private extension", json.get("platform").get("schoolList").get(0).get("#" + extension).asText());
-        assertTrue(json.get("platform").get("schoolList").get(1).get("#" + extension).isNull());
+        assertEquals("Private extension", json.get("platform").get("school_list").get(0).get("#" + extension).asText());
+        assertTrue(json.get("platform").get("school_list").get(1).get("#" + extension).isNull());
         System.out.println("PASS generated Java nested dynamic Value/NULL/NotLoaded and shared snapshots");
         System.out.println("PASS generated Java LF17 dynamic metadata shared without fixed slots");
     }
@@ -77,7 +77,7 @@ final class GeneratedNestedGraphAssertions {
                         .selectName().orderByIdAscending().limit(2))
                 .limit(1).comment("what: load two selected Schools under the seeded Platform")
                 .purpose("why: verify generated reverse graph state and JSON").executeForOne(context);
-        assertTrue(platform.isPropertyLoaded("schoolList"));
+        assertTrue(platform.isPropertyLoaded("school_list"));
         var children = platform.getSchoolList();
         assertEquals(2, children.size());
         assertEquals(renamed, E.school(children.get(0)).getName().eval());
@@ -85,10 +85,10 @@ final class GeneratedNestedGraphAssertions {
         var state = children.get(0).__internalLoadState();
         assertSame(state, children.get(1).__internalLoadState());
         var json = mapper.readTree(mapper.writeValueAsString(platform));
-        assertEquals(renamed, json.get("schoolList").get(0).get("name").asText());
-        assertEquals(second, json.get("schoolList").get(1).get("name").asText());
-        assertFalse(json.get("schoolList").get(0).has("address"));
-        assertFalse(json.get("schoolList").get(0).has("_original_values"));
+        assertEquals(renamed, json.get("school_list").get(0).get("name").asText());
+        assertEquals(second, json.get("school_list").get(1).get("name").asText());
+        assertFalse(json.get("school_list").get(0).has("address"));
+        assertFalse(json.get("school_list").get(0).has("_original_values"));
         assertSame(state, children.get(0).__internalLoadState());
         var restored = mapper.treeToValue(json, platform.getClass());
         assertEquals(2, restored.getSchoolList().size());
@@ -105,11 +105,11 @@ final class GeneratedNestedGraphAssertions {
                 .purpose("why: verify forward ancestor and reverse descendant availability")
                 .executeForOne(context);
         var parent = E.school(nested).getPlatform().eval();
-        assertTrue(parent.isPropertyLoaded("schoolList"));
+        assertTrue(parent.isPropertyLoaded("school_list"));
         assertEquals(2, parent.getSchoolList().size());
         var nestedJson = mapper.readTree(mapper.writeValueAsString(nested));
-        assertEquals(renamed, nestedJson.get("platform").get("schoolList").get(0).get("name").asText());
-        assertEquals(second, nestedJson.get("platform").get("schoolList").get(1).get("name").asText());
+        assertEquals(renamed, nestedJson.get("platform").get("school_list").get(0).get("name").asText());
+        assertEquals(second, nestedJson.get("platform").get("school_list").get(1).get("name").asText());
         var restoredNested = mapper.treeToValue(nestedJson, nested.getClass());
         assertEquals(2, E.school(restoredNested).getPlatform().eval().getSchoolList().size());
         assertEquals(nestedJson, mapper.readTree(mapper.writeValueAsString(restoredNested)));
@@ -118,23 +118,23 @@ final class GeneratedNestedGraphAssertions {
                 .selectSchoolListWith(Q.schoolsWithMinimalFields().selectName().orderByIdAscending().limit(2))
                 .limit(1).comment("what: explicitly load the unused Secondary constant's Schools")
                 .purpose("why: distinguish loaded empty from omitted reverse detail").executeForOne(context);
-        assertTrue(empty.isPropertyLoaded("schoolList"));
+        assertTrue(empty.isPropertyLoaded("school_list"));
         assertNotNull(empty.getSchoolList());
         assertTrue(empty.getSchoolList().isEmpty());
         var emptyJson = mapper.readTree(mapper.writeValueAsString(empty));
-        assertTrue(emptyJson.get("schoolList").isArray());
-        assertEquals(0, emptyJson.get("schoolList").size());
+        assertTrue(emptyJson.get("school_list").isArray());
+        assertEquals(0, emptyJson.get("school_list").size());
         var restoredEmpty = mapper.treeToValue(emptyJson, empty.getClass());
-        assertTrue(restoredEmpty.isPropertyLoaded("schoolList"));
+        assertTrue(restoredEmpty.isPropertyLoaded("school_list"));
         assertTrue(restoredEmpty.getSchoolList().isEmpty());
 
         var unselected = Q.schoolTypesWithMinimalFields().withIdIs(1002L)
                 .limit(1).comment("what: load the same constant without selecting its Schools")
                 .purpose("why: NotLoaded must not serialize as an empty list").executeForOne(context);
-        assertFalse(unselected.isPropertyLoaded("schoolList"));
-        assertFalse(mapper.readTree(mapper.writeValueAsString(unselected)).has("schoolList"));
+        assertFalse(unselected.isPropertyLoaded("school_list"));
+        assertFalse(mapper.readTree(mapper.writeValueAsString(unselected)).has("school_list"));
         var restoredUnselected = mapper.readValue(mapper.writeValueAsString(unselected), unselected.getClass());
-        assertFalse(restoredUnselected.isPropertyLoaded("schoolList"));
+        assertFalse(restoredUnselected.isPropertyLoaded("school_list"));
         System.out.println("PASS generated Java LF09 reverse Loaded/Empty/NotLoaded through Q/E/JSON");
 
         var filtered = Q.schoolsWithMinimalFields().withIdIs(schoolId)
@@ -146,7 +146,7 @@ final class GeneratedNestedGraphAssertions {
         assertFalse(filtered.getSchoolType().isPropertyLoaded("code"));
         var missing = assertThrows(io.teaql.core.value.TeaQLNotLoadedException.class,
                 () -> E.school(filtered).getSchoolType().getCode().eval());
-        assertEquals("schoolType.code", missing.getAccessPath());
+        assertEquals("school_type.code", missing.getAccessPath());
         assertEquals("code", missing.getBreakPoint());
         assertEquals("School(id=" + schoolId + ")", missing.getRoot());
         var filteredJson = mapper.readTree(mapper.writeValueAsString(filtered));
@@ -156,7 +156,7 @@ final class GeneratedNestedGraphAssertions {
         assertFalse(restoredFiltered.getSchoolType().isPropertyLoaded("code"));
         var restoredMissing = assertThrows(io.teaql.core.value.TeaQLNotLoadedException.class,
                 () -> E.school(restoredFiltered).getSchoolType().getCode().eval());
-        assertEquals("schoolType.code", restoredMissing.getAccessPath());
+        assertEquals("school_type.code", restoredMissing.getAccessPath());
         assertEquals("code", restoredMissing.getBreakPoint());
         assertEquals("School(id=" + schoolId + ")", restoredMissing.getRoot());
         assertFalse(restoredFiltered.__internalHasMutationLedger());

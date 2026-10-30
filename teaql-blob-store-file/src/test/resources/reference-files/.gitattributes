@@ -1,0 +1,2 @@
+# Real file payloads retain their exact conformance bytes, including PDF xref spacing.
+files/* binary

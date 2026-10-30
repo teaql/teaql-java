@@ -1008,7 +1008,9 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 PropertyDescriptor property = binding.property();
                 Object value;
                 if (binding.relationDescriptor() == null) {
-                    value = row.get(binding.index(), property.getType().javaType());
+                    value = property.getType().javaType() == io.teaql.core.blob.BlobRef.class
+                            ? io.teaql.core.sql.BlobSQLProperty.decode(row.get(binding.index(), String.class))
+                            : row.get(binding.index(), property.getType().javaType());
                 }
                 else {
                     Long id = row.get(binding.index(), Long.class);
@@ -1395,6 +1397,9 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     static Object convertTemporalColumnValue(Class<?> targetType, Object value) {
+        if (targetType == io.teaql.core.blob.BlobRef.class) {
+            return io.teaql.core.sql.BlobSQLProperty.decode(value);
+        }
         if ((targetType == java.time.LocalDateTime.class || targetType == java.time.LocalDate.class
                 || targetType == java.time.LocalTime.class) && targetType.isInstance(value)) {
             return value;

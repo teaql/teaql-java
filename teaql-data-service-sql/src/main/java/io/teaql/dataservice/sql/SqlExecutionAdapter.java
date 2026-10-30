@@ -46,6 +46,17 @@ public interface SqlExecutionAdapter {
     }
     default boolean hasActiveTransaction() { return false; }
 
+    default boolean supportsTransactionCompletion() { return false; }
+
+    @io.teaql.core.FrameworkInternal("Physical transaction owner notification; no nested-return approximation")
+    default void afterTransaction(io.teaql.core.TransactionCompletion completion) {
+        throw new UnsupportedOperationException("Physical transaction completion is not supported");
+    }
+
+    /** Opaque identity of the current physical transaction, stable only until commit/rollback. */
+    @io.teaql.core.FrameworkInternal("Transaction participant ownership; never a workspace credential")
+    default Object activeTransactionIdentity() { return null; }
+
     /** Opaque, non-reused instance token for held storage views; never a URL or transaction handle. */
     default Object storageIdentity() { return null; }
 }

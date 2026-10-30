@@ -13,11 +13,19 @@ import io.teaql.core.businessid.BusinessClock;
 import io.teaql.core.businessid.BusinessIdSchemaContributor;
 import io.teaql.core.businessid.BusinessIdService;
 import io.teaql.core.reference.ResolvedRoundTripReference;
+import io.teaql.core.reference.DocumentSnapshot;
+import io.teaql.core.reference.BoundDocumentSnapshot;
+import io.teaql.core.reference.BlobSelectionClaim;
+import io.teaql.core.reference.BlobSelectionTarget;
+import io.teaql.core.reference.ContextBoundDocumentService;
 import io.teaql.core.reference.ReferenceDocumentScope;
 import io.teaql.core.reference.RoundTripReferenceCodec;
 import io.teaql.core.reference.RoundTripReferenceErrorCode;
 import io.teaql.core.reference.RoundTripReferenceException;
 import io.teaql.core.reference.TrustedReferencePrincipal;
+import io.teaql.core.reference.VerifiedDocumentSnapshot;
+import io.teaql.core.reference.VerifiedBoundDocumentSnapshot;
+import io.teaql.core.reference.VerifiedBlobSelection;
 import java.time.Duration;
 
 public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
@@ -28,6 +36,7 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
     String TEAQL_FIX_EVIDENCE_CURRENT = "teaql.fix.evidence.current";
     String TEAQL_FIX_EVIDENCE_LAST = "teaql.fix.evidence.last";
     String TEAQL_TRUSTED_REFERENCE_PRINCIPAL = TrustedReferencePrincipal.class.getName();
+    String TEAQL_CONTEXT_BOUND_DOCUMENT_SERVICE = ContextBoundDocumentService.class.getName();
 
     default void beginFixEvidence() {
         if (CheckerInvocation.current(this) == null) CheckerInvocation.forgetLastEvidence(this);
@@ -303,6 +312,88 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
             Object reference, ReferenceDocumentScope scope, String expectedEntityType) {
         return roundTripReferences().deserialize(
                 this, trustedReferencePrincipal(), scope, reference, expectedEntityType);
+    }
+
+    default String issueDocumentSnapshot(DocumentSnapshot snapshot, Duration lifetime) {
+        return roundTripReferences().issueDocumentSnapshot(
+                this, trustedReferencePrincipal(), snapshot, lifetime);
+    }
+
+    default VerifiedDocumentSnapshot consumeDocumentSnapshot(
+            String token, String expectedAggregateType, String expectedPurpose) {
+        return roundTripReferences().consumeDocumentSnapshot(
+                this, trustedReferencePrincipal(), token, expectedAggregateType, expectedPurpose);
+    }
+
+    default String issueBoundDocumentSnapshot(
+            BoundDocumentSnapshot document, Duration lifetime) {
+        return roundTripReferences().issueBoundDocumentSnapshot(
+                this, trustedReferencePrincipal(), document, lifetime);
+    }
+
+    default VerifiedBoundDocumentSnapshot consumeBoundDocumentSnapshot(
+            String token, String expectedAggregateType, String expectedPurpose) {
+        return roundTripReferences().consumeBoundDocumentSnapshot(
+                this, trustedReferencePrincipal(), token, expectedAggregateType, expectedPurpose);
+    }
+
+    default String issueBlobSelection(
+            String documentToken, BlobSelectionClaim claim, Duration lifetime) {
+        return roundTripReferences().issueBlobSelection(
+                this, trustedReferencePrincipal(), documentToken, claim, lifetime);
+    }
+
+    default VerifiedBlobSelection consumeBlobSelection(
+            String documentToken, String token, BlobSelectionTarget expectedTarget) {
+        return roundTripReferences().consumeBlobSelection(
+                this, trustedReferencePrincipal(), documentToken, token, expectedTarget);
+    }
+
+    default UserContext withContextBoundDocumentService(ContextBoundDocumentService service) {
+        putAttribute(TEAQL_CONTEXT_BOUND_DOCUMENT_SERVICE,
+                java.util.Objects.requireNonNull(service, "service"));
+        return this;
+    }
+
+    default ContextBoundDocumentService contextBoundDocumentService() {
+        ContextBoundDocumentService service = getAttribute(
+                TEAQL_CONTEXT_BOUND_DOCUMENT_SERVICE, ContextBoundDocumentService.class);
+        if (service == null) {
+            throw new RoundTripReferenceException(
+                    RoundTripReferenceErrorCode.PROVIDER_NOT_CONFIGURED,
+                    "ContextBoundDocumentService is not installed");
+        }
+        return service;
+    }
+
+    default ContextBoundDocumentService.ContextualDocument openDocument(
+            ContextBoundDocumentService.OpenRequest request) {
+        return contextBoundDocumentService().openDocument(this, trustedReferencePrincipal(), request);
+    }
+
+    default ContextBoundDocumentService.AcceptedDocument acceptDocument(
+            ContextBoundDocumentService.AcceptRequest request) {
+        return contextBoundDocumentService().acceptDocument(this, trustedReferencePrincipal(), request);
+    }
+
+    default io.teaql.core.view.DocumentView openDocumentForView(
+            ContextBoundDocumentService.OpenRequest request) {
+        io.teaql.core.view.ViewPreparationService views = capability(
+                io.teaql.core.view.ViewPreparationService.class);
+        if (views == null) throw new io.teaql.core.view.ViewPreparationException(
+                io.teaql.core.view.ViewPreparationException.Code.VIEW_CAPABILITY_MISSING,
+                io.teaql.core.view.ViewOptions.BusinessCompletion.QUERY);
+        return views.openDocumentForView(this, request);
+    }
+
+    default io.teaql.core.view.AcceptedDocumentView acceptDocumentForView(
+            ContextBoundDocumentService.AcceptRequest request) {
+        io.teaql.core.view.ViewPreparationService views = capability(
+                io.teaql.core.view.ViewPreparationService.class);
+        if (views == null) throw new io.teaql.core.view.ViewPreparationException(
+                io.teaql.core.view.ViewPreparationException.Code.VIEW_CAPABILITY_MISSING,
+                io.teaql.core.view.ViewOptions.BusinessCompletion.QUERY);
+        return views.acceptDocumentForView(this, request);
     }
 
     /**

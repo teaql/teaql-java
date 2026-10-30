@@ -29,7 +29,7 @@ class GeneratedReadbackAllocationTest {
     static Object value(PropertyDescriptor property) {
         Class<?> type=property.getType().javaType();
         if(property.getName().startsWith("probe"))return null;
-        if(Entity.class.isAssignableFrom(type))return property.getName().equals("schoolType")?1001L:1L;
+        if(Entity.class.isAssignableFrom(type))return property.getName().equals("school_type")?1001L:1L;
         if(type==String.class)return "readback name";
         if(type==Long.class||type==long.class)return 1L;
         if(type==Integer.class||type==int.class)return 0;
@@ -93,7 +93,7 @@ class GeneratedReadbackAllocationTest {
                 assertSame(state,row.__internalLoadState());assertSame(layout,state.layout());
                 assertEquals(layout.indexes().size(),layout.indexes().keySet().stream().filter(row::isPropertyLoaded).count());
                 assertEquals(reference.<String>getProperty("name"),row.<String>getProperty("name"));
-                assertEquals(LocalDate.of(1995,9,1),row.getProperty("establishedDate"));
+                assertEquals(LocalDate.of(1995,9,1),row.getProperty("established_date"));
                 for(var binding:bindings) {
                     Object expected=reference.__internalGet(binding.property().getName());
                     Object actual=row.__internalGet(binding.property().getName());
