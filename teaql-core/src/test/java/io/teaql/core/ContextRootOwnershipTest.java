@@ -18,9 +18,17 @@ public class ContextRootOwnershipTest {
             else super.__internalSet(field,value);
         }
     }
-    static final class Ref extends BaseEntity {
+    static class Ref extends BaseEntity {
         @Override public String typeName() { return "Tenant"; }
         Ref(long id) { setProperty("id",id); set$status(EntityStatus.REFER); }
+    }
+    static final class SpecializedRef extends Ref {
+        SpecializedRef(long id) { super(id); }
+        @Override public String typeName() { return "SpecializedTenant"; }
+    }
+    static class UnrelatedRef extends BaseEntity {
+        UnrelatedRef(long id) { setProperty("id",id); set$status(EntityStatus.REFER); }
+        @Override public String typeName() { return "OtherTenant"; }
     }
     static final Checker<Row> CHECKER = new Checker<>() {
         public String type() { return "PurchaseOrder"; }
@@ -84,6 +92,54 @@ public class ContextRootOwnershipTest {
         assertFalse(ledger.containsField(key,"domain_root"));ledger.set(key,"domain_root",null);ledger.pushChangeSet();
         assertTrue(ledger.containsField(key,"domain_root"));assertNull(ledger.get(key,"domain_root"));ledger.set(key,"domain_root",1L);
         assertEquals(1L,ledger.get(key,"domain_root"));ledger.popChangeSet();assertTrue(ledger.containsField(key,"domain_root"));assertNull(ledger.get(key,"domain_root"));
+    }
+    static UserContext modelContext(boolean related) {
+        var metadata=new io.teaql.core.meta.SimpleEntityMetaFactory();
+        var root=new io.teaql.core.meta.EntityDescriptor();root.setType("Tenant");root.setTargetType(Ref.class);metadata.register(root);
+        var specialized=new io.teaql.core.meta.EntityDescriptor();specialized.setType("SpecializedTenant");specialized.setTargetType(SpecializedRef.class);
+        if(related) specialized.setParent(root);metadata.register(specialized);
+        var other=new io.teaql.core.meta.EntityDescriptor();other.setType("OtherTenant");other.setTargetType(UnrelatedRef.class);metadata.register(other);
+        Map<String,Object> values=new HashMap<>();
+        var context=new UserContextTest.DummyUserContext() {
+            @Override public <T> T capability(Class<T> type) { return type==io.teaql.core.meta.EntityMetaFactory.class?type.cast(metadata):null; }
+            @Override public void putAttribute(String key,Object value) { values.put(key,value); }
+            @Override public Object getAttribute(String key) { return values.get(key); }
+            @Override public <T> T getAttribute(String key,Class<T> type) { return type.cast(values.get(key)); }
+        };
+        return context.withActiveRoot(new ContextEntityRef("Tenant",1L));
+    }
+    @Test public void aModelDeclaredRootSubtypeIsAcceptedWithoutCreatingMutationState() {
+        var row=loaded();row.setProperty("domain_root",new SpecializedRef(1));
+        var state=row.__internalLoadState();var context=modelContext(true);verify(context,row);
+        assertNull(context.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT));
+        assertFalse(row.__internalHasMutationLedger());assertSame(state,row.__internalLoadState());
+    }
+    @Test public void rootSubtypeProvenanceDoesNotPermitTransferToAnotherRoot() {
+        var row=loaded();row.setProperty("domain_root",new SpecializedRef(1));row.updateProperty("domain_root",new SpecializedRef(2));
+        var context=modelContext(true);context.withActiveRoot(new ContextEntityRef("Tenant",2L));
+        assertThrows(ContextRootException.class,()->verify(context,row));
+    }
+    @Test public void subtypeAcceptanceUsesOnlyThisContextsDeclaredModel() {
+        var row=loaded();row.setProperty("domain_root",new SpecializedRef(1));
+        var unrelated=modelContext(false);verify(unrelated,row);assertInvalid(unrelated);
+        var related=modelContext(true);verify(related,row);assertNull(related.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT));
+        var absent=context(1);verify(absent,row);assertInvalid(absent);
+    }
+    @Test public void sameIdOnAnUnrelatedRootTypeIsStillRejected() {
+        var row=loaded();row.setProperty("domain_root",new UnrelatedRef(1));
+        var context=modelContext(true);verify(context,row);assertInvalid(context);
+    }
+    @Test public void aSubtypeNameNotRegisteredInThisContextFailsAsAFieldViolation() {
+        var row=loaded();row.setProperty("domain_root",new Ref(1) {
+            @Override public String typeName() { return "UnregisteredTenant"; }
+        });
+        var context=modelContext(true);verify(context,row);assertInvalid(context);
+    }
+    @Test public void declaredInheritanceCannotSubstituteAnIncompatibleJavaReference() {
+        var row=loaded();row.setProperty("domain_root",new UnrelatedRef(1) {
+            @Override public String typeName() { return "SpecializedTenant"; }
+        });
+        var context=modelContext(true);verify(context,row);assertInvalid(context);
     }
     @SuppressWarnings("unchecked") static void assertInvalid(UserContext context) {
         var results=(List<CheckResult>)context.getAttribute(Checker.TEAQL_DATA_CHECK_RESULT);assertNotNull(results);assertEquals(1,results.size());

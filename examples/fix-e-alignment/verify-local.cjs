@@ -23,6 +23,7 @@ const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "teaql-java-fix-e-build-")
 const report = {schema: "teaql.java-fix-e-example/v1", passed: false, rounds: [], sameDatabase: true,
   localRuntime: repo, databaseRetained: true, sharedMavenInstall: false};
 report.contextRootApplicationSha256 = sha(fs.readFileSync(path.join(example, 'ContextRootProbe.java')));
+report.contextRootSubtypeApplicationSha256 = sha(fs.readFileSync(path.join(example, 'ContextRootSubtypeProbe.java')));
 const {createOwnedRunner, ownedBytes} = require('./owned-command.cjs'), runner = createOwnedRunner();
 async function main() {
 try {
@@ -65,7 +66,7 @@ try {
     if (result.status !== 0) process.exitCode = result.status || 1;
     assert.equal(result.status, 0, bytes.toString().slice(-12000));
     assert(bytes.toString().includes('Tests run: 1, Failures: 0, Errors: 0, Skipped: 0'));
-    for (const marker of ['FIX_E_EXAMPLE=', 'CORE_LOAD_EXAMPLE=', 'CORE_MUTATION_OWNERSHIP=', 'CORE_MUTATION_PAGING=', 'JAVA_E_BOUNDARY_RESULT=', 'JAVA_CONTEXT_ROOT_RESULT=']) {
+    for (const marker of ['FIX_E_EXAMPLE=', 'CORE_LOAD_EXAMPLE=', 'CORE_MUTATION_OWNERSHIP=', 'CORE_MUTATION_PAGING=', 'JAVA_E_BOUNDARY_RESULT=', 'JAVA_CONTEXT_ROOT_RESULT=', 'JAVA_CONTEXT_ROOT_SUBTYPE_RESULT=']) {
       const values = bytes.toString().split(/\r?\n/).filter(line => line.startsWith(marker)).map(line => JSON.parse(line.slice(marker.length)));
       assert.equal(values.length, 1, marker); assert.equal(values[0].passed, true, marker);
     }
@@ -78,6 +79,8 @@ try {
   report.contextRootApplicationSha256 = sha(fs.readFileSync(path.join(example, 'ContextRootProbe.java')));
   report.contextRootDatabase = {file: 'fixture.sqlite.context-root.sqlite',
     sha256: sha(fs.readFileSync(path.join(evidence, 'fixture.sqlite.context-root.sqlite')))};
+  report.contextRootSubtypeDatabase = {file: 'fixture.sqlite.root-subtype.sqlite',
+    sha256: sha(fs.readFileSync(path.join(evidence, 'fixture.sqlite.root-subtype.sqlite')))};
   report.passed = true;
   console.log('PASS Java retained Fix/E/loading/ownership example twice on one database');
 } catch (error) { console.error(error.stack); process.exitCode ||= 1; }

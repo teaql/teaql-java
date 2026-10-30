@@ -89,7 +89,7 @@ public interface Checker<T extends BaseEntity> {
             var change = entity.__internalPropertyChange(property);
             boolean loaded = change == null ? entity.isPropertyLoaded(property) : change.wasOldValueLoaded();
             Object original = change == null ? current : change.getOldValue();
-            Long originalId = contextRootId(original, expectedType);
+            Long originalId = contextRootId(context, original, expectedType);
             if (!loaded || originalId == null) {
                 invalidTypeCheck(context, location, "Mutation requires a loaded context-bound root");
                 return;
@@ -118,7 +118,7 @@ public interface Checker<T extends BaseEntity> {
 
     private void verifySuppliedContextRoot(UserContext context, Object value,
             io.teaql.core.ContextEntityRef root, String expectedType, ObjectLocation location) {
-        Long id = contextRootId(value, expectedType);
+        Long id = contextRootId(context, value, expectedType);
         if (id == null) {
             invalidTypeCheck(context, location, "Mutation requires a loaded context-bound root");
         } else if (!root.id().equals(id)) {
@@ -127,10 +127,34 @@ public interface Checker<T extends BaseEntity> {
         }
     }
 
-    private static Long contextRootId(Object value, String expectedType) {
+    private static Long contextRootId(UserContext context, Object value, String expectedType) {
         if (value instanceof io.teaql.core.Entity reference) {
-            return expectedType.equals(reference.typeName()) && reference.getId() != null && reference.getId() > 0
-                    ? reference.getId() : null;
+            Long id = reference.getId();
+            if (id == null || id <= 0) return null;
+            if (expectedType.equals(reference.typeName())) return id;
+            // References may carry a model-declared subtype. Resolve only from
+            // this context; neither a process-global registry nor SQL is valid
+            // evidence that a different model type belongs to this root family.
+            var metadata = context.capability(io.teaql.core.meta.EntityMetaFactory.class);
+            if (metadata == null) return null;
+            io.teaql.core.meta.EntityDescriptor declared, actual;
+            try {
+                declared = metadata.resolveEntityDescriptor(expectedType);
+                actual = metadata.resolveEntityDescriptor(reference.typeName());
+            } catch (io.teaql.core.TeaQLRuntimeException unknownType) {
+                return null;
+            }
+            if (declared == null || actual == null
+                    || declared.getTargetType() == null || actual.getTargetType() == null
+                    || !declared.getTargetType().isInstance(reference)
+                    || !actual.getTargetType().isInstance(reference)) return null;
+            var visited = java.util.Collections.newSetFromMap(
+                    new java.util.IdentityHashMap<io.teaql.core.meta.EntityDescriptor, Boolean>());
+            for (var descriptor = actual; descriptor != null && visited.add(descriptor);
+                    descriptor = descriptor.getParent()) {
+                if (descriptor == declared) return id;
+            }
+            return null;
         }
         return value instanceof Long id && id > 0 ? id : null;
     }
