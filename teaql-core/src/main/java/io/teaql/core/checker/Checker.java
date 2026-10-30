@@ -124,6 +124,12 @@ public interface Checker<T extends BaseEntity> {
     }
 
     default void appendResult(UserContext context, CheckResult result) {
+        // Rule factories do not know the declaring entity. Bind that identity
+        // before localization/wire rendering, without replacing a more precise
+        // identity already supplied by a custom or specialized checker.
+        if (result.getRootType() == null || result.getRootType().isBlank()) {
+            result.setRootType(type());
+        }
         context.translateCheckResult(result);
         java.util.List list = (java.util.List) CheckerInvocation.attribute(context, TEAQL_DATA_CHECK_RESULT);
         if (list == null) {
