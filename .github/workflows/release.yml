@@ -4,7 +4,6 @@ on:
   push:
     tags:
       - "v*"
-  workflow_dispatch:
 
 concurrency:
   group: teaql-java-maven-release
@@ -39,10 +38,16 @@ jobs:
       - name: Verify tag points at the release commit
         if: github.event_name == 'push'
         run: test "$(git rev-list -n 1 "$GITHUB_REF_NAME")" = "$GITHUB_SHA"
+      - name: Require a verified signed release tag
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 tools/verify_signed_release_tag.py
       - name: Test all modules
         run: mvn -B test
       - name: Check release completeness verifier
-        run: python3 tools/test_verify_maven_release.py
+        run: |
+          python3 tools/test_verify_maven_release.py
+          python3 tools/test_verify_signed_release_tag.py
       - name: Refuse to overwrite an existing release
         if: github.event_name == 'push'
         env:
