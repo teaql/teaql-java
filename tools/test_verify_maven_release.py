@@ -4,6 +4,7 @@
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import threading
@@ -22,20 +23,20 @@ MODULES = [node.text for node in POM.findall("m:modules/m:module", NS)
 class RegistryHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.server.observed.append(("GET", self.path))
-        if self.path != self.server.metadata_path:
+        if self.path == self.server.metadata_path:
+            body = ("<metadata><versioning><release>" + self.server.release
+                    + "</release></versioning></metadata>").encode()
+        elif self.path in self.server.artifacts:
+            body = self.server.artifact_bytes[self.path]
+            if self.path == self.server.tampered_artifact:
+                body += b"tampered"
+        else:
             self.send_error(404)
             return
-        body = ("<metadata><versioning><release>" + self.server.release
-                + "</release></versioning></metadata>").encode()
         self.send_response(200)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
-
-    def do_HEAD(self):
-        self.server.observed.append(("HEAD", self.path))
-        self.send_response(200 if self.path in self.server.artifacts else 404)
-        self.end_headers()
 
     def log_message(self, *args):
         pass
@@ -47,6 +48,13 @@ class MavenReleaseVerifierTests(unittest.TestCase):
         self.work = Path(self.temporary.name)
         self.bin = self.work / "bin"
         self.bin.mkdir()
+        self.candidate = self.work / "candidate"
+        (self.candidate / "tools").mkdir(parents=True)
+        shutil.copyfile(ROOT / "tools/verify_maven_release.sh",
+                        self.candidate / "tools/verify_maven_release.sh")
+        (self.candidate / "pom.xml").write_text(
+            "<modules>\n" + "\n".join(f"<module>{name}</module>" for name in MODULES)
+            + "\n</modules>\n")
         # Exercise all native retry requests without a twelve-second fixture wait.
         sleeper = self.bin / "sleep"
         sleeper.write_text("#!/bin/sh\nexit 0\n")
@@ -62,6 +70,21 @@ class MavenReleaseVerifierTests(unittest.TestCase):
         }
         self.server.artifacts.add(
             f"/repository/io/teaql/teaql-java-parent/{VERSION}/teaql-java-parent-{VERSION}.pom")
+        self.server.artifact_bytes = {}
+        self.server.tampered_artifact = None
+        parent_path = (f"/repository/io/teaql/teaql-java-parent/{VERSION}/"
+                       f"teaql-java-parent-{VERSION}.pom")
+        self.server.artifact_bytes[parent_path] = (self.candidate / "pom.xml").read_bytes()
+        for name in MODULES:
+            module = self.candidate / name
+            target = module / "target"
+            target.mkdir(parents=True)
+            for suffix, local in ((".pom", module / "pom.xml"),
+                                  (".jar", target / f"{name}-{VERSION}.jar"),
+                                  ("-sources.jar", target / f"{name}-{VERSION}-sources.jar")):
+                local.write_bytes(f"candidate {name}{suffix}\n".encode())
+                remote = f"/repository/io/teaql/{name}/{VERSION}/{name}-{VERSION}{suffix}"
+                self.server.artifact_bytes[remote] = local.read_bytes()
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
 
@@ -76,7 +99,7 @@ class MavenReleaseVerifierTests(unittest.TestCase):
         environment = dict(os.environ,
             TEAQL_MAVEN_RELEASE_REPOSITORY=f"http://127.0.0.1:{self.server.server_port}/repository",
             PATH=str(self.bin) + os.pathsep + os.environ["PATH"])
-        return subprocess.run(["bash", str(ROOT / "tools/verify_maven_release.sh"), VERSION],
+        return subprocess.run(["bash", str(self.candidate / "tools/verify_maven_release.sh"), VERSION],
                               cwd=self.work if cwd is None else cwd, env=environment, capture_output=True,
                               text=True, timeout=30)
 
@@ -84,9 +107,10 @@ class MavenReleaseVerifierTests(unittest.TestCase):
         result = self.verify()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn(f"parent plus {len(MODULES)} child modules", result.stdout)
-        heads = [path for method, path in self.server.observed if method == "HEAD"]
-        self.assertEqual(set(heads), self.server.artifacts)
-        self.assertEqual(len(heads), 1 + len(MODULES) * 3)
+        gets = [path for method, path in self.server.observed if method == "GET"
+                and path != self.server.metadata_path]
+        self.assertEqual(set(gets), self.server.artifacts)
+        self.assertEqual(len(gets), 1 + len(MODULES) * 3)
 
     def assert_missing_rejected(self, name, suffix):
         missing = f"/repository/io/teaql/{name}/{VERSION}/{name}-{VERSION}{suffix}"
@@ -95,13 +119,31 @@ class MavenReleaseVerifierTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Missing release artifact:", result.stderr)
         self.assertIn(missing, result.stderr)
-        self.assertEqual(self.server.observed.count(("HEAD", missing)), 5)
+        self.assertEqual(self.server.observed.count(("GET", missing)), 5)
 
     def test_missing_secure_jar_fails_after_bounded_retries(self):
         self.assert_missing_rejected("teaql-secure-document-reference", ".jar")
 
     def test_missing_blob_sources_fails_after_bounded_retries(self):
         self.assert_missing_rejected("teaql-blob-reference", "-sources.jar")
+
+    def test_remote_artifact_byte_mismatch_is_rejected(self):
+        self.server.tampered_artifact = (
+            f"/repository/io/teaql/teaql-blob-reference/{VERSION}/"
+            f"teaql-blob-reference-{VERSION}.jar")
+        result = self.verify()
+        self.assertNotEqual(result.returncode, 0,
+                            "A present old artifact must not qualify new source bytes")
+        self.assertIn("byte mismatch", result.stderr)
+        self.assertEqual(self.server.observed.count(("GET", self.server.tampered_artifact)), 5)
+
+    def test_missing_local_artifact_is_rejected(self):
+        local = self.candidate / "teaql-blob-reference" / "target" / f"teaql-blob-reference-{VERSION}.jar"
+        local.unlink()
+        result = self.verify()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Missing local release artifact:", result.stderr)
+        self.assertIn(str(local), result.stderr)
 
     def test_metadata_must_name_requested_release(self):
         self.server.release = "unrelated-version"
