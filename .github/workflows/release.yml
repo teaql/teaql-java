@@ -47,17 +47,13 @@ jobs:
       - name: Check release completeness verifier
         run: |
           python3 tools/test_verify_maven_release.py
+          python3 tools/test_verify_maven_release_absence.py
           python3 tools/test_verify_signed_release_tag.py
       - name: Refuse to overwrite an existing release
         if: github.event_name == 'push'
         env:
           VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          url="https://maven.teaql.io/repository/maven-releases/io/teaql/teaql-core/$VERSION/teaql-core-$VERSION.pom"
-          if curl --fail --silent --show-error --head "$url" >/dev/null 2>&1; then
-            echo "Release already exists and will not be overwritten: $VERSION" >&2
-            exit 1
-          fi
+        run: tools/verify_maven_release_absence.sh "$VERSION"
       - name: Publish all Maven modules
         if: github.event_name == 'push'
         run: mvn -B deploy -DskipTests -pl '!examples/conformance/lib,!examples/conformance'
