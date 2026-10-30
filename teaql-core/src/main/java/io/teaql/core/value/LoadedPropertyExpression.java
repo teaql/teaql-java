@@ -46,7 +46,8 @@ final class LoadedPropertyExpression<T, E extends BaseEntity, V> implements Expr
     }
     private String describeRoot() {
         Object root = $getRoot();
-        if (root instanceof BaseEntity entity) return entity.typeName() + "(id=" + entity.getId() + ")";
-        return String.valueOf(root);
+        // Diagnostic context identifies a type, never an entity identity or payload.
+        if (root instanceof BaseEntity entity) return entity.typeName();
+        return root == null ? "null" : root.getClass().getSimpleName();
     }
 }

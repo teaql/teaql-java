@@ -150,7 +150,8 @@ final class GeneratedNestedGraphAssertions {
         assertEquals("school_type.code", missing.getLocation().modelPath());
         assertEquals("/schoolType/code", missing.getInstancePath());
         assertEquals("code", missing.getBreakPoint());
-        assertEquals("School(id=" + schoolId + ")", missing.getRoot());
+        assertEquals("School", missing.getRoot());
+        assertFalse(missing.getMessage().contains("(id="), "E diagnostics must not expose entity identity");
         var filteredJson = mapper.readTree(mapper.writeValueAsString(filtered));
         assertFalse(filteredJson.get("schoolType").has("code"));
         var restoredFiltered = mapper.treeToValue(filteredJson, filtered.getClass());
@@ -162,7 +163,8 @@ final class GeneratedNestedGraphAssertions {
         assertEquals("school_type.code", restoredMissing.getLocation().modelPath());
         assertEquals("/schoolType/code", restoredMissing.toWire().instancePath());
         assertEquals("code", restoredMissing.getBreakPoint());
-        assertEquals("School(id=" + schoolId + ")", restoredMissing.getRoot());
+        assertEquals("School", restoredMissing.getRoot());
+        assertFalse(restoredMissing.getMessage().contains("(id="), "JSON-restored E diagnostics must also redact identity");
         assertFalse(restoredFiltered.__internalHasMutationLedger());
         System.out.println("PASS generated Java LF08 exact NotLoaded type and path in Q and typed JSON");
         System.out.println("PASS generated Java LF08 loaded FK and excluded forward details stay distinct");

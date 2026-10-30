@@ -84,37 +84,43 @@ public interface Expression<E, T> {
     }
 
     default void whenIsNull(Runnable function) {
-        if (isNull() && function != null) {
+        T value = $evaluate("whenIsNull(<callback>)");
+        if (value == null && function != null) {
             function.run();
         }
     }
 
     default void whenIsNotNull(Runnable function) {
-        if (isNotNull() && function != null) {
+        T value = $evaluate("whenIsNotNull(<callback>)");
+        if (value != null && function != null) {
             function.run();
         }
     }
 
     default void whenIsNotNull(Consumer<T> consumer) {
-        if (isNotNull() && consumer != null) {
-            consumer.accept(resolve());
+        T value = $evaluate("whenIsNotNull(<callback>)");
+        if (value != null && consumer != null) {
+            consumer.accept(value);
         }
     }
 
     default void whenIsEmpty(Runnable function) {
-        if (isEmpty() && function != null) {
+        T value = $evaluate("whenIsEmpty(<callback>)");
+        if (io.teaql.core.utils.ObjectUtil.isEmpty(value) && function != null) {
             function.run();
         }
     }
 
     default void whenNotEmpty(Consumer<T> consumer) {
-        if (isNotEmpty() && consumer != null) {
-            consumer.accept(resolve());
+        T value = $evaluate("whenNotEmpty(<callback>)");
+        if (io.teaql.core.utils.ObjectUtil.isNotEmpty(value) && consumer != null) {
+            consumer.accept(value);
         }
     }
 
     default void whenNotEmpty(Runnable function) {
-        if (isNotEmpty() && function != null) {
+        T value = $evaluate("whenNotEmpty(<callback>)");
+        if (io.teaql.core.utils.ObjectUtil.isNotEmpty(value) && function != null) {
             function.run();
         }
     }

@@ -64,13 +64,16 @@ try {
     if (result.status !== 0) process.exitCode = result.status || 1;
     assert.equal(result.status, 0, bytes.toString().slice(-12000));
     assert(bytes.toString().includes('Tests run: 1, Failures: 0, Errors: 0, Skipped: 0'));
-    for (const marker of ['FIX_E_EXAMPLE=', 'CORE_LOAD_EXAMPLE=', 'CORE_MUTATION_OWNERSHIP=', 'CORE_MUTATION_PAGING=']) {
+    for (const marker of ['FIX_E_EXAMPLE=', 'CORE_LOAD_EXAMPLE=', 'CORE_MUTATION_OWNERSHIP=', 'CORE_MUTATION_PAGING=', 'JAVA_E_BOUNDARY_RESULT=']) {
       const values = bytes.toString().split(/\r?\n/).filter(line => line.startsWith(marker)).map(line => JSON.parse(line.slice(marker.length)));
       assert.equal(values.length, 1, marker); assert.equal(values[0].passed, true, marker);
     }
     assert.deepEqual(fingerprint(), m);
   }
   report.databaseSha256 = sha(fs.readFileSync(path.join(evidence, 'fixture.sqlite')));
+  report.expressionBoundaryApplicationSha256 = sha(fs.readFileSync(path.join(example, 'ExpressionBoundaryProbe.java')));
+  report.expressionBoundaryDatabase = {file: 'fixture.sqlite.expression-boundaries.sqlite',
+    sha256: sha(fs.readFileSync(path.join(evidence, 'fixture.sqlite.expression-boundaries.sqlite')))};
   report.passed = true;
   console.log('PASS Java retained Fix/E/loading/ownership example twice on one database');
 } catch (error) { console.error(error.stack); process.exitCode ||= 1; }
