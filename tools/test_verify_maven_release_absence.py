@@ -71,16 +71,18 @@ class MavenReleaseAbsenceTests(unittest.TestCase):
                                VERSION], cwd=self.work, env=env, capture_output=True,
                               text=True, timeout=30)
 
-    def artifact(self, name):
-        return f"/repository/io/teaql/{name}/{VERSION}/{name}-{VERSION}.pom"
+    def artifact(self, name, suffix=".pom"):
+        return f"/repository/io/teaql/{name}/{VERSION}/{name}-{VERSION}{suffix}"
 
-    def test_all_parent_and_child_poms_are_absent(self):
+    def test_all_parent_and_child_assets_are_absent(self):
         result = self.verify()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(set(self.server.observed),
                          {self.artifact("teaql-java-parent")}
-                         | {self.artifact(Path(name).name) for name in MODULES})
-        self.assertEqual(len(self.server.observed), 1 + len(MODULES))
+                         | {self.artifact(Path(name).name, suffix)
+                            for name in MODULES
+                            for suffix in (".pom", ".jar", "-sources.jar")})
+        self.assertEqual(len(self.server.observed), 1 + len(MODULES) * 3)
 
     def test_existing_non_core_module_blocks_deployment(self):
         path = self.artifact("teaql-blob-reference")
@@ -90,6 +92,22 @@ class MavenReleaseAbsenceTests(unittest.TestCase):
         self.assertIn("already exists", result.stderr)
         self.assertIn(path, result.stderr)
         self.assertEqual(self.server.observed.count(path), 1)
+
+    def test_existing_jar_without_pom_blocks_deployment(self):
+        path = self.artifact("teaql-blob-reference", ".jar")
+        self.server.responses[path] = [200]
+        result = self.verify()
+        self.assertNotEqual(result.returncode, 0,
+                            "A partial JAR-only publication must block reuse of the version")
+        self.assertIn(path, result.stderr)
+
+    def test_existing_sources_jar_without_pom_blocks_deployment(self):
+        path = self.artifact("teaql-blob-reference", "-sources.jar")
+        self.server.responses[path] = [200]
+        result = self.verify()
+        self.assertNotEqual(result.returncode, 0,
+                            "A partial sources-only publication must block reuse of the version")
+        self.assertIn(path, result.stderr)
 
     def test_existing_parent_blocks_deployment(self):
         path = self.artifact("teaql-java-parent")

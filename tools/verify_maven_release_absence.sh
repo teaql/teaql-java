@@ -35,7 +35,10 @@ fi
 require_absent "$repository/io/teaql/teaql-java-parent/$version/teaql-java-parent-$version.pom"
 for module in "${modules[@]}"; do
   artifact="$(basename "$module")"
-  require_absent "$repository/io/teaql/$artifact/$version/$artifact-$version.pom"
+  base="$repository/io/teaql/$artifact/$version/$artifact-$version"
+  for suffix in .pom .jar -sources.jar; do
+    require_absent "$base$suffix"
+  done
 done
 
-echo "Confirmed TeaQL Java $version is unused: parent plus ${#modules[@]} child modules"
+echo "Confirmed TeaQL Java $version has no release assets: parent plus ${#modules[@]} child modules"
