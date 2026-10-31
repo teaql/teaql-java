@@ -24,6 +24,7 @@ const report = {schema: "teaql.java-fix-e-example/v1", passed: false, rounds: []
   localRuntime: repo, databaseRetained: true, sharedMavenInstall: false};
 report.contextRootApplicationSha256 = sha(fs.readFileSync(path.join(example, 'ContextRootProbe.java')));
 report.contextRootSubtypeApplicationSha256 = sha(fs.readFileSync(path.join(example, 'ContextRootSubtypeProbe.java')));
+report.partialAncestorApplicationSha256 = sha(fs.readFileSync(path.join(example, 'partial-ancestors/PartialAncestorExampleTest.java')));
 const {createOwnedRunner, ownedBytes} = require('./owned-command.cjs'), runner = createOwnedRunner();
 async function main() {
 try {
@@ -40,6 +41,8 @@ try {
   fs.mkdirSync(path.join(consumer, "src/test/java/io/teaql/examples/fixe"), {recursive: true});
   for (const file of fs.readdirSync(example).filter(file => file.endsWith(".java")))
     fs.copyFileSync(path.join(example, file), path.join(consumer, "src/test/java/io/teaql/examples/fixe", file));
+  fs.copyFileSync(path.join(example, 'partial-ancestors/PartialAncestorExampleTest.java'),
+    path.join(consumer, 'src/test/java/io/teaql/examples/fixe/PartialAncestorExampleTest.java'));
   const version = fs.readFileSync(path.join(repo, "pom.xml"), "utf8").match(/<version>([^<]+)<\/version>/)[1];
   const pom = `<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion>
     <parent><groupId>io.teaql</groupId><artifactId>teaql-java-parent</artifactId><version>${version}</version><relativePath>../source/pom.xml</relativePath></parent>
@@ -48,6 +51,8 @@ try {
       <dependency><groupId>com.teaql</groupId><artifactId>checker-fix-advanced-core</artifactId><version>0.0.1-SNAPSHOT</version></dependency>
       <dependency><groupId>io.teaql</groupId><artifactId>teaql-runtime</artifactId><version>${version}</version></dependency>
       <dependency><groupId>io.teaql</groupId><artifactId>teaql-sqlite</artifactId><version>${version}</version></dependency>
+      <dependency><groupId>io.teaql</groupId><artifactId>teaql-jackson</artifactId><version>${version}</version></dependency>
+      <dependency><groupId>com.fasterxml.jackson.datatype</groupId><artifactId>jackson-datatype-jsr310</artifactId><scope>test</scope></dependency>
       <dependency><groupId>junit</groupId><artifactId>junit</artifactId><version>4.13.2</version><scope>test</scope></dependency>
     </dependencies><build><plugins><plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><configuration><useModulePath>false</useModulePath></configuration></plugin></plugins></build></project>`;
   fs.writeFileSync(path.join(consumer, "pom.xml"), pom); fs.writeFileSync(path.join(evidence, "consumer-pom.xml"), pom);
@@ -55,7 +60,7 @@ try {
   fs.writeFileSync(path.join(reactor, "pom.xml"), '<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>io.teaql.test</groupId><artifactId>fix-e-reactor</artifactId><version>0.0.0</version><packaging>pom</packaging><modules><module>../source</module><module>../generated</module><module>../consumer</module></modules></project>');
   for (const round of [1, 2]) {
     const command = ['mvn', '-o', '-B', '-ntp', '-f', path.join(reactor, 'pom.xml'), '-pl', ':teaql-fix-e-example', '-am', 'test',
-      '-Dtest=GeneratedFixEExampleTest', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dteaql.version=' + version,
+      '-Dtest=GeneratedFixEExampleTest,PartialAncestorExampleTest', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dteaql.version=' + version,
       '-Dteaql.expected.runtime.root=' + runtime];
     const log = path.join(evidence, 'round-' + round + '.log'), fd = fs.openSync(log, 'w'); let result;
     try { result = await runner.run(command, {cwd: scratch, timeout: 300000,
@@ -65,8 +70,8 @@ try {
     report.rounds.push({command, exitCode: result.status, signal: result.signal, logSha256: sha(bytes)});
     if (result.status !== 0) process.exitCode = result.status || 1;
     assert.equal(result.status, 0, bytes.toString().slice(-12000));
-    assert(bytes.toString().includes('Tests run: 1, Failures: 0, Errors: 0, Skipped: 0'));
-    for (const marker of ['FIX_E_EXAMPLE=', 'CORE_LOAD_EXAMPLE=', 'CORE_MUTATION_OWNERSHIP=', 'CORE_MUTATION_PAGING=', 'JAVA_E_BOUNDARY_RESULT=', 'JAVA_CONTEXT_ROOT_RESULT=', 'JAVA_CONTEXT_ROOT_SUBTYPE_RESULT=']) {
+    assert(bytes.toString().includes('Tests run: 2, Failures: 0, Errors: 0, Skipped: 0'));
+    for (const marker of ['FIX_E_EXAMPLE=', 'CORE_LOAD_EXAMPLE=', 'CORE_MUTATION_OWNERSHIP=', 'CORE_MUTATION_PAGING=', 'JAVA_E_BOUNDARY_RESULT=', 'JAVA_CONTEXT_ROOT_RESULT=', 'JAVA_CONTEXT_ROOT_SUBTYPE_RESULT=', 'JAVA_PARTIAL_ANCESTORS_RESULT=']) {
       const values = bytes.toString().split(/\r?\n/).filter(line => line.startsWith(marker)).map(line => JSON.parse(line.slice(marker.length)));
       assert.equal(values.length, 1, marker); assert.equal(values[0].passed, true, marker);
     }
@@ -81,6 +86,8 @@ try {
     sha256: sha(fs.readFileSync(path.join(evidence, 'fixture.sqlite.context-root.sqlite')))};
   report.contextRootSubtypeDatabase = {file: 'fixture.sqlite.root-subtype.sqlite',
     sha256: sha(fs.readFileSync(path.join(evidence, 'fixture.sqlite.root-subtype.sqlite')))};
+  report.partialAncestorDatabase = {file: 'fixture.sqlite.partial-ancestors.sqlite',
+    sha256: sha(fs.readFileSync(path.join(evidence, 'fixture.sqlite.partial-ancestors.sqlite')))};
   report.passed = true;
   console.log('PASS Java retained Fix/E/loading/ownership example twice on one database');
 } catch (error) { console.error(error.stack); process.exitCode ||= 1; }
