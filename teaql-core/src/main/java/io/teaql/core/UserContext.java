@@ -148,12 +148,12 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
     }
 
     default CheckResult translateCheckResult(CheckResult result) {
-        result.setNaturalLanguageStatement(i18nCatalog().render(result, locale()));
+        io.teaql.core.checker.internal.CheckerDiagnostics.translate(this, List.of(result));
         return result;
     }
 
     default List<CheckResult> translateCheckResults(List<CheckResult> results) {
-        results.forEach(this::translateCheckResult);
+        io.teaql.core.checker.internal.CheckerDiagnostics.translateBatch(this, results);
         return results;
     }
 

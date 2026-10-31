@@ -47,6 +47,11 @@ public final class I18nCatalog {
     }
 
     public String render(CheckResult result, Locale locale) {
+        return render(result, locale, result.getInputValue() instanceof CharSequence cs ? cs.length() : 0);
+    }
+
+    /** Render projected input while retaining the unit used by the actual validation. */
+    public String render(CheckResult result, Locale locale, int originalInputLength) {
         String key = switch (result.getRuleId()) {
             case REQUIRED -> "checker.required"; case MIN -> "checker.min"; case MAX -> "checker.max";
             case MIN_STR_LEN -> "checker.minLength"; case MAX_STR_LEN -> "checker.maxLength";
@@ -57,7 +62,7 @@ public final class I18nCatalog {
             .replace("{location}", String.valueOf(result.getLocation()))
             .replace("{system}", String.valueOf(result.getSystemValue()))
             .replace("{input}", input)
-            .replace("{input_len}", result.getInputValue() instanceof CharSequence cs ? String.valueOf(cs.length()) : "0");
+            .replace("{input_len}", String.valueOf(originalInputLength));
     }
 
     private static I18nCatalog loadBuiltin() {

@@ -621,6 +621,7 @@ public class TeaQLRuntime implements AutoCloseable {
                         Collections.newSetFromMap(new IdentityHashMap<>()));
                 List<CheckResult> violations = (List<CheckResult>) invocation.attribute(Checker.TEAQL_DATA_CHECK_RESULT);
                 if (violations != null && !violations.isEmpty()) {
+                    context.translateCheckResults(violations);
                     throw new CheckException(new ArrayList<>(violations));
                 }
             } finally {
@@ -1339,12 +1340,7 @@ public class TeaQLRuntime implements AutoCloseable {
     }
 
     static String maskAuditValue(String value) {
-        if (value == null || value.isEmpty()) return value;
-        int length = value.codePointCount(0, value.length());
-        if (length < 8 || value.codePoints().allMatch(c -> c >= '0' && c <= '9')) return "*".repeat(length);
-        return value.substring(0, value.offsetByCodePoints(0, 2))
-                + "*".repeat(length - 4)
-                + value.substring(value.offsetByCodePoints(0, length - 2));
+        return io.teaql.core.utils.SensitiveValueProjection.maskAuditValue(value);
     }
 
     static String limitAuditValue(String value, int maxLength) {

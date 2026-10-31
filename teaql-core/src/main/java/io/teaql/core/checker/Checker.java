@@ -77,7 +77,6 @@ public interface Checker<T extends BaseEntity> {
     default void invalidTypeCheck(UserContext context, ObjectLocation location, String message) {
         CheckResult result = CheckResult.invalidType(location, message);
         appendResult(context, result);
-        result.setNaturalLanguageStatement(message);
     }
 
     /** Model-derived ownership admission, before any Fix or provider activity. */
@@ -237,6 +236,7 @@ public interface Checker<T extends BaseEntity> {
             java.util.List<CheckResult> violations = (java.util.List<CheckResult>)
                     invocation.attribute(TEAQL_DATA_CHECK_RESULT);
             if (violations != null && !violations.isEmpty()) {
+                context.translateCheckResults(violations);
                 throw new CheckException(new java.util.ArrayList<>(violations));
             }
         }
