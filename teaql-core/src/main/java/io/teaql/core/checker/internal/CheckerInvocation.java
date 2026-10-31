@@ -32,18 +32,11 @@ public final class CheckerInvocation implements AutoCloseable {
     private final Map<String, Object> attributes = new HashMap<>();
     private boolean closed;
     private List<String> diagnosticSecrets;
-    private java.util.Set<CheckResult> generatedDiagnosticMessages;
 
     /** Transient synchronous diagnostics only; never retained on UserContext or returned errors. */
     List<String> diagnosticSecrets() {
         if (diagnosticSecrets == null) diagnosticSecrets = new ArrayList<>();
         return diagnosticSecrets;
-    }
-
-    java.util.Set<CheckResult> generatedDiagnosticMessages() {
-        if (generatedDiagnosticMessages == null) generatedDiagnosticMessages =
-                java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
-        return generatedDiagnosticMessages;
     }
 
     private CheckerInvocation(UserContext context, boolean mutationOnly) {
@@ -133,7 +126,6 @@ public final class CheckerInvocation implements AutoCloseable {
             else ACTIVE.set(parent);
             attributes.clear();
             if (diagnosticSecrets != null) diagnosticSecrets.clear();
-            if (generatedDiagnosticMessages != null) generatedDiagnosticMessages.clear();
             closed = true;
         }
     }

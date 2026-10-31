@@ -24,13 +24,14 @@ public final class CheckerDiagnostics {
     private static void translate(UserContext context, List<CheckResult> results, boolean invokeHook) {
         var scope=CheckerInvocation.current(context);
         List<String> secrets=scope == null ? new ArrayList<>() : scope.diagnosticSecrets();
-        Set<CheckResult> generatedMessages=scope == null ? Collections.newSetFromMap(new IdentityHashMap<>())
-            : scope.generatedDiagnosticMessages();
         boolean allow=SensitiveValueProjection.plaintextEnabled();
         int[] lengths=new int[results.size()];
+        boolean[] automatic=new boolean[results.size()];
         for (int i=0;i<results.size();i++) {
             var result=results.get(i); Object raw=result.getInputValue();
-            lengths[i]=raw instanceof CharSequence cs ? cs.length() : 0;
+            Integer previousLength=CheckerPresentationCache.validationLength(result);
+            automatic[i]=previousLength != null;
+            lengths[i]=previousLength != null ? previousLength : raw instanceof CharSequence cs ? cs.length() : 0;
             boolean credential=false;
             for (ObjectLocation location=result.getLocation();location!=null;location=location.getParent())
                 if (location instanceof HashLocation hash && SensitiveLogNames.credential(hash.getMember())) credential=true;
@@ -42,25 +43,27 @@ public final class CheckerDiagnostics {
         }
         for (int i=0;i<results.size();i++) {
             var result=results.get(i); String message=result.getNaturalLanguageStatement();
-            if (message == null || message.isBlank()) {
+            if (message == null || message.isBlank() || automatic[i]) {
                 message=context.i18nCatalog().render(result,context.locale(),lengths[i]);
-                generatedMessages.add(result);
+                result.setNaturalLanguageStatement(message);
+                CheckerPresentationCache.remember(result,lengths[i]);
+            } else {
+                CheckerPresentationCache.forget(result);
+                result.setNaturalLanguageStatement(SensitiveValueProjection.scrub(message,secrets));
             }
             // Rendering already uses safe values. Scrubbing a generated message
             // again could corrupt its numeric bound/length when a secret is "1".
-            result.setNaturalLanguageStatement(generatedMessages.contains(result) ? message
-                : SensitiveValueProjection.scrub(message,secrets));
         }
         // An earlier callback can mention a field whose violation is discovered
         // later. Redact it before the graph's exception can escape.
         if (scope != null && scope.attribute(Checker.TEAQL_DATA_CHECK_RESULT) instanceof List<?> previous)
-            for (Object value : previous) if (value instanceof CheckResult result && !generatedMessages.contains(result))
+            for (Object value : previous) if (value instanceof CheckResult result && !CheckerPresentationCache.isAutomatic(result))
                 result.setNaturalLanguageStatement(SensitiveValueProjection.scrub(result.getNaturalLanguageStatement(),secrets));
         if (invokeHook) for (var result : results) {
             String before=result.getNaturalLanguageStatement();
             context.translateCheckResult(result);
             if (!Objects.equals(before,result.getNaturalLanguageStatement())) {
-                generatedMessages.remove(result);
+                CheckerPresentationCache.forget(result);
                 result.setNaturalLanguageStatement(SensitiveValueProjection.scrub(result.getNaturalLanguageStatement(),secrets));
             }
             // Customer hooks may replace values too. Apply the output boundary
