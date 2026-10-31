@@ -58,4 +58,22 @@ public class WireFieldAdapterTest {
         assertEquals("/schoolType", wire.path("instancePath").asText());
         assertEquals("/legacySchoolType", wire.path("sourceInstancePath").asText());
     }
+
+    @Test
+    public void parentAliasNeverTruncatesDescendantProvenance() {
+        NormalizedWireObject normalized = new NormalizedWireObject(json.createObjectNode(),
+                Map.of("order_item_list", "/legacy~1items", "product_name", "/legacy~0name"));
+        ObjectLocation location = ObjectLocation.hashRoot("order_item_list").element(2).member("product_name");
+        CheckResult nested = CheckResult.required(location);
+        nested.setSourceInstancePath("/legacy~1items/2/legacy~0name");
+        CheckResult absent = CheckResult.required(location);
+        CheckResult indexed = CheckResult.required(ObjectLocation.hashRoot("product_name").element(2));
+        CheckResult direct = CheckResult.required(ObjectLocation.hashRoot("order_item_list"));
+        WireFieldAdapter.retainSubmittedPaths(java.util.List.of(nested, absent, indexed, direct), normalized);
+        assertEquals("/legacy~1items/2/legacy~0name", nested.getSourceInstancePath());
+        assertEquals("/orderItemList/2/productName", nested.toWire(JsonFieldNamingProfile.CAMEL_CASE).instancePath());
+        assertEquals(null, absent.getSourceInstancePath());
+        assertEquals(null, indexed.getSourceInstancePath());
+        assertEquals("/legacy~1items", direct.getSourceInstancePath());
+    }
 }
