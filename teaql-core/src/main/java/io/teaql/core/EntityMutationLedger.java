@@ -41,6 +41,22 @@ public class EntityMutationLedger {
         traceChains.clear();
     }
 
+    @FrameworkInternal("Physical transaction rollback only")
+    public Runnable __internalCaptureRollback() {
+        Runnable changes = changeSets.captureRollback();
+        var deleted = new TreeSet<>(deletedKeys); var recovered = new TreeSet<>(recoveredKeys);
+        var created = new TreeSet<>(newKeys); var traces = new TreeMap<>(traceChains);
+        var versions = new TreeMap<>(originalVersions); String reason = comment;
+        return () -> {
+            changes.run();
+            deletedKeys.clear(); deletedKeys.addAll(deleted);
+            recoveredKeys.clear(); recoveredKeys.addAll(recovered);
+            newKeys.clear(); newKeys.addAll(created);
+            traceChains.clear(); traceChains.putAll(traces);
+            originalVersions.clear(); originalVersions.putAll(versions); comment = reason;
+        };
+    }
+
     public void set(EntityKey key, String field, Object value) {
         changeSets.set(key, field, value);
     }

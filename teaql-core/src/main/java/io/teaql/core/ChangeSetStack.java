@@ -25,6 +25,17 @@ public class ChangeSetStack {
         stack.add(new EntityChangeSet());
     }
 
+    Runnable captureRollback() {
+        var saved = new ArrayList<EntityChangeSet>();
+        for (var current : stack) {
+            var copy = new EntityChangeSet();
+            current.changes().forEach((key, fields) -> fields.forEach((field, value) -> copy.set(key, field, value)));
+            current.dynamicChanges().forEach((key, fields) -> fields.values().forEach(value -> copy.setDynamic(key, value)));
+            saved.add(copy);
+        }
+        return () -> { stack.clear(); stack.addAll(saved); };
+    }
+
     public EntityChangeSet pop() {
         return stack.isEmpty() ? null : stack.remove(stack.size() - 1);
     }

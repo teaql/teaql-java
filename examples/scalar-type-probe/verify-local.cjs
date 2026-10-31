@@ -3,6 +3,8 @@
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os'), cp = require('node:child_process'), crypto = require('node:crypto'), assert = require('node:assert/strict');
 const {createOwnedRunner, ownedBytes} = require('../fix-e-alignment/owned-command.cjs');
 const repo = path.resolve(__dirname, '../..'), sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
+assert(process.argv.length === 2 || process.argv.length === 3 && process.argv[2] === '--restoration-views');
+const restorationViews = process.argv[2] === '--restoration-views';
 const requested = process.env.TEAQL_JAVA_SCALAR_EVIDENCE_DIR;
 const output = requested ? path.resolve(requested) : fs.mkdtempSync(path.join(os.tmpdir(), 'teaql-java-name-evidence-'));
 if (requested) { assert(!fs.existsSync(output), 'never overwrite evidence'); fs.mkdirSync(output, {recursive: true}); }
@@ -35,7 +37,7 @@ function fixture() {
   return {manifest, manifestSha256: sha(bytes)};
 }
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'teaql-java-name-build-')), runner = createOwnedRunner();
-const report = {schema: 'teaql.java-canonical-name-example/v1', passed: false, commands: [], rounds: [], sameDatabase: true, publicPublication: false, internalArtifactAccepted: false};
+const report = {schema: restorationViews ? 'teaql.java-restoration-views-example/v1' : 'teaql.java-canonical-name-example/v1', passed: false, commands: [], rounds: [], sameDatabase: true, publicPublication: false, internalArtifactAccepted: false};
 async function main() {
   try {
     const disk = fs.statfsSync(scratch); assert(disk.bavail * disk.bsize > 8 * 1024 ** 3);
@@ -51,8 +53,12 @@ async function main() {
     const tests = path.join(consumer, 'src/test/java/com/example/scalartypeconformanceservice'); fs.mkdirSync(tests, {recursive: true});
     fs.copyFileSync(path.join(__dirname, 'GeneratedCanonicalNameTest.java'), path.join(tests, 'GeneratedCanonicalNameTest.java'));
     report.applicationSha256 = sha(fs.readFileSync(path.join(__dirname, 'GeneratedCanonicalNameTest.java')));
+    if (restorationViews) {
+      fs.copyFileSync(path.join(__dirname, 'GeneratedRestorationViewTest.java'), path.join(tests, 'GeneratedRestorationViewTest.java'));
+      report.restorationViewApplicationSha256 = sha(fs.readFileSync(path.join(__dirname, 'GeneratedRestorationViewTest.java')));
+    }
     const version = fs.readFileSync(path.join(repo, 'pom.xml'), 'utf8').match(/<version>([^<]+)<\/version>/)[1];
-    const dependencies = ['teaql-runtime', 'teaql-sqlite', 'teaql-jackson'].map(name =>
+    const dependencies = ['teaql-runtime', 'teaql-sqlite', 'teaql-jackson', ...(restorationViews ? ['teaql-dynamic-fields-jdbc'] : [])].map(name =>
       `<dependency><groupId>io.teaql</groupId><artifactId>${name}</artifactId><version>${version}</version></dependency>`).join('')
       + '<dependency><groupId>com.fasterxml.jackson.datatype</groupId><artifactId>jackson-datatype-jsr310</artifactId></dependency>';
     const pom = `<project><modelVersion>4.0.0</modelVersion><parent><groupId>io.teaql</groupId><artifactId>teaql-java-parent</artifactId><version>${version}</version><relativePath>../source/pom.xml</relativePath></parent><groupId>io.teaql.examples</groupId><artifactId>teaql-canonical-name-example</artifactId><version>${version}</version><dependencies><dependency><groupId>com.example</groupId><artifactId>scalar-type-conformance-service-core</artifactId><version>0.0.1-SNAPSHOT</version></dependency>${dependencies}<dependency><groupId>junit</groupId><artifactId>junit</artifactId><version>4.13.2</version><scope>test</scope></dependency></dependencies><build><plugins><plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><configuration><useModulePath>false</useModulePath></configuration></plugin></plugins></build></project>`;
@@ -60,7 +66,7 @@ async function main() {
     const reactor = path.join(scratch, 'pom.xml'); fs.writeFileSync(reactor, '<project><modelVersion>4.0.0</modelVersion><groupId>io.teaql.test</groupId><artifactId>canonical-name-reactor</artifactId><version>0.0.0</version><packaging>pom</packaging><modules><module>source</module><module>generated</module><module>consumer</module></modules></project>');
     const expectedCases = ['canonical-create', 'q-e-load-state', 'canonical-update', 'malformed-zero-provider', 'required-zero-provider', 'typed-json-default-profile', 'real-second-update-rollback', 'same-graph-retry'];
     for (const round of [1, 2]) {
-      const command = ['mvn', '-o', '-B', '-ntp', '-f', reactor, '-pl', ':teaql-canonical-name-example', '-am', 'test', '-Dtest=GeneratedCanonicalNameTest', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dteaql.version=' + version, '-Dteaql.expected.runtime.root=' + source];
+      const command = ['mvn', '-o', '-B', '-ntp', '-f', reactor, '-pl', ':teaql-canonical-name-example', '-am', 'test', restorationViews ? '-Dtest=GeneratedRestorationViewTest' : '-Dtest=GeneratedCanonicalNameTest', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dteaql.version=' + version, '-Dteaql.expected.runtime.root=' + source];
       const log = path.join(output, 'round-' + round + '.log'), fd = fs.openSync(log, 'wx'); let result;
       try { result = await runner.run(command, {cwd: scratch, timeout: 300000, env: {...process.env,
         TEAQL_NAME_DB: path.join(output, 'fixture.sqlite'), TEAQL_NAME_ROUND: String(round)}, stdio: ['ignore', fd, fd]}); }
@@ -68,6 +74,13 @@ async function main() {
       const bytes = fs.readFileSync(log), text = bytes.toString();
       report.commands.push({command, exitCode: result.status, signal: result.signal, logSha256: sha(bytes)});
       assert.equal(result.status, 0, text.slice(-12000)); assert.equal(result.signal, null);
+      if (restorationViews) {
+        const values = [...text.matchAll(/^JAVA_RESTORATION_VIEW=(.+)$/gm)].map(match => JSON.parse(match[1]));
+        assert.equal(values.length, 3); assert(values.every(value => value.passed && value.round === round));
+        assert.deepEqual(values.map(value => value.case).sort(), ['caller-transaction-rollback-retry-commit', 'persistent-dynamic-noop-and-real-edit', 'readonly-sparse-noop']);
+        report.rounds.push({round, cases: values}); assert.deepEqual(fixture(), input); assert.equal(sourceHash(), before);
+        continue;
+      }
       const rows = text.split(/\r?\n/).filter(line => line.startsWith('JAVA_CANONICAL_NAME=')); assert.equal(rows.length, 1);
       const value = JSON.parse(rows[0].slice('JAVA_CANONICAL_NAME='.length));
       assert.equal(value.passed, true); assert.equal(value.round, round); assert.deepEqual(value.cases, expectedCases);
@@ -75,8 +88,13 @@ async function main() {
       assert.equal(value.rolledBackAfterWrites, 1); assert.equal(value.retryAuditEntities, 2);
       report.rounds.push(value); assert.deepEqual(fixture(), input); assert.equal(sourceHash(), before);
     }
-    report.databaseSha256 = sha(fs.readFileSync(path.join(output, 'fixture.sqlite'))); report.passed = true;
-    console.log('PASS generated Java canonical naming, Q/E, Checker, default JSON and real graph rollback/retry twice');
+    if (restorationViews) report.databases = Object.fromEntries(['readonly', 'transaction', 'dynamic'].map(name => {
+      const file = 'fixture.sqlite.views-' + name + '.sqlite'; return [file, sha(fs.readFileSync(path.join(output, file)))];
+    }));
+    else report.databaseSha256 = sha(fs.readFileSync(path.join(output, 'fixture.sqlite')));
+    report.passed = true;
+    console.log(restorationViews ? 'PASS generated Java unchanged view geometry and caller transaction rollback/retry/commit twice'
+      : 'PASS generated Java canonical naming, Q/E, Checker, default JSON and real graph rollback/retry twice');
   } catch (error) { report.error = error.stack; console.error(error.stack); process.exitCode ||= 1; }
   finally {
     report.disposedOwnedBytes = runner.safeToClean ? ownedBytes(scratch) : 0;

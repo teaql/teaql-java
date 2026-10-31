@@ -376,6 +376,25 @@ public class BaseEntity implements Entity {
         if (!updatedProperties.isEmpty()) updatedProperties.clear();
     }
 
+    @FrameworkInternal("Physical transaction rollback; native values are captured by runtime metadata")
+    public Runnable __internalCaptureMutationRollback() {
+        var savedUpdates = new HashMap<>(updatedProperties);
+        var savedAdditional = new HashMap<>(additionalInfo);
+        var savedDynamic = new HashMap<>(dynamicMutations);
+        var savedOriginal = new HashMap<>(dynamicOriginalValues);
+        var savedDynamicValues = dynamicFieldValues;
+        var savedState = loadState; var savedVersion = version; var savedStatus = $status;
+        var savedBaseline = hydratedOriginalVersion;
+        return () -> {
+            updatedProperties = savedUpdates.isEmpty() ? NO_UPDATES : new ConcurrentHashMap<>(savedUpdates);
+            additionalInfo = savedAdditional.isEmpty() ? Map.of() : new HashMap<>(savedAdditional);
+            dynamicMutations = savedDynamic.isEmpty() ? Map.of() : new HashMap<>(savedDynamic);
+            dynamicOriginalValues = savedOriginal.isEmpty() ? Map.of() : new HashMap<>(savedOriginal);
+            dynamicFieldValues = savedDynamicValues; loadState = savedState;
+            version = savedVersion; $status = savedStatus; hydratedOriginalVersion = savedBaseline;
+        };
+    }
+
     public void addAction(Object action) {
         synchronized (this) {
             if (actionList == null) {

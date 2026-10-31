@@ -88,6 +88,23 @@ Both loaded-null and non-null notes, independent pending objects and the untouch
 parent remain intact. The complete example inventory includes this mode; passing
 this probe alone is not private-artifact or full-runtime qualification.
 
+`node examples/scalar-type-probe/verify-local.cjs --restoration-views` tests three
+scenarios twice, without resetting their separate SQLite stores: sparse fixed
+fields and loaded relations plus readonly result types/presence; a caller-owned
+JDBC transaction with no-op, rollback, retry and commit; and persistent extension
+Value/Null/NotLoaded, shared geometry, storage provenance and a real `#` edit
+surviving native-field restoration. The no-op enters no provider or policy and
+emits no mutation audit. A genuine saved object gets authoritative readback;
+audit waits for the physical transaction owner to commit. Rollback retains the
+optimistic baseline and pending intent for retry. Standard JDBC nested failures
+are rollback-only even if application code catches the inner exception. A sink
+failure after commit is a delivery failure, not proof the database rolled back.
+
+This path is part of the complete example script. It retains logs, hashes and
+three databases, not build outputs. The current probe qualifies the standard
+JDBC adapter, not arbitrary custom transaction implementations, overlapping
+saves of the same entity within one outer transaction or installed packages.
+
 This does not qualify all scalar wire boundaries, cross-runtime DDL parity or a
 published artifact. Provenance is in `fixture-manifest.json` and
 `json-profiles/provenance.json`; generated sources are never edited by the probes.

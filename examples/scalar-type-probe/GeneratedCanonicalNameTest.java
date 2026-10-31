@@ -56,13 +56,14 @@ public class GeneratedCanonicalNameTest {
     }
     static final class Fixture {
         final ObservedDataSource data;
+        final JdbcSqlExecutor sql;
         final List<RawAuditEvent> audits = new ArrayList<>();
         final List<MutationPlan> policies = new ArrayList<>();
         final List<Set<String>> checked = new ArrayList<>();
         final Context context;
         Fixture(String url, int round) {
             data = new ObservedDataSource(url);
-            var sql = new JdbcSqlExecutor(data);
+            sql = new JdbcSqlExecutor(data);
             var service = new SqliteDataServiceExecutor("sqlite", sql, data);
             var policy = new MutationPolicy() {
                 public MutationPolicyIdentity identity() { return new MutationPolicyIdentity("name93", "1", "sha256:name93"); }

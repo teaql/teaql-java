@@ -78,6 +78,11 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
 
     @Override public Object transactionResource() { return executionAdapter; }
 
+    @Override public boolean registerTransactionSynchronization(
+            UserContext context, Runnable committed, Runnable rolledBack) {
+        return executionAdapter.registerTransactionSynchronization(committed, rolledBack);
+    }
+
     @Override
     public void ensureSchema(UserContext context, io.teaql.core.SchemaExecutor.Invocation invocation) {
         io.teaql.core.SchemaExecutor.Invocation.requireContextOwned(invocation);

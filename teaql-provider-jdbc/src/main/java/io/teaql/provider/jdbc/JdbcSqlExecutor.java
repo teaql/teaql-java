@@ -25,6 +25,11 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
     // A held view retains only this token, not the executor, connection or DataSource.
     private final Object storageIdentity = new Object();
     private final ThreadLocal<Connection> transactionConnection = new ThreadLocal<>();
+    private final ThreadLocal<TransactionCompletion> transactionCompletion = new ThreadLocal<>();
+    private static final class TransactionCompletion {
+        final List<Runnable> commits = new ArrayList<>(), rollbacks = new ArrayList<>();
+        boolean rollbackOnly;
+    }
     private final List<Consumer<Connection>> connectionInitializers = new CopyOnWriteArrayList<>();
 
     public JdbcSqlExecutor(DataSource dataSource) {
@@ -389,29 +394,61 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
     @Override
     public void executeInTransaction(Runnable action) {
         if (transactionConnection.get() != null) {
-            action.run();
+            try { action.run(); }
+            catch (RuntimeException | Error failure) {
+                transactionCompletion.get().rollbackOnly = true;
+                throw failure;
+            }
             return;
         }
+        var completion = new TransactionCompletion();
+        boolean committed = false;
+        Throwable failure = null;
         try (Connection connection = openConnection()) {
             boolean autoCommit = connection.getAutoCommit();
             connection.setAutoCommit(false);
             transactionConnection.set(connection);
+            transactionCompletion.set(completion);
             try {
                 action.run();
+                if (completion.rollbackOnly) throw new IllegalStateException("JDBC transaction is rollback-only");
                 connection.commit();
-            } catch (RuntimeException | Error failure) {
-                connection.rollback();
-                throw failure;
+                committed = true;
+            } catch (RuntimeException | Error | SQLException error) {
+                try { connection.rollback(); } catch (SQLException rollback) { error.addSuppressed(rollback); }
+                throw error;
             } finally {
                 transactionConnection.remove();
+                transactionCompletion.remove();
                 connection.setAutoCommit(autoCommit);
             }
-        } catch (SQLException e) {
-            throw new RuntimeException("JDBC transaction failed", e);
+        } catch (RuntimeException | Error | SQLException error) {
+            failure = error;
         }
+        // Never deliver audit while a connection is still marked active. A sink
+        // failure after successful commit must not manufacture a rollback.
+        var callbacks = committed ? completion.commits : completion.rollbacks;
+        for (int index = 0; index < callbacks.size(); index++) {
+            int selected = committed ? index : callbacks.size() - 1 - index;
+            try { callbacks.get(selected).run(); }
+            catch (RuntimeException | Error error) {
+                if (failure == null) failure = error; else if (failure != error) failure.addSuppressed(error);
+            }
+        }
+        if (failure instanceof Error error) throw error;
+        if (failure instanceof RuntimeException error) throw error;
+        if (failure != null) throw new RuntimeException("JDBC transaction failed", failure);
     }
 
     @Override public boolean hasActiveTransaction() { return transactionConnection.get() != null; }
+
+    @Override public boolean registerTransactionSynchronization(Runnable committed, Runnable rolledBack) {
+        var completion = transactionCompletion.get();
+        if (completion == null) return false;
+        completion.commits.add(java.util.Objects.requireNonNull(committed));
+        completion.rollbacks.add(java.util.Objects.requireNonNull(rolledBack));
+        return true;
+    }
 
     static void bind(PreparedStatement statement, int index, Object value) throws SQLException {
         if (value == null) {
