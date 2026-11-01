@@ -9,6 +9,36 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class ExpressionLocationTest {
+    @Test public void literalPunctuationAndIndicesPreserveCanonicalIdentityInAllWireProfiles() throws Exception {
+        var trace = ExpressionTrace.root("E.node(<root>)").member("school_type", "getSchoolType")
+                .element(2, false).member("a~/b.c", "safeField");
+        var canonical = ObjectLocation.hashRoot("school_type").element(2).member("a~/b.c");
+        var expected = java.util.Map.of(JsonFieldNamingProfile.CAMEL_CASE, "/schoolType/2/a~0~1b.c",
+                JsonFieldNamingProfile.SNAKE_CASE, "/school_type/2/a~0~1b.c",
+                JsonFieldNamingProfile.PASCAL_CASE, "/SchoolType/2/A~0~1b.c");
+        var labels = java.util.Map.of(JsonFieldNamingProfile.CAMEL_CASE, "camelCase",
+                JsonFieldNamingProfile.SNAKE_CASE, "snake_case", JsonFieldNamingProfile.PASCAL_CASE, "PascalCase");
+        for (var profile : JsonFieldNamingProfile.values()) {
+            var wire = new TeaQLNotLoadedException("Row", canonical, "a~/b.c", profile)
+                    .withAttempt(trace.operation("eval()")).toWire();
+            assertEquals(expected.get(profile), wire.instancePath());
+            assertEquals(expected.get(profile), wire.attemptedInstancePath());
+            assertEquals(java.util.List.of(WireLocationSegment.property("school_type"),
+                    WireLocationSegment.index(2), WireLocationSegment.property("a~/b.c")), wire.location());
+            assertEquals(wire.location(), wire.attemptedLocation());
+            assertEquals(wire.location(), wire.suggestedFix().location());
+            assertEquals(2, wire.breakPointIndex());
+            assertEquals("a~/b.c", wire.breakPoint());
+            assertEquals("E.node(<root>).getSchoolType().get(2).safeField()<broken>.eval()", wire.expressionWithBrokenPoint());
+            String record = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(
+                    java.util.Map.of("language", "java", "profile", labels.get(profile), "wire", wire));
+            System.out.println("E_POINTER_PROFILE_CASE=" + record);
+            String output = System.getenv("TEAQL_POINTER_PROFILE_EVIDENCE");
+            if (output != null) java.nio.file.Files.writeString(java.nio.file.Path.of(output), record + "\n",
+                    java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+        }
+    }
+
     static class Row extends BaseEntity {
         Row child;
         SmartList<Row> children = new SmartList<>();
