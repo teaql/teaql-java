@@ -3,8 +3,6 @@ package io.teaql.provider.springjdbc;
 import io.teaql.dataservice.sql.SqlExecutionAdapter;
 import io.teaql.dataservice.sql.SqlRowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Map;
@@ -16,13 +14,13 @@ import java.sql.SQLException;
 public class SpringJdbcSqlExecutor implements SqlExecutionAdapter {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
-    private final TransactionTemplate transactionTemplate;
+    private final SpringTransactionCompletion transactionCompletion;
 
     public SpringJdbcSqlExecutor(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
-        this.transactionTemplate = new TransactionTemplate(new DataSourceTransactionManager(
+        this.transactionCompletion = new SpringTransactionCompletion(
                 Objects.requireNonNull(jdbcTemplate.getJdbcTemplate().getDataSource(),
-                        "A DataSource is required for transactional SQL execution")));
+                        "A DataSource is required for transactional SQL execution"));
     }
 
     @Override
@@ -95,7 +93,13 @@ public class SpringJdbcSqlExecutor implements SqlExecutionAdapter {
 
     @Override
     public void executeInTransaction(Runnable action) {
-        transactionTemplate.executeWithoutResult(status -> action.run());
+        transactionCompletion.execute(action);
+    }
+
+    @Override public boolean hasActiveTransaction() { return transactionCompletion.active(); }
+
+    @Override public boolean registerTransactionSynchronization(Runnable committed, Runnable rolledBack) {
+        return transactionCompletion.register(committed, rolledBack);
     }
 
     private record SpringJdbcDataRow(ResultSet resultSet) implements io.teaql.core.DataRow {
