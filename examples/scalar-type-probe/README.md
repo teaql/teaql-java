@@ -100,10 +100,21 @@ optimistic baseline and pending intent for retry. Standard JDBC nested failures
 are rollback-only even if application code catches the inner exception. A sink
 failure after commit is a delivery failure, not proof the database rolled back.
 
-This path is part of the complete example script. It retains logs, hashes and
+`--outer-replay` adds seven scenarios, twice on seven separate unreset stores:
+two saves changing different fields, repeated changes to the same field, an
+unsaved later field, create followed by update, dynamic followed by native,
+later unsaved dynamic input, and retained invalid raw input. A physical rollback
+must preserve the final requested values against the initial optimistic version.
+Replaying a tracked updater retains its first-change provenance; raw keys remain
+raw for normal admission, including explicit NULL and invalid keys. No rolled-back
+attempt delivers mutation audit. Retrying final intent writes once. This mode
+also records whether the original generated factory assigned an ID before the
+first save; it does not treat deferred allocation as early-ID conformance.
+
+These paths are part of the complete example script. They retain logs, hashes and
 three databases, not build outputs. The current probe qualifies the standard
-JDBC adapter, not arbitrary custom transaction implementations, overlapping
-saves of the same entity within one outer transaction or installed packages.
+JDBC adapter, not arbitrary custom transaction implementations, all lifecycle
+combinations (such as create/delete/recover chains) or installed packages.
 
 This does not qualify all scalar wire boundaries, cross-runtime DDL parity or a
 published artifact. Provenance is in `fixture-manifest.json` and

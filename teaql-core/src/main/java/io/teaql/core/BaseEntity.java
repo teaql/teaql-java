@@ -385,6 +385,7 @@ public class BaseEntity implements Entity {
         var savedDynamicValues = dynamicFieldValues;
         var savedState = loadState; var savedVersion = version; var savedStatus = $status;
         var savedBaseline = hydratedOriginalVersion;
+        var savedLedger = entityMutationLedger;
         return () -> {
             updatedProperties = savedUpdates.isEmpty() ? NO_UPDATES : new ConcurrentHashMap<>(savedUpdates);
             additionalInfo = savedAdditional.isEmpty() ? Map.of() : new HashMap<>(savedAdditional);
@@ -392,7 +393,19 @@ public class BaseEntity implements Entity {
             dynamicOriginalValues = savedOriginal.isEmpty() ? Map.of() : new HashMap<>(savedOriginal);
             dynamicFieldValues = savedDynamicValues; loadState = savedState;
             version = savedVersion; $status = savedStatus; hydratedOriginalVersion = savedBaseline;
+            entityMutationLedger = savedLedger;
         };
+    }
+
+    @FrameworkInternal("Physical rollback replay of already tracked native input; never raw-ledger admission")
+    public void __internalReplayRetryNative(String property, Object value) {
+        handleUpdate(property, __internalGet(property), value);
+        __internalSet(property, value);
+    }
+
+    @FrameworkInternal("Physical rollback replay of already tracked extension input")
+    public void __internalReplayRetryDynamic(io.teaql.data.dynamic.DynamicFieldMutation mutation) {
+        stageDynamicMutation(mutation);
     }
 
     public void addAction(Object action) {

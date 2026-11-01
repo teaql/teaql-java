@@ -1110,13 +1110,17 @@ public class TeaQLRuntime implements AutoCloseable {
     }
 
     private Runnable captureGraphRollback(Collection<BaseEntity> entities) {
+        List<BaseEntity> targets = List.copyOf(entities);
         List<Runnable> restore = new ArrayList<>();
         Set<EntityMutationLedger> ledgers = Collections.newSetFromMap(new IdentityHashMap<>());
-        for (BaseEntity target : entities) {
+        Map<EntityKey, BaseEntity> byKey = new HashMap<>();
+        for (BaseEntity target : targets) {
+            byKey.put(new EntityKey(target.typeName(), target.getId()), target);
             Map<String, Object> values = new LinkedHashMap<>();
             for (var descriptor = metadata.resolveEntityDescriptor(target.typeName()); descriptor != null; descriptor = descriptor.getParent()) {
                 for (var property : descriptor.getProperties()) {
-                    if (target.isPropertyLoaded(property.getName())) {
+                    if (target.isPropertyLoaded(property.getName())
+                            || io.teaql.core.FieldLayout.forType(target.getClass()).findIndex(property.getName()) != null) {
                         Object value = target.getProperty(property.getName());
                         if (!(value instanceof Iterable<?>)) values.put(property.getName(), value);
                     }
@@ -1127,7 +1131,47 @@ public class TeaQLRuntime implements AutoCloseable {
             var ledger = target.getEntityMutationLedger();
             if (ledgers.add(ledger)) restore.add(ledger.__internalCaptureRollback());
         }
-        return () -> restore.forEach(Runnable::run);
+        return () -> {
+            // Completion callbacks unwind newest-to-oldest. Capture later
+            // saved/unsaved intent before restoring an older snapshot, or the
+            // first save would silently erase every subsequent field edit.
+            Map<BaseEntity, Map<String, Object>> nativeInput = new IdentityHashMap<>();
+            Map<BaseEntity, Map<String, io.teaql.data.dynamic.DynamicFieldMutation>> dynamicInput = new IdentityHashMap<>();
+            for (BaseEntity target : targets) {
+                Map<String, Object> fields = new LinkedHashMap<>();
+                for (String field : target.getUpdatedProperties()) {
+                    var change = target.__internalPropertyChange(field);
+                    if (change != null) fields.put(field, change.getNewValue());
+                }
+                nativeInput.put(target, fields);
+                dynamicInput.put(target, new LinkedHashMap<>(target.__internalDynamicMutations()));
+            }
+            List<Runnable> rawInput = new ArrayList<>();
+            for (var ledger : ledgers) {
+                var changes = ledger.currentChangeSet();
+                changes.changes().forEach((key, fields) -> fields.forEach((name, value) -> {
+                    var target = byKey.get(key);
+                    if (target == null || !nativeInput.get(target).containsKey(name)) {
+                        // Raw keys are not generated updaters. Retain them as
+                        // raw input for the next normal admission, including
+                        // unknown keys and explicit NULL, without normalization.
+                        rawInput.add(() -> (target == null ? ledger : target.getEntityMutationLedger()).set(key, name, value));
+                    }
+                }));
+                changes.dynamicChanges().forEach((key, fields) -> fields.forEach((name, value) -> {
+                    var target = byKey.get(key);
+                    if (target == null || !dynamicInput.get(target).containsKey(name)) {
+                        rawInput.add(() -> (target == null ? ledger : target.getEntityMutationLedger()).setDynamic(key, value));
+                    }
+                }));
+            }
+            restore.forEach(Runnable::run);
+            for (BaseEntity target : targets) {
+                nativeInput.get(target).forEach(target::__internalReplayRetryNative);
+                dynamicInput.get(target).values().forEach(target::__internalReplayRetryDynamic);
+            }
+            rawInput.forEach(Runnable::run);
+        };
     }
 
     private void completeGraphPlan(UserContext context, List<PendingMutation> completed,
