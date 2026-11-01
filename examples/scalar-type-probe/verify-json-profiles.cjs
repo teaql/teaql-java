@@ -76,6 +76,18 @@ async function main() {
           'partialRejectedBeforeProvider', 'untouchedPartialReference', 'deleteRecover', 'zeroProviderCodec']
           : ['nestedIdentity', 'loadedNull', 'notLoaded', 'zeroProviderCodec', 'duplicateKeysRejected'];
         for (const key of checks) assert.equal(value[key], true);
+        if (testClass === 'GeneratedJsonProfileTest') {
+          const emitted = [...bytes.toString().matchAll(/^GENERATED_E_MODEL_PROFILE=(.+)$/gm)].map(m => JSON.parse(m[1]));
+          assert.equal(emitted.length, 1);
+          const e = emitted[0]; assert.equal(e.language, 'java'); assert.equal(e.profile, profile); assert.equal(e.round, round);
+          assert.equal(e.passed, true); assert.equal(e.providerEntries, 0); assert.equal(e.mutationLedgerCreated, false);
+          assert.equal(e.wire.instancePath, {camelCase:'/optionalString',snake_case:'/optional_string',PascalCase:'/OptionalString'}[profile]);
+          assert.deepEqual(e.wire.location, [{kind:'property',name:'optional_string'}]);
+          assert.equal(e.wire.breakPoint, 'optional_string'); assert.equal(e.wire.breakPointIndex, 0);
+          assert.equal(e.wire.expressionWithBrokenPoint, 'E.scalarTypeProbe(<root>).getOptionalString()<broken>.eval()');
+          assert(e.human.includes(e.wire.expressionWithBrokenPoint));
+          value.generatedExpression = e;
+        }
         rounds.push(value); assert.deepEqual(fixture(), input); assert.equal(snapshot(), before);
       }
       report.profiles[profile] = {rounds, sameDatabase: true, databaseSha256: sha(fs.readFileSync(path.join(evidence, 'fixture.sqlite')))};

@@ -49,8 +49,34 @@ public class GeneratedJsonProfileTest {
                 .comment("Project one generated JSON field").purpose("Preserve NotLoaded and model error paths").executeForOne(f.context);
         var sparseJson = mapper.readTree(mapper.writeValueAsString(sparse)); assertFalse(sparseJson.has(profile.render("optional_string")));
         var restored = mapper.treeToValue(sparseJson, ScalarTypeProbe.class);
+        long beforeExpression = f.data.calls;
         var error = assertThrows(TeaQLNotLoadedException.class, () -> E.scalarTypeProbe(restored).getOptionalString().eval());
-        assertEquals("/" + profile.render("optional_string"), error.toWire().instancePath());
+        String expectedPointer = switch (profile) {
+            case CAMEL_CASE -> "/optionalString";
+            case SNAKE_CASE -> "/optional_string";
+            case PASCAL_CASE -> "/OptionalString";
+        };
+        var wire = error.toWire();
+        assertEquals(expectedPointer, wire.instancePath());
+        assertEquals(expectedPointer, wire.attemptedInstancePath());
+        assertEquals(List.of(io.teaql.core.checker.WireLocationSegment.property("optional_string")), wire.location());
+        assertEquals(wire.location(), wire.attemptedLocation());
+        assertEquals(wire.location(), wire.suggestedFix().location());
+        assertEquals("optional_string", wire.breakPoint());
+        assertEquals(0, wire.breakPointIndex());
+        assertEquals("NOT_LOADED", wire.code());
+        assertEquals("E.scalarTypeProbe(<root>).getOptionalString().eval()", wire.originalExpression());
+        assertEquals("E.scalarTypeProbe(<root>).getOptionalString()<broken>.eval()", wire.expressionWithBrokenPoint());
+        assertTrue(error.getMessage(), error.getMessage().startsWith("TeaQLNotLoadedError:"));
+        assertTrue(error.getMessage(), error.getMessage().contains("access_path=optionalString"));
+        assertTrue(error.getMessage(), error.getMessage().contains("break_point=optional_string"));
+        assertTrue(error.getMessage(), error.getMessage().contains(wire.expressionWithBrokenPoint()));
+        assertFalse(error.getMessage().contains("\"instancePath\""));
+        assertEquals(beforeExpression, f.data.calls);
+        assertFalse(restored.__internalHasMutationLedger());
+        System.out.println("GENERATED_E_MODEL_PROFILE=" + new ObjectMapper().writeValueAsString(Map.of(
+                "language", "java", "profile", profile.modelValue(), "round", round, "passed", true,
+                "wire", wire, "human", error.getMessage(), "providerEntries", 0, "mutationLedgerCreated", false)));
         System.out.println("JAVA_JSON_MODEL_PROFILE=" + new ObjectMapper().writeValueAsString(Map.of(
                 "passed", true, "profile", profile.modelValue(), "round", round, "id", value.getId(),
                 "nestedIdentity", true, "loadedNull", true, "notLoaded", true, "zeroProviderCodec", true,
