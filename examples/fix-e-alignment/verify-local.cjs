@@ -26,6 +26,7 @@ report.contextRootApplicationSha256 = sha(fs.readFileSync(path.join(example, 'Co
 report.contextRootSubtypeApplicationSha256 = sha(fs.readFileSync(path.join(example, 'ContextRootSubtypeProbe.java')));
 report.partialAncestorApplicationSha256 = sha(fs.readFileSync(path.join(example, 'partial-ancestors/PartialAncestorExampleTest.java')));
 report.postFixApplicationSha256 = sha(fs.readFileSync(path.join(example, 'PostFixExampleTest.java')));
+report.partialAncestorRootApplicationSha256 = sha(fs.readFileSync(path.join(example, 'PartialAncestorRootExampleTest.java')));
 const {createOwnedRunner, ownedBytes} = require('./owned-command.cjs'), runner = createOwnedRunner();
 async function main() {
 try {
@@ -61,7 +62,7 @@ try {
   fs.writeFileSync(path.join(reactor, "pom.xml"), '<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>io.teaql.test</groupId><artifactId>fix-e-reactor</artifactId><version>0.0.0</version><packaging>pom</packaging><modules><module>../source</module><module>../generated</module><module>../consumer</module></modules></project>');
   for (const round of [1, 2]) {
     const command = ['mvn', '-o', '-B', '-ntp', '-f', path.join(reactor, 'pom.xml'), '-pl', ':teaql-fix-e-example', '-am', 'test',
-      '-Dtest=GeneratedFixEExampleTest,PartialAncestorExampleTest,PostFixExampleTest', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dteaql.version=' + version,
+      '-Dtest=GeneratedFixEExampleTest,PartialAncestorExampleTest,PartialAncestorRootExampleTest,PostFixExampleTest', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dteaql.version=' + version,
       '-Dteaql.expected.runtime.root=' + runtime];
     const log = path.join(evidence, 'round-' + round + '.log'), fd = fs.openSync(log, 'w'); let result;
     try { result = await runner.run(command, {cwd: scratch, timeout: 300000,
@@ -71,14 +72,19 @@ try {
     report.rounds.push({command, exitCode: result.status, signal: result.signal, logSha256: sha(bytes)});
     if (result.status !== 0) process.exitCode = result.status || 1;
     assert.equal(result.status, 0, bytes.toString().slice(-12000));
-    assert(bytes.toString().includes('Tests run: 5, Failures: 0, Errors: 0, Skipped: 0'));
+    const expected = {GeneratedFixEExampleTest: 1, PartialAncestorExampleTest: 1,
+      PartialAncestorRootExampleTest: 1, PostFixExampleTest: 3};
+    const summaries = [...bytes.toString().matchAll(/^\[INFO\] Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+), .* -- in io\.teaql\.examples\.fixe\.([A-Za-z]+)$/gm)];
+    assert.deepEqual(summaries.map(row => row[5]).sort(), Object.keys(expected).sort());
+    for (const row of summaries) assert.deepEqual(row.slice(1, 5).map(Number), [expected[row[5]], 0, 0, 0]);
+    assert.match(bytes.toString(), /^\[INFO\] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0$/m);
     const postFix = bytes.toString().split(/\r?\n/).filter(line => line.startsWith('JAVA_POST_FIX_CASE='))
       .map(line => JSON.parse(line.slice('JAVA_POST_FIX_CASE='.length)));
     assert.equal(postFix.length, 3);
     assert.deepEqual(postFix.map(row => row.case).sort(), ['typed-defaults-preserve-business-input',
       'value-free-provenance-and-graph-once', 'post-fix-reject-zero-provider-and-retry'].sort());
     for (const row of postFix) assert.equal(row.passed, true);
-    for (const marker of ['FIX_E_EXAMPLE=', 'CORE_LOAD_EXAMPLE=', 'CORE_MUTATION_OWNERSHIP=', 'CORE_MUTATION_PAGING=', 'JAVA_E_BOUNDARY_RESULT=', 'JAVA_CONTEXT_ROOT_RESULT=', 'JAVA_CONTEXT_ROOT_SUBTYPE_RESULT=', 'JAVA_PARTIAL_ANCESTORS_RESULT=']) {
+    for (const marker of ['FIX_E_EXAMPLE=', 'CORE_LOAD_EXAMPLE=', 'CORE_MUTATION_OWNERSHIP=', 'CORE_MUTATION_PAGING=', 'JAVA_E_BOUNDARY_RESULT=', 'JAVA_CONTEXT_ROOT_RESULT=', 'JAVA_CONTEXT_ROOT_SUBTYPE_RESULT=', 'JAVA_PARTIAL_ANCESTORS_RESULT=', 'JAVA_PARTIAL_ANCESTOR_ROOT_RESULT=']) {
       const values = bytes.toString().split(/\r?\n/).filter(line => line.startsWith(marker)).map(line => JSON.parse(line.slice(marker.length)));
       assert.equal(values.length, 1, marker); assert.equal(values[0].passed, true, marker);
     }
@@ -99,6 +105,8 @@ try {
     const file = 'fixture.sqlite.post-fix-' + name + '.sqlite';
     return {file, sha256: sha(fs.readFileSync(path.join(evidence, file)))};
   });
+  report.partialAncestorRootDatabase = {file: 'fixture.sqlite.partial-ancestor-root.sqlite',
+    sha256: sha(fs.readFileSync(path.join(evidence, 'fixture.sqlite.partial-ancestor-root.sqlite')))};
   report.passed = true;
   console.log('PASS Java retained Fix/E/loading/ownership example twice on one database');
 } catch (error) { console.error(error.stack); process.exitCode ||= 1; }

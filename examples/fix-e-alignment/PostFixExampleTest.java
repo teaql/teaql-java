@@ -122,7 +122,7 @@ public class PostFixExampleTest {
                 "persistedThroughGeneratedQAndE", true, "typedClockAndRoot", true));
     }
 
-    @Test public void fixProvenanceIsCompleteValueFreeDetachedAndNotRepeatedForGraphCycles() throws Exception {
+    @Test public void fixProvenanceIsCompleteValueFreeAndDetachedForParentChildGraph() throws Exception {
         var f = new Fixture("evidence");
         var order = f.order();
         var item = f.item(order, "Private product input", BigDecimal.ONE);

@@ -23,3 +23,23 @@ while removing owned build output. It does not install or publish runtime jars.
 
 The additional JSON dependencies belong to this test consumer, not the domain
 library. No generated implementation or production runtime code is modified.
+
+## Active-root admission below sparse ancestors
+
+`PartialAncestorRootExampleTest` loads the same two sparse ancestors and a
+complete OrderItem, then changes only the child's product name. Saving the graph
+with a different existing Tenant as the active root must reject twice with
+`ContextRootException.VALUE_MISMATCH`. Both attempts assert zero provider queries,
+writes, transactions, ID allocations, policies, reviews, audit records and root
+lookups. The independent read-only SQLite oracle checks that stored rows are
+unchanged, while the pending child mutation and both ancestors' load states
+remain intact.
+
+The test then saves that exact graph with its correct context. One audited child
+update succeeds; both ancestors retain version 1 and their unselected fields,
+and a generated Q/E read confirms the child value and version 2. Each verifier
+run executes this scenario twice against the same retained SQLite database.
+
+This is a parent/child ownership case, not proof of cyclic or repeated-reference
+graph traversal. Those cases require a separately supported relationship API and
+their own tests; the retained Assist used here does not expose that operation.
