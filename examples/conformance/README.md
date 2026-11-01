@@ -17,6 +17,27 @@ using an isolated temporary SQLite database for each run.
 The generated Runtime Module is installed at application startup but remains a
 passive manifest. Schema reconciliation is invoked separately and explicitly.
 
+## Generated Fix postconditions and safe provenance
+
+```bash
+node examples/fix-e-alignment/verify-local.cjs
+```
+
+The unchanged three-object model supplies a parent and child with required
+context-root references and create/update timestamps. Three additional
+application-owned tests assert typed managed defaults before validation,
+unchanged ordinary business inputs read back with generated Q/E, and exactly
+one immutable, value-free provenance entry per fixed field. Invalid required
+and range inputs fail after Fix with zero provider reads, writes or transactions;
+corrected input then saves in a fresh invocation. Both rounds use the same
+SQLite files without cleanup between them.
+
+`TEAQL_FIX_E_EVIDENCE_DIR` selects a new absolute directory for compact logs,
+hashes and databases. Build output is removed on exit. This proves the declared
+clock/root and ordinary required/range vectors, not arbitrary custom context
+fixers, a range-constrained generated default, security/TTL clock behavior or
+the complete seven-runtime diagnostic contract.
+
 ## Caller-owned Spring transactions
 
 ```bash
