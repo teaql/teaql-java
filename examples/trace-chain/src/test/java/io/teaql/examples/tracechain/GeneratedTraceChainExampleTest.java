@@ -251,7 +251,15 @@ public class GeneratedTraceChainExampleTest {
             var previous = Q.customerOrders().orderByIdDescending().limit(1)
                     .comment("what: select the previous fixture identity")
                     .purpose("why: replay without deleting the database").executeForOne(context);
-            base = previous == null ? 100 : E.customerOrder(previous).getId().eval() + 1000;
+            long persistedFloor = previous == null ? 100 : E.customerOrder(previous).getId().eval() + 1000;
+            // Failed/abandoned creations now retain real reserved IDs. Advance
+            // beyond every fixture type's allocation state, not just persisted
+            // orders. These reservations create no domain rows. Keep the exact
+            // cross-type ID controls below, including order == payment.
+            long reservedFloor = 100;
+            for (String type : List.of("CustomerOrder", "Payment", "OrderItem", "PaymentAttempt", "Shipment"))
+                reservedFloor = Math.max(reservedFloor, Math.addExact(ids.nextId(type), 1));
+            base = Math.max(persistedFloor, reservedFloor);
             ids.ensureFloor("CustomerOrder", base - 1);
             ids.ensureFloor("Payment", base - 1);
             ids.ensureFloor("OrderItem", base + 100);
@@ -371,6 +379,9 @@ public class GeneratedTraceChainExampleTest {
                 .purpose("why: require an independent Checker rejection").newEntity(fixture.context);
         invalid.updatePlatform(platform);
         invalid.updateDescription("Invalid overlapping request");
+        var invalidId = invalid.getId();
+        assertNotNull("creation reserves identity before validation", invalidId);
+        assertTrue(invalidId > 0);
         assertNotSame(valid.getEntityMutationLedger(), invalid.getEntityMutationLedger());
         var validThread = new AtomicReference<Thread>();
         var validEntered = new CountDownLatch(1);
@@ -413,7 +424,10 @@ public class GeneratedTraceChainExampleTest {
             assertEquals(lineage, fixture.commands.get(0).getTraceChain());
             assertEquals(lineage, fixture.audit.get(0).traceChain());
             assertTrue(fixture.sql.stream().allMatch(entry -> entry.getMutationLineage().equals(lineage)));
-            assertNull("Checker rejects before allocation", invalid.getId());
+            assertEquals("Checker rejection preserves the factory-reserved identity", invalidId, invalid.getId());
+            assertNull("Checker rejects before a persisted version exists", invalid.getVersion());
+            assertTrue("failed creation keeps its pending-new intent", invalid.newItem());
+            assertEquals(Set.of(new EntityKey("CustomerOrder", invalidId)), invalid.getEntityMutationLedger().newKeys());
         } finally {
             validEntered.countDown(); invalidFinishing.countDown(); validFinished.countDown();
             workers.shutdownNow();
