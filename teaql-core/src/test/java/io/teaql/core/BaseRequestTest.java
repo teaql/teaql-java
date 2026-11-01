@@ -314,6 +314,8 @@ public class BaseRequestTest {
                 new Class<?>[] { UserContext.class },
                 (proxy, method, args) -> {
                     if (method.getName().equals("initializeEntity")) return args[1];
+                    if (method.getName().equals("capability") && args[0] == InternalIdGenerationService.class)
+                        return (InternalIdGenerationService) (caller, entity) -> 501L;
                     throw new UnsupportedOperationException(method.getName());
                 });
         BaseEntity entity = (BaseEntity) new BaseRequest.TempRequest(
@@ -323,6 +325,8 @@ public class BaseRequestTest {
                 .newEntity(context);
         assertNotNull(entity);
         assertEquals(EntityStatus.NEW, entity.get$status());
+        assertEquals(Long.valueOf(501), entity.getId());
+        assertTrue(entity.isPropertyLoaded("id"));
     }
 
     @Test

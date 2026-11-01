@@ -161,15 +161,11 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
      * Applies trusted, context-owned defaults to a newly generated entity.
      * Business input must not supply tenant, actor, policy, provider, or audit
      * infrastructure values directly.
+     * The default path reserves a real ID through this Context's ID service;
+     * abandoning the object may leave a gap, but does not persist the object.
      */
     default <T extends Entity> T initializeEntity(String entityName, T entity) {
-        if (entityName == null || entityName.trim().isEmpty()) {
-            throw new IllegalArgumentException("entityName must not be empty");
-        }
-        if (entity == null) {
-            throw new IllegalArgumentException("entity must not be null");
-        }
-        return entity;
+        return NewEntityLifecycle.initialize(this, entityName, entity);
     }
 
     void pushTrace(String comment);

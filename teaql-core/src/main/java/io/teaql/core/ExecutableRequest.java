@@ -26,12 +26,15 @@ public class ExecutableRequest<T extends Entity> {
         this.request = request;
     }
 
-    /** Creates a generated entity only after Comment and Purpose are declared. */
+    /** Creates a generated entity with its real ID after Comment and Purpose are declared. */
     public T newEntity(UserContext context) {
         if (context == null) {
             throw new IllegalArgumentException("UserContext is required for entity creation");
         }
-        return context.initializeEntity(request.getTypeName(), request.internalNewEntity());
+        T initialized = context.initializeEntity(request.getTypeName(), request.internalNewEntity());
+        // A trusted defaults override may omit super.initializeEntity(). Keep
+        // the public factory's identity/lifecycle contract at its return edge.
+        return NewEntityLifecycle.initialize(context, request.getTypeName(), initialized);
     }
 
     public SmartList<T> executeForList(UserContext context) {
