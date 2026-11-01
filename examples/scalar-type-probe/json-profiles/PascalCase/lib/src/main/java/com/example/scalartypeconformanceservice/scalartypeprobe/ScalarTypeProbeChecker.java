@@ -28,6 +28,8 @@ public class ScalarTypeProbeChecker implements Checker<ScalarTypeProbe>{
       if((scalarTypeProbe == null)){
          return;
       }
+      if(scalarTypeProbe.needPersist()){
+      }
       if(scalarTypeProbe.newItem()){
         if(scalarTypeProbe.getCreateTime() == null){
            scalarTypeProbe.updateCreateTime(_context.evaluate("now"));

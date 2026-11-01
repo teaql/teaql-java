@@ -24,6 +24,8 @@ public class TypePlatformChecker implements Checker<TypePlatform>{
       if((typePlatform == null)){
          return;
       }
+      if(typePlatform.needPersist()){
+      }
       if(typePlatform.newItem()){
       }else if(typePlatform.updateItem()){
         if(!typePlatform.isPropertyLoaded("name")){
