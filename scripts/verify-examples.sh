@@ -37,6 +37,8 @@ mvn -q -pl examples/round-trip-reference-runtime \
 mvn -q -f examples/conformance/lib/pom.xml install -DskipTests
 mvn -q -f examples/conformance/pom.xml spring-boot:run \
   -Dspring-boot.run.arguments="--spring.main.web-application-type=none --spring.datasource.url=jdbc:sqlite:$verification_dir/conformance.db"
+TEAQL_JAVA_SPRING_EVIDENCE_DIR="$evidence_dir/spring-transactions" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/conformance/spring-transactions/verify-local.cjs"
 mvn -q -f examples/school-management/lib/pom.xml install -DskipTests
 mvn -q -f examples/school-management/pom.xml spring-boot:run \
   -Dspring-boot.run.arguments="--spring.main.web-application-type=none --spring.datasource.url=jdbc:sqlite:$verification_dir/school-management.db"
