@@ -28,6 +28,7 @@ report.partialAncestorApplicationSha256 = sha(fs.readFileSync(path.join(example,
 report.postFixApplicationSha256 = sha(fs.readFileSync(path.join(example, 'PostFixExampleTest.java')));
 report.partialAncestorRootApplicationSha256 = sha(fs.readFileSync(path.join(example, 'PartialAncestorRootExampleTest.java')));
 report.newEntityIdApplicationSha256 = sha(fs.readFileSync(path.join(example, 'NewEntityIdExampleTest.java')));
+report.checkerBoundaryApplicationSha256 = sha(fs.readFileSync(path.join(example, 'CheckerBoundaryExampleTest.java')));
 const {createOwnedRunner, ownedBytes} = require('./owned-command.cjs'), runner = createOwnedRunner();
 async function main() {
 try {
@@ -55,6 +56,7 @@ try {
       <dependency><groupId>io.teaql</groupId><artifactId>teaql-runtime</artifactId><version>${version}</version></dependency>
       <dependency><groupId>io.teaql</groupId><artifactId>teaql-sqlite</artifactId><version>${version}</version></dependency>
       <dependency><groupId>io.teaql</groupId><artifactId>teaql-jackson</artifactId><version>${version}</version></dependency>
+      <dependency><groupId>io.teaql</groupId><artifactId>teaql-tfp-endpoint</artifactId><version>${version}</version></dependency>
       <dependency><groupId>com.fasterxml.jackson.datatype</groupId><artifactId>jackson-datatype-jsr310</artifactId><scope>test</scope></dependency>
       <dependency><groupId>junit</groupId><artifactId>junit</artifactId><version>4.13.2</version><scope>test</scope></dependency>
     </dependencies><build><plugins><plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><configuration><useModulePath>false</useModulePath></configuration></plugin></plugins></build></project>`;
@@ -63,7 +65,7 @@ try {
   fs.writeFileSync(path.join(reactor, "pom.xml"), '<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>io.teaql.test</groupId><artifactId>fix-e-reactor</artifactId><version>0.0.0</version><packaging>pom</packaging><modules><module>../source</module><module>../generated</module><module>../consumer</module></modules></project>');
   for (const round of [1, 2]) {
     const command = ['mvn', '-o', '-B', '-ntp', '-f', path.join(reactor, 'pom.xml'), '-pl', ':teaql-fix-e-example', '-am', 'test',
-      '-Dtest=GeneratedFixEExampleTest,PartialAncestorExampleTest,PartialAncestorRootExampleTest,PostFixExampleTest,NewEntityIdExampleTest', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dteaql.version=' + version,
+      '-Dtest=GeneratedFixEExampleTest,PartialAncestorExampleTest,PartialAncestorRootExampleTest,PostFixExampleTest,NewEntityIdExampleTest,CheckerBoundaryExampleTest', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dteaql.version=' + version,
       '-Dteaql.expected.runtime.root=' + runtime];
     const log = path.join(evidence, 'round-' + round + '.log'), fd = fs.openSync(log, 'w'); let result;
     try { result = await runner.run(command, {cwd: scratch, timeout: 300000,
@@ -74,11 +76,17 @@ try {
     if (result.status !== 0) process.exitCode = result.status || 1;
     assert.equal(result.status, 0, bytes.toString().slice(-12000));
     const expected = {GeneratedFixEExampleTest: 1, PartialAncestorExampleTest: 1,
-      PartialAncestorRootExampleTest: 1, PostFixExampleTest: 3, NewEntityIdExampleTest: 1};
+      PartialAncestorRootExampleTest: 1, PostFixExampleTest: 3, NewEntityIdExampleTest: 1, CheckerBoundaryExampleTest: 1};
     const summaries = [...bytes.toString().matchAll(/^\[INFO\] Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+), .* -- in io\.teaql\.examples\.fixe\.([A-Za-z]+)$/gm)];
     assert.deepEqual(summaries.map(row => row[5]).sort(), Object.keys(expected).sort());
     for (const row of summaries) assert.deepEqual(row.slice(1, 5).map(Number), [expected[row[5]], 0, 0, 0]);
-    assert.match(bytes.toString(), /^\[INFO\] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0$/m);
+    assert.match(bytes.toString(), /^\[INFO\] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0$/m);
+    const boundaries = bytes.toString().split(/\r?\n/).filter(line => line.startsWith('JAVA_CHECKER_BOUNDARY_CASE='))
+      .map(line => JSON.parse(line.slice('JAVA_CHECKER_BOUNDARY_CASE='.length)));
+    assert.equal(boundaries.length, 26); assert(boundaries.every(row => row.passed && row.round === round));
+    const boundaryResult = bytes.toString().split(/\r?\n/).filter(line => line.startsWith('JAVA_CHECKER_BOUNDARY_RESULT='))
+      .map(line => JSON.parse(line.slice('JAVA_CHECKER_BOUNDARY_RESULT='.length)));
+    assert.equal(boundaryResult.length, 1); assert.equal(boundaryResult[0].passed, true); assert.equal(boundaryResult[0].round, round);
     const postFix = bytes.toString().split(/\r?\n/).filter(line => line.startsWith('JAVA_POST_FIX_CASE='))
       .map(line => JSON.parse(line.slice('JAVA_POST_FIX_CASE='.length)));
     assert.equal(postFix.length, 3);
@@ -110,6 +118,8 @@ try {
     sha256: sha(fs.readFileSync(path.join(evidence, 'fixture.sqlite.partial-ancestor-root.sqlite')))};
   report.newEntityIdDatabase = {file: 'fixture.sqlite.new-entity-id.sqlite',
     sha256: sha(fs.readFileSync(path.join(evidence, 'fixture.sqlite.new-entity-id.sqlite')))};
+  report.checkerBoundaryDatabase = {file: 'fixture.sqlite.checker-boundaries.sqlite',
+    sha256: sha(fs.readFileSync(path.join(evidence, 'fixture.sqlite.checker-boundaries.sqlite')))};
   report.passed = true;
   console.log('PASS Java retained Fix/E/loading/ownership example twice on one database');
 } catch (error) { console.error(error.stack); process.exitCode ||= 1; }
