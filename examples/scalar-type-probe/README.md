@@ -119,3 +119,32 @@ combinations (such as create/delete/recover chains) or installed packages.
 This does not qualify all scalar wire boundaries, cross-runtime DDL parity or a
 published artifact. Provenance is in `fixture-manifest.json` and
 `json-profiles/provenance.json`; generated sources are never edited by the probes.
+
+## Finite floating point values
+
+Run `node examples/scalar-type-probe/verify-local.cjs --finite` to exercise the
+generated Float and Double APIs against the repository-local source reactor.
+Both rounds reuse four SQLite stores without resetting them. Each round checks
+62 scenarios: 24 invalid creates or updates, a late invalid graph child, 24
+invalid values produced by customer Fix, four customer repairs, eight corrupt
+legacy values and a two-child rollback repair and retry.
+
+NaN and either infinity must produce structured `invalid_type` diagnostics after
+Fix and before policy review, provider access or committed mutation audit. A
+customer Fix may repair an initially invalid value; its final value is checked
+once. All JSON naming profiles preserve the canonical field pointer, without
+trying to serialize a nonfinite number as diagnostic input. Standalone Checker
+tests also protect capability-free checks using the entity's existing field
+layout and loaded values, including cyclic graphs.
+
+Legacy infinity is injected through explicitly labelled SQL fault setup, not
+ordinary application writes. Full generated Q loading rejects it, while a safe
+minimal projection remains usable and E reports omitted fields as NotLoaded.
+SQLite can turn a directly injected NaN into SQL NULL; that lost information
+cannot be recovered by a later read. The runtime therefore rejects new nonfinite
+values before they reach the driver. Low-level JDBC tests additionally cover
+finite Double values that overflow when converted to Float.
+
+This mode retains logs, source origins, fixture hashes and the four databases;
+its disposable source copy and build outputs are removed on exit. It is part of
+`scripts/verify-examples.sh`, separate from installed-artifact acceptance.

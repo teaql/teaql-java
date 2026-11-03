@@ -228,7 +228,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         @Override
         public Object get(int columnIndex) {
             try {
-                return resultSet.getObject(columnIndex);
+                return finiteColumn(resultSet, columnIndex);
             } catch (SQLException exception) {
                 throw new RuntimeException("Failed to read JDBC column " + columnIndex, exception);
             }
@@ -237,7 +237,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         @Override
         public <V> V get(int columnIndex, Class<V> type) {
             try {
-                Object value = resultSet.getObject(columnIndex);
+                Object value = finiteColumn(resultSet, columnIndex);
                 return convertColumn(type, value);
             } catch (SQLException exception) {
                 throw new RuntimeException("Failed to read JDBC column " + columnIndex + " as "
@@ -251,8 +251,8 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             if (value instanceof Number number) {
                 if (type == Long.class) return (V) Long.valueOf(number.longValue());
                 if (type == Integer.class) return (V) Integer.valueOf(number.intValue());
-                if (type == Double.class) return (V) Double.valueOf(number.doubleValue());
-                if (type == Float.class) return (V) Float.valueOf(number.floatValue());
+                if (type == Double.class) return (V) finiteConversion(Double.valueOf(number.doubleValue()));
+                if (type == Float.class) return (V) finiteConversion(Float.valueOf(number.floatValue()));
                 if (type == Short.class) return (V) Short.valueOf(number.shortValue());
                 if (type == Byte.class) return (V) Byte.valueOf(number.byteValue());
                 if (type == java.math.BigDecimal.class) {
@@ -301,8 +301,26 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
     private static JdbcColumnRow readColumnRow(ResultSet resultSet, JdbcColumnRow.Layout layout, int width)
             throws SQLException {
         Object[] values = new Object[width];
-        for (int i = 0; i < width; i++) values[i] = resultSet.getObject(i + 1);
+        for (int i = 0; i < width; i++) values[i] = finiteColumn(resultSet, i + 1);
         return new JdbcColumnRow(layout, values);
+    }
+
+    private static Object finiteColumn(ResultSet resultSet, int column) throws SQLException {
+        Object value = resultSet.getObject(column);
+        if (nonFiniteNumber(value))
+            throw new SQLException("Non-finite JDBC numeric field " + resultSet.getMetaData().getColumnLabel(column));
+        return value;
+    }
+
+    private static Object finiteConversion(Object value) {
+        if (nonFiniteNumber(value))
+            throw new IllegalArgumentException("JDBC numeric value is outside the finite target range");
+        return value;
+    }
+
+    private static boolean nonFiniteNumber(Object value) {
+        return value instanceof Double doubleValue && !Double.isFinite(doubleValue)
+                || value instanceof Float floatValue && !Float.isFinite(floatValue);
     }
 
     private static String[] columnLabels(ResultSet resultSet) throws SQLException {
@@ -482,8 +500,10 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 statement.setString(index, number.toPlainString());
             } else statement.setBigDecimal(index, number);
         } else if (value instanceof Double number) {
+            if (!Double.isFinite(number)) throw new SQLException("Non-finite JDBC floating-point parameter " + index);
             statement.setDouble(index, number);
         } else if (value instanceof Float number) {
+            if (!Float.isFinite(number)) throw new SQLException("Non-finite JDBC floating-point parameter " + index);
             statement.setFloat(index, number);
         } else if (value instanceof Boolean booleanValue) {
             statement.setBoolean(index, booleanValue);

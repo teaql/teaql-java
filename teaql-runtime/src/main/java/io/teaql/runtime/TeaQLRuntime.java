@@ -618,13 +618,25 @@ public class TeaQLRuntime implements AutoCloseable {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private void checkAndFix(UserContext context, Entity entity) {
-        if (checkers.isEmpty()) return;
+        if (checkers.isEmpty()) {
+            var violations = io.teaql.core.checker.internal.FiniteScalarAdmission.collect(metadata, entity, true);
+            if (!violations.isEmpty()) {
+                context.translateCheckResults(violations);
+                throw new CheckException(violations);
+            }
+            return;
+        }
         try (var invocation = io.teaql.core.checker.internal.CheckerInvocation.openMutation(context)) {
             context.beginFixEvidence();
             try {
                 checkGraphMutations(context, entity, null,
                         Collections.newSetFromMap(new IdentityHashMap<>()));
                 List<CheckResult> violations = (List<CheckResult>) invocation.attribute(Checker.TEAQL_DATA_CHECK_RESULT);
+                var numeric = io.teaql.core.checker.internal.FiniteScalarAdmission.collect(metadata, entity, true);
+                if (!numeric.isEmpty()) {
+                    if (violations == null) violations = new ArrayList<>();
+                    violations.addAll(numeric);
+                }
                 if (violations != null && !violations.isEmpty()) {
                     context.translateCheckResults(violations);
                     throw new CheckException(new ArrayList<>(violations));
@@ -848,6 +860,19 @@ public class TeaQLRuntime implements AutoCloseable {
             UserContext context, MutationPlan plan) {
         CanonicalMutationFields.validatePlan(context, metadata, plan);
         io.teaql.runtime.mutation.MutationVersionAdmission.validatePlan(plan);
+        List<CheckResult> numericViolations = null;
+        for (var operation : plan.operations()) {
+            var violations = io.teaql.core.checker.internal.FiniteScalarAdmission.collect(
+                    operation.entity().entity(), operation.changedValues());
+            if (!violations.isEmpty()) {
+                if (numericViolations == null) numericViolations = new ArrayList<>();
+                numericViolations.addAll(violations);
+            }
+        }
+        if (numericViolations != null) {
+            context.translateCheckResults(numericViolations);
+            throw new CheckException(numericViolations);
+        }
         Optional<MutationPolicy> resolved = mutationPolicyRegistry.resolve(plan.requestKey());
         MutationPolicySource source;
         MutationPolicyIdentity identity = null;

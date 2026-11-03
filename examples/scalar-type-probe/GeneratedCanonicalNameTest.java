@@ -62,6 +62,9 @@ public class GeneratedCanonicalNameTest {
         final List<Set<String>> checked = new ArrayList<>();
         final Context context;
         Fixture(String url, int round) {
+            this(url, round, null);
+        }
+        Fixture(String url, int round, java.util.function.Consumer<ScalarTypeProbe> customerFix) {
             data = new ObservedDataSource(url);
             sql = new JdbcSqlExecutor(data);
             var service = new SqliteDataServiceExecutor("sqlite", sql, data);
@@ -90,6 +93,7 @@ public class GeneratedCanonicalNameTest {
                         var keys = new HashSet<>(entity.getUpdatedProperties());
                         assertFalse(keys.contains("type_platform_id")); assertFalse(keys.contains("requiredString"));
                         checked.add(Set.copyOf(keys)); delegate.checkAndFix(caller, entity, location);
+                        if (customerFix != null) customerFix.accept(entity);
                     }
                 }));
             }

@@ -54,6 +54,8 @@ TEAQL_JAVA_EXACT_EVIDENCE_DIR="$evidence_dir/exact-decimal" \
   bash "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/exact-decimal/verify.sh"
 TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/scalar-type-probe" \
   node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs"
+TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/scalar-finite" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --finite
 TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/restoration-views" \
   node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --restoration-views
 TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/outer-replay" \

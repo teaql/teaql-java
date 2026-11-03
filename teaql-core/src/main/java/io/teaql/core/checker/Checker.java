@@ -160,6 +160,7 @@ public interface Checker<T extends BaseEntity> {
 
     default void minNumberCheck(
             UserContext context, ObjectLocation location, Number minNumber, Number current) {
+        if (deferNonFiniteNumber(context, location, current)) return;
         if (NumberUtil.isLess(NumberUtil.toBigDecimal(current), NumberUtil.toBigDecimal(minNumber))) {
             appendResult(context, CheckResult.min(location, minNumber, current));
         }
@@ -167,10 +168,20 @@ public interface Checker<T extends BaseEntity> {
 
     default void maxNumberCheck(
             UserContext context, ObjectLocation location, Number maxNumber, Number current) {
+        if (deferNonFiniteNumber(context, location, current)) return;
         if (NumberUtil.isGreater(
                 NumberUtil.toBigDecimal(current), NumberUtil.toBigDecimal(maxNumber))) {
             appendResult(context, CheckResult.max(location, maxNumber, current));
         }
+    }
+
+    private boolean deferNonFiniteNumber(UserContext context, ObjectLocation location, Number current) {
+        if (!io.teaql.core.checker.internal.FiniteScalarAdmission.nonFinite(current)) return false;
+        // A later customer Fix may repair this value. The invocation owner
+        // validates the final graph rather than throwing BigDecimal's parse error.
+        if (CheckerInvocation.current(context) == null)
+            invalidTypeCheck(context, location, "Expected a finite floating-point number");
+        return true;
     }
 
     default void minStringCheck(
@@ -235,6 +246,11 @@ public interface Checker<T extends BaseEntity> {
             checkAndFix(context, entity, null);
             java.util.List<CheckResult> violations = (java.util.List<CheckResult>)
                     invocation.attribute(TEAQL_DATA_CHECK_RESULT);
+            var numeric = io.teaql.core.checker.internal.FiniteScalarAdmission.collect(entity);
+            if (!numeric.isEmpty()) {
+                if (violations == null) violations = new java.util.ArrayList<>();
+                violations.addAll(numeric);
+            }
             if (violations != null && !violations.isEmpty()) {
                 context.translateCheckResults(violations);
                 throw new CheckException(new java.util.ArrayList<>(violations));
