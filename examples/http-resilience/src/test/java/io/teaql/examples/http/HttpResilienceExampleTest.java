@@ -110,6 +110,10 @@ public class HttpResilienceExampleTest {
                         return (outcome, attempts, elapsedMillis) -> {};
                     });
 
+            for (int round = 1; round <= 2; round++) {
+            int before = requests.get();
+            assertEquals((round - 1) * 2, before);
+            assertEquals(before, observed.size());
             var response = context.httpRequests().execute(context,
                     HttpRequestService.Call.get("orders", "orders/1?token=PRIVATE_QUERY_CANARY",
                             "load order status", "show the order status")
@@ -125,16 +129,21 @@ public class HttpResilienceExampleTest {
                     .purpose("explain the order status")
                     .execute();
             assertTrue(viaTool.contains("submitted"));
-            assertEquals(2, requests.get());
-            assertEquals(List.of(TRACEPARENT, TRACEPARENT), traceparents);
-            assertEquals(2, observed.size());
+            assertEquals(round * 2, requests.get());
+            assertEquals(java.util.Collections.nCopies(round * 2, TRACEPARENT), traceparents);
+            assertEquals(round * 2, observed.size());
             var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            assertEquals(3, mapper.readTree(observed.get(0).traceChain()).size());
+            assertEquals(3, mapper.readTree(observed.get(before).traceChain()).size());
             assertEquals("load order graph",
-                    mapper.readTree(observed.get(0).traceChain()).get(1).get("comment").asText());
-            assertEquals(2, mapper.readTree(observed.get(1).traceChain()).size());
+                    mapper.readTree(observed.get(before).traceChain()).get(1).get("comment").asText());
+            assertEquals(2, mapper.readTree(observed.get(before + 1).traceChain()).size());
             assertFalse(observed.toString().contains("PRIVATE_QUERY_CANARY"));
-            assertFalse(observed.get(0).traceChain().contains("PRIVATE_QUERY_CANARY"));
+            assertFalse(observed.get(before).traceChain().contains("PRIVATE_QUERY_CANARY"));
+            System.out.println("JAVA_HTTP_CONTRACT_EXAMPLE=" + mapper.writeValueAsString(java.util.Map.of(
+                    "id", "HTTP-16", "round", round, "fixturePort", server.getAddress().getPort(),
+                    "requestsBefore", before, "requestsAfter", requests.get(), "operationsBefore", before,
+                    "operationsAfter", observed.size(), "fixtureReset", false)));
+            }
         } finally {
             server.stop(0);
         }

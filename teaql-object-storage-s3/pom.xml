@@ -10,5 +10,6 @@
     <dependency><groupId>software.amazon.awssdk</groupId><artifactId>apache5-client</artifactId><version>${aws.sdk.version}</version></dependency>
     <dependency><groupId>junit</groupId><artifactId>junit</artifactId><scope>test</scope></dependency>
     <dependency><groupId>io.teaql</groupId><artifactId>teaql-runtime</artifactId><scope>test</scope></dependency>
+    <dependency><groupId>io.teaql</groupId><artifactId>teaql-tool-http</artifactId><version>${project.version}</version><scope>test</scope></dependency>
   </dependencies>
 </project>
