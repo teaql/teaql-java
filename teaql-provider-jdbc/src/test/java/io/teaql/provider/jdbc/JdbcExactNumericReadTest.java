@@ -101,6 +101,10 @@ public class JdbcExactNumericReadTest {
         String url = driver.equals("h2") ? "jdbc:h2:mem:exact_" + UUID.randomUUID() : "jdbc:sqlite::memory:";
         var adapter = new JdbcSqlExecutor(new TrackingDataSource(url));
         String sql = "SELECT " + vector.expression + " AS required_numeric";
+        // Calibrate the SQL and actual driver value independently. Unsupported
+        // SQL must be an error, not mistaken for successful conversion rejection.
+        var raw = adapter.queryForList(sql, new Object[0]);
+        assertEquals(1, raw.size()); assertTrue(raw.get(0).containsKey("required_numeric"));
         if (vector.rejected) {
             var error = assertThrows(IllegalArgumentException.class, () -> read(adapter, sql, vector.target));
             assertTrue(error.getMessage(), error.getMessage().contains("column 1"));
@@ -109,10 +113,10 @@ public class JdbcExactNumericReadTest {
             assertFalse(error.toString(), error.toString().contains("PRIVATE-JDBC-VALUE-901"));
             assertNull("conversion causes must not retain untrusted field values", error.getCause());
         } else assertEquals(vector.name, vector.expected, read(adapter, sql, vector.target));
-        assertEquals("exactly one JDBC connection per query", 1, connections.size());
+        assertEquals("calibration plus typed query", 2, connections.size());
         assertClosed();
         assertEquals("same adapter recovers after a bad value", Integer.valueOf(7), read(adapter, "SELECT 7 AS required_numeric", Integer.class));
-        assertEquals(2, connections.size()); assertClosed();
+        assertEquals(3, connections.size()); assertClosed();
     }
 
     private Object read(JdbcSqlExecutor adapter, String sql, Class<?> type) throws Exception {
