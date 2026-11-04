@@ -306,6 +306,79 @@ public class DerivedQueryTraceSqliteTest {
         }
     }
 
+    @Test public void emptyMinimumBucketsKeepNullForRelationsAndFacets() throws Exception {
+        assertNullableStatisticBuckets(AggrFunction.MIN);
+    }
+
+    @Test public void emptyMaximumBucketsKeepNullForRelationsAndFacets() throws Exception {
+        assertNullableStatisticBuckets(AggrFunction.MAX);
+    }
+
+    @Test public void emptyAverageBucketsKeepNullForRelationsAndFacets() throws Exception {
+        assertNullableStatisticBuckets(AggrFunction.AVG);
+    }
+
+    private static void assertNullableStatisticBuckets(AggrFunction function) throws Exception {
+        for (boolean logging : List.of(false, true)) {
+            try (var fixture = new Fixture(logging)) {
+                // Mixed null/value, genuine zero, absent and all-null buckets.
+                for (long id : List.of(101L, 102L, 201L)) {
+                    var line = fixture.context.getRuntime().executeForList(fixture.context,
+                            fixture.lines().where("id", Operator.EQUAL, id)
+                                    .intent("prepare a statistic operand", "distinguish null and numeric zero")).get(0);
+                    line.updateProperty("documentNumber", id == 101L ? null : id == 102L ? 8L : 0L);
+                    line.auditAs("prepare statistic operand").save(fixture.context);
+                }
+                var empty = fixture.create(new TraceDocument(), 300, "Absent statistic bucket");
+                empty.auditAs("prepare absent statistic bucket").save(fixture.context);
+                var allNull = fixture.create(new TraceDocument(), 400, "All-null statistic bucket");
+                allNull.auditAs("prepare all-null statistic bucket").save(fixture.context);
+                var nullLine = fixture.create(new TraceLine(), 401, "Null statistic operand");
+                nullLine.updateProperty("document", allNull);
+                nullLine.updateProperty("state", "OPEN");
+                nullLine.updateProperty("documentNumber", null);
+                nullLine.auditAs("prepare null statistic operand").save(fixture.context);
+
+                for (boolean facet : List.of(false, true)) {
+                    fixture.sql.clear(); fixture.returnedQueries.clear();
+                    var metric = fixture.lines();
+                    switch (function) {
+                        case MIN -> metric.min("metric", "documentNumber");
+                        case MAX -> metric.max("metric", "documentNumber");
+                        case AVG -> metric.avg("metric", "documentNumber");
+                        default -> throw new AssertionError("unexpected statistic");
+                    }
+                    metric.setPartitionProperty("document");
+                    var count = fixture.lines(); count.count("count"); count.setPartitionProperty("document");
+                    var owners = fixture.documents(); owners.setSize(10);
+                    owners.addSingleAggregateDynamicProperty("metric", metric);
+                    owners.addSingleAggregateDynamicProperty("lineCount", count);
+                    var request = facet ? fixture.lines() : owners;
+                    if (facet) request.addFacet("documents", "document", owners, true);
+                    request.intent("inspect nullable statistics", "preserve empty, null and zero independently");
+                    var result = fixture.context.getRuntime().executeForList(fixture.context, request);
+                    var rows = facet ? result.getFacet("documents") : result;
+                    assertEquals(4, rows.size());
+                    for (Object item : rows) {
+                        var row = (BaseEntity) item;
+                        assertTrue("selected null statistic is present", row.hasDynamicProperty("metric"));
+                        Number value = row.getDynamicProperty("metric");
+                        if (row.getId() == 100L) assertEquals(8.0, value.doubleValue(), 0.0);
+                        else if (row.getId() == 200L) assertEquals(0.0, value.doubleValue(), 0.0);
+                        else assertNull("absent and all-null statistics must not become zero", value);
+                        assertEquals(row.getId() == 100L ? 2L : row.getId() == 300L ? 0L : 1L,
+                                ((Number) row.getDynamicProperty("lineCount")).longValue());
+                    }
+                    assertEquals(logging ? facet ? 5 : 3 : 0, fixture.sql.size());
+                    assertTrue(fixture.context.getTraceChain().isEmpty());
+                    assertEquals(1, metric.getAggregations().getAggregates().size());
+                    assertNull(metric.comment());
+                    System.out.printf("EMPTY_STATISTIC_BUCKET_PASS function=%s facet=%s logging=%s buckets=4%n", function, facet, logging);
+                }
+            }
+        }
+    }
+
     @Test public void emptyAggregateDirectSqlDistinguishesAbsentGroupFromNullSum() throws Exception {
         try (var fixture = new Fixture(false)) {
         var query = fixture.lines().where("id", Operator.EQUAL, -1L)
