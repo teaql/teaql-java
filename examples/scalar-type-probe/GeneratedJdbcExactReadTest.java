@@ -48,10 +48,15 @@ public class GeneratedJdbcExactReadTest {
             var row = f.probe(root, "JDBC exact " + round + " " + name);
             row.auditAs("Create a generated numeric corruption control").save(f.context);
             int audits = f.audits.size(), policies = f.policies.size();
-            try (var c = DriverManager.getConnection(f.data.url);
-                 var s = c.prepareStatement("UPDATE scalar_type_probe_data SET " + v.column + "=" + v.expression + " WHERE id=?")) {
-                s.setLong(1, row.getId()); assertEquals(1, s.executeUpdate());
-            }
+            f.sql.executeInTransaction(() -> {
+                // Deliberately simulate a pre-constraint legacy/imported row.
+                // Use the real initialized adapter connection: exact Decimal
+                // CHECK functions are installed there, not on DriverManager's
+                // unrelated fresh connection. Restore checks before commit.
+                f.sql.execute("PRAGMA ignore_check_constraints=ON");
+                try { assertEquals(1, f.sql.update("UPDATE scalar_type_probe_data SET " + v.column + "=" + v.expression + " WHERE id=?", new Object[]{row.getId()})); }
+                finally { f.sql.execute("PRAGMA ignore_check_constraints=OFF"); }
+            });
             // Establish the physical row independently of generated hydration.
             try (var c = DriverManager.getConnection(f.data.url);
                  var s = c.prepareStatement("SELECT " + v.column + ",version FROM scalar_type_probe_data WHERE id=?")) {
@@ -73,10 +78,7 @@ public class GeneratedJdbcExactReadTest {
             assertEquals(audits, f.audits.size()); assertEquals(policies, f.policies.size());
             // Repair only the explicit fault injection. Normal writes above and
             // below continue to use generated audited mutation APIs.
-            try (var c = DriverManager.getConnection(f.data.url);
-                 var s = c.prepareStatement("UPDATE scalar_type_probe_data SET " + v.column + "=? WHERE id=?")) {
-                s.setObject(1, v.restored); s.setLong(2, row.getId()); assertEquals(1, s.executeUpdate());
-            }
+            assertEquals(1, f.sql.update("UPDATE scalar_type_probe_data SET " + v.column + "=? WHERE id=?", new Object[]{v.restored, row.getId()}));
             var loaded = read(f, row.getId(), streaming); var e = E.scalarTypeProbe(loaded);
             assertEquals(Integer.valueOf(7), e.getRequiredInteger().eval());
             assertEquals(Long.valueOf(8), e.getRequiredLong().eval());
