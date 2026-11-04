@@ -297,6 +297,7 @@ public class TeaQLRuntime implements AutoCloseable {
     @SuppressWarnings("unchecked")
     private <T extends Entity> Stream<T> executeForStreamResolved(
             UserContext context, SearchRequest<T> request, QueryIntent intent) {
+        request = entityProjectionRequest(request);
         EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
         String route = descriptor != null ? descriptor.getDataService() : null;
         if (route == null || route.isEmpty()) {
@@ -381,6 +382,7 @@ public class TeaQLRuntime implements AutoCloseable {
     @SuppressWarnings("unchecked")
     private <T extends Entity> SmartList<T> executeForListResolved(
             UserContext context, SearchRequest<T> request, QueryIntent intent) {
+        request = entityProjectionRequest(request);
         EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
         String route = descriptor.getDataService();
         if (route == null || route.isEmpty()) {
@@ -408,6 +410,30 @@ public class TeaQLRuntime implements AutoCloseable {
         }
         throw new TeaQLRuntimeException(
                 "Unsupported QueryResult type: " + queryResult.getClass().getName());
+    }
+
+    /** Entity rows always carry identity and optimistic version, even after a policy
+     * or a low-level caller removes their projections. Aggregate rows are not entities.
+     * Copy only the exceptional incomplete projection; never widen business fields or
+     * mutate a reusable caller request. */
+    private static <T extends Entity> SearchRequest<T> entityProjectionRequest(SearchRequest<T> request) {
+        // An empty projection means provider-default full entity loading, not zero fields.
+        if (request.getProjections().isEmpty()) return request;
+        var aggregations = request.getAggregations();
+        if (aggregations != null && (!aggregations.getAggregates().isEmpty()
+                || !aggregations.getSimpleDimensions().isEmpty()
+                || !aggregations.getComplexDimensions().isEmpty())) return request;
+        boolean id = false;
+        boolean version = false;
+        for (var projection : request.getProjections()) {
+            id |= BaseEntity.ID_PROPERTY.equals(projection.name());
+            version |= BaseEntity.VERSION_PROPERTY.equals(projection.name());
+        }
+        if (id && version) return request;
+        var normalized = new QueryRequestSnapshot<T>(request, request.requestScope(), request.diagnosticSource());
+        if (!id) normalized.selectProperty(BaseEntity.ID_PROPERTY);
+        if (!version) normalized.selectProperty(BaseEntity.VERSION_PROPERTY);
+        return normalized;
     }
 
     public <T extends Entity> AggregationResult aggregation(UserContext context, SearchRequest<T> request) {
