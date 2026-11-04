@@ -223,13 +223,18 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
     private static Number emptySingleAggregateValue(SearchRequest<?> request) {
         var expressions = request.getAggregations().getAggregates();
         if (expressions.size() == 1
-                && expressions.get(0).getExpression() instanceof AggrExpression aggregate
-                && aggregate.getOperator() == AggrFunction.SUM) {
-            // A missing grouped row has no contributing values. It is not a
-            // numeric zero; retain a present null property for callers/JSON.
-            return null;
+                && expressions.get(0).getExpression() instanceof AggrExpression aggregate) {
+            // These portable value aggregates have no numeric result without
+            // contributions. Keep a present null, just as scalar SQL does.
+            // COUNT and provider-specific policies retain their old defaults.
+            switch (aggregate.getOperator()) {
+                case SUM, MIN, MAX, AVG:
+                    return null;
+                default:
+                    break;
+            }
         }
-        // Preserve implicit/explicit COUNT and other existing aggregate policies.
+        // A request without an explicit aggregate retains implicit COUNT.
         return 0;
     }
 
