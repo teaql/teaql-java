@@ -227,11 +227,10 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             // These portable value aggregates have no numeric result without
             // contributions. Keep a present null, just as scalar SQL does.
             // COUNT and provider-specific policies retain their old defaults.
-            switch (aggregate.getOperator()) {
-                case SUM, MIN, MAX, AVG:
-                    return null;
-                default:
-                    break;
+            var function = aggregate.getOperator();
+            if (function == AggrFunction.SUM || function == AggrFunction.MIN
+                    || function == AggrFunction.MAX || function == AggrFunction.AVG) {
+                return null;
             }
         }
         // A request without an explicit aggregate retains implicit COUNT.
