@@ -119,24 +119,23 @@ public class SpringJdbcSqlExecutor implements SqlExecutionAdapter {
             } catch (SQLException exception) {
                 throw new IllegalStateException(
                         "Failed to read JDBC column " + columnIndex + " as " + type.getName(), exception);
+            } catch (ArithmeticException | IllegalArgumentException invalid) {
+                String label = null;
+                try { label = resultSet.getMetaData().getColumnLabel(columnIndex); }
+                catch (SQLException ignored) { }
+                throw io.teaql.dataservice.sql.SqlNumericConversions.invalidColumn(columnIndex, label, type);
             }
         }
 
         @SuppressWarnings("unchecked")
         private static <V> V convert(Class<V> type, Object value) {
-            if (value == null || type.isInstance(value)) return (V) value;
+            if (value == null) return null;
+            if (value instanceof Number number && (type == Float.class || type == Double.class)) {
+                return (V) io.teaql.dataservice.sql.SqlNumericConversions.convert(type, number);
+            }
+            if (type.isInstance(value)) return (V) value;
             if (value instanceof Number number) {
-                if (type == Long.class) return (V) Long.valueOf(number.longValue());
-                if (type == Integer.class) return (V) Integer.valueOf(number.intValue());
-                if (type == Double.class) return (V) Double.valueOf(number.doubleValue());
-                if (type == Float.class) return (V) Float.valueOf(number.floatValue());
-                if (type == Short.class) return (V) Short.valueOf(number.shortValue());
-                if (type == Byte.class) return (V) Byte.valueOf(number.byteValue());
-                if (type == java.math.BigDecimal.class) {
-                    return (V) (number instanceof java.math.BigInteger integer
-                            ? new java.math.BigDecimal(integer)
-                            : java.math.BigDecimal.valueOf(number.doubleValue()));
-                }
+                if (io.teaql.dataservice.sql.SqlNumericConversions.supports(type)) return (V) io.teaql.dataservice.sql.SqlNumericConversions.convert(type, number);
                 if (type == Boolean.class) return (V) Boolean.valueOf(number.longValue() != 0);
             }
             if (type == java.time.LocalDateTime.class && value instanceof java.sql.Timestamp timestamp) {
@@ -167,6 +166,9 @@ public class SpringJdbcSqlExecutor implements SqlExecutionAdapter {
                 return (V) java.time.LocalTime.parse(separator < 0 ? text : text.substring(separator + 1));
             }
             if (type == String.class) return (V) String.valueOf(value);
+            if (type == java.math.BigDecimal.class && value instanceof CharSequence text) {
+                return (V) new java.math.BigDecimal(text.toString());
+            }
             throw new IllegalArgumentException(
                     "Cannot convert JDBC value " + value.getClass().getName() + " to " + type.getName());
         }

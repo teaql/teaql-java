@@ -243,16 +243,13 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 throw new RuntimeException("Failed to read JDBC column " + columnIndex + " as "
                         + type.getName(), exception);
             } catch (ArithmeticException | IllegalArgumentException invalid) {
-                String label = "";
+                String label = null;
                 try {
-                    String name = resultSet.getMetaData().getColumnLabel(columnIndex);
-                    if (name != null && name.matches("[A-Za-z_][A-Za-z0-9_]*")) {
-                        label = " (" + name.toLowerCase(java.util.Locale.ROOT) + ")";
-                    }
+                    label = resultSet.getMetaData().getColumnLabel(columnIndex);
                 } catch (SQLException ignored) { }
                 // NumberFormatException messages and causes can retain private
                 // text. Report the column/type, not the value or its exception.
-                throw new IllegalArgumentException("Invalid JDBC column " + columnIndex + label + " as " + type.getName());
+                throw io.teaql.dataservice.sql.SqlNumericConversions.invalidColumn(columnIndex, label, type);
             }
         }
 
@@ -262,11 +259,11 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             // Check floating targets even when JDBC already returned the same
             // boxed type; otherwise NaN/Infinity bypass validation entirely.
             if (value instanceof Number number && (type == Float.class || type == Double.class)) {
-                return (V) JdbcNumericConversions.convert(type, number);
+                return (V) io.teaql.dataservice.sql.SqlNumericConversions.convert(type, number);
             }
             if (type.isInstance(value)) return (V) value;
             if (value instanceof Number number) {
-                if (JdbcNumericConversions.supports(type)) return (V) JdbcNumericConversions.convert(type, number);
+                if (io.teaql.dataservice.sql.SqlNumericConversions.supports(type)) return (V) io.teaql.dataservice.sql.SqlNumericConversions.convert(type, number);
                 if (type == Boolean.class) return (V) Boolean.valueOf(number.longValue() != 0);
             }
             if (type == java.time.LocalDateTime.class && value instanceof java.sql.Timestamp timestamp) {
