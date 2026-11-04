@@ -119,3 +119,14 @@ combinations (such as create/delete/recover chains) or installed packages.
 This does not qualify all scalar wire boundaries, cross-runtime DDL parity or a
 published artifact. Provenance is in `fixture-manifest.json` and
 `json-profiles/provenance.json`; generated sources are never edited by the probes.
+
+`node examples/scalar-type-probe/verify-local.cjs --jdbc-exact` runs sixteen
+legacy-corruption cases twice on one unreset SQLite store, using generated Q
+single-result and stream queries. It rejects fractional or overflowing integers,
+overflowing Float, infinite Double and invalid Decimal text without disclosing
+private values. A projection that excludes the corrupt column still returns its
+selected fields; E reports the unselected numeric field as NotLoaded. Direct SQL
+is confined to explicit fault injection, its repair and independent readback.
+Audited generated creates and a real update, exact native integer endpoints,
+connection recovery and unchanged query-time audit/policy counts are also checked.
+The complete example entry point includes this mode.

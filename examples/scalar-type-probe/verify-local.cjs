@@ -3,9 +3,10 @@
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os'), cp = require('node:child_process'), crypto = require('node:crypto'), assert = require('node:assert/strict');
 const {createOwnedRunner, ownedBytes} = require('../fix-e-alignment/owned-command.cjs');
 const repo = path.resolve(__dirname, '../..'), sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
-assert(process.argv.length === 2 || process.argv.length === 3 && ['--restoration-views','--outer-replay'].includes(process.argv[2]));
+assert(process.argv.length === 2 || process.argv.length === 3 && ['--restoration-views','--outer-replay','--jdbc-exact'].includes(process.argv[2]));
 const restorationViews = process.argv[2] === '--restoration-views';
 const outerReplay = process.argv[2] === '--outer-replay';
+const jdbcExact = process.argv[2] === '--jdbc-exact';
 const requested = process.env.TEAQL_JAVA_SCALAR_EVIDENCE_DIR;
 const output = requested ? path.resolve(requested) : fs.mkdtempSync(path.join(os.tmpdir(), 'teaql-java-name-evidence-'));
 if (requested) { assert(!fs.existsSync(output), 'never overwrite evidence'); fs.mkdirSync(output, {recursive: true}); }
@@ -38,7 +39,7 @@ function fixture() {
   return {manifest, manifestSha256: sha(bytes)};
 }
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'teaql-java-name-build-')), runner = createOwnedRunner();
-const report = {schema: outerReplay ? 'teaql.java-outer-replay-example/v1' : restorationViews ? 'teaql.java-restoration-views-example/v1' : 'teaql.java-canonical-name-example/v1', passed: false, commands: [], rounds: [], sameDatabase: true, publicPublication: false, internalArtifactAccepted: false};
+const report = {schema: jdbcExact ? 'teaql.java-jdbc-exact-read-example/v1' : outerReplay ? 'teaql.java-outer-replay-example/v1' : restorationViews ? 'teaql.java-restoration-views-example/v1' : 'teaql.java-canonical-name-example/v1', passed: false, commands: [], rounds: [], sameDatabase: true, publicPublication: false, internalArtifactAccepted: false};
 async function main() {
   try {
     const disk = fs.statfsSync(scratch); assert(disk.bavail * disk.bsize > 8 * 1024 ** 3);
@@ -54,6 +55,10 @@ async function main() {
     const tests = path.join(consumer, 'src/test/java/com/example/scalartypeconformanceservice'); fs.mkdirSync(tests, {recursive: true});
     fs.copyFileSync(path.join(__dirname, 'GeneratedCanonicalNameTest.java'), path.join(tests, 'GeneratedCanonicalNameTest.java'));
     report.applicationSha256 = sha(fs.readFileSync(path.join(__dirname, 'GeneratedCanonicalNameTest.java')));
+    if (jdbcExact) {
+      fs.copyFileSync(path.join(__dirname, 'GeneratedJdbcExactReadTest.java'), path.join(tests, 'GeneratedJdbcExactReadTest.java'));
+      report.jdbcExactApplicationSha256 = sha(fs.readFileSync(path.join(__dirname, 'GeneratedJdbcExactReadTest.java')));
+    }
     if (restorationViews) {
       fs.copyFileSync(path.join(__dirname, 'GeneratedRestorationViewTest.java'), path.join(tests, 'GeneratedRestorationViewTest.java'));
       report.restorationViewApplicationSha256 = sha(fs.readFileSync(path.join(__dirname, 'GeneratedRestorationViewTest.java')));
@@ -71,7 +76,7 @@ async function main() {
     const reactor = path.join(scratch, 'pom.xml'); fs.writeFileSync(reactor, '<project><modelVersion>4.0.0</modelVersion><groupId>io.teaql.test</groupId><artifactId>canonical-name-reactor</artifactId><version>0.0.0</version><packaging>pom</packaging><modules><module>source</module><module>generated</module><module>consumer</module></modules></project>');
     const expectedCases = ['canonical-create', 'q-e-load-state', 'canonical-update', 'malformed-zero-provider', 'required-zero-provider', 'typed-json-default-profile', 'real-second-update-rollback', 'same-graph-retry'];
     for (const round of [1, 2]) {
-      const command = ['mvn', '-o', '-B', '-ntp', '-f', reactor, '-pl', ':teaql-canonical-name-example', '-am', 'test', outerReplay ? '-Dtest=GeneratedOuterReplayTest' : restorationViews ? '-Dtest=GeneratedRestorationViewTest' : '-Dtest=GeneratedCanonicalNameTest', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dteaql.version=' + version, '-Dteaql.expected.runtime.root=' + source];
+      const command = ['mvn', '-o', '-B', '-ntp', '-f', reactor, '-pl', ':teaql-canonical-name-example', '-am', 'test', jdbcExact ? '-Dtest=GeneratedJdbcExactReadTest' : outerReplay ? '-Dtest=GeneratedOuterReplayTest' : restorationViews ? '-Dtest=GeneratedRestorationViewTest' : '-Dtest=GeneratedCanonicalNameTest', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dteaql.version=' + version, '-Dteaql.expected.runtime.root=' + source];
       const log = path.join(output, 'round-' + round + '.log'), fd = fs.openSync(log, 'wx'); let result;
       try { result = await runner.run(command, {cwd: scratch, timeout: 300000, env: {...process.env,
         TEAQL_NAME_DB: path.join(output, 'fixture.sqlite'), TEAQL_NAME_ROUND: String(round)}, stdio: ['ignore', fd, fd]}); }
@@ -79,6 +84,14 @@ async function main() {
       const bytes = fs.readFileSync(log), text = bytes.toString();
       report.commands.push({command, exitCode: result.status, signal: result.signal, logSha256: sha(bytes)});
       assert.equal(result.status, 0, text.slice(-12000)); assert.equal(result.signal, null);
+      if (jdbcExact) {
+        const values = [...text.matchAll(/^JAVA_JDBC_EXACT_READ=(.+)$/gm)].map(match => JSON.parse(match[1]));
+        assert.equal(values.length, 1); const value = values[0]; assert(value.passed && value.round === round);
+        const names = ['integer-fraction','integer-upper-overflow','integer-lower-overflow','long-fraction','long-rounded-overflow','float-overflow','double-infinity','decimal-private-text'];
+        assert.deepEqual(value.cases, ['one','stream'].flatMap(mode => names.map(name => mode + '/' + name)));
+        for (const key of ['generatedQ','loadedE','unselectedNotLoaded','physicalCorruptionConfirmed','queryProducesNoMutation','privateValuesExcluded','sameAdapterRecovers','exactNativeBounds']) assert.equal(value[key], true);
+        assert.equal(value.boundaryVersion, 2); report.rounds.push(value); assert.deepEqual(fixture(), input); assert.equal(sourceHash(), before); continue;
+      }
       if (outerReplay) {
         const values = [...text.matchAll(/^JAVA_OUTER_REPLAY=(.+)$/gm)].map(match => JSON.parse(match[1]));
         assert.equal(values.length, 7); assert(values.every(value => value.passed && value.round === round));
@@ -108,7 +121,8 @@ async function main() {
     }));
     else report.databaseSha256 = sha(fs.readFileSync(path.join(output, 'fixture.sqlite')));
     report.passed = true;
-    console.log(outerReplay ? 'PASS generated Java seven outer transaction retry scenarios twice'
+    console.log(jdbcExact ? 'PASS generated Java exact JDBC Q/E corruption boundaries twice'
+      : outerReplay ? 'PASS generated Java seven outer transaction retry scenarios twice'
       : restorationViews ? 'PASS generated Java unchanged view geometry and caller transaction rollback/retry/commit twice'
       : 'PASS generated Java canonical naming, Q/E, Checker, default JSON and real graph rollback/retry twice');
   } catch (error) { report.error = error.stack; console.error(error.stack); process.exitCode ||= 1; }
