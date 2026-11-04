@@ -101,6 +101,13 @@ public class SubQueryParser implements SQLExpressionParser<SubQuerySearchCriteri
                 dependsOnValues.add(propertyValue);
             }
         }
+        // This is a completed relation subquery, not a caller-supplied empty
+        // IN argument. Its empty set is FALSE; the normal NOT parser must be
+        // able to invert it to TRUE. Binding an empty collection would expand
+        // to IN (NULL), whose negation is UNKNOWN and incorrectly drops rows.
+        if (dependsOnValues.isEmpty()) {
+            return SearchCriteria.FALSE;
+        }
         // The fallback has already materialized the nested result. Bind those
         // identifiers as an ordinary parameterized IN list. IN_LARGE compiles
         // to PostgreSQL's scalar-array syntax and requires one JDBC array; the
