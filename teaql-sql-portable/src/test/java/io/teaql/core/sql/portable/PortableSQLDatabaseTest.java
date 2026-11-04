@@ -878,6 +878,60 @@ public class PortableSQLDatabaseTest {
                 new QueryGroupRequest().withoutRecordsMatching(allRecords));
     }
 
+    @Test public void testEmptyMaterializedReverseRelationPreservesNegation() {
+        prepareEmptyRelationFixture();
+        for (boolean materialized : List.of(false, true)) {
+            QueryRecordRequest absent = new QueryRecordRequest().where("name", Operator.EQUAL, "no match");
+            if (materialized) absent.top(5); else absent.unlimited();
+            assertNames(List.of(), new QueryGroupRequest().withRecordsMatching(absent));
+            assertNames(List.of("Core", "Other", "Empty"), new QueryGroupRequest().withoutRecordsMatching(absent));
+        }
+    }
+
+    @Test public void testNullOnlyMaterializedReverseRelationPreservesNegation() {
+        prepareEmptyRelationFixture();
+        for (boolean materialized : List.of(false, true)) {
+            QueryRecordRequest orphan = new QueryRecordRequest().where("name", Operator.EQUAL, "orphan");
+            if (materialized) orphan.top(5); else orphan.unlimited();
+            assertNames(List.of(), new QueryGroupRequest().withRecordsMatching(orphan));
+            assertNames(List.of("Core", "Other", "Empty"), new QueryGroupRequest().withoutRecordsMatching(orphan));
+        }
+    }
+
+    @Test public void testEmptyMaterializedForwardRelationPreservesNegation() {
+        prepareEmptyRelationFixture();
+        for (boolean materialized : List.of(false, true)) {
+            QueryGroupRequest absent = new QueryGroupRequest().where("name", Operator.EQUAL, "no match");
+            if (materialized) absent.top(5); else absent.unlimited();
+            assertNames(List.of(), new QueryRecordRequest().withGroupMatching(absent));
+            assertNames(List.of("included", "excluded", "orphan"), new QueryRecordRequest().withoutGroupMatching(absent));
+        }
+    }
+
+    @Test public void testEmptyMaterializedNegativeRelationPreservesOuterConjunction() {
+        prepareEmptyRelationFixture();
+        for (boolean materialized : List.of(false, true)) {
+            QueryRecordRequest absent = new QueryRecordRequest().where("name", Operator.EQUAL, "no match");
+            if (materialized) absent.top(5); else absent.unlimited();
+            assertNames(List.of("Core"), new QueryGroupRequest().where("name", Operator.EQUAL, "Core").withoutRecordsMatching(absent));
+            assertNames(List.of(), new QueryGroupRequest().where("name", Operator.EQUAL, "Core").withRecordsMatching(absent));
+        }
+    }
+
+    private static void prepareEmptyRelationFixture() {
+        metaFactory.register(relationEntity("QueryGroup", QueryGroup.class, QueryGroup::new, "query_group_data",
+                List.of(new Object[] {"id", "INTEGER", Long.class}, new Object[] {"name", "VARCHAR(100)", String.class}, new Object[] {"version", "INTEGER", Long.class})));
+        metaFactory.register(relationEntity("QueryRecord", QueryRecord.class, QueryRecord::new, "query_record_data",
+                List.of(new Object[] {"id", "INTEGER", Long.class}, new Object[] {"query_group", "INTEGER", Long.class},
+                        new Object[] {"name", "VARCHAR(100)", String.class}, new Object[] {"version", "INTEGER", Long.class})));
+        sqlDataService.getRepository("QueryGroup").ensurePhysicalSchema(context);
+        sqlDataService.getRepository("QueryRecord").ensurePhysicalSchema(context);
+        sqliteDb.execute("DELETE FROM query_group_data");
+        sqliteDb.execute("DELETE FROM query_record_data");
+        sqliteDb.execute("INSERT INTO query_group_data VALUES (1,'Core',1),(2,'Other',1),(3,'Empty',1)");
+        sqliteDb.execute("INSERT INTO query_record_data VALUES (11,1,'included',1),(12,2,'excluded',1),(13,NULL,'orphan',1)");
+    }
+
     private static <T extends BaseEntity> EntityDescriptor relationEntity(
             String type, Class<T> targetType, java.util.function.Supplier<T> supplier,
             String table, List<Object[]> definitions) {
