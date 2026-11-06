@@ -24,10 +24,14 @@ public class ReviewedMutationSnapshotTest {
         snapshot.requireUnchanged(p,ledger); bytes[1] = 3;
         assertThrows(TeaQLRuntimeException.class,() -> snapshot.requireUnchanged(p,ledger));
     }
-    @Test public void mutableTimestampKeepsNanosecondPrecision() {
-        var time = java.sql.Timestamp.valueOf("2032-02-29 10:15:30.123456789"); var p = plan(time);
+    private static final class PreciseDate extends Date {
+        int nanos = 123456789;
+        @Override public java.time.Instant toInstant() { return java.time.Instant.ofEpochSecond(0,nanos); }
+    }
+    @Test public void mutableDateInstantRetainsNanosecondPrecision() {
+        var time = new PreciseDate(); var p = plan(time);
         var snapshot = ReviewedMutationSnapshot.capture(p,ledger); snapshot.requireUnchanged(p,ledger);
-        time.setNanos(123456780); assertThrows(TeaQLRuntimeException.class,() -> snapshot.requireUnchanged(p,ledger));
+        time.nanos = 123456780; assertThrows(TeaQLRuntimeException.class,() -> snapshot.requireUnchanged(p,ledger));
     }
     @Test public void equalPrimitiveAndNestedArraysAreStable() {
         var p = plan(new Object[]{new int[]{1,2},new byte[]{3},Collections.singletonMap("nullable",null)});

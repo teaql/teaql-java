@@ -53,8 +53,14 @@ final class ReviewedMutationSnapshot {
         if (value instanceof Entity entity) return new Reference(entity.typeName(),entity.getId());
         if (value instanceof DynamicFieldMutation mutation)
             return new Dynamic(mutation.code(),mutation.dataType(),mutation.kind(),freeze(mutation.value(),active));
-        if (value instanceof java.sql.Timestamp time) return new CalendarValue(value.getClass(),time.getTime(),time.getNanos());
-        if (value instanceof Date time) return new CalendarValue(value.getClass(),time.getTime(),0);
+        if (value instanceof Date time) {
+            // Date's virtual conversion preserves Timestamp nanoseconds without
+            // adding a JDBC/java.sql dependency to the domain-independent runtime.
+            int nanos = 0;
+            try { nanos = time.toInstant().getNano(); }
+            catch (UnsupportedOperationException dateOnly) { /* SQL Date/Time expose millis only. */ }
+            return new CalendarValue(value.getClass(),time.getTime(),nanos);
+        }
         if (value instanceof java.util.concurrent.atomic.AtomicInteger number) return number.get();
         if (value instanceof java.util.concurrent.atomic.AtomicLong number) return number.get();
         boolean structured = value instanceof Map || value instanceof Iterable || value != null && value.getClass().isArray();
