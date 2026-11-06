@@ -529,7 +529,8 @@ public class TeaQLRuntime implements AutoCloseable {
                     new PersistenceState(
                             value.getVersion(), value.get$status(),
                             value.isPropertyLoaded(BaseEntity.VERSION_PROPERTY))));
-            MutationPlan mutationPlan = buildMutationPlan(entity, entityMutationLedger, realEntities, intent);
+            MutationPlan mutationPlan = buildMutationPlan(entity, entityMutationLedger, realEntities, intent,
+                    UUID.randomUUID().toString());
             requireSingleMutationRoute(mutationPlan, route);
             // Inspect the complete post-Fix graph plan, not only the root's
             // status: an untouched root can still own a dirty descendant.
@@ -538,7 +539,12 @@ public class TeaQLRuntime implements AutoCloseable {
                 telemetryScope.success();
                 return;
             }
+            ReviewedMutationSnapshot reviewed = ReviewedMutationSnapshot.capture(mutationPlan, entityMutationLedger);
             MutationGovernanceSnapshot governance = reviewMutationPlan(context, mutationPlan);
+            Runnable requireReviewedPlan = () -> reviewed.requireUnchanged(
+                    buildMutationPlan(entity, entityMutationLedger, realEntities, intent, mutationPlan.executionId()),
+                    entityMutationLedger);
+            requireReviewedPlan.run();
             var dynamicChanges = entityMutationLedger.currentChangeSet().dynamicChanges();
             var dynamicRequests = new ArrayList<io.teaql.data.dynamic.DynamicGraphMutation>();
             dynamicChanges.forEach((key, mutations) -> {
@@ -560,6 +566,9 @@ public class TeaQLRuntime implements AutoCloseable {
                             dynamic = context.dynamicFields().comment(intent.comment()).purpose("runtime: persist audited graph extensions");
                             dynamic.prepareGraphMutations(transactionExecutor.transactionResource(), dynamicRequests);
                         }
+                        // Transaction registration and dynamic preparation are extension
+                        // points too; none may substitute an unreviewed pending plan.
+                        requireReviewedPlan.run();
                         List<PendingMutation> results = executeLedgerPlan(context, entityMutationLedger, mutationExecutor,
                                 realEntities, governance, intent, traceScopes, graphScope);
                         if (dynamic != null) {
@@ -577,6 +586,9 @@ public class TeaQLRuntime implements AutoCloseable {
                                 dynamicReadbacks.put(entry.getKey(), value);
                             }
                         }
+                        // Verify before graph completion changes versions/clears intent.
+                        // A late provider edit must roll back this transaction instead.
+                        requireReviewedPlan.run();
                         if (completion.synchronizedTransaction) {
                             completeGraphPlan(context, results, dynamicReadbacks, realEntities,
                                     entityMutationLedger, completion.audits);
@@ -585,8 +597,10 @@ public class TeaQLRuntime implements AutoCloseable {
                     });
                 } else {
                     if (!dynamicRequests.isEmpty()) throw new TeaQLRuntimeException("DYNAMIC_FIELD_TRANSACTION_BINDING_REQUIRED: native graph executor has no transaction");
+                    requireReviewedPlan.run();
                     completed = executeLedgerPlan(
                             context, entityMutationLedger, mutationExecutor, realEntities, governance, intent, traceScopes, graphScope);
+                    requireReviewedPlan.run();
                 }
             } catch (RuntimeException | Error failure) {
                 if (!completion.synchronizedTransaction) restoreGraphPersistenceState(
@@ -842,7 +856,7 @@ public class TeaQLRuntime implements AutoCloseable {
     private MutationPlan buildMutationPlan(
             Entity rootEntity,
             EntityMutationLedger ledger,
-            Map<EntityKey, BaseEntity> realEntities, MutationIntent intent) {
+            Map<EntityKey, BaseEntity> realEntities, MutationIntent intent, String executionId) {
         EntityChangeSet changeSet = ledger.currentChangeSet();
         Set<EntityKey> deleted = ledger.deletedKeys();
         Set<EntityKey> created = ledger.newKeys();
@@ -875,7 +889,7 @@ public class TeaQLRuntime implements AutoCloseable {
             operations.add(new MutationOperation(kind, key, originalVersion, changes));
         }
         return new MutationPlan(
-                UUID.randomUUID().toString(),
+                executionId,
                 rootEntity.typeName() + ".saveGraph",
                 rootEntity.typeName(),
                 intent.auditReason(),
