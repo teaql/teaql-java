@@ -57,11 +57,11 @@ public class MixedGraphExampleTest {
                                 // has not called Connection.commit() yet. These
                                 // reads use its real transaction-bound connection.
                                 var parent = sql.queryForList("SELECT version FROM purchase_order_data WHERE id=?",
-                                        new Object[]{order.getId()}).getFirst();
+                                        new Object[]{order.getId()}).get(0);
                                 var old = sql.queryForList("SELECT version FROM order_item_data WHERE id=?",
-                                        new Object[]{removed.getId()}).getFirst();
+                                        new Object[]{removed.getId()}).get(0);
                                 var fresh = sql.queryForList("SELECT version,purchase_order FROM order_item_data WHERE id=?",
-                                        new Object[]{added.getId()}).getFirst();
+                                        new Object[]{added.getId()}).get(0);
                                 int violations = sql.queryForList("PRAGMA foreign_key_check", new Object[0]).size();
                                 assertEquals(3, attempts - beforeCommit.size() * 3);
                                 assertEquals(0, audits);
@@ -290,7 +290,7 @@ public class MixedGraphExampleTest {
             foreignKey |= String.valueOf(cause.getMessage()).toLowerCase(Locale.ROOT).contains("foreign key constraint failed");
         assertTrue("the real deferred SQLite constraint must reject commit", foreignKey);
         assertEquals(1, f.beforeCommit.size());
-        assertEquals(1, f.beforeCommit.getFirst().get("violations"));
+        assertEquals(1, f.beforeCommit.get(0).get("violations"));
         assertEquals(1, f.policies); assertEquals(3, f.attempts); assertEquals(3, f.operands.size());
         assertEquals(3, f.sql.writes); assertEquals(1, f.begins); assertEquals(0, f.commits);
         assertEquals(1, f.rollbacks); assertEquals(0, f.audits);
