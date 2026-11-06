@@ -91,8 +91,20 @@ public class GeneratedFiniteScalarTest {
                 update.setDouble(1,bad); update.setLong(2,row.getId()); assertEquals(1,update.executeUpdate());
             }
             var error = assertThrows(RuntimeException.class,() -> f.load(row.getId())); boolean exact = false;
-            for (Throwable cause = error; cause != null; cause = cause.getCause())
-                if (cause.getMessage() != null && cause.getMessage().contains("Non-finite JDBC numeric field " + field)) exact = true;
+            // Generated Q uses typed reads. Their exact-numeric boundary reports
+            // the projected JDBC label and target type, without the private value
+            // or its original conversion cause. The untyped legacy message is
+            // deliberately not the contract of this compiled mapper.
+            var target = field.endsWith("float") ? Float.class : Double.class;
+            var diagnostic = java.util.regex.Pattern.compile("Invalid JDBC column [1-9][0-9]* \\(" +
+                    field.replace("_", "") + "\\) as " + java.util.regex.Pattern.quote(target.getName()));
+            for (Throwable cause = error; cause != null; cause = cause.getCause()) {
+                if (cause instanceof IllegalArgumentException && cause.getMessage() != null
+                        && diagnostic.matcher(cause.getMessage()).matches()) {
+                    assertNull("typed conversion must not retain the untrusted value in a cause",cause.getCause());
+                    exact = true;
+                }
+            }
             assertTrue("the actual corrupt column must be identified",exact);
             var sparse = Q.scalarTypeProbesWithMinimalFields().withIdIs(row.getId()).selectRequiredString().limit(1)
                     .comment("Read only the safe legacy projection").purpose("Preserve NotLoaded rather than inventing null").executeForOne(f.context);
