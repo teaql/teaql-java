@@ -97,15 +97,17 @@ public class GeneratedFiniteScalarTest {
             // deliberately not the contract of this compiled mapper.
             var target = field.endsWith("float") ? Float.class : Double.class;
             var diagnostic = java.util.regex.Pattern.compile("Invalid JDBC column [1-9][0-9]* \\(" +
-                    field.replace("_", "") + "\\) as " + java.util.regex.Pattern.quote(target.getName()));
+                    field + "\\) as " + java.util.regex.Pattern.quote(target.getName()));
+            var observed = new ArrayList<String>();
             for (Throwable cause = error; cause != null; cause = cause.getCause()) {
+                observed.add(cause.getClass().getName() + ": " + cause.getMessage());
                 if (cause instanceof IllegalArgumentException && cause.getMessage() != null
                         && diagnostic.matcher(cause.getMessage()).matches()) {
                     assertNull("typed conversion must not retain the untrusted value in a cause",cause.getCause());
                     exact = true;
                 }
             }
-            assertTrue("the actual corrupt column must be identified",exact);
+            assertTrue("the actual corrupt column must be identified for " + field + "; " + observed,exact);
             var sparse = Q.scalarTypeProbesWithMinimalFields().withIdIs(row.getId()).selectRequiredString().limit(1)
                     .comment("Read only the safe legacy projection").purpose("Preserve NotLoaded rather than inventing null").executeForOne(f.context);
             assertEquals(row.getRequiredString(),E.scalarTypeProbe(sparse).getRequiredString().eval());
