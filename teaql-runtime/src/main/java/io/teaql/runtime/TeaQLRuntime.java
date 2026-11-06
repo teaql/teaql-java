@@ -1346,7 +1346,20 @@ public class TeaQLRuntime implements AutoCloseable {
         for (EntityDescriptor current = descriptor; current != null; current = current.getParent()) {
             for (PropertyDescriptor property : current.getProperties()) {
                 if (!persisted.isPropertyLoaded(property.getName())) continue;
-                target.__internalSet(property.getName(), persisted.getProperty(property.getName()));
+                Object value = persisted.getProperty(property.getName());
+                if (property instanceof Relation
+                        && value instanceof BaseEntity reference
+                        && reference.get$status() == io.teaql.core.EntityStatus.REFER
+                        && target.getProperty(property.getName()) instanceof Entity materialized
+                        && reference.getId() != null
+                        && reference.typeName().equals(materialized.typeName())
+                        && reference.getId().equals(materialized.getId())) {
+                    // A provider's FK-only readback confirms identity; it must
+                    // not replace the already materialized graph member with a
+                    // stub and orphan that member's next pending mutation.
+                    value = materialized;
+                }
+                target.__internalSet(property.getName(), value);
             }
         }
         target.set$status(((BaseEntity) persisted).get$status());
