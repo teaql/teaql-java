@@ -48,7 +48,7 @@ public class ConcurrentQueryExampleTest {
             var ids = new IdSpaceIdGenerator(new GeneratedFixEExampleTest.DatabaseBridge(sql)); ids.ensureIdSpaceTable();
             var service = new SqliteDataServiceExecutor("sqlite", sql, source) {
                 @Override public QueryResult query(UserContext current, QueryRequest request) {
-                    if (armed && List.of("alpha root", "beta root").contains(request.comment())) {
+                    if (armed && "PurchaseOrder".equals(request.getTypeName()) && List.of("alpha root", "beta root").contains(request.comment())) {
                         assertSame(caller.get(), current);
                         assertTrue("runtime query frames must not live on Context", current.getTraceChain().isEmpty());
                         entered.incrementAndGet(); first.countDown(); both.countDown(); await(release);
