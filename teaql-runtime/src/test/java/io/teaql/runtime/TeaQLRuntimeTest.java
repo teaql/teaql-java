@@ -908,12 +908,14 @@ public class TeaQLRuntimeTest {
 
         DummyEntity e1 = new DummyEntity(); // to delete
         e1.updateId(101L);
+        e1.__internalSet("version", 1L);
         e1.set$status(EntityStatus.PERSISTED);
         e1.setEntityMutationLedger(root);
         e1.markForDeletion();
 
         DummyEntity e2 = new DummyEntity(); // to update
         e2.updateId(102L);
+        e2.__internalSet("version", 1L);
         e2.set$status(EntityStatus.PERSISTED);
         e2.setEntityMutationLedger(root);
         e2.updateProperty("name", "updated");
@@ -927,24 +929,24 @@ public class TeaQLRuntimeTest {
 
         DummyEntity e4 = new DummyEntity(); // to delete only
         e4.updateId(104L);
+        e4.__internalSet("version", 1L);
         e4.set$status(EntityStatus.PERSISTED);
         e4.setEntityMutationLedger(root);
         e4.markForDeletion();
         
-        java.util.Map<EntityKey, BaseEntity> realEntities = new java.util.HashMap<>();
-        realEntities.put(new EntityKey("Dummy", 101L), e1);
-        realEntities.put(new EntityKey("Dummy", 102L), e2);
-        realEntities.put(new EntityKey("Dummy", 103L), e3);
-        realEntities.put(new EntityKey("Dummy", 104L), e4);
-
-        java.lang.reflect.Method method = TeaQLRuntime.class.getDeclaredMethod(
-            "executeLedgerPlan", UserContext.class, EntityMutationLedger.class,
-            MutationExecutor.class, java.util.Map.class, MutationGovernanceSnapshot.class, MutationIntent.class,
-            java.util.Map.class, MutationTraceScope.class);
-        method.setAccessible(true);
-        method.invoke(runtime, new DefaultUserContext(runtime), root, executor, realEntities, null,
-                MutationIntent.of("root comment"), java.util.Map.of(),
-                MutationTraceScope.append(null, "Dummy", null, "root comment"));
+        // Exercise public graph admission, review and execution rather than a
+        // private helper signature. Hydration attaches the already-owned graph
+        // without turning the unchanged container into another write.
+        ContainerEntity graph = new ContainerEntity();
+        graph.__internalSet("id", 200L);
+        graph.__internalSet("version", 1L);
+        graph.set$status(EntityStatus.PERSISTED);
+        graph.setEntityMutationLedger(root);
+        graph.__internalSet("rel1", e1);
+        graph.__internalSet("rel2", e2);
+        graph.__internalSet("rel3", e3);
+        graph.__internalSet("rel4", e4);
+        runtime.saveGraph(new DefaultUserContext(runtime), graph);
 
         List<EntityPersistenceMutation> requests = executor.requests;
 
@@ -975,8 +977,10 @@ public class TeaQLRuntimeTest {
         Assert.assertFalse(saves.stream().anyMatch(r -> r.getEntity().getId().equals(104L))); // 104 shouldn't be saved
         
         Assert.assertTrue(requests.stream().allMatch(r -> "root comment".equals(r.getEntity().getComment())));
-        // The current change set is not cleared by executeLedgerPlan, it's cleared by saveGraph, so we can't test that here unless we do it.
-        // I will omit that check or just check saveGraph does it.
+        Assert.assertEquals("Only the four changed children are written", 4, requests.size());
+        Assert.assertTrue(root.currentChangeSet().changes().isEmpty());
+        Assert.assertTrue(root.newKeys().isEmpty());
+        Assert.assertTrue(root.deletedKeys().isEmpty());
     }
 
     @Test
