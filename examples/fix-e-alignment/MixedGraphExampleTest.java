@@ -284,11 +284,16 @@ public class MixedGraphExampleTest {
             statement.execute("CREATE TRIGGER core236_commit_fault AFTER UPDATE ON purchase_order_data WHEN NEW.id=" + orderId +
                     " BEGIN INSERT INTO core236_commit_guard(missing_parent) VALUES(1); END");
         }
-        var error = assertThrows(TeaQLRuntimeException.class, f::save);
-        boolean foreignKey = false;
-        for (Throwable cause = error; cause != null; cause = cause.getCause())
-            foreignKey |= String.valueOf(cause.getMessage()).toLowerCase(Locale.ROOT).contains("foreign key constraint failed");
+        var error = assertThrows(RuntimeException.class, f::save);
+        boolean foreignKey = false, actualCommit = false;
+        for (Throwable cause = error; cause != null; cause = cause.getCause()) {
+            foreignKey |= cause instanceof org.sqlite.SQLiteException sqlite &&
+                    sqlite.getResultCode() == org.sqlite.SQLiteErrorCode.SQLITE_CONSTRAINT_FOREIGNKEY;
+            actualCommit |= Arrays.stream(cause.getStackTrace()).anyMatch(frame ->
+                    frame.getClassName().equals("org.sqlite.SQLiteConnection") && frame.getMethodName().equals("commit"));
+        }
         assertTrue("the real deferred SQLite constraint must reject commit", foreignKey);
+        assertTrue("the rejection must originate at SQLiteConnection.commit", actualCommit);
         assertEquals(1, f.beforeCommit.size());
         assertEquals(1, f.beforeCommit.get(0).get("violations"));
         assertEquals(1, f.policies); assertEquals(3, f.attempts); assertEquals(3, f.operands.size());
