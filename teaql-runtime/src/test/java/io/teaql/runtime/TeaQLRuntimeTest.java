@@ -946,6 +946,7 @@ public class TeaQLRuntimeTest {
         graph.__internalSet("rel2", e2);
         graph.__internalSet("rel3", e3);
         graph.__internalSet("rel4", e4);
+        graph.setComment("root comment");
         runtime.saveGraph(new DefaultUserContext(runtime), graph);
 
         List<EntityPersistenceMutation> requests = executor.requests;
