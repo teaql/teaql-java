@@ -1347,7 +1347,7 @@ public class TeaQLRuntime implements AutoCloseable {
             for (PropertyDescriptor property : current.getProperties()) {
                 if (!persisted.isPropertyLoaded(property.getName())) continue;
                 Object value = persisted.getProperty(property.getName());
-                if (property instanceof Relation
+                if (property instanceof io.teaql.core.meta.Relation
                         && value instanceof BaseEntity reference
                         && reference.get$status() == io.teaql.core.EntityStatus.REFER
                         && target.getProperty(property.getName()) instanceof Entity materialized
