@@ -32,6 +32,7 @@ report.checkerBoundaryApplicationSha256 = sha(fs.readFileSync(path.join(example,
 report.reviewedPlanApplicationSha256 = sha(fs.readFileSync(path.join(example, 'ReviewedPlanExampleTest.java')));
 report.mixedGraphApplicationSha256 = sha(fs.readFileSync(path.join(example, 'MixedGraphExampleTest.java')));
 report.concurrentQueryApplicationSha256 = sha(fs.readFileSync(path.join(example, 'ConcurrentQueryExampleTest.java')));
+report.requestIntentApplicationSha256 = sha(fs.readFileSync(path.join(example, 'RequestIntentExampleTest.java')));
 const {createOwnedRunner, ownedBytes} = require('./owned-command.cjs'), runner = createOwnedRunner();
 async function main() {
 try {
@@ -68,7 +69,7 @@ try {
   fs.writeFileSync(path.join(reactor, "pom.xml"), '<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>io.teaql.test</groupId><artifactId>fix-e-reactor</artifactId><version>0.0.0</version><packaging>pom</packaging><modules><module>../source</module><module>../generated</module><module>../consumer</module></modules></project>');
   for (const round of [1, 2]) {
     const command = ['mvn', '-o', '-B', '-ntp', '-f', path.join(reactor, 'pom.xml'), '-pl', ':teaql-fix-e-example', '-am', 'test',
-      '-Dtest=GeneratedFixEExampleTest,PartialAncestorExampleTest,PartialAncestorRootExampleTest,PostFixExampleTest,NewEntityIdExampleTest,CheckerBoundaryExampleTest,ReviewedPlanExampleTest,MixedGraphExampleTest,ConcurrentQueryExampleTest', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dteaql.version=' + version,
+      '-Dtest=GeneratedFixEExampleTest,PartialAncestorExampleTest,PartialAncestorRootExampleTest,PostFixExampleTest,NewEntityIdExampleTest,CheckerBoundaryExampleTest,ReviewedPlanExampleTest,MixedGraphExampleTest,ConcurrentQueryExampleTest,RequestIntentExampleTest', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dteaql.version=' + version,
       '-Dteaql.expected.runtime.root=' + runtime];
     const log = path.join(evidence, 'round-' + round + '.log'), fd = fs.openSync(log, 'w'); let result;
     try { result = await runner.run(command, {cwd: scratch, timeout: 300000,
@@ -89,11 +90,15 @@ try {
     if (result.status !== 0) process.exitCode = result.status || 1;
     assert.equal(result.status, 0, bytes.toString().slice(-12000));
     const expected = {GeneratedFixEExampleTest: 1, PartialAncestorExampleTest: 1,
-      PartialAncestorRootExampleTest: 1, PostFixExampleTest: 3, NewEntityIdExampleTest: 1, CheckerBoundaryExampleTest: 1, ReviewedPlanExampleTest: 6, MixedGraphExampleTest: 3, ConcurrentQueryExampleTest: 1};
+      PartialAncestorRootExampleTest: 1, PostFixExampleTest: 3, NewEntityIdExampleTest: 1, CheckerBoundaryExampleTest: 1, ReviewedPlanExampleTest: 6, MixedGraphExampleTest: 3, ConcurrentQueryExampleTest: 1, RequestIntentExampleTest: 1};
     const summaries = [...bytes.toString().matchAll(/^\[INFO\] Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+), .* -- in io\.teaql\.examples\.fixe\.([A-Za-z]+)$/gm)];
     assert.deepEqual(summaries.map(row => row[5]).sort(), Object.keys(expected).sort());
     for (const row of summaries) assert.deepEqual(row.slice(1, 5).map(Number), [expected[row[5]], 0, 0, 0]);
-    assert.match(bytes.toString(), /^\[INFO\] Tests run: 18, Failures: 0, Errors: 0, Skipped: 0$/m);
+    assert.match(bytes.toString(), /^\[INFO\] Tests run: 19, Failures: 0, Errors: 0, Skipped: 0$/m);
+    const admission=bytes.toString().split(/\r?\n/).filter(line=>line.startsWith('JAVA_REQUEST_ADMISSION_CASE='))
+      .map(line=>JSON.parse(line.slice('JAVA_REQUEST_ADMISSION_CASE='.length)));
+    assert.equal(admission.length,36);assert(admission.every(v=>v.passed&&v.round===round));
+    assert(bytes.toString().includes('JAVA_REQUEST_ADMISSION_RESULT='));
     const concurrent = bytes.toString().split(/\r?\n/).filter(line => line.startsWith('JAVA_CONCURRENT_QUERY='))
       .map(line => JSON.parse(line.slice('JAVA_CONCURRENT_QUERY='.length)));
     assert.equal(concurrent.length, 1); assert(concurrent[0].passed && concurrent[0].round === round);
@@ -155,6 +160,9 @@ try {
   });
   report.concurrentQueryDatabase = {file: 'fixture.sqlite.concurrent-query.sqlite',
     sha256: sha(fs.readFileSync(path.join(evidence, 'fixture.sqlite.concurrent-query.sqlite')))};
+  report.requestIntentDatabases=['off','on'].map(name=>{
+    const file='fixture.sqlite.request-admission-'+name+'.sqlite';return{file,sha256:sha(fs.readFileSync(path.join(evidence,file)))};
+  });
   report.passed = true;
   console.log('PASS Java retained Fix/E/loading/ownership example twice on one database');
 } catch (error) { console.error(error.stack); process.exitCode ||= 1; }
