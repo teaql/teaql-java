@@ -237,7 +237,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         @Override
         public <V> V get(int columnIndex, Class<V> type) {
             try {
-                Object value = finiteColumn(resultSet, columnIndex);
+                Object value = finiteConversion(resultSet.getObject(columnIndex));
                 return convertColumn(type, value);
             } catch (SQLException exception) {
                 throw new RuntimeException("Failed to read JDBC column " + columnIndex + " as "

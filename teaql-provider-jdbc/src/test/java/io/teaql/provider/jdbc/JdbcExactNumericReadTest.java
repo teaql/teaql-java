@@ -99,12 +99,23 @@ public class JdbcExactNumericReadTest {
 
     @Test public void typedReadIsExactOrFailsBeforeReturningAnEntity() throws Exception {
         String url = driver.equals("h2") ? "jdbc:h2:mem:exact_" + UUID.randomUUID() : "jdbc:sqlite::memory:";
-        var adapter = new JdbcSqlExecutor(new TrackingDataSource(url));
+        var source = new TrackingDataSource(url);
+        var adapter = new JdbcSqlExecutor(source);
         String sql = "SELECT " + vector.expression + " AS required_numeric";
         // Calibrate the SQL and actual driver value independently. Unsupported
         // SQL must be an error, not mistaken for successful conversion rejection.
-        var raw = adapter.queryForList(sql, new Object[0]);
-        assertEquals(1, raw.size()); assertTrue(raw.get(0).containsKey("required_numeric"));
+        // Bypass the adapter only for calibration: its untyped reads must also
+        // reject non-finite values, so they cannot serve as a raw-driver oracle.
+        try (var connection = source.getConnection();
+             var statement = connection.createStatement();
+             var raw = statement.executeQuery(sql)) {
+            assertEquals(1, raw.getMetaData().getColumnCount());
+            assertTrue(raw.getMetaData().getColumnLabel(1).equalsIgnoreCase("required_numeric"));
+            assertTrue(raw.next());
+            if (!vector.rejected && vector.expected == null) assertNull(raw.getObject(1));
+            else assertNotNull(raw.getObject(1));
+            assertFalse(raw.next());
+        }
         if (vector.rejected) {
             var error = assertThrows(IllegalArgumentException.class, () -> read(adapter, sql, vector.target));
             assertTrue(error.getMessage(), error.getMessage().contains("column 1"));
