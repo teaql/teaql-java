@@ -56,13 +56,32 @@ public class ReviewedMutationSnapshotTest {
             assertThrows(TeaQLRuntimeException.class,() -> snapshot.requireUnchanged(changed,ledger));
         }
     }
-    @Test public void traceAndCommentChangesAreDetectedWithoutExportingValues() {
+    @Test public void traceChangeIsRejectedButLaterCommentCannotReplaceTheCapturedReason() {
         var p = plan("PRIVATE_VALUE"); var snapshot = ReviewedMutationSnapshot.capture(p,ledger);
         ledger.setTraceChain(key,List.of(new TraceNode("PRIVATE_TRACE")));
         var error = assertThrows(TeaQLRuntimeException.class,() -> snapshot.requireUnchanged(p,ledger));
         assertFalse(error.getMessage().contains("PRIVATE"));
         var after = ReviewedMutationSnapshot.capture(p,ledger); ledger.setComment("PRIVATE_COMMENT");
-        assertThrows(TeaQLRuntimeException.class,() -> after.requireUnchanged(p,ledger));
+        after.requireUnchanged(p,ledger);
+        assertEquals("review mutation",after.preparedPlan().auditReason());
+    }
+    @Test public void providerVersionProgressDoesNotChangeThePreparedWriteVersion() {
+        var p = plan("value"); var snapshot = ReviewedMutationSnapshot.capture(p,ledger);
+        var next = new MutationPlan("execution","Probe.saveGraph","Probe","review mutation",
+                List.of(new MutationOperation(MutationOperationKind.UPDATE,key,2L,Map.of("value","value"))));
+        assertThrows(TeaQLRuntimeException.class,() -> snapshot.requireUnchanged(next,ledger));
+        snapshot.requireUnchanged(next,ledger,true);
+        assertEquals(Long.valueOf(1),snapshot.preparedPlan().operations().get(0).originalVersion());
+    }
+    @Test public void preparedProviderOperandsAreDetachedFromCustomerPolicyOperands() {
+        var metadata = new io.teaql.core.meta.SimpleEntityMetaFactory();
+        var descriptor = new io.teaql.core.meta.EntityDescriptor();descriptor.setType("BaseEntity");descriptor.setEntitySupplier(BaseEntity::new);metadata.register(descriptor);
+        var reference = new BaseEntity();reference.__internalSet("id",1L);
+        var time = new Date(123);byte[] bytes = {1,2};var values = new HashMap<String,Object>();values.put("time",time);values.put("bytes",bytes);values.put("reference",reference);
+        var p = plan(values);var snapshot = ReviewedMutationSnapshot.capture(p,ledger,metadata);
+        time.setTime(456);bytes[0]=3;reference.__internalSet("id",2L);
+        var detached = (Map<?,?>)snapshot.preparedPlan().operations().get(0).changedValues().get("value");
+        assertEquals(123L,((Date)detached.get("time")).getTime());assertArrayEquals(new byte[]{1,2},(byte[])detached.get("bytes"));assertEquals(Long.valueOf(1),((Entity)detached.get("reference")).getId());
     }
     @Test public void cyclicContainersFailWithoutRecursingUntilStackOverflow() {
         List<Object> cycle = new ArrayList<>(); cycle.add(cycle);

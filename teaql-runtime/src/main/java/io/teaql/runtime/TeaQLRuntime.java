@@ -539,13 +539,13 @@ public class TeaQLRuntime implements AutoCloseable {
                 telemetryScope.success();
                 return;
             }
-            ReviewedMutationSnapshot reviewed = ReviewedMutationSnapshot.capture(mutationPlan, entityMutationLedger);
+            ReviewedMutationSnapshot reviewed = ReviewedMutationSnapshot.capture(mutationPlan, entityMutationLedger, metadata);
             MutationGovernanceSnapshot governance = reviewMutationPlan(context, mutationPlan);
             Runnable requireReviewedPlan = () -> reviewed.requireUnchanged(
                     buildMutationPlan(entity, entityMutationLedger, realEntities, intent, mutationPlan.executionId()),
                     entityMutationLedger);
             requireReviewedPlan.run();
-            var dynamicChanges = entityMutationLedger.currentChangeSet().dynamicChanges();
+            var dynamicChanges = preparedChanges(reviewed.preparedPlan()).dynamicChanges();
             var dynamicRequests = new ArrayList<io.teaql.data.dynamic.DynamicGraphMutation>();
             dynamicChanges.forEach((key, mutations) -> {
                 if (!entityMutationLedger.deletedKeys().contains(key)) mutations.values().forEach(mutation -> dynamicRequests.add(
@@ -569,7 +569,7 @@ public class TeaQLRuntime implements AutoCloseable {
                         // Transaction registration and dynamic preparation are extension
                         // points too; none may substitute an unreviewed pending plan.
                         requireReviewedPlan.run();
-                        List<PendingMutation> results = executeLedgerPlan(context, entityMutationLedger, mutationExecutor,
+                        List<PendingMutation> results = executeLedgerPlan(context, reviewed, mutationExecutor,
                                 realEntities, governance, intent, traceScopes, graphScope);
                         if (dynamic != null) {
                             dynamic.applyGraphMutations(transactionExecutor.transactionResource(), dynamicRequests);
@@ -588,7 +588,9 @@ public class TeaQLRuntime implements AutoCloseable {
                         }
                         // Verify before graph completion changes versions/clears intent.
                         // A late provider edit must roll back this transaction instead.
-                        requireReviewedPlan.run();
+                        reviewed.requireUnchanged(
+                                buildMutationPlan(entity, entityMutationLedger, realEntities, intent, mutationPlan.executionId()),
+                                entityMutationLedger, true);
                         if (completion.synchronizedTransaction) {
                             completeGraphPlan(context, results, dynamicReadbacks, realEntities,
                                     entityMutationLedger, completion.audits);
@@ -599,8 +601,10 @@ public class TeaQLRuntime implements AutoCloseable {
                     if (!dynamicRequests.isEmpty()) throw new TeaQLRuntimeException("DYNAMIC_FIELD_TRANSACTION_BINDING_REQUIRED: native graph executor has no transaction");
                     requireReviewedPlan.run();
                     completed = executeLedgerPlan(
-                            context, entityMutationLedger, mutationExecutor, realEntities, governance, intent, traceScopes, graphScope);
-                    requireReviewedPlan.run();
+                            context, reviewed, mutationExecutor, realEntities, governance, intent, traceScopes, graphScope);
+                    reviewed.requireUnchanged(
+                            buildMutationPlan(entity, entityMutationLedger, realEntities, intent, mutationPlan.executionId()),
+                            entityMutationLedger, true);
                 }
             } catch (RuntimeException | Error failure) {
                 if (!completion.synchronizedTransaction) restoreGraphPersistenceState(
@@ -648,9 +652,9 @@ public class TeaQLRuntime implements AutoCloseable {
         visitRelatedEntities(entity, child -> collectMutationTraceScopes(child, active, scopes, visited));
     }
 
-    private List<TraceNode> mutationTrace(EntityMutationLedger ledger, EntityKey key,
+    private List<TraceNode> mutationTrace(ReviewedMutationSnapshot reviewed, EntityKey key,
             Map<EntityKey, MutationTraceScope> scopes, MutationTraceScope graphScope) {
-        List<TraceNode> specific = ledger.getTraceChain(key);
+        List<TraceNode> specific = reviewed.traceChain(key);
         if (specific != null && !specific.isEmpty()) return specific;
         MutationTraceScope scope = scopes.getOrDefault(key, graphScope);
         return scope.recover();
@@ -981,15 +985,25 @@ public class TeaQLRuntime implements AutoCloseable {
 
     private List<PendingMutation> executeLedgerPlan(
             UserContext context,
-            EntityMutationLedger root,
+            ReviewedMutationSnapshot reviewed,
             MutationExecutor mutationExecutor,
             Map<EntityKey, BaseEntity> realEntities,
             MutationGovernanceSnapshot governance,
             MutationIntent intent, Map<EntityKey, MutationTraceScope> traceScopes, MutationTraceScope graphScope) {
         List<PendingMutation> completed = new ArrayList<>();
-        EntityChangeSet changeSet = root.currentChangeSet();
-        Set<EntityKey> deletedKeys = root.deletedKeys();
-        Set<EntityKey> newKeys = root.newKeys();
+        MutationPlan prepared = reviewed.preparedPlan();
+        EntityChangeSet changeSet = preparedChanges(prepared);
+        Set<EntityKey> deletedKeys = new HashSet<>(), newKeys = new HashSet<>(), recoveredKeys = new HashSet<>();
+        Map<EntityKey, Long> versions = new HashMap<>();
+        for (MutationOperation operation : prepared.operations()) {
+            versions.put(operation.entity(), operation.originalVersion());
+            switch (operation.kind()) {
+                case DELETE -> deletedKeys.add(operation.entity());
+                case CREATE -> newKeys.add(operation.entity());
+                case RECOVER -> recoveredKeys.add(operation.entity());
+                default -> { }
+            }
+        }
         var graphRedactions = new SqlIntentRedactions();
         realEntities.values().forEach(value -> graphRedactions.captureEntity(
                 value, metadata.resolveEntityDescriptor(value.typeName())));
@@ -1029,15 +1043,14 @@ public class TeaQLRuntime implements AutoCloseable {
                 BaseEntity target = realEntities.get(key);
                 BaseEntity deleteEntity = mutationEntity(descriptor, target);
                 deleteEntity.__internalSet("id", key.id());
-                Long originalVersion = root.getOriginalVersion(key);
-                if (originalVersion == null && target != null) originalVersion = target.getVersion();
+                Long originalVersion = versions.get(key);
                 if (originalVersion != null) deleteEntity.__internalSet("version", originalVersion);
                 deleteEntity.set$status(io.teaql.core.EntityStatus.PERSISTED);
                 deleteEntity.markForDeletion();
-                if (root.getComment() != null) deleteEntity.setComment(root.getComment());
+                deleteEntity.setComment(intent.comment());
 
                 EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
-                    deleteEntity, EntityPersistenceMutation.Action.DELETE, intent, mutationTrace(root, key, traceScopes, graphScope), target, graphRedactions);
+                    deleteEntity, EntityPersistenceMutation.Action.DELETE, intent, mutationTrace(reviewed, key, traceScopes, graphScope), target, graphRedactions);
                 requests.add(mutationRequest);
                 targets.add(target == null ? deleteEntity : target);
             }
@@ -1055,7 +1068,7 @@ public class TeaQLRuntime implements AutoCloseable {
 
         Set<EntityKey> changedKeys = new TreeSet<>(changeSet.changes().keySet());
         changedKeys.addAll(changeSet.dynamicChanges().keySet());
-        changedKeys.addAll(root.recoveredKeys());
+        changedKeys.addAll(recoveredKeys);
         for (EntityKey key : changedKeys) {
             if (deletedKeys.contains(key)) continue;
 
@@ -1084,17 +1097,17 @@ public class TeaQLRuntime implements AutoCloseable {
                 BaseEntity target = realEntities.get(key);
                 BaseEntity entity = mutationEntity(descriptor, target);
                 entity.__internalSet("id", key.id());
-                Long version = root.getOriginalVersion(key);
+                Long version = versions.get(key);
                 if (version != null) {
                     entity.__internalSet("version", version);
                 }
                 for (Map.Entry<String, Object> change : changes.entrySet()) {
                     entity.__internalApplyRecordedMutation(change.getKey(), change.getValue());
                 }
-                if (root.getComment() != null) entity.setComment(root.getComment());
+                entity.setComment(intent.comment());
 
                 EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
-                    entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(root, key, traceScopes, graphScope), target, graphRedactions);
+                    entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(reviewed, key, traceScopes, graphScope), target, graphRedactions);
                 requests.add(mutationRequest);
                 targets.add(target == null ? entity : target);
                 snapshots.add(snapshotChanges(changesWithDynamic(changeSet, key)));
@@ -1123,13 +1136,12 @@ public class TeaQLRuntime implements AutoCloseable {
                 List<BaseEntity> targets = new ArrayList<>();
                 List<Map<String, Object>> snapshots = new ArrayList<>();
                 for (EntityKey key : keys) {
-                    if (root.recoveredKeys().contains(key) != recovering) continue;
+                    if (recoveredKeys.contains(key) != recovering) continue;
                     BaseEntity target = realEntities.get(key);
                     Map<String, Object> changes = changeSet.changes().getOrDefault(key, Map.of());
                     BaseEntity entity = mutationEntity(descriptor, target);
                     entity.__internalSet("id", key.id());
-                    Long version = root.getOriginalVersion(key);
-                    if (version == null && target != null) version = target.getVersion();
+                    Long version = versions.get(key);
                     if (version != null) {
                         entity.__internalSet("version", version);
                     }
@@ -1138,10 +1150,10 @@ public class TeaQLRuntime implements AutoCloseable {
                     }
                     if (changeSet.dynamicChanges().containsKey(key)) entity.__internalRequireVersionUpdate();
                     entity.set$status(recovering ? io.teaql.core.EntityStatus.UPDATED_RECOVER : io.teaql.core.EntityStatus.UPDATED);
-                    if (root.getComment() != null) entity.setComment(root.getComment());
+                    entity.setComment(intent.comment());
 
                     EntityPersistenceMutation mutationRequest = new EntityPersistenceMutation(
-                        entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(root, key, traceScopes, graphScope), target, graphRedactions);
+                        entity, EntityPersistenceMutation.Action.SAVE, intent, mutationTrace(reviewed, key, traceScopes, graphScope), target, graphRedactions);
                     requests.add(mutationRequest);
                     targets.add(target == null ? entity : target);
                     snapshots.add(snapshotChanges(changesWithDynamic(changeSet, key)));
@@ -1156,6 +1168,20 @@ public class TeaQLRuntime implements AutoCloseable {
             }
         }
         return completed;
+    }
+
+    /** Provider operands are rebuilt only from the detached, reviewed plan. */
+    private EntityChangeSet preparedChanges(MutationPlan prepared) {
+        var changes = new EntityChangeSet();
+        for (var operation : prepared.operations()) {
+            if (operation.kind() == MutationOperationKind.DELETE) continue;
+            operation.changedValues().forEach((field, value) -> {
+                if (value instanceof io.teaql.data.dynamic.DynamicFieldMutation mutation
+                        && field.equals("#" + mutation.code())) changes.setDynamic(operation.entity(), mutation);
+                else changes.set(operation.entity(), field, value);
+            });
+        }
+        return changes;
     }
 
     private static final class GraphCompletion {
