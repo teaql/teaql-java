@@ -32,6 +32,7 @@ public class MixedGraphExampleTest {
         final PurchaseOrder order;
         final OrderItem removed, added;
         final List<Map<String, Object>> operands = new ArrayList<>();
+        final List<Map<String, Object>> beforeCommit = new ArrayList<>();
         boolean armed, failSecond;
         int policies, begins, commits, rollbacks, audits, attempts;
 
@@ -41,6 +42,7 @@ public class MixedGraphExampleTest {
             assertNotNull("the runner owns and retains the actual SQLite files", base);
             database = base + ".mixed-graph-" + scenario + ".sqlite";
             source.setUrl("jdbc:sqlite:" + database);
+            if (scenario.equals("commit-failure")) source.setEnforceForeignKeys(true);
             sql = new ContextRootProbe.ObservedSql(source);
             var ids = new IdSpaceIdGenerator(new GeneratedFixEExampleTest.DatabaseBridge(sql));
             ids.ensureIdSpaceTable();
@@ -48,7 +50,30 @@ public class MixedGraphExampleTest {
                 @Override public <T> T executeInTransaction(UserContext caller, TransactionCallback<T> action) {
                     if (armed) begins++;
                     try {
-                        T result = super.executeInTransaction(caller, action);
+                        T result = super.executeInTransaction(caller, () -> {
+                            T value = action.doInTransaction();
+                            if (armed && scenario.equals("commit-failure")) {
+                                // The callback has completed, but JdbcSqlExecutor
+                                // has not called Connection.commit() yet. These
+                                // reads use its real transaction-bound connection.
+                                var parent = sql.queryForList("SELECT version FROM purchase_order_data WHERE id=?",
+                                        new Object[]{order.getId()}).getFirst();
+                                var old = sql.queryForList("SELECT version FROM order_item_data WHERE id=?",
+                                        new Object[]{removed.getId()}).getFirst();
+                                var fresh = sql.queryForList("SELECT version,purchase_order FROM order_item_data WHERE id=?",
+                                        new Object[]{added.getId()}).getFirst();
+                                int violations = sql.queryForList("PRAGMA foreign_key_check", new Object[0]).size();
+                                assertEquals(3, attempts - beforeCommit.size() * 3);
+                                assertEquals(0, audits);
+                                assertEquals(2L, ((Number) parent.get("version")).longValue());
+                                assertEquals(-2L, ((Number) old.get("version")).longValue());
+                                assertEquals(1L, ((Number) fresh.get("version")).longValue());
+                                assertEquals(order.getId().longValue(), ((Number) fresh.get("purchase_order")).longValue());
+                                beforeCommit.add(Map.of("writes", 3, "audits", audits, "violations", violations,
+                                        "parentVersion", 2L, "oldVersion", -2L, "newVersion", 1L));
+                            }
+                            return value;
+                        });
                         if (armed) commits++;
                         return result;
                     } catch (RuntimeException | Error error) {
@@ -207,6 +232,7 @@ public class MixedGraphExampleTest {
             result.put("rejected", rejected); result.put("final", effects()); result.put("operands", operands);
             result.put("generatedQAndEReadback", true); result.put("readOnlySqlOracle", true);
             result.put("repeatedSaveIsNoOp", true);
+            if (scenario.equals("commit-failure")) result.put("beforeCommit", beforeCommit);
             System.out.println("JAVA_MIXED_GRAPH_CASE=" + new ObjectMapper().writeValueAsString(result));
         }
     }
@@ -241,5 +267,52 @@ public class MixedGraphExampleTest {
         assertEquals(4, f.sql.writes); assertEquals(2, f.begins); assertEquals(1, f.commits);
         assertEquals(1, f.rollbacks); assertEquals(3, f.audits);
         f.committed(rejected);
+    }
+
+    @Test public void deferredForeignKeyRejectsRealCommitAfterAllWritesAndOriginalGraphRetries() throws Exception {
+        var f = new Fixture("commit-failure");
+        long orderId = f.order.getId(), oldId = f.removed.getId(), addedId = f.added.getId();
+        // Test-only auxiliary schema injects a deferred FK violation. Every
+        // business row is still created and changed through generated APIs.
+        try (var connection = f.source.getConnection(); var statement = connection.createStatement()) {
+            try (var rows = statement.executeQuery("PRAGMA foreign_keys")) {
+                assertTrue(rows.next()); assertEquals(1, rows.getInt(1));
+            }
+            statement.execute("CREATE TABLE IF NOT EXISTS core236_commit_parent(id INTEGER PRIMARY KEY)");
+            statement.execute("CREATE TABLE IF NOT EXISTS core236_commit_guard(id INTEGER PRIMARY KEY, missing_parent INTEGER NOT NULL, " +
+                    "FOREIGN KEY(missing_parent) REFERENCES core236_commit_parent(id) DEFERRABLE INITIALLY DEFERRED)");
+            statement.execute("CREATE TRIGGER core236_commit_fault AFTER UPDATE ON purchase_order_data WHEN NEW.id=" + orderId +
+                    " BEGIN INSERT INTO core236_commit_guard(missing_parent) VALUES(1); END");
+        }
+        var error = assertThrows(TeaQLRuntimeException.class, f::save);
+        boolean foreignKey = false;
+        for (Throwable cause = error; cause != null; cause = cause.getCause())
+            foreignKey |= String.valueOf(cause.getMessage()).toLowerCase(Locale.ROOT).contains("foreign key constraint failed");
+        assertTrue("the real deferred SQLite constraint must reject commit", foreignKey);
+        assertEquals(1, f.beforeCommit.size());
+        assertEquals(1, f.beforeCommit.getFirst().get("violations"));
+        assertEquals(1, f.policies); assertEquals(3, f.attempts); assertEquals(3, f.operands.size());
+        assertEquals(3, f.sql.writes); assertEquals(1, f.begins); assertEquals(0, f.commits);
+        assertEquals(1, f.rollbacks); assertEquals(0, f.audits);
+        assertEquals(Long.valueOf(1), f.order.getVersion()); assertEquals(Long.valueOf(1), f.removed.getVersion());
+        assertNull(f.added.getVersion()); assertTrue(f.added.newItem());
+        assertFalse(f.added.getEntityMutationLedger().currentChangeSet().changes().isEmpty());
+        f.storage(false);
+        var rejected = f.effects();
+        try (var connection = f.source.getConnection(); var statement = connection.createStatement()) {
+            statement.execute("DROP TRIGGER core236_commit_fault");
+            try (var rows = statement.executeQuery("SELECT count(*) FROM core236_commit_guard")) {
+                assertTrue(rows.next()); assertEquals(0L, rows.getLong(1));
+            }
+        }
+        f.save();
+        assertEquals(orderId, f.order.getId().longValue()); assertEquals(oldId, f.removed.getId().longValue());
+        assertEquals(addedId, f.added.getId().longValue());
+        assertEquals(2, f.beforeCommit.size()); assertEquals(0, f.beforeCommit.get(1).get("violations"));
+        assertEquals(2, f.policies); assertEquals(6, f.attempts); assertEquals(6, f.operands.size());
+        assertEquals(6, f.sql.writes); assertEquals(2, f.begins); assertEquals(1, f.commits);
+        assertEquals(1, f.rollbacks); assertEquals(3, f.audits);
+        f.committed(rejected);
+        assertEquals("unchanged save cannot reach commit again", 2, f.beforeCommit.size());
     }
 }
