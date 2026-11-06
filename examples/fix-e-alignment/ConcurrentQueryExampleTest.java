@@ -26,7 +26,7 @@ import static org.junit.Assert.*;
 public class ConcurrentQueryExampleTest {
     private static final class Fixture {
         final SQLiteDataSource source = new SQLiteDataSource();
-        final AtomicInteger reads = new AtomicInteger(), entered = new AtomicInteger();
+        final AtomicInteger reads = new AtomicInteger(), entered = new AtomicInteger(), eReads = new AtomicInteger(), audits = new AtomicInteger();
         final CountDownLatch first = new CountDownLatch(1), both = new CountDownLatch(2), release = new CountDownLatch(1);
         final List<Map<String, Object>> events = new CopyOnWriteArrayList<>();
         final AtomicReference<UserContext> caller = new AtomicReference<>();
@@ -74,6 +74,7 @@ public class ConcurrentQueryExampleTest {
                             row.put("thread", Thread.currentThread().getName()); row.put("resultCount", event.getResultCount());
                             events.add(row);
                         }
+                        public void writeAuditEvent(UserContext current, RawAuditEvent event) { if (armed) audits.incrementAndGet(); }
                     }).build().install(GeneratedRuntimeModule.module());
             context = new GeneratedFixEExampleTest.Context(runtime); caller.set(context); context.ensureSchema();
         }
@@ -94,6 +95,7 @@ public class ConcurrentQueryExampleTest {
             assertEquals(expected, E.purchaseOrder(row).getContactPhone().eval());
             assertEquals(Integer.valueOf(1), E.purchaseOrder(row).getOrderItemList().size().eval());
             assertEquals(expected + " child", E.purchaseOrder(row).getOrderItemList().first().getProductName().eval());
+            eReads.addAndGet(reads.get() - before);
             assertEquals("E evaluation must not read the provider", before, reads.get());
         }
     }
@@ -121,35 +123,42 @@ public class ConcurrentQueryExampleTest {
             fixture.release.countDown(); workers.shutdownNow(); assertTrue(workers.awaitTermination(15, TimeUnit.SECONDS));
         }
         fixture.loaded(fixture.query(alpha.getId(), "after"), "alpha");
+        var result = new LinkedHashMap<String, Object>();
+        result.put("round", Integer.parseInt(System.getenv("TEAQL_FIX_E_ROUND"))); result.put("overlapEntered", fixture.entered.get());
+        result.put("contextUnchanged", fixture.context.getTraceChain().isEmpty()); result.put("generatedQAndE", true);
+        result.put("database", "fixture.sqlite.concurrent-query.sqlite"); result.put("alphaId", alpha.getId()); result.put("betaId", beta.getId());
+        result.put("events", fixture.events); result.put("eProviderReads", fixture.eReads.get()); result.put("queryAuditEvents", fixture.audits.get());
+        System.out.println("JAVA_CONCURRENT_QUERY_OBSERVATION=" + new ObjectMapper().writeValueAsString(result));
         assertTrue(fixture.context.getTraceChain().isEmpty()); assertEquals(6, fixture.events.size());
+        assertEquals(0, fixture.audits.get());
         for (String label : List.of("alpha", "beta", "after")) {
             var own = fixture.events.stream().filter(row -> (label + " purpose").equals(row.get("purpose"))).toList();
             assertEquals("one root and one derived physical SELECT", 2, own.size());
-            assertEquals(Set.of(label + " root", label + " children"), new HashSet<>(own.stream().map(row -> row.get("comment")).toList()));
+            assertEquals(Set.of(label + " root"), new HashSet<>(own.stream().map(row -> row.get("comment")).toList()));
             for (var row : own) {
                 assertEquals("sqlite", row.get("backend")); assertEquals("select", row.get("statement"));
                 String request = new ObjectMapper().writeValueAsString(row.get("request"));
                 String path = new ObjectMapper().writeValueAsString(row.get("path"));
                 assertTrue("root business intent survives derived work", request.contains(label + " root"));
                 for (String other : List.of("alpha", "beta", "after")) if (!other.equals(label)) {
-                    assertFalse("no sibling intent in business chain", request.contains(other + " root"));
-                    assertFalse("no sibling intent in physical path", path.contains(other + " root"));
+                    for (String suffix : List.of(" root", " children", " purpose")) {
+                        assertFalse("no sibling intent in business chain", request.contains(other + suffix));
+                        assertFalse("no sibling intent in physical path", path.contains(other + suffix));
+                    }
                 }
                 @SuppressWarnings("unchecked") var physical = (List<Map<String, String>>) row.get("path");
                 assertEquals("PROVIDER", physical.get(physical.size() - 2).get("kind"));
                 assertEquals("SQL", physical.get(physical.size() - 1).get("kind"));
                 assertEquals("select", physical.get(physical.size() - 1).get("name"));
                 long relations = physical.stream().filter(node -> "RELATION".equals(node.get("kind"))).count();
-                assertEquals(row.get("comment").equals(label + " children") ? 1L : 0L, relations);
+                assertTrue(relations == 0L || relations == 1L);
+                assertEquals("explicit nested comment belongs to its business child node", relations == 1L, request.contains(label + " children"));
             }
+            assertEquals(1L, own.stream().filter(row -> new ObjectMapper().valueToTree(row.get("path")).toString().contains("RELATION")).count());
         }
         assertEquals(2, fixture.events.stream().filter(row -> List.of("alpha purpose", "beta purpose").contains(row.get("purpose")))
                 .map(row -> row.get("thread")).distinct().count());
-        var result = new LinkedHashMap<String, Object>(); result.put("passed", true);
-        result.put("round", Integer.parseInt(System.getenv("TEAQL_FIX_E_ROUND"))); result.put("overlapEntered", fixture.entered.get());
-        result.put("contextUnchanged", fixture.context.getTraceChain().isEmpty()); result.put("generatedQAndE", true);
-        result.put("database", "fixture.sqlite.concurrent-query.sqlite"); result.put("alphaId", alpha.getId()); result.put("betaId", beta.getId());
-        result.put("events", fixture.events); result.put("eProviderReads", 0);
+        result.put("passed", true);
         System.out.println("JAVA_CONCURRENT_QUERY=" + new ObjectMapper().writeValueAsString(result));
     }
 }
