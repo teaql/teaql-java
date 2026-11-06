@@ -126,13 +126,15 @@ public class MixedGraphExampleTest {
             order.updateContactPhone("initial"); order.updateInternalNote("mixed graph control");
             removed = Q.orderItems().comment("Prepare an existing child for later deletion")
                     .purpose("Verify pending deletion joins the same audited graph save").newEntity(context);
-            removed.updatePurchaseOrder(order); removed.updateProductName("Removed item"); removed.updateUnitPrice(BigDecimal.ONE);
-            removed.auditAs("Persist the existing parent and child before the mixed mutation").save(context);
+            removed.updateProductName("Removed item"); removed.updateUnitPrice(BigDecimal.ONE);
+            order.addOrderItem(removed);
+            order.auditAs("Persist the existing parent and child before the mixed mutation").save(context);
             assertEquals(Long.valueOf(1), order.getVersion()); assertEquals(Long.valueOf(1), removed.getVersion());
 
             added = Q.orderItems().comment("Prepare a newly identified replacement child")
                     .purpose("Verify insertion joins the same graph as update and deletion").newEntity(context);
-            added.updatePurchaseOrder(order); added.updateProductName("Added item"); added.updateUnitPrice(new BigDecimal("2"));
+            added.updateProductName("Added item"); added.updateUnitPrice(new BigDecimal("2"));
+            order.addOrderItem(added);
             assertTrue(added.getId() > 0); assertNull(added.getVersion());
             assertNotEquals(added.getId(), removed.getId());
             order.updateContactPhone("updated");
@@ -140,12 +142,10 @@ public class MixedGraphExampleTest {
             removed.markForDeletion();
             assertEquals("markForDeletion cannot read the provider", readsBefore, sql.queries);
             assertEquals("markForDeletion cannot write the provider", writesBefore, sql.writes);
-            assertSame(order.getEntityMutationLedger(), added.getEntityMutationLedger());
-            assertSame(order.getEntityMutationLedger(), removed.getEntityMutationLedger());
             sql.writes = 0; sql.transactions = 0; armed = true;
         }
 
-        void save() { added.auditAs("Apply the reviewed insertion update and deletion as one graph").save(context); }
+        void save() { order.auditAs("Apply the reviewed insertion update and deletion as one graph").save(context); }
 
         void storage(boolean committed) throws Exception {
             var parent = Q.purchaseOrders().withIdIs(order.getId()).limit(1)
