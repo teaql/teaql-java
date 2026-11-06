@@ -118,7 +118,8 @@ public class ConcurrentQueryExampleTest {
             var right = workers.submit(() -> fixture.query(beta.getId(), "beta")); await(fixture.both);
             assertEquals(2, fixture.entered.get()); assertTrue("both queries are live", !left.isDone() && !right.isDone());
             assertTrue(fixture.context.getTraceChain().isEmpty()); fixture.release.countDown();
-            fixture.loaded(left.get(15, TimeUnit.SECONDS), "alpha"); fixture.loaded(right.get(15, TimeUnit.SECONDS), "beta");
+            var leftRow = left.get(15, TimeUnit.SECONDS); var rightRow = right.get(15, TimeUnit.SECONDS);
+            fixture.loaded(leftRow, "alpha"); fixture.loaded(rightRow, "beta");
         } finally {
             fixture.release.countDown(); workers.shutdownNow(); assertTrue(workers.awaitTermination(15, TimeUnit.SECONDS));
         }
