@@ -48,6 +48,10 @@ public class ReviewedMutationGraphIdentityTest {
         var context = new DefaultUserContext(runtime);
         var parent = new Node("Parent"); parent.__internalSet("id", 1L);
         var child = new Node("Child"); child.__internalSet("id", 1L);
+        // This low-level fixture explicitly performs the NEW lifecycle entry
+        // normally supplied by generated Q.newEntity(), not merely hydration.
+        parent.getEntityMutationLedger().markAsNew(new EntityKey("Parent", 1L));
+        child.getEntityMutationLedger().markAsNew(new EntityKey("Child", 1L));
         child.updateProperty("name", "first"); parent.updateProperty("child", child);
         parent.auditAs("Create the complete identity graph").save(context);
         assertSame(child, parent.__internalGet("child"));
