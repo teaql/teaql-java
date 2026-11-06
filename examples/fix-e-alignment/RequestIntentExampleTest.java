@@ -114,7 +114,7 @@ public class RequestIntentExampleTest {
                 assertEquals(code,error.getCode());assertEquals(field,error.getField());assertEquals(requestKind,error.getRequestKind());
                 assertFalse(error.getMessage().contains("SECRET-CANARY"));assertEquals(ZERO,f.effects());assertEquals(baseline,f.physical());
                 assertEquals(Long.valueOf(parentID),parent.getId());assertEquals(Long.valueOf(childID),child.getId());
-                assertEquals(Long.valueOf(0),parent.getVersion());assertEquals(Long.valueOf(0),child.getVersion());
+                assertNull(parent.getVersion());assertNull(child.getVersion());
                 assertEquals("annotated child SECRET-CANARY",child.getComment());assertTrue(f.context.getTraceChain().isEmpty());
                 emit("JAVA_REQUEST_ADMISSION_CASE",Map.ofEntries(Map.entry("round",round),Map.entry("logging",logging),Map.entry("action",action),Map.entry("inputKind",kinds[index]),
                         Map.entry("code",code),Map.entry("field",field),Map.entry("requestKind",requestKind),Map.entry("effects",f.effects()),Map.entry("parentID",parentID),Map.entry("childID",childID),
