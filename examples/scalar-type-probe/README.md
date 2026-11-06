@@ -148,3 +148,15 @@ finite Double values that overflow when converted to Float.
 This mode retains logs, source origins, fixture hashes and the four databases;
 its disposable source copy and build outputs are removed on exit. It is part of
 `scripts/verify-examples.sh`, separate from installed-artifact acceptance.
+## Exact JDBC numeric reads
+
+`node examples/scalar-type-probe/verify-local.cjs --jdbc-exact` runs sixteen
+legacy-corruption cases twice on one unreset SQLite store, using generated Q
+single-result and stream queries. It rejects fractional or overflowing integers,
+overflowing Float, infinite Double and invalid Decimal text without disclosing
+private values. A projection that excludes the corrupt column still returns its
+selected fields; E reports the unselected numeric field as NotLoaded. Direct SQL
+is confined to explicit fault injection, its repair and independent readback.
+Audited generated creates and a real update, exact native integer endpoints,
+connection recovery and unchanged query-time audit/policy counts are also checked.
+The complete example entry point includes this mode.

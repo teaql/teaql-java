@@ -60,6 +60,8 @@ TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/restoration-views" \
   node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --restoration-views
 TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/outer-replay" \
   node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --outer-replay
+TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/jdbc-exact" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --jdbc-exact
 TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/json-profiles" \
   node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs"
 TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/json-lifecycle" \
