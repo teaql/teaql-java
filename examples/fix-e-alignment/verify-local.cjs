@@ -30,6 +30,7 @@ report.partialAncestorRootApplicationSha256 = sha(fs.readFileSync(path.join(exam
 report.newEntityIdApplicationSha256 = sha(fs.readFileSync(path.join(example, 'NewEntityIdExampleTest.java')));
 report.checkerBoundaryApplicationSha256 = sha(fs.readFileSync(path.join(example, 'CheckerBoundaryExampleTest.java')));
 report.reviewedPlanApplicationSha256 = sha(fs.readFileSync(path.join(example, 'ReviewedPlanExampleTest.java')));
+report.mixedGraphApplicationSha256 = sha(fs.readFileSync(path.join(example, 'MixedGraphExampleTest.java')));
 const {createOwnedRunner, ownedBytes} = require('./owned-command.cjs'), runner = createOwnedRunner();
 async function main() {
 try {
@@ -66,7 +67,7 @@ try {
   fs.writeFileSync(path.join(reactor, "pom.xml"), '<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>io.teaql.test</groupId><artifactId>fix-e-reactor</artifactId><version>0.0.0</version><packaging>pom</packaging><modules><module>../source</module><module>../generated</module><module>../consumer</module></modules></project>');
   for (const round of [1, 2]) {
     const command = ['mvn', '-o', '-B', '-ntp', '-f', path.join(reactor, 'pom.xml'), '-pl', ':teaql-fix-e-example', '-am', 'test',
-      '-Dtest=GeneratedFixEExampleTest,PartialAncestorExampleTest,PartialAncestorRootExampleTest,PostFixExampleTest,NewEntityIdExampleTest,CheckerBoundaryExampleTest,ReviewedPlanExampleTest', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dteaql.version=' + version,
+      '-Dtest=GeneratedFixEExampleTest,PartialAncestorExampleTest,PartialAncestorRootExampleTest,PostFixExampleTest,NewEntityIdExampleTest,CheckerBoundaryExampleTest,ReviewedPlanExampleTest,MixedGraphExampleTest', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dteaql.version=' + version,
       '-Dteaql.expected.runtime.root=' + runtime];
     const log = path.join(evidence, 'round-' + round + '.log'), fd = fs.openSync(log, 'w'); let result;
     try { result = await runner.run(command, {cwd: scratch, timeout: 300000,
@@ -87,11 +88,15 @@ try {
     if (result.status !== 0) process.exitCode = result.status || 1;
     assert.equal(result.status, 0, bytes.toString().slice(-12000));
     const expected = {GeneratedFixEExampleTest: 1, PartialAncestorExampleTest: 1,
-      PartialAncestorRootExampleTest: 1, PostFixExampleTest: 3, NewEntityIdExampleTest: 1, CheckerBoundaryExampleTest: 1, ReviewedPlanExampleTest: 6};
+      PartialAncestorRootExampleTest: 1, PostFixExampleTest: 3, NewEntityIdExampleTest: 1, CheckerBoundaryExampleTest: 1, ReviewedPlanExampleTest: 6, MixedGraphExampleTest: 2};
     const summaries = [...bytes.toString().matchAll(/^\[INFO\] Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+), .* -- in io\.teaql\.examples\.fixe\.([A-Za-z]+)$/gm)];
     assert.deepEqual(summaries.map(row => row[5]).sort(), Object.keys(expected).sort());
     for (const row of summaries) assert.deepEqual(row.slice(1, 5).map(Number), [expected[row[5]], 0, 0, 0]);
-    assert.match(bytes.toString(), /^\[INFO\] Tests run: 14, Failures: 0, Errors: 0, Skipped: 0$/m);
+    assert.match(bytes.toString(), /^\[INFO\] Tests run: 16, Failures: 0, Errors: 0, Skipped: 0$/m);
+    const mixed = bytes.toString().split(/\r?\n/).filter(line => line.startsWith('JAVA_MIXED_GRAPH_CASE='))
+      .map(line => JSON.parse(line.slice('JAVA_MIXED_GRAPH_CASE='.length)));
+    assert.deepEqual(mixed.map(row => row.case).sort(), ['commit', 'rollback']);
+    assert(mixed.every(row => row.passed && row.round === round && row.generatedQAndEReadback && row.readOnlySqlOracle && row.repeatedSaveIsNoOp));
     const reviewed = bytes.toString().split(/\r?\n/).filter(line => line.startsWith('JAVA_REVIEWED_SQLITE_CASE='))
       .map(line => JSON.parse(line.slice('JAVA_REVIEWED_SQLITE_CASE='.length)));
     assert.deepEqual(reviewed.map(row => row.phase).sort(), ['NONE', 'POLICY', 'APPROVAL', 'WARNING', 'TRANSACTION', 'PROVIDER'].sort());
@@ -137,6 +142,10 @@ try {
     sha256: sha(fs.readFileSync(path.join(evidence, 'fixture.sqlite.checker-boundaries.sqlite')))};
   report.reviewedPlanDatabases = ['none', 'policy', 'approval', 'warning', 'transaction', 'provider'].map(name => {
     const file = 'fixture.sqlite.reviewed-plan-' + name + '.sqlite';
+    return {file, sha256: sha(fs.readFileSync(path.join(evidence, file)))};
+  });
+  report.mixedGraphDatabases = ['commit', 'rollback'].map(name => {
+    const file = 'fixture.sqlite.mixed-graph-' + name + '.sqlite';
     return {file, sha256: sha(fs.readFileSync(path.join(evidence, file)))};
   });
   report.passed = true;
