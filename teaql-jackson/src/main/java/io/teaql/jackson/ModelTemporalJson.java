@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
@@ -16,7 +17,8 @@ final class ModelTemporalJson {
     private ModelTemporalJson() {}
 
     static boolean supports(Class<?> type) {
-        return type == LocalDate.class || type == LocalTime.class || type == Instant.class;
+        return type == LocalDate.class || type == LocalTime.class
+                || type == LocalDateTime.class || type == Instant.class;
     }
 
     static Object read(JsonNode node, Class<?> type, Object owner, String field) throws JsonMappingException {
@@ -25,6 +27,9 @@ final class ModelTemporalJson {
                 String text = node.textValue();
                 if (type == LocalDate.class) return LocalDate.parse(text, DateTimeFormatter.ISO_LOCAL_DATE);
                 if (type == LocalTime.class) return LocalTime.parse(text, DateTimeFormatter.ISO_LOCAL_TIME);
+                // A wall date-time has no offset or zone. Never route it through
+                // an instant parser or mapper-wide date/time coercion settings.
+                if (type == LocalDateTime.class) return LocalDateTime.parse(text, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
                 // Parsing an offset date-time (not Instant.parse) rejects leap
                 // seconds rather than silently normalizing second 60 to 59.
                 Instant instant = OffsetDateTime.parse(text, DateTimeFormatter.ISO_OFFSET_DATE_TIME).toInstant();
@@ -42,6 +47,7 @@ final class ModelTemporalJson {
         try {
             if (value instanceof LocalDate date) wire = DateTimeFormatter.ISO_LOCAL_DATE.format(date);
             else if (value instanceof LocalTime time) wire = DateTimeFormatter.ISO_LOCAL_TIME.format(time);
+            else if (value instanceof LocalDateTime dateTime) wire = DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(dateTime);
             else {
                 Instant instant = (Instant) value;
                 requireMillis(instant);
