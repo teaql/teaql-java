@@ -22,11 +22,11 @@ public class JsonTemporalWireTest {
     @Parameterized.Parameters(name="{0}") public static Collection<Object[]> profiles() {
         return List.of(new Object[]{JsonFieldNamingProfile.CAMEL_CASE},new Object[]{JsonFieldNamingProfile.SNAKE_CASE},new Object[]{JsonFieldNamingProfile.PASCAL_CASE});
     }
-    static final Map<String,Class<?>> TYPES=Map.of("id",Long.class,"version",Long.class,"date_value",LocalDate.class,"time_value",LocalTime.class,"timestamp_value",Instant.class);
+    static final Map<String,Class<?>> TYPES=Map.of("id",Long.class,"version",Long.class,"date_value",LocalDate.class,"time_value",LocalTime.class,"timestamp_value",Instant.class,"local_datetime_value",LocalDateTime.class);
     static FieldLayout layout(Class<?> type,JsonFieldNamingProfile profile){
         var indexes=new LinkedHashMap<String,Integer>();var mappings=new LinkedHashMap<String,List<String>>();
         for(var field:TYPES.keySet().stream().sorted().toList()){indexes.put(field,indexes.size());mappings.put(field,List.of(field,field));}
-        return FieldLayout.installGenerated(FieldLayout.generated(type,"temporal-wire-v1",indexes,mappings,Set.of("child_row","child_list"),profile));
+        return FieldLayout.installGenerated(FieldLayout.generated(type,"temporal-wire-v2",indexes,mappings,Set.of("child_row","child_list"),profile));
     }
     public abstract static class Row extends BaseEntity {
         final Map<String,Object> values=new HashMap<>();
@@ -142,5 +142,52 @@ public class JsonTemporalWireTest {
         var configured=mapper.copy().findAndRegisterModules();
         var row=configured.readValue("{\""+profile.render("timestamp_value")+"\":\"2024-02-29T12:34:56.123Z\"}",type);
         var json=configured.readTree(configured.writeValueAsString(row));assertEquals("2024-02-29T12:34:56.123Z",json.path(profile.render("timestamp_value")).textValue());
+    }
+    @Test public void localDateTimeRoundTripsWithoutJavaTimeModuleOrPrecisionLoss()throws Exception{
+        for(String value:List.of("1960-02-29T00:00:00","2024-02-29T12:34:56.123","2024-02-29T12:34:56.123456789")){
+            var row=read("local_datetime_value","\""+value+"\"");var expected=LocalDateTime.parse(value);
+            assertEquals(expected,row.__internalGet("local_datetime_value"));
+            var state=row.__internalLoadState();var json=mapper.readTree(mapper.writeValueAsString(row));
+            assertEquals(value,json.path(profile.render("local_datetime_value")).textValue());
+            assertEquals(expected,mapper.treeToValue(json,type).__internalGet("local_datetime_value"));
+            assertSame(state,row.__internalLoadState());assertFalse(row.__internalHasMutationLedger());
+        }
+    }
+    @Test public void localDateTimeDoesNotInferAMapperOrSystemZone()throws Exception{
+        String value="2024-03-10T02:30:00",input="{\""+profile.render("local_datetime_value")+"\":\""+value+"\"}";
+        // This wall time is a DST gap in New York; it remains valid as a local
+        // value because decoding must not resolve it to an instant.
+        for(String zone:List.of("UTC","America/New_York","Asia/Shanghai")){
+            var configured=mapper.copy().setTimeZone(TimeZone.getTimeZone(zone));var row=configured.readValue(input,type);
+            assertEquals(LocalDateTime.parse(value),row.__internalGet("local_datetime_value"));
+            assertEquals(value,configured.readTree(configured.writeValueAsString(row)).path(profile.render("local_datetime_value")).textValue());
+        }
+    }
+    @Test public void localDateTimeRejectsOffsetsInvalidCalendarsAndCoercion(){
+        for(String value:List.of("\"2024-02-29T12:34:56Z\"","\"2024-02-29T12:34:56+08:00\"","\"2023-02-29T12:34:56\"","\"2024-02-29T23:59:60\"","\"2024-02-29\"","\"PRIVATE_TEMPORAL_CANARY\"","0","true","[2024,2,29,12,34,56]"))invalid("local_datetime_value",value);
+    }
+    @Test public void localDateTimeNullAndNotLoadedStayDistinct()throws Exception{
+        var row=read("local_datetime_value","null");assertTrue(row.isPropertyLoaded("local_datetime_value"));assertNull(row.__internalGet("local_datetime_value"));
+        assertFalse(row.isPropertyLoaded("timestamp_value"));var json=mapper.readTree(mapper.writeValueAsString(row));
+        assertTrue(json.path(profile.render("local_datetime_value")).isNull());assertFalse(json.has(profile.render("timestamp_value")));
+        assertFalse(row.__internalHasMutationLedger());assertTrue(row.getUpdatedProperties().isEmpty());
+    }
+    @Test public void nestedLocalDateTimeErrorsRetainProfiledLocationWithoutInputLeakage(){
+        var error=assertThrows(JsonMappingException.class,()->read("child_list","[{\""+profile.render("local_datetime_value")+"\":\"PRIVATE_TEMPORAL_CANARY\"}]"));
+        assertEquals(3,error.getPath().size());assertEquals(profile.render("child_list"),error.getPath().get(0).getFieldName());assertEquals(0,error.getPath().get(1).getIndex());
+        assertEquals(profile.render("local_datetime_value"),error.getPath().get(2).getFieldName());assertFalse(error.getMessage().contains("PRIVATE_TEMPORAL_CANARY"));
+    }
+    @Test public void registeredJavaTimeModuleCannotTurnModelLocalDateTimeIntoAnArray()throws Exception{
+        var configured=mapper.copy().findAndRegisterModules();String value="2024-02-29T12:34:56.123";
+        var row=configured.readValue("{\""+profile.render("local_datetime_value")+"\":\""+value+"\"}",type);
+        assertEquals(value,configured.readTree(configured.writeValueAsString(row)).path(profile.render("local_datetime_value")).textValue());
+        assertTrue(configured.isEnabled(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS));
+        assertTrue(configured.readTree(configured.writeValueAsString(LocalDateTime.parse(value))).isArray());
+    }
+    @Test public void localDateTimeAndInstantRetainDifferentWireMeanings()throws Exception{
+        var row=read("local_datetime_value","\"2024-02-29T20:34:56.123\"");row.__internalSet("timestamp_value",Instant.parse("2024-02-29T12:34:56.123Z"));
+        var json=mapper.readTree(mapper.writeValueAsString(row));assertEquals("2024-02-29T20:34:56.123",json.path(profile.render("local_datetime_value")).textValue());
+        assertEquals("2024-02-29T12:34:56.123Z",json.path(profile.render("timestamp_value")).textValue());
+        var decoded=mapper.treeToValue(json,type);assertEquals(LocalDateTime.class,decoded.__internalGet("local_datetime_value").getClass());assertEquals(Instant.class,decoded.__internalGet("timestamp_value").getClass());
     }
 }
