@@ -2,7 +2,8 @@
 'use strict';
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os'), cp = require('node:child_process'), crypto = require('node:crypto'), assert = require('node:assert/strict');
 const {createOwnedRunner, ownedBytes} = require('../fix-e-alignment/owned-command.cjs');
-assert(process.argv.length === 2 || (process.argv.length === 3 && ['--lifecycle','--numeric','--temporal','--rejected','--explicit-null','--loaded-revert','--version-lifecycle'].includes(process.argv[2])));
+assert(process.argv.length === 2 || (process.argv.length === 3 && ['--lifecycle','--numeric','--temporal','--local-datetime','--rejected','--explicit-null','--loaded-revert','--version-lifecycle'].includes(process.argv[2])));
+const localDatetime = process.argv[2] === '--local-datetime';
 const versionLifecycle = process.argv[2] === '--version-lifecycle';
 const loadedRevert = process.argv[2] === '--loaded-revert';
 const explicitNull = process.argv[2] === '--explicit-null';
@@ -10,8 +11,8 @@ const lifecycle = process.argv[2] === '--lifecycle';
 const numeric = process.argv[2] === '--numeric';
 const temporal = process.argv[2] === '--temporal';
 const rejected = process.argv[2] === '--rejected';
-const testClass = versionLifecycle ? 'GeneratedVersionLifecycleTest' : loadedRevert ? 'GeneratedLoadedRevertTest' : explicitNull ? 'GeneratedExplicitNullTest' : rejected ? 'GeneratedRejectedMutationTest' : temporal ? 'GeneratedJsonTemporalTest' : numeric ? 'GeneratedJsonNumericTest' : lifecycle ? 'GeneratedJsonLifecycleTest' : 'GeneratedJsonProfileTest';
-const marker = versionLifecycle ? 'JAVA_VERSION_LIFECYCLE' : loadedRevert ? 'JAVA_LOADED_REVERT' : explicitNull ? 'JAVA_EXPLICIT_NULL' : rejected ? 'JAVA_REJECTED_MUTATION' : temporal ? 'JAVA_JSON_TEMPORAL' : numeric ? 'JAVA_JSON_NUMERIC' : lifecycle ? 'JAVA_JSON_LIFECYCLE' : 'JAVA_JSON_MODEL_PROFILE';
+const testClass = localDatetime ? 'GeneratedJsonLocalDatetimeTest' : versionLifecycle ? 'GeneratedVersionLifecycleTest' : loadedRevert ? 'GeneratedLoadedRevertTest' : explicitNull ? 'GeneratedExplicitNullTest' : rejected ? 'GeneratedRejectedMutationTest' : temporal ? 'GeneratedJsonTemporalTest' : numeric ? 'GeneratedJsonNumericTest' : lifecycle ? 'GeneratedJsonLifecycleTest' : 'GeneratedJsonProfileTest';
+const marker = localDatetime ? 'JAVA_JSON_LOCAL_DATETIME' : versionLifecycle ? 'JAVA_VERSION_LIFECYCLE' : loadedRevert ? 'JAVA_LOADED_REVERT' : explicitNull ? 'JAVA_EXPLICIT_NULL' : rejected ? 'JAVA_REJECTED_MUTATION' : temporal ? 'JAVA_JSON_TEMPORAL' : numeric ? 'JAVA_JSON_NUMERIC' : lifecycle ? 'JAVA_JSON_LIFECYCLE' : 'JAVA_JSON_MODEL_PROFILE';
 const repo = path.resolve(__dirname, '../..'), inputs = path.join(__dirname, 'json-profiles');
 const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const requested = process.env.TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR;
@@ -39,7 +40,7 @@ function fixture() {
   return {provenance, provenanceSha256: sha(bytes), manifest};
 }
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'teaql-java-json-build-')), runner = createOwnedRunner();
-const report = {schema: versionLifecycle ? 'teaql.java-version-lifecycle-example/v1' : loadedRevert ? 'teaql.java-loaded-revert-example/v1' : explicitNull ? 'teaql.java-explicit-null-example/v1' : rejected ? 'teaql.java-rejected-mutation-example/v1' : temporal ? 'teaql.java-model-json-temporal-example/v1' : numeric ? 'teaql.java-model-json-numeric-example/v1' : lifecycle ? 'teaql.java-model-json-lifecycle-example/v1' : 'teaql.java-model-json-profiles-example/v1', passed: false, profiles: {}, commands: [], publicPublication: false, internalArtifactAccepted: false};
+const report = {schema: localDatetime ? 'teaql.java-model-json-local-datetime-example/v1' : versionLifecycle ? 'teaql.java-version-lifecycle-example/v1' : loadedRevert ? 'teaql.java-loaded-revert-example/v1' : explicitNull ? 'teaql.java-explicit-null-example/v1' : rejected ? 'teaql.java-rejected-mutation-example/v1' : temporal ? 'teaql.java-model-json-temporal-example/v1' : numeric ? 'teaql.java-model-json-numeric-example/v1' : lifecycle ? 'teaql.java-model-json-lifecycle-example/v1' : 'teaql.java-model-json-profiles-example/v1', passed: false, profiles: {}, commands: [], publicPublication: false, internalArtifactAccepted: false};
 async function main() {
   try {
     const disk = fs.statfsSync(scratch); assert(disk.bavail * disk.bsize > 8 * 1024 ** 3);
@@ -75,7 +76,11 @@ async function main() {
         const checks = versionLifecycle ? ['lastUpdateExact','maxUpdateRejectedBeforeChecker','zeroProviderPolicyAudit','pendingIntentRetained','typedQAndE','exactJsonVersion','unchangedMaxNoop','untouchedParent','legalDeleteAtMax','exhaustedRecoveryRejected','lastRecoveryExact'] : loadedRevert ? ['knownValueRestored','knownNullRestored','emptyPlanNoWrite','otherFieldPreserved','typedQAndE','versionUnchangedUntilRealEdit','unrelatedParentUnchanged','managedUpdateTimeRetained'] : explicitNull ? ['typedExplicitNull','genericExplicitNull','unknownBaselineRetained','partialRejectedBeforeProvider','loadedEqualNoop','referenceNullRejected','savedNullReadback'] : rejected ? ['payloadRetained','loadStateRetained','ledgerRetained','referenceNotLoaded','failedCastNotLoaded','zeroProviderOnRejection','completeOwnerSave','unrelatedParentUnchanged'] : temporal ? ['calendarDate','wallTimeNanoseconds','loadedNull','passiveCodec','typedQAndE','decodedSave','localDateTimeUnchanged'] : numeric ? ['exactLong','exactDecimalScale','integerBounds','nativeFloatDouble','passiveCodec','typedQAndE','decodedSave','nonfiniteOutputRejected'] : lifecycle ? ['cleanDecode', 'updateNotInsert', 'independentLedgers', 'staleConflict', 'failedIntentRetained',
           'partialRejectedBeforeProvider', 'untouchedPartialReference', 'deleteRecover', 'zeroProviderCodec']
           : ['nestedIdentity', 'loadedNull', 'notLoaded', 'zeroProviderCodec', 'duplicateKeysRejected'];
-        for (const key of checks) assert.equal(value[key], true);
+        for (const key of localDatetime ? ['zoneFreeIso','timezoneIndependent','loadedNull','notLoaded','passiveCodec','typedQAndE','decodedSave','sqliteMillisReadback'] : checks) assert.equal(value[key], true);
+        if (localDatetime) {
+          assert.equal(value.finalVersion, 2); assert.equal(value.invalidInputCases, 7);
+          for (const key of ['generatedInstantAccepted','sqlNanosecondsAccepted','businessClockChanged']) assert.equal(value[key], false);
+        }
         if (testClass === 'GeneratedJsonProfileTest') {
           const emitted = [...bytes.toString().matchAll(/^GENERATED_E_MODEL_PROFILE=(.+)$/gm)].map(m => JSON.parse(m[1]));
           assert.equal(emitted.length, 1);
