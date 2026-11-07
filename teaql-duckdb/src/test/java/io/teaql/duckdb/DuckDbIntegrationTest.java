@@ -16,6 +16,7 @@ import io.teaql.core.criteria.Operator;
 import io.teaql.core.duck.DuckDataServiceExecutor;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
 import io.teaql.core.sql.GenericSQLProperty;
+import io.teaql.core.sql.GenericSQLRelation;
 import io.teaql.core.sql.SQLEntityDescriptor;
 import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import io.teaql.runtime.DefaultUserContext;
@@ -31,6 +32,9 @@ import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
 import java.util.UUID;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
@@ -302,5 +306,87 @@ public class DuckDbIntegrationTest {
         assertTrue(error.getMessage(), error.getMessage().contains(expectedMessage));
         assertTrue(error.getMessage(), error.getMessage().contains("Task"));
         assertTrue(error.getMessage(), error.getMessage().contains("task_data"));
+    }
+
+    public static class CatalogParent extends BaseEntity {
+        @Override public String typeName() { return "CatalogParent"; }
+    }
+
+    public static class CatalogChild extends BaseEntity {
+        @Override public String typeName() { return "CatalogChild"; }
+    }
+
+    @Test
+    public void relationIndexesAreIdempotentAndUseInvokingContextMetadata() {
+        UserContext first = relationContext(sql, "catalog_alpha");
+        UserContext second = relationContext(sql, "catalog_beta");
+        first.ensureSchema();
+        first.ensureSchema();
+        assertEquals(1, sql.queryForList(
+                "SELECT index_name FROM duckdb_indexes() WHERE table_name = ?",
+                new Object[] {"catalog_alpha_child_data"}).size());
+        assertTrue(sql.queryForList(
+                "SELECT table_name FROM information_schema.tables WHERE table_name = ?",
+                new Object[] {"catalog_beta_child_data"}).isEmpty());
+        second.ensureSchema();
+        second.ensureSchema();
+        assertEquals(1, sql.queryForList(
+                "SELECT index_name FROM duckdb_indexes() WHERE table_name = ?",
+                new Object[] {"catalog_beta_child_data"}).size());
+    }
+
+    @Test
+    public void relationIndexInspectionFailureIsNotTreatedAsAbsence() {
+        relationContext(sql, "catalog_failure").ensureSchema();
+        IllegalStateException injected = new IllegalStateException("index metadata unavailable");
+        AtomicInteger writes = new AtomicInteger();
+        JdbcSqlExecutor failing = new JdbcSqlExecutor(new DriverManagerDataSource(url)) {
+            @Override public List<Map<String, Object>> queryForList(String statement, Object[] args) {
+                if (statement.contains("duckdb_indexes()")) throw injected;
+                return super.queryForList(statement, args);
+            }
+            @Override public void execute(String statement) {
+                writes.incrementAndGet();
+                super.execute(statement);
+            }
+        };
+        IllegalStateException error = org.junit.Assert.assertThrows(
+                IllegalStateException.class,
+                () -> relationContext(failing, "catalog_failure").ensureSchema());
+        assertTrue(error.getMessage(), error.getMessage().contains("inspect canonical relation index"));
+        assertSame(injected, error.getCause());
+        assertEquals("metadata failure must not trigger speculative DDL", 0, writes.get());
+    }
+
+    private static UserContext relationContext(JdbcSqlExecutor executor, String tablePrefix) {
+        SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
+        SQLEntityDescriptor parent = new SQLEntityDescriptor();
+        parent.setType("CatalogParent");
+        parent.setTargetType(CatalogParent.class);
+        parent.setEntitySupplier(CatalogParent::new);
+        parent.setDataService("duckdb");
+        parent.with("table_name", tablePrefix + "_parent_data");
+        ((GenericSQLProperty) parent.addSimpleProperty("id", Long.class)).setColumnType("BIGINT");
+        ((GenericSQLProperty) parent.addSimpleProperty("version", Long.class)).setColumnType("BIGINT");
+        metadata.register(parent);
+
+        SQLEntityDescriptor child = new SQLEntityDescriptor();
+        child.setType("CatalogChild");
+        child.setTargetType(CatalogChild.class);
+        child.setEntitySupplier(CatalogChild::new);
+        child.setDataService("duckdb");
+        child.with("table_name", tablePrefix + "_child_data");
+        ((GenericSQLProperty) child.addSimpleProperty("id", Long.class)).setColumnType("BIGINT");
+        ((GenericSQLProperty) child.addSimpleProperty("version", Long.class)).setColumnType("BIGINT");
+        GenericSQLRelation relation = (GenericSQLRelation) child.addObjectProperty(
+                metadata, "parent", "CatalogParent", "children", CatalogParent.class,
+                GenericSQLRelation::new);
+        relation.setTableName(tablePrefix + "_child_data");
+        relation.setColumnName("parent");
+        relation.setColumnType("BIGINT");
+        metadata.register(child);
+        return new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata)
+                .dataService("duckdb", new DuckDataServiceExecutor("duckdb", executor))
+                .idGenerationService((ignored, entity) -> 1L).build());
     }
 }
