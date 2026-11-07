@@ -366,8 +366,11 @@ public class DuckDbIntegrationTest {
         parent.setEntitySupplier(CatalogParent::new);
         parent.setDataService("duckdb");
         parent.with("table_name", tablePrefix + "_parent_data");
-        ((GenericSQLProperty) parent.addSimpleProperty("id", Long.class)).setColumnType("BIGINT");
-        ((GenericSQLProperty) parent.addSimpleProperty("version", Long.class)).setColumnType("BIGINT");
+        for (String field : List.of("id", "version")) {
+            GenericSQLProperty property = (GenericSQLProperty) parent.addSimpleProperty(field, Long.class);
+            property.setColumnType("BIGINT");
+            property.setTableName(tablePrefix + "_parent_data");
+        }
         metadata.register(parent);
 
         SQLEntityDescriptor child = new SQLEntityDescriptor();
@@ -376,8 +379,11 @@ public class DuckDbIntegrationTest {
         child.setEntitySupplier(CatalogChild::new);
         child.setDataService("duckdb");
         child.with("table_name", tablePrefix + "_child_data");
-        ((GenericSQLProperty) child.addSimpleProperty("id", Long.class)).setColumnType("BIGINT");
-        ((GenericSQLProperty) child.addSimpleProperty("version", Long.class)).setColumnType("BIGINT");
+        for (String field : List.of("id", "version")) {
+            GenericSQLProperty property = (GenericSQLProperty) child.addSimpleProperty(field, Long.class);
+            property.setColumnType("BIGINT");
+            property.setTableName(tablePrefix + "_child_data");
+        }
         GenericSQLRelation relation = (GenericSQLRelation) child.addObjectProperty(
                 metadata, "parent", "CatalogParent", "children", CatalogParent.class,
                 GenericSQLRelation::new);
