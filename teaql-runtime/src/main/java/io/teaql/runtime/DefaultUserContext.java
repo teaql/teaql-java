@@ -36,6 +36,13 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
         return runtime;
     }
 
+    /** Trusted bootstrap installation; never bind a provider from request data. */
+    public DefaultUserContext withSecretProvider(io.teaql.core.secret.SecretProvider provider) {
+        if (provider == null) throw new IllegalArgumentException("provider must not be null");
+        putAttribute(io.teaql.core.secret.SecretProvider.class.getName(), provider);
+        return this;
+    }
+
     @Override
     public <T extends Entity> T internalExecuteForOne(SearchRequest searchRequest) {
         SmartList<T> list = internalExecuteForList(searchRequest);

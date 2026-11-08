@@ -12,6 +12,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpTimeoutException;
 import java.nio.ByteBuffer;
+import java.security.GeneralSecurityException;
+import java.security.KeyStore;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -24,6 +26,8 @@ import java.util.concurrent.Flow;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
 
 /** Shared JDK transport for startup registered HTTP profiles. */
 public final class JdkHttpRequestService implements HttpRequestService {
@@ -46,6 +50,17 @@ public final class JdkHttpRequestService implements HttpRequestService {
             }
         }
         this.profiles = Map.copyOf(states);
+    }
+
+    @Override
+    public boolean profileIsEncryptedOrLoopback(String alias) {
+        State state = profiles.get(alias);
+        if (state == null) return false;
+        URI base = state.profile.baseUri();
+        if ("https".equalsIgnoreCase(base.getScheme())) return true;
+        if (!"http".equalsIgnoreCase(base.getScheme())) return false;
+        String host = base.getHost();
+        return "127.0.0.1".equals(host) || "::1".equals(host) || "[::1]".equals(host);
     }
 
     @Override
@@ -265,10 +280,29 @@ public final class JdkHttpRequestService implements HttpRequestService {
             this.profile = profile;
             this.clock = clock;
             this.refilledAt = clock.nanoTime();
-            this.client = HttpClient.newBuilder()
+            HttpClient.Builder builder = HttpClient.newBuilder()
                     .connectTimeout(profile.connectTimeout())
-                    .followRedirects(HttpClient.Redirect.NEVER).build();
+                    .followRedirects(HttpClient.Redirect.NEVER);
+            if (!profile.trustedRoots().isEmpty()) builder.sslContext(trustedRootContext(profile));
+            this.client = builder.build();
             this.tokens = profile.ratePerSecond();
+        }
+        private static SSLContext trustedRootContext(HttpServiceProfile profile) {
+            try {
+                KeyStore store = KeyStore.getInstance("PKCS12");
+                store.load(null, null);
+                for (int index = 0; index < profile.trustedRoots().size(); index++) {
+                    store.setCertificateEntry("root-" + index, profile.trustedRoots().get(index));
+                }
+                TrustManagerFactory managers = TrustManagerFactory.getInstance(
+                        TrustManagerFactory.getDefaultAlgorithm());
+                managers.init(store);
+                SSLContext context = SSLContext.getInstance("TLS");
+                context.init(null, managers.getTrustManagers(), null);
+                return context;
+            } catch (GeneralSecurityException | java.io.IOException failure) {
+                throw new IllegalArgumentException("invalid trusted TLS root");
+            }
         }
         synchronized boolean acquireCircuit() {
             if (profile.circuitFailures() == 0) return false;

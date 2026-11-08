@@ -48,6 +48,28 @@ public class HttpResilienceTest {
         return HttpServiceProfile.builder("orders", URI.create("http://127.0.0.1:"
                 + server.port() + "/api/"));
     }
+
+    @Test public void sensitiveProfileAttestationAcceptsTlsOrLiteralLoopbackOnly() {
+        JdkHttpRequestService service = new JdkHttpRequestService(java.util.List.of(
+                HttpServiceProfile.builder("tls", URI.create("https://replica.example.test/api/")).build(),
+                HttpServiceProfile.builder("ipv4", URI.create("http://127.0.0.1:8080/api/")).build(),
+                HttpServiceProfile.builder("ipv6", URI.create("http://[::1]:8080/api/")).build(),
+                HttpServiceProfile.builder("remote_http", URI.create("http://replica.example.test/api/")).build(),
+                HttpServiceProfile.builder("named_local", URI.create("http://localhost:8080/api/")).build()));
+        for (String alias : java.util.List.of("tls", "ipv4", "ipv6")) {
+            assertTrue(service.profileIsEncryptedOrLoopback(alias));
+        }
+        for (String alias : java.util.List.of("remote_http", "named_local", "missing")) {
+            assertFalse(service.profileIsEncryptedOrLoopback(alias));
+        }
+    }
+    @Test public void profileTrustRootIsHttpsOnlyAndRejectsMalformedPem() {
+        assertThrows(IllegalArgumentException.class,
+                () -> profile().trustedRootPem("not a certificate".getBytes(StandardCharsets.US_ASCII)));
+        assertThrows(IllegalArgumentException.class,
+                () -> HttpServiceProfile.builder("vault", URI.create("https://127.0.0.1/"))
+                        .trustedRootPem("not a certificate".getBytes(StandardCharsets.US_ASCII)));
+    }
     private UserContext context(HttpRequestService service) {
         return context(service, null);
     }
