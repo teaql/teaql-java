@@ -47,7 +47,8 @@ public interface InternalIdGenerationService {
 
     /**
      * Advances the allocation state for {@code typeName} so future generated IDs are greater
-     * than {@code floor}. Generated schema bootstrap uses this after reserving model-defined IDs.
+     * than {@code floor}. Generated schema bootstrap and explicit-ID entity creation use this
+     * to reserve identities before subsequent automatic allocation.
      */
     default void ensureFloor(String typeName, long floor) {
         throw new UnsupportedOperationException(

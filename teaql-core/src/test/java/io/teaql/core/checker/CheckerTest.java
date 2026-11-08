@@ -71,7 +71,7 @@ public class CheckerTest {
         
         // Check another entity when list is not null but does not contain
         DummyEntity entity2 = new DummyEntity();
-        entity2.updateId(2L);
+        entity2.__internalSet("id", 2L);
         assertTrue(checker.needCheck(context, entity2));
         
         // Check null
