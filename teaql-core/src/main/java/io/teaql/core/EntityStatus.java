@@ -29,7 +29,11 @@ public enum EntityStatus {
     UPDATED_RECOVER,
 
     // refer only, cannot change it, and will not persist it
-    REFER;
+    REFER,
+
+    // A reserved but never-persisted identity whose creation was cancelled.
+    // Keep this distinct from a durable tombstone and preserve existing ordinals.
+    NEW_DELETED;
 
     private static final RowKeyTable<EntityStatus, EntityAction, EntityStatus> statusTransaction =
             new RowKeyTable<>();
@@ -37,6 +41,9 @@ public enum EntityStatus {
     static {
         statusTransaction.put(NEW, UPDATE, NEW);
         statusTransaction.put(NEW, PERSIST, PERSISTED);
+        statusTransaction.put(NEW, DELETE, NEW_DELETED);
+        statusTransaction.put(NEW_DELETED, DELETE, NEW_DELETED);
+        statusTransaction.put(NEW_DELETED, UPDATE, NEW_DELETED);
         statusTransaction.put(PERSISTED, UPDATE, UPDATED);
         statusTransaction.put(PERSISTED, DELETE, UPDATED_DELETED);
         statusTransaction.put(PERSISTED_DELETED, RECOVER, UPDATED_RECOVER);

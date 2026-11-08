@@ -210,7 +210,7 @@ public class BaseEntity implements Entity {
 
     @Override
     public boolean newItem() {
-        return $status == EntityStatus.NEW;
+        return $status == EntityStatus.NEW || $status == EntityStatus.NEW_DELETED;
     }
 
     @Override
@@ -220,7 +220,7 @@ public class BaseEntity implements Entity {
 
     @Override
     public boolean deleteItem() {
-        return $status == EntityStatus.UPDATED_DELETED;
+        return $status == EntityStatus.UPDATED_DELETED || $status == EntityStatus.NEW_DELETED;
     }
 
     @Override
@@ -482,6 +482,7 @@ public class BaseEntity implements Entity {
     }
 
     public boolean isMarkedAsDelete() {
+        if ($status == EntityStatus.NEW_DELETED) return true;
         if (entityMutationLedger == null || id == null) {
             return deleteItem();
         }
@@ -489,6 +490,7 @@ public class BaseEntity implements Entity {
     }
 
     public boolean isNew() {
+        if ($status == EntityStatus.NEW_DELETED) return true;
         if (entityMutationLedger == null || id == null) {
             return newItem();
         }

@@ -475,6 +475,9 @@ public class TeaQLRuntime implements AutoCloseable {
                         "teaql.mutation.kind", "save")));
         try {
             MutationIntent intent = MutationIntent.of(entity.getComment());
+            if (entity instanceof BaseEntity root && root.isNew() && root.isMarkedAsDelete()) {
+                throw new TeaQLRuntimeException("CANCELLED_NEW_ROOT: A cancelled new root has no persisted entity to return");
+            }
             CanonicalMutationFields.validateGraph(context, metadata, entity);
             io.teaql.runtime.mutation.MutationVersionAdmission.validateGraph(metadata, entity);
             checkAndFix(context, entity);
@@ -695,6 +698,7 @@ public class TeaQLRuntime implements AutoCloseable {
     private void checkGraphMutations(UserContext context, Entity entity,
             io.teaql.core.checker.ObjectLocation location, Set<Entity> visited) {
         if (!(entity instanceof BaseEntity base) || !visited.add(entity)) return;
+        if (base.isNew() && base.isMarkedAsDelete()) return;
         Checker checker = checkers.get(entity.runtimeType());
         if (checker == null) checker = checkers.get(entity.typeName());
         if (checker != null && checker.needCheck(context, base)) {
@@ -734,6 +738,7 @@ public class TeaQLRuntime implements AutoCloseable {
         if (!(entity instanceof BaseEntity baseEntity) || !visited.add(entity)) {
             return;
         }
+        if (baseEntity.isNew() && baseEntity.isMarkedAsDelete()) return;
 
         if (entity.getId() == null && idGenerationService != null) {
             Long newId = idGenerationService.generateId(context, entity);
@@ -769,6 +774,7 @@ public class TeaQLRuntime implements AutoCloseable {
         if (!(entity instanceof BaseEntity baseEntity) || !visited.add(entity)) {
             return;
         }
+        if (baseEntity.isNew() && baseEntity.isMarkedAsDelete()) return;
         // A relation reference may share the materialized entity's ledger after
         // graph composition. It has no authoritative field snapshot of its own;
         // replaying shared dirty names through the reference would overwrite
@@ -872,6 +878,8 @@ public class TeaQLRuntime implements AutoCloseable {
 
         List<MutationOperation> operations = new ArrayList<>();
         for (EntityKey key : keys) {
+            // A never-inserted cancelled child is neither CREATE nor persisted DELETE.
+            if (created.contains(key) && deleted.contains(key)) continue;
             BaseEntity target = realEntities.get(key);
             MutationOperationKind kind;
             Map<String, Object> changes;

@@ -50,6 +50,10 @@ public interface Checker<T extends BaseEntity> {
         }
         CheckerInvocation invocation = CheckerInvocation.current(context);
         if (invocation != null && invocation.mutationOnly()
+                && entity.isNew() && entity.isMarkedAsDelete()) {
+            return false;
+        }
+        if (invocation != null && invocation.mutationOnly()
                 && (entity.get$status() == EntityStatus.PERSISTED
                     || entity.get$status() == EntityStatus.PERSISTED_DELETED)) {
             return false;

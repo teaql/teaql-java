@@ -29,6 +29,7 @@ public final class FiniteScalarAdmission {
         validation.visit(root, null);
         for (var ledger : validation.ledgers) {
             for (var entry : ledger.currentChangeSet().changes().entrySet()) {
+                if (modifiedOnly && ledger.isNew(entry.getKey()) && ledger.isMarkedAsDelete(entry.getKey())) continue;
                 if (!validation.represented.contains(entry.getKey()))
                     validation.values(entry.getKey().entity(), entry.getValue(), null);
             }
@@ -69,6 +70,7 @@ public final class FiniteScalarAdmission {
         }
         void visit(Entity entity, ObjectLocation location) {
             if (!(entity instanceof BaseEntity base) || !visited.add(entity)) return;
+            if (modifiedOnly && base.isNew() && base.isMarkedAsDelete()) return;
             var key = new EntityKey(entity.typeName(), entity.getId());
             represented.add(key);
             Map<String, Object> pending = Map.of();

@@ -17,6 +17,7 @@ final class CanonicalMutationFields {
         // commands. Reached typed keys already received their precise graph path.
         for (var ledger : validation.ledgers) {
             for (var entry : ledger.currentChangeSet().changes().entrySet()) {
+                if (ledger.isNew(entry.getKey()) && ledger.isMarkedAsDelete(entry.getKey())) continue;
                 if (!validation.representedKeys.contains(entry.getKey()))
                     validation.fields(entry.getKey().entity(), entry.getValue().keySet(), null);
             }
@@ -74,6 +75,7 @@ final class CanonicalMutationFields {
         }
         private void visit(Entity entity, ObjectLocation location) {
             if (!(entity instanceof BaseEntity base) || !visited.add(entity)) return;
+            if (base.isNew() && base.isMarkedAsDelete()) return;
             var pending = base.getUpdatedProperties();
             fields(entity.typeName(), pending, location);
             var ledger = base.getEntityMutationLedger(); ledgers.add(ledger);
