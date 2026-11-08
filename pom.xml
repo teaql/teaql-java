@@ -79,6 +79,7 @@
         <module>teaql-object-storage-s3</module>
         <module>examples/object-storage</module>
         <module>examples/http-resilience</module>
+        <module>examples/committed-events</module>
         <module>examples/business-id-runtime</module>
         <module>examples/security-foundations</module>
         <module>examples/round-trip-reference-runtime</module>

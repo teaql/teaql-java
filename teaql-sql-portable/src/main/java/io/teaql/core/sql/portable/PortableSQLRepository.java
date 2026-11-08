@@ -1403,6 +1403,15 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 && value instanceof java.sql.Timestamp timestamp) {
             return timestamp.toLocalDateTime();
         }
+        if (targetType == java.time.Instant.class) {
+            if (value instanceof Long || value instanceof Integer || value instanceof Short
+                    || value instanceof Byte) {
+                return java.time.Instant.ofEpochMilli(((Number) value).longValue());
+            }
+            if (value instanceof java.sql.Timestamp timestamp) return timestamp.toInstant();
+            if (value instanceof CharSequence text) return java.time.Instant.parse(text);
+            throw new IllegalArgumentException("Instant readback is not an exact timestamp value");
+        }
         if (targetType == java.time.LocalDateTime.class) {
             // SQLite returns text and some JDBC drivers return vendor temporal
             // wrappers. Both expose the standard timestamp representation.
@@ -1863,7 +1872,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             String indexName = canonicalRelationIndexName(
                     table, relationColumn.getColumnName(), idColumn.getColumnName());
             try {
-                if (database.indexExists(context, table, indexName).orElse(false)) continue;
+                if (database.canonicalRelationIndexMatches(context, table, indexName,
+                        List.of(relationColumn.getColumnName(), idColumn.getColumnName())).orElse(false)) continue;
             } catch (Exception failure) {
                 throw canonicalRelationIndexFailure("inspect", table, indexName, failure);
             }
@@ -1880,7 +1890,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                         try {
                             // PostgreSQL index names are schema-wide. A duplicate name on a
                             // different table must not be mistaken for this index being present.
-                            if (database.indexExists(context, table, indexName).orElse(true)) {
+                            if (database.canonicalRelationIndexMatches(context, table, indexName,
+                                    List.of(relationColumn.getColumnName(), idColumn.getColumnName())).orElse(true)) {
                                 continue;
                             }
                         } catch (Exception inspectionFailure) {

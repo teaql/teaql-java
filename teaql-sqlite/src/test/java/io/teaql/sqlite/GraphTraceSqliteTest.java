@@ -5,15 +5,29 @@ import io.teaql.core.meta.*;
 import io.teaql.core.sql.GenericSQLProperty;
 import io.teaql.core.sql.SQLEntityDescriptor;
 import io.teaql.core.sqlite.SqliteDataServiceExecutor;
+import io.teaql.core.sqlite.SqliteCommittedMutationRecorder;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import io.teaql.runtime.*;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.nio.file.Files;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import javax.sql.DataSource;
 import io.teaql.core.checker.Checker;
 import io.teaql.core.checker.CheckException;
 import io.teaql.core.checker.FixEvidence;
@@ -27,13 +41,24 @@ public class GraphTraceSqliteTest {
     public static final class GraphEntity extends BaseEntity {
         private final String type;
         private final Map<String, Object> values = new HashMap<>();
+        boolean failPostCommitReconcile;
         public GraphEntity(String type) { this.type = type; }
         @Override public String typeName() { return type; }
         @Override public Object __internalGet(String field) {
-            return field.equals("name") || field.equals("memo") || field.equals("children") ? values.get(field) : super.__internalGet(field);
+            return field.equals("name") || field.equals("memo") || field.equals("children")
+                    || field.equals("business_counter") || field.equals("planned_date")
+                    || field.equals("active") || field.equals("ratio") || field.equals("optional_note")
+                    || field.equals("occurred_at") || field.equals("wall_time")
+                    ? values.get(field) : super.__internalGet(field);
         }
         @Override public void __internalSet(String field, Object value) {
-            if (field.equals("name") || field.equals("memo") || field.equals("children")) values.put(field, value);
+            if (failPostCommitReconcile && field.equals("version")) {
+                throw new IllegalStateException("diagnostic reconciliation failure");
+            }
+            if (field.equals("name") || field.equals("memo") || field.equals("children")
+                    || field.equals("business_counter") || field.equals("planned_date")
+                    || field.equals("active") || field.equals("ratio") || field.equals("optional_note")
+                    || field.equals("occurred_at") || field.equals("wall_time")) values.put(field, value);
             else super.__internalSet(field, value);
         }
     }
@@ -41,10 +66,12 @@ public class GraphTraceSqliteTest {
     static final class Fixture {
         final List<ExecutionMetadata> sql = new CopyOnWriteArrayList<>();
         final List<SafeAuditEvent> audit = new CopyOnWriteArrayList<>();
+        final List<RawAuditEvent> rawAudit = new CopyOnWriteArrayList<>();
         final List<EntityPersistenceMutation> commands = new CopyOnWriteArrayList<>();
         final List<MutationResult> results = new CopyOnWriteArrayList<>();
         boolean queryLogging = true;
         boolean mutationLogging = true;
+        boolean failStandardAudit;
         final List<Integer> itemInsertBatchSizes = new CopyOnWriteArrayList<>();
         final List<Integer> itemUpdateBatchSizes = new CopyOnWriteArrayList<>();
         final List<Integer> itemDeleteBatchSizes = new CopyOnWriteArrayList<>();
@@ -52,14 +79,24 @@ public class GraphTraceSqliteTest {
         final JdbcSqlExecutor driver;
         final SQLiteDataSource dataSource;
         final DefaultUserContext context;
+        final SqliteCommittedMutationRecorder committedRecorder;
         volatile boolean failReadback;
+        volatile boolean errorReadback;
+        volatile boolean errorReadbackWithoutSuppression;
         volatile boolean unknownUpdateCounts;
 
-        Fixture() throws Exception {
+        Fixture() throws Exception { this(false); }
+
+        Fixture(boolean captureCommittedMutations) throws Exception {
+            this(captureCommittedMutations, source -> source);
+        }
+
+        Fixture(boolean captureCommittedMutations,
+                Function<SQLiteDataSource, DataSource> transactionSource) throws Exception {
             var ds = new SQLiteDataSource();
             dataSource = ds;
             ds.setUrl("jdbc:sqlite:" + Files.createTempFile("teaql-graph-trace-", ".db"));
-            driver = new JdbcSqlExecutor(ds) {
+            driver = new JdbcSqlExecutor(transactionSource.apply(ds)) {
                 @Override public int[] batchUpdate(String text, List<Object[]> rows) {
                     if (text.startsWith("INSERT INTO order_item_data")) {
                         itemInsertBatchSizes.add(rows.size());
@@ -79,6 +116,13 @@ public class GraphTraceSqliteTest {
                     return counts;
                 }
                 @Override public List<Map<String, Object>> queryForList(String text, Object[] args) {
+                    if (errorReadbackWithoutSuppression && text.startsWith("SELECT * FROM")
+                            && text.contains("customer_order_data")) {
+                        throw new NoSuppressionError();
+                    }
+                    if (errorReadback && text.startsWith("SELECT * FROM") && text.contains("customer_order_data")) {
+                        throw new AssertionError("synthetic Error after business write");
+                    }
                     if (failReadback && text.startsWith("SELECT * FROM") && text.contains("customer_order_data")) {
                         // A real driver failure after a successful write, inside the same transaction.
                         execute("DROP TABLE customer_order_data");
@@ -86,6 +130,9 @@ public class GraphTraceSqliteTest {
                     return super.queryForList(text, args);
                 }
             };
+            committedRecorder = captureCommittedMutations
+                    ? new SqliteCommittedMutationRecorder(driver, "java-graph-source", "sha256:" + "0".repeat(64))
+                    : null;
             var metadata = new SimpleEntityMetaFactory();
             for (String type : List.of("CustomerOrder", "OrderItem", "Payment", "PaymentAttempt", "Shipment")) {
                 var descriptor = new SQLEntityDescriptor();
@@ -99,6 +146,26 @@ public class GraphTraceSqliteTest {
                     var property = (GenericSQLProperty) descriptor.addSimpleProperty(field,
                             textField ? String.class : Long.class);
                     property.setColumnType(textField ? "VARCHAR(255)" : "BIGINT");
+                }
+                if (captureCommittedMutations && type.equals("CustomerOrder")) {
+                    var counter = (GenericSQLProperty) descriptor.addSimpleProperty("business_counter", Long.class);
+                    counter.setColumnType("BIGINT");
+                    var plannedDate = (GenericSQLProperty) descriptor.addSimpleProperty(
+                            "planned_date", java.time.LocalDate.class);
+                    plannedDate.setColumnType("DATE");
+                    var active = (GenericSQLProperty) descriptor.addSimpleProperty("active", Boolean.class);
+                    active.setColumnType("BOOLEAN");
+                    var ratio = (GenericSQLProperty) descriptor.addSimpleProperty("ratio", Double.class);
+                    ratio.setColumnType("DOUBLE");
+                    var optionalNote = (GenericSQLProperty) descriptor.addSimpleProperty(
+                            "optional_note", String.class);
+                    optionalNote.setColumnType("VARCHAR(255)");
+                    var occurredAt = (GenericSQLProperty) descriptor.addSimpleProperty(
+                            "occurred_at", java.time.Instant.class);
+                    occurredAt.setColumnType("BIGINT");
+                    var wallTime = (GenericSQLProperty) descriptor.addSimpleProperty(
+                            "wall_time", java.time.LocalDateTime.class);
+                    wallTime.setColumnType("TIMESTAMP");
                 }
                 var children = new Relation();
                 children.setName("children");
@@ -124,9 +191,20 @@ public class GraphTraceSqliteTest {
                 }
             };
             var ids = new AtomicLong(1000);
-            var runtime = TeaQLRuntime.builder().metadata(metadata).dataService("sqlite", provider)
+            var builder = TeaQLRuntime.builder().metadata(metadata).dataService("sqlite", provider)
                     .idGenerationService((caller, entity) -> ids.getAndIncrement())
-                    .logSink((caller, entry) -> sql.add(entry)).build();
+                    .logSink(new RuntimeLogSink() {
+                        @Override public void writeExecutionLog(UserContext caller, ExecutionMetadata entry) {
+                            sql.add(entry);
+                        }
+
+                        @Override public void writeAuditEvent(UserContext caller, RawAuditEvent event) {
+                            if (failStandardAudit) throw new IllegalStateException("standard audit sink failure");
+                            rawAudit.add(event);
+                        }
+                    });
+            if (committedRecorder != null) builder.committedMutationRecorder(committedRecorder);
+            var runtime = builder.build();
             context = new DefaultUserContext(runtime) {
                 @Override public boolean isQueryExecutionLoggingEnabled() { return queryLogging; }
                 @Override public boolean isMutationExecutionLoggingEnabled() { return mutationLogging; }
@@ -137,7 +215,7 @@ public class GraphTraceSqliteTest {
         }
 
         void clear() {
-            sql.clear(); audit.clear(); commands.clear(); results.clear(); itemInsertBatchSizes.clear();
+            sql.clear(); audit.clear(); rawAudit.clear(); commands.clear(); results.clear(); itemInsertBatchSizes.clear();
             itemUpdateBatchSizes.clear(); itemDeleteBatchSizes.clear(); itemRecoverBatchSizes.clear();
         }
 
@@ -147,6 +225,12 @@ public class GraphTraceSqliteTest {
             entity.__internalInitializeNewEntityId(id);
             entity.updateProperty("name", name);
             return entity;
+        }
+    }
+
+    private static final class NoSuppressionError extends Error {
+        private NoSuppressionError() {
+            super("synthetic Error without suppressed diagnostics", null, false, false);
         }
     }
 
@@ -443,6 +527,648 @@ public class GraphTraceSqliteTest {
         assertEquals("root value", root.getProperty("name"));
         assertEquals(Long.valueOf(1), root.getVersion());
         assertEquals(Long.valueOf(-2), removed.getVersion());
+    }
+
+    @Test public void graphSaveCapturesAuthoritativeRowsAndOutboxInTheSameTransaction() throws Exception {
+        var fixture = new Fixture(true);
+        assertThrows(SecurityException.class, () -> fixture.committedRecorder.ensureSchema(fixture.context, null));
+        fixture.driver.execute("CREATE TRIGGER order_db_default AFTER INSERT ON customer_order_data "
+                + "BEGIN UPDATE customer_order_data SET memo = 'database trigger value' WHERE id = NEW.id; END");
+        var order = fixture.create("CustomerOrder", 100, "root value");
+        order.updateProperty("business_counter", 9_007_199_254_740_993L);
+        order.updateProperty("planned_date", java.time.LocalDate.of(2026, 10, 16));
+        order.updateProperty("active", true);
+        order.updateProperty("ratio", 0.5);
+        order.updateProperty("optional_note", null);
+        order.updateProperty("occurred_at", java.time.Instant.parse("1960-01-01T00:00:00.123Z"));
+        var item = fixture.create("OrderItem", 201, "first item");
+        item.setComment("create item");
+        var payment = fixture.create("Payment", 300, "payment value");
+        order.__internalSet("children", List.of(item, payment));
+        order.auditAs("create complete order graph").save(fixture.context);
+
+        var events = fixture.committedRecorder.eventStore();
+        var first = events.outboxAfter("java-graph-source", 0, 10);
+        assertEquals("one graph save must produce one durable set", 1, first.size());
+        JsonNode created = new ObjectMapper().readTree(first.get(0).payloadJson());
+        assertEquals("create complete order graph", created.path("audit").path("comment").asText());
+        assertEquals(3, created.path("mutations").size());
+        JsonNode orderFact = null;
+        for (JsonNode fact : created.path("mutations")) {
+            assertEquals("create", fact.path("operation").asText());
+            assertTrue(fact.path("base_version").isNull());
+            assertEquals("1", fact.path("committed_version").asText());
+            assertTrue(fact.path("trace_chain").isArray());
+            for (JsonNode node : fact.path("trace_chain")) {
+                assertEquals(4, node.size());
+                assertTrue(node.has("kind"));
+                assertTrue(node.has("name"));
+                assertTrue(node.has("entity_id"));
+                assertTrue(node.has("comment"));
+                assertTrue(node.path("kind").asText().matches("[A-Z_]+"));
+            }
+            if (fact.path("entity_type").asText().equals("CustomerOrder")) orderFact = fact;
+        }
+        assertNotNull(orderFact);
+        assertEquals("database trigger value", orderFact.path("fields").path("memo").asText());
+        assertTrue(orderFact.path("fields").path("business_counter").isTextual());
+        assertEquals("9007199254740993", orderFact.path("fields").path("business_counter").asText());
+        assertEquals("2026-10-16", orderFact.path("fields").path("planned_date").asText());
+        assertTrue(orderFact.path("fields").path("active").isBoolean());
+        assertTrue(orderFact.path("fields").path("active").booleanValue());
+        assertEquals(0.5, orderFact.path("fields").path("ratio").doubleValue(), 0.0);
+        assertTrue(orderFact.path("fields").path("optional_note").isNull());
+        assertEquals("-315619199877", orderFact.path("fields").path("occurred_at").asText());
+        assertFalse(new CommittedMutationFact("CustomerOrder", "100", "create", null, "1",
+                Map.of("memo", "database trigger value"), List.of()).toString().contains("database trigger value"));
+        assertEquals("database trigger value", fixture.driver.queryForList(
+                "SELECT memo FROM customer_order_data WHERE id = ?", new Object[] {100L})
+                .get(0).get("memo"));
+        Map<String, Object> instant = fixture.driver.queryForList(
+                "SELECT typeof(occurred_at) AS storage_type, occurred_at "
+                        + "FROM customer_order_data WHERE id = ?", new Object[] {100L}).get(0);
+        assertEquals("integer", instant.get("storage_type"));
+        assertEquals(-315_619_199_877L, ((Number) instant.get("occurred_at")).longValue());
+
+        item.updateProperty("name", "revised item");
+        item.setComment("revise item");
+        order.auditAs("revise order graph").save(fixture.context);
+        var second = events.outboxAfter("java-graph-source", 1, 10);
+        assertEquals(1, second.size());
+        JsonNode changed = new ObjectMapper().readTree(second.get(0).payloadJson());
+        assertEquals(1, changed.path("mutations").size());
+        JsonNode changedItem = changed.path("mutations").get(0);
+        assertEquals("update", changedItem.path("operation").asText());
+        assertEquals("1", changedItem.path("base_version").asText());
+        assertEquals("2", changedItem.path("committed_version").asText());
+        assertEquals("revised item", changedItem.path("fields").path("name").asText());
+        assertEquals(1, changedItem.path("fields").size());
+        assertFalse(changedItem.path("fields").has("memo"));
+
+        payment.markForDeletion();
+        payment.setComment("remove payment");
+        order.auditAs("remove payment from order").save(fixture.context);
+        var third = events.outboxAfter("java-graph-source", 2, 10);
+        assertEquals(1, third.size());
+        JsonNode tombstone = new ObjectMapper().readTree(third.get(0).payloadJson()).path("mutations").get(0);
+        assertEquals("delete", tombstone.path("operation").asText());
+        assertEquals("1", tombstone.path("base_version").asText());
+        assertEquals("-2", tombstone.path("committed_version").asText());
+        assertEquals(0, tombstone.path("fields").size());
+
+        fixture.driver.execute("CREATE UNIQUE INDEX payment_name_unique_for_outbox ON payment_data(name)");
+        var duplicate = fixture.create("Payment", 301, "payment value");
+        order.__internalSet("children", List.of(item, payment, duplicate));
+        assertThrows(RuntimeException.class,
+                () -> order.auditAs("reject duplicate payment graph").save(fixture.context));
+        assertEquals("failed save must leave no publishable set", 3,
+                events.outboxAfter("java-graph-source", 0, 10).size());
+        assertTrue(fixture.driver.queryForList("SELECT id FROM payment_data WHERE id = ?",
+                new Object[] {301L}).isEmpty());
+    }
+
+    @Test public void committedUpdateIncludesDatabaseTriggerChangeButOmitsUnchangedFields() throws Exception {
+        var fixture = new Fixture(true);
+        var order = fixture.create("CustomerOrder", 909, "before");
+        order.auditAs("create trigger comparison order").save(fixture.context);
+        fixture.driver.execute("CREATE TRIGGER order_update_memo AFTER UPDATE OF name ON customer_order_data "
+                + "WHEN NEW.name = 'after' BEGIN UPDATE customer_order_data "
+                + "SET memo = 'database revised memo' WHERE id = NEW.id; END");
+
+        order.updateProperty("name", "after");
+        order.auditAs("update trigger comparison order").save(fixture.context);
+        var outbox = fixture.committedRecorder.eventStore().outboxAfter("java-graph-source", 1, 10);
+        assertEquals(1, outbox.size());
+        JsonNode fact = new ObjectMapper().readTree(outbox.get(0).payloadJson())
+                .path("mutations").get(0);
+        assertEquals("update", fact.path("operation").asText());
+        assertEquals("after", fact.path("fields").path("name").asText());
+        assertEquals("database revised memo", fact.path("fields").path("memo").asText());
+        assertEquals(2, fact.path("fields").size());
+    }
+
+    @Test public void committedUpdateDistinguishesNullTransitionsFromUnchangedFields() throws Exception {
+        var fixture = new Fixture(true);
+        var order = fixture.create("CustomerOrder", 911, "nullable order");
+        order.updateProperty("optional_note", null);
+        order.auditAs("create nullable order").save(fixture.context);
+
+        order.updateProperty("optional_note", "submitted note");
+        order.auditAs("set optional note").save(fixture.context);
+        var outbox = fixture.committedRecorder.eventStore();
+        JsonNode set = new ObjectMapper().readTree(
+                outbox.outboxAfter("java-graph-source", 1, 10).get(0).payloadJson());
+        JsonNode fields = set.path("mutations").get(0).path("fields");
+        assertEquals("submitted note", fields.path("optional_note").asText());
+        assertEquals(1, fields.size());
+
+        order.updateProperty("optional_note", null);
+        order.auditAs("clear optional note").save(fixture.context);
+        JsonNode cleared = new ObjectMapper().readTree(
+                outbox.outboxAfter("java-graph-source", 2, 10).get(0).payloadJson())
+                .path("mutations").get(0).path("fields");
+        assertTrue(cleared.has("optional_note"));
+        assertTrue(cleared.path("optional_note").isNull());
+        assertEquals(1, cleared.size());
+        assertNull(fixture.driver.queryForList(
+                "SELECT optional_note FROM customer_order_data WHERE id = ?", new Object[] {911L})
+                .get(0).get("optional_note"));
+    }
+
+    @Test public void committedLocalDateTimeFailsClosedWithoutAnInstantMapping() throws Exception {
+        var fixture = new Fixture(true);
+        var order = fixture.create("CustomerOrder", 912, "wall-clock order");
+        order.updateProperty("wall_time", java.time.LocalDateTime.of(2026, 10, 16, 8, 0));
+        var failure = assertThrows(RuntimeException.class,
+                () -> order.auditAs("reject ambiguous wall time").save(fixture.context));
+        assertTrue(failure.getMessage().contains("LocalDateTime"));
+        assertTrue(fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {912L}).isEmpty());
+        assertTrue(fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).isEmpty());
+    }
+
+    @Test public void committedInstantRejectsSubMillisecondPrecision() throws Exception {
+        var fixture = new Fixture(true);
+        var order = fixture.create("CustomerOrder", 913, "precise order");
+        order.updateProperty("occurred_at", java.time.Instant.parse("2026-10-16T00:00:00.123456Z"));
+        assertThrows(RuntimeException.class,
+                () -> order.auditAs("reject submillisecond instant").save(fixture.context));
+        assertTrue(fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {913L}).isEmpty());
+        assertTrue(fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).isEmpty());
+    }
+
+    @Test public void committedRecoveryKeepsPredecessorAndNeedsNoChangedScalarField() throws Exception {
+        var fixture = new Fixture(true);
+        var order = fixture.create("CustomerOrder", 910, "recoverable");
+        order.auditAs("create recoverable order").save(fixture.context);
+        order.markForDeletion();
+        order.auditAs("delete recoverable order").save(fixture.context);
+        order.markAsRecover();
+        order.auditAs("recover order").save(fixture.context);
+
+        var outbox = fixture.committedRecorder.eventStore().outboxAfter("java-graph-source", 2, 10);
+        assertEquals(1, outbox.size());
+        JsonNode fact = new ObjectMapper().readTree(outbox.get(0).payloadJson())
+                .path("mutations").get(0);
+        assertEquals("recover", fact.path("operation").asText());
+        assertEquals("-2", fact.path("base_version").asText());
+        assertEquals("3", fact.path("committed_version").asText());
+        assertEquals(0, fact.path("fields").size());
+    }
+
+    @Test public void brokenOutboxRollsBackNormalGraphSaveAndDoesNotDeliverAudit() throws Exception {
+        var fixture = new Fixture(true);
+        fixture.driver.execute("DROP TABLE teaql_event_outbox");
+        var order = fixture.create("CustomerOrder", 100, "must roll back");
+        var item = fixture.create("OrderItem", 201, "must roll back too");
+        order.__internalSet("children", List.of(item));
+        assertThrows(RuntimeException.class,
+                () -> order.auditAs("fail together when outbox unavailable").save(fixture.context));
+        assertTrue(fixture.driver.queryForList("SELECT id FROM customer_order_data WHERE id = ?",
+                new Object[] {100L}).isEmpty());
+        assertTrue(fixture.driver.queryForList("SELECT id FROM order_item_data WHERE id = ?",
+                new Object[] {201L}).isEmpty());
+        assertTrue("no post-commit audit on rolled back save", fixture.audit.isEmpty());
+    }
+
+    @Test public void lostCommitAcknowledgementAfterDurableWriteRequiresReload() throws Exception {
+        assertCommitAcknowledgementUnknown(true);
+    }
+
+    @Test public void failedCommitBeforeWriteRequiresTheSameConservativeReload() throws Exception {
+        assertCommitAcknowledgementUnknown(false);
+    }
+
+    @Test public void commitErrorAfterDurableWriteRequiresReload() throws Exception {
+        var armed = new AtomicBoolean();
+        var injected = new AtomicBoolean();
+        var fixture = new Fixture(true,
+                source -> commitErrorAfterWrite(source, armed, injected));
+        var order = fixture.create("CustomerOrder", 193, "commit Error after durable write");
+        armed.set(true);
+
+        assertThrows(NoSuppressionError.class,
+                () -> order.auditAs("probe uncertain commit Error").save(fixture.context));
+        assertTrue("the commit Error must be injected", injected.get());
+        assertEquals(1, fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {193L}).size());
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+        var retryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("reject replay after commit Error").save(fixture.context));
+        assertTrue(retryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
+    }
+
+    @Test public void commitFailureAndRollbackErrorMustNotRestoreAutoCommit() throws Exception {
+        var armed = new AtomicBoolean();
+        var rollbackInjected = new AtomicBoolean();
+        var restoredAutoCommit = new AtomicBoolean();
+        var fixture = new Fixture(true, source -> commitRollbackErrorFault(
+                source, armed, rollbackInjected, restoredAutoCommit));
+        var order = fixture.create("CustomerOrder", 195, "commit and rollback uncertain");
+        armed.set(true);
+
+        var failure = assertThrows(TransactionOutcomeUnknownException.class,
+                () -> order.auditAs("probe commit and rollback Error").save(fixture.context));
+        assertTrue(failure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN"));
+        assertTrue("rollback Error must be injected", rollbackInjected.get());
+        assertFalse("unconfirmed rollback must not restore autoCommit", restoredAutoCommit.get());
+        assertTrue("failed commit must not materialize the business row", fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {195L}).isEmpty());
+        assertTrue("failed commit must not materialize Outbox", fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).isEmpty());
+        var retryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("reject replay after commit and rollback Error").save(fixture.context));
+        assertTrue(retryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
+    }
+
+    @Test public void failedRollbackMustNotImplicitlyCommitOnAutoCommitRestoration() throws Exception {
+        var armed = new AtomicBoolean();
+        var injected = new AtomicBoolean();
+        var restoredAutoCommit = new AtomicBoolean();
+        var fixture = new Fixture(true,
+                source -> rollbackFault(source, armed, injected, restoredAutoCommit));
+        fixture.driver.execute("DROP TABLE teaql_event_outbox");
+        armed.set(true);
+        var order = fixture.create("CustomerOrder", 187, "rollback failed after Outbox error");
+
+        var failure = assertThrows(RuntimeException.class,
+                () -> order.auditAs("probe uncertain rollback outcome").save(fixture.context));
+        assertTrue("the rollback failure must be injected", injected.get());
+        assertFalse("restoring autoCommit after failed rollback can commit pending writes",
+                restoredAutoCommit.get());
+        assertEquals(0, fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {187L}).size());
+        assertTrue(failure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN"));
+        var retryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("reject replay after failed rollback").save(fixture.context));
+        assertTrue(retryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
+    }
+
+    @Test public void rollbackErrorMustNotRestoreAutoCommitOrPermitReplay() throws Exception {
+        var armed = new AtomicBoolean();
+        var injected = new AtomicBoolean();
+        var restoredAutoCommit = new AtomicBoolean();
+        var fixture = new Fixture(true,
+                source -> rollbackFault(source, armed, injected, restoredAutoCommit, true));
+        fixture.driver.execute("DROP TABLE teaql_event_outbox");
+        var order = fixture.create("CustomerOrder", 194, "rollback Error after Outbox failure");
+        armed.set(true);
+
+        assertThrows(NoSuppressionError.class,
+                () -> order.auditAs("probe rollback Error").save(fixture.context));
+        assertTrue("the rollback Error must be injected", injected.get());
+        assertFalse("unconfirmed rollback must not restore autoCommit", restoredAutoCommit.get());
+        var retryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("reject replay after rollback Error").save(fixture.context));
+        assertTrue(retryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
+    }
+
+    @Test public void failedRollbackAfterErrorRequiresReloadBeforeRetry() throws Exception {
+        var armed = new AtomicBoolean();
+        var injected = new AtomicBoolean();
+        var restoredAutoCommit = new AtomicBoolean();
+        var fixture = new Fixture(false,
+                source -> rollbackFault(source, armed, injected, restoredAutoCommit));
+        var order = fixture.create("CustomerOrder", 190, "error before rollback");
+        fixture.errorReadback = true;
+        armed.set(true);
+
+        var failure = assertThrows(AssertionError.class,
+                () -> order.auditAs("probe rollback failure after Error").save(fixture.context));
+        assertEquals("synthetic Error after business write", failure.getMessage());
+        assertTrue("rollback fault must be injected", injected.get());
+        assertFalse("failed rollback must not restore autoCommit", restoredAutoCommit.get());
+        fixture.errorReadback = false;
+        var retryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("reject retry after unknown Error outcome").save(fixture.context));
+        assertTrue(retryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
+        var independent = fixture.create("Payment", 191, "independent graph after Error");
+        independent.auditAs("save independent graph after unknown Error outcome")
+                .save(fixture.context);
+        assertEquals(Long.valueOf(1), independent.getVersion());
+    }
+
+    @Test public void failedRollbackAfterUnsuppressibleErrorRequiresReloadBeforeRetry() throws Exception {
+        var armed = new AtomicBoolean();
+        var injected = new AtomicBoolean();
+        var restoredAutoCommit = new AtomicBoolean();
+        var fixture = new Fixture(false,
+                source -> rollbackFault(source, armed, injected, restoredAutoCommit));
+        var order = fixture.create("CustomerOrder", 192, "unsuppressible error before rollback");
+        fixture.errorReadbackWithoutSuppression = true;
+        armed.set(true);
+
+        assertThrows(NoSuppressionError.class,
+                () -> order.auditAs("probe unsuppressible Error rollback failure").save(fixture.context));
+        assertTrue("rollback fault must be injected", injected.get());
+        assertFalse("failed rollback must not restore autoCommit", restoredAutoCommit.get());
+        fixture.errorReadbackWithoutSuppression = false;
+        var retryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("reject retry after unsuppressible Error").save(fixture.context));
+        assertTrue(retryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
+    }
+
+    private static void assertCommitAcknowledgementUnknown(boolean afterActualCommit) throws Exception {
+        var armed = new AtomicBoolean();
+        var injected = new AtomicBoolean();
+        var fixture = new Fixture(true,
+                source -> commitAcknowledgementFault(source, armed, injected, afterActualCommit));
+        armed.set(true);
+        var order = fixture.create("CustomerOrder", afterActualCommit ? 189 : 188,
+                "commit acknowledgement may be lost");
+        var item = fixture.create("OrderItem", afterActualCommit ? 289 : 288,
+                "same uncertain transaction");
+        order.__internalSet("children", List.of(item));
+
+        var warnings = new ArrayList<String>();
+        var logger = Logger.getLogger(JdbcSqlExecutor.class.getName());
+        Handler capture = new Handler() {
+            @Override public void publish(LogRecord record) { warnings.add(record.getMessage()); }
+            @Override public void flush() { }
+            @Override public void close() { }
+        };
+        logger.addHandler(capture);
+        RuntimeException failure;
+        try {
+            failure = assertThrows(RuntimeException.class,
+                    () -> order.auditAs("probe uncertain commit outcome").save(fixture.context));
+        } finally {
+            logger.removeHandler(capture);
+        }
+        assertTrue("fault must reach the actual commit boundary", injected.get());
+        assertEquals(afterActualCommit ? 1 : 0, fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {order.getId()}).size());
+        assertEquals(afterActualCommit ? 1 : 0, fixture.driver.queryForList(
+                "SELECT id FROM order_item_data WHERE id = ?", new Object[] {item.getId()}).size());
+        assertEquals(afterActualCommit ? 1 : 0, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+        assertTrue("the outcome must not be reported as a known rollback",
+                failure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN"));
+        assertFalse("the public message must not contain the JDBC diagnostic",
+                failure.getMessage().contains("COMMIT-ACK-SECRET-CANARY"));
+        assertTrue(warnings.stream().anyMatch(message -> message.contains("outcome unknown")));
+        assertTrue("the operational warning must not contain the JDBC diagnostic",
+                warnings.stream().noneMatch(message -> message.contains("COMMIT-ACK-SECRET-CANARY")));
+        var retryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("reject replay before reload").save(fixture.context));
+        assertTrue(retryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
+        var childRetryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> item.auditAs("reject child replay before reload").save(fixture.context));
+        assertTrue(childRetryFailure.getMessage().contains("TRANSACTION_OUTCOME_UNKNOWN_RELOAD_REQUIRED"));
+        assertThrows(TeaQLRuntimeException.class,
+                () -> order.setEntityMutationLedger(new EntityMutationLedger()));
+    }
+
+    private static DataSource commitAcknowledgementFault(SQLiteDataSource source,
+            AtomicBoolean armed, AtomicBoolean injected, boolean afterActualCommit) {
+        return (DataSource) Proxy.newProxyInstance(DataSource.class.getClassLoader(),
+                new Class<?>[] {DataSource.class}, (proxy, method, args) -> {
+                    Object result = invoke(source, method, args);
+                    if (!method.getName().equals("getConnection")) return result;
+                    Connection actual = (Connection) result;
+                    return Proxy.newProxyInstance(Connection.class.getClassLoader(),
+                            new Class<?>[] {Connection.class}, (connectionProxy, operation, parameters) -> {
+                                if (operation.getName().equals("commit") && armed.get()
+                                        && injected.compareAndSet(false, true)) {
+                                    if (afterActualCommit) invoke(actual, operation, parameters);
+                                    throw new SQLException("COMMIT-ACK-SECRET-CANARY");
+                                }
+                                return invoke(actual, operation, parameters);
+                            });
+                });
+    }
+
+    private static DataSource commitErrorAfterWrite(SQLiteDataSource source,
+            AtomicBoolean armed, AtomicBoolean injected) {
+        return (DataSource) Proxy.newProxyInstance(DataSource.class.getClassLoader(),
+                new Class<?>[] {DataSource.class}, (proxy, method, args) -> {
+                    Object result = invoke(source, method, args);
+                    if (!method.getName().equals("getConnection")) return result;
+                    Connection actual = (Connection) result;
+                    return Proxy.newProxyInstance(Connection.class.getClassLoader(),
+                            new Class<?>[] {Connection.class}, (connectionProxy, operation, parameters) -> {
+                                if (operation.getName().equals("commit") && armed.get()
+                                        && injected.compareAndSet(false, true)) {
+                                    invoke(actual, operation, parameters);
+                                    throw new NoSuppressionError();
+                                }
+                                return invoke(actual, operation, parameters);
+                            });
+                });
+    }
+
+    private static DataSource commitRollbackErrorFault(SQLiteDataSource source,
+            AtomicBoolean armed, AtomicBoolean rollbackInjected, AtomicBoolean restoredAutoCommit) {
+        return (DataSource) Proxy.newProxyInstance(DataSource.class.getClassLoader(),
+                new Class<?>[] {DataSource.class}, (proxy, method, args) -> {
+                    Object result = invoke(source, method, args);
+                    if (!method.getName().equals("getConnection")) return result;
+                    Connection actual = (Connection) result;
+                    return Proxy.newProxyInstance(Connection.class.getClassLoader(),
+                            new Class<?>[] {Connection.class}, (connectionProxy, operation, parameters) -> {
+                                if (operation.getName().equals("commit") && armed.get()) {
+                                    throw new SQLException("COMMIT-ACK-SECRET-CANARY");
+                                }
+                                if (operation.getName().equals("rollback") && armed.get()
+                                        && rollbackInjected.compareAndSet(false, true)) {
+                                    throw new NoSuppressionError();
+                                }
+                                if (operation.getName().equals("setAutoCommit")
+                                        && rollbackInjected.get() && Boolean.TRUE.equals(parameters[0])) {
+                                    restoredAutoCommit.set(true);
+                                }
+                                return invoke(actual, operation, parameters);
+                            });
+                });
+    }
+
+    private static DataSource rollbackFault(SQLiteDataSource source,
+            AtomicBoolean armed, AtomicBoolean injected, AtomicBoolean restoredAutoCommit) {
+        return rollbackFault(source, armed, injected, restoredAutoCommit, false);
+    }
+
+    private static DataSource rollbackFault(SQLiteDataSource source,
+            AtomicBoolean armed, AtomicBoolean injected, AtomicBoolean restoredAutoCommit,
+            boolean throwError) {
+        return (DataSource) Proxy.newProxyInstance(DataSource.class.getClassLoader(),
+                new Class<?>[] {DataSource.class}, (proxy, method, args) -> {
+                    Object result = invoke(source, method, args);
+                    if (!method.getName().equals("getConnection")) return result;
+                    Connection actual = (Connection) result;
+                    return Proxy.newProxyInstance(Connection.class.getClassLoader(),
+                            new Class<?>[] {Connection.class}, (connectionProxy, operation, parameters) -> {
+                                if (operation.getName().equals("rollback") && armed.get()
+                                        && injected.compareAndSet(false, true)) {
+                                    if (throwError) throw new NoSuppressionError();
+                                    throw new SQLException("ROLLBACK-SECRET-CANARY");
+                                }
+                                if (operation.getName().equals("setAutoCommit") && injected.get()
+                                        && Boolean.TRUE.equals(parameters[0])) {
+                                    restoredAutoCommit.set(true);
+                                }
+                                return invoke(actual, operation, parameters);
+                            });
+                });
+    }
+
+    private static Object invoke(Object target, Method method, Object[] args) throws Throwable {
+        try {
+            return method.invoke(target, args);
+        } catch (InvocationTargetException failure) {
+            throw failure.getCause();
+        }
+    }
+
+    @Test public void postCommitAuditFailureReportsCommittedOutcomeWithoutReplayingLedger() throws Exception {
+        var fixture = new Fixture(true);
+        fixture.context.putAttribute(AppAuditEventSink.class.getName(),
+                (AppAuditEventSink) (caller, event) -> {
+                    throw new IllegalStateException("diagnostic audit sink failure");
+                });
+        var order = fixture.create("CustomerOrder", 199, "committed before audit delivery");
+
+        var failure = assertThrows(AuditDeliveryAfterCommitException.class,
+                () -> order.auditAs("diagnose post-commit audit failure").save(fixture.context));
+        assertTrue(failure.getMessage().contains("AUDIT_DELIVERY_AFTER_COMMIT"));
+        assertEquals(1, failure.failureCount());
+        assertEquals(1, fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {199L}).size());
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+
+        fixture.context.putAttribute(AppAuditEventSink.class.getName(),
+                (AppAuditEventSink) (caller, event) -> fixture.audit.add(event));
+        order.auditAs("retry after audit delivery failure").save(fixture.context);
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+    }
+
+    @Test public void postCommitReconciliationFailureMustReportCommittedOutcome() throws Exception {
+        var fixture = new Fixture(true);
+        var order = fixture.create("CustomerOrder", 196, "reconcile after commit");
+        order.failPostCommitReconcile = true;
+
+        var failure = assertThrows(CommittedStateReconciliationException.class,
+                () -> order.auditAs("diagnose committed reconciliation failure").save(fixture.context));
+        assertEquals(1, fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {196L}).size());
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+        assertEquals("committed mutations still require application audit delivery", 1, fixture.audit.size());
+        assertEquals(1, fixture.rawAudit.size());
+        assertEquals(Long.valueOf(1), fixture.rawAudit.get(0).resultingVersion());
+        assertTrue("committed outcome must be explicit to prevent blind retry",
+                failure.getMessage().contains("provider write completed"));
+        order.failPostCommitReconcile = false;
+        var retryFailure = assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("retry committed reconciliation failure").save(fixture.context));
+        assertTrue(retryFailure.getMessage().contains("COMMITTED_STATE_RELOAD_REQUIRED"));
+        assertThrows(TeaQLRuntimeException.class,
+                () -> order.setEntityMutationLedger(new EntityMutationLedger()));
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+        assertEquals(1, fixture.audit.size());
+        var independent = fixture.create("Payment", 195, "unrelated graph may still save");
+        independent.auditAs("save independent graph after failure").save(fixture.context);
+        assertEquals(2, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+    }
+
+    @Test public void postCommitChildReconciliationFailurePoisonsOnlyItsSaveGraph() throws Exception {
+        var fixture = new Fixture(true);
+        var order = fixture.create("CustomerOrder", 194, "root already committed");
+        var item = fixture.create("OrderItem", 294, "child needs reload");
+        item.failPostCommitReconcile = true;
+        order.__internalSet("children", List.of(item));
+
+        assertThrows(CommittedStateReconciliationException.class,
+                () -> order.auditAs("commit graph before child reconciliation").save(fixture.context));
+        assertEquals(1, fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {194L}).size());
+        assertEquals(1, fixture.driver.queryForList(
+                "SELECT id FROM order_item_data WHERE id = ?", new Object[] {294L}).size());
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+
+        item.failPostCommitReconcile = false;
+        assertThrows(TeaQLRuntimeException.class,
+                () -> item.auditAs("unsafe child retry").save(fixture.context));
+        assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("unsafe root retry").save(fixture.context));
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+        assertEquals("both committed graph members must still be audited", 2, fixture.audit.size());
+        assertEquals(2, fixture.rawAudit.size());
+    }
+
+    @Test public void postCommitReconciliationAndAuditFailureRetainBothOutcomes() throws Exception {
+        var fixture = new Fixture(true);
+        var attempts = new java.util.concurrent.atomic.AtomicInteger();
+        fixture.context.putAttribute(AppAuditEventSink.class.getName(),
+                (AppAuditEventSink) (caller, event) -> {
+                    attempts.incrementAndGet();
+                    throw new IllegalStateException("diagnostic audit sink failure");
+                });
+        var order = fixture.create("CustomerOrder", 193, "committed despite two post-commit failures");
+        order.failPostCommitReconcile = true;
+
+        var failure = assertThrows(CommittedStateReconciliationException.class,
+                () -> order.auditAs("commit before reconciliation and audit failures").save(fixture.context));
+        assertEquals(1, attempts.get());
+        assertEquals(1, failure.getSuppressed().length);
+        assertTrue(failure.getSuppressed()[0] instanceof AuditDeliveryAfterCommitException);
+        assertEquals(1, fixture.rawAudit.size());
+        assertEquals(Long.valueOf(1), fixture.rawAudit.get(0).resultingVersion());
+        assertEquals(1, fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {193L}).size());
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+        order.failPostCommitReconcile = false;
+        assertThrows(TeaQLRuntimeException.class,
+                () -> order.auditAs("reject retry after two post-commit failures").save(fixture.context));
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+    }
+
+    @Test public void postCommitAuditFailureStillAttemptsEveryGraphMember() throws Exception {
+        var fixture = new Fixture(true);
+        var attempts = new java.util.concurrent.atomic.AtomicInteger();
+        fixture.context.putAttribute(AppAuditEventSink.class.getName(),
+                (AppAuditEventSink) (caller, event) -> {
+                    attempts.incrementAndGet();
+                    throw new IllegalStateException("diagnostic audit sink failure");
+                });
+        var order = fixture.create("CustomerOrder", 198, "root audit fails");
+        var item = fixture.create("OrderItem", 298, "child audit fails");
+        order.__internalSet("children", List.of(item));
+
+        var failure = assertThrows(AuditDeliveryAfterCommitException.class,
+                () -> order.auditAs("commit graph before audit delivery").save(fixture.context));
+        assertEquals(2, failure.failureCount());
+        assertEquals(2, attempts.get());
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
+        assertEquals(1, fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[] {198L}).size());
+        assertEquals(1, fixture.driver.queryForList(
+                "SELECT id FROM order_item_data WHERE id = ?", new Object[] {298L}).size());
+    }
+
+    @Test public void standardAuditSinkFailureDoesNotSuppressApplicationAuditDelivery() throws Exception {
+        var fixture = new Fixture(true);
+        fixture.failStandardAudit = true;
+        var order = fixture.create("CustomerOrder", 197, "both audit sinks are attempted");
+
+        var failure = assertThrows(AuditDeliveryAfterCommitException.class,
+                () -> order.auditAs("commit before standard audit delivery").save(fixture.context));
+        assertEquals(1, failure.failureCount());
+        assertEquals(1, fixture.audit.size());
+        assertEquals(1, fixture.committedRecorder.eventStore()
+                .outboxAfter("java-graph-source", 0, 10).size());
     }
 
     @Test public void realSqliteProviderFailureKeepsAttemptedLineageWithoutCommittedAudit() throws Exception {

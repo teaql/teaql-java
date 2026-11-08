@@ -85,6 +85,7 @@ for repetition in 1 2; do
 done
 
 bash "$repo_dir/examples/trace-chain/verify.sh"
+bash "$repo_dir/examples/committed-events/verify.sh"
 if [[ -n "${TEAQL_CODEGEN_DIR:-}" ]]; then
   bash "$repo_dir/examples/shared-load-state/verify.sh" --generate
 else

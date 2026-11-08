@@ -14,6 +14,23 @@ public class EntityMutationLedgerTest {
     private static final EntityKey OTHER_ORDER = new EntityKey("Order", 2L);
 
     @Test
+    public void committedReconciliationFailureCannotBeClearedOrMergedIntoAnotherLedger() {
+        EntityMutationLedger failed = new EntityMutationLedger();
+        failed.markAsNew(ORDER);
+        failed.markCommittedStateRequiresReload();
+        assertThrows(TeaQLRuntimeException.class, failed::requireSaveable);
+
+        EntityMutationLedger independent = new EntityMutationLedger();
+        assertThrows(TeaQLRuntimeException.class,
+                () -> independent.mergeEntityFrom(failed, ORDER));
+        assertThrows(TeaQLRuntimeException.class, () -> independent.mergeFrom(failed));
+
+        failed.clearCurrentChangeSet();
+        assertThrows(TeaQLRuntimeException.class, failed::requireSaveable);
+        independent.requireSaveable();
+    }
+
+    @Test
     public void markAsNewRecordsOnlyRequestedKeyAndIsIdempotent() {
         EntityMutationLedger root = new EntityMutationLedger();
 

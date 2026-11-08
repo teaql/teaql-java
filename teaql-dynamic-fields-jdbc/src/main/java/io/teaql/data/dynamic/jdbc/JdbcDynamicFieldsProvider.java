@@ -101,6 +101,7 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
     }
 
     @Override public void validateGraphMutation(DynamicFieldContext context, DynamicGraphMutation request) {
+        executor.requireOrdinaryMutationAllowed();
         if (!request.sourceMetadata().matchesStorage(requireStorageIdentity(), context.scopeType(), context.scopeId(), request.owner().ownerType())) {
             throw new DynamicFieldException("DYNAMIC_FIELD_STORAGE_PROVENANCE_MISMATCH", "Reload the dynamic view through the current storage provider and scope");
         }
@@ -133,6 +134,7 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
      * Registers a field definition. Assigns an ID via teaql_id_space if not set.
      */
     public DynamicFieldDef registerFieldDef(DynamicFieldContext context, DynamicFieldDef def) {
+        executor.requireOrdinaryMutationAllowed();
         Objects.requireNonNull(def, "def");
         if (def.getId() == 0) {
             def.setId(context.nextId("DynamicFieldDef"));
@@ -252,6 +254,7 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
 
     @Override
     public void saveValue(DynamicFieldContext context, DynamicSetCommand command) {
+        executor.requireOrdinaryMutationAllowed();
         // Look up the field def to get its id
         DynamicFieldRef ref = DynamicFieldRef.of(
                 DynamicFieldScope.of(context.scopeType(), context.scopeId()),
@@ -313,6 +316,7 @@ public class JdbcDynamicFieldsProvider implements DynamicFieldsProvider {
 
     @Override
     public void deleteValue(DynamicFieldContext context, DynamicValueRef valueRef) {
+        executor.requireOrdinaryMutationAllowed();
         // We need scope info from context
         executor.update(SQL_DELETE_VALUE, new Object[]{
                 context.scopeType(), context.scopeId(),

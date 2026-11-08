@@ -10,7 +10,9 @@
     <dependency><groupId>com.example</groupId><artifactId>request-tree-order-service-core</artifactId><version>0.0.1-SNAPSHOT</version></dependency>
     <dependency><groupId>io.teaql</groupId><artifactId>teaql-runtime</artifactId></dependency>
     <dependency><groupId>io.teaql</groupId><artifactId>teaql-sqlite</artifactId></dependency>
+    <dependency><groupId>io.teaql</groupId><artifactId>teaql-duckdb</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>io.teaql</groupId><artifactId>teaql-provider-jdbc</artifactId></dependency>
+    <dependency><groupId>org.duckdb</groupId><artifactId>duckdb_jdbc</artifactId><version>1.5.5.1</version></dependency>
     <dependency><groupId>io.teaql</groupId><artifactId>teaql-query-json</artifactId></dependency>
     <dependency><groupId>io.teaql</groupId><artifactId>teaql-opentelemetry</artifactId><version>${project.version}</version><scope>test</scope></dependency>
     <dependency><groupId>junit</groupId><artifactId>junit</artifactId><scope>test</scope></dependency>
