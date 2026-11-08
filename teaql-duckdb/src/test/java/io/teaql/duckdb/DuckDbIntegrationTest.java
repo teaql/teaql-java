@@ -277,6 +277,48 @@ public class DuckDbIntegrationTest {
     }
 
     @Test
+    public void jdbcAdapterRollsBackDomainInboxAndCheckpointTogether() {
+        sql.execute("CREATE TABLE cmr_atomic_data (id BIGINT PRIMARY KEY, amount DECIMAL(19,7))");
+        sql.execute("CREATE TABLE cmr_atomic_inbox (change_set_id VARCHAR PRIMARY KEY)");
+        sql.execute("CREATE TABLE cmr_atomic_checkpoint (source_id VARCHAR PRIMARY KEY, sequence BIGINT)");
+
+        boolean failed = false;
+        try {
+            sql.executeInTransaction(() -> {
+                sql.update("INSERT INTO cmr_atomic_data VALUES (?, ?)",
+                        new Object[] {1L, new BigDecimal("0.1000000")});
+                sql.update("INSERT INTO cmr_atomic_inbox VALUES (?)", new Object[] {"set-1"});
+                sql.update("INSERT INTO cmr_atomic_checkpoint VALUES (?, ?)",
+                        new Object[] {"source-1", 1L});
+                sql.update("INSERT INTO cmr_atomic_data VALUES (?, ?)",
+                        new Object[] {1L, BigDecimal.ONE});
+            });
+        } catch (RuntimeException expected) {
+            failed = true;
+        }
+        assertTrue("duplicate row must fail the transaction", failed);
+        assertEquals(0L, rowCount("cmr_atomic_data"));
+        assertEquals(0L, rowCount("cmr_atomic_inbox"));
+        assertEquals(0L, rowCount("cmr_atomic_checkpoint"));
+
+        sql.executeInTransaction(() -> {
+            sql.update("INSERT INTO cmr_atomic_data VALUES (?, ?)",
+                    new Object[] {1L, new BigDecimal("0.1000000")});
+            sql.update("INSERT INTO cmr_atomic_inbox VALUES (?)", new Object[] {"set-1"});
+            sql.update("INSERT INTO cmr_atomic_checkpoint VALUES (?, ?)",
+                    new Object[] {"source-1", 1L});
+        });
+        assertEquals(1L, rowCount("cmr_atomic_data"));
+        assertEquals(1L, rowCount("cmr_atomic_inbox"));
+        assertEquals(1L, rowCount("cmr_atomic_checkpoint"));
+    }
+
+    private static long rowCount(String table) {
+        return ((Number) sql.queryForList("SELECT count(*) AS row_count FROM " + table,
+                new Object[0]).get(0).get("row_count")).longValue();
+    }
+
+    @Test
     public void validatesSchemaValueDomainAndNullability() throws Exception {
         try {
             sql.execute("ALTER TABLE task_data ALTER COLUMN amount SET DATA TYPE DECIMAL(38,10)");

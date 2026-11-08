@@ -21,6 +21,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
     // A held view retains only this token, not the executor, connection or DataSource.
     private final Object storageIdentity = new Object();
     private final ThreadLocal<Connection> transactionConnection = new ThreadLocal<>();
+    private final ThreadLocal<Boolean> transactionRollbackOnly = new ThreadLocal<>();
     private final List<Consumer<Connection>> connectionInitializers = new CopyOnWriteArrayList<>();
 
     public JdbcSqlExecutor(DataSource dataSource) {
@@ -183,7 +184,11 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 return result;
             }
         } catch (SQLException e) {
+            markTransactionRollbackOnly();
             throw new RuntimeException("JDBC query failed for parameterized SQL: " + sql, e);
+        } catch (RuntimeException | Error failure) {
+            markTransactionRollbackOnly();
+            throw failure;
         } finally {
             if (owned && connection != null) try { connection.close(); } catch (SQLException ignored) { }
         }
@@ -209,7 +214,11 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             }
             return result;
         } catch (SQLException exception) {
+            markTransactionRollbackOnly();
             throw new RuntimeException("JDBC typed query failed for parameterized SQL: " + sql, exception);
+        } catch (RuntimeException | Error failure) {
+            markTransactionRollbackOnly();
+            throw failure;
         } finally {
             if (owned && connection != null) try { connection.close(); } catch (SQLException ignored) { }
         }
@@ -240,6 +249,13 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         private static <V> V convertColumn(Class<V> type, Object value) {
             if (value == null || type.isInstance(value)) return (V) value;
             if (value instanceof Number number) {
+                if (type == java.time.Instant.class) {
+                    if (!(number instanceof Long || number instanceof Integer
+                            || number instanceof Short || number instanceof Byte)) {
+                        throw new IllegalArgumentException("Instant JDBC value is not an exact integer");
+                    }
+                    return (V) java.time.Instant.ofEpochMilli(number.longValue());
+                }
                 if (type == Long.class) return (V) Long.valueOf(number.longValue());
                 if (type == Integer.class) return (V) Integer.valueOf(number.intValue());
                 if (type == Double.class) return (V) Double.valueOf(number.doubleValue());
@@ -255,6 +271,12 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             }
             if (type == java.time.LocalDateTime.class && value instanceof java.sql.Timestamp timestamp) {
                 return (V) timestamp.toLocalDateTime();
+            }
+            if (type == java.time.Instant.class && value instanceof java.sql.Timestamp timestamp) {
+                return (V) timestamp.toInstant();
+            }
+            if (type == java.time.Instant.class && value instanceof CharSequence text) {
+                return (V) java.time.Instant.parse(text);
             }
             if (type == java.time.LocalDateTime.class) {
                 return (V) java.time.LocalDateTime.parse(String.valueOf(value).replace(' ', 'T'));
@@ -325,7 +347,11 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             ps.execute();
             }
         } catch (SQLException e) {
+            markTransactionRollbackOnly();
             throw new RuntimeException(e);
+        } catch (RuntimeException | Error failure) {
+            markTransactionRollbackOnly();
+            throw failure;
         } finally {
             if (owned && connection != null) try { connection.close(); } catch (SQLException ignored) { }
         }
@@ -350,7 +376,11 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 return ps.executeUpdate();
             }
         } catch (SQLException e) {
+            markTransactionRollbackOnly();
             throw new RuntimeException(e);
+        } catch (RuntimeException | Error failure) {
+            markTransactionRollbackOnly();
+            throw failure;
         } finally {
             if (owned && connection != null) try { connection.close(); } catch (SQLException ignored) { }
         }
@@ -373,7 +403,11 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 return ps.executeBatch();
             }
         } catch (SQLException e) {
+            markTransactionRollbackOnly();
             throw new RuntimeException(e);
+        } catch (RuntimeException | Error failure) {
+            markTransactionRollbackOnly();
+            throw failure;
         } finally {
             if (owned && connection != null) try { connection.close(); } catch (SQLException ignored) { }
         }
@@ -382,26 +416,47 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
     @Override
     public void executeInTransaction(Runnable action) {
         if (transactionConnection.get() != null) {
-            action.run();
+            try {
+                action.run();
+            } catch (RuntimeException | Error failure) {
+                // The nested action shares the outer JDBC transaction. Without a
+                // savepoint, its partial writes cannot be committed safely even if
+                // application code catches the exception before the outer returns.
+                transactionRollbackOnly.set(true);
+                throw failure;
+            }
             return;
         }
         try (Connection connection = openConnection()) {
             boolean autoCommit = connection.getAutoCommit();
             connection.setAutoCommit(false);
             transactionConnection.set(connection);
+            transactionRollbackOnly.set(false);
             try {
                 action.run();
+                if (Boolean.TRUE.equals(transactionRollbackOnly.get())) {
+                    throw new IllegalStateException(
+                            "JDBC transaction is rollback-only after a failed operation");
+                }
                 connection.commit();
             } catch (RuntimeException | Error failure) {
                 connection.rollback();
                 throw failure;
             } finally {
                 transactionConnection.remove();
+                transactionRollbackOnly.remove();
                 connection.setAutoCommit(autoCommit);
             }
         } catch (SQLException e) {
             throw new RuntimeException("JDBC transaction failed", e);
         }
+    }
+
+    private void markTransactionRollbackOnly() {
+        // A failed statement, mapper or adapter operation may have left earlier
+        // writes in the shared transaction. Without a savepoint, catching the
+        // failure cannot make the transaction safe to commit.
+        if (transactionConnection.get() != null) transactionRollbackOnly.set(true);
     }
 
     @Override public boolean hasActiveTransaction() { return transactionConnection.get() != null; }
@@ -441,6 +496,14 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 statement.setString(index, java.sql.Timestamp.valueOf(dateTime).toString());
             } else {
                 statement.setTimestamp(index, java.sql.Timestamp.valueOf(dateTime));
+            }
+        } else if (value instanceof java.time.Instant instant && isSqlite(statement)) {
+            if (instant.getNano() % 1_000_000 != 0) {
+                throw new SQLException("Instant has precision finer than milliseconds");
+            }
+            try { statement.setLong(index, instant.toEpochMilli()); }
+            catch (ArithmeticException overflow) {
+                throw new SQLException("Instant exceeds epoch-millisecond range", overflow);
             }
         } else if (value instanceof java.time.LocalTime time) {
             if (isSqlite(statement)) {

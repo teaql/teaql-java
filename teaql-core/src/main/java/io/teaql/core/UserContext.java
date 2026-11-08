@@ -75,6 +75,11 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
         if (businessIdSchema != null) {
             businessIdSchema.ensureSchema(this);
         }
+        CommittedEventSchemaContributor committedEvents =
+                capability(CommittedEventSchemaContributor.class);
+        if (committedEvents != null) {
+            committedEvents.ensureSchema(this, SchemaExecutor.Invocation.contextOwned());
+        }
         GeneratedSchemaBootstrap bootstrap = capability(GeneratedSchemaBootstrap.class);
         if (bootstrap != null) {
             Object previousActor = getAttribute(GeneratedSchemaBootstrap.AUDIT_ACTOR_ATTRIBUTE);
