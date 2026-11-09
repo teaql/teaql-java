@@ -12,6 +12,8 @@ import io.teaql.core.sql.portable.IdSpaceIdGenerator;
 import io.teaql.core.sqlite.SqliteDataServiceExecutor;
 import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import io.teaql.runtime.TeaQLRuntime;
+import io.teaql.runtime.RuntimeLogSink;
+import io.teaql.runtime.AppAuditEventSink;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.security.MessageDigest;
