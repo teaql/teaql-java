@@ -62,6 +62,7 @@ public class SqlLegacyTemporalPrecisionTest {
         for (String name : List.of("id", "version", "happenedAt")) {
             var property = (GenericSQLProperty) descriptor.addSimpleProperty(name,
                     name.equals("happenedAt") ? LocalDateTime.class : Long.class);
+            property.setTableName("temporal_data");
             property.setColumnName(name.equals("happenedAt") ? "event_time" : name);
             property.setColumnType(name.equals("happenedAt") ? "TIMESTAMP" : "BIGINT");
         }
