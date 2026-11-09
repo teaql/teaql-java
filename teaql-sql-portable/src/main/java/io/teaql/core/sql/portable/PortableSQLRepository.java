@@ -1422,8 +1422,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             String text = String.valueOf(value);
             return SqlTemporalPrecision.dateTime(java.time.LocalDateTime.parse(text.replace(' ', 'T')));
         }
-        if ((targetType == java.time.LocalDateTime.class || targetType == java.time.LocalDate.class
-                || targetType == java.time.LocalTime.class) && targetType.isInstance(value)) {
+        if ((targetType == java.time.LocalDate.class || targetType == java.time.LocalTime.class)
+                && targetType.isInstance(value)) {
             return value;
         }
         if (targetType == java.time.LocalDate.class) {

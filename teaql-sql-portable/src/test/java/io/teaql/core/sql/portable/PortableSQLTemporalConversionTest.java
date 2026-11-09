@@ -12,11 +12,21 @@ public class PortableSQLTemporalConversionTest {
     public void nativeImmutableTemporalValuesAreNotFormattedAndParsedAgain() {
         var date = java.time.LocalDate.of(2026, 10, 7);
         var time = java.time.LocalTime.of(12, 34, 56, 123456789);
-        var timestamp = java.time.LocalDateTime.of(date, time);
+        // SQL DateTime now has an approved millisecond carrier. The aligned
+        // native value still takes the identity-preserving fast path.
+        var timestamp = java.time.LocalDateTime.of(date, time.truncatedTo(java.time.temporal.ChronoUnit.MILLIS));
         org.junit.Assert.assertSame(date, PortableSQLRepository.convertTemporalColumnValue(java.time.LocalDate.class, date));
         org.junit.Assert.assertSame(time, PortableSQLRepository.convertTemporalColumnValue(java.time.LocalTime.class, time));
         org.junit.Assert.assertSame(timestamp, PortableSQLRepository.convertTemporalColumnValue(java.time.LocalDateTime.class, timestamp));
-        org.junit.Assert.assertEquals(123456789, timestamp.getNano());
+        org.junit.Assert.assertEquals(123000000, timestamp.getNano());
+    }
+    @Test
+    public void subMillisecondSqlReadCopiesWithoutChangingTheNativeValue() {
+        var nativeValue = LocalDateTime.of(2026, 11, 10, 12, 34, 56, 123456789);
+        assertEquals(nativeValue.withNano(123000000),
+                PortableSQLRepository.convertTemporalColumnValue(LocalDateTime.class, nativeValue));
+        assertEquals(123456789, nativeValue.getNano());
+        org.junit.Assert.assertNull(PortableSQLRepository.convertTemporalColumnValue(LocalDateTime.class, null));
     }
     @Test
     public void convertsJdbcStyleTemporalStrings() {
