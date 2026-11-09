@@ -3,6 +3,8 @@
 // Source-paired reactor: no shared Maven install/deploy and no generator needed.
 const fs = require("node:fs"), path = require("node:path"), os = require("node:os"), cp = require("node:child_process"), crypto = require("node:crypto"), assert = require("node:assert/strict");
 const example = __dirname, repo = path.resolve(example, "../.."), sha = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
+assert(process.argv.length===2 || process.argv.length===3 && process.argv[2]==='--original-ledger');
+const originalLedgerOnly=process.argv[2]==='--original-ledger';
 function fingerprint() {
   const m = JSON.parse(fs.readFileSync(path.join(example, "fixture-manifest.json")));
   assert.equal(m.language, "java"); assert.equal(m.evaluationErrors, 0);
@@ -34,6 +36,8 @@ report.mixedGraphApplicationSha256 = sha(fs.readFileSync(path.join(example, 'Mix
 report.concurrentQueryApplicationSha256 = sha(fs.readFileSync(path.join(example, 'ConcurrentQueryExampleTest.java')));
 report.requestIntentApplicationSha256 = sha(fs.readFileSync(path.join(example, 'RequestIntentExampleTest.java')));
 report.cancelledNewGraphApplicationSha256 = sha(fs.readFileSync(path.join(example, 'CancelledNewGraphExampleTest.java')));
+report.originalLedgerApplicationSha256 = sha(fs.readFileSync(path.join(example, 'OriginalLedgerExampleTest.java')));
+report.originalLedgerRounds=[];
 const {createOwnedRunner, ownedBytes} = require('./owned-command.cjs'), runner = createOwnedRunner();
 async function main() {
 try {
@@ -70,7 +74,7 @@ try {
   fs.writeFileSync(path.join(reactor, "pom.xml"), '<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>io.teaql.test</groupId><artifactId>fix-e-reactor</artifactId><version>0.0.0</version><packaging>pom</packaging><modules><module>../source</module><module>../generated</module><module>../consumer</module></modules></project>');
   for (const round of [1, 2]) {
     const command = ['mvn', '-o', '-B', '-ntp', '-f', path.join(reactor, 'pom.xml'), '-pl', ':teaql-fix-e-example', '-am', 'test',
-      '-Dtest=GeneratedFixEExampleTest,PartialAncestorExampleTest,PartialAncestorRootExampleTest,PostFixExampleTest,NewEntityIdExampleTest,CheckerBoundaryExampleTest,ReviewedPlanExampleTest,MixedGraphExampleTest,ConcurrentQueryExampleTest,RequestIntentExampleTest,CancelledNewGraphExampleTest', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dteaql.version=' + version,
+      originalLedgerOnly ? '-Dtest=OriginalLedgerExampleTest' : '-Dtest=GeneratedFixEExampleTest,PartialAncestorExampleTest,PartialAncestorRootExampleTest,PostFixExampleTest,NewEntityIdExampleTest,CheckerBoundaryExampleTest,ReviewedPlanExampleTest,MixedGraphExampleTest,ConcurrentQueryExampleTest,RequestIntentExampleTest,CancelledNewGraphExampleTest,OriginalLedgerExampleTest', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dteaql.version=' + version,
       '-Dteaql.expected.runtime.root=' + runtime];
     const log = path.join(evidence, 'round-' + round + '.log'), fd = fs.openSync(log, 'w'); let result;
     try { result = await runner.run(command, {cwd: scratch, timeout: 300000,
@@ -90,15 +94,22 @@ try {
     }
     if (result.status !== 0) process.exitCode = result.status || 1;
     assert.equal(result.status, 0, bytes.toString().slice(-12000));
+    const original=[...bytes.toString().matchAll(/^JAVA_ORIGINAL_LEDGER_CASE=(.+)$/gm)].map(v=>JSON.parse(v[1]));
+    assert.deepEqual(original.map(v=>v.case).sort(),['ML-01','ML-02','ML-03','ML-04','ML-05','ML-06','ML-07']);
+    assert(original.every(v=>v.passed&&v.round===round));report.originalLedgerRounds.push({round,cases:original});
+    if(originalLedgerOnly) {
+      assert.match(bytes.toString(),/^\[INFO\] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, .* -- in io\.teaql\.examples\.fixe\.OriginalLedgerExampleTest$/m);
+      assert.equal(report.rounds.at(-1).junit.length,1);assert.deepEqual(fingerprint(),m);continue;
+    }
     const expected = {GeneratedFixEExampleTest: 1, PartialAncestorExampleTest: 1,
-      PartialAncestorRootExampleTest: 1, PostFixExampleTest: 3, NewEntityIdExampleTest: 1, CheckerBoundaryExampleTest: 1, ReviewedPlanExampleTest: 6, MixedGraphExampleTest: 3, ConcurrentQueryExampleTest: 1, RequestIntentExampleTest: 1, CancelledNewGraphExampleTest: 1};
+      PartialAncestorRootExampleTest: 1, PostFixExampleTest: 3, NewEntityIdExampleTest: 1, CheckerBoundaryExampleTest: 1, ReviewedPlanExampleTest: 6, MixedGraphExampleTest: 3, ConcurrentQueryExampleTest: 1, RequestIntentExampleTest: 1, CancelledNewGraphExampleTest: 1, OriginalLedgerExampleTest: 1};
     assert.deepEqual(fs.readdirSync(path.join(consumer, 'src/test/java/io/teaql/examples/fixe'))
       .filter(name => name.endsWith('Test.java')).map(name => name.slice(0, -5)).sort(), Object.keys(expected).sort(),
       'every authored example Test must be selected and verified');
     const summaries = [...bytes.toString().matchAll(/^\[INFO\] Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+), .* -- in io\.teaql\.examples\.fixe\.([A-Za-z]+)$/gm)];
     assert.deepEqual(summaries.map(row => row[5]).sort(), Object.keys(expected).sort());
     for (const row of summaries) assert.deepEqual(row.slice(1, 5).map(Number), [expected[row[5]], 0, 0, 0]);
-    assert.match(bytes.toString(), /^\[INFO\] Tests run: 20, Failures: 0, Errors: 0, Skipped: 0$/m);
+    assert.match(bytes.toString(), /^\[INFO\] Tests run: 21, Failures: 0, Errors: 0, Skipped: 0$/m);
     const cancellations = bytes.toString().split(/\r?\n/).filter(line => line.startsWith('JAVA_CANCELLED_NEW_GRAPH_CASE='))
       .map(line => JSON.parse(line.slice('JAVA_CANCELLED_NEW_GRAPH_CASE='.length)));
     assert.deepEqual(cancellations.map(v => v.case).sort(), ['root', 'complete-child', 'incomplete-child', 'composed-child', 'invalid-live-sibling'].sort());
@@ -138,6 +149,9 @@ try {
     }
     assert.deepEqual(fingerprint(), m);
   }
+  const originalFile='fixture.sqlite.original-ledger.sqlite';
+  report.originalLedgerDatabase={file:originalFile,sha256:sha(fs.readFileSync(path.join(evidence,originalFile)))};
+  if(originalLedgerOnly){report.passed=true;console.log('PASS Java original ML-01..07 generated Q/E/save boundaries twice');return;}
   report.databaseSha256 = sha(fs.readFileSync(path.join(evidence, 'fixture.sqlite')));
   report.expressionBoundaryApplicationSha256 = sha(fs.readFileSync(path.join(example, 'ExpressionBoundaryProbe.java')));
   report.expressionBoundaryDatabase = {file: 'fixture.sqlite.expression-boundaries.sqlite',
