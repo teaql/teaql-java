@@ -135,8 +135,18 @@ public class OriginalLedgerExampleTest {
                 .purpose("Verify explicit pending-intent composition").newEntity(context);
         item.updateProductName("ML05 child"); item.updateUnitPrice(BigDecimal.TEN); long cid=item.getId();
         var ck=new EntityKey("OrderItem",cid); assertFalse(composed.getEntityMutationLedger().newKeys().contains(ck));
-        composed.addOrderItem(item); assertTrue(composed.getEntityMutationLedger().newKeys().contains(ck));
+        composed.addOrderItem(item);
+        assertEquals(Long.valueOf(cid),E.purchaseOrder(composed).getOrderItemList().get(0).getId().eval());
+        // Java merges reachable entity ledgers during Save preparation, not add.
+        // Verify the reviewed business plan and committed graph, not eager storage layout.
+        int beforeAttachmentAudits=audits.get(); plans.clear();
         composed.auditAs("Persist an explicitly composed child through its owner").save(context);
+        assertEquals(1,plans.size()); assertEquals(1,plans.get(0).operations().size());
+        var attachedOperation=plans.get(0).operations().get(0);
+        assertEquals(ck,attachedOperation.entity()); assertEquals(MutationOperationKind.CREATE,attachedOperation.kind());
+        assertNull(attachedOperation.originalVersion()); assertEquals(beforeAttachmentAudits+1,audits.get());
+        assertSame(composed.getEntityMutationLedger(),item.getEntityMutationLedger());
+        assertTrue(item.getEntityMutationLedger().newKeys().isEmpty());
         assertEquals(Long.valueOf(2),composed.getVersion()); assertEquals(Long.valueOf(1),item.getVersion());
         var loadedItem=Q.orderItems().withIdIs(cid).limit(1).comment("Read the explicitly composed child")
                 .purpose("Verify owner save persisted child intent").executeForOne(context);
