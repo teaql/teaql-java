@@ -158,13 +158,14 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                 @Override public <T extends io.teaql.core.Entity> java.util.stream.Stream<T> queryForStream(
                         io.teaql.core.UserContext context, String sql, Object[] args,
                         io.teaql.core.CompiledRowMapper<T> mapper, io.teaql.core.sql.portable.SqlLogBindings bindings) {
-                    return observedQueryStream(context, sql, args, bindings,
-                            () -> executionAdapter.queryForStream(sql, args, mapper));
+                    var effective = io.teaql.core.sql.portable.SqlTemporalPrecision.parameters(args);
+                    return observedQueryStream(context, sql, effective, bindings,
+                            () -> executionAdapter.queryForStream(sql, effective, mapper));
                 }
 
                 @Override
                 public java.util.List<java.util.Map<String, Object>> query(String sql, Object[] args) {
-                    return executionAdapter.queryForList(sql, args);
+                    return executionAdapter.queryForList(sql, io.teaql.core.sql.portable.SqlTemporalPrecision.parameters(args));
                 }
                 @Override
                 public java.util.stream.Stream<java.util.Map<String, Object>> queryForStream(io.teaql.core.UserContext context, String sql, Object[] args) {
@@ -173,16 +174,17 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                 @Override
                 public java.util.stream.Stream<java.util.Map<String, Object>> queryForStream(io.teaql.core.UserContext context,
                         String sql, Object[] args, io.teaql.core.sql.portable.SqlLogBindings bindings) {
-                    return observedQueryStream(context, sql, args, bindings,
-                            () -> executionAdapter.queryForStream(sql, args));
+                    var effective = io.teaql.core.sql.portable.SqlTemporalPrecision.parameters(args);
+                    return observedQueryStream(context, sql, effective, bindings,
+                            () -> executionAdapter.queryForStream(sql, effective));
                 }
                 @Override
                 public int executeUpdate(String sql, Object[] args) {
-                    return executionAdapter.update(sql, args);
+                    return executionAdapter.update(sql, io.teaql.core.sql.portable.SqlTemporalPrecision.parameters(args));
                 }
                 @Override
                 public int[] batchUpdate(String sql, java.util.List<Object[]> batchArgs) {
-                    return executionAdapter.batchUpdate(sql, batchArgs);
+                    return executionAdapter.batchUpdate(sql, io.teaql.core.sql.portable.SqlTemporalPrecision.batch(batchArgs));
                 }
                 @Override
                 public void execute(String sql) {
@@ -205,8 +207,9 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                 @Override
                 public java.util.List<java.util.Map<String, Object>> query(io.teaql.core.UserContext context, String sql, Object[] args,
                         io.teaql.core.sql.portable.SqlLogBindings bindings) {
-                    return observedStatement(context, sql, args, bindings, io.teaql.core.DataServiceOperation.QUERY,
-                            () -> executionAdapter.queryForList(sql, args), (meta, result) -> meta.setResultCount(result.size()));
+                    var effective = io.teaql.core.sql.portable.SqlTemporalPrecision.parameters(args);
+                    return observedStatement(context, sql, effective, bindings, io.teaql.core.DataServiceOperation.QUERY,
+                            () -> executionAdapter.queryForList(sql, effective), (meta, result) -> meta.setResultCount(result.size()));
                 }
 
                 @Override
@@ -220,8 +223,9 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                 public <T extends io.teaql.core.Entity> java.util.List<T> query(
                         io.teaql.core.UserContext context, String sql, Object[] args,
                         io.teaql.core.CompiledRowMapper<T> rowMapper, io.teaql.core.sql.portable.SqlLogBindings bindings) {
-                    return observedStatement(context, sql, args, bindings, io.teaql.core.DataServiceOperation.QUERY,
-                            () -> executionAdapter.query(sql, args, rowMapper), (meta, result) -> meta.setResultCount(result.size()));
+                    var effective = io.teaql.core.sql.portable.SqlTemporalPrecision.parameters(args);
+                    return observedStatement(context, sql, effective, bindings, io.teaql.core.DataServiceOperation.QUERY,
+                            () -> executionAdapter.query(sql, effective, rowMapper), (meta, result) -> meta.setResultCount(result.size()));
                 }
 
                 @Override
@@ -232,8 +236,9 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                 @Override
                 public int executeUpdate(io.teaql.core.UserContext context, String sql, Object[] args,
                         io.teaql.core.sql.portable.SqlLogBindings bindings) {
-                    return observedStatement(context, sql, args, bindings, io.teaql.core.DataServiceOperation.MUTATION,
-                            () -> executionAdapter.update(sql, args), (meta, result) -> meta.setAffectedRows(result.longValue()));
+                    var effective = io.teaql.core.sql.portable.SqlTemporalPrecision.parameters(args);
+                    return observedStatement(context, sql, effective, bindings, io.teaql.core.DataServiceOperation.MUTATION,
+                            () -> executionAdapter.update(sql, effective), (meta, result) -> meta.setAffectedRows(result.longValue()));
                 }
 
                 @Override
@@ -244,7 +249,8 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                 @Override
                 public int[] batchUpdate(io.teaql.core.UserContext context, String sql, java.util.List<Object[]> batchArgs,
                         io.teaql.core.sql.portable.SqlLogBindings bindings) {
-                    bindings.validateBatchSize(batchArgs == null ? 0 : batchArgs.size());
+                    var effective = io.teaql.core.sql.portable.SqlTemporalPrecision.batch(batchArgs);
+                    bindings.validateBatchSize(effective == null ? 0 : effective.size());
                     var observation = io.teaql.core.SqlStatementObservation.startSafely(context, debugDatabaseKind,
                             io.teaql.core.DataServiceOperation.MUTATION);
                     boolean logging = context.isMutationExecutionLoggingEnabled();
@@ -252,10 +258,10 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                     long start = collecting ? System.nanoTime() : 0L;
                     int[] res;
                     try {
-                        res = executionAdapter.batchUpdate(sql, batchArgs);
+                        res = executionAdapter.batchUpdate(sql, effective);
                     } catch (RuntimeException failure) {
                         try {
-                            if (collecting) recordBatch(context, sql, batchArgs, bindings, start, batchCounts(failure), failure,
+                            if (collecting) recordBatch(context, sql, effective, bindings, start, batchCounts(failure), failure,
                                     logging, observation.correlation());
                         } finally { observation.failure(failure); }
                         throw failure;
@@ -264,7 +270,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
                         throw failure;
                     }
                     try {
-                        if (collecting) recordBatch(context, sql, batchArgs, bindings, start,
+                        if (collecting) recordBatch(context, sql, effective, bindings, start,
                                 res == null ? null : java.util.Arrays.stream(res).asLongStream().toArray(), null, logging,
                                 observation.correlation());
                     } finally { observation.success(); }
@@ -431,7 +437,7 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
 
     public static String debugSql(String sql, Object[] args, String databaseKind) {
         if (sql == null) return null;
-        Object[] parameters = args == null ? new Object[0] : args;
+        Object[] parameters = args == null ? new Object[0] : io.teaql.core.sql.portable.SqlTemporalPrecision.parameters(args);
         try {
             return io.teaql.core.utils.SqlLogRenderer.render(sql, parameters.length,
                     index -> io.teaql.core.utils.SqlLogRenderer.literal(parameters[index], databaseKind),

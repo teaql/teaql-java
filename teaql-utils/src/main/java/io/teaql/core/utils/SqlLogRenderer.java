@@ -100,7 +100,7 @@ public final class SqlLogRenderer {
             return kind.contains("sqlite") ? quoted : "DATE " + quoted;
         }
         if (value instanceof LocalDateTime time) {
-            String quoted = quote(java.sql.Timestamp.valueOf(time).toString(), kind);
+            String quoted = quote(LocalDateTimeUtil.formatSql(time), kind);
             if (kind.contains("mysql")) return "CAST(" + quoted + " AS DATETIME(3))";
             if (kind.contains("mssql")) return "CAST(" + quoted + " AS DATETIME2(3))";
             return kind.contains("sqlite") ? quoted : "TIMESTAMP " + quoted;

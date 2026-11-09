@@ -521,7 +521,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             }
         } else if (value instanceof java.time.LocalDateTime dateTime) {
             if (isSqlite(statement)) {
-                statement.setString(index, java.sql.Timestamp.valueOf(dateTime).toString());
+                statement.setString(index, io.teaql.core.utils.LocalDateTimeUtil.formatSql(dateTime));
             } else {
                 statement.setTimestamp(index, java.sql.Timestamp.valueOf(dateTime));
             }

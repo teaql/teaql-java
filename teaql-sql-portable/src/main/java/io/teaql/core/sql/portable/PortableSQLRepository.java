@@ -1024,7 +1024,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 PropertyDescriptor property = binding.property();
                 Object value;
                 if (binding.relationDescriptor() == null) {
-                    value = row.get(binding.index(), property.getType().javaType());
+                    Class<?> javaType = property.getType().javaType();
+                    value = row.get(binding.index(), javaType);
+                    if (javaType == java.time.LocalDateTime.class && value != null) {
+                        value = convertTemporalColumnValue(javaType, value);
+                    }
                 }
                 else {
                     Long id = row.get(binding.index(), Long.class);
@@ -1411,19 +1415,16 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     static Object convertTemporalColumnValue(Class<?> targetType, Object value) {
+        if (targetType == java.time.LocalDateTime.class) {
+            if (value == null) return null;
+            if (value instanceof java.time.LocalDateTime dateTime) return SqlTemporalPrecision.dateTime(dateTime);
+            if (value instanceof java.sql.Timestamp timestamp) return SqlTemporalPrecision.dateTime(timestamp.toLocalDateTime());
+            String text = String.valueOf(value);
+            return SqlTemporalPrecision.dateTime(java.time.LocalDateTime.parse(text.replace(' ', 'T')));
+        }
         if ((targetType == java.time.LocalDateTime.class || targetType == java.time.LocalDate.class
                 || targetType == java.time.LocalTime.class) && targetType.isInstance(value)) {
             return value;
-        }
-        if (targetType == java.time.LocalDateTime.class
-                && value instanceof java.sql.Timestamp timestamp) {
-            return timestamp.toLocalDateTime();
-        }
-        if (targetType == java.time.LocalDateTime.class) {
-            // SQLite returns text and some JDBC drivers return vendor temporal
-            // wrappers. Both expose the standard timestamp representation.
-            String text = String.valueOf(value);
-            return java.time.LocalDateTime.parse(text.replace(' ', 'T'));
         }
         if (targetType == java.time.LocalDate.class) {
             if (value instanceof java.sql.Date date) return date.toLocalDate();
