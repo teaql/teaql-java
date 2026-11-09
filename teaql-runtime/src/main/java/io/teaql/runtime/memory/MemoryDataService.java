@@ -39,6 +39,7 @@ public class MemoryDataService implements DataServiceExecutor, QueryExecutor, Mu
         this.capabilities = new DataServiceCapabilities();
         this.capabilities.setQuery(true);
         this.capabilities.setMutation(true);
+        this.capabilities.setAggregation(true);
     }
 
     @Override
@@ -71,7 +72,7 @@ public class MemoryDataService implements DataServiceExecutor, QueryExecutor, Mu
         } finally {
             storage.lock.readLock().unlock();
         }
-        return new DefaultQueryResult(result);
+        return new DefaultQueryResult(result, MemoryAggregations.calculate(searchRequest.getAggregations(), result.getData()));
     }
 
     @Override
