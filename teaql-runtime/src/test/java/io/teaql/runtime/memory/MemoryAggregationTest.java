@@ -33,6 +33,13 @@ public class MemoryAggregationTest {
                 default -> super.__internalGet(property);
             };
         }
+        @Override public void __internalSet(String property, Object value) {
+            switch (property) {
+                case "amount" -> amount = (Number) value;
+                case "bucket" -> bucket = (String) value;
+                default -> super.__internalSet(property, value);
+            }
+        }
     }
 
     private static final class Request extends BaseRequest<Sample> {
@@ -131,10 +138,10 @@ public class MemoryAggregationTest {
         var error = assertThrows(TeaQLRuntimeException.class, () -> request.run(context));
         assertTrue(error.getMessage().contains("STDDEV"));
     }
-    @Test public void nonFiniteSumIsRejectedRatherThanSilentlyConvertedToNullOrZero() {
-        seed("invalid", Double.POSITIVE_INFINITY);
-        var error = assertThrows(TeaQLRuntimeException.class, () -> aggregate().run(context));
+    @Test public void nonFiniteSeedIsRejectedBeforeItEntersMemoryStorage() {
+        var error = assertThrows(io.teaql.core.checker.CheckException.class, () -> seed("invalid", Double.POSITIVE_INFINITY));
         assertTrue(error.getMessage().contains("finite"));
+        assertTrue(new Request().purpose("verify rejected seed was not stored").executeForList(context).isEmpty());
     }
     @Test public void missingIntentStillRejectsBeforeProviderAccess() {
         var request = aggregate().comment(" ");
