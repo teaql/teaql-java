@@ -165,7 +165,7 @@ The complete example entry point includes this mode.
 
 `node examples/scalar-type-probe/verify-local.cjs --sql-millis` exercises the
 approved millisecond SQL precision through the unchanged generated library.
-Four tests run twice against four retained SQLite stores, without resetting them.
+Five tests run twice against five retained SQLite stores, without resetting them.
 They cover eighteen create/save/Q-equality/E/physical-readback combinations across
 UTC, New York and Shanghai; three audited updates; eighteen passive native JSON
 round trips; and an omitted-field NotLoaded projection. Inputs include aligned
@@ -177,6 +177,13 @@ typed Q predicates and loaded E must agree with physical storage. Native input
 and JSON retain nanosecond precision until the SQL boundary. Direct SQL is a
 read-only oracle, not the application write path. Runtime code comes only from
 the repository-local source reactor, and generated source hashes must not change.
-This mode is part of the complete example entry point. It does not settle the
-separate policy for pre-existing noncanonical SQL values or qualify a published
-runtime package.
+This mode is part of the complete example entry point. A fifth test injects an
+explicit legacy sub-millisecond value after an ordinary generated audited Save.
+Repeated bounded Q reads must reject it with `SQL_DATETIME_PRECISION_MISMATCH`,
+the modeled entity/field, an RFC 6901 field pointer and a migration remedy, never
+the stored private value. A projection excluding that field still works and E
+correctly reports it NotLoaded. Reads do not write, review a mutation policy or
+emit mutation audit; an independent SQL oracle preserves the exact old text and
+version. This is not an automatic migration and does not qualify a published
+runtime package. Explicit-transaction and installed-artifact acceptance remain
+separate from this local example.

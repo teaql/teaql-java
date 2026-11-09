@@ -3,6 +3,7 @@ package com.example.scalartypeconformanceservice;
 import com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.teaql.core.value.TeaQLNotLoadedException;
+import io.teaql.core.sql.portable.SqlTemporalPrecisionException;
 import io.teaql.jackson.TeaQLModule;
 import io.teaql.runtime.TeaQLRuntime;
 import java.nio.file.Path;
@@ -15,7 +16,7 @@ import java.util.TimeZone;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
-/** New canonical SQL values only; legacy sub-millisecond rows need a separate policy. */
+/** New canonical SQL round trips and explicit rejection of incompatible legacy rows. */
 public class GeneratedSqlMillisecondTest {
     static final List<String> ZONES = List.of("UTC", "America/New_York", "Asia/Shanghai");
     static final List<LocalDateTime> INPUTS = List.of(
@@ -54,6 +55,7 @@ public class GeneratedSqlMillisecondTest {
     static void emit(String name, int cases) throws Exception {
         System.out.println("JAVA_SQL_MILLISECOND=" + new ObjectMapper().writeValueAsString(Map.of(
                 "case", name, "cases", cases, "round", round(), "passed", true,
+                "legacyMigrationRejectionAccepted", name.equals("legacy-rejection"),
                 "legacySqlPrecisionAccepted", false, "businessClockChanged", false)));
     }
 
@@ -134,5 +136,44 @@ public class GeneratedSqlMillisecondTest {
         assertThrows(TeaQLNotLoadedException.class, () -> E.scalarTypeProbe(minimal).getRequiredDatetime().eval());
         assertEquals(audits, f.audits.size()); assertEquals(policies, f.policies.size());
         emit("minimal-projection", 1);
+    }
+
+    @Test public void legacySqlValuesRejectWithFieldDiagnosticsAndRemainPhysicallyUnchanged() throws Exception {
+        var f = fixture("legacy"); var root = f.root("SQL legacy precision round " + round());
+        var row = f.probe(root, "Legacy precision negative fixture");
+        row.updateRequiredDatetime(INPUTS.get(0));
+        row.auditAs("Seed a valid object before legacy corruption injection").save(f.context);
+        String legacy = "2026-11-10 12:34:56.123456789";
+        try (var connection = DriverManager.getConnection(f.data.url);
+                var statement = connection.prepareStatement("UPDATE scalar_type_probe_data SET required_datetime=? WHERE id=?")) {
+            // Explicit fault injection of a pre-existing incompatible representation.
+            // Normal setup and all business operations use generated mutations.
+            statement.setString(1, legacy); statement.setLong(2, row.getId());
+            assertEquals(1, statement.executeUpdate());
+        }
+        long audits = f.audits.size(), policies = f.policies.size();
+        for (int attempt = 0; attempt < 2; attempt++) {
+            var error = assertThrows(SqlTemporalPrecisionException.class, () -> f.load(row.getId()));
+            assertEquals("SQL_DATETIME_PRECISION_MISMATCH", error.getCode());
+            assertEquals("ScalarTypeProbe", error.getEntityType()); assertEquals("requiredDatetime", error.getField());
+            assertEquals("/requiredDatetime", error.getPath()); assertEquals("milliseconds", error.getExpectedPrecision());
+            assertTrue(error.isMigrationRequired()); assertTrue(error.getSuggestedFix().contains("Migrate"));
+            assertFalse(error.toString().contains(legacy)); assertNull(error.getCause());
+        }
+        var minimal = Q.scalarTypeProbesWithMinimalFields().withIdIs(row.getId()).selectRequiredString().limit(1)
+                .comment("Read a projection that intentionally excludes the incompatible legacy field")
+                .purpose("Keep SQL precision rejection local to selected fields").executeForOne(f.context);
+        assertEquals(row.getId(), minimal.getId());
+        assertThrows(TeaQLNotLoadedException.class, () -> E.scalarTypeProbe(minimal).getRequiredDatetime().eval());
+        assertEquals(audits, f.audits.size()); assertEquals(policies, f.policies.size());
+        try (var connection = DriverManager.getConnection(f.data.url);
+                var statement = connection.prepareStatement("SELECT required_datetime,version FROM scalar_type_probe_data WHERE id=?")) {
+            statement.setLong(1, row.getId());
+            try (var stored = statement.executeQuery()) {
+                assertTrue(stored.next()); assertEquals(legacy, stored.getString(1));
+                assertEquals(1, stored.getLong(2)); assertFalse(stored.next());
+            }
+        }
+        emit("legacy-rejection", 4);
     }
 }

@@ -100,8 +100,9 @@ async function main() {
       assert.equal(result.status, 0, text.slice(-12000)); assert.equal(result.signal, null);
       if (sqlMillis) {
         const values = [...text.matchAll(/^JAVA_SQL_MILLISECOND=(.+)$/gm)].map(match => JSON.parse(match[1]));
-        assert.equal(values.length, 4); assert(values.every(v => v.passed && v.round === round && !v.legacySqlPrecisionAccepted && !v.businessClockChanged));
-        assert.deepEqual(values.map(v => [v.case,v.cases]).sort(), [['matrix-save-query-e',18],['minimal-projection',1],['native-json',18],['update-equality',3]]);
+        assert.equal(values.length, 5); assert(values.every(v => v.passed && v.round === round && !v.legacySqlPrecisionAccepted && !v.businessClockChanged
+          && v.legacyMigrationRejectionAccepted === (v.case === 'legacy-rejection')));
+        assert.deepEqual(values.map(v => [v.case,v.cases]).sort(), [['legacy-rejection',4],['matrix-save-query-e',18],['minimal-projection',1],['native-json',18],['update-equality',3]]);
         report.rounds.push({round,cases:values}); assert.deepEqual(fixture(),input); assert.equal(sourceHash(),before); continue;
       }
       if (finite) {
@@ -145,7 +146,7 @@ async function main() {
       assert.equal(value.rolledBackAfterWrites, 1); assert.equal(value.retryAuditEntities, 2);
       report.rounds.push(value); assert.deepEqual(fixture(), input); assert.equal(sourceHash(), before);
     }
-    if (sqlMillis) report.databases = Object.fromEntries(['matrix','update','json','projection'].map(name => {
+    if (sqlMillis) report.databases = Object.fromEntries(['matrix','update','json','projection','legacy'].map(name => {
       const file = 'fixture.sqlite.sql-millis-'+name; return [file,sha(fs.readFileSync(path.join(output,file)))];
     }));
     else if (finite) report.databases = Object.fromEntries(['','.finite-fix','.finite-legacy','.finite-retry'].map(suffix => {
@@ -159,7 +160,8 @@ async function main() {
     }));
     else report.databaseSha256 = sha(fs.readFileSync(path.join(output, 'fixture.sqlite')));
     report.passed = true;
-    console.log(sqlMillis ? 'PASS generated Java SQL milliseconds save, typed Q/E, native JSON and projections twice'
+    if (sqlMillis) report.legacySqlMigrationRejectionAccepted = true;
+    console.log(sqlMillis ? 'PASS generated Java SQL milliseconds save, typed Q/E, native JSON, projections and legacy rejection twice'
       : finite ? 'PASS generated Java finite scalar, customer Fix, legacy reads and graph retry twice'
       : jdbcExact ? 'PASS generated Java exact JDBC Q/E corruption boundaries twice'
       : outerReplay ? 'PASS generated Java seven outer transaction retry scenarios twice'
