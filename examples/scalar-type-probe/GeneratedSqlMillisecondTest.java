@@ -155,7 +155,7 @@ public class GeneratedSqlMillisecondTest {
         for (int attempt = 0; attempt < 2; attempt++) {
             var error = assertThrows(SqlTemporalPrecisionException.class, () -> f.load(row.getId()));
             assertEquals("SQL_DATETIME_PRECISION_MISMATCH", error.getCode());
-            assertEquals("ScalarTypeProbe", error.getEntityType()); assertEquals("requiredDatetime", error.getField());
+            assertEquals("ScalarTypeProbe", error.getEntityType()); assertEquals("required_datetime", error.getField());
             assertEquals("/requiredDatetime", error.getPath()); assertEquals("milliseconds", error.getExpectedPrecision());
             assertTrue(error.isMigrationRequired()); assertTrue(error.getSuggestedFix().contains("Migrate"));
             assertFalse(error.toString().contains(legacy)); assertNull(error.getCause());

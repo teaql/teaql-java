@@ -21,7 +21,7 @@ public final class SqlTemporalPrecisionException extends TeaQLRuntimeException {
 
     public String getCode() { return CODE; }
     public String getEntityType() { return entityType; }
-    /** Modeled in-process property name, never the stored value. */
+    /** Canonical modeled property name supplied by metadata, never the stored value. */
     public String getField() { return field; }
     /** RFC 6901 pointer under the default JSON naming policy; empty means root. */
     public String getPath() { return field == null ? "" : ObjectLocation.hashRoot(field).instancePath(); }
