@@ -469,13 +469,13 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             }
         }
         // A successful explicit selection must materialize even an empty list.
-        // Use the shared typed empty payload; availability stays in the parent's
-        // private view, and no mutation ledger is created by this hydration.
+        // A selected relation is an owner-local mutable collection: generated
+        // add-child APIs append to it. Share availability/layout, not the value
+        // container. The typed shared-empty singleton remains read-only.
         if (relation.getType() != null && SmartList.class.isAssignableFrom(relation.getType().javaType())) {
-            Class<? extends Entity> childType = reverseProperty.getOwner().getTargetType();
             for (Entity parent : dataSet) {
                 if (parent.getProperty(relation.getName()) == null) {
-                    parent.setProperty(relation.getName(), SmartList.empty(childType));
+                    parent.setProperty(relation.getName(), new SmartList<>(0));
                 }
             }
         }

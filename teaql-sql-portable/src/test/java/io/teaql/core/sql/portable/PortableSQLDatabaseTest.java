@@ -436,6 +436,50 @@ public class PortableSQLDatabaseTest {
         }
     }
 
+    @Test
+    public void selectedEmptyReverseListsAreMutableAndOwnerLocalWithoutLedgerAllocation() {
+        registerTopNFixture();
+        TopNChildRequest child = new TopNChildRequest().where("state", Operator.EQUAL, "no-child-state");
+        child.selectProperty("id"); child.selectProperty("version"); child.offset(0, 2);
+        TopNParentRequest parent = new TopNParentRequest();
+        parent.selectProperty("id"); parent.selectProperty("version"); parent.selectProperty("name");
+        parent.addOrderByAscending("id"); parent.offset(0, 3); parent.enhanceRelation("children", child);
+        int writesBefore = sqliteDb.executeTrace().size();
+        SmartList<TopNParent> rows = parent.comment("Load three explicitly empty child lists")
+                .purpose("Verify mutable relation values remain private while load states are shared")
+                .executeForList(context);
+        assertEquals(3, rows.size());
+        SmartList<TopNChild> first = rows.get(0).getProperty("children");
+        SmartList<TopNChild> second = rows.get(1).getProperty("children");
+        SmartList<TopNChild> third = rows.get(2).getProperty("children");
+        assertNotSame(first, second); assertNotSame(first, third); assertNotSame(second, third);
+        for (TopNParent row : rows) {
+            assertTrue(row.isPropertyLoaded("children"));
+            assertFalse(row.__internalHasMutationLedger());
+            assertSame(rows.get(0).__internalLoadState(), row.__internalLoadState());
+        }
+        TopNChild appended = new TopNChild(); first.add(appended);
+        assertSame(appended, first.first()); assertTrue(second.isEmpty()); assertTrue(third.isEmpty());
+        assertTrue(SmartList.empty(TopNChild.class).isEmpty());
+        assertEquals(writesBefore, sqliteDb.executeTrace().size());
+        for (TopNParent row : rows) assertFalse(row.__internalHasMutationLedger());
+    }
+
+    @Test
+    public void unselectedReverseListRemainsNotLoadedWithoutLedgerOrWrites() {
+        registerTopNFixture();
+        TopNParentRequest parent = new TopNParentRequest();
+        parent.selectProperty("id"); parent.selectProperty("version"); parent.selectProperty("name");
+        parent.addOrderByAscending("id"); parent.offset(0, 1);
+        int writesBefore = sqliteDb.executeTrace().size();
+        SmartList<TopNParent> rows = parent.comment("Load an owner without selecting children")
+                .purpose("Keep absent relation details distinct from an explicitly empty list")
+                .executeForList(context);
+        assertEquals(1, rows.size()); assertFalse(rows.first().isPropertyLoaded("children"));
+        assertNull(rows.first().getProperty("children")); assertFalse(rows.first().__internalHasMutationLedger());
+        assertEquals(writesBefore, sqliteDb.executeTrace().size());
+    }
+
     private Map<Long, List<Long>> loadTopNFixture(Integer threshold) {
         sqliteDb.clearQueryTrace();
         TopNChildRequest child = new TopNChildRequest().where("state", Operator.EQUAL, "visible");
@@ -463,7 +507,10 @@ public class PortableSQLDatabaseTest {
             assertTrue("selected relation marker must include empty parents", row.isPropertyLoaded("children"));
             assertFalse("read hydration must not allocate a mutation ledger", row.__internalHasMutationLedger());
             assertSame("loaded and empty reverse parents share one actual shape", shared, row.__internalLoadState());
-            if (children.isEmpty()) assertSame(SmartList.empty(TopNChild.class), children);
+            if (children.isEmpty()) {
+                assertFalse("entity-owned lists must accept generated child attachment", children.isSharedEmpty());
+                assertNotSame(SmartList.empty(TopNChild.class), children);
+            }
             result.put(row.getId(), children.toList(Entity::getId));
         }
         return result;
