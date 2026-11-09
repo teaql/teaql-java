@@ -82,7 +82,7 @@ try {
   fs.writeFileSync(path.join(evidence, "generated-manifest.json"), JSON.stringify(generated, null, 2) + "\n");
   const libraryBefore = generatedHashes(path.join(app, "lib"));
   const source = path.join(app, "src/main/java/com/example/exactdecimalservice");
-  for (const file of ["GeneratedExactDecimalProbe.java", "GeneratedWorkspaceStartupProbe.java"])
+  for (const file of ["GeneratedExactDecimalProbe.java", "GeneratedWorkspaceStartupProbe.java", "GeneratedMemoryAggregateProbe.java"])
     fs.copyFileSync(path.join(runtime, "examples/exact-decimal", file), path.join(source, file));
   const version = fs.readFileSync(path.join(runtime, "pom.xml"), "utf8").match(/<version>([^<]+)<\/version>/)[1];
   assert(!version.includes("${"));
@@ -95,6 +95,8 @@ try {
   for (const [module, entry] of [
     ["teaql-core", "io/teaql/core/UserContext.class"],
     ["teaql-runtime", "io/teaql/runtime/TeaQLRuntime.class"],
+    ["teaql-runtime", "io/teaql/runtime/memory/MemoryDataService.class"],
+    ["teaql-runtime", "io/teaql/runtime/memory/MemoryAggregations.class"],
     ["teaql-sqlite", "io/teaql/core/sqlite/SqliteDecimalFunctions.class"],
   ]) {
     const compiled = fs.readFileSync(path.join(runtime, module, "target/classes", entry));
@@ -109,6 +111,8 @@ try {
     const startup = run("workspace-" + round, ["java", "-cp", artifact, "com.example.exactdecimalservice.GeneratedWorkspaceStartupProbe",
       "--teaql.datasource.url=jdbc:sqlite:" + path.join(evidence, "workspace.sqlite")], scratch);
     assert(startup.includes("GENERATED_EXACT_DECIMAL_WORKSPACE_PASS"));
+    const memory = run("memory-" + round, ["java", "-cp", artifact, "com.example.exactdecimalservice.GeneratedMemoryAggregateProbe"], scratch);
+    assert(memory.includes("GENERATED_MEMORY_AGGREGATE_PASS q=1 e=1 mutation=1 sum=0.3 empty=null fallback=0 rows=2 sql=0"));
     assert.deepEqual(generatedHashes(path.join(app, "lib")), libraryBefore, "generated library changed during application verification");
   }
   assert.deepEqual({runtime: snapshot(runtimeRoot), generator: snapshot(generatorRoot)}, before, "source changed during verification");
