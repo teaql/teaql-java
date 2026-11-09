@@ -9,9 +9,19 @@ import java.util.List;
 public final class SqlTemporalPrecision {
     private SqlTemporalPrecision() { }
 
+    /** Normalize new SQL parameters without changing caller-owned native values. */
     public static LocalDateTime dateTime(LocalDateTime value) {
         return value == null || value.getNano() % 1_000_000 == 0
                 ? value : value.truncatedTo(ChronoUnit.MILLIS);
+    }
+
+    /** Never turn an incompatible legacy row into a successful lossy read. */
+    static LocalDateTime storedDateTime(LocalDateTime value, String entityType, String field) {
+        if (value != null && value.getNano() % 1_000_000 != 0) {
+            // Deliberately omit the private value and any value-carrying cause.
+            throw new SqlTemporalPrecisionException(entityType, field);
+        }
+        return value;
     }
 
     private static Object parameter(Object value) {

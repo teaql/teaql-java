@@ -1027,7 +1027,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                     Class<?> javaType = property.getType().javaType();
                     value = row.get(binding.index(), javaType);
                     if (javaType == java.time.LocalDateTime.class && value != null) {
-                        value = convertTemporalColumnValue(javaType, value);
+                        value = convertColumnValue(property, value);
                     }
                 }
                 else {
@@ -1239,9 +1239,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             }
             Object value = row.get(columnKey);
             if (!(property instanceof Relation)) {
-                Class targetType = property.getType().javaType();
                 entity.setProperty(property.getName(), value == null
-                        ? null : convertColumnValue(targetType, value));
+                        ? null : convertColumnValue(property, value));
             } else if (value == null) {
                 entity.setProperty(property.getName(), null);
             } else {
@@ -1353,12 +1352,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             String columnKey = binding.column();
             if (!(property instanceof Relation)) {
                 Object value = row.get(columnKey);
-                Class targetType = property.getType().javaType();
                 entity.setProperty(
                         property.getName(),
                         value == null
                                 ? null
-                                : convertColumnValue(targetType, value));
+                                : convertColumnValue(property, value));
             } else if (property instanceof Relation) {
                 Object value = row.get(columnKey);
                 if (value == null) {
@@ -1415,12 +1413,20 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     static Object convertTemporalColumnValue(Class<?> targetType, Object value) {
+        return convertTemporalColumnValue(targetType, value, null, null);
+    }
+
+    private static Object convertTemporalColumnValue(Class<?> targetType, Object value,
+            String entityType, String field) {
         if (targetType == java.time.LocalDateTime.class) {
             if (value == null) return null;
-            if (value instanceof java.time.LocalDateTime dateTime) return SqlTemporalPrecision.dateTime(dateTime);
-            if (value instanceof java.sql.Timestamp timestamp) return SqlTemporalPrecision.dateTime(timestamp.toLocalDateTime());
+            if (value instanceof java.time.LocalDateTime dateTime)
+                return SqlTemporalPrecision.storedDateTime(dateTime, entityType, field);
+            if (value instanceof java.sql.Timestamp timestamp)
+                return SqlTemporalPrecision.storedDateTime(timestamp.toLocalDateTime(), entityType, field);
             String text = String.valueOf(value);
-            return SqlTemporalPrecision.dateTime(java.time.LocalDateTime.parse(text.replace(' ', 'T')));
+            return SqlTemporalPrecision.storedDateTime(
+                    java.time.LocalDateTime.parse(text.replace(' ', 'T')), entityType, field);
         }
         if ((targetType == java.time.LocalDate.class || targetType == java.time.LocalTime.class)
                 && targetType.isInstance(value)) {
@@ -1446,8 +1452,9 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         return io.teaql.core.utils.Convert.convert(targetType, value);
     }
 
-    private Object convertColumnValue(Class<?> targetType, Object value) {
-        return convertTemporalColumnValue(targetType, value);
+    private Object convertColumnValue(PropertyDescriptor property, Object value) {
+        return convertTemporalColumnValue(property.getType().javaType(), value,
+                entityDescriptor.getType(), property.getName());
     }
 
     @SuppressWarnings("unchecked")

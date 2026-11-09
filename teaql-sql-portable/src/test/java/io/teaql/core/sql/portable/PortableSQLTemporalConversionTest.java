@@ -21,10 +21,10 @@ public class PortableSQLTemporalConversionTest {
         org.junit.Assert.assertEquals(123000000, timestamp.getNano());
     }
     @Test
-    public void subMillisecondSqlReadCopiesWithoutChangingTheNativeValue() {
+    public void subMillisecondSqlReadRejectsWithoutChangingTheNativeValue() {
         var nativeValue = LocalDateTime.of(2026, 11, 10, 12, 34, 56, 123456789);
-        assertEquals(nativeValue.withNano(123000000),
-                PortableSQLRepository.convertTemporalColumnValue(LocalDateTime.class, nativeValue));
+        org.junit.Assert.assertThrows(SqlTemporalPrecisionException.class,
+                () -> PortableSQLRepository.convertTemporalColumnValue(LocalDateTime.class, nativeValue));
         assertEquals(123456789, nativeValue.getNano());
         org.junit.Assert.assertNull(PortableSQLRepository.convertTemporalColumnValue(LocalDateTime.class, null));
     }

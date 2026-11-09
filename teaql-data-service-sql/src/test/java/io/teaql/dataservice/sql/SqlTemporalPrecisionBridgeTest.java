@@ -109,17 +109,25 @@ public class SqlTemporalPrecisionBridgeTest {
     }
     private Object read(Object value) throws Exception {
         var method=PortableSQLRepository.class.getDeclaredMethod("convertTemporalColumnValue",Class.class,Object.class);
-        method.setAccessible(true);return method.invoke(null,LocalDateTime.class,value);
+        method.setAccessible(true);
+        try { return method.invoke(null,LocalDateTime.class,value); }
+        catch (InvocationTargetException error) {
+            if (error.getCause() instanceof RuntimeException runtime) throw runtime;
+            throw error;
+        }
     }
-    @Test public void nativeSqlDateTimeReadUsesMillisecondsWithoutMutatingTheNativeInput() throws Exception {
-        assertEquals(EXPECTED,read(INPUT));assertEquals(123456789,INPUT.getNano());
+    @Test public void nativeSqlDateTimeReadRejectsLegacyPrecisionWithoutMutatingTheNativeInput() throws Exception {
+        assertThrows(SqlTemporalPrecisionException.class,()->read(INPUT));assertEquals(123456789,INPUT.getNano());
+        assertSame(EXPECTED,read(EXPECTED));
     }
-    @Test public void jdbcTimestampReadUsesTheSameMillisecondPolicy() throws Exception {
+    @Test public void jdbcTimestampReadRejectsTheSameLegacyPrecision() throws Exception {
         var timestamp=java.sql.Timestamp.valueOf(INPUT);
-        assertEquals(EXPECTED,read(timestamp));assertEquals(123456789,timestamp.getNanos());
+        assertThrows(SqlTemporalPrecisionException.class,()->read(timestamp));assertEquals(123456789,timestamp.getNanos());
+        assertEquals(EXPECTED,read(java.sql.Timestamp.valueOf(EXPECTED)));
     }
-    @Test public void textualSqlFallbackReadUsesTheSameMillisecondPolicy() throws Exception {
-        assertEquals(EXPECTED,read("2026-11-10 12:34:56.123456789"));
+    @Test public void textualSqlFallbackReadRejectsTheSameLegacyPrecision() throws Exception {
+        assertThrows(SqlTemporalPrecisionException.class,()->read("2026-11-10 12:34:56.123456789"));
+        assertEquals(EXPECTED,read("2026-11-10 12:34:56.123"));
     }
     @Test public void copyPasteDebugSqlRepresentsTheEffectiveMillisecondBinding() {
         assertEquals("SELECT '2026-11-10 12:34:56.123'",SqlDataServiceExecutor.debugSql("SELECT ?",new Object[]{INPUT}));
