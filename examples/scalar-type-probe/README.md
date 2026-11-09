@@ -160,3 +160,23 @@ is confined to explicit fault injection, its repair and independent readback.
 Audited generated creates and a real update, exact native integer endpoints,
 connection recovery and unchanged query-time audit/policy counts are also checked.
 The complete example entry point includes this mode.
+
+## Generated SQL millisecond boundary
+
+`node examples/scalar-type-probe/verify-local.cjs --sql-millis` exercises the
+approved millisecond SQL precision through the unchanged generated library.
+Four tests run twice against four retained SQLite stores, without resetting them.
+They cover eighteen create/save/Q-equality/E/physical-readback combinations across
+UTC, New York and Shanghai; three audited updates; eighteen passive native JSON
+round trips; and an omitted-field NotLoaded projection. Inputs include aligned
+milliseconds, sub-millisecond fractions, a DST-gap wall time, fractions just
+before the next second, pre-epoch values and zero fractional seconds.
+
+SQL truncates fractions rather than rounding. Save's authoritative readback,
+typed Q predicates and loaded E must agree with physical storage. Native input
+and JSON retain nanosecond precision until the SQL boundary. Direct SQL is a
+read-only oracle, not the application write path. Runtime code comes only from
+the repository-local source reactor, and generated source hashes must not change.
+This mode is part of the complete example entry point. It does not settle the
+separate policy for pre-existing noncanonical SQL values or qualify a published
+runtime package.
