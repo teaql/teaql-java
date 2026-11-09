@@ -93,6 +93,10 @@ async function main() {
       finally { fs.closeSync(fd); }
       const bytes = fs.readFileSync(log), text = bytes.toString();
       report.commands.push({command, exitCode: result.status, signal: result.signal, logSha256: sha(bytes)});
+      if (sqlMillis) {
+        const junit = path.join(consumer, 'target/surefire-reports/TEST-com.example.scalartypeconformanceservice.GeneratedSqlMillisecondTest.xml');
+        if (fs.existsSync(junit)) fs.copyFileSync(junit, path.join(output, 'round-'+round+'-junit.xml'));
+      }
       assert.equal(result.status, 0, text.slice(-12000)); assert.equal(result.signal, null);
       if (sqlMillis) {
         const values = [...text.matchAll(/^JAVA_SQL_MILLISECOND=(.+)$/gm)].map(match => JSON.parse(match[1]));
