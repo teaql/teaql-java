@@ -17,6 +17,10 @@
     <dependencies>
         <dependency>
             <groupId>io.teaql</groupId>
+            <artifactId>teaql-utils</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.teaql</groupId>
             <artifactId>teaql-data-service-sql</artifactId>
         </dependency>
         <!-- Testing dependencies -->

@@ -180,6 +180,30 @@ public class JdbcSqlExecutorTest {
     }
 
     @Test
+    public void sqliteDateTimeBoundaryKeepsDstGapWallTimeAndSqlLiteralAligned() throws Exception {
+        var zone = java.util.TimeZone.getDefault();
+        var value = java.time.LocalDateTime.of(2024, 3, 10, 2, 30, 0, 123456789);
+        try {
+            for (var name : List.of("UTC", "America/New_York", "Asia/Shanghai")) {
+                java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone(name));
+                Object[] effective = io.teaql.core.sql.portable.SqlTemporalPrecision.parameters(new Object[]{value});
+                try (Connection connection = DriverManager.getConnection("jdbc:sqlite::memory:");
+                     java.sql.PreparedStatement query = connection.prepareStatement("SELECT ?")) {
+                    JdbcSqlExecutor.bind(query, 1, effective[0]);
+                    try (ResultSet result = query.executeQuery()) {
+                        assertTrue(result.next());assertEquals("2024-03-10 02:30:00.123", result.getString(1));
+                    }
+                    try (ResultSet result = connection.createStatement().executeQuery(
+                            io.teaql.dataservice.sql.SqlDataServiceExecutor.debugSql("SELECT ?", new Object[]{value}))) {
+                        assertTrue(result.next());assertEquals("2024-03-10 02:30:00.123", result.getString(1));
+                    }
+                }
+                assertEquals(123456789, value.getNano());
+            }
+        } finally { java.util.TimeZone.setDefault(zone); }
+    }
+
+    @Test
     public void testBatchUpdate() throws Exception {
         List<Object[]> batch = new ArrayList<>();
         batch.add(new Object[]{2, "Bob", 30});
