@@ -56,6 +56,7 @@ async function main() {
       const to = path.join(source, file); fs.mkdirSync(path.dirname(to), {recursive: true}); fs.copyFileSync(from, to);
     }
     fs.cpSync(path.join(__dirname, 'generated/lib'), generated, {recursive: true});
+    report.libraryMetadata = require('../../scripts/pin-local-example-pom.cjs').pin(path.join(generated, 'pom.xml'), repo, scratch);
     const tests = path.join(consumer, 'src/test/java/com/example/scalartypeconformanceservice'); fs.mkdirSync(tests, {recursive: true});
     fs.copyFileSync(path.join(__dirname, 'GeneratedCanonicalNameTest.java'), path.join(tests, 'GeneratedCanonicalNameTest.java'));
     report.applicationSha256 = sha(fs.readFileSync(path.join(__dirname, 'GeneratedCanonicalNameTest.java')));

@@ -51,6 +51,7 @@ try {
     fs.mkdirSync(path.dirname(path.join(runtime, file)), {recursive: true}); fs.copyFileSync(from, path.join(runtime, file));
   }
   fs.cpSync(path.join(example, "generated/lib"), generated, {recursive: true});
+  report.libraryMetadata = require('../../scripts/pin-local-example-pom.cjs').pin(path.join(generated, 'pom.xml'), repo, scratch);
   fs.mkdirSync(path.join(consumer, "src/test/java/io/teaql/examples/fixe"), {recursive: true});
   for (const file of fs.readdirSync(example).filter(file => file.endsWith(".java")))
     fs.copyFileSync(path.join(example, file), path.join(consumer, "src/test/java/io/teaql/examples/fixe", file));
