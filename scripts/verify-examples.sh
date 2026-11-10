@@ -66,6 +66,8 @@ TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/sql-millisecond" \
   node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --sql-millis
 TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/empty-aggregates" \
   node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --empty
+TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/memory-empty-aggregates" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --memory-empty
 TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/json-profiles" \
   node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs"
 TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/json-lifecycle" \

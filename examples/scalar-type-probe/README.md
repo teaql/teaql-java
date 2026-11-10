@@ -205,3 +205,13 @@ The app and eight vectors are hash-bound to the unchanged fixture and original
 acceptance test. This mode is included in `scripts/verify-examples.sh`; local
 source verification remains separate from installed SDK acceptance. Build
 outputs are disposed after retaining logs, JUnit XML, hashes and the database.
+
+`--memory-empty` runs the same eight value vectors through the existing pure
+memory provider with generated Q/E and audited Mutation APIs. Both logging
+modes cover relation SUM/COUNT, include-all versus matched-only facet buckets,
+one visible row with complete aggregate membership, selected-null JSON and
+local fallback without contaminating raw results. No database/schema or SQL
+fault injection is used; a counting provider proves queries make zero writes
+and produce no fabricated SQL metadata. Each of two JVM rounds uses its own
+in-process store. This mode is part of the default example inventory; source
+and private SDK acceptance are still separate stages.
