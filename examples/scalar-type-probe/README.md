@@ -187,3 +187,21 @@ emit mutation audit; an independent SQL oracle preserves the exact old text and
 version. This is not an automatic migration and does not qualify a published
 runtime package. Explicit-transaction and installed-artifact acceptance remain
 separate from this local example.
+
+## Empty aggregates and real query failure
+
+`node examples/scalar-type-probe/verify-local.cjs --empty` runs EA01–08 twice
+against the same retained SQLite database through generated audited Mutation,
+Q and E APIs. COUNT returns zero; SUM remains null for no contributions or
+all-null contributions, while a real zero remains zero. Independent relation
+buckets and facet options cannot borrow another bucket's values. A selected
+null aggregate remains present in entity JSON. An explicit local zero fallback
+does not mutate the raw aggregate result.
+
+Both SQL logging modes execute real provider calls, including a deliberate
+SQLite error followed by an independent successful query. The test checks
+request comments, purpose and physical TraceChain lineage, not just totals.
+The app and eight vectors are hash-bound to the unchanged fixture and original
+acceptance test. This mode is included in `scripts/verify-examples.sh`; local
+source verification remains separate from installed SDK acceptance. Build
+outputs are disposed after retaining logs, JUnit XML, hashes and the database.

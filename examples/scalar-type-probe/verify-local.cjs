@@ -3,7 +3,8 @@
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os'), cp = require('node:child_process'), crypto = require('node:crypto'), assert = require('node:assert/strict');
 const {createOwnedRunner, ownedBytes} = require('../fix-e-alignment/owned-command.cjs');
 const repo = path.resolve(__dirname, '../..'), sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
-assert(process.argv.length === 2 || process.argv.length === 3 && ['--restoration-views','--outer-replay','--finite','--jdbc-exact','--sql-millis'].includes(process.argv[2]));
+assert(process.argv.length === 2 || process.argv.length === 3 && ['--restoration-views','--outer-replay','--finite','--jdbc-exact','--sql-millis','--empty'].includes(process.argv[2]));
+const empty = process.argv[2] === '--empty';
 const restorationViews = process.argv[2] === '--restoration-views';
 const outerReplay = process.argv[2] === '--outer-replay';
 const finite = process.argv[2] === '--finite';
@@ -41,7 +42,7 @@ function fixture() {
   return {manifest, manifestSha256: sha(bytes)};
 }
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'teaql-java-name-build-')), runner = createOwnedRunner();
-const report = {schema: sqlMillis ? 'teaql.java-sql-millisecond-example/v1' : finite ? 'teaql.java-finite-scalar-example/v1' : jdbcExact ? 'teaql.java-jdbc-exact-read-example/v1' : outerReplay ? 'teaql.java-outer-replay-example/v1' : restorationViews ? 'teaql.java-restoration-views-example/v1' : 'teaql.java-canonical-name-example/v1', passed: false, commands: [], rounds: [], sameDatabase: true, publicPublication: false, internalArtifactAccepted: false};
+const report = {schema: empty ? 'teaql.java-empty-aggregate-example/v1' : sqlMillis ? 'teaql.java-sql-millisecond-example/v1' : finite ? 'teaql.java-finite-scalar-example/v1' : jdbcExact ? 'teaql.java-jdbc-exact-read-example/v1' : outerReplay ? 'teaql.java-outer-replay-example/v1' : restorationViews ? 'teaql.java-restoration-views-example/v1' : 'teaql.java-canonical-name-example/v1', passed: false, commands: [], rounds: [], sameDatabase: true, publicPublication: false, internalArtifactAccepted: false};
 async function main() {
   try {
     const disk = fs.statfsSync(scratch); assert(disk.bavail * disk.bsize > 8 * 1024 ** 3);
@@ -57,6 +58,15 @@ async function main() {
     const tests = path.join(consumer, 'src/test/java/com/example/scalartypeconformanceservice'); fs.mkdirSync(tests, {recursive: true});
     fs.copyFileSync(path.join(__dirname, 'GeneratedCanonicalNameTest.java'), path.join(tests, 'GeneratedCanonicalNameTest.java'));
     report.applicationSha256 = sha(fs.readFileSync(path.join(__dirname, 'GeneratedCanonicalNameTest.java')));
+    if (empty) {
+      const provenance = JSON.parse(fs.readFileSync(path.join(__dirname, 'empty-provenance.json')));
+      for (const [name, expected] of [['JavaEmptyAggregateTest.java', provenance.applicationSha256], ['empty-vectors.json', provenance.vectorsSha256]]) {
+        const body = fs.readFileSync(path.join(__dirname, name)); assert.equal(sha(body), expected);
+        fs.writeFileSync(path.join(output, name), body);
+        if (name.endsWith('.java')) fs.writeFileSync(path.join(tests, name), body);
+      }
+      report.emptyProvenance = provenance;
+    }
     if (sqlMillis) {
       const name = 'GeneratedSqlMillisecondTest.java', body = fs.readFileSync(path.join(__dirname, name));
       fs.writeFileSync(path.join(tests, name), body); report.sqlMillisApplicationSha256 = sha(body);
@@ -86,10 +96,11 @@ async function main() {
     const reactor = path.join(scratch, 'pom.xml'); fs.writeFileSync(reactor, '<project><modelVersion>4.0.0</modelVersion><groupId>io.teaql.test</groupId><artifactId>canonical-name-reactor</artifactId><version>0.0.0</version><packaging>pom</packaging><modules><module>source</module><module>generated</module><module>consumer</module></modules></project>');
     const expectedCases = ['canonical-create', 'q-e-load-state', 'canonical-update', 'malformed-zero-provider', 'required-zero-provider', 'typed-json-default-profile', 'real-second-update-rollback', 'same-graph-retry'];
     for (const round of [1, 2]) {
-      const command = ['mvn', '-o', '-B', '-ntp', '-f', reactor, '-pl', ':teaql-canonical-name-example', '-am', 'test', sqlMillis ? '-Dtest=GeneratedSqlMillisecondTest' : finite ? '-Dtest=GeneratedFiniteScalarTest' : jdbcExact ? '-Dtest=GeneratedJdbcExactReadTest' : outerReplay ? '-Dtest=GeneratedOuterReplayTest' : restorationViews ? '-Dtest=GeneratedRestorationViewTest' : '-Dtest=GeneratedCanonicalNameTest', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dteaql.version=' + version, '-Dteaql.expected.runtime.root=' + source];
+      const command = ['mvn', '-o', '-B', '-ntp', '-f', reactor, '-pl', ':teaql-canonical-name-example', '-am', 'test', empty ? '-Dtest=JavaEmptyAggregateTest' : sqlMillis ? '-Dtest=GeneratedSqlMillisecondTest' : finite ? '-Dtest=GeneratedFiniteScalarTest' : jdbcExact ? '-Dtest=GeneratedJdbcExactReadTest' : outerReplay ? '-Dtest=GeneratedOuterReplayTest' : restorationViews ? '-Dtest=GeneratedRestorationViewTest' : '-Dtest=GeneratedCanonicalNameTest', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dteaql.version=' + version, '-Dteaql.expected.runtime.root=' + source];
       const log = path.join(output, 'round-' + round + '.log'), fd = fs.openSync(log, 'wx'); let result;
       try { result = await runner.run(command, {cwd: scratch, timeout: 300000, env: {...process.env,
-        TEAQL_NAME_DB: path.join(output, 'fixture.sqlite'), TEAQL_NAME_ROUND: String(round)}, stdio: ['ignore', fd, fd]}); }
+        TEAQL_NAME_DB: path.join(output, 'fixture.sqlite'), TEAQL_NAME_ROUND: String(round),
+        ...(empty ? {TEAQL_EMPTY_DB:path.join(output,'fixture.sqlite'),TEAQL_EMPTY_ROUND:String(round),TEAQL_EMPTY_VECTORS:path.join(output,'empty-vectors.json')} : {})}, stdio: ['ignore', fd, fd]}); }
       finally { fs.closeSync(fd); }
       const bytes = fs.readFileSync(log), text = bytes.toString();
       report.commands.push({command, exitCode: result.status, signal: result.signal, logSha256: sha(bytes)});
@@ -98,6 +109,17 @@ async function main() {
         if (fs.existsSync(junit)) fs.copyFileSync(junit, path.join(output, 'round-'+round+'-junit.xml'));
       }
       assert.equal(result.status, 0, text.slice(-12000)); assert.equal(result.signal, null);
+      if (empty) {
+        const junit = fs.readFileSync(path.join(consumer, 'target/surefire-reports/TEST-com.example.scalartypeconformanceservice.JavaEmptyAggregateTest.xml'));
+        assert.match(junit.toString(), /tests="1"/); assert.match(junit.toString(), /failures="0"/); assert.match(junit.toString(), /errors="0"/); assert.match(junit.toString(), /skipped="0"/);
+        fs.writeFileSync(path.join(output,'round-'+round+'-junit.xml'),junit);
+        const values = [...text.matchAll(/^JAVA_GENERATED_EMPTY_AGGREGATE=(.+)$/gm)].map(match=>JSON.parse(match[1]));
+        assert.equal(values.length,1); require('./empty-observations.cjs').observation(values[0],round);
+        for (const row of values[0].rows.filter(row=>row.case==='EA-05')) {
+          assert(Object.hasOwn(row.entityJSON,'_total')); assert.equal(row.entityJSON._total,null); assert.equal(row.entityJSON._rows,0);
+        }
+        report.rounds.push(values[0]); assert.deepEqual(fixture(),input); assert.equal(sourceHash(),before); continue;
+      }
       if (sqlMillis) {
         const values = [...text.matchAll(/^JAVA_SQL_MILLISECOND=(.+)$/gm)].map(match => JSON.parse(match[1]));
         assert.equal(values.length, 5); assert(values.every(v => v.passed && v.round === round && !v.legacySqlPrecisionAccepted && !v.businessClockChanged
@@ -159,9 +181,11 @@ async function main() {
       const file = 'fixture.sqlite.views-' + name + '.sqlite'; return [file, sha(fs.readFileSync(path.join(output, file)))];
     }));
     else report.databaseSha256 = sha(fs.readFileSync(path.join(output, 'fixture.sqlite')));
+    if (empty) assert.equal(new Set(report.rounds.flatMap(value=>[...value.scalarIds,...value.bucketIds])).size,16);
     report.passed = true;
     if (sqlMillis) report.legacySqlMigrationRejectionAccepted = true;
-    console.log(sqlMillis ? 'PASS generated Java SQL milliseconds save, typed Q/E, native JSON, projections and legacy rejection twice'
+    console.log(empty ? 'PASS generated Java EA01–08, selected-null JSON and actual SQLite failure/recovery twice'
+      : sqlMillis ? 'PASS generated Java SQL milliseconds save, typed Q/E, native JSON, projections and legacy rejection twice'
       : finite ? 'PASS generated Java finite scalar, customer Fix, legacy reads and graph retry twice'
       : jdbcExact ? 'PASS generated Java exact JDBC Q/E corruption boundaries twice'
       : outerReplay ? 'PASS generated Java seven outer transaction retry scenarios twice'
