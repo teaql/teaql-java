@@ -75,17 +75,24 @@ try {
   assert(dependencies.split(path.delimiter).some(file => file.startsWith(path.join(generator, "model/target") + path.sep)),
     "generator must use the model artifact built from this source, not a stale local-cache coordinate");
   const classpath = path.join(generator, "generator/target/classes") + path.delimiter + dependencies;
-  const model = path.join(runtime, "examples/exact-decimal/model.xml");
+  const originalModel = path.join(runtime, 'examples/exact-decimal/model.xml');
+  const version = fs.readFileSync(path.join(runtime, "pom.xml"), "utf8").match(/<version>([^<]+)<\/version>/)[1];
+  assert(!version.includes("${"));
+  const originalModelBytes = fs.readFileSync(originalModel);
+  assert(!originalModelBytes.toString().includes('teaql_java_version='));
+  const model = path.join(scratch, 'model.xml');
+  const selectedModel = originalModelBytes.toString().replace(/<root\s/, '<root teaql_java_version="' + version + '" ');
+  assert.notEqual(selectedModel, originalModelBytes.toString());
+  fs.writeFileSync(model, selectedModel);
   run("generation", ["java", "-cp", classpath, "com.skynet.codegenerator.LocalGenerator", "java-app-console", app, model], generator);
   // This public local entry point calls generateValidated before writing files.
-  generated = {modelSha256: sha(fs.readFileSync(model)), files: generatedHashes(app)};
+  generated = {modelSha256: sha(fs.readFileSync(model)), originalModelSha256: sha(originalModelBytes),
+    runtimeVersionOverride: {attribute: 'teaql_java_version', value: version}, files: generatedHashes(app)};
   fs.writeFileSync(path.join(evidence, "generated-manifest.json"), JSON.stringify(generated, null, 2) + "\n");
   const libraryBefore = generatedHashes(path.join(app, "lib"));
   const source = path.join(app, "src/main/java/com/example/exactdecimalservice");
   for (const file of ["GeneratedExactDecimalProbe.java", "GeneratedWorkspaceStartupProbe.java", "GeneratedMemoryAggregateProbe.java"])
     fs.copyFileSync(path.join(runtime, "examples/exact-decimal", file), path.join(source, file));
-  const version = fs.readFileSync(path.join(runtime, "pom.xml"), "utf8").match(/<version>([^<]+)<\/version>/)[1];
-  assert(!version.includes("${"));
   const reactor = path.join(scratch, "pom.xml");
   fs.writeFileSync(reactor, '<project><modelVersion>4.0.0</modelVersion><groupId>io.teaql.test</groupId><artifactId>exact-decimal-source-reactor</artifactId><version>0.0.0</version><packaging>pom</packaging><modules><module>runtime</module><module>app/lib</module><module>app</module></modules></project>\n');
   run("source-paired-build", ["mvn", "-B", "-ntp", "-f", reactor, "-pl", ":exact-decimal-service", "-am", "package",
