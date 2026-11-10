@@ -22,14 +22,17 @@ public class MemoryAggregationTest {
     public static final class Sample extends BaseEntity {
         private Number amount;
         private String bucket;
+        private Sample parent;
 
         Sample amount(Number value) { handleUpdate("amount", amount, value); amount = value; return this; }
         Sample bucket(String value) { handleUpdate("bucket", bucket, value); bucket = value; return this; }
+        Sample parent(Sample value) { handleUpdate("parent", parent, value); parent = value; return this; }
         @Override public String typeName() { return "MemoryAmount"; }
         @Override public Object __internalGet(String property) {
             return switch (property) {
                 case "amount" -> amount;
                 case "bucket" -> bucket;
+                case "parent" -> parent;
                 default -> super.__internalGet(property);
             };
         }
@@ -37,13 +40,14 @@ public class MemoryAggregationTest {
             switch (property) {
                 case "amount" -> amount = (Number) value;
                 case "bucket" -> bucket = (String) value;
+                case "parent" -> parent = (Sample) value;
                 default -> super.__internalSet(property, value);
             }
         }
     }
 
     private static final class Request extends BaseRequest<Sample> {
-        Request() { super(Sample.class); internalComment("inspect memory aggregates"); purpose("verify empty aggregate semantics"); }
+        Request() { super(Sample.class, Sample::new); internalComment("inspect memory aggregates"); purpose("verify empty aggregate semantics"); }
         @Override public String getTypeName() { return "MemoryAmount"; }
         Request only(String bucket) { appendSearchCriteria(createBasicSearchCriteria("bucket", Operator.EQUAL, bucket)); return this; }
         Request comment(String comment) { internalComment(comment); return this; }
@@ -52,19 +56,27 @@ public class MemoryAggregationTest {
 
     private DefaultUserContext context;
     private MemoryDataService service;
+    private boolean denyNestedQuery;
 
     @Before public void setup() {
         var metadata = new SimpleEntityMetaFactory();
         var descriptor = new EntityDescriptor();
         descriptor.setType("MemoryAmount"); descriptor.setTargetType(Sample.class); descriptor.setDataService("memory");
+        descriptor.setEntitySupplier(Sample::new);
         var properties = new ArrayList<PropertyDescriptor>();
-        for (String name : List.of("id", "version", "amount", "bucket")) {
+        for (String name : List.of("id", "version", "amount", "bucket", "parent")) {
             var property = new PropertyDescriptor(); property.setName(name); property.setOwner(descriptor); properties.add(property);
         }
         descriptor.setProperties(properties); metadata.register(descriptor);
         service = new MemoryDataService("memory");
         var ids = new AtomicLong(100);
         context = new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata).dataService("memory", service)
+                .queryPolicy(new QueryPolicy() {
+                    @Override public void enforceSelect(UserContext caller, SearchRequest<?> request) {
+                        if (denyNestedQuery && QueryRequestScope.capture(request).parentRequest() != null)
+                            throw new TeaQLRuntimeException("memory nested query denied by policy");
+                    }
+                })
                 .idGenerationService((c, e) -> ids.getAndIncrement()).build());
     }
 
@@ -146,5 +158,85 @@ public class MemoryAggregationTest {
     @Test public void missingIntentStillRejectsBeforeProviderAccess() {
         var request = aggregate().comment(" ");
         assertThrows(RuntimeException.class, () -> request.run(context));
+    }
+
+    private Sample saved(Sample row) {
+        row.auditAs("seed a memory graph bucket").save(context); return row;
+    }
+    private Request related(Request targets) {
+        targets.addRelationCount("rows", new Request().only("child"), "parent", null);
+        targets.addRelationScalarAggregate("total", new Request().only("child"), "parent", "amount", AggrFunction.SUM, null);
+        return targets;
+    }
+    private SmartList<Sample> list(Request request) {
+        return request.purpose("verify memory graph aggregate boundaries").executeForList(context);
+    }
+    @Test public void emptyRelatedValuesArePresentWithoutContaminatingStoredOrEarlierRows() {
+        var parent = saved(new Sample().bucket("parent").amount(null).parent(null));
+        var request = related(new Request().only("parent")); request.selectProperty("bucket");
+        var childTemplate = request.getDynamicAggregateAttributes().get(0).getAggregateRequest();
+        var originalCriteria = childTemplate.getSearchCriteria();
+        var first = list(request).get(0);
+        number("0", first.getDynamicProperty("rows")); assertTrue(first.hasDynamicProperty("total"));
+        assertNull(first.getDynamicProperty("total")); assertFalse(first.isPropertyLoaded("amount"));
+        assertNotSame(parent, first); assertFalse(parent.hasDynamicProperty("rows"));
+        saved(new Sample().bucket("child").amount(7).parent(parent));
+        var second = list(request).get(0);
+        number("1", second.getDynamicProperty("rows")); number("7", second.getDynamicProperty("total"));
+        number("0", first.getDynamicProperty("rows")); assertNull(first.getDynamicProperty("total"));
+        assertSame(originalCriteria, childTemplate.getSearchCriteria());
+        assertEquals(0, childTemplate.getAggregations().getDimensions().size());
+        assertFalse(parent.hasDynamicProperty("total")); assertFalse(first.needPersist());
+    }
+    @Test public void facetsUseFullFilteredMembershipEvenWhenVisiblePageIsEmpty() {
+        var a = saved(new Sample().bucket("parent").amount(null).parent(null));
+        var b = saved(new Sample().bucket("parent").amount(null).parent(null));
+        saved(new Sample().bucket("child").amount(null).parent(a));
+        saved(new Sample().bucket("child").amount(2).parent(a));
+        saved(new Sample().bucket("excluded").amount(100).parent(a));
+        var targets = related(new Request().only("parent")); targets.selectProperty("bucket");
+        var source = new Request().only("child"); source.offset(100, 1);
+        source.addFacet("buckets", "parent", targets, true);
+        var result = list(source); assertTrue(result.isEmpty());
+        var facets = result.getFacet("buckets"); assertEquals(2, facets.size());
+        for (Object value : facets) {
+            var row = (Sample) value;
+            number(row.getId().equals(a.getId()) ? "2" : "0", row.getDynamicProperty("count"));
+            number(row.getId().equals(a.getId()) ? "2" : "0", row.getDynamicProperty("rows"));
+            if (row.getId().equals(b.getId())) assertNull(row.getDynamicProperty("total"));
+            else number("2", row.getDynamicProperty("total"));
+        }
+        source.getFacetRequests().get(0).setMergeCriteria(true);
+        assertEquals(1, list(source).getFacet("buckets").size());
+        assertFalse(a.hasDynamicProperty("count")); assertFalse(b.hasDynamicProperty("rows"));
+    }
+    @Test public void nestedMembershipRemainsRequestImmutableAndDoesNotExposeStoredDetails() {
+        var a = saved(new Sample().bucket("parent").amount(null).parent(null));
+        saved(new Sample().bucket("child").amount(9).parent(a));
+        var allowed = new Request().only("parent"); allowed.offset(100, 1);
+        var request = new Request().only("child");
+        request.appendSearchCriteria(new SubQuerySearchCriteria("parent", allowed, "id"));
+        var first = list(request); assertEquals(1, first.size()); assertEquals(1, list(request).size());
+        assertTrue(allowed.getAggregations().getSelectedExpressions().isEmpty());
+        assertEquals(100, allowed.getSlice().getOffset());
+        var reference = (Sample) first.get(0).getProperty("parent");
+        assertEquals(a.getId(), reference.getId()); assertFalse(reference.isPropertyLoaded("bucket"));
+        assertNotSame(a, reference);
+    }
+    @Test public void relatedAggregatesCannotBypassTheNestedQueryPolicy() {
+        var parent = saved(new Sample().bucket("parent").amount(null).parent(null));
+        var request = related(new Request().only("parent"));
+        denyNestedQuery = true;
+        var error = assertThrows(TeaQLRuntimeException.class, () -> list(request));
+        assertTrue(error.getMessage().contains("denied by policy"));
+        assertFalse(parent.hasDynamicProperty("rows"));
+        denyNestedQuery = false;
+        number("0", list(request).get(0).getDynamicProperty("rows"));
+    }
+    @Test public void malformedRelatedAggregatesFailEvenWithoutAnyVisibleParents() {
+        var request = new Request().only("absent");
+        request.addSingleAggregateDynamicProperty("invalid", new Request());
+        assertThrows(TeaQLRuntimeException.class, () -> list(request));
+        assertTrue(request.getDynamicAggregateAttributes().get(0).getAggregateRequest().getAggregations().getSelectedExpressions().isEmpty());
     }
 }
