@@ -121,7 +121,7 @@ public class LikeIntentPrivacySqliteTest {
             for (String field : List.of("id", "version", "name", "state")) request.selectProperty(field);
             request.top(10); return request;
         }
-        SmartList<?> run(Request<?> request) { return context.getRuntime().executeForList(context, request); }
+        SmartList<? extends Entity> run(Request<?> request) { return context.getRuntime().executeForList(context, request); }
         void clear() { binds.clear(); safe.clear(); policies.clear(); output.reset(); }
     }
     private void assertProjection(Fixture f, Request<?> request, String operand, boolean privateOperand, int count) {

@@ -2,6 +2,8 @@ package io.teaql.core;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -15,9 +17,10 @@ import io.teaql.core.utils.CollectionUtil;
 import io.teaql.core.utils.MapUtil;
 import io.teaql.core.utils.ObjectUtil;
 
-public class SmartList<T extends Entity> implements Iterable<T> {
+public class SmartList<T> implements Iterable<T> {
     private static final Map<Class<?>, SmartList<?>> TYPED_EMPTY =
             new java.util.concurrent.ConcurrentHashMap<>();
+    private static final SmartList<?> UNLOADED = new SmartList<>(true, false);
 
     List<T> data;
 
@@ -26,7 +29,9 @@ public class SmartList<T extends Entity> implements Iterable<T> {
     @FrameworkInternal("Named page total metadata, independent of physical count SQL")
     public void __internalSetPageCountAlias(String alias) { ensureMutable(); pageCountAlias = alias; }
 
-    Map<String, SmartList> facets;
+    Map<String, SmartList<?>> facets;
+    private Map<String, Object> summary;
+    private boolean loaded = true;
 
     private final boolean immutable;
 
@@ -48,16 +53,23 @@ public class SmartList<T extends Entity> implements Iterable<T> {
         }
     }
 
-    private SmartList(boolean immutable) {
+    private SmartList(boolean immutable, boolean loaded) {
         this.immutable = immutable;
+        this.loaded = loaded;
         data = List.of();
     }
 
     @SuppressWarnings("unchecked")
     public static <T extends Entity> SmartList<T> empty(Class<? extends T> entityType) {
         if (entityType == null) throw new IllegalArgumentException("entityType must not be null");
-        return (SmartList<T>) TYPED_EMPTY.computeIfAbsent(entityType, ignored -> new SmartList<>(true));
+        return (SmartList<T>) TYPED_EMPTY.computeIfAbsent(entityType, ignored -> new SmartList<>(true, true));
     }
+
+    /** Unloaded relation marker; successful empty queries use a loaded empty list. */
+    @SuppressWarnings("unchecked")
+    public static <T> SmartList<T> unloaded() { return (SmartList<T>) UNLOADED; }
+
+    public boolean isLoaded() { return loaded; }
 
     @FrameworkInternal
     public static <T extends Entity> SmartList<T> takeOwnership(List<T> data) {
@@ -93,7 +105,20 @@ public class SmartList<T extends Entity> implements Iterable<T> {
     }
 
     public Map<Long, T> mapById() {
-        return identityMap(Entity::getId);
+        Map<Long, T> result = new LinkedHashMap<>();
+        for (T item : data) {
+            Long id = entity(item).getId();
+            if (id != null) result.put(id, item);
+        }
+        return result;
+    }
+
+    public List<Long> ids() { return toList(item -> entity(item).getId()); }
+    public List<Long> versions() { return toList(item -> entity(item).getVersion()); }
+
+    private static Entity entity(Object item) {
+        if (item instanceof Entity entity) return entity;
+        throw new IllegalStateException("Entity identity operations require entity rows");
     }
 
     public <R> Map<R, List<T>> groupBy(Function<T, R> key) {
@@ -189,28 +214,38 @@ public class SmartList<T extends Entity> implements Iterable<T> {
         return data.get(index);
     }
 
+    public T getOrNull(int index) { return index >= 0 && index < size() ? data.get(index) : null; }
+    public T last() { return isEmpty() ? null : data.get(size() - 1); }
+
     public SmartList<T> save(UserContext userContext) {
         userContext.saveGraph(this);
         return this;
     }
 
 
-    public int getTotalCount() {
-        if (ObjectUtil.isEmpty(aggregationResults)) {
-            return size();
+    /** Exact source-query total, or null when no count was requested. */
+    public Long getExactTotalCount() {
+        Map<String, Object> properties = aggregationProperties();
+        if (!properties.containsKey(pageCountAlias)) return null;
+        Object count = properties.get(pageCountAlias);
+        try {
+            if (!(count instanceof Number)) throw new ArithmeticException();
+            long exact = new java.math.BigDecimal(count.toString()).longValueExact();
+            if (exact < 0) throw new ArithmeticException();
+            return exact;
+        } catch (ArithmeticException | NumberFormatException invalid) {
+            throw new IllegalStateException("List count must be an exact non-negative long", invalid);
         }
-        Map<String, Object> numberProps = aggregationNumberProperties();
-        if (numberProps.isEmpty()) {
-            return size();
-        }
-        Object count = numberProps.get(pageCountAlias);
-        if (count instanceof Number intCount) {
-            return intCount.intValue();
-        }
-        throw new IllegalStateException("Number prop is expected a number, but it is now a " + count.getClass().getSimpleName());
-
-        //return aggregationResults.get(0).toInt();
     }
+
+    public long getTotalCountOrSize() {
+        Long exact = getExactTotalCount();
+        return exact == null ? size() : exact;
+    }
+
+    /** @deprecated Use getExactTotalCount, or the explicitly named getTotalCountOrSize fallback. */
+    @Deprecated
+    public int getTotalCount() { return Math.toIntExact(getTotalCountOrSize()); }
 
     public Map<String, Object> aggregationProperties(Class<?> clazz) {
         if (ObjectUtil.isEmpty(aggregationResults)) {
@@ -218,6 +253,7 @@ public class SmartList<T extends Entity> implements Iterable<T> {
         }
         Map<String, Object> result = MapUtil.createMap(HashMap.class);
         getAggregationResults().forEach(aggregationResult -> {
+            if (aggregationResult.getData() == null) return;
 
             //Map s=aggregationResult.toSimpleMap();
             List<Map<String, Object>> resultList = aggregationResult.valueList();
@@ -225,7 +261,8 @@ public class SmartList<T extends Entity> implements Iterable<T> {
             resultList.forEach(map -> {
                 map.entrySet().forEach(stringObjectEntry -> {
 
-                    if (clazz.isAssignableFrom(stringObjectEntry.getValue().getClass())) {
+                    if (stringObjectEntry.getValue() == null ? clazz == Object.class
+                            : clazz.isInstance(stringObjectEntry.getValue())) {
                         result.put(stringObjectEntry.getKey(), stringObjectEntry.getValue());
                     }
 
@@ -236,25 +273,25 @@ public class SmartList<T extends Entity> implements Iterable<T> {
         return result;
     }
 
-    public void addFacet(String name, SmartList facet) {
+    public void addFacet(String name, SmartList<?> facet) {
         ensureMutable();
         mutableFacets().put(name, facet);
     }
 
-    public Map<String, SmartList> getFacets() {
+    public Map<String, SmartList<?>> getFacets() {
         return mutableFacets();
     }
 
-    public void setFacets(Map<String, SmartList> facets) {
+    public void setFacets(Map<String, ? extends SmartList<?>> facets) {
         ensureMutable();
-        this.facets = facets;
+        this.facets = facets == null ? null : new LinkedHashMap<>(facets);
     }
 
-    public SmartList getFacet(String name) {
+    public SmartList<?> getFacet(String name) {
         return facets == null ? null : facets.get(name);
     }
 
-    public SmartList removeFacet(String name) {
+    public SmartList<?> removeFacet(String name) {
         ensureMutable();
         return facets == null ? null : facets.remove(name);
     }
@@ -264,15 +301,30 @@ public class SmartList<T extends Entity> implements Iterable<T> {
         if (facets != null) facets.clear();
     }
 
+    public Map<String, SmartList<?>> takeFacets() {
+        ensureMutable();
+        Map<String, SmartList<?>> result = facets == null ? new LinkedHashMap<>() : facets;
+        facets = null;
+        return result;
+    }
+
+    /** Summary population stays package-private; consumers receive a detached value tree. */
+    void setSummary(Map<String, Object> values) {
+        ensureMutable();
+        summary = copyMap(values);
+    }
+
+    public Map<String, Object> getSummary() { return copyMap(summary); }
+
     private List<AggregationResult> mutableAggregationResults() {
         if (immutable) return List.of();
         if (aggregationResults == null) aggregationResults = new ArrayList<>();
         return aggregationResults;
     }
 
-    private Map<String, SmartList> mutableFacets() {
+    private Map<String, SmartList<?>> mutableFacets() {
         if (immutable) return Map.of();
-        if (facets == null) facets = new HashMap<>();
+        if (facets == null) facets = new LinkedHashMap<>();
         return facets;
     }
 
@@ -300,6 +352,85 @@ public class SmartList<T extends Entity> implements Iterable<T> {
     public boolean removeIf(Predicate<T> filter) {
         ensureMutable();
         return data.removeIf(filter);
+    }
+
+    /** One output row per source row, with an isolated query metadata snapshot. */
+    public <R> SmartList<R> map(Function<? super T, ? extends R> mapper) {
+        SmartList<R> result = new SmartList<>(toList(mapper::apply));
+        result.loaded = loaded;
+        result.pageCountAlias = pageCountAlias;
+        result.summary = copyMap(summary);
+        if (aggregationResults != null) {
+            result.aggregationResults = new ArrayList<>();
+            for (AggregationResult aggregation : aggregationResults) {
+                AggregationResult copy = new AggregationResult();
+                copy.setName(aggregation.getName());
+                List<AggregationItem> items = new ArrayList<>();
+                if (aggregation.getData() != null) for (AggregationItem item : aggregation.getData()) {
+                    AggregationItem copied = new AggregationItem();
+                    item.getValues().forEach((key, value) -> copied.addValue(key, copyValue(value)));
+                    item.getDimensions().forEach((key, value) -> copied.addDimension(key, copyValue(value)));
+                    items.add(copied);
+                }
+                copy.setData(items);
+                result.aggregationResults.add(copy);
+            }
+        }
+        if (facets != null) {
+            result.facets = new LinkedHashMap<>();
+            facets.forEach((name, facet) -> result.facets.put(name, facet.map(SmartList::copyValue)));
+        }
+        return result;
+    }
+
+    public SmartList<T> filter(Predicate<? super T> predicate) {
+        SmartList<T> result = new SmartList<>(data.stream().filter(predicate).toList());
+        result.loaded = loaded;
+        return result;
+    }
+
+    public <R> SmartList<R> flatMap(Function<? super T, ? extends Iterable<R>> mapper) {
+        SmartList<R> result = new SmartList<>();
+        for (T item : data) for (R value : mapper.apply(item)) result.add(value);
+        result.loaded = loaded;
+        return result;
+    }
+
+    public <K> void mergeBy(Iterable<T> incoming, Function<? super T, K> key) {
+        ensureMutable();
+        Map<K, Integer> positions = new HashMap<>();
+        for (int index = 0; index < size(); index++) positions.put(key.apply(data.get(index)), index);
+        for (T item : incoming) {
+            K itemKey = key.apply(item);
+            Integer position = positions.get(itemKey);
+            if (position != null) set(position, item);
+            else { positions.put(itemKey, size()); add(item); }
+        }
+    }
+
+    private static Map<String, Object> copyMap(Map<String, Object> values) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (values != null) values.forEach((key, value) -> result.put(key, copyValue(value)));
+        return result;
+    }
+
+    private static Object copyValue(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            Map<Object, Object> copy = new LinkedHashMap<>();
+            map.forEach((key, item) -> copy.put(key, copyValue(item)));
+            return copy;
+        }
+        if (value instanceof List<?> list) {
+            List<Object> copy = new ArrayList<>();
+            list.forEach(item -> copy.add(copyValue(item)));
+            return copy;
+        }
+        if (value instanceof Set<?> set) {
+            Set<Object> copy = new LinkedHashSet<>();
+            set.forEach(item -> copy.add(copyValue(item)));
+            return copy;
+        }
+        return value;
     }
 
     private void ensureMutable() {

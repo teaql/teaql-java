@@ -113,7 +113,7 @@ public class TypedIntentPrivacySqliteTest {
         var root = f.documents().intent(intent(values)); root.enhanceRelation("lines", child);
         var rows = f.run(root);
         assertEquals(2, rows.size());
-        var members = (SmartList<?>) rows.get(0).getProperty("lines");
+        var members = (SmartList<? extends Entity>) rows.get(0).getProperty("lines");
         assertEquals(1, members.size()); assertEquals(Long.valueOf(11), members.get(0).getId());
         assertEquals(Long.valueOf(1), ((Entity) members.get(0).getProperty("document")).getId());
         var absent = (SmartList<?>) rows.get(1).getProperty("lines");

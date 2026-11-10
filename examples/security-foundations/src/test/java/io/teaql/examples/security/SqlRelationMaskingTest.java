@@ -137,9 +137,10 @@ public class SqlRelationMaskingTest {
                 assertNull("Aggregate results must not overwrite the native namespace", rows.get(0).getProperty("childCount"));
             }
             else if (shape.equals("facet")) {
-                SmartList<Entity> parents = rows.getFacet("parentFacet");
+                SmartList<?> parents = rows.getFacet("parentFacet");
                 assertEquals(1, parents.size());
-                assertEquals("Riverside", parents.get(0).getProperty("name"));
+                assertTrue(parents.get(0) instanceof Entity);
+                assertEquals("Riverside", ((Entity) parents.get(0)).getProperty("name"));
             }
             else if (forward) {
                 Entity loadedParent = rows.get(0).getProperty("parent");

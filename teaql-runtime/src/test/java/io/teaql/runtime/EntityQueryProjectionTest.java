@@ -126,7 +126,7 @@ public class EntityQueryProjectionTest {
         assertEquals(List.of("name"), fields(nested));
     }
 
-    @Test public void aggregateAndBothDimensionShapesKeepTheirProjection() {
+    @Test public void scalarProjectionStaysSparseAndGroupedEntityListsAreRejectedBeforeExecution() {
         for (int shape = 0; shape < 3; shape++) {
             var executor = new RecordingExecutor(); var runtime = runtime(executor); var caller = request();
             var expression = new SimpleNamedExpression("_value", new PropertyReference("name"));
@@ -136,8 +136,34 @@ public class EntityQueryProjectionTest {
                 case 1 -> aggregations.getSimpleDimensions().add(expression);
                 case 2 -> aggregations.getComplexDimensions().add(expression);
             }
-            runtime.executeForList(new DefaultUserContext(runtime), caller);
-            assertEquals(List.of("name"), fields(executor.requests.get(0)));
+            var context = new DefaultUserContext(runtime);
+            if (shape == 0) {
+                runtime.executeForList(context, caller);
+                assertEquals(List.of("name"), fields(executor.requests.get(0)));
+            } else {
+                var error = assertThrows(TeaQLRuntimeException.class,
+                        () -> runtime.executeForList(context, caller));
+                assertTrue(error.getMessage().contains("aggregation result boundary"));
+                assertTrue(executor.requests.isEmpty());
+            }
+            assertEquals(List.of("name"), fields(caller));
+        }
+    }
+
+    @Test public void scalarAndGroupedEntityStreamsAreRejectedWithoutCallingProvider() {
+        for (int shape = 0; shape < 3; shape++) {
+            var executor = new RecordingExecutor(); var runtime = runtime(executor); var caller = request();
+            var expression = new SimpleNamedExpression("_value", new PropertyReference("name"));
+            switch (shape) {
+                case 0 -> caller.getAggregations().getAggregates().add(expression);
+                case 1 -> caller.getAggregations().getSimpleDimensions().add(expression);
+                case 2 -> caller.getAggregations().getComplexDimensions().add(expression);
+            }
+            assertThrows(TeaQLRuntimeException.class,
+                    () -> runtime.executeForStream(new DefaultUserContext(runtime), caller));
+            assertTrue(executor.requests.isEmpty());
+            assertEquals(0, executor.closed);
+            assertEquals(List.of("name"), fields(caller));
         }
     }
 

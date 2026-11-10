@@ -79,6 +79,33 @@ public class BaseEntitySerializationTest {
         }
     }
 
+    @Test public void pendingLocalChildrenSerializeWithoutLoadingAnUnqueriedRelation() throws Exception {
+        var parent = new NamedRelationsEntity();
+        parent.childList = io.teaql.core.SmartList.<BaseEntity>unloaded().map(child -> child);
+        var child = new JsonGraphEntity(); child.__internalSet("name", "local child");
+        parent.childList.add(child);
+        var state = parent.__internalLoadState();
+        var mapper = new ObjectMapper().registerModule(TeaQLModule.INSTANCE);
+        assertEquals("local child", mapper.valueToTree(parent).get("childList").get(0).get("name").asText());
+        assertFalse(parent.childList.isLoaded()); assertFalse(parent.isPropertyLoaded("childList"));
+        assertTrue(state == parent.__internalLoadState()); assertFalse(parent.__internalHasMutationLedger());
+        child.set$status(io.teaql.core.EntityStatus.PERSISTED);
+        assertFalse(mapper.valueToTree(parent).has("childList"));
+    }
+
+    @Test public void smartListBackReferencesKeepTheActiveSerializationPath() throws Exception {
+        var parent = new NamedRelationsEntity(); parent.updateId(7L);
+        parent.childList = io.teaql.core.SmartList.<BaseEntity>unloaded().map(child -> child);
+        var child = new JsonGraphEntity(); child.updateId(9L); child.__internalSet("child", parent);
+        parent.childList.add(child);
+        var mapper = new ObjectMapper().registerModule(TeaQLModule.INSTANCE);
+        var tree = mapper.valueToTree(parent);
+        var backReference = tree.get("childList").get(0).get("child");
+        assertEquals(7L, backReference.get("id").asLong()); assertFalse(backReference.has("childList"));
+        assertEquals(tree.toString(), mapper.writeValueAsString(parent));
+        assertFalse(parent.childList.isLoaded()); assertFalse(parent.isPropertyLoaded("childList"));
+    }
+
     @Test public void nestedGraphsKeepThreeNamespacesAndLiteralPayloadWithoutInternalMetadata() throws Exception {
         var parent = new JsonGraphEntity(); parent.__internalSet("id",1L); parent.__internalSet("version",1L); parent.__internalSet("name","parent");
         var child = new JsonGraphEntity(); child.__internalSet("id",2L); child.__internalSet("version",1L); child.__internalSet("name","native");

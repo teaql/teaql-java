@@ -87,7 +87,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                     repository.doAggregateInternal(context, (SearchRequest) searchRequest, intent);
             return new DefaultQueryResult(new SmartList<>(), aggregation, statements);
         }
-        SmartList<?> result = repository.loadInternal(context, (SearchRequest) searchRequest, intent);
+        SmartList<? extends Entity> result = repository.loadInternal(context, (SearchRequest) searchRequest, intent);
         
         if (searchRequest.enhanceRelations() != null && !searchRequest.enhanceRelations().isEmpty()) {
             enhanceRelations(context, (SmartList<Entity>) result, searchRequest, intent);
@@ -99,11 +99,11 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         return new DefaultQueryResult((SmartList<Entity>) result, null, statements);
     }
 
-    private void attachDynamicFields(UserContext context, SmartList<?> results, SearchRequest<?> request) {
+    private void attachDynamicFields(UserContext context, SmartList<? extends Entity> results, SearchRequest<?> request) {
         attachDynamicFields(context, results, request, new java.util.HashMap<>());
     }
 
-    private void attachDynamicFields(UserContext context, SmartList<?> results, SearchRequest<?> request,
+    private void attachDynamicFields(UserContext context, SmartList<? extends Entity> results, SearchRequest<?> request,
             Map<LoadState, Map<Set<String>, LoadState>> shapes) {
         var selection = request.getDynamicFieldSelection();
         if (selection == null || results.isEmpty()) return;
@@ -222,19 +222,12 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
 
     private static Number emptySingleAggregateValue(SearchRequest<?> request) {
         var expressions = request.getAggregations().getAggregates();
-        if (expressions.size() == 1
-                && expressions.get(0).getExpression() instanceof AggrExpression aggregate) {
-            // These portable value aggregates have no numeric result without
-            // contributions. Keep a present null, just as scalar SQL does.
-            // COUNT and provider-specific policies retain their old defaults.
-            var function = aggregate.getOperator();
-            if (function == AggrFunction.SUM || function == AggrFunction.MIN
-                    || function == AggrFunction.MAX || function == AggrFunction.AVG) {
-                return null;
-            }
-        }
-        // A request without an explicit aggregate retains implicit COUNT.
-        return 0;
+        // Keep the main-branch empty-bucket policy for all scalar aggregates:
+        // implicit/explicit COUNT is zero; value aggregates have no value.
+        boolean count = expressions.isEmpty() || expressions.size() == 1
+                && expressions.get(0).getExpression() instanceof AggrExpression aggregate
+                && aggregate.getOperator() == AggrFunction.COUNT;
+        return count ? 0 : null;
     }
 
     private SqlDiagnosticRequest dynamicAggregateRequest(SearchRequest<?> aggregateRequest,
