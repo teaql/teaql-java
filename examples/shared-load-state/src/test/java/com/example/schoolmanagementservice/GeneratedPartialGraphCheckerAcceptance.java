@@ -33,6 +33,7 @@ final class GeneratedPartialGraphCheckerAcceptance {
                 .comment("what: reload partial Platform detail after the positive save")
                 .purpose("why: mutate the materialized child rather than a readback identity reference").executeForOne(context);
         var child = row.getPlatform(); child.updateName("Partial child control");
+        var childState = child.__internalLoadState();
         var state = row.__internalLoadState();
         long[] before = sql.counts();
         assertThrows(CheckException.class, () -> child.auditAs("reject mutation of the incomplete referenced object").save(context));
@@ -40,9 +41,11 @@ final class GeneratedPartialGraphCheckerAcceptance {
         assertSame(state, row.__internalLoadState());
         assertFalse(row.getPlatform().isPropertyLoaded("baseUrl"));
         assertFalse(row.getPlatform().isPropertyLoaded("createTime"));
-        // The declared updateTime Fix is a real assignment and may detach the
-        // child's snapshot. It must not mark missing business fields loaded.
-        assertTrue(row.getPlatform().isPropertyLoaded("updateTime"));
+        // Failed validation withdraws automatic Context assignments, including
+        // their loaded bits, but preserves the caller's business edit.
+        assertSame(childState, child.__internalLoadState());
+        assertFalse(child.isPropertyLoaded("updateTime"));
+        assertEquals("Partial child control", child.getName());
         assertFalse(untouchedState.isLoaded("baseUrl"));
         assertFalse(untouchedState.isLoaded("updateTime"));
         System.out.println("PASS generated Java modified partial referenced object rejects before provider entry without loading missing business fields");
