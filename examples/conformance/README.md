@@ -38,6 +38,28 @@ clock/root and ordinary required/range vectors, not arbitrary custom context
 fixers, a range-constrained generated default, security/TTL clock behavior or
 the complete seven-runtime diagnostic contract.
 
+## Context-derived fields
+
+The focused Context-derived field gate is:
+
+```bash
+node examples/conformance/context-derived/verify-local.cjs
+```
+
+It compiles an unmodified two-object generated library with local runtime
+sources and runs typed Q/E and audited Save against one SQLite file twice.
+Different request time, IP, and actor do not update an unchanged object.
+A real edit applies update-scoped Context values and preserves create-only
+values. Failed validation restores automatic Context fields while retaining
+the caller's edit, which can be corrected or reverted. The application-owned
+Checker and metadata customization demonstrate the same guard for non-clock
+Context fields; generated timestamp assignments use that guard too.
+
+`TEAQL_CONTEXT_FIX_EVIDENCE_DIR` chooses a new directory for compact receipts,
+logs, hashes and the SQLite store. Temporary source/build consumers are removed
+on exit. This is local source acceptance, not a public-package release or
+completion of every graph/dynamic-field case in all seven languages.
+
 ## Caller-owned Spring transactions
 
 ```bash

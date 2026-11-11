@@ -86,4 +86,5 @@ TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/loaded-revert" \
   node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs" --loaded-revert
 TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/version-lifecycle" \
   node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs" --version-lifecycle
+node "$repo/examples/conformance/context-derived/verify-local.cjs"
 echo "PASS: all Java examples"

@@ -24,6 +24,28 @@ public interface Checker<T extends BaseEntity> {
 
     void checkAndFix(UserContext context, T entity, ObjectLocation location);
 
+    /** Compute before applying any automatic Context assignments; Check remains independent. */
+    default boolean needContextFix(UserContext context, T entity) {
+        return entity != null && io.teaql.core.checker.internal.ContextFixFields.eligible(context, entity);
+    }
+
+    /** Keep Context-provider/type failures attached to the declaring model field. */
+    default void applyContextFix(UserContext context, ObjectLocation location, Runnable assignment) {
+        try {
+            assignment.run();
+        } catch (CheckException located) {
+            throw located;
+        } catch (RuntimeException failure) {
+            // Provider messages/causes may contain request secrets. The public
+            // violation identifies the model field, not the provider's raw data.
+            var violation = CheckResult.invalidType(location,
+                    "Context Fix failed at " + type() + "." + (location == null ? "<root>" : location.modelPath()));
+            violation.setRootType(type());
+            context.translateCheckResult(violation);
+            throw new CheckException(java.util.List.of(violation));
+        }
+    }
+
     default void markAsChecked(UserContext context, T entity) {
         java.util.List list = (java.util.List) CheckerInvocation.attribute(context, TEAQL_DATA_CHECKED_ITEMS);
         if (list == null) {

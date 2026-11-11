@@ -376,6 +376,37 @@ public class BaseEntity implements Entity {
         if (!updatedProperties.isEmpty()) updatedProperties.clear();
     }
 
+    /** Restore only automatic Context assignments after failed admission, not caller edits. */
+    @FrameworkInternal("Context Fix rollback before persistence")
+    public Runnable __internalCaptureContextFix(java.util.Set<String> fields) {
+        record Before(Object value, boolean loaded, PropertyChange change, boolean ledgerField, Object ledgerValue) {}
+        var before = new java.util.LinkedHashMap<String, Before>();
+        var key = id == null ? null : new EntityKey(typeName(), id);
+        var status = $status;
+        for (String field : fields) {
+            boolean present = entityMutationLedger != null && key != null && entityMutationLedger.containsField(key, field);
+            before.put(field, new Before(__internalGet(field), isPropertyLoaded(field), updatedProperties.get(field),
+                    present, present ? entityMutationLedger.get(key, field) : null));
+        }
+        return () -> {
+            before.forEach((field, old) -> {
+                __internalSet(field, old.value());
+                loadState = loadState.withLoaded(field, old.loaded());
+                if (old.change() == null) {
+                    if (!updatedProperties.isEmpty()) updatedProperties.remove(field);
+                } else mutableUpdatedProperties().put(field, old.change());
+                if (entityMutationLedger != null && key != null) {
+                    if (old.ledgerField()) entityMutationLedger.set(key, field, old.ledgerValue());
+                    else entityMutationLedger.clearField(key, field);
+                }
+            });
+            if ($status == EntityStatus.UPDATED && status == EntityStatus.PERSISTED
+                    && updatedProperties.isEmpty() && __internalDynamicMutations().isEmpty()) {
+                $status = status;
+            }
+        };
+    }
+
     @FrameworkInternal("Physical transaction rollback; native values are captured by runtime metadata")
     public Runnable __internalCaptureMutationRollback() {
         var savedUpdates = new HashMap<>(updatedProperties);

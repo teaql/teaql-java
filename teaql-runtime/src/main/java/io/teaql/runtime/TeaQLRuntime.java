@@ -492,8 +492,6 @@ public class TeaQLRuntime implements AutoCloseable {
             CanonicalMutationFields.validateGraph(context, metadata, entity);
             io.teaql.runtime.mutation.MutationVersionAdmission.validateGraph(metadata, entity);
             checkAndFix(context, entity);
-            CanonicalMutationFields.validateGraph(context, metadata, entity);
-            io.teaql.runtime.mutation.MutationVersionAdmission.validateGraph(metadata, entity);
             // Get entity's own EntityMutationLedger
             EntityMutationLedger entityMutationLedger = ((BaseEntity) entity).getEntityMutationLedger();
 
@@ -686,7 +684,10 @@ public class TeaQLRuntime implements AutoCloseable {
         }
         try (var invocation = io.teaql.core.checker.internal.CheckerInvocation.openMutation(context)) {
             context.beginFixEvidence();
+            var contextUndo = new ArrayList<Runnable>();
             try {
+                captureContextFixRollback(entity, contextUndo,
+                        Collections.newSetFromMap(new IdentityHashMap<>()));
                 checkGraphMutations(context, entity, null,
                         Collections.newSetFromMap(new IdentityHashMap<>()));
                 List<CheckResult> violations = (List<CheckResult>) invocation.attribute(Checker.TEAQL_DATA_CHECK_RESULT);
@@ -699,10 +700,29 @@ public class TeaQLRuntime implements AutoCloseable {
                     context.translateCheckResults(violations);
                     throw new CheckException(new ArrayList<>(violations));
                 }
+                // Post-Fix admission belongs to the same staging boundary.
+                CanonicalMutationFields.validateGraph(context, metadata, entity);
+                io.teaql.runtime.mutation.MutationVersionAdmission.validateGraph(metadata, entity);
+            } catch (RuntimeException | Error failure) {
+                for (int index = contextUndo.size() - 1; index >= 0; index--) {
+                    try { contextUndo.get(index).run(); }
+                    catch (RuntimeException | Error rollbackFailure) { failure.addSuppressed(rollbackFailure); }
+                }
+                throw failure;
             } finally {
                 context.finishFixEvidence();
             }
         }
+    }
+
+    private void captureContextFixRollback(Entity entity, List<Runnable> undo, Set<Entity> visited) {
+        if (!(entity instanceof BaseEntity base) || !visited.add(entity)) return;
+        if (base.needPersist() && !base.isMarkedAsDelete()) {
+            var fields = io.teaql.core.checker.internal.ContextFixFields.declared(
+                    metadata.resolveEntityDescriptor(entity.typeName()));
+            if (!fields.isEmpty()) undo.add(base.__internalCaptureContextFix(fields));
+        }
+        visitRelatedEntities(entity, child -> captureContextFixRollback(child, undo, visited));
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
