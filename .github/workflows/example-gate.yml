@@ -49,7 +49,27 @@ jobs:
         # The gate copies third-party downloads into a disposable Maven home
         # and explicitly excludes every TeaQL/model artifact from that cache.
         # Keep its offline checks; prepare a fresh runner before they start.
-        run: mvn -B -ntp -DskipTests install
+        run: |
+          mvn -B -ntp install
+          node <<'NODE'
+          const fs = require('node:fs'), path = require('node:path'), os = require('node:os'), cp = require('node:child_process');
+          const runtime = process.cwd(), owned = fs.mkdtempSync(path.join(os.tmpdir(), 'teaql-ci-example-dependencies-'));
+          try {
+            const poms = cp.execFileSync('git', ['ls-files', '-z', 'examples'], {encoding: 'utf8'})
+              .split('\0').filter(name => name.endsWith('/lib/pom.xml'));
+            if (poms.length === 0) throw new Error('No generated library dependency manifests');
+            for (const relative of poms) {
+              const selected = path.join(owned, relative);
+              fs.mkdirSync(path.dirname(selected), {recursive: true});
+              fs.copyFileSync(path.join(runtime, relative), selected);
+              require('./scripts/pin-local-example-pom.cjs').pin(selected, runtime, owned);
+              cp.execFileSync('mvn', ['-B', '-ntp', '-f', selected,
+                'org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline'], {stdio: 'inherit'});
+            }
+          } finally {
+            fs.rmSync(owned, {recursive: true});
+          }
+          NODE
       - name: Start dedicated S3 example fixture
         run: |
           docker run -d --name teaql-java-example-s3 \
