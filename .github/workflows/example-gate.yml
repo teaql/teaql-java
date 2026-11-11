@@ -7,13 +7,37 @@ on:
 jobs:
   examples:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: runtime
     env:
+      TEAQL_CODEGEN_DIR: ${{ github.workspace }}/generator
       TEAQL_S3_ENDPOINT: http://127.0.0.1:19010
       TEAQL_S3_BUCKET: teaql-java-example-ci
       TEAQL_S3_ACCESS_KEY: teaql-java-example-ci
       TEAQL_S3_SECRET_KEY: teaql-java-example-ci-fixture-only
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out runtime under test
+        uses: actions/checkout@v4
+        with:
+          path: runtime
+          persist-credentials: false
+      # This key is a read-only deploy key on this one private repository,
+      # not a personal token. Fork PRs receive no repository secrets.
+      - name: Check out qualified generator
+        uses: actions/checkout@v4
+        with:
+          repository: teaql/teaql-code-gen
+          ref: 554a1b7fa1e5c053e52290c3ee48925901cebe00
+          path: generator
+          ssh-key: ${{ secrets.TEAQL_CODEGEN_READONLY_DEPLOY_KEY }}
+          persist-credentials: false
+      - name: Verify pinned generator source
+        run: |
+          test "$(git -C "$TEAQL_CODEGEN_DIR" rev-parse HEAD)" = 554a1b7fa1e5c053e52290c3ee48925901cebe00
+          test -z "$(git -C "$TEAQL_CODEGEN_DIR" status --porcelain)"
       - name: Install example verification tools
         run: sudo apt-get update && sudo apt-get install -y ripgrep
       - uses: actions/setup-java@v4
