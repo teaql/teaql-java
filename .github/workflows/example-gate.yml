@@ -45,6 +45,11 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+      - name: Prime third-party dependencies for offline source-paired probes
+        # The gate copies third-party downloads into a disposable Maven home
+        # and explicitly excludes every TeaQL/model artifact from that cache.
+        # Keep its offline checks; prepare a fresh runner before they start.
+        run: mvn -B -ntp -DskipTests install
       - name: Start dedicated S3 example fixture
         run: |
           docker run -d --name teaql-java-example-s3 \
