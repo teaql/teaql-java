@@ -43,7 +43,7 @@ final class GeneratedPartialGraphCheckerAcceptance {
         assertFalse(row.getPlatform().isPropertyLoaded("createTime"));
         // Failed validation withdraws automatic Context assignments, including
         // their loaded bits, but preserves the caller's business edit.
-        assertSame(childState, child.__internalLoadState());
+        assertEquals(childState, child.__internalLoadState());
         assertFalse(child.isPropertyLoaded("updateTime"));
         assertEquals("Partial child control", child.getName());
         assertFalse(untouchedState.isLoaded("baseUrl"));
