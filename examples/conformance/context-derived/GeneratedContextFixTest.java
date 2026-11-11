@@ -45,6 +45,7 @@ public class GeneratedContextFixTest {
                 row.updateChangedBy(context.getAttribute("actor", String.class));
             }
             super.doCheck(context, row, location);
+            if ("NORMALIZE".equals(row.getName())) row.updateName("entry");
             if ("INVALID".equals(row.getName())) invalidTypeCheck(context, newLocation(location, "name"), "fixture rejection");
         }
     }
@@ -111,6 +112,13 @@ public class GeneratedContextFixTest {
         row.auditAs("second unchanged save under Context B").save(context);
         assertEquals(connections, ds.calls.get()); assertEquals(0, audit.get());
         assertEquals(Long.valueOf(version), row.getVersion()); assertEquals(A, row.getTouchedAt());
+        assertEquals("192.0.2.10", row.getLastIp()); assertEquals("alice", row.getChangedBy());
+
+        row.updateName("NORMALIZE");
+        row.auditAs("normalize business edit back to its persisted value").save(context);
+        assertEquals("a repaired no-op must not acquire a connection", connections, ds.calls.get());
+        assertEquals(0, audit.get()); assertEquals(Long.valueOf(version), row.getVersion());
+        assertEquals("entry", row.getName()); assertEquals(A, row.getTouchedAt());
         assertEquals("192.0.2.10", row.getLastIp()); assertEquals("alice", row.getChangedBy());
 
         row.updateName("INVALID"); Entry invalid = row;

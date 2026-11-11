@@ -684,7 +684,7 @@ public class TeaQLRuntime implements AutoCloseable {
         }
         try (var invocation = io.teaql.core.checker.internal.CheckerInvocation.openMutation(context)) {
             context.beginFixEvidence();
-            var contextUndo = new ArrayList<Runnable>();
+            var contextUndo = new ArrayList<ContextFixCheckpoint>();
             try {
                 captureContextFixRollback(entity, contextUndo,
                         Collections.newSetFromMap(new IdentityHashMap<>()));
@@ -700,12 +700,21 @@ public class TeaQLRuntime implements AutoCloseable {
                     context.translateCheckResults(violations);
                     throw new CheckException(new ArrayList<>(violations));
                 }
+                // A customer Fix can normalize the last business edit back to
+                // its persisted value. Automatic Context fields must not then
+                // become the only reason to write. Keep the repaired business
+                // values; undo only this entity's staged Context assignments.
+                for (var checkpoint : contextUndo) {
+                    if (!io.teaql.core.checker.internal.ContextFixFields.eligible(context, checkpoint.entity())) {
+                        checkpoint.restore().run();
+                    }
+                }
                 // Post-Fix admission belongs to the same staging boundary.
                 CanonicalMutationFields.validateGraph(context, metadata, entity);
                 io.teaql.runtime.mutation.MutationVersionAdmission.validateGraph(metadata, entity);
             } catch (RuntimeException | Error failure) {
                 for (int index = contextUndo.size() - 1; index >= 0; index--) {
-                    try { contextUndo.get(index).run(); }
+                    try { contextUndo.get(index).restore().run(); }
                     catch (RuntimeException | Error rollbackFailure) { failure.addSuppressed(rollbackFailure); }
                 }
                 throw failure;
@@ -715,12 +724,14 @@ public class TeaQLRuntime implements AutoCloseable {
         }
     }
 
-    private void captureContextFixRollback(Entity entity, List<Runnable> undo, Set<Entity> visited) {
+    private record ContextFixCheckpoint(BaseEntity entity, Runnable restore) {}
+
+    private void captureContextFixRollback(Entity entity, List<ContextFixCheckpoint> undo, Set<Entity> visited) {
         if (!(entity instanceof BaseEntity base) || !visited.add(entity)) return;
         if (base.needPersist() && !base.isMarkedAsDelete()) {
             var fields = io.teaql.core.checker.internal.ContextFixFields.declared(
                     metadata.resolveEntityDescriptor(entity.typeName()));
-            if (!fields.isEmpty()) undo.add(base.__internalCaptureContextFix(fields));
+            if (!fields.isEmpty()) undo.add(new ContextFixCheckpoint(base, base.__internalCaptureContextFix(fields)));
         }
         visitRelatedEntities(entity, child -> captureContextFixRollback(child, undo, visited));
     }

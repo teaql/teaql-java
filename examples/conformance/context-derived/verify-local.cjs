@@ -51,6 +51,24 @@ async function main() {
     fs.writeFileSync(path.join(consumer, 'pom.xml'), `<project><modelVersion>4.0.0</modelVersion><parent><groupId>io.teaql</groupId><artifactId>teaql-java-parent</artifactId><version>${version}</version><relativePath>../runtime/pom.xml</relativePath></parent><groupId>io.teaql.examples</groupId><artifactId>context-fix-consumer</artifactId><version>${version}</version><dependencies><dependency><groupId>com.example</groupId><artifactId>context-fix-service-core</artifactId><version>0.0.1-SNAPSHOT</version></dependency>${dependencies}<dependency><groupId>junit</groupId><artifactId>junit</artifactId><version>4.13.2</version><scope>test</scope></dependency></dependencies><build><plugins><plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><configuration><useModulePath>false</useModulePath></configuration></plugin></plugins></build></project>`);
     const reactor = path.join(scratch, 'pom.xml');
     fs.writeFileSync(reactor, '<project><modelVersion>4.0.0</modelVersion><groupId>io.teaql.test</groupId><artifactId>context-reactor</artifactId><version>0</version><packaging>pom</packaging><modules><module>runtime</module><module>model/lib</module><module>consumer</module></modules></project>');
+    if (process.env.TEAQL_CONTEXT_FIX_UNIT_TESTS === '1') {
+      const command = [process.env.MAVEN || 'mvn', '-o', '-q', '-ntp', '-f', path.join(runtime, 'pom.xml'),
+        '-pl', 'teaql-runtime', '-am', 'test'];
+      const log = path.join(output, 'unit.log'), fd = fs.openSync(log, 'wx'); let result;
+      try { result = await runner.run(command, {cwd: scratch, timeout: 300000, env: {...process.env}, stdio: ['ignore', fd, fd]}); }
+      finally { fs.closeSync(fd); }
+      report.unit = {command, exitCode: result.status, logSha256: sha(fs.readFileSync(log))};
+      assert.equal(result.status, 0, fs.readFileSync(log, 'utf8').slice(-6000));
+      report.unit.suites = [];
+      for (const module of fs.readdirSync(runtime)) {
+        const directory = path.join(runtime, module, 'target', 'surefire-reports');
+        if (fs.existsSync(directory)) for (const file of fs.readdirSync(directory).filter(name => name.endsWith('.txt'))) {
+          const summary = fs.readFileSync(path.join(directory, file), 'utf8').match(/Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+)/);
+          if (summary) report.unit.suites.push({module, file, tests: +summary[1], failures: +summary[2], errors: +summary[3], skipped: +summary[4]});
+        }
+      }
+      assert(report.unit.suites.some(suite => suite.file.includes('ContextDerivedMutationTest') && suite.tests >= 7));
+    }
     for (const round of [1, 2]) {
       const command = [process.env.MAVEN || 'mvn', '-o', '-q', '-ntp', '-f', reactor, '-pl', ':context-fix-consumer', '-am',
         'test', '-Dtest=GeneratedContextFixTest', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dteaql.expected.runtime.root=' + runtime];

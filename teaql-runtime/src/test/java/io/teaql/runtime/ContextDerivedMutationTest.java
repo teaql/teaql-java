@@ -108,6 +108,7 @@ public class ContextDerivedMutationTest {
                         row.updateProperty("changed_by", caller.getAttribute("fixture_actor"));
                     }
                     requiredCheck(caller, newLocation(location, "label"), row.values.get("label"));
+                    if ("NORMALIZE".equals(row.values.get("label"))) row.updateProperty("label", "original");
                     if ("INVALID".equals(row.values.get("label")))
                         invalidTypeCheck(caller, newLocation(location, "label"), "fixture rejection");
                 }
@@ -144,6 +145,16 @@ public class ContextDerivedMutationTest {
         assertEquals("alice", row.values.get("opened_by")); assertEquals(B, row.values.get("touched_at"));
         assertEquals("192.0.2.20", row.values.get("last_ip")); assertEquals("bob", row.values.get("changed_by"));
         assertEquals(1, f.provider.writes); assertEquals(1, f.audits);
+    }
+
+    @Test public void repairedBusinessEditCannotLeaveAnAutomaticContextOnlyUpdate() {
+        var f = new Fixture(); var row = f.original(1); f.use(B, "192.0.2.20", "bob");
+        row.updateProperty("label", "NORMALIZE"); f.save(row);
+        assertEquals("original", row.values.get("label"));
+        assertEquals(0, f.provider.writes); assertEquals(0, f.audits);
+        assertEquals(Long.valueOf(1), row.getVersion());
+        assertEquals(A, row.values.get("touched_at")); assertEquals("alice", row.values.get("changed_by"));
+        assertTrue(row.getUpdatedProperties().isEmpty());
     }
 
     @Test public void creationIsEligibleWithoutCallerDirtyFields() {

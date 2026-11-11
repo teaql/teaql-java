@@ -400,9 +400,17 @@ public class BaseEntity implements Entity {
                     else entityMutationLedger.clearField(key, field);
                 }
             });
-            if ($status == EntityStatus.UPDATED && status == EntityStatus.PERSISTED
-                    && updatedProperties.isEmpty() && __internalDynamicMutations().isEmpty()) {
-                $status = status;
+            // Fix may have repaired the last caller edit as well. A saved
+            // UPDATED status alone must not survive when all native/dynamic
+            // intent for this exact entity has gone away.
+            boolean pending = entityMutationLedger != null && key != null && (
+                    !entityMutationLedger.changedFieldNames(key).isEmpty()
+                    || entityMutationLedger.isNew(key) || entityMutationLedger.isMarkedAsDelete(key)
+                    || entityMutationLedger.recoveredKeys().contains(key));
+            if ($status == EntityStatus.UPDATED
+                    && (status == EntityStatus.PERSISTED || status == EntityStatus.UPDATED)
+                    && updatedProperties.isEmpty() && __internalDynamicMutations().isEmpty() && !pending) {
+                $status = EntityStatus.PERSISTED;
             }
         };
     }
