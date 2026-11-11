@@ -789,6 +789,13 @@ public class BaseEntity implements Entity {
 
     private void stageDynamicMutation(io.teaql.data.dynamic.DynamicFieldMutation mutation) {
         EntityStatus nextStatus = get$status().next(EntityAction.UPDATE);
+        DynamicFieldValue original = dynamicOriginalValues.getOrDefault(mutation.code(), dynamicFieldValues.field(mutation.code()));
+        boolean restored = !newItem() && original.isLoaded()
+                && mutation.kind() == io.teaql.data.dynamic.DynamicFieldMutation.Kind.SET
+                && original.dataType() == mutation.dataType() && ObjectUtil.equals(original.value(), mutation.value());
+        // A loaded persisted value, including explicit NULL, is a baseline.
+        // An absent/unselected value is not; new objects must still stage writes.
+        if (restored && !dynamicMutations.containsKey(mutation.code())) return;
         Map<String, DynamicFieldValue> next = new HashMap<>(dynamicFieldValues.toMap());
         if (mutation.kind() == io.teaql.data.dynamic.DynamicFieldMutation.Kind.SET) next.put(mutation.code(), mutation.asLoadedValue());
         else next.remove(mutation.code());
@@ -797,6 +804,17 @@ public class BaseEntity implements Entity {
         if (dynamicOriginalValues.isEmpty()) dynamicOriginalValues = new HashMap<>();
         dynamicOriginalValues.putIfAbsent(mutation.code(), dynamicFieldValues.field(mutation.code()));
         __internalHydrateDynamicFields(values, state);
+        if (restored) {
+            dynamicMutations.remove(mutation.code()); dynamicOriginalValues.remove(mutation.code());
+            EntityKey key = id == null ? null : new EntityKey(typeName(), id);
+            if (entityMutationLedger != null && key != null) entityMutationLedger.clearDynamicField(key, mutation.code());
+            boolean pending = entityMutationLedger != null && key != null && (
+                    !entityMutationLedger.changedFieldNames(key).isEmpty() || entityMutationLedger.isNew(key)
+                    || entityMutationLedger.isMarkedAsDelete(key) || entityMutationLedger.recoveredKeys().contains(key));
+            if (get$status() == EntityStatus.UPDATED && updatedProperties.isEmpty() && dynamicMutations.isEmpty() && !pending)
+                set$status(EntityStatus.PERSISTED);
+            return;
+        }
         if (dynamicMutations.isEmpty()) dynamicMutations = new HashMap<>();
         dynamicMutations.put(mutation.code(), mutation);
         set$status(nextStatus);

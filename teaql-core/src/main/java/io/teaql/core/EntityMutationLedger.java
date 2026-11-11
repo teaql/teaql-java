@@ -69,6 +69,10 @@ public class EntityMutationLedger {
         changeSets.currentMut().setDynamic(key, mutation);
     }
 
+    void clearDynamicField(EntityKey key, String code) {
+        changeSets.clearDynamicField(key, code);
+    }
+
     public Object get(EntityKey key, String field) {
         return changeSets.get(key, field);
     }

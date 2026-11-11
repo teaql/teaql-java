@@ -44,6 +44,14 @@ public class EntityChangeSet {
         return Collections.unmodifiableMap(view);
     }
 
+    void clearDynamicField(EntityKey key, String code) {
+        if (dynamicChanges == null) return;
+        var fields = dynamicChanges.get(key);
+        if (fields == null) return;
+        fields.remove(code);
+        if (fields.isEmpty()) dynamicChanges.remove(key);
+    }
+
     public void clearEntity(EntityKey key) {
         changes.remove(key);
         if (dynamicChanges != null) dynamicChanges.remove(key);

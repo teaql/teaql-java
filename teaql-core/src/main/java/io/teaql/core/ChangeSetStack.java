@@ -80,6 +80,10 @@ public class ChangeSetStack {
         for (EntityChangeSet changeSet : stack) changeSet.clearField(key, field);
     }
 
+    void clearDynamicField(EntityKey key, String code) {
+        for (EntityChangeSet changeSet : stack) changeSet.clearDynamicField(key, code);
+    }
+
     public Set<String> changedFieldNames(EntityKey key) {
         Set<String> fields = new TreeSet<>();
         for (EntityChangeSet changeSet : stack) {

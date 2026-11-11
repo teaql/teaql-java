@@ -9,9 +9,12 @@ import io.teaql.core.businessid.BusinessClock;
 import io.teaql.core.sqlite.SqliteDataServiceExecutor;
 import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import io.teaql.runtime.*;
+import io.teaql.data.dynamic.*;
+import io.teaql.data.dynamic.jdbc.JdbcDynamicFieldsProvider;
 import java.time.*;
 import java.sql.*;
 import java.util.concurrent.atomic.*;
+import java.util.Map;
 import java.io.PrintWriter;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
@@ -58,7 +61,8 @@ public class GeneratedContextFixTest {
         assertNotNull("use an owned persistent SQLite path", database);
         var ds = new Source("jdbc:sqlite:" + database);
         var metadata = new SimpleEntityMetaFactory();
-        var data = new SqliteDataServiceExecutor("sqlite", new JdbcSqlExecutor(ds), ds);
+        var sql = new JdbcSqlExecutor(ds);
+        var data = new SqliteDataServiceExecutor("sqlite", sql, ds);
         var ids = new AtomicLong(System.currentTimeMillis());
         var runtime = TeaQLRuntime.builder().metadata(metadata).dataService("sqlite", data)
                 .dataService("default", data).idGenerationService(new InternalIdGenerationService() {
@@ -150,6 +154,107 @@ public class GeneratedContextFixTest {
         assertEquals("alice", persisted.getOpenedBy()); assertEquals(B, persisted.getTouchedAt());
         assertEquals("192.0.2.20", persisted.getLastIp()); assertEquals("bob", persisted.getChangedBy());
         assertEquals(Long.valueOf(version + 1), persisted.getVersion());
+        // A computed result belongs to the query view, not the mutation ledger.
+        var readonlyRequest = Q.entries().withIdIs(id).limit(1);
+        readonlyRequest.setDynamicPropertyMetadata(new DynamicPropertyMetadata(Map.of("_name_copy", String.class)));
+        readonlyRequest.addSimpleDynamicProperty("_name_copy", new PropertyReference("name"));
+        var readonly = readonlyRequest.comment("Load a typed readonly query result")
+                .purpose("Prove view materialization is not a business edit").executeForOne(context);
+        assertEquals(persisted.getName(), readonly.getDynamicProperty("_name_copy"));
+        assertTrue(readonly.getUpdatedProperties().isEmpty());
+        context.putAttribute("businessNow", B.plusHours(1));
+        context.putAttribute("clientIp", "192.0.2.30"); context.putAttribute("actor", "carol");
+        connections = ds.calls.get(); int auditsBefore = audit.get();
+        for (int attempt = 0; attempt < 2; attempt++)
+            readonly.auditAs("Retain readonly properties without Context-only writes").save(context);
+        assertEquals(connections, ds.calls.get()); assertEquals(auditsBefore, audit.get());
+        assertEquals(Long.valueOf(version + 1), readonly.getVersion()); assertEquals(B, readonly.getTouchedAt());
+        assertEquals(persisted.getName(), readonly.getDynamicProperty("_name_copy"));
+
+        // Persist extensions through the same audited graph boundary and exact JDBC executor.
+        var provider = new JdbcDynamicFieldsProvider(sql); provider.ensureSchema();
+        DynamicFieldContext definitionContext = new DynamicFieldContext() {
+            public String scopeType() { return "GLOBAL"; }
+            public String scopeId() { return "default"; }
+            public String userId() { return "context-example"; }
+            public String purpose() { return "Verify Context Fix for persistent extensions"; }
+            public String comment() { return "Register a controlled extension definition"; }
+            public boolean strictIntent() { return true; }
+            public long nextId(String type) { return ids.incrementAndGet(); }
+        };
+        if (provider.listFieldDefs(definitionContext, "Entry").stream().noneMatch(def -> "context_note".equals(def.getCode()))) {
+            var def = new DynamicFieldDef(); def.setScope(DynamicFieldScope.global()); def.setOwnerType("Entry");
+            def.setCode("context_note"); def.setName("Context note"); def.setDataType(DynamicDataType.STRING);
+            provider.registerFieldDef(definitionContext, def);
+        }
+        context.putAttribute(DynamicFieldsFacade.class.getName(),
+                new DefaultDynamicFieldsFacade(provider).withIdGenerator(type -> ids.incrementAndGet()));
+        var dynamicRequest = Q.entries().withIdIs(id).limit(1);
+        dynamicRequest.selectDynamicFieldsWith(new DynamicFieldSelection().selectString("context_note"));
+        var dynamic = dynamicRequest.comment("Load typed extension definitions and values")
+                .purpose("Update only a persistent dynamic field").executeForOne(context);
+        assertEquals(DynamicFieldValue.State.NOT_LOADED, dynamic.dynamicFields().field("context_note").state());
+        dynamic.updateDynamicField("context_note", "dynamic-only");
+        assertTrue(dynamic.getUpdatedProperties().isEmpty());
+        auditsBefore = audit.get();
+        dynamic.auditAs("Persist a dynamic-only business edit with Context defaults").save(context);
+        assertEquals(auditsBefore + 1, audit.get());
+        assertEquals(Long.valueOf(version + 2), dynamic.getVersion());
+        assertEquals(B.plusHours(1), dynamic.getTouchedAt()); assertEquals("carol", dynamic.getChangedBy());
+        assertEquals(A, dynamic.getBornAt()); assertEquals("alice", dynamic.getOpenedBy());
+        var checkRequest = Q.entries().withIdIs(id).limit(1);
+        checkRequest.selectDynamicFieldsWith(new DynamicFieldSelection().selectString("context_note"));
+        var storedDynamic = checkRequest.comment("Read the committed extension and owner")
+                .purpose("Compare typed E and persistent extension readback").executeForOne(context);
+        assertEquals("dynamic-only", storedDynamic.dynamicFields().field("context_note").value());
+        assertEquals(B.plusHours(1), E.entry(storedDynamic).getTouchedAt().eval());
+        context.putAttribute("businessNow", B.plusHours(2)); context.putAttribute("actor", "dora");
+        context.putAttribute("clientIp", "192.0.2.40");
+        storedDynamic.updateDynamicField("context_note", "dynamic-only");
+        connections = ds.calls.get(); auditsBefore = audit.get();
+        storedDynamic.auditAs("An equal persistent extension is not a Context update").save(context);
+        assertEquals(connections, ds.calls.get()); assertEquals(auditsBefore, audit.get());
+        assertEquals(Long.valueOf(version + 2), storedDynamic.getVersion());
+        assertEquals("carol", storedDynamic.getChangedBy());
+        // Repeat indexed failure/undo using real generated relationships, not a test-only carrier.
+        var graphRoot = Q.catalogs().comment("Create a separate generated graph owner")
+                .purpose("Verify indexed Checker locations before graph writes").newEntity(context);
+        graphRoot.updateName("graph-root"); graphRoot.auditAs("Create an isolated graph root").save(context);
+        context.withActiveRoot(new ContextEntityRef("Catalog", graphRoot.getId()));
+        for (String name : java.util.List.of("graph-first", "graph-second")) {
+            var child = Q.entries().comment("Prepare one generated graph child")
+                    .purpose("Verify all children before persistence").newEntity(context);
+            child.updateName(name); child.updateCatalog(graphRoot); child.auditAs("Create a graph child").save(context);
+        }
+        var parent = Q.catalogs().withIdIs(graphRoot.getId()).limit(1)
+                .selectEntryListWith(Q.entries().orderByIdAscending().limit(10))
+                .comment("Load the generated parent and both children")
+                .purpose("Verify exact child index and rollback of automatic Context values").executeForOne(context);
+        assertEquals(2, parent.getEntryList().size());
+        var first = parent.getEntryList().get(0); var second = parent.getEntryList().get(1);
+        long parentVersion = parent.getVersion(), secondVersion = second.getVersion();
+        LocalDateTime graphBefore = first.getTouchedAt();
+        context.putAttribute("businessNow", B.plusHours(3)); context.putAttribute("actor", "eve");
+        context.putAttribute("clientIp", "192.0.2.50");
+        first.updateName("changed-child"); second.updateName("INVALID");
+        connections = ds.calls.get(); auditsBefore = audit.get();
+        var childError = assertThrows(CheckException.class,
+                () -> parent.auditAs("Reject a later invalid child before any graph write").save(context));
+        assertTrue(childError.getViolates().stream().anyMatch(v -> "/entryList/1/name".equals(v.getLocation().instancePath())));
+        assertEquals(connections, ds.calls.get()); assertEquals(auditsBefore, audit.get());
+        assertEquals(graphBefore, first.getTouchedAt()); assertEquals("dora", first.getChangedBy());
+        first.updateName("graph-first"); second.updateName("graph-second");
+        parent.auditAs("Undo rejected graph edits without retaining automatic Context changes").save(context);
+        assertEquals(connections, ds.calls.get()); assertEquals(auditsBefore, audit.get());
+        first.updateName("accepted-child"); parent.auditAs("Save only the genuinely changed generated child").save(context);
+        assertEquals(auditsBefore + 1, audit.get()); assertEquals(Long.valueOf(parentVersion), parent.getVersion());
+        assertEquals(Long.valueOf(secondVersion), second.getVersion());
+        var storedChild = Q.entries().withIdIs(first.getId()).limit(1)
+                .comment("Read the accepted graph child").purpose("Verify typed E after indexed failure and retry").executeForOne(context);
+        assertEquals("accepted-child", E.entry(storedChild).getName().eval()); assertEquals("eve", storedChild.getChangedBy());
+        assertEquals(B.plusHours(3), E.entry(storedChild).getTouchedAt().eval());
+        System.out.println("JAVA_CONTEXT_FIX_GRAPH=passed indexedLocation=true automaticUndo=true childOnly=true");
+        System.out.println("JAVA_CONTEXT_FIX_EXTENSIONS=passed dynamicOnly=true readonlyNoop=true equalDynamicNoop=true");
         System.out.println("JAVA_CONTEXT_FIX_SQLITE=passed typedQ=true typedE=true noOpProviderCalls=0 failedCheckProviderCalls=0 updateAudits=1 objectLocation=true");
     }
 

@@ -55,6 +55,13 @@ the caller's edit, which can be corrected or reverted. The application-owned
 Checker and metadata customization demonstrate the same guard for non-clock
 Context fields; generated timestamp assignments use that guard too.
 
+The same fixture also loads typed readonly query properties and persistent
+extensions. A readonly property does not dirty the entity. A dynamic-only edit
+does apply update-scoped Context values, while assigning its known persisted
+value again leaves SQL, version and committed audit unchanged. The extension
+provider shares the exact JDBC executor used by the owner graph transaction;
+there is no hand-written mutation SQL or separately committed extension write.
+
 `TEAQL_CONTEXT_FIX_EVIDENCE_DIR` chooses a new directory for compact receipts,
 logs, hashes and the SQLite store. Temporary source/build consumers are removed
 on exit. This is local source acceptance, not a public-package release or

@@ -46,7 +46,7 @@ async function main() {
     fs.mkdirSync(tests, {recursive: true});
     const app = fs.readFileSync(path.join(__dirname, 'GeneratedContextFixTest.java'));
     report.applicationSha256 = sha(app); fs.writeFileSync(path.join(tests, 'GeneratedContextFixTest.java'), app);
-    const dependencies = ['teaql-runtime', 'teaql-provider-jdbc', 'teaql-sqlite'].map(name =>
+    const dependencies = ['teaql-runtime', 'teaql-provider-jdbc', 'teaql-sqlite', 'teaql-dynamic-fields-jdbc'].map(name =>
       `<dependency><groupId>io.teaql</groupId><artifactId>${name}</artifactId><version>${version}</version></dependency>`).join('');
     fs.writeFileSync(path.join(consumer, 'pom.xml'), `<project><modelVersion>4.0.0</modelVersion><parent><groupId>io.teaql</groupId><artifactId>teaql-java-parent</artifactId><version>${version}</version><relativePath>../runtime/pom.xml</relativePath></parent><groupId>io.teaql.examples</groupId><artifactId>context-fix-consumer</artifactId><version>${version}</version><dependencies><dependency><groupId>com.example</groupId><artifactId>context-fix-service-core</artifactId><version>0.0.1-SNAPSHOT</version></dependency>${dependencies}<dependency><groupId>junit</groupId><artifactId>junit</artifactId><version>4.13.2</version><scope>test</scope></dependency></dependencies><build><plugins><plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><configuration><useModulePath>false</useModulePath></configuration></plugin></plugins></build></project>`);
     const reactor = path.join(scratch, 'pom.xml');
@@ -80,6 +80,8 @@ async function main() {
       report.rounds.push({round, command, exitCode: result.status, logSha256: sha(bytes)});
       assert.equal(result.status, 0, bytes.toString().slice(-6000));
       assert.match(bytes.toString(), /JAVA_CONTEXT_FIX_SQLITE=passed typedQ=true typedE=true noOpProviderCalls=0 failedCheckProviderCalls=0 updateAudits=1 objectLocation=true/);
+      assert.match(bytes.toString(), /JAVA_CONTEXT_FIX_EXTENSIONS=passed dynamicOnly=true readonlyNoop=true equalDynamicNoop=true/);
+      assert.match(bytes.toString(), /JAVA_CONTEXT_FIX_GRAPH=passed indexedLocation=true automaticUndo=true childOnly=true/);
       assert.deepEqual(inputs(), fixtureInputs, 'generated fixture changed');
     }
     report.sameDatabase = true; report.databaseSha256 = sha(fs.readFileSync(path.join(output, 'fixture.sqlite')));
