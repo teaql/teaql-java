@@ -1,14 +1,16 @@
-name: Publish Maven release
+name: Publish frozen core236 Maven release
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
 
 concurrency:
   group: teaql-java-maven-release
   cancel-in-progress: false
+
+env:
+  RELEASE_TAG: v1.556-RELEASE
+  RELEASE_VERSION: 1.556-RELEASE
+  RELEASE_COMMIT: 650e9c05ef6db30e1350940f18b130c9b5c07582
 
 jobs:
   publish:
@@ -18,46 +20,87 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: v1.556-RELEASE
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify immutable signed payload and inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$RELEASE_COMMIT"
+          test "$(git cat-file -t "refs/tags/$RELEASE_TAG")" = tag
+          test "$(git rev-list -n 1 "$RELEASE_TAG")" = "$RELEASE_COMMIT"
+          python3 - <<'PY'
+          import os, pathlib, xml.etree.ElementTree as ET
+          ns = {'m': 'http://maven.apache.org/POM/4.0.0'}
+          root = ET.parse('pom.xml').getroot()
+          assert root.findtext('m:version', namespaces=ns) == os.environ['RELEASE_VERSION']
+          modules = [m.text for m in root.findall('m:modules/m:module', ns) if m.text.startswith('teaql-')]
+          assert len(modules) == len(set(modules)) == 34
+          assert all(pathlib.Path(m, 'pom.xml').is_file() for m in modules)
+          artifacts = ['teaql-java-parent'] + modules
+          with open(os.environ['GITHUB_ENV'], 'a') as f:
+              f.write('RELEASE_SELECTORS=' + ','.join(':' + m for m in artifacts) + '\n')
+          pathlib.Path('release-inventory.txt').write_text('\n'.join(artifacts) + '\n')
+          PY
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: '21'
           cache: maven
           server-id: TEAQL
           server-username: TEAQL_MAVEN_USERNAME
           server-password: TEAQL_MAVEN_PASSWORD
-      - name: Read and validate release version
-        id: release
+      - name: Test frozen release modules
+        run: mvn -B -ntp test -pl "$RELEASE_SELECTORS" -am
+      - name: Refuse overwrites or inaccessible release coordinates
         shell: bash
         run: |
-          version="$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)"
-          test -n "$version"
-          case "$version" in
-            *SNAPSHOT*) echo "Refusing to publish snapshot version: $version" >&2; exit 1 ;;
-          esac
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-      - name: Verify tag points at the release commit
-        if: github.event_name == 'push'
-        run: test "$(git rev-list -n 1 "$GITHUB_REF_NAME")" = "$GITHUB_SHA"
-      - name: Test all modules
-        run: mvn -B test
-      - name: Refuse to overwrite an existing release
-        if: github.event_name == 'push'
-        env:
-          VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          url="https://maven.teaql.io/repository/maven-releases/io/teaql/teaql-core/$VERSION/teaql-core-$VERSION.pom"
-          if curl --fail --silent --show-error --head "$url" >/dev/null 2>&1; then
-            echo "Release already exists and will not be overwritten: $VERSION" >&2
-            exit 1
-          fi
-      - name: Publish all Maven modules
-        if: github.event_name == 'push'
-        run: mvn -B deploy -DskipTests -pl '!examples/conformance/lib,!examples/conformance'
+          set -euo pipefail
+          while read -r artifact; do
+            extensions=pom
+            if [ "$artifact" != teaql-java-parent ]; then extensions='pom jar'; fi
+            for extension in $extensions; do
+              url="https://maven.teaql.io/repository/maven-releases/io/teaql/$artifact/$RELEASE_VERSION/$artifact-$RELEASE_VERSION.$extension"
+              status="$(curl --silent --show-error --head --max-time 30 --output /dev/null --write-out '%{http_code}' "$url")"
+              test "$status" = 404 || { echo "Refusing inaccessible or existing coordinate: $artifact.$extension ($status)" >&2; exit 1; }
+            done
+          done < release-inventory.txt
+      - name: Publish only frozen parent and 34 runtime modules
+        run: mvn -B -ntp deploy -DskipTests -pl "$RELEASE_SELECTORS" -am
         env:
           TEAQL_MAVEN_USERNAME: ${{ secrets.TEAQL_MAVEN_USERNAME }}
           TEAQL_MAVEN_PASSWORD: ${{ secrets.TEAQL_MAVEN_PASSWORD }}
-      - name: Verify remote release completeness
-        env:
-          VERSION: ${{ steps.release.outputs.version }}
-        run: tools/verify_maven_release.sh "$VERSION"
+      - name: Verify official primary artifact bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          scratch="$(mktemp -d)"
+          trap 'rm -rf "$scratch"' EXIT
+          while read -r artifact; do
+            extensions=pom
+            if [ "$artifact" != teaql-java-parent ]; then extensions='pom jar'; fi
+            for extension in $extensions; do
+              filename="$artifact-$RELEASE_VERSION.$extension"
+              local_file="$artifact/target/$filename"
+              if [ "$extension" = pom ]; then
+                local_file="$artifact/pom.xml"
+                if [ "$artifact" = teaql-java-parent ]; then local_file=pom.xml; fi
+              fi
+              url="https://maven.teaql.io/repository/maven-releases/io/teaql/$artifact/$RELEASE_VERSION/$filename"
+              curl --fail --silent --show-error --max-time 60 "$url" --output "$scratch/$filename"
+              cmp "$local_file" "$scratch/$filename"
+            done
+          done < release-inventory.txt
+      - name: Retain native producer bytes and inventory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: core236-java-producer
+          path: |
+            release-inventory.txt
+            pom.xml
+            teaql-*/pom.xml
+            teaql-*/target/*.jar
+          retention-days: 14
