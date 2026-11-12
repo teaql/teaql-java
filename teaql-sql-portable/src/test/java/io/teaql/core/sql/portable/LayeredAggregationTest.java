@@ -153,4 +153,22 @@ public class LayeredAggregationTest {
         catch (TeaQLRuntimeException expected) { assertTrue(expected.getMessage().contains("share a data service")); }
         assertTrue(database.queryTrace().isEmpty());
     }
+    @Test public void negativeBoundsAndInvalidOrderCannotReachSql() {
+        var parent = kind("label"); parent.offset(-1, 1); database.clearQueryTrace();
+        try { execute(source(parent)); fail("negative parent offset must fail"); }
+        catch (TeaQLRuntimeException expected) { assertTrue(expected.getMessage().contains("page boundary")); }
+        var request = source(kind("label"));
+        request.getOrderBy().addOrderBy(new OrderBy("schoolCount", "DESC; SELECT 1"));
+        try { execute(request); fail("order direction must not be concatenated as arbitrary SQL"); }
+        catch (TeaQLRuntimeException expected) { assertTrue(expected.getMessage().contains("order direction")); }
+        assertTrue(database.queryTrace().isEmpty());
+    }
+    @Test public void defaultRouteSpellingsAreTheSameLogicalDataService() {
+        metadata.resolveEntityDescriptor("StatSchool").setDataService("");
+        metadata.resolveEntityDescriptor("StatKind").setDataService("default");
+        metadata.resolveEntityDescriptor("StatPlatform").setDataService("default");
+        context = new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata)
+                .dataService("default", new PortableSQLDataService("default", database, metadata)).build());
+        assertEquals(5, number(execute(source(kind("label"))).get(0), "schoolCount"));
+    }
 }

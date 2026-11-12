@@ -56,7 +56,7 @@ async function main() {
         receipt.focusedSuites = [counts(xml), counts(fs.readFileSync(layeredReport, 'utf8'))];
         receipt.junit = Object.fromEntries(['tests', 'failures', 'errors', 'skipped'].map(key =>
             [key, receipt.focusedSuites.reduce((sum, suite) => sum + suite[key], 0)]));
-        receipt.passed = receipt.result.status === 0 && receipt.junit.tests >= 15
+        receipt.passed = receipt.result.status === 0 && receipt.junit.tests >= 17
             && ['failures', 'errors', 'skipped'].every(name => receipt.junit[name] === 0);
         assert(receipt.passed, 'Roll-up acceptance failed: ' + JSON.stringify(receipt.junit));
         receipt.passed = false;
@@ -95,7 +95,9 @@ async function main() {
         } else receipt.unsafeRetention = {targets, processGroup: runner.unsafeGroup};
         runner.dispose();
         fs.writeFileSync(path.join(output, 'receipt.json'), JSON.stringify(receipt, null, 2) + '\n');
-        process.stdout.write(JSON.stringify(receipt, null, 2) + '\n');
+        process.stdout.write(JSON.stringify({passed: receipt.passed, evidence: output, focused: receipt.junit,
+            nativeTests: Object.values(receipt.nativeRegression?.suites || {}).flat().reduce((sum, suite) => sum + suite.tests, 0),
+            error: receipt.error, removedBytes: receipt.cleanup.reduce((sum, item) => sum + item.bytes, 0)}) + '\n');
     }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

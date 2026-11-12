@@ -36,9 +36,11 @@ final class LayeredAggregation {
         if (layers.size() >= 64 || active.put(request, Boolean.TRUE) != null)
             throw invalid("Cyclic statistics or statistical plan exceeds 64 layers");
         try {
-            String sourceRoute = Objects.toString(root.getEntityDescriptor().getDataService(), "default");
-            String targetRoute = Objects.toString(repository.getEntityDescriptor().getDataService(), "default");
+            String sourceRoute = route(root.getEntityDescriptor().getDataService());
+            String targetRoute = route(repository.getEntityDescriptor().getDataService());
             if (!sourceRoute.equals(targetRoute)) throw invalid("Statistical populations must share a data service");
+            if (request.getSlice() != null && (request.getSlice().getOffset() < 0 || request.getSlice().getSize() < 0))
+                throw invalid("Invalid statistical page boundary");
             if (!request.getPropagateAggregations().isEmpty())
                 throw invalid("Independent propagated aggregates require separate statistical lowering");
             int owner = layers.size();
@@ -263,7 +265,10 @@ final class LayeredAggregation {
     private String field(int owner, String property) { return q("l" + owner) + "." + q(property); }
     private String q(String name) { return root.escapeIdentifier(name); }
     private static String scalarProperty(Expression expression) {
-        if (expression instanceof AggrExpression aggregate && aggregate.getOperator() == AggrFunction.SELF) expression = aggregate.first();
+        if (expression instanceof AggrExpression aggregate && aggregate.getOperator() == AggrFunction.SELF) {
+            if (aggregate.getExpressions().size() != 1) throw invalid("Scalar statistics expression requires one operand");
+            expression = aggregate.first();
+        }
         if (expression instanceof PropertyReference reference) return reference.getPropertyName();
         throw invalid("Statistical dimension or operand requires a scalar property");
     }
@@ -278,4 +283,5 @@ final class LayeredAggregation {
         row.put(path.get(path.size() - 1), value);
     }
     private static TeaQLRuntimeException invalid(String message) { return new TeaQLRuntimeException(message); }
+    private static String route(String name) { return name == null || name.isEmpty() ? "default" : name; }
 }
