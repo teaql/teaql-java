@@ -57,6 +57,10 @@ public class AggrExpressionParser implements SQLExpressionParser<AggrExpression>
                 return StrUtil.format("sum({})", sqlColumn);
             case COUNT:
                 return StrUtil.format("count({})", sqlColumn);
+            case COUNT_DISTINCT:
+                if ("*".equals(sqlColumn.trim()))
+                    throw new TeaQLRuntimeException("COUNT DISTINCT requires a field, not all rows");
+                return StrUtil.format("count(DISTINCT {})", sqlColumn);
             case AVG:
                 return StrUtil.format("avg({})", sqlColumn);
             case STDDEV:

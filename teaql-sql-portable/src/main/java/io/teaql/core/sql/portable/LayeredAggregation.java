@@ -178,7 +178,8 @@ final class LayeredAggregation {
                     .append(" ON ").append(matchDimensions(dimensions, "c", alias));
             for (var measure : owned) {
                 String value = q(alias) + "." + q(measure.label);
-                if (((AggrExpression) measure.expression.getExpression()).getOperator() == AggrFunction.COUNT)
+                var function = ((AggrExpression) measure.expression.getExpression()).getOperator();
+                if (function == AggrFunction.COUNT || function == AggrFunction.COUNT_DISTINCT)
                     value = "COALESCE(" + value + ", 0)";
                 result.add(value + " AS " + q(measure.label));
             }

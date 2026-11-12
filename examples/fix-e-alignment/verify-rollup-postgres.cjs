@@ -36,7 +36,8 @@ async function main(){
       'teaql-sql-portable/src/main/java/io/teaql/core/sql/expression/AggrExpressionParser.java',
       'teaql-sql-portable/src/main/java/io/teaql/core/sql/dialect/PostgreSqlDialect.java',
       'teaql-runtime/src/main/java/io/teaql/runtime/StatisticsRequestPreparation.java',
-      'teaql-core/src/main/java/io/teaql/core/BaseRequest.java','teaql-core/src/main/java/io/teaql/core/QueryRequestSnapshot.java',
+      'teaql-core/src/main/java/io/teaql/core/BaseRequest.java','teaql-core/src/main/java/io/teaql/core/AggrFunction.java',
+      'teaql-core/src/main/java/io/teaql/core/QueryRequestSnapshot.java',
       'examples/fix-e-alignment/verify-rollup-postgres.cjs']){
       const bytes=fs.readFileSync(path.join(repo,file));receipt.sourceHashes[file]=hash(bytes);
       const target=path.join(output,'sources',file);fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,bytes);
@@ -53,7 +54,7 @@ async function main(){
         '-Dsurefire.failIfNoSpecifiedTests=false','test'],'postgres-round-'+round+'.log');
       const report=path.join(repo,'teaql-sql-portable/target/surefire-reports/TEST-io.teaql.core.sql.portable.PostgresLayeredAggregationIT.xml');
       const xml=fs.readFileSync(report,'utf8'),junit=counts(xml);fs.copyFileSync(report,path.join(output,'junit-round-'+round+'.xml'));
-      assert.deepEqual(junit,{tests:28,failures:0,errors:0,skipped:0});
+      assert.deepEqual(junit,{tests:31,failures:0,errors:0,skipped:0});
       const observations=log.split(/\r?\n/).filter(l=>l.startsWith('JAVA_POSTGRES_ROLLUP=')).map(l=>JSON.parse(l.slice('JAVA_POSTGRES_ROLLUP='.length)));
       assert.deepEqual(observations.map(o=>o.case).sort(),['extended-owner-grain','empty-extended','all-null-source-singleton-parent','variance-having'].sort());
       receipt.rounds.push({round,junit,observations});
@@ -67,7 +68,7 @@ async function main(){
       receipt.nativeSuites[path.basename(path.dirname(target))]=fs.readdirSync(dir).filter(n=>/^TEST-.*\.xml$/.test(n)&&!n.includes('PostgresLayeredAggregationIT'))
         .map(name=>({name,...counts(fs.readFileSync(path.join(dir,name),'utf8'))}));}
     const suites=Object.values(receipt.nativeSuites).flat();assert(suites.every(x=>x.failures===0&&x.errors===0));
-    receipt.nativeTestsPassed=suites.reduce((n,s)=>n+s.tests-s.skipped,0);assert(receipt.nativeTestsPassed>=1092);
+    receipt.nativeTestsPassed=suites.reduce((n,s)=>n+s.tests-s.skipped,0);assert(receipt.nativeTestsPassed>=1096);
     for(const[file,expected]of Object.entries(receipt.sourceHashes))assert.equal(hash(fs.readFileSync(path.join(repo,file))),expected,'Source changed: '+file);
     receipt.sameDatabase=true;receipt.passed=true;
   }catch(error){receipt.error=secret?String(error.message).split(secret).join('[REDACTED]'):error.message;process.exitCode=1;}

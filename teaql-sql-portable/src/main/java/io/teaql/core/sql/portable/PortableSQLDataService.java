@@ -226,7 +226,8 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         // implicit/explicit COUNT is zero; value aggregates have no value.
         boolean count = expressions.isEmpty() || expressions.size() == 1
                 && expressions.get(0).getExpression() instanceof AggrExpression aggregate
-                && aggregate.getOperator() == AggrFunction.COUNT;
+                && (aggregate.getOperator() == AggrFunction.COUNT
+                    || aggregate.getOperator() == AggrFunction.COUNT_DISTINCT);
         return count ? 0 : null;
     }
 

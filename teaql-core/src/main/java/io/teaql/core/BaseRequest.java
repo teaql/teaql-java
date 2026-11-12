@@ -733,6 +733,17 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         addAggregate(retName, propertyName, AggrFunction.COUNT);
     }
 
+    public void countDistinctProperty(String propertyName) {
+        countDistinctProperty(propertyName, propertyName);
+    }
+
+    public void countDistinctProperty(String retName, String propertyName) {
+        if ("*".equals(propertyName)) {
+            throw new IllegalArgumentException("COUNT DISTINCT requires a field, not all rows");
+        }
+        addAggregate(retName, propertyName, AggrFunction.COUNT_DISTINCT);
+    }
+
     public void sum(String propertyName) {
         sum(propertyName, propertyName);
     }

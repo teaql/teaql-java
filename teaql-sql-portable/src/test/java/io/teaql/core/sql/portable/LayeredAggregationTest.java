@@ -102,6 +102,40 @@ public class LayeredAggregationTest {
         assertEquals("shared", object(row, "kind").get("label"));
         assertFalse(row.containsKey("Legacy Kind Key")); assertFalse(row.containsKey("__teaql_m0"));
     }
+    @Test public void distinctCountsUseFinalOwnerPopulationNotSumOfIntermediateCounts() {
+        database.execute("INSERT INTO rollup_school VALUES(6,1,800,1002),(7,1,NULL,1002)");
+        var parent = kind("label"); parent.countDistinctProperty("labels", "label");
+        parent.having("labels", Operator.EQUAL, 1L);
+        var request = source(parent); request.countDistinctProperty("capacities", "capacity");
+        request.having("capacities", Operator.EQUAL, 2L);
+        request.addOrderByDescending("capacities");
+        var rows = execute(request); assertEquals(1, rows.size());
+        assertEquals(7, number(rows.get(0), "schoolCount"));
+        assertEquals(2, number(rows.get(0), "capacities"));
+        assertEquals(1, number(object(rows.get(0), "kind"), "labels"));
+        // Per-kind distinct capacity counts would be 1 + 2 = 3, not 2.
+        assertEquals(2, number(execute(request).get(0), "capacities"));
+    }
+    @Test public void distinctCountEmptyAndNullPopulationsReturnZero() {
+        database.execute("INSERT INTO rollup_school VALUES(7,1,NULL,1002)");
+        for (long id : List.of(7L, 999L)) {
+            var parent = new Request<>(StatKind.class, "StatKind");
+            parent.countDistinctProperty("labels", "label");
+            var request = source(parent).where("id", Operator.EQUAL, id);
+            request.countDistinctProperty("capacities", "capacity");
+            var rows = execute(request); assertEquals(1, rows.size());
+            assertEquals(0, number(rows.get(0), "capacities"));
+            assertEquals(id == 7 ? 1 : 0, number(object(rows.get(0), "kind"), "labels"));
+        }
+    }
+    @Test public void ordinaryDistinctCountSupportsHavingOverMappedField() {
+        var request = new Request<>(StatSchool.class, "StatSchool");
+        request.countDistinctProperty("capacities", "capacity");
+        request.having("capacities", Operator.EQUAL, 2L);
+        assertEquals(2, number(execute(request).get(0), "capacities"));
+        request.having("capacities", Operator.GREATER_THAN, 2L);
+        assertTrue(execute(request).isEmpty());
+    }
     @Test public void sourceAndParentFiltersConstrainTheSamePopulation() {
         var parent = kind("label").where("ordinal", Operator.EQUAL, 1L);
         assertEquals(4, number(execute(source(parent)).get(0), "schoolCount"));

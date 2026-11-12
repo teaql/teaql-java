@@ -2493,6 +2493,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     Object decodeAggregateValue(SimpleNamedExpression selected, Object raw) {
         if (raw == null || !(selected.getExpression() instanceof io.teaql.core.AggrExpression aggregate)
                 || aggregate.getOperator() == io.teaql.core.AggrFunction.COUNT
+                || aggregate.getOperator() == io.teaql.core.AggrFunction.COUNT_DISTINCT
                 || aggregate.getExpressions().size() != 1
                 || !(aggregate.getExpressions().get(0) instanceof io.teaql.core.PropertyReference reference)) {
             return raw;

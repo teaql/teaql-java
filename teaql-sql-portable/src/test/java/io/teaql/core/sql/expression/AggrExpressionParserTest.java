@@ -5,6 +5,12 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 
 public class AggrExpressionParserTest {
+    @Test public void distinctCountKeepsItsOwnOperatorAndRejectsAllRows() {
+        var parser = new AggrExpressionParser();
+        assertEquals("count(DISTINCT measure)", parser.genAggrSQL(AggrFunction.COUNT_DISTINCT, "measure"));
+        org.junit.Assert.assertThrows(io.teaql.core.TeaQLRuntimeException.class,
+                () -> parser.genAggrSQL(AggrFunction.COUNT_DISTINCT, "*"));
+    }
     @Test public void bitwiseOperatorsUseTheSameCompilerPathAsOtherMeasures() {
         var parser = new AggrExpressionParser();
         assertEquals("bit_and(measure)", parser.genAggrSQL(AggrFunction.BIT_AND, "measure"));

@@ -42,7 +42,7 @@ final class SqliteDialect extends PostgreSqlDialect {
         }
         return switch (function) {
             case SUM -> SqliteDecimalFunctions.SUM + "(" + columnSql + ")";
-            case SELF, MIN, MAX, COUNT -> null;
+            case SELF, MIN, MAX, COUNT, COUNT_DISTINCT -> null;
             default -> throw new IllegalArgumentException(
                     "SQLite exact Decimal aggregate is unsupported: " + function);
         };
