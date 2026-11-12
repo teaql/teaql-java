@@ -52,6 +52,9 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
     // search conditions
     protected SearchCriteria searchCriteria;
 
+    // Statistical result conditions are not predicates on the source rows.
+    protected SearchCriteria having;
+
     // order by
     protected OrderBys orderBys = new OrderBys();
 
@@ -232,6 +235,23 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
     @Override
     public SearchCriteria getSearchCriteria() {
         return searchCriteria;
+    }
+
+    @Override public SearchCriteria getHaving() { return having; }
+
+    @FrameworkInternal("Parser and derived population copies replace statistical result conditions")
+    public void replaceHaving(SearchCriteria condition) { having = condition; }
+
+    /** Append an AND condition on selected group/measure aliases. */
+    public BaseRequest<T> having(SearchCriteria condition) {
+        if (condition != null) having = having == null ? condition : SearchCriteria.and(having, condition);
+        return this;
+    }
+
+    public BaseRequest<T> having(String alias, Operator operator, Object... values) {
+        SearchCriteria condition = internalCreateSearchCriteria(alias, refineOperator(operator, values), values);
+        if (condition == null) throw new TeaQLRuntimeException("unsupported HAVING operator: " + operator);
+        return having(condition);
     }
 
     /**
@@ -973,6 +993,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
                 && Objects.equals(getSimpleDynamicProperties(), that.getSimpleDynamicProperties())
                 && Objects.equals(getDynamicPropertyMetadata(), that.getDynamicPropertyMetadata())
                 && Objects.equals(getSearchCriteria(), that.getSearchCriteria())
+                && Objects.equals(getHaving(), that.getHaving())
                 && Objects.equals(orderBys, that.orderBys)
                 && Objects.equals(getSlice(), that.getSlice())
                 && Objects.equals(enhanceRelations, that.enhanceRelations)
@@ -995,6 +1016,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
                 getSimpleDynamicProperties(),
                 getDynamicPropertyMetadata(),
                 getSearchCriteria(),
+                getHaving(),
                 orderBys,
                 getSlice(),
                 enhanceRelations,

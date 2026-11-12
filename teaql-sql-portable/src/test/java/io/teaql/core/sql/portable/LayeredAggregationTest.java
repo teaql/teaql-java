@@ -171,4 +171,89 @@ public class LayeredAggregationTest {
                 .dataService("default", new PortableSQLDataService("default", database, metadata)).build());
         assertEquals(5, number(execute(source(kind("label"))).get(0), "schoolCount"));
     }
+
+    @Test public void sourceHavingRunsAfterGroupingAndBeforePaging() {
+        var request = source(kind("ordinal"));
+        request.having("schoolCount", Operator.GREATER_THAN, 1L);
+        request.addOrderByAscending("schoolCount"); request.offset(0, 1);
+        var rows = execute(request);
+        assertEquals(1, rows.size()); assertEquals(4, number(rows.get(0), "schoolCount"));
+        assertEquals(1, number(object(rows.get(0), "kind"), "ordinal"));
+    }
+
+    @Test public void parentHavingUsesParentOwnerGrainInsteadOfChildCount() {
+        var parent = kind("label"); parent.count("types");
+        parent.having("types", Operator.GREATER_THAN_OR_EQUAL, 2L);
+        assertEquals(5, number(execute(source(parent)).get(0), "schoolCount"));
+        parent.having("types", Operator.LESS_THAN, 2L);
+        assertTrue(execute(source(parent)).isEmpty());
+    }
+
+    @Test public void parentHavingWithoutPageAndAfterSourceFilterControlsEligibleCells() {
+        var parent = kind("label"); parent.count("types"); parent.unlimited();
+        parent.having("types", Operator.GREATER_THAN, 1L);
+        assertEquals(5, number(execute(source(parent)).get(0), "schoolCount"));
+        assertTrue(execute(source(parent).where("capacity", Operator.GREATER_THAN, 500L)).isEmpty());
+    }
+
+    @Test public void havingResolvesNestedResultAliasesWithoutUsingPhysicalColumns() {
+        var parent = kind("label"); parent.count("types");
+        var request = source(parent); request.having("kind.types", Operator.EQUAL, 2L);
+        assertEquals(5, number(execute(request).get(0), "schoolCount"));
+        request.having("kind.label", Operator.EQUAL, "not shared");
+        assertTrue(execute(request).isEmpty());
+    }
+
+    @Test public void havingSupportsBooleanCompositionBetweenAndNull() {
+        database.execute("UPDATE rollup_kind SET \"Legacy Kind Label\"=NULL WHERE id=1002");
+        var request = source(kind("label"));
+        request.having(SearchCriteria.or(
+                request.createBasicSearchCriteria("kind.label", Operator.IS_NULL),
+                request.createBasicSearchCriteria("schoolCount", Operator.BETWEEN, 2L, 3L)));
+        var rows = execute(request); assertEquals(1, rows.size());
+        assertEquals(1, number(rows.get(0), "schoolCount"));
+        var empty = source(kind("label"));
+        empty.having(SearchCriteria.not(empty.createBasicSearchCriteria("schoolCount", Operator.BETWEEN, 1L, 5L)));
+        assertTrue(execute(empty).isEmpty());
+    }
+
+    @Test public void simpleStatisticsAlsoApplyHavingAndRetainEmptyScalarSemantics() {
+        var request = new Request<>(StatSchool.class, "StatSchool"); request.count("schoolCount");
+        request.having("schoolCount", Operator.GREATER_THAN, 5L);
+        assertTrue(execute(request).isEmpty());
+        var empty = new Request<>(StatSchool.class, "StatSchool"); empty.count("schoolCount");
+        empty.sum("capacityTotal", "capacity"); empty.where("capacity", Operator.LESS_THAN, 0L);
+        empty.having("schoolCount", Operator.EQUAL, 0L); empty.having("capacityTotal", Operator.IS_NULL);
+        assertEquals(0, number(execute(empty).get(0), "schoolCount"));
+    }
+
+    @Test public void havingRejectsUnknownOrNonSelectedKeysBeforeSql() {
+        for (String key : List.of("capacity", "Legacy Capacity", "missing", "schoolCount; DROP TABLE rollup_school")) {
+            var request = source(kind("label")); request.having(key, Operator.GREATER_THAN, 0L);
+            database.clearQueryTrace();
+            assertThrows(TeaQLRuntimeException.class, () -> execute(request));
+            assertTrue(database.queryTrace().isEmpty());
+        }
+    }
+
+    @Test public void simpleHavingOrderingAndPagingUseStatisticalRows() {
+        var request = new Request<>(StatSchool.class, "StatSchool");
+        request.groupBy("kind"); request.count("schoolCount");
+        request.having("schoolCount", Operator.GREATER_THAN, 0L);
+        request.addOrderByAscending("schoolCount"); request.offset(1, 1);
+        var rows = execute(request); assertEquals(1, rows.size());
+        assertEquals(4, number(rows.get(0), "schoolCount"));
+    }
+
+    @Test public void havingThresholdsAreCapturedFromEveryLayerForIntentRedaction() {
+        var repositories = new HashMap<String, PortableSQLRepository<?>>();
+        for (String type : List.of("StatSchool", "StatKind", "StatPlatform"))
+            repositories.put(type, new PortableSQLRepository<>(metadata.resolveEntityDescriptor(type), database, repositories::get, metadata));
+        var parent = kind("label"); parent.having("label", Operator.EQUAL, "PARENT-HAVING-PRIVATE");
+        var request = source(parent); request.having("schoolCount", Operator.EQUAL, 927381L);
+        var redactions = new SqlIntentRedactions();
+        SqlLikeIntent.capture(context, request, repositories.get("StatSchool"), redactions);
+        var values = new ArrayList<Object>(); redactions.appendTo(values, false);
+        assertTrue(values.contains("PARENT-HAVING-PRIVATE")); assertTrue(values.contains("927381"));
+    }
 }

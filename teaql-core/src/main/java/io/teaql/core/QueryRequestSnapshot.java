@@ -31,6 +31,7 @@ public class QueryRequestSnapshot<T extends Entity> extends BaseRequest<T> {
         simpleDynamicProperties = new ArrayList<>(request.getSimpleDynamicProperties());
         dynamicPropertyMetadata = request.getDynamicPropertyMetadata();
         searchCriteria = request.getSearchCriteria();
+        having = request.getHaving();
         orderBys = new OrderBys();
         if (request.getOrderBy() != null) for (OrderBy source : request.getOrderBy().getOrderBys()) {
             OrderBy order = new OrderBy("id"); order.setExpression(source.getExpression()); order.setDirection(source.getDirection());

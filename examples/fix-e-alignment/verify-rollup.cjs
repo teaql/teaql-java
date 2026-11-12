@@ -24,6 +24,13 @@ async function main() {
         for (const name of [source, 'teaql-runtime/src/main/java/io/teaql/runtime/TeaQLRuntime.java',
             'teaql-sql-portable/src/test/java/io/teaql/core/sql/portable/LayeredAggregationTest.java',
             'teaql-core/src/main/java/io/teaql/core/SearchRequest.java',
+            'teaql-core/src/main/java/io/teaql/core/BaseRequest.java',
+            'teaql-core/src/main/java/io/teaql/core/QueryRequestSnapshot.java',
+            'teaql-core/src/test/java/io/teaql/core/BaseRequestTest.java',
+            'teaql-sql-portable/src/main/java/io/teaql/core/sql/StatisticalResultFilter.java',
+            'teaql-sql-portable/src/test/java/io/teaql/core/sql/StatisticalResultFilterTest.java',
+            'teaql-sql-portable/src/main/java/io/teaql/core/sql/SqlAstCompiler.java',
+            'teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/SqlLikeIntent.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/PortableSQLRepository.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/LayeredAggregation.java',
             'teaql-runtime/src/main/java/io/teaql/runtime/StatisticsRequestPreparation.java',
@@ -35,7 +42,7 @@ async function main() {
         fs.writeFileSync(path.join(output, 'source-changes.patch'),
             cp.execFileSync('git', ['diff', '--binary', 'HEAD'], {cwd: repo}));
         const command = [process.env.MAVEN || 'mvn', '-o', '-B', '-pl', 'teaql-sql-portable', '-am',
-            '-Dtest=PortableSQLDatabaseTest#rollup*,LayeredAggregationTest', '-Dsurefire.failIfNoSpecifiedTests=false', 'test'];
+            '-Dtest=PortableSQLDatabaseTest#rollup*,LayeredAggregationTest,StatisticalResultFilterTest', '-Dsurefire.failIfNoSpecifiedTests=false', 'test'];
         const fd = fs.openSync(path.join(output, 'test.log'), 'wx');
         try { receipt.result = await runner.run(command, {cwd: repo, env: process.env,
             timeout: 900000, stdio: ['ignore', fd, fd]}); }
@@ -53,10 +60,13 @@ async function main() {
         const layeredReport = path.join(path.dirname(report), 'TEST-io.teaql.core.sql.portable.LayeredAggregationTest.xml');
         assert(fs.existsSync(layeredReport), 'No layered statistics report');
         fs.copyFileSync(layeredReport, path.join(output, 'junit-layered.xml'));
-        receipt.focusedSuites = [counts(xml), counts(fs.readFileSync(layeredReport, 'utf8'))];
+        const filterReport = path.join(path.dirname(report), 'TEST-io.teaql.core.sql.StatisticalResultFilterTest.xml');
+        assert(fs.existsSync(filterReport), 'No statistical filter security report');
+        fs.copyFileSync(filterReport, path.join(output, 'junit-filter.xml'));
+        receipt.focusedSuites = [counts(xml), counts(fs.readFileSync(layeredReport, 'utf8')), counts(fs.readFileSync(filterReport, 'utf8'))];
         receipt.junit = Object.fromEntries(['tests', 'failures', 'errors', 'skipped'].map(key =>
             [key, receipt.focusedSuites.reduce((sum, suite) => sum + suite[key], 0)]));
-        receipt.passed = receipt.result.status === 0 && receipt.junit.tests >= 17
+        receipt.passed = receipt.result.status === 0 && receipt.junit.tests >= 32
             && ['failures', 'errors', 'skipped'].every(name => receipt.junit[name] === 0);
         assert(receipt.passed, 'Roll-up acceptance failed: ' + JSON.stringify(receipt.junit));
         receipt.passed = false;

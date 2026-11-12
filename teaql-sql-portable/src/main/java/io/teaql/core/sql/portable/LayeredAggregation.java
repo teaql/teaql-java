@@ -5,6 +5,8 @@ import io.teaql.core.meta.PropertyDescriptor;
 import io.teaql.core.meta.Relation;
 import io.teaql.core.sql.SqlAstCompiler;
 import io.teaql.core.sql.SqlEntityMetadata;
+import io.teaql.core.sql.StatisticalResultFilter;
+import io.teaql.core.sql.expression.ExpressionHelper;
 import java.util.*;
 
 /** Invocation-local statistics plan. No generated code or entity hydration. */
@@ -114,6 +116,7 @@ final class LayeredAggregation {
             for (var child : layers) if (Objects.equals(child.parent, index)) fields.add(child.foreignKey);
             var population = new QueryRequestSnapshot<>(layer.request, layer.request.requestScope());
             population.setAggregations(new Aggregations()); population.setSlice(null);
+            population.replaceHaving(null);
             population.getOrderBy().getOrderBys().clear(); population.getProjections().clear();
             population.getPropagateDimensions().clear();
             for (String field : fields) {
@@ -146,7 +149,7 @@ final class LayeredAggregation {
         List<String> eligibility = new ArrayList<>();
         for (int owner = 1; owner < layers.size(); owner++) {
             var layer = layers.get(owner);
-            if (layer.request.getSlice() == null) continue;
+            if (layer.request.getSlice() == null && layer.request.getHaving() == null) continue;
             var localDimensions = descendantDimensions(owner);
             var localMeasures = ownedMeasures(owner);
             String eligible = q("__teaql_eligible" + owner);
@@ -211,6 +214,15 @@ final class LayeredAggregation {
     private String boundResult(UserContext context, Map<String, Object> parameters, Layer layer, String sql,
             List<Binding> cellDimensions, List<Binding> cellMeasures) {
         List<Binding> bindings = new ArrayList<>(cellDimensions); bindings.addAll(cellMeasures);
+        var columns = new LinkedHashMap<String, StatisticalResultFilter.Column>();
+        for (var binding : bindings) {
+            String relative = String.join(".", binding.path.subList(layer.path.size(), binding.path.size()));
+            var policy = ExpressionHelper.parameterPolicy(context, binding.expression,
+                    layers.get(binding.owner).repository);
+            if (columns.putIfAbsent(relative, new StatisticalResultFilter.Column(binding.label, policy)) != null)
+                throw invalid("Ambiguous statistical result alias: " + relative);
+        }
+        sql = StatisticalResultFilter.apply(context, sql, layer.request.getHaving(), columns, layer.repository, parameters);
         List<String> order = new ArrayList<>();
         for (var item : layer.request.getOrderBy().getOrderBys()) {
             Binding binding = null;

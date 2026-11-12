@@ -100,6 +100,9 @@ public interface SearchRequest<T extends Entity> {
 
     SearchCriteria getSearchCriteria();
 
+    /** Conditions on named statistical results, evaluated after grouping. */
+    default SearchCriteria getHaving() { return null; }
+
     Aggregations getAggregations();
 
     Map<String, SearchRequest> getPropagateAggregations();
