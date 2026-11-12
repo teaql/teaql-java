@@ -143,7 +143,7 @@ public interface SearchRequest<T extends Entity> {
         if (aggregations == null) {
             return false;
         }
-        return !aggregations.getAggregates().isEmpty();
+        return !aggregations.getAggregates().isEmpty() || !aggregations.getDimensions().isEmpty();
     }
 
     default List<String> dataProperties(UserContext context) {

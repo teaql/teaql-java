@@ -1192,7 +1192,7 @@ public class PortableSQLDatabaseTest {
 
     // ── SQLite TeaQLDatabase Implementation ────────────────
 
-    public static class SQLiteTeaQLDatabase implements TeaQLDatabase {
+    public static class SQLiteTeaQLDatabase implements TeaQLDatabase, AutoCloseable {
         private final Connection connection;
         private final List<String> queryTrace = new ArrayList<>();
         private final List<String> executeTrace = new ArrayList<>();
@@ -1200,6 +1200,8 @@ public class PortableSQLDatabaseTest {
         public SQLiteTeaQLDatabase() throws Exception {
             this.connection = DriverManager.getConnection("jdbc:sqlite::memory:");
         }
+
+        @Override public void close() throws SQLException { connection.close(); }
 
         @Override
         public List<Map<String, Object>> query(String sql, Object[] args) {

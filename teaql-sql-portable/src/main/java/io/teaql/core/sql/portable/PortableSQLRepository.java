@@ -757,6 +757,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         // Inspect the current typed request, including future child predicates, before
         // any SQL. Cached plans never own these values and binds are never rewritten.
         SqlLikeIntent.capture(userContext, request, this, intent);
+
         IdSetExecution<T> idSetExecution = prepareIdSetPage(userContext, request, intent);
         if (idSetExecution.optimized() && idSetExecution.pageIds().length == 0) {
             return attachExactIdSetCount(userContext, request, idSetExecution, SmartList.empty(request.returnType()));
@@ -2439,6 +2440,14 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         if (!request.hasSimpleAgg()) return null;
         SqlLikeIntent.capture(userContext, request, this, intent);
 
+        if (!request.getPropagateDimensions().isEmpty()) {
+            var parameters = new io.teaql.core.sql.SqlParameters();
+            parameters.captureQueryContext(request);
+            var plan = LayeredAggregation.compile(this, userContext, request, parameters);
+            PositionalSQL statement = withQueryIntent(toPositional(plan.sql(), parameters), intent, request);
+            return plan.decode(database.query(userContext, statement.sql, statement.args, statement.logBindings));
+        }
+
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
         List<String> tables = compiler.collectAggregationTables(sqlMetadata, this, userContext, request);
         Map<String, Object> parameters = new io.teaql.core.sql.SqlParameters();
@@ -2474,7 +2483,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         }
     }
 
-    private Object decodeAggregateValue(SimpleNamedExpression selected, Object raw) {
+    Object decodeAggregateValue(SimpleNamedExpression selected, Object raw) {
         if (raw == null || !(selected.getExpression() instanceof io.teaql.core.AggrExpression aggregate)
                 || aggregate.getOperator() == io.teaql.core.AggrFunction.COUNT
                 || aggregate.getExpressions().size() != 1

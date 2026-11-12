@@ -22,6 +22,10 @@ async function main() {
         receipt.testSourceSha256 = hash(fs.readFileSync(path.join(repo, source)));
         receipt.sourceHashes = {};
         for (const name of [source, 'teaql-runtime/src/main/java/io/teaql/runtime/TeaQLRuntime.java',
+            'teaql-sql-portable/src/test/java/io/teaql/core/sql/portable/LayeredAggregationTest.java',
+            'teaql-core/src/main/java/io/teaql/core/SearchRequest.java',
+            'teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/PortableSQLRepository.java',
+            'teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/LayeredAggregation.java',
             'teaql-runtime/src/main/java/io/teaql/runtime/StatisticsRequestPreparation.java',
             'examples/fix-e-alignment/verify-rollup.cjs']) {
             const bytes = fs.readFileSync(path.join(repo, name)); receipt.sourceHashes[name] = hash(bytes);
@@ -31,7 +35,7 @@ async function main() {
         fs.writeFileSync(path.join(output, 'source-changes.patch'),
             cp.execFileSync('git', ['diff', '--binary', 'HEAD'], {cwd: repo}));
         const command = [process.env.MAVEN || 'mvn', '-o', '-B', '-pl', 'teaql-sql-portable', '-am',
-            '-Dtest=PortableSQLDatabaseTest#rollup*', '-Dsurefire.failIfNoSpecifiedTests=false', 'test'];
+            '-Dtest=PortableSQLDatabaseTest#rollup*,LayeredAggregationTest', '-Dsurefire.failIfNoSpecifiedTests=false', 'test'];
         const fd = fs.openSync(path.join(output, 'test.log'), 'wx');
         try { receipt.result = await runner.run(command, {cwd: repo, env: process.env,
             timeout: 900000, stdio: ['ignore', fd, fd]}); }
@@ -42,16 +46,43 @@ async function main() {
         assert(fs.existsSync(report), 'No JUnit report: this is not a verified runtime result');
         fs.copyFileSync(report, path.join(output, 'junit.xml'));
         const xml = fs.readFileSync(report, 'utf8');
-        receipt.junit = Object.fromEntries(['tests', 'failures', 'errors', 'skipped'].map(name => {
+        const counts = xml => Object.fromEntries(['tests', 'failures', 'errors', 'skipped'].map(name => {
             const match = xml.match(new RegExp('\\b' + name + '="(\\d+)"'));
             assert(match, 'Missing JUnit count: ' + name); return [name, Number(match[1])];
         }));
-        receipt.passed = receipt.result.status === 0 && receipt.junit.tests >= 2
+        const layeredReport = path.join(path.dirname(report), 'TEST-io.teaql.core.sql.portable.LayeredAggregationTest.xml');
+        assert(fs.existsSync(layeredReport), 'No layered statistics report');
+        fs.copyFileSync(layeredReport, path.join(output, 'junit-layered.xml'));
+        receipt.focusedSuites = [counts(xml), counts(fs.readFileSync(layeredReport, 'utf8'))];
+        receipt.junit = Object.fromEntries(['tests', 'failures', 'errors', 'skipped'].map(key =>
+            [key, receipt.focusedSuites.reduce((sum, suite) => sum + suite[key], 0)]));
+        receipt.passed = receipt.result.status === 0 && receipt.junit.tests >= 15
             && ['failures', 'errors', 'skipped'].every(name => receipt.junit[name] === 0);
+        assert(receipt.passed, 'Roll-up acceptance failed: ' + JSON.stringify(receipt.junit));
+        receipt.passed = false;
+        const regressionCommand = [process.env.MAVEN || 'mvn', '-o', '-B', '-pl', 'teaql-sql-portable', '-am', 'test'];
+        const regressionFd = fs.openSync(path.join(output, 'native-regression.log'), 'wx'); let regression;
+        try { regression = await runner.run(regressionCommand, {cwd: repo, env: process.env,
+            timeout: 900000, stdio: ['ignore', regressionFd, regressionFd]}); }
+        finally { fs.closeSync(regressionFd); }
+        const suites = {};
+        for (const target of targets) {
+            const directory = path.join(target, 'surefire-reports');
+            if (!fs.existsSync(directory)) continue;
+            const files = fs.readdirSync(directory).filter(name => /^TEST-.*\.xml$/.test(name));
+            suites[path.basename(path.dirname(target))] = files.map(name => ({name, ...counts(fs.readFileSync(path.join(directory, name), 'utf8'))}));
+        }
+        receipt.nativeRegression = {command: regressionCommand, result: regression, suites,
+            logSha256: hash(fs.readFileSync(path.join(output, 'native-regression.log')))};
+        assert.equal(regression.status, 0, 'Native regression failed');
+        for (const module of ['teaql-core', 'teaql-runtime', 'teaql-sql-portable']) {
+            assert(suites[module]?.reduce((sum, suite) => sum + suite.tests, 0) >= 20, 'Missing complete native suite: ' + module);
+        }
+        assert(Object.values(suites).flat().every(suite => suite.failures === 0 && suite.errors === 0), 'Native JUnit failure');
         for (const [name, expected] of Object.entries(receipt.sourceHashes)) {
             assert.equal(hash(fs.readFileSync(path.join(repo, name))), expected, 'Source changed during verification: ' + name);
         }
-        assert(receipt.passed, 'Roll-up acceptance failed: ' + JSON.stringify(receipt.junit));
+        receipt.passed = true;
     } catch (error) {
         receipt.error = error.message; process.exitCode = runner.interrupted === 'SIGINT' ? 130 : 1;
     } finally {
