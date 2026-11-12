@@ -560,6 +560,45 @@ public class PortableSQLDatabaseTest {
     }
 
     @Test
+    public void rollupParentFilterMustConstrainTheOriginalSourceStatistics() {
+        registerTopNFixture();
+        TopNParentRequest parent = new TopNParentRequest()
+                .where("name", Operator.EQUAL, "A")
+                .comment("Include only parent A in the statistical population");
+        TopNChildRequest source = new TopNChildRequest();
+        source.count("childCount");
+        source.groupBy("parent", parent);
+
+        List<Map<String, Object>> rows = source
+                .comment("Count children grouped by eligible parents")
+                .purpose("Verify roll-up filters change source membership")
+                .aggregation(context).toList();
+
+        assertEquals("parent B must not survive the parent filter", 1, rows.size());
+        assertEquals(4L, ((Number) rows.get(0).get("childCount")).longValue());
+    }
+
+    @Test
+    public void rollupGroupedParentMustMergeSourceCountsAtTheParentDimensionGrain() {
+        registerTopNFixture();
+        sqliteDb.execute("UPDATE top_n_parent_data SET name='shared' WHERE id IN (1,2)");
+        TopNParentRequest parent = new TopNParentRequest()
+                .comment("Group distinct parents with the same business dimension");
+        parent.groupBy("name");
+        TopNChildRequest source = new TopNChildRequest();
+        source.count("childCount");
+        source.groupBy("parent", parent);
+
+        List<Map<String, Object>> rows = source
+                .comment("Count source children at the parent-name grain")
+                .purpose("Verify grouped parent keys are not treated as parent IDs")
+                .aggregation(context).toList();
+
+        assertEquals("the two parent IDs belong to one final dimension", 1, rows.size());
+        assertEquals(7L, ((Number) rows.get(0).get("childCount")).longValue());
+    }
+
+    @Test
     public void streamRelationHydrationMustFailRatherThanReturnPartialEntity() {
         registerTopNFixture();
         EntityDescriptor child = metaFactory.resolveEntityDescriptor("TopNChild");
