@@ -45,6 +45,9 @@ public final class CheckerPresentation {
         }
         public static Model empty() { return EMPTY; }
 
+        /** Parse passive generated descriptors once at module composition, never during rendering. */
+        public static Model fromJson(String source) { return CheckerPresentationJson.parse(source); }
+
         /** Compose passive generated modules once; conflicting identities require an explicit model decision. */
         public Model merge(Model other) {
             Objects.requireNonNull(other);
