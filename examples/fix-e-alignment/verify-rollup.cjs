@@ -31,6 +31,8 @@ async function main() {
             'teaql-sql-portable/src/test/java/io/teaql/core/sql/StatisticalResultFilterTest.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/SqlAstCompiler.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/SqlLikeIntent.java',
+            'teaql-sql-portable/src/main/java/io/teaql/core/sql/dialect/PostgreSqlDialect.java',
+            'teaql-sql-portable/src/test/java/io/teaql/core/sql/portable/PostgreSqlIdentifierTest.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/PortableSQLRepository.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/LayeredAggregation.java',
             'teaql-runtime/src/main/java/io/teaql/runtime/StatisticsRequestPreparation.java',
@@ -66,7 +68,7 @@ async function main() {
         receipt.focusedSuites = [counts(xml), counts(fs.readFileSync(layeredReport, 'utf8')), counts(fs.readFileSync(filterReport, 'utf8'))];
         receipt.junit = Object.fromEntries(['tests', 'failures', 'errors', 'skipped'].map(key =>
             [key, receipt.focusedSuites.reduce((sum, suite) => sum + suite[key], 0)]));
-        receipt.passed = receipt.result.status === 0 && receipt.junit.tests >= 32
+        receipt.passed = receipt.result.status === 0 && receipt.junit.tests >= 34
             && ['failures', 'errors', 'skipped'].every(name => receipt.junit[name] === 0);
         assert(receipt.passed, 'Roll-up acceptance failed: ' + JSON.stringify(receipt.junit));
         receipt.passed = false;

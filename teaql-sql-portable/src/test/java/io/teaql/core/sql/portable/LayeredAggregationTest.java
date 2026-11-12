@@ -256,4 +256,24 @@ public class LayeredAggregationTest {
         var values = new ArrayList<Object>(); redactions.appendTo(values, false);
         assertTrue(values.contains("PARENT-HAVING-PRIVATE")); assertTrue(values.contains("927381"));
     }
+
+    @Test public void generatedStyleRollupMembershipDoesNotMaterializeGroupedParentIds() {
+        var parent = kind("ordinal"); parent.addOrderByDescending("ordinal"); parent.offset(0, 1);
+        var request = source(parent).where("capacity", Operator.GREATER_THAN, 0L);
+        request.appendSearchCriteria(new SubQuerySearchCriteria("kind", parent, "id"));
+        var original = request.getSearchCriteria(); database.clearQueryTrace();
+        var rows = execute(request); assertEquals(1, rows.size());
+        assertEquals(1, number(rows.get(0), "schoolCount")); assertEquals(100, number(rows.get(0), "capacityTotal"));
+        assertEquals("Only the statistical SQL should execute", 1, database.queryTrace().size());
+        assertSame("The reusable source builder must not be rewritten", original, request.getSearchCriteria());
+    }
+
+    @Test public void independentParentMembershipRemainsABusinessFilter() {
+        var request = source(kind("label"));
+        var independent = new Request<>(StatKind.class, "StatKind").where("ordinal", Operator.EQUAL, 1L);
+        independent.unlimited();
+        request.appendSearchCriteria(new SubQuerySearchCriteria("kind", independent, "id"));
+        var row = execute(request).get(0);
+        assertEquals(4, number(row, "schoolCount")); assertEquals(3200, number(row, "capacityTotal"));
+    }
 }

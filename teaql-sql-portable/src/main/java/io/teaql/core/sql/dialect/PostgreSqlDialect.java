@@ -15,7 +15,7 @@ public class PostgreSqlDialect extends AbstractSqlDialect {
         if (!needsEscape(identifier)) {
             return identifier;
         }
-        return "\"" + identifier + "\"";
+        return "\"" + identifier.replace("\"", "\"\"") + "\"";
     }
 
     @Override
