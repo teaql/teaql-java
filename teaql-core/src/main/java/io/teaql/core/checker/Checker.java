@@ -245,6 +245,7 @@ public interface Checker<T extends BaseEntity> {
         if (result.getRootType() == null || result.getRootType().isBlank()) {
             result.setRootType(type());
         }
+        io.teaql.core.checker.internal.CheckerMessageRendering.bind(context, result);
         context.translateCheckResult(result);
         java.util.List list = (java.util.List) CheckerInvocation.attribute(context, TEAQL_DATA_CHECK_RESULT);
         if (list == null) {
@@ -268,7 +269,7 @@ public interface Checker<T extends BaseEntity> {
             checkAndFix(context, entity, null);
             return;
         }
-        try (var invocation = CheckerInvocation.open(context)) {
+        try (var invocation = CheckerInvocation.open(context, entity == null ? type() : entity.runtimeType())) {
             checkAndFix(context, entity, null);
             java.util.List<CheckResult> violations = (java.util.List<CheckResult>)
                     invocation.attribute(TEAQL_DATA_CHECK_RESULT);

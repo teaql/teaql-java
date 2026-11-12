@@ -38,9 +38,33 @@ public final class CheckerPresentation {
 
     /** One shared immutable index per generated model revision. */
     public record Model(String revision, Map<String, Entity> entities, Map<Locale, String> currentObject) {
+        private static final Model EMPTY = new Model("unconfigured", Map.of(), io.teaql.core.i18n.CheckerMessageDefaults.currentObjectLabels());
         public Model {
             Objects.requireNonNull(revision); entities = Map.copyOf(entities); currentObject = Map.copyOf(currentObject);
             if (!currentObject.containsKey(Locale.ENGLISH)) throw new IllegalArgumentException("Missing English current-object label");
+        }
+        public static Model empty() { return EMPTY; }
+
+        /** Compose passive generated modules once; conflicting identities require an explicit model decision. */
+        public Model merge(Model other) {
+            Objects.requireNonNull(other);
+            if (this == EMPTY) return other;
+            if (other == EMPTY || this == other) return this;
+            Map<String, Entity> combined = new HashMap<>(entities);
+            Map<Locale, String> labels = new EnumMap<>(Locale.class); labels.putAll(currentObject);
+            boolean changed = false;
+            for (var entry : other.entities.entrySet()) {
+                Entity previous = combined.putIfAbsent(entry.getKey(), entry.getValue());
+                if (previous == null) changed = true;
+                else if (!previous.labels.equals(entry.getValue().labels) || !previous.fields.equals(entry.getValue().fields))
+                    throw new IllegalArgumentException("Conflicting Checker presentation entity metadata");
+            }
+            for (var entry : other.currentObject.entrySet()) {
+                String previous = labels.putIfAbsent(entry.getKey(), entry.getValue());
+                if (previous == null) changed = true;
+                else if (!previous.equals(entry.getValue())) throw new IllegalArgumentException("Conflicting Checker current-object vocabulary");
+            }
+            return changed ? new Model(revision + "+" + other.revision, combined, labels) : this;
         }
     }
 
@@ -68,6 +92,7 @@ public final class CheckerPresentation {
         for (ObjectLocation cursor = location; cursor != null; cursor = cursor.getParent()) {
             if (cursor instanceof HashLocation hash) segments.addFirst(WireLocationSegment.property(hash.getMember()));
             else if (cursor instanceof ArrayLocation array) segments.addFirst(WireLocationSegment.index(array.getIndex()));
+            else if (cursor.getClass() == ObjectLocation.class && cursor.getParent() == null) { /* root anchor, not a property */ }
             else throw new IllegalArgumentException("Unsupported location segment");
         }
         for (WireLocationSegment segment : segments) {
@@ -92,16 +117,25 @@ public final class CheckerPresentation {
     public CheckerMessageCatalog.Shape shape() { return shape; }
     public String modelRevision() { return model.revision(); }
 
+    /** A caller relocating a violation keeps its captured origin, even after the invocation has closed. */
+    public CheckerPresentation relocate(ObjectLocation location) { return capture(model, rootType, location); }
+
     /** Pure O(path length) rendering. Constraint arguments must already have passed diagnostic projection. */
     public String render(CheckerMessageCatalog catalog, Locale locale, String rule, Map<String, ?> safeArguments,
                          Consumer<String> warningSink) {
-        Objects.requireNonNull(catalog); Objects.requireNonNull(locale); Objects.requireNonNull(warningSink);
+        Objects.requireNonNull(locale);
+        return render(catalog, catalog.select(locale, rule, shape), safeArguments, warningSink);
+    }
+
+    /** Render with a previously resolved template so grammar and constraint units use that Locale. */
+    public String render(CheckerMessageCatalog catalog, CheckerMessageCatalog.Selection selection,
+                         Map<String, ?> safeArguments, Consumer<String> warningSink) {
+        Objects.requireNonNull(catalog); Objects.requireNonNull(selection); Objects.requireNonNull(warningSink);
         Set<String> warnings = new HashSet<>();
         Consumer<String> warn = code -> {
             if (warnings.add(code)) try { warningSink.accept(code); }
             catch (RuntimeException ignored) { /* A quality-warning adapter must not replace the validation failure. */ }
         };
-        var selection = catalog.select(locale, rule, shape);
         Locale effective = selection.locale();
         Map<String, Object> args = new HashMap<>();
         for (String key : List.of("system", "input", "input_len", "unit"))

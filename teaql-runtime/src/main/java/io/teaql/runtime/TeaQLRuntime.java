@@ -39,6 +39,8 @@ public class TeaQLRuntime implements AutoCloseable {
     private final RoundTripReferenceCodec roundTripReferenceCodec;
     private final BusinessClock businessClock;
     private final Map<String, Checker<?>> checkers = new java.util.concurrent.ConcurrentHashMap<>();
+    private volatile io.teaql.core.checker.CheckerPresentation.Model checkerPresentation =
+            io.teaql.core.checker.CheckerPresentation.Model.empty();
     private final List<GeneratedSchemaBootstrap> generatedBootstraps =
             new java.util.concurrent.CopyOnWriteArrayList<>();
     private final Set<String> emittedMutationGovernanceWarnings =
@@ -148,12 +150,16 @@ public class TeaQLRuntime implements AutoCloseable {
     }
 
     /** Installs a passive generated manifest. Database schemas remain unchanged. */
-    public TeaQLRuntime install(RuntimeModule module) {
+    public synchronized TeaQLRuntime install(RuntimeModule module) {
+        var combinedPresentation = checkerPresentation.merge(module.checkerPresentation());
         module.install(metadata);
         module.checkers().forEach(checker -> checkers.put(checker.type(), checker));
         generatedBootstraps.addAll(module.bootstraps());
+        checkerPresentation = combinedPresentation;
         return this;
     }
+
+    io.teaql.core.checker.CheckerPresentation.Model getCheckerPresentationModel() { return checkerPresentation; }
 
     GeneratedSchemaBootstrap getGeneratedSchemaBootstrap() {
         if (generatedBootstraps.isEmpty()) return null;
@@ -677,12 +683,15 @@ public class TeaQLRuntime implements AutoCloseable {
         if (checkers.isEmpty()) {
             var violations = io.teaql.core.checker.internal.FiniteScalarAdmission.collect(metadata, entity, true);
             if (!violations.isEmpty()) {
+                var presentationModel = context.checkerPresentationModel();
+                for (var violation : violations) violation.setPresentation(io.teaql.core.checker.CheckerPresentation.capture(
+                        presentationModel, entity.runtimeType(), violation.getLocation()));
                 context.translateCheckResults(violations);
                 throw new CheckException(violations);
             }
             return;
         }
-        try (var invocation = io.teaql.core.checker.internal.CheckerInvocation.openMutation(context)) {
+        try (var invocation = io.teaql.core.checker.internal.CheckerInvocation.openMutation(context, entity.runtimeType())) {
             context.beginFixEvidence();
             var contextUndo = new ArrayList<ContextFixCheckpoint>();
             try {

@@ -27,6 +27,7 @@ public final class CheckerDiagnostics {
         boolean allow=SensitiveValueProjection.plaintextEnabled();
         int[] lengths=new int[results.size()];
         boolean[] automatic=new boolean[results.size()];
+        Set<String> presentationWarnings=new HashSet<>();
         for (int i=0;i<results.size();i++) {
             var result=results.get(i); Object raw=result.getInputValue();
             Integer previousLength=CheckerPresentationCache.validationLength(result);
@@ -44,7 +45,7 @@ public final class CheckerDiagnostics {
         for (int i=0;i<results.size();i++) {
             var result=results.get(i); String message=result.getNaturalLanguageStatement();
             if (message == null || message.isBlank() || automatic[i]) {
-                message=context.i18nCatalog().render(result,context.locale(),lengths[i]);
+                message=CheckerMessageRendering.render(context,result,lengths[i],secrets,presentationWarnings);
                 result.setNaturalLanguageStatement(message);
                 CheckerPresentationCache.remember(result,lengths[i]);
             } else {

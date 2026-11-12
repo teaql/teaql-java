@@ -30,10 +30,21 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
 
     public DefaultUserContext(TeaQLRuntime runtime) {
         this.runtime = runtime;
+        // Prepare immutable classpath resources during composition, not during error rendering.
+        io.teaql.core.i18n.CheckerMessageCatalog.builtin();
+        io.teaql.core.checker.CheckerPresentation.Model.empty();
+        io.teaql.core.i18n.I18nCatalog.builtin();
     }
 
     public TeaQLRuntime getRuntime() {
         return runtime;
+    }
+
+    @Override
+    public io.teaql.core.checker.CheckerPresentation.Model checkerPresentationModel() {
+        Object explicit = getAttribute(TEAQL_CHECKER_PRESENTATION_MODEL);
+        if (explicit instanceof io.teaql.core.checker.CheckerPresentation.Model model) return model;
+        return runtime == null ? io.teaql.core.checker.CheckerPresentation.Model.empty() : runtime.getCheckerPresentationModel();
     }
 
     @Override

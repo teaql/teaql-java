@@ -171,7 +171,8 @@ public class CheckerDiagnosticPrivacyTest {
             var result = CheckResult.minStr(ObjectLocation.hashRoot("password"),12,"1");
             checker().appendResult(context,result);
             String message = result.getNaturalLanguageStatement();
-            assertTrue(message,message.contains("12")); assertTrue(message,message.endsWith("is 1"));
+            assertTrue(message,message.contains("12")); assertTrue(message,message.contains("current length is 1."));
+            assertEquals(12,result.getSystemValue()); assertEquals("[REDACTED]",result.getInputValue());
             checker().appendResult(context,invalid("password","2"));
             assertEquals(message,result.getNaturalLanguageStatement());
         }
@@ -218,7 +219,9 @@ public class CheckerDiagnosticPrivacyTest {
         var paths = new ArrayList<String>();
         paths.add(System.getProperty("surefire.test.class.path",System.getProperty("java.class.path")));
         for (Class<?> type : List.of(CheckerDiagnosticPrivacyTest.class, LogPrivacy.class, BaseEntity.class,
-                io.teaql.core.utils.SensitiveLogNames.class,io.teaql.data.dynamic.DynamicFieldsFacade.class))
+                io.teaql.core.utils.SensitiveLogNames.class,io.teaql.data.dynamic.DynamicFieldsFacade.class,
+                com.fasterxml.jackson.databind.ObjectMapper.class, com.fasterxml.jackson.core.JsonFactory.class,
+                com.fasterxml.jackson.annotation.JsonProperty.class))
             paths.add(Path.of(type.getProtectionDomain().getCodeSource().getLocation().toURI()).toString());
         return String.join(java.io.File.pathSeparator,paths);
     }

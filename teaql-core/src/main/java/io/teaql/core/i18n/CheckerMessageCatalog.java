@@ -153,6 +153,12 @@ public final class CheckerMessageCatalog {
         return value == null ? null : new Selection(value, locale);
     }
 
+    /** Exact-locale lookup without fallback, for composition with explicit legacy application overrides. */
+    public Selection lookup(Locale locale, String rule, Shape shape) {
+        Template value = exact(locale, rule, shape);
+        return value == null ? null : new Selection(value, locale);
+    }
+
     /** Resolve template Locale first; callers must use it when rendering owner grammar. */
     public Selection select(Locale locale, String rule, Shape shape) {
         Objects.requireNonNull(locale); Objects.requireNonNull(rule); Objects.requireNonNull(shape);

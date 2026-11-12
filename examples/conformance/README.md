@@ -67,6 +67,21 @@ logs, hashes and the SQLite store. Temporary source/build consumers are removed
 on exit. This is local source acceptance, not a public-package release or
 completion of every graph/dynamic-field case in all seven languages.
 
+## Natural Checker messages
+
+```bash
+node examples/conformance/natural-messages/verify-local.cjs
+```
+
+The [focused example](natural-messages/README.md) uses a separately evaluated,
+two-entity generated model and local runtime sources. Two rounds share one
+SQLite store. Actual generated Q/E and audited Save verify human-readable
+English/Chinese child-field messages, unchanged machine pointers and rule IDs,
+original UTF-16 validation length after masking, rejection before provider/audit
+calls, automatic Context rollback and successful correction. Presentation
+metadata is attached through the runtime module seam; automatic generator
+emission and published-package acceptance remain separate gates.
+
 ## Caller-owned Spring transactions
 
 ```bash

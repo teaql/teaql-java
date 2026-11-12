@@ -23,7 +23,9 @@ public class CheckerCachedPresentationTest {
         String english=result.getNaturalLanguageStatement();
         context.setLocaleCode("zh-CN").translateCheckResults(List.of(result));
         assertNotEquals(english,result.getNaturalLanguageStatement());
-        assertEquals(context.i18nCatalog().render(result,context.locale()),result.getNaturalLanguageStatement());
+        // The natural-message profile is distinct from explicit legacy v1 rendering.
+        assertEquals("请填写product name。\n位置：当前对象",result.getNaturalLanguageStatement());
+        assertEquals("/productName",result.getLocation().instancePath());
     }
 
     @Test public void cachedAutomaticMessageFollowsItsRelocatedCanonicalPath() {
@@ -32,8 +34,8 @@ public class CheckerCachedPresentationTest {
         context.translateCheckResult(result);
         result.setLocation(ObjectLocation.hashRoot("order_item_list").element(2).member("unit_price"));
         context.translateCheckResults(List.of(result));
-        assertEquals(context.i18nCatalog().render(result,context.locale()),result.getNaturalLanguageStatement());
-        assertTrue(result.getNaturalLanguageStatement(),result.getNaturalLanguageStatement().contains("order_item_list"));
+        assertEquals("The unit price must be at least 2.\nLocation: the 3rd order item list",result.getNaturalLanguageStatement());
+        assertEquals("/orderItemList/2/unitPrice",result.getLocation().instancePath());
     }
 
     @Test public void retranslationKeepsTheActualLengthNotTheRedactedSentinelLength() {
@@ -43,12 +45,13 @@ public class CheckerCachedPresentationTest {
         assertEquals("[REDACTED]",result.getInputValue());
         result.setLocation(ObjectLocation.hashRoot("order_item_list").element(2).member("password"));
         context.setLocaleCode("zh-CN").translateCheckResults(List.of(result));
-        assertEquals(context.i18nCatalog().render(result,context.locale(),7),result.getNaturalLanguageStatement());
+        assertEquals("password至少需要12个 UTF-16 代码单元，当前长度为7。\n位置：第3项order item list",result.getNaturalLanguageStatement());
+        assertEquals("/orderItemList/2/password",result.getLocation().instancePath());
         assertEquals(12,result.getSystemValue());
         assertFalse(result.getNaturalLanguageStatement().contains("密钥🔑abc"));
         result.setInputValue("short");
         context.translateCheckResults(List.of(result));
-        assertEquals(context.i18nCatalog().render(result,context.locale(),5),result.getNaturalLanguageStatement());
+        assertEquals("password至少需要12个 UTF-16 代码单元，当前长度为5。\n位置：第3项order item list",result.getNaturalLanguageStatement());
         assertEquals("[REDACTED]",result.getInputValue());
     }
 

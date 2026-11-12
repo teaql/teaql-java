@@ -14,6 +14,8 @@ public class CheckResult {
 
     private String naturalLanguageStatement;
     private String sourceInstancePath;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private CheckerPresentation presentation;
 
     public static CheckResult required(ObjectLocation location) {
         CheckResult checkResult = new CheckResult();
@@ -105,7 +107,15 @@ public class CheckResult {
 
     public void setLocation(ObjectLocation pLocation) {
         location = pLocation;
+        if (presentation != null) presentation = presentation.relocate(pLocation);
     }
+
+    /** Internal immutable model/path snapshot; intentionally absent from wire serialization. */
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public CheckerPresentation getPresentation() { return presentation; }
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public void setPresentation(CheckerPresentation presentation) { this.presentation = presentation; }
 
     public String getRootType() {
         return rootType;
