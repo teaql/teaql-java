@@ -599,6 +599,48 @@ public class PortableSQLDatabaseTest {
     }
 
     @Test
+    public void rollupParentPolicyDenialMustStopBeforeDatabaseExecution() {
+        registerTopNFixture();
+        List<String> seen = new ArrayList<>();
+        TeaQLRuntime guardedRuntime = TeaQLRuntime.builder().metadata(metaFactory)
+                .dataService("sql", sqlDataService).queryPolicy(new QueryPolicy() {
+                    @Override public void enforceSelect(UserContext context, SearchRequest<?> request) {
+                        seen.add(request.getTypeName());
+                        if (request instanceof TopNParentRequest) {
+                            throw new TeaQLRuntimeException("STATISTICS_PARENT_DENIED");
+                        }
+                    }
+                }).build();
+        TopNChildRequest source = new TopNChildRequest(); source.count("childCount");
+        source.groupBy("parent", new TopNParentRequest());
+        sqliteDb.clearQueryTrace();
+        try {
+            source.comment("Count children only after every parent is authorized")
+                    .purpose("Verify a parent layer cannot bypass policy")
+                    .aggregation(new DefaultUserContext(guardedRuntime));
+            fail("parent denial must stop statistics");
+        } catch (TeaQLRuntimeException expected) {
+            assertEquals("STATISTICS_PARENT_DENIED", expected.getMessage());
+        }
+        assertEquals(List.of("TopNChild", "TopNParent"), seen);
+        assertTrue("no SQL may precede parent authorization", sqliteDb.queryTrace().isEmpty());
+    }
+
+    @Test
+    public void rollupCycleMustBeRejectedBeforeRequestSnapshotRecursion() {
+        TopNChildRequest source = new TopNChildRequest(); source.count("childCount");
+        source.groupBy("parent", source);
+        try {
+            source.comment("Reject a cyclic statistical builder")
+                    .purpose("Bound snapshot construction before SQL")
+                    .aggregation(context);
+            fail("cyclic request must fail before cloning");
+        } catch (TeaQLRuntimeException expected) {
+            assertTrue(expected.getMessage(), expected.getMessage().contains("Cyclic statistics"));
+        }
+    }
+
+    @Test
     public void streamRelationHydrationMustFailRatherThanReturnPartialEntity() {
         registerTopNFixture();
         EntityDescriptor child = metaFactory.resolveEntityDescriptor("TopNChild");

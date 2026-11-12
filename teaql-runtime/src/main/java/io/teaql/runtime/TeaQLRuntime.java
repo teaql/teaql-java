@@ -455,9 +455,8 @@ public class TeaQLRuntime implements AutoCloseable {
 
     public <T extends Entity> AggregationResult aggregation(UserContext context, SearchRequest<T> request) {
         QueryIntent intent = QueryIntent.of(request.comment(), request.purpose());
-        if (queryPolicy != null) {
-            queryPolicy.enforceSelect(context, request);
-        }
+        request = new StatisticsRequestPreparation(queryPolicy)
+                .prepare(context, request, QueryRequestScope.capture(request));
         EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
         String route = descriptor.getDataService();
         if (route == null || route.isEmpty()) {

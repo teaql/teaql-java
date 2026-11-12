@@ -20,6 +20,14 @@ async function main() {
     try {
         const source = 'teaql-sql-portable/src/test/java/io/teaql/core/sql/portable/PortableSQLDatabaseTest.java';
         receipt.testSourceSha256 = hash(fs.readFileSync(path.join(repo, source)));
+        receipt.sourceHashes = {};
+        for (const name of [source, 'teaql-runtime/src/main/java/io/teaql/runtime/TeaQLRuntime.java',
+            'teaql-runtime/src/main/java/io/teaql/runtime/StatisticsRequestPreparation.java',
+            'examples/fix-e-alignment/verify-rollup.cjs']) {
+            const bytes = fs.readFileSync(path.join(repo, name)); receipt.sourceHashes[name] = hash(bytes);
+            const target = path.join(output, 'sources', name); fs.mkdirSync(path.dirname(target), {recursive: true});
+            fs.writeFileSync(target, bytes);
+        }
         fs.writeFileSync(path.join(output, 'source-changes.patch'),
             cp.execFileSync('git', ['diff', '--binary', 'HEAD'], {cwd: repo}));
         const command = [process.env.MAVEN || 'mvn', '-o', '-B', '-pl', 'teaql-sql-portable', '-am',
@@ -40,6 +48,9 @@ async function main() {
         }));
         receipt.passed = receipt.result.status === 0 && receipt.junit.tests >= 2
             && ['failures', 'errors', 'skipped'].every(name => receipt.junit[name] === 0);
+        for (const [name, expected] of Object.entries(receipt.sourceHashes)) {
+            assert.equal(hash(fs.readFileSync(path.join(repo, name))), expected, 'Source changed during verification: ' + name);
+        }
         assert(receipt.passed, 'Roll-up acceptance failed: ' + JSON.stringify(receipt.junit));
     } catch (error) {
         receipt.error = error.message; process.exitCode = runner.interrupted === 'SIGINT' ? 130 : 1;
