@@ -29,6 +29,29 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
         this.debugDatabaseKind = "sqlite";
         this.topNRelationPlanPolicy = io.teaql.core.sql.portable.TopNRelationPlanPolicy.ALWAYS_PROBE;
         this.dataSource = dataSource;
+        installStatisticalInitializer(executionAdapter);
+    }
+
+    private static void installStatisticalInitializer(SqlExecutionAdapter adapter) {
+        if (!(adapter instanceof JdbcSqlExecutor jdbc)) return;
+        // Track physical connections, not short-lived pool wrappers. Weak keys
+        // avoid retaining discarded pool connections for the provider lifetime.
+        java.util.Set<java.sql.Connection> installed = java.util.Collections.newSetFromMap(
+                new java.util.WeakHashMap<>());
+        jdbc.addConnectionInitializer(connection -> {
+            try {
+                java.sql.Connection physical = connection instanceof org.sqlite.SQLiteConnection
+                        ? connection : connection.unwrap(org.sqlite.SQLiteConnection.class);
+                synchronized (installed) {
+                    if (!installed.contains(physical)) {
+                        SqliteStatisticalFunctions.register(physical);
+                        installed.add(physical);
+                    }
+                }
+            } catch (java.sql.SQLException failure) {
+                throw new IllegalStateException("Unable to register SQLite statistical functions", failure);
+            }
+        });
     }
 
     @Override

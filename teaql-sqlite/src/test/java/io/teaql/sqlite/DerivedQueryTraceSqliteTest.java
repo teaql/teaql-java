@@ -628,6 +628,7 @@ public class DerivedQueryTraceSqliteTest {
                 empty.auditAs("seed a parent with no child membership").save(fixture.context);
                 fixture.sql.clear(); fixture.returnedQueries.clear();
                 var children = fixture.lines(); children.setSize(1);
+                children.addOrderByDescending("id");
                 var targets = fixture.documents().where("id", Operator.IN, List.of(100L, 200L, 300L)); targets.setSize(3);
                 children.addFacet("documents", "document", targets, includeAll);
                 var root = fixture.documents().where("id", Operator.IN, List.of(100L, 200L, 300L))
@@ -635,6 +636,8 @@ public class DerivedQueryTraceSqliteTest {
                 root.setSize(3); root.enhanceRelation("lines", children);
                 SmartList<TraceDocument> rows = fixture.context.getRuntime().executeForList(fixture.context, root);
                 assertEquals(3, rows.size());
+                assertEquals("Facet helpers must not remove the reusable child page", 1, children.getSlice().getSize());
+                assertEquals("Facet helpers must not remove the reusable child order", 1, children.getOrderBy().getOrderBys().size());
                 for (var parent : rows) {
                     SmartList<TraceLine> lines = parent.getProperty("lines");
                     assertNotNull("requested empty reverse relation must be loaded", lines);

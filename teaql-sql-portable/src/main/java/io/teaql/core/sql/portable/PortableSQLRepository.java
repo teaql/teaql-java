@@ -865,6 +865,13 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                         SqlDiagnosticRequest.forOwnedScope(request, intent, request,
                             facetScope.deriveHelper(request.getTypeName(), "aggregate " + facetRequest.getRelationName()), null);
                 tr.setAggregations(new io.teaql.core.Aggregations());
+                // Facet membership covers the entire filtered source, not its
+                // visible entity page. Its ID tie-break order is not an order
+                // over the grouped statistical result either. Change only this
+                // owned helper snapshot, never the caller's reusable request.
+                tr.getOrderBy().getOrderBys().clear();
+                tr.setSlice(null);
+                tr.setPartitionProperty(null);
                 tr.groupBy(facetRequest.getRelationName());
                 for (String alias : countAliases) tr.count(alias);
                 
