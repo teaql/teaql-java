@@ -65,13 +65,14 @@ public class CheckerCachedPresentationTest {
         assertEquals("Customer-owned explanation",result.getNaturalLanguageStatement());
     }
 
-    @Test public void presentationCachePayloadContainsOnlyFingerprintsAndCounters() throws Exception {
+    @Test public void presentationCacheRetainsOnlyFingerprintsCountersAndFiniteSafePlans() throws Exception {
         Class<?> entry=Class.forName("io.teaql.core.checker.internal.CheckerPresentationCache$Entry");
         int fields=0;
         for (var field : entry.getDeclaredFields()) if (!java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
-            assertTrue(field.toString(),field.getType() == int.class || field.getType() == byte[].class);
+            assertTrue(field.toString(),field.getType() == int.class || field.getType() == byte[].class
+                    || field.getType().getName().equals("io.teaql.core.checker.internal.CheckerMessageRendering$Plans"));
             fields++;
         }
-        assertEquals(3,fields);
+        assertEquals(4,fields);
     }
 }

@@ -1,11 +1,5 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<root name="checker-natural-message-service" org="example" data_service="sqlite"
-      teaql_java_version="1.556-RELEASE" _module_key="root">
-  <catalog _name="Validation Catalog" _module="Validation" _module_key="main"
-           name="Validation Catalog"/>
-  <entry _name="Validation Entry" _module="Validation" _module_key="main"
-         _audit_mask_fields="protected_note"
-         catalog="catalog()" name="Example Entry" quantity="10"
-         description="A short note" protected_note="Private sample note"
-         create_time="createTime()" update_time="updateTime()"/>
+<root name="checker-natural-message-service" org="example" data_service="sqlite" teaql_java_version="1.557-SNAPSHOT">
+  <catalog _name="catalog" _zh_CN="目录" name="名称：Catalog"/>
+  <entry _name="entry" _zh_CN="明细" catalog="catalog()" name="名称：Entry"
+         create_time="createTime()" update_time="updateTime()" _audit_mask_fields="name"/>
 </root>

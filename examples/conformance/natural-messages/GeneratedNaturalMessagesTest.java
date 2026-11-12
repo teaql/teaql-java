@@ -1,11 +1,10 @@
 package io.teaql.examples.naturalmessages;
 
 import com.example.checkernaturalmessageservice.*;
+import com.example.checkernaturalmessageservice.catalog.Catalog;
 import com.example.checkernaturalmessageservice.entry.*;
 import io.teaql.core.*;
 import io.teaql.core.checker.*;
-import io.teaql.core.i18n.CheckerMessageDefaults;
-import io.teaql.core.i18n.Locale;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
 import io.teaql.core.businessid.BusinessClock;
 import io.teaql.core.sqlite.SqliteDataServiceExecutor;
@@ -22,37 +21,28 @@ import javax.sql.DataSource;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
-/** App-owned customization; generated domain source remains byte-for-byte unchanged. */
+/** Automatic generated metadata and native Checkers through normal Q/E/Save. */
 public class GeneratedNaturalMessagesTest {
     private static final LocalDateTime A = LocalDateTime.of(2026, 11, 12, 12, 0), B = A.plusHours(1);
-    private static final String PRIVATE_NOTE = "密钥🔑abc";
+    private static final String PRIVATE_NAME = "密钥🔑" + "x".repeat(98); // 101 scalars, 102 UTF-16 units.
 
-    static final class EntryRules extends EntryChecker {
-        @Override public void doCheck(UserContext context, Entry row, ObjectLocation location) {
-            super.doCheck(context, row, location);
-            Integer quantity = E.entry(row).getQuantity().eval();
-            if (quantity != null) minNumberCheck(context, newLocation(location, "quantity"), 0, quantity);
-            String description = E.entry(row).getDescription().eval();
-            if (description != null) maxStringCheck(context, newLocation(location, "description"), 8, description);
-            String note = E.entry(row).getProtectedNote().eval();
-            if (note != null) maxStringCheck(context, newLocation(location, "protected_note"), 4, note);
-        }
-    }
-
-    private static Map<Locale, String> labels(String english, String chinese) {
-        return Map.of(Locale.ENGLISH, english, Locale.CHINESE_SIMPLIFIED, chinese);
-    }
-    private static CheckerPresentation.Field field(String name, String english, String chinese) {
-        return new CheckerPresentation.Field(name, null, labels(english, chinese), Map.of(), Set.of());
-    }
-    private static CheckerPresentation.Model presentation() {
-        return new CheckerPresentation.Model("java-example-v1", Map.of(
-                "Catalog", new CheckerPresentation.Entity(labels("catalog", "目录"), List.of(field("name", "name", "名称"),
-                        new CheckerPresentation.Field("entry_list", "Entry", labels("entry", "明细"), Map.of(Locale.CHINESE_SIMPLIFIED, "条"), Set.of("entryList")))),
-                "Entry", new CheckerPresentation.Entity(labels("entry", "明细"), List.of(field("name", "name", "名称"),
-                        field("quantity", "quantity", "数量"), field("description", "description", "描述"),
-                        new CheckerPresentation.Field("protected_note", null, labels("private note", "私密备注"), Map.of(), Set.of("protectedNote"))))),
-                CheckerMessageDefaults.currentObjectLabels());
+    private static CheckException reject(Catalog graph, UserContext context, Source connections,
+                                         AtomicInteger audits, String expected) throws Exception {
+        int before = connections.calls.get();
+        var failure = assertThrows(CheckException.class,
+                () -> graph.auditAs("Reject the second child before database or audit activity").save(context));
+        assertEquals(before, connections.calls.get()); assertEquals(0, audits.get());
+        assertEquals(1, failure.getViolates().size());
+        var result = failure.getViolates().get(0);
+        assertEquals("Entry", result.getRootType());
+        assertEquals("entry_list[1].name", result.getLocation().modelPath());
+        assertEquals("/entryList/1/name", result.getLocation().instancePath());
+        assertEquals(expected, result.getNaturalLanguageStatement());
+        String response = new ObjectMapper().writeValueAsString(Map.of("errors", failure.getViolates().stream()
+                .map(value -> value.toWire(JsonFieldNamingProfile.CAMEL_CASE)).toList()));
+        assertFalse(response.contains(PRIVATE_NAME)); assertFalse(failure.toString().contains(PRIVATE_NAME));
+        System.out.println("JAVA_NATURAL_CHECKER_RESPONSE=" + response);
+        return failure;
     }
 
     @Test public void generatedGraphProducesSafeNaturalMessagesAndStillSavesValidChanges() throws Exception {
@@ -74,9 +64,9 @@ public class GeneratedNaturalMessagesTest {
                     public LocalDate businessDate(UserContext context) { return businessDateTime(context).toLocalDate(); }
                     public LocalDateTime businessDateTime(UserContext context) { return context.getAttribute("businessNow", LocalDateTime.class); }
                 }).build();
-        runtime.install(GeneratedRuntimeModule.module().withCheckerPresentation(presentation()));
-        runtime.install(RuntimeModule.of().withCheckers(new EntryRules()));
+        runtime.install(GeneratedRuntimeModule.module());
         var context = new DefaultUserContext(runtime); context.putAttribute("businessNow", A);
+        context.ensureSchema();
         context.ensureSchema();
         var catalogs = Q.catalogs().limit(1).comment("Find the provisioned validation root")
                 .purpose("Verify generated schema bootstrap before graph validation").executeForList(context);
@@ -84,8 +74,7 @@ public class GeneratedNaturalMessagesTest {
         context.withActiveRoot(new ContextEntityRef("Catalog", catalog.getId()));
         for (String name : List.of("first", "second")) {
             var entry = Q.entries().comment("Prepare a validation example row").purpose("Create a complete typed test graph").newEntity(context);
-            entry.updateCatalog(catalog); entry.updateName(name); entry.updateQuantity(10);
-            entry.updateDescription("short"); entry.updateProtectedNote("safe");
+            entry.updateCatalog(catalog); entry.updateName(name);
             entry.auditAs("Create an example entry through the generated mutation API").save(context);
         }
         var graph = Q.catalogs().withIdIs(catalog.getId()).limit(1)
@@ -93,38 +82,39 @@ public class GeneratedNaturalMessagesTest {
                 .comment("Load the parent and its bounded entry graph")
                 .purpose("Verify indexed Checker failures through generated Q and E").executeForOne(context);
         assertEquals(2, graph.getEntryList().size()); var entry = graph.getEntryList().get(1);
-        assertEquals("first", E.entry(entry).getName().eval()); assertEquals(Integer.valueOf(10), E.entry(entry).getQuantity().eval());
+        var other = graph.getEntryList().get(0);
+        assertEquals("first", E.entry(entry).getName().eval());
+        assertEquals("second", E.entry(other).getName().eval());
+        long parentVersion = graph.getVersion(), previousVersion = entry.getVersion();
         LocalDateTime previousUpdate = E.entry(entry).getUpdateTime().eval();
         context.putAttribute("businessNow", B);
-        entry.updateName(null); entry.updateQuantity(-1); entry.updateDescription("123456789"); entry.updateProtectedNote(PRIVATE_NOTE);
+        other.updateName("changed"); entry.updateName(null);
         var audits = new AtomicInteger(); context.putAttribute(AppAuditEventSink.class.getName(), (AppAuditEventSink) (caller, event) -> audits.incrementAndGet());
         int before = connections.calls.get();
-        var english = assertThrows(CheckException.class, () -> graph.auditAs("Reject invalid entry changes before persistence").save(context));
-        assertEquals(4, english.getViolates().size()); assertEquals(before, connections.calls.get()); assertEquals(0, audits.get());
+        var english = reject(graph, context, connections, audits, "The name of the 2nd entry is required.");
+        assertEquals(CheckResult.RuleId.REQUIRED, english.getViolates().get(0).getRuleId());
         assertEquals(previousUpdate, E.entry(entry).getUpdateTime().eval());
-        Map<String, CheckResult> results = new HashMap<>();
-        for (var result : english.getViolates()) {
-            results.put(result.getLocation().modelPath(), result); assertEquals("Entry", result.getRootType());
-            assertTrue(result.getLocation().instancePath().startsWith("/entryList/1/"));
-            assertFalse(result.getNaturalLanguageStatement().contains(PRIVATE_NOTE));
-        }
-        assertEquals("The name of the 2nd entry is required.", results.get("entry_list[1].name").getNaturalLanguageStatement());
-        assertEquals("The quantity of the 2nd entry must be at least 0.", results.get("entry_list[1].quantity").getNaturalLanguageStatement());
-        assertEquals("The description of the 2nd entry must not exceed 8 UTF-16 code units; its current length is 9.",
-                results.get("entry_list[1].description").getNaturalLanguageStatement());
-        assertEquals("The private note of the 2nd entry must not exceed 4 UTF-16 code units; its current length is 7.",
-                results.get("entry_list[1].protected_note").getNaturalLanguageStatement());
-        assertNotEquals(PRIVATE_NOTE, results.get("entry_list[1].protected_note").getInputValue());
-        String response = new ObjectMapper().writeValueAsString(Map.of("errors", english.getViolates().stream()
-                .map(result -> result.toWire(JsonFieldNamingProfile.CAMEL_CASE)).toList()));
-        assertFalse(response.contains(PRIVATE_NOTE)); assertTrue(response.contains("/entryList/1/protectedNote"));
-        System.out.println("JAVA_NATURAL_CHECKER_RESPONSE=" + response);
         context.setLocaleCode("zh-CN");
-        var chinese = assertThrows(CheckException.class, () -> graph.auditAs("Repeat validation with Chinese messages").save(context));
-        assertEquals(4, chinese.getViolates().size());
-        assertTrue(chinese.getViolates().stream().anyMatch(result -> "请填写第2条明细的名称。".equals(result.getNaturalLanguageStatement())));
+        reject(graph, context, connections, audits, "请填写第2项明细的名称。");
+        context.setLocaleCode("en");
+        entry.updateName(PRIVATE_NAME);
+        var length = reject(graph, context, connections, audits,
+                "The name of the 2nd entry must not exceed 100 UTF-16 code units; its current length is 102.");
+        assertNotEquals(PRIVATE_NAME, length.getViolates().get(0).getInputValue());
+        var rendererCalls = new AtomicInteger();
+        context.installCheckerMessageRenderer(request -> {
+            rendererCalls.incrementAndGet();
+            assertEquals("密钥" + "*".repeat(97) + "xx", request.arguments().get("input"));
+            assertEquals(102, ((Number) request.arguments().get("input_len")).intValue());
+            return "Private " + PRIVATE_NAME;
+        });
+        reject(graph, context, connections, audits, "Private [REDACTED]");
+        assertEquals(1, rendererCalls.get());
+        context.installCheckerMessageRenderer(CheckerMessageRenderer.STANDARD);
         assertEquals(before, connections.calls.get()); assertEquals(0, audits.get());
-        entry.updateName("first"); entry.updateQuantity(10); entry.updateDescription("short"); entry.updateProtectedNote("safe");
+        assertEquals(previousUpdate, E.entry(entry).getUpdateTime().eval());
+        assertEquals(previousVersion, (long) entry.getVersion());
+        entry.updateName("first"); other.updateName("second");
         graph.auditAs("Cancel invalid caller edits without writing automatic Context values").save(context);
         assertEquals(before, connections.calls.get()); assertEquals(0, audits.get());
         entry.updateName("accepted"); graph.auditAs("Persist the valid corrected entry").save(context);
@@ -132,7 +122,14 @@ public class GeneratedNaturalMessagesTest {
         var stored = Q.entries().withIdIs(entry.getId()).limit(1).comment("Read the corrected entry")
                 .purpose("Prove readable diagnostics preserve successful audited mutation").executeForOne(context);
         assertEquals("accepted", E.entry(stored).getName().eval()); assertEquals(B, E.entry(stored).getUpdateTime().eval());
-        System.out.println("JAVA_NATURAL_CHECKER_SQLITE=passed typedQ=true typedE=true indexed=true required=true range=true length=true masked=true noFailedWrites=true chinese=true correctedSave=true");
+        assertEquals(previousVersion + 1, (long) stored.getVersion());
+        assertEquals(parentVersion, (long) graph.getVersion());
+        System.out.println("JAVA_NATURAL_CHECKER_SQLITE=" + new ObjectMapper().writeValueAsString(Map.ofEntries(
+                Map.entry("passed", true), Map.entry("typedQ", true), Map.entry("typedE", true),
+                Map.entry("automaticMetadata", true), Map.entry("originalGeneratedChecker", true), Map.entry("responses", 4),
+                Map.entry("providerCallsOnRejection", 0), Map.entry("transactionCallsOnRejection", 0),
+                Map.entry("updatedAudits", audits.get()), Map.entry("customerRendererCalls", rendererCalls.get()),
+                Map.entry("unchangedParent", graph.getVersion() == parentVersion), Map.entry("version", stored.getVersion()))));
     }
 
     static final class Source implements DataSource {

@@ -185,12 +185,15 @@ public class NaturalCheckerMessageTest {
 
     @Test public void renderingFailuresRemainLocatedCheckerFailuresWithoutProviderSecrets() {
         for (boolean blank : List.of(true, false)) {
+            var calls = new java.util.concurrent.atomic.AtomicInteger();
             var context = context(); context.installCheckerMessageRenderer(request -> {
+                calls.incrementAndGet();
                 assertThrows(UnsupportedOperationException.class, () -> request.arguments().put("field", "tampered"));
                 if (blank) return " "; throw new IllegalStateException("PRIVATE_PROVIDER_CAUSE");
             });
             var error = run(context, (ctx, location) -> entry().requiredCheck(ctx, name(), null));
             assertEquals("The name of the 2nd entry is invalid.", error.getMessage());
+            assertEquals("Do not retry a failed customer callback while aggregating its violation", 1, calls.get());
             assertEquals("/entryList/1/name", error.getViolates().get(0).getLocation().instancePath());
             assertEquals(CheckResult.RuleId.REQUIRED, error.getViolates().get(0).getRuleId());
             assertFalse(error.toString().contains("PRIVATE_PROVIDER_CAUSE")); assertNull(error.getCause());
@@ -206,6 +209,94 @@ public class NaturalCheckerMessageTest {
         var error = run(context, (ctx, location) -> entry().minStringCheck(ctx,
                 ObjectLocation.hashRoot("entry_list").element(1).member("password"), 12, SECRET));
         assertEquals("Customer explanation: [REDACTED]", error.getMessage());
+    }
+
+    @Test public void customerRendererRunsOnceAcrossGraphAggregationAndLaterRelocation() {
+        var context = context(); var calls = new java.util.concurrent.atomic.AtomicInteger();
+        context.installCheckerMessageRenderer(request -> {
+            calls.incrementAndGet();
+            assertEquals("[REDACTED]", request.arguments().get("input"));
+            assertEquals(7, request.arguments().get("input_len"));
+            return "Customer explanation: " + SECRET;
+        });
+        var error = run(context, (ctx, location) -> entry().minStringCheck(ctx,
+                ObjectLocation.hashRoot("password"), 12, SECRET));
+        var result = error.getViolates().get(0);
+        result.setLocation(ObjectLocation.hashRoot("entry_list").element(1).member("password"));
+        context.setLocaleCode("zh-CN").translateCheckResults(List.of(result));
+        assertEquals(1, calls.get());
+        assertEquals("Customer explanation: [REDACTED]", result.getNaturalLanguageStatement());
+        assertEquals("/entryList/1/password", result.getLocation().instancePath());
+    }
+
+    @Test public void relocationUsesSafeTemplatesAndPatternsAfterProjectionScopeCloses() {
+        var context = context();
+        String json = """
+                {"schema":"teaql.checker-messages/v1","defaultLocale":"en","locales":{"en":{
+                  "rules":{"checker.maxLength":{
+                    "two":"Private %s: {field} of {object}, {input_len}/{system} {unit}."}},
+                  "locationPatterns":{"item":"%s {ordinal} {relation}"}}}}
+                """.formatted(SECRET, SECRET);
+        context.installCheckerMessageCatalog(CheckerMessageCatalog.fromJson(
+                new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8))));
+        CheckResult result;
+        try (var invocation = CheckerInvocation.open(context, "Catalog")) {
+            entry().maxStringCheck(context, ObjectLocation.hashRoot("description"), 1, SECRET);
+            @SuppressWarnings("unchecked") var results = (List<CheckResult>) invocation.attribute(Checker.TEAQL_DATA_CHECK_RESULT);
+            result = results.get(0);
+        }
+        result.setLocation(ObjectLocation.hashRoot("entry_list").element(1).member("description"));
+        context.translateCheckResults(List.of(result));
+        assertEquals("Private [REDACTED]: description of [REDACTED] 2nd entry, 7/1 UTF-16 code units.",
+                result.getNaturalLanguageStatement());
+        assertEquals("/entryList/1/description", result.getLocation().instancePath());
+        assertFalse(result.getNaturalLanguageStatement().contains(SECRET));
+    }
+
+    @Test public void laterSensitiveBatchReprojectsRetainedCustomNodesButNotPositionsOrBounds() {
+        var context = context();
+        context.installCheckerMessageCatalog(catalog("{\"checker.min\":{\"two\":\"Private 1 {field} of {object}: {system}.\"}}"));
+        var first = CheckResult.min(ObjectLocation.hashRoot("entry_list").element(0).member("amount"), 12, 0);
+        try (var invocation = CheckerInvocation.open(context, "Catalog")) {
+            entry().appendResult(context, first);
+            assertEquals("Private 1 amount of the 1st entry: 12.", first.getNaturalLanguageStatement());
+            entry().minStringCheck(context, ObjectLocation.hashRoot("password"), 2, "1");
+            assertEquals("Private [REDACTED] amount of the 1st entry: 12.", first.getNaturalLanguageStatement());
+        }
+        first.setLocation(ObjectLocation.hashRoot("entry_list").element(1).member("amount"));
+        context.translateCheckResults(List.of(first));
+        assertEquals("Private [REDACTED] amount of the 2nd entry: 12.", first.getNaturalLanguageStatement());
+    }
+
+    @Test public void laterSensitiveBatchReprojectsCustomerRendererTextWithoutRecallingIt() {
+        var context = context(); var calls = new java.util.concurrent.atomic.AtomicInteger();
+        context.installCheckerMessageRenderer(request -> { calls.incrementAndGet(); return "Review " + SECRET; });
+        try (var invocation = CheckerInvocation.open(context, "Catalog")) {
+            var first = CheckResult.required(name()); entry().appendResult(context, first);
+            assertEquals("Review " + SECRET, first.getNaturalLanguageStatement());
+            entry().minStringCheck(context, ObjectLocation.hashRoot("password"), 12, SECRET);
+            assertEquals("Review [REDACTED]", first.getNaturalLanguageStatement());
+            context.translateCheckResults(List.of(first));
+            assertEquals(2, calls.get()); // One callback for each of the two distinct violations.
+            assertEquals("Review [REDACTED]", first.getNaturalLanguageStatement());
+        }
+    }
+
+    @Test public void legacyTemplatesStayProjectedAcrossLocaleChangesAfterTheInvocationCloses() {
+        var context = context();
+        legacy(context, "{\"checker.minLength\":\"Private " + SECRET + " {location}: {input_len}/{system}\"}");
+        CheckResult result;
+        try (var invocation = CheckerInvocation.open(context, "Catalog")) {
+            entry().minStringCheck(context, ObjectLocation.hashRoot("password"), 12, SECRET);
+            @SuppressWarnings("unchecked") var results = (List<CheckResult>) invocation.attribute(Checker.TEAQL_DATA_CHECK_RESULT);
+            result = results.get(0);
+        }
+        context.setLocaleCode("zh-CN");
+        result.setLocation(ObjectLocation.hashRoot("entry_list").element(1).member("password"));
+        context.translateCheckResults(List.of(result));
+        assertEquals("第2条明细的密码至少需要12个 UTF-16 代码单元，当前长度为7。", result.getNaturalLanguageStatement());
+        context.setLocaleCode("en").translateCheckResults(List.of(result));
+        assertEquals("Private [REDACTED] entry_list[1].password: 7/12", result.getNaturalLanguageStatement());
     }
 
     @Test public void missingLabelsOnlyEmitBoundedValueFreeWarningsAndDoNotChangeValidation() {

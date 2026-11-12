@@ -9,9 +9,9 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
 
-/** Safe presentation provenance only: no raw message, input, entity or Context. */
+/** Fingerprints, original measurement and finite safe plans; no raw input, entity or Context. */
 final class CheckerPresentationCache {
-    private record Entry(int length, byte[] messageDigest, byte[] inputDigest) {}
+    private record Entry(int length, byte[] messageDigest, byte[] inputDigest, CheckerMessageRendering.Plans plans) {}
     private static final Map<CheckResult,Entry> GENERATED=Collections.synchronizedMap(new WeakHashMap<>());
     private CheckerPresentationCache() {}
 
@@ -25,8 +25,13 @@ final class CheckerPresentationCache {
 
     static boolean isAutomatic(CheckResult result) { return automaticEntry(result) != null; }
 
-    static void remember(CheckResult result,int validationLength) {
-        GENERATED.put(result,new Entry(validationLength,digest(result.getNaturalLanguageStatement()),inputDigest(result.getInputValue())));
+    static CheckerMessageRendering.Plans plans(CheckResult result) {
+        Entry entry = automaticEntry(result);
+        return entry == null ? null : entry.plans();
+    }
+
+    static void remember(CheckResult result,int validationLength, CheckerMessageRendering.Plans plans) {
+        GENERATED.put(result,new Entry(validationLength,digest(result.getNaturalLanguageStatement()),inputDigest(result.getInputValue()),plans));
     }
 
     static void forget(CheckResult result) { GENERATED.remove(result); }

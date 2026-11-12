@@ -2,7 +2,7 @@
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
 const cp = require('node:child_process'), crypto = require('node:crypto'), assert = require('node:assert/strict');
 const {createOwnedRunner, ownedBytes} = require('../../fix-e-alignment/owned-command.cjs');
-const repo = path.resolve(__dirname, '../../..'), fixture = path.join(__dirname, 'fixture');
+const repo = path.resolve(__dirname, '../../..'), fixture = path.join(__dirname, 'automatic-fixture');
 const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const requested = process.env.TEAQL_NATURAL_MESSAGES_EVIDENCE_DIR;
 const output = requested ? path.resolve(requested) : fs.mkdtempSync(path.join(os.tmpdir(), 'teaql-natural-evidence-'));
@@ -14,7 +14,7 @@ function inputs() {
   const manifest = fs.readFileSync(path.join(fixture, 'generated-files.json'));
   const files = JSON.parse(manifest);
   for (const [name, hash] of Object.entries(files)) {
-    assert((name.startsWith('lib/') || name === 'teaql/model-provenance.json') && !name.split('/').includes('..'));
+    assert((name.startsWith('lib/') || ['teaql/model-provenance.json','teaql/checker-model.json'].includes(name)) && !name.split('/').includes('..'));
     const file = path.join(fixture, name); assert.equal(fs.realpathSync(file), file);
     assert.equal(sha(fs.readFileSync(file)), hash, name);
   }
@@ -31,11 +31,13 @@ async function main() {
       .toString().split('\0').filter(Boolean);
     const runtime = path.join(scratch, 'runtime'), bundle = path.join(scratch, 'model'), generated = path.join(bundle, 'lib');
     const consumer = path.join(scratch, 'consumer'), tests = path.join(consumer, 'src/test/java/io/teaql/examples/naturalmessages');
-    const sourceHash = crypto.createHash('sha256');
+    const sourceHash = crypto.createHash('sha256'); report.sourceHashes = {};
     for (const name of [...new Set(sourceFiles)].sort()) {
-      const file = path.join(repo, name); if (!fs.existsSync(file)) continue;
-      assert(fs.lstatSync(file).isFile(), 'no source symlinks');
+      const file = path.join(repo, name);
+      assert(fs.existsSync(file) && fs.lstatSync(file).isFile(), 'source missing or not a regular file: ' + name);
+      assert.equal(fs.realpathSync(file), file, 'source path escapes through a link');
       const bytes = fs.readFileSync(file); sourceHash.update(name + '\0'); sourceHash.update(bytes);
+      report.sourceHashes[name] = sha(bytes);
       const target = path.join(runtime, name); fs.mkdirSync(path.dirname(target), {recursive: true}); fs.copyFileSync(file, target);
     }
     report.sourceCommit = cp.execFileSync('git', ['-C', repo, 'rev-parse', 'HEAD']).toString().trim();
@@ -67,7 +69,14 @@ async function main() {
         const directory = path.join(runtime, module, 'target', 'surefire-reports');
         if (fs.existsSync(directory)) for (const file of fs.readdirSync(directory).filter(name => name.endsWith('.txt'))) {
           const summary = fs.readFileSync(path.join(directory, file), 'utf8').match(/Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+)/);
-          if (summary) report.unit.suites.push({module, file, tests: +summary[1], failures: +summary[2], errors: +summary[3], skipped: +summary[4]});
+          if (summary) {
+            const xml = file.replace(/\.txt$/, '.xml'), xmlFile = 'TEST-' + xml;
+            const bytes = fs.readFileSync(path.join(directory, xmlFile));
+            const retained = path.join(output, 'unit-reports', module, xmlFile);
+            fs.mkdirSync(path.dirname(retained), {recursive: true}); fs.writeFileSync(retained, bytes);
+            report.unit.suites.push({module, file, tests: +summary[1], failures: +summary[2], errors: +summary[3], skipped: +summary[4],
+              report: path.relative(output, retained), sha256: sha(bytes)});
+          }
         }
       }
       assert(report.unit.suites.some(suite => suite.file.includes('NaturalCheckerMessageTest') && suite.tests >= 15));
@@ -82,16 +91,34 @@ async function main() {
       const bytes = fs.readFileSync(log);
       report.rounds.push({round, command, exitCode: result.status, logSha256: sha(bytes)});
       assert.equal(result.status, 0, bytes.toString().slice(-6000));
-      assert.match(bytes.toString(), /JAVA_NATURAL_CHECKER_SQLITE=passed typedQ=true typedE=true indexed=true required=true range=true length=true masked=true noFailedWrites=true chinese=true correctedSave=true/);
-      const line = bytes.toString().split('\n').find(line => line.startsWith('JAVA_NATURAL_CHECKER_RESPONSE='));
-      assert(line, 'missing structured response evidence');
-      const response = JSON.parse(line.slice('JAVA_NATURAL_CHECKER_RESPONSE='.length));
-      assert.equal(response.errors.length, 4);
-      assert(response.errors.every(error => error.entityType === 'Entry' && error.instancePath.startsWith('/entryList/1/')));
-      assert(!line.includes('密钥🔑abc'), 'private note reached the response');
-      report.rounds[report.rounds.length - 1].response = response;
+      const frames = [...bytes.toString().matchAll(/^JAVA_NATURAL_CHECKER_SQLITE=(.+)$/gm)].map(match => JSON.parse(match[1]));
+      assert.equal(frames.length, 1); const facts = frames[0];
+      assert(facts.passed && facts.typedQ && facts.typedE && facts.automaticMetadata && facts.originalGeneratedChecker && facts.unchangedParent);
+      assert.equal(facts.updatedAudits, 1); assert.equal(facts.customerRendererCalls, 1); assert.equal(facts.responses, 4);
+      assert.equal(facts.providerCallsOnRejection, 0); assert.equal(facts.transactionCallsOnRejection, 0);
+      const responses = [...bytes.toString().matchAll(/^JAVA_NATURAL_CHECKER_RESPONSE=(.+)$/gm)].map(match => JSON.parse(match[1]));
+      assert.equal(responses.length, 4);
+      for (const response of responses) {
+        assert.equal(response.errors.length, 1);
+        assert(response.errors.every(error => error.entityType === 'Entry' && error.instancePath === '/entryList/1/name'));
+        assert(!JSON.stringify(response).includes('密钥🔑' + 'x'.repeat(98)), 'private name reached the response');
+      }
+      report.rounds[report.rounds.length - 1].responses = responses;
+      report.rounds[report.rounds.length - 1].facts = facts;
       assert.deepEqual(inputs(), fixtureInputs, 'generated fixture changed');
     }
+    const oracle = cp.spawnSync('python3', ['-c', 'import json,sqlite3,sys; c=sqlite3.connect("file:"+sys.argv[1]+"?mode=ro",uri=True); print(json.dumps({"integrity":c.execute("pragma quick_check").fetchone()[0],"rows":c.execute("select name,version from entry_data order by id").fetchall()})); c.close()', path.join(output, 'fixture.sqlite')], {encoding:'utf8'});
+    assert.equal(oracle.status, 0, oracle.stderr); report.databaseOracle = JSON.parse(oracle.stdout);
+    assert.deepEqual(report.databaseOracle, {integrity:'ok', rows:[['accepted',2],['second',1],['accepted',2],['second',1]]});
+    const finalFiles = cp.execFileSync('git', ['-C', repo, 'ls-files', '-z', '--cached', '--others', '--exclude-standard'])
+      .toString().split('\0').filter(Boolean);
+    const finalHashes = {};
+    for (const name of [...new Set(finalFiles)].sort()) {
+      const file = path.join(repo, name); assert(fs.lstatSync(file).isFile(), 'final source not a regular file: ' + name);
+      assert.equal(fs.realpathSync(file), file); finalHashes[name] = sha(fs.readFileSync(file));
+    }
+    assert.deepEqual(finalHashes, report.sourceHashes, 'runtime, generated library or application changed during verification');
+    report.sourceUnchanged = true;
     report.sameDatabase = true; report.databaseSha256 = sha(fs.readFileSync(path.join(output, 'fixture.sqlite')));
     report.passed = true; console.log('PASS generated Java natural Checker messages through SQLite twice with local runtime');
   } catch (error) { report.error = error.stack; process.exitCode ||= 1; console.error(error.stack); }

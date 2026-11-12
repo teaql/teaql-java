@@ -116,6 +116,23 @@ public class CheckerMessageCatalogTest {
         assertNotNull(overrides.override(Locale.ENGLISH, "checker.required", CheckerMessageCatalog.Shape.ONE));
     }
 
+    @Test public void safePlansProjectOnlyCustomLiteralNodesAndRetainOnlyTheirRule() {
+        var catalog = catalog("{\"en\":{\"rules\":{\"checker.min\":{\"two\":\"Secret 1 {field} of {object}: {system}.\"},\"checker.required\":{\"one\":\"UNRELATED {field}\"}},\"locationPatterns\":{\"item\":\"Secret 1 {ordinal} {relation}\"}}}");
+        var safe = catalog.projectForRule("checker.min", text -> text.replace("1", "[REDACTED]"));
+        assertNull(safe.override(Locale.ENGLISH, "checker.required", CheckerMessageCatalog.Shape.ONE));
+        assertEquals("Secret [REDACTED] amount of the 1st entry: 12.", safe.override(Locale.ENGLISH, "checker.min", CheckerMessageCatalog.Shape.TWO)
+                .render(Map.of("field", "amount", "object", "the 1st entry", "system", 12)));
+        assertEquals("Secret [REDACTED] 1st entry", safe.item(Locale.ENGLISH, "entry", 0, ""));
+        assertSame(CheckerMessageCatalog.builtin(), CheckerMessageCatalog.builtin().projectForRule("checker.min", text -> "DO NOT REWRITE BUILTINS"));
+    }
+
+    @Test public void projectedLegacyNodesNeverReparseArgumentsOrUnknownBraces() {
+        var template = CheckerMessageCatalog.legacyTemplate("Secret 1 {location}: {input_len}/{system}; {unknown}")
+                .projectLiterals(text -> text.replace("1", "[REDACTED]"));
+        assertEquals("Secret [REDACTED] {system}: 1/12; {unknown}",
+                template.render(Map.of("location", "{system}", "input_len", 1, "system", 12)));
+    }
+
     @Test public void invalidCatalogsRejectWithoutReplacingTheCurrentCatalog() {
         String[] broken = {
             "{\"en\":{\"rules\":{\"checker.required\":{\"one\":\"{field} {input}\"}}}}",

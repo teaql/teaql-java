@@ -45,9 +45,9 @@ public final class CheckerDiagnostics {
         for (int i=0;i<results.size();i++) {
             var result=results.get(i); String message=result.getNaturalLanguageStatement();
             if (message == null || message.isBlank() || automatic[i]) {
-                message=CheckerMessageRendering.render(context,result,lengths[i],secrets,presentationWarnings);
-                result.setNaturalLanguageStatement(message);
-                CheckerPresentationCache.remember(result,lengths[i]);
+                var rendered=CheckerMessageRendering.render(context,result,lengths[i],secrets,presentationWarnings);
+                result.setNaturalLanguageStatement(rendered.text());
+                CheckerPresentationCache.remember(result,lengths[i],rendered.plans());
             } else {
                 CheckerPresentationCache.forget(result);
                 result.setNaturalLanguageStatement(SensitiveValueProjection.scrub(message,secrets));
@@ -58,8 +58,14 @@ public final class CheckerDiagnostics {
         // An earlier callback can mention a field whose violation is discovered
         // later. Redact it before the graph's exception can escape.
         if (scope != null && scope.attribute(Checker.TEAQL_DATA_CHECK_RESULT) instanceof List<?> previous)
-            for (Object value : previous) if (value instanceof CheckResult result && !CheckerPresentationCache.isAutomatic(result))
-                result.setNaturalLanguageStatement(SensitiveValueProjection.scrub(result.getNaturalLanguageStatement(),secrets));
+            for (Object value : previous) if (value instanceof CheckResult result && !results.contains(result)) {
+                Integer length=CheckerPresentationCache.validationLength(result);
+                if (length != null) {
+                    var rendered=CheckerMessageRendering.render(context,result,length,secrets,presentationWarnings);
+                    result.setNaturalLanguageStatement(rendered.text());
+                    CheckerPresentationCache.remember(result,length,rendered.plans());
+                } else result.setNaturalLanguageStatement(SensitiveValueProjection.scrub(result.getNaturalLanguageStatement(),secrets));
+            }
         if (invokeHook) for (var result : results) {
             String before=result.getNaturalLanguageStatement();
             context.translateCheckResult(result);

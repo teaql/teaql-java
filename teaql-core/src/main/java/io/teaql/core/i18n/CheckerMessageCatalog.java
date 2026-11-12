@@ -19,6 +19,12 @@ public final class CheckerMessageCatalog {
 
         private Template(List<Node> nodes) { this.nodes = List.copyOf(nodes); }
 
+        /** Project custom literals only; typed placeholders are never scrubbed or recompiled. */
+        public Template projectLiterals(java.util.function.UnaryOperator<String> projection) {
+            return new Template(nodes.stream().map(node -> node.argument() == null
+                    ? new Node(projection.apply(node.literal()), null) : node).toList());
+        }
+
         public String render(Map<String, ?> arguments) {
             StringBuilder output = new StringBuilder();
             for (Node node : nodes) {
@@ -55,6 +61,39 @@ public final class CheckerMessageCatalog {
     }
 
     public static CheckerMessageCatalog builtin() { return BUILTIN; }
+
+    /** Retain only this rule and location patterns, with no unprojected application text. */
+    public CheckerMessageCatalog projectForRule(String rule, java.util.function.UnaryOperator<String> projection) {
+        Objects.requireNonNull(rule); Objects.requireNonNull(projection);
+        if (builtin) return this; // Public built-in vocabulary must not be scrubbed as rejected input.
+        Map<Locale, Messages> safe = new EnumMap<>(Locale.class);
+        for (var entry : locales.entrySet()) {
+            Map<Shape, Template> shapes = new EnumMap<>(Shape.class);
+            entry.getValue().rules().getOrDefault(rule, Map.of()).forEach((shape, template) ->
+                    shapes.put(shape, template.projectLiterals(projection)));
+            Map<String, Template> patterns = new HashMap<>();
+            entry.getValue().patterns().forEach((name, template) -> patterns.put(name, template.projectLiterals(projection)));
+            safe.put(entry.getKey(), new Messages(shapes.isEmpty() ? Map.of() : Map.of(rule, Map.copyOf(shapes)),
+                    Map.copyOf(patterns), entry.getValue().separator() == null ? null : projection.apply(entry.getValue().separator())));
+        }
+        return new CheckerMessageCatalog(safe, false);
+    }
+
+    /** Legacy placeholders are compiled once; unknown braces remain literal compatibility text. */
+    public static Template legacyTemplate(String source) {
+        Objects.requireNonNull(source);
+        List<Node> nodes = new ArrayList<>(); StringBuilder literal = new StringBuilder();
+        for (int i = 0; i < source.length();) {
+            String argument = null;
+            for (String name : List.of("location", "system", "input", "input_len"))
+                if (source.startsWith("{" + name + "}", i)) { argument = name; break; }
+            if (argument == null) { literal.append(source.charAt(i++)); continue; }
+            if (!literal.isEmpty()) { nodes.add(new Node(literal.toString(), null)); literal.setLength(0); }
+            nodes.add(new Node(null, argument)); i += argument.length() + 2;
+        }
+        if (!literal.isEmpty()) nodes.add(new Node(literal.toString(), null));
+        return new Template(nodes);
+    }
 
     /** Parse and validate completely before returning. A failed load cannot replace an active catalog. */
     public static CheckerMessageCatalog fromJson(InputStream input) { return load(input, false); }
