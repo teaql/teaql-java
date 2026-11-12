@@ -67,6 +67,12 @@ public class AggrExpressionParser implements SQLExpressionParser<AggrExpression>
                 return StrUtil.format("var_samp({})", sqlColumn);
             case VAR_POP:
                 return StrUtil.format("var_pop({})", sqlColumn);
+            case BIT_AND:
+                return StrUtil.format("bit_and({})", sqlColumn);
+            case BIT_OR:
+                return StrUtil.format("bit_or({})", sqlColumn);
+            case BIT_XOR:
+                return StrUtil.format("bit_xor({})", sqlColumn);
             case GBK:
                 return StrUtil.format("convert_to({},'GBK')", sqlColumn);
         }
