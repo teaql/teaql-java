@@ -107,7 +107,8 @@ public class PostgresLayeredAggregationIT extends LayeredAggregationTest {
             assertEquals(expected.getKey(),expected.getValue().longValue(),number(row,expected.getKey()));
         for(var expected:Map.of("mean",660.0,"variance",98000.0,"variancePop",78400.0,"stddev",Math.sqrt(98000),"stddevPop",280.0).entrySet())
             numeric(row,expected.getKey(),expected.getValue());
-        assertEquals(2,number(type,"n")); assertEquals(3,number(type,"total"));
+        assertEquals(2,number(type,"n")); assertEquals(2,number(type,"nonnull"));
+        assertEquals(1,number(type,"minimum")); assertEquals(2,number(type,"maximum")); assertEquals(3,number(type,"total"));
         numeric(type,"mean",1.5); numeric(type,"variance",0.5); numeric(type,"variancePop",0.25);
         numeric(type,"stddev",Math.sqrt(0.5)); numeric(type,"stddevPop",0.5);
         assertEquals(0,number(type,"bitAnd")); assertEquals(3,number(type,"bitOr")); assertEquals(3,number(type,"bitXor"));
