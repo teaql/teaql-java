@@ -25,9 +25,18 @@ public class LayeredAggregationTest {
         }
     }
 
-    private SimpleEntityMetaFactory metadata;
-    private PortableSQLDatabaseTest.SQLiteTeaQLDatabase database;
-    private UserContext context;
+    protected SimpleEntityMetaFactory metadata;
+    protected FixtureDatabase database;
+    protected UserContext context;
+
+    protected interface FixtureDatabase extends TeaQLDatabase, AutoCloseable {
+        void clearQueryTrace();
+        List<String> queryTrace();
+    }
+    private static final class SQLiteFixture extends PortableSQLDatabaseTest.SQLiteTeaQLDatabase implements FixtureDatabase {
+        SQLiteFixture() throws Exception { super(); }
+    }
+    protected FixtureDatabase createDatabase() throws Exception { return new SQLiteFixture(); }
 
     @Before public void setup() throws Exception {
         metadata = new SimpleEntityMetaFactory();
@@ -40,7 +49,7 @@ public class LayeredAggregationTest {
         metadata.register(platform); metadata.register(kind); metadata.register(school);
         reference(kind, "platform", "StatPlatform", "rollup_kind", "platform");
         reference(school, "kind", "StatKind", "rollup_school", "Legacy Kind Key");
-        database = new PortableSQLDatabaseTest.SQLiteTeaQLDatabase();
+        database = createDatabase();
         database.execute("CREATE TABLE rollup_platform(id INTEGER PRIMARY KEY,version INTEGER,name TEXT)");
         database.execute("CREATE TABLE rollup_kind(id INTEGER PRIMARY KEY,version INTEGER,\"Legacy Kind Label\" TEXT,ordinal INTEGER,platform INTEGER)");
         database.execute("CREATE TABLE rollup_school(id INTEGER PRIMARY KEY,version INTEGER,\"Legacy Capacity\" INTEGER,\"Legacy Kind Key\" INTEGER)");
@@ -69,21 +78,21 @@ public class LayeredAggregationTest {
                 owner.getType() + "List", metadata.resolveEntityDescriptor(target).getTargetType(), GenericSQLRelation::new);
         relation.setTableName(table); relation.setColumnName(column); relation.setColumnType("INTEGER");
     }
-    private Request<StatKind> kind(String dimension) {
+    protected Request<StatKind> kind(String dimension) {
         var request = new Request<>(StatKind.class, "StatKind"); request.groupBy(dimension); return request;
     }
-    private Request<StatSchool> source(Request<StatKind> parent) {
+    protected Request<StatSchool> source(Request<StatKind> parent) {
         var request = new Request<>(StatSchool.class, "StatSchool");
         request.count("schoolCount"); request.sum("capacityTotal", "capacity");
         request.avg("capacityMean", "capacity"); request.min("capacityMin", "capacity"); request.max("capacityMax", "capacity");
         request.groupBy("kind", parent); return request;
     }
-    private List<Map<String, Object>> execute(Request<StatSchool> request) {
+    protected List<Map<String, Object>> execute(Request<StatSchool> request) {
         return request.comment("Count source observations at the final parent grain")
                 .purpose("Compare native Java roll-up results with the shared small fixture").aggregation(context).toList();
     }
-    private static long number(Map<String, Object> row, String key) { return ((Number) row.get(key)).longValue(); }
-    @SuppressWarnings("unchecked") private static Map<String, Object> object(Map<String, Object> row, String key) { return (Map<String, Object>) row.get(key); }
+    protected static long number(Map<String, Object> row, String key) { return ((Number) row.get(key)).longValue(); }
+    @SuppressWarnings("unchecked") protected static Map<String, Object> object(Map<String, Object> row, String key) { return (Map<String, Object>) row.get(key); }
 
     @Test public void mergedParentDimensionKeepsWeightedSourceMeasuresAndMappedKeys() {
         var rows = execute(source(kind("label"))); assertEquals(1, rows.size()); var row = rows.get(0);
