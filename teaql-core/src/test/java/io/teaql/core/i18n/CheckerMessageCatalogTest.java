@@ -23,7 +23,12 @@ public class CheckerMessageCatalogTest {
 
     private static JsonNode fixture() throws IOException {
         try (var input = CheckerMessageCatalogTest.class.getResourceAsStream("natural-cases-v1.json")) {
-            return JSON.readTree(input);
+            var fixture = JSON.readTree(input);
+            try (var roots = CheckerMessageCatalogTest.class.getResourceAsStream("natural-root-cases-v1.json")) {
+                for (var rootCase : JSON.readTree(roots).get("cases"))
+                    ((com.fasterxml.jackson.databind.node.ArrayNode) fixture.get("cases")).add(rootCase);
+            }
+            return fixture;
         }
     }
 
