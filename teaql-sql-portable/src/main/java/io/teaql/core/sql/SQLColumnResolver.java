@@ -17,6 +17,9 @@ public interface SQLColumnResolver {
         return sql;
     }
 
+    /** Validate built-in operands before recursive rendering or binding values. */
+    default void validateAggregateOperand(UserContext context, AggrFunction function, Expression operand) {}
+
     /** Optional provider override for typed aggregation; null uses portable SQL. */
     default String aggregateSql(UserContext context, AggrFunction function,
                                 Expression operand, String columnSql) {

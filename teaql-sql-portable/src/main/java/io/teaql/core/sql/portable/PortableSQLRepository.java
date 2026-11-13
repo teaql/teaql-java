@@ -125,17 +125,20 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     @Override
+    public void validateAggregateOperand(UserContext context,io.teaql.core.AggrFunction function,io.teaql.core.Expression operand) {
+        if(io.teaql.core.sql.internal.StatisticalIntegerOperand.bitwise(function))
+            io.teaql.core.sql.internal.StatisticalIntegerOperand.parameter(allProperties,operand,this);
+    }
+
+    @Override
     public String aggregateSql(UserContext context, io.teaql.core.AggrFunction function,
                                io.teaql.core.Expression operand, String columnSql) {
         if (function == io.teaql.core.AggrFunction.GBK) return gbkOrderSql(context,operand,columnSql);
         boolean direct = operand instanceof io.teaql.core.PropertyReference;
-        if (direct && java.util.Set.of(io.teaql.core.AggrFunction.BIT_AND,
-                io.teaql.core.AggrFunction.BIT_OR,io.teaql.core.AggrFunction.BIT_XOR).contains(function)) {
-            var property=findProperty(((io.teaql.core.PropertyReference)operand).getPropertyName());
-            Class<?> type=property==null||property.getType()==null?null:property.getType().javaType();
-            if (type==null || !java.util.Set.of(Byte.class,Short.class,Integer.class,Long.class,
-                    byte.class,short.class,int.class,long.class).contains(type))
-                throw new TeaQLRuntimeException("bitwise aggregate requires an integer field");
+        if (io.teaql.core.sql.internal.StatisticalIntegerOperand.bitwise(function)) {
+            boolean parameter=io.teaql.core.sql.internal.StatisticalIntegerOperand.parameter(allProperties,operand,this);
+            return new io.teaql.core.sql.expression.AggrExpressionParser().genAggrSQL(function,
+                    parameter?dialect.bitwiseParameterSql(columnSql):columnSql);
         }
         for (String name : operand.properties(context)) {
             PropertyDescriptor property = allProperties.stream()

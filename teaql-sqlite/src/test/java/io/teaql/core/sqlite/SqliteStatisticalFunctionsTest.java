@@ -117,6 +117,44 @@ public class SqliteStatisticalFunctionsTest {
         }
     }
     public static class School extends BaseEntity{@Override public String typeName(){return "StatSchool";}}
+
+    @Test public void bitwiseParametersAndNestedSelfKeepExactIntegerResults()throws Exception{
+        try(var f=new Fixture()){
+            var metadata=new SimpleEntityMetaFactory();
+            var kind=entity("StatKind",Kind.class,"bit_kind",new String[][]{{"id","id"},{"version","version"},{"label","label"}});
+            var school=entity("StatSchool",School.class,"bit_school",new String[][]{{"id","id"},{"version","version"},{"capacity","capacity"}});
+            metadata.register(kind);metadata.register(school);
+            var relation=(GenericSQLRelation)school.addObjectProperty(metadata,"kind","StatKind","schoolList",Kind.class,GenericSQLRelation::new);
+            relation.setTableName("bit_school");relation.setColumnName("kind");relation.setColumnType("BIGINT");
+            f.jdbc.execute("CREATE TABLE bit_kind(id BIGINT,version BIGINT,label TEXT)");
+            f.jdbc.execute("CREATE TABLE bit_school(id BIGINT,version BIGINT,capacity BIGINT,kind BIGINT)");
+            f.jdbc.execute("INSERT INTO bit_kind VALUES(1001,1,'shared'),(1002,1,'shared')");
+            f.jdbc.execute("INSERT INTO bit_school VALUES(1,1,800,1001),(2,1,800,1001),(3,1,800,1001),(4,1,800,1001),(5,1,100,1002)");
+            var context=new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata).dataService("sqlite",f.provider).build());
+            for(var function:List.of(AggrFunction.BIT_AND,AggrFunction.BIT_OR,AggrFunction.BIT_XOR)){
+                for(Long value:Arrays.asList(Long.MIN_VALUE,Long.MAX_VALUE,null)){
+                    Expression operand=new Parameter("integerInput",value,io.teaql.core.criteria.Operator.EQUAL);
+                    operand=new AggrExpression(AggrFunction.SELF,new AggrExpression(AggrFunction.SELF,operand));
+                    var request=new Request<>(Kind.class,"StatKind");request.addAggregate(new SimpleNamedExpression("bits",new AggrExpression(function,operand)));
+                    var rows=request.comment("Aggregate exact integer parameters").purpose("Retain signed bounds and typed null results").aggregation(context).toList();
+                    assertEquals(1,rows.size());assertTrue(rows.get(0).containsKey("bits"));
+                    var actual=rows.get(0).get("bits");
+                    if(value==null)assertNull(actual);else{
+                        assertTrue(actual instanceof Long || actual instanceof Integer);
+                        assertEquals(function==AggrFunction.BIT_XOR?0:value.longValue(),((Number)actual).longValue());
+                    }
+                }
+                Expression operand=new PropertyReference("id");for(int depth=0;depth<16;depth++)operand=new AggrExpression(AggrFunction.SELF,operand);
+                var parent=new Request<>(Kind.class,"StatKind");parent.groupBy("label");
+                parent.addAggregate(new SimpleNamedExpression("bits",new AggrExpression(function,operand)));
+                var request=new Request<>(School.class,"StatSchool");request.count("schools");request.groupBy("kind",parent);
+                var rows=request.comment("Aggregate wrapped parent fields once per identity").purpose("Preserve nested SELF and owner grain").aggregation(context).toList();
+                assertEquals(1,rows.size());assertEquals(5,((Number)rows.get(0).get("schools")).longValue());
+                var values=(Map<?,?>)rows.get(0).get("kind");
+                assertEquals(function==AggrFunction.BIT_AND?1000:function==AggrFunction.BIT_OR?1003:3,((Number)values.get("bits")).longValue());
+            }
+        }
+    }
     @Test public void invalidModeledBitwiseFieldsFailBeforeOrdinaryOrLayeredSql()throws Exception{
         try(var f=new Fixture()){
             for(Class<?> type:List.of(String.class,java.math.BigDecimal.class,Double.class,Float.class,

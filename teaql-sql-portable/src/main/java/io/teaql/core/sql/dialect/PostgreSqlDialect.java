@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 public class PostgreSqlDialect extends AbstractSqlDialect {
 
     @Override public String gbkOrderSql(String sql) { return "convert_to(" + sql + ",'GBK')"; }
+    @Override public String bitwiseParameterSql(String sql) {return "CAST("+sql+" AS BIGINT)";}
 
     @Override
     public String escapeIdentifier(String identifier) {

@@ -167,6 +167,32 @@ public class PostgresLayeredAggregationIT extends LayeredAggregationTest {
                 .writeValueAsString(Map.of("case",label,"rows",rows)));
     }
 
+    @Test public void bitwiseExpressionsRetainWrappedOwnerFieldsAndSignedParameters()throws Exception{
+        List<Map<String,Object>> fieldRows=List.of(),parameterRows=List.of();
+        for(var function:List.of(AggrFunction.BIT_AND,AggrFunction.BIT_OR,AggrFunction.BIT_XOR)){
+            Expression operand=new PropertyReference("id");for(int depth=0;depth<16;depth++)operand=new AggrExpression(AggrFunction.SELF,operand);
+            var parent=kind("label");parent.addAggregate(new SimpleNamedExpression("bits",new AggrExpression(function,operand)));
+            var rows=execute(source(parent));assertEquals(1,rows.size());assertEquals(5,number(rows.get(0),"schoolCount"));
+            var bits=object(rows.get(0),"kind").get("bits");assertTrue(bits instanceof Long || bits instanceof Integer);
+            assertEquals(function==AggrFunction.BIT_AND?1000:function==AggrFunction.BIT_OR?1003:3,((Number)bits).longValue());
+            if(function==AggrFunction.BIT_XOR)fieldRows=rows;
+            for(Long value:Arrays.asList(Long.MIN_VALUE,Long.MAX_VALUE,null)){
+                Expression parameter=new Parameter("integerInput",value,Operator.EQUAL);
+                parameter=new AggrExpression(AggrFunction.SELF,new AggrExpression(AggrFunction.SELF,parameter));
+                var request=new Request<>(StatKind.class,"StatKind");request.addAggregate(new SimpleNamedExpression("bits",new AggrExpression(function,parameter)));
+                var actual=request.comment("Aggregate exact integer parameters")
+                        .purpose("Disambiguate PostgreSQL overloads without changing values").aggregation(context).toList();
+                assertEquals(1,actual.size());assertTrue(actual.get(0).containsKey("bits"));var result=actual.get(0).get("bits");
+                if(value==null)assertNull(result);else{
+                    assertTrue(result instanceof Long || result instanceof Integer);
+                    assertEquals(function==AggrFunction.BIT_XOR?0:value.longValue(),((Number)result).longValue());
+                }
+                if(Objects.equals(value,Long.MAX_VALUE)&&function==AggrFunction.BIT_XOR)parameterRows=actual;
+            }
+        }
+        observe("bitwise-expression-fields",fieldRows);observe("bitwise-expression-parameters",parameterRows);
+    }
+
     @Test public void extendedOperatorsRetainSourceAndParentIdentityGrain() throws Exception {
         var parent = kind("label"); parent.count("n"); measures(parent,"ordinal");
         var request = source(parent); measures(request,"capacity");

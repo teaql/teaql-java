@@ -80,6 +80,9 @@ public interface SqlDialect {
         throw new io.teaql.core.TeaQLRuntimeException("GBK ordering is unsupported by this SQL dialect");
     }
 
+    /** Preserve integer parameter types when a provider overload needs a hint. */
+    default String bitwiseParameterSql(String sql) {return sql;}
+
     /** Providers with exact text-backed numbers can reject approximate thresholds before binding. */
     default void validateDecimalComparisonOperand(Object value) {}
 

@@ -502,6 +502,24 @@ public class LayeredAggregationTest {
         }
     }
 
+    @Test public void wrappedBitwiseFieldsKeepTypeValidationBeforeSql() {
+        for(var function:List.of(AggrFunction.BIT_AND,AggrFunction.BIT_OR,AggrFunction.BIT_XOR)) {
+            for(int depth:List.of(1,2,16)) {
+                Expression operand=new PropertyReference("label");
+                for(int index=0;index<depth;index++)operand=new AggrExpression(AggrFunction.SELF,operand);
+                var parent=new Request<>(StatKind.class,"StatKind");
+                parent.addAggregate(new SimpleNamedExpression("bits",new AggrExpression(function,operand)));
+                for(Request<?> request:List.of(parent,source(parent))) {
+                    database.clearQueryTrace();
+                    var error=assertThrows(TeaQLRuntimeException.class,()->request.comment("Reject invalid wrapped bitwise fields")
+                            .purpose("Verify type checks survive SELF wrappers").aggregation(context));
+                    assertTrue(error.getMessage(),error.getMessage().contains("bitwise aggregate requires an integer field"));
+                    assertTrue("Invalid expression must not reach SQL",database.queryTrace().isEmpty());
+                }
+            }
+        }
+    }
+
     @Test public void simpleHavingOrderingAndPagingUseStatisticalRows() {
         var request = new Request<>(StatSchool.class, "StatSchool");
         request.groupBy("kind"); request.count("schoolCount");

@@ -308,12 +308,15 @@ final class LayeredAggregation {
     private String field(int owner, String property) { return q("l" + owner) + "." + q(property); }
     private String q(String name) { return root.escapeIdentifier(name); }
     private static String scalarProperty(Expression expression) {
-        if (expression instanceof AggrExpression aggregate && aggregate.getOperator() == AggrFunction.SELF) {
-            if (aggregate.getExpressions().size() != 1) throw invalid("Scalar statistics expression requires one operand");
-            expression = aggregate.first();
+        for(int depth=0;depth<=64;depth++) {
+            if (expression instanceof AggrExpression aggregate && aggregate.getOperator() == AggrFunction.SELF) {
+                if (aggregate.getExpressions().size() != 1) throw invalid("Scalar statistics expression requires one operand");
+                expression = aggregate.first();continue;
+            }
+            if (expression instanceof PropertyReference reference) return reference.getPropertyName();
+            throw invalid("Statistical dimension or operand requires a scalar property");
         }
-        if (expression instanceof PropertyReference reference) return reference.getPropertyName();
-        throw invalid("Statistical dimension or operand requires a scalar property");
+        throw invalid("Scalar statistics operand exceeds 64 wrappers");
     }
     private static List<String> append(List<String> path, String name) { var result = new ArrayList<>(path); result.add(name); return List.copyOf(result); }
     private static boolean prefix(List<String> prefix, List<String> path) { return path.size() >= prefix.size() && path.subList(0, prefix.size()).equals(prefix); }

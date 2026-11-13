@@ -36,6 +36,7 @@ public class AggrExpressionParser implements SQLExpressionParser<AggrExpression>
         if (CollectionUtil.size(expressions) != 1) {
             throw new TeaQLRuntimeException("AggrExpression operator should have 1 expression");
         }
+        sqlColumnResolver.validateAggregateOperand(userContext,(AggrFunction)operator,expressions.get(0));
         String sqlColumn =
                 ExpressionHelper.toSql(
                         userContext, expressions.get(0), idTable, parameters, sqlColumnResolver);
