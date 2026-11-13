@@ -296,6 +296,53 @@ public class LayeredAggregationTest {
         var row = execute(source(kind("label"))).get(0);
         assertEquals(5, number(row, "schoolCount")); assertTrue(object(row, "kind").containsKey("label")); assertNull(object(row, "kind").get("label"));
     }
+    private void addMissingParentReferences() {
+        // Controlled legacy-data fixture, not an application seeding path.
+        database.execute("INSERT INTO rollup_school VALUES(6,1,50,NULL),(7,1,700,9999)");
+    }
+    @Test public void missingParentReferencesAreNotARealNullGroupingDimension() {
+        addMissingParentReferences();
+        database.execute("UPDATE rollup_kind SET \"Legacy Kind Label\"=NULL WHERE id=1001");
+        var raw = new Request<>(StatSchool.class,"StatSchool"); raw.groupBy("kind"); raw.count("schoolCount"); raw.sum("capacityTotal","capacity");
+        var rawRows = execute(raw); assertEquals(4,rawRows.size());
+        assertEquals(7,rawRows.stream().mapToLong(row->number(row,"schoolCount")).sum());
+        assertTrue(rawRows.stream().anyMatch(row->row.containsKey("kind")&&row.get("kind")==null&&number(row,"capacityTotal")==50));
+        assertTrue(rawRows.stream().anyMatch(row->Objects.equals(row.get("kind"),9999L)||Objects.equals(row.get("kind"),9999)));
+        var parent=kind("label");parent.count("types");parent.sum("ordinalTotal","ordinal");
+        var rows=execute(source(parent));assertEquals(2,rows.size());
+        assertEquals(5,rows.stream().mapToLong(row->number(row,"schoolCount")).sum());
+        assertEquals(3300,rows.stream().mapToLong(row->number(row,"capacityTotal")).sum());
+        var nullCell=rows.stream().filter(row->object(row,"kind").containsKey("label")&&object(row,"kind").get("label")==null).findFirst().orElseThrow();
+        assertEquals(4,number(nullCell,"schoolCount"));assertEquals(3200,number(nullCell,"capacityTotal"));
+        assertEquals(1,number(object(nullCell,"kind"),"types"));
+        var oracle=database.query("SELECT COUNT(*) AS n,SUM(s.\"Legacy Capacity\") AS total FROM rollup_school s JOIN rollup_kind k ON k.id=s.\"Legacy Kind Key\"",new Object[0]).get(0);
+        assertEquals(5,number(oracle,"n"));assertEquals(3300,number(oracle,"total"));
+    }
+    @Test public void everyRollupHopRequiresAMatchingParentEvenWhenItsLabelIsNull() {
+        database.execute("INSERT INTO rollup_kind VALUES(1003,1,'no root',3,NULL),(1004,1,'orphan root',4,9999)");
+        database.execute("INSERT INTO rollup_school VALUES(6,1,50,1003),(7,1,700,1004)");
+        database.execute("UPDATE rollup_platform SET name=NULL");
+        var oneHop=execute(source(kind("label")));assertEquals(3,oneHop.size());
+        assertEquals(7,oneHop.stream().mapToLong(row->number(row,"schoolCount")).sum());
+        assertEquals(4050,oneHop.stream().mapToLong(row->number(row,"capacityTotal")).sum());
+        var platform=new Request<>(StatPlatform.class,"StatPlatform");platform.groupBy("name");platform.count("platforms");
+        var parent=new Request<>(StatKind.class,"StatKind");parent.count("types");parent.sum("ordinalTotal","ordinal");parent.groupBy("platform",platform);
+        var rows=execute(source(parent));assertEquals(1,rows.size());var row=rows.get(0);
+        assertEquals(5,number(row,"schoolCount"));assertEquals(3300,number(row,"capacityTotal"));
+        assertEquals(2,number(object(row,"kind"),"types"));assertEquals(3,number(object(row,"kind"),"ordinalTotal"));
+        var root=object(object(row,"kind"),"platform");assertTrue(root.containsKey("name"));assertNull(root.get("name"));assertEquals(1,number(root,"platforms"));
+    }
+    @Test public void filteredOrMissingParentsGiveEmptyGroupsButZeroScalarCounts() {
+        addMissingParentReferences();
+        database.execute("UPDATE rollup_kind SET \"Legacy Kind Label\"=NULL WHERE id=1002");
+        var filtered=kind("label").where("ordinal",Operator.EQUAL,2L);filtered.count("types");
+        var row=execute(source(filtered)).get(0);assertEquals(1,number(row,"schoolCount"));assertEquals(100,number(row,"capacityTotal"));assertNull(object(row,"kind").get("label"));
+        assertTrue(execute(source(kind("label")).where("id",Operator.GREATER_THAN_OR_EQUAL,6L)).isEmpty());
+        var scalar=new Request<>(StatKind.class,"StatKind");scalar.count("types");scalar.sum("ordinalTotal","ordinal");
+        var rows=execute(source(scalar).where("id",Operator.GREATER_THAN_OR_EQUAL,6L));assertEquals(1,rows.size());row=rows.get(0);
+        assertEquals(0,number(row,"schoolCount"));assertNull(row.get("capacityTotal"));assertNull(row.get("capacityMean"));
+        assertEquals(0,number(object(row,"kind"),"types"));assertNull(object(row,"kind").get("ordinalTotal"));
+    }
     @Test public void nullMeasuresDoNotEnterAverageOrFieldCount() {
         database.execute("UPDATE rollup_school SET \"Legacy Capacity\"=NULL WHERE id=5");
         var request = source(kind("label")); request.countProperty("nonNullCapacity", "capacity");
@@ -426,6 +473,28 @@ public class LayeredAggregationTest {
         assertEquals("Only the statistical SQL should execute", 1, database.queryTrace().size());
         assertSame("The reusable source builder must not be rewritten", original, request.getSearchCriteria());
     }
+    @Test public void linkedMembershipInsideOrUsesTheSameParentCellsNotASecondIdQuery() {
+        var parent=kind("ordinal");parent.addOrderByDescending("ordinal");parent.top(1);
+        var request=source(parent);
+        request.appendSearchCriteria(SearchCriteria.or(new SubQuerySearchCriteria("kind",parent,"id"),
+                request.createBasicSearchCriteria("capacity",Operator.GREATER_THAN,500L)));
+        var original=request.getSearchCriteria();database.clearQueryTrace();
+        var row=execute(request).get(0);assertEquals(1,number(row,"schoolCount"));assertEquals(100,number(row,"capacityTotal"));
+        assertEquals(1,database.queryTrace().size());assertSame(original,request.getSearchCriteria());
+        var invalid=source(parent);invalid.appendSearchCriteria(SearchCriteria.or(new SubQuerySearchCriteria("kind",parent,"id"),
+                invalid.createBasicSearchCriteria("missing",Operator.EQUAL,"not-for-diagnostics")));
+        database.clearQueryTrace();assertThrows(TeaQLRuntimeException.class,()->execute(invalid));
+        assertTrue("A logically true OR must not skip validation of another branch",database.queryTrace().isEmpty());
+    }
+    @Test public void negatedLinkedMembershipIsContradictoryForGroupedAndScalarParents() {
+        for(boolean grouped:List.of(false,true)) {
+            var parent=grouped?kind("label"):new Request<>(StatKind.class,"StatKind");parent.count("types");
+            var request=source(parent);request.appendSearchCriteria(SearchCriteria.not(new SubQuerySearchCriteria("kind",parent,"id")));
+            database.clearQueryTrace();var rows=execute(request);assertEquals(1,database.queryTrace().size());
+            if(grouped)assertTrue(rows.isEmpty());
+            else {assertEquals(1,rows.size());assertEquals(0,number(rows.get(0),"schoolCount"));assertNull(rows.get(0).get("capacityTotal"));assertEquals(0,number(object(rows.get(0),"kind"),"types"));}
+        }
+    }
 
     @Test public void independentParentMembershipRemainsABusinessFilter() {
         var request = source(kind("label"));
@@ -434,5 +503,8 @@ public class LayeredAggregationTest {
         request.appendSearchCriteria(new SubQuerySearchCriteria("kind", independent, "id"));
         var row = execute(request).get(0);
         assertEquals(4, number(row, "schoolCount")); assertEquals(3200, number(row, "capacityTotal"));
+        var grouped=kind("label").where("ordinal",Operator.EQUAL,2L);
+        var negated=source(grouped);negated.appendSearchCriteria(SearchCriteria.not(new SubQuerySearchCriteria("kind",independent,"id")));
+        row=execute(negated).get(0);assertEquals(1,number(row,"schoolCount"));assertEquals(100,number(row,"capacityTotal"));
     }
 }

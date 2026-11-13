@@ -32,7 +32,7 @@ final class StatisticsRequestPreparation {
                 children.put(relation, prepare(context, child, childScope));
             }
             var snapshot = new QueryRequestSnapshot<T>(request, scope);
-            snapshot.replaceSearchCriteria(populationCriteria(request.getSearchCriteria(), request));
+            snapshot.replaceSearchCriteria(populationCriteria(snapshot.getSearchCriteria(), snapshot, 0));
             snapshot.setPropagateDimensions(children);
             return snapshot;
         } finally { active.remove(request); }
@@ -43,25 +43,46 @@ final class StatisticsRequestPreparation {
      * dimension edge to the same parent builder. The statistical join already
      * enforces that parent's eligibility and cell bounds. Materializing the
      * grouped parent as entity IDs would instead lose its source population.
-     * Normalize only positive conjuncts in this invocation, never the builder
-     * or an independent/negated/disjunctive business predicate.
+     * A reference to that exact parent is true within this join's population,
+     * including inside OR/NOT. Independent business subqueries are not edges.
+     * Preserve other branches for normal metadata/policy validation, even when
+     * a linked membership makes an OR logically true. Never rewrite a builder.
      */
-    private SearchCriteria populationCriteria(SearchCriteria criteria, SearchRequest<?> owner) {
+    private SearchCriteria populationCriteria(SearchCriteria criteria, SearchRequest<?> owner, int depth) {
+        if (depth > 64) throw new TeaQLRuntimeException("Statistical membership expression exceeds 64 levels");
         if (criteria instanceof SubQuerySearchCriteria membership
                 && BaseEntity.ID_PROPERTY.equals(membership.getDependsOnPropertyName())
                 && owner.getPropagateDimensions().get(membership.getPropertyName()) == membership.getDependsOn()) return null;
-        if (criteria != null && criteria.getClass() == io.teaql.core.criteria.AND.class) {
+        if (criteria != null && (criteria.getClass() == io.teaql.core.criteria.AND.class
+                || criteria.getClass() == io.teaql.core.criteria.OR.class)) {
+            boolean conjunction = criteria.getClass() == io.teaql.core.criteria.AND.class;
             var remaining = new java.util.ArrayList<SearchCriteria>();
-            for (var operand : ((io.teaql.core.criteria.AND) criteria).getExpressions()) {
+            for (var operand : ((FunctionApply) criteria).getExpressions()) {
                 if (!(operand instanceof SearchCriteria condition))
-                    throw new TeaQLRuntimeException("Statistical source AND requires conditions");
-                var normalized = populationCriteria(condition, owner);
+                    throw new TeaQLRuntimeException("Statistical source Boolean expression requires conditions");
+                var normalized = populationCriteria(condition, owner, depth + 1);
+                if (normalized == null && !conjunction) normalized = identityPresent();
                 if (normalized != null) remaining.add(normalized);
             }
             if (remaining.isEmpty()) return null;
             if (remaining.size() == 1) return remaining.get(0);
-            return SearchCriteria.and(remaining.toArray(SearchCriteria[]::new));
+            return conjunction ? SearchCriteria.and(remaining.toArray(SearchCriteria[]::new))
+                    : SearchCriteria.or(remaining.toArray(SearchCriteria[]::new));
+        }
+        if (criteria != null && criteria.getClass() == io.teaql.core.criteria.NOT.class) {
+            var function = (FunctionApply) criteria;
+            if (function.getExpressions().size() != 1 || !(function.first() instanceof SearchCriteria condition))
+                throw new TeaQLRuntimeException("Statistical source NOT requires one condition");
+            var normalized = populationCriteria(condition, owner, depth + 1);
+            // A persistent observation has a non-null identity. This expresses
+            // false using the existing typed AST, not raw SQL or bind payloads.
+            return normalized == null ? new io.teaql.core.criteria.IsNull(new PropertyReference(BaseEntity.ID_PROPERTY))
+                    : SearchCriteria.not(normalized);
         }
         return criteria;
+    }
+
+    private static SearchCriteria identityPresent() {
+        return new io.teaql.core.criteria.IsNotNull(new PropertyReference(BaseEntity.ID_PROPERTY));
     }
 }
