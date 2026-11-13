@@ -75,7 +75,7 @@ async function main(){
         '-Dsurefire.failIfNoSpecifiedTests=false','test'],'postgres-round-'+round+'.log');
       const report=path.join(repo,'teaql-sql-portable/target/surefire-reports/TEST-io.teaql.core.sql.portable.PostgresLayeredAggregationIT.xml');
       const xml=fs.readFileSync(report,'utf8'),junit=counts(xml);fs.copyFileSync(report,path.join(output,'junit-round-'+round+'.xml'));
-      assert.deepEqual(junit,{tests:56,failures:0,errors:0,skipped:0});
+      assert.deepEqual(junit,{tests:57,failures:0,errors:0,skipped:0});
       const observations=log.split(/\r?\n/).filter(l=>l.startsWith('JAVA_POSTGRES_ROLLUP=')).map(l=>JSON.parse(l.slice('JAVA_POSTGRES_ROLLUP='.length)));
       assert.deepEqual(observations.map(o=>o.case).sort(),['extended-owner-grain','empty-extended','all-null-source-singleton-parent','variance-having',
         ...['positive','negative','neighboring'].flatMap(kind=>['ordinary','parent','nested','having-ordinary','having-parent','having-nested'].map(layer=>'numeric-'+layer+'-'+kind)),

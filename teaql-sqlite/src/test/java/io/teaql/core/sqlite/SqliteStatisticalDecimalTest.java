@@ -120,7 +120,9 @@ public class SqliteStatisticalDecimalTest {
                     AggrFunction.VAR_SAMP,AggrFunction.VAR_POP,AggrFunction.BIT_AND,AggrFunction.BIT_OR,AggrFunction.BIT_XOR)) {
                 var request=new Request<>(Kind.class,"NumericKind");request.groupBy("label");request.addAggregate("result","ordinal",function);
                 var error=assertThrows(RuntimeException.class,()->fixture.execute(source(request)));
-                assertTrue(causes(error),causes(error).contains("SQLite exact Decimal aggregate"));
+                String expected=Set.of(AggrFunction.BIT_AND,AggrFunction.BIT_OR,AggrFunction.BIT_XOR).contains(function)
+                        ?"bitwise aggregate requires an integer field":"SQLite exact Decimal aggregate";
+                assertTrue(causes(error),causes(error).contains(expected));
             }
         }
     }

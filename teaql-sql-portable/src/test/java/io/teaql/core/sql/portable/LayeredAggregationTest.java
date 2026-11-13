@@ -482,6 +482,26 @@ public class LayeredAggregationTest {
         }
     }
 
+    @Test public void bitwiseFieldTypesAreValidatedBeforeOrdinaryAndLayeredSql() {
+        var label=metadata.resolveEntityDescriptor("StatKind").getProperties().stream()
+                .filter(p->p.getName().equals("label")).findFirst().orElseThrow();
+        for(Class<?> type:List.of(String.class,java.math.BigDecimal.class,Double.class,Float.class,
+                Boolean.class,java.time.LocalDate.class,java.time.LocalDateTime.class)) {
+            label.setType(new SimplePropertyType(type));
+            for(var function:List.of(AggrFunction.BIT_AND,AggrFunction.BIT_OR,AggrFunction.BIT_XOR)) {
+                var parent=new Request<>(StatKind.class,"StatKind");parent.addAggregate("bits","label",function);
+                for(Request<?> request:List.of(parent,source(parent))) {
+                    database.clearQueryTrace();
+                    var error=assertThrows(TeaQLRuntimeException.class,()->request.comment("Reject invalid modeled bitwise operands")
+                            .purpose("Verify metadata validation without sending SQL").aggregation(context));
+                    assertTrue(type+": "+error.getMessage(),error.getMessage().contains("bitwise aggregate requires an integer field"));
+                    assertFalse(error.getMessage().contains("Legacy Kind Label"));
+                    assertTrue("Type validation must precede database execution",database.queryTrace().isEmpty());
+                }
+            }
+        }
+    }
+
     @Test public void simpleHavingOrderingAndPagingUseStatisticalRows() {
         var request = new Request<>(StatSchool.class, "StatSchool");
         request.groupBy("kind"); request.count("schoolCount");

@@ -117,6 +117,33 @@ public class SqliteStatisticalFunctionsTest {
         }
     }
     public static class School extends BaseEntity{@Override public String typeName(){return "StatSchool";}}
+    @Test public void invalidModeledBitwiseFieldsFailBeforeOrdinaryOrLayeredSql()throws Exception{
+        try(var f=new Fixture()){
+            for(Class<?> type:List.of(String.class,java.math.BigDecimal.class,Double.class,Float.class,
+                    Boolean.class,java.time.LocalDate.class,java.time.LocalDateTime.class)){
+                var metadata=new SimpleEntityMetaFactory();
+                var kind=entity("StatKind",Kind.class,"missing_bitwise_kind",new String[][]{{"id","id"},{"version","version"},{"label","Legacy Kind Label"}});
+                kind.getProperties().stream().filter(p->p.getName().equals("label")).findFirst().orElseThrow().setType(new SimplePropertyType(type));
+                var school=entity("StatSchool",School.class,"missing_bitwise_school",new String[][]{{"id","id"},{"version","version"}});
+                metadata.register(kind);metadata.register(school);
+                var relation=(GenericSQLRelation)school.addObjectProperty(metadata,"kind","StatKind","schoolList",Kind.class,GenericSQLRelation::new);
+                relation.setTableName("missing_bitwise_school");relation.setColumnName("kind");relation.setColumnType("BIGINT");
+                var context=new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata).dataService("sqlite",f.provider).build());
+                for(var function:List.of(AggrFunction.BIT_AND,AggrFunction.BIT_OR,AggrFunction.BIT_XOR)){
+                    var parent=new Request<>(Kind.class,"StatKind");parent.addAggregate("bits","label",function);
+                    var child=new Request<>(School.class,"StatSchool");child.count("schools");child.groupBy("kind",parent);
+                    for(Request<?> request:List.of(parent,child)){
+                        request.top(1);
+                        var error=assertThrows(TeaQLRuntimeException.class,()->request.comment("Reject invalid modeled bitwise operands")
+                                .purpose("Prove type validation precedes database access").aggregation(context));
+                        assertTrue(type+": "+error.getMessage(),error.getMessage().contains("bitwise aggregate requires an integer field"));
+                        assertFalse(error.getMessage().contains("no such table"));
+                        assertFalse(error.getMessage().contains("Legacy Kind Label"));
+                    }
+                }
+            }
+        }
+    }
     public static class Kind extends BaseEntity{@Override public String typeName(){return "StatKind";}}
     private static class Request<T extends BaseEntity> extends BaseRequest<T>{
         private final String type;Request(Class<T> cls,String type){super(cls);this.type=type;}

@@ -99,13 +99,13 @@ async function main() {
             assert.equal(run.suites['teaql-core']?.find(s => s.name.endsWith('.QueryRequestSnapshotIsolationTest.xml'))?.tests,
                 5, 'Missing independent graph snapshot/copy acceptance');
             assert.equal(run.suites['teaql-sqlite']?.find(s => s.name.endsWith('.SqliteStatisticalFunctionsTest.xml'))?.tests,
-                11, 'Missing statistical kernel/integration and GBK fail-closed tests');
+                12, 'Missing statistical kernel/integration, typed bitwise and GBK fail-closed tests');
             assert.equal(run.suites['teaql-sqlite']?.find(s => s.name.endsWith('.SqliteStatisticalDecimalTest.xml'))?.tests,
                 9, 'Missing exact Decimal sorting, range, HAVING and unsupported-function tests');
             assert.equal(run.suites['teaql-sqlite']?.find(s => s.name.endsWith('.DerivedQueryTraceSqliteTest.xml'))?.tests,
                 1, 'Missing real collection Facet regression');
             assert.equal(run.suites['teaql-sql-portable']?.find(s => s.name.endsWith('.LayeredAggregationTest.xml'))?.tests,
-                50, 'Missing complete shared roll-up statistics suite');
+                51, 'Missing complete shared roll-up statistics suite');
             assert.equal(run.suites['teaql-sql-portable']?.find(s => s.name.endsWith('.StatisticalGroupingExpressionTest.xml'))?.tests,
                 3, 'Missing grouping expression safety and ordinary GBK compatibility tests');
             assert.equal(run.suites['teaql-sql-portable']?.find(s => s.name.endsWith('.AggrExpressionParserTest.xml'))?.tests,
