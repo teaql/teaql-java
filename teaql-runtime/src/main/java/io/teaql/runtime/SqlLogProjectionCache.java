@@ -29,6 +29,9 @@ final class SqlLogProjectionCache {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             add(digest, m.getBackend()); add(digest, m.getOperation());
+            var correlation = m.getSqlExecutionCorrelation();
+            add(digest, correlation == null ? null : correlation.traceId());
+            add(digest, correlation == null ? null : correlation.spanId());
             add(digest, m.getStartedAt()); add(digest, m.getEndedAt()); add(digest, m.getElapsedUs());
             add(digest, m.getAffectedRows()); add(digest, m.getResultCount()); add(digest, m.getResultSummary());
             add(digest, m.getBackendRequestId()); add(digest, m.getParameterizedQuery()); add(digest, m.getDebugQuery());
@@ -78,6 +81,7 @@ final class SqlLogProjectionCache {
 
     private static ExecutionMetadata copy(ExecutionMetadata m) {
         var c = new ExecutionMetadata();
+        c.setSqlExecutionCorrelation(m.getSqlExecutionCorrelation());
         c.setBackend(m.getBackend()); c.setOperation(m.getOperation());
         c.setStartedAt(m.getStartedAt()); c.setEndedAt(m.getEndedAt()); c.setElapsedUs(m.getElapsedUs());
         c.setAffectedRows(m.getAffectedRows()); c.setResultCount(m.getResultCount());

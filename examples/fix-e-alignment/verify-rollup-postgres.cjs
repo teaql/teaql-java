@@ -32,11 +32,17 @@ async function main(){
       TEAQL_TEST_POSTGRES_USER:'postgres',TEAQL_TEST_POSTGRES_PASSWORD:secret};
     receipt.sourceHashes={};
     for(const file of ['pom.xml','teaql-sql-portable/pom.xml',
+      'teaql-postgres/pom.xml',
+      'teaql-postgres/src/test/java/io/teaql/postgres/PostgresStatisticalDiagnosticsTest.java',
+      'teaql-postgres/src/main/java/io/teaql/core/postgres/PostgresDataServiceExecutor.java',
+      'teaql-data-service-sql/src/main/java/io/teaql/dataservice/sql/SqlDataServiceExecutor.java',
+      'teaql-provider-jdbc/src/main/java/io/teaql/provider/jdbc/JdbcSqlExecutor.java',
       'teaql-core/src/main/java/io/teaql/core/QueryRequestTraceNode.java',
       'teaql-core/src/main/java/io/teaql/core/QueryRequestScope.java',
       'teaql-core/src/main/java/io/teaql/core/ExecutionMetadata.java',
       'teaql-core/src/main/java/io/teaql/core/SqlExecutionTrace.java',
       'teaql-runtime/src/main/java/io/teaql/runtime/LogPrivacy.java',
+      'teaql-runtime/src/test/java/io/teaql/runtime/LogPrivacyTest.java',
       'teaql-runtime/src/main/java/io/teaql/runtime/SqlLogProjectionCache.java',
       'teaql-runtime/src/main/java/io/teaql/runtime/SqlDiagnosticEvent.java',
       'teaql-runtime/src/main/java/io/teaql/runtime/DefaultTextRuntimeLogSink.java',
@@ -99,12 +105,40 @@ async function main(){
         'expression-measure-owner-grain','expression-measure-transforms'].sort());
       receipt.rounds.push({round,junit,observations});
     }
+    receipt.diagnosticRounds=[];
+    for(const round of [1,2]){
+      const log=await run([process.env.MAVEN||'mvn','-o','-B','-pl','teaql-postgres','-am',
+        '-Dtest=PostgresStatisticalDiagnosticsTest','-Dsurefire.failIfNoSpecifiedTests=false','test'],
+        'postgres-diagnostics-'+round+'.log');
+      const report=path.join(repo,'teaql-postgres/target/surefire-reports/TEST-io.teaql.postgres.PostgresStatisticalDiagnosticsTest.xml');
+      const xml=fs.readFileSync(report,'utf8'),junit=counts(xml);fs.copyFileSync(report,path.join(output,'diagnostic-junit-'+round+'.xml'));
+      assert.deepEqual(junit,{tests:2,failures:0,errors:0,skipped:0});
+      const observations=log.split(/\r?\n/).filter(l=>l.startsWith('JAVA_POSTGRES_DIAGNOSTICS='))
+        .map(l=>JSON.parse(l.slice('JAVA_POSTGRES_DIAGNOSTICS='.length)));
+      assert.equal(observations.length,2,'Missing repeated instrumented provider logs');
+      for(const observation of observations){
+        assert.equal(observation.physicalStatements,1);assert.equal(observation.schools,5);assert.equal(observation.total,3300);
+        assert.deepEqual(observation.telemetryTree,observation.requestTree);
+        assert(!observation.text.includes('PRIVATE-PLATFORM-279'),'Raw masked value reached text log');
+        assert(observation.text.includes('/* masked */'),'Missing masked parameter marker');
+      }
+      const failures=log.split(/\r?\n/).filter(l=>l.startsWith('JAVA_POSTGRES_FAILURE_DIAGNOSTICS='))
+        .map(l=>JSON.parse(l.slice('JAVA_POSTGRES_FAILURE_DIAGNOSTICS='.length)));
+      assert.equal(failures.length,2,'Missing repeated real provider failure diagnostics');
+      for(const failure of failures){
+        assert.equal(failure.physicalStatements,1);assert.equal(failure.outcome,'failure');
+        assert.deepEqual(failure.telemetryTree,failure.requestTree);assert(!failure.text.includes('PRIVATE-PLATFORM-279'));
+      }
+      receipt.diagnosticRounds.push({round,junit,observations,failures});
+    }
     receipt.remainingFixtureTables=Number(sql("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN('rollup_school','rollup_kind','rollup_platform');",database));
     assert.equal(receipt.remainingFixtureTables,0,'Each test must roll back its own fixture, not leave tables for the next test');
     const nativeEnv={...process.env};delete nativeEnv.TEAQL_TEST_POSTGRES_JDBC_URL;delete nativeEnv.TEAQL_TEST_POSTGRES_PASSWORD;delete nativeEnv.TEAQL_TEST_POSTGRES_USER;
     await run([process.env.MAVEN||'mvn','-o','-B','-pl','teaql-sql-portable','-am','test'],'native-regression.log',nativeEnv);
     receipt.nativeSuites={};
-    for(const target of targets){const dir=path.join(target,'surefire-reports');if(!fs.existsSync(dir))continue;
+    const nativeModules=new Set(['teaql-utils','teaql-dynamic-fields-api','teaql-core','teaql-runtime','teaql-sql-portable']);
+    for(const target of targets){if(!nativeModules.has(path.basename(path.dirname(target))))continue;
+      const dir=path.join(target,'surefire-reports');if(!fs.existsSync(dir))continue;
       receipt.nativeSuites[path.basename(path.dirname(target))]=fs.readdirSync(dir).filter(n=>/^TEST-.*\.xml$/.test(n)&&!n.includes('PostgresLayeredAggregationIT'))
         .map(name=>({name,...counts(fs.readFileSync(path.join(dir,name),'utf8'))}));}
     const suites=Object.values(receipt.nativeSuites).flat();assert(suites.every(x=>x.failures===0&&x.errors===0));

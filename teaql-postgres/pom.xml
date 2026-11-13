@@ -52,6 +52,7 @@
                 <configuration>
                     <argLine>
                         --add-reads io.teaql.postgres=io.teaql.runtime
+                        --add-reads io.teaql.postgres=com.fasterxml.jackson.databind
                         --add-opens io.teaql.postgres/io.teaql.postgres=io.teaql.utils
                         --add-opens io.teaql.core/io.teaql.core=io.teaql.utils
                     </argLine>

@@ -9,6 +9,22 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class LogPrivacyTest {
+    @Test public void sqlCorrelationSurvivesProjectionAndGuardsCachedDebugDowngrade() throws Exception {
+        var raw = requestTreeEntry();
+        var first = new io.teaql.core.SqlExecutionCorrelation("11111111111111111111111111111111", "2222222222222222");
+        raw.setSqlExecutionCorrelation(first);
+        assertEquals(first, LogPrivacy.sql(raw, false).getSqlExecutionCorrelation());
+        var debug = LogPrivacy.sql(raw, true);
+        assertEquals(first, debug.getSqlExecutionCorrelation());
+        assertEquals(first, LogPrivacy.sql(debug, false).getSqlExecutionCorrelation());
+        var second = new io.teaql.core.SqlExecutionCorrelation("33333333333333333333333333333333", "4444444444444444");
+        debug.setSqlExecutionCorrelation(second);
+        var safe = LogPrivacy.sql(debug, false);
+        assertEquals(second, safe.getSqlExecutionCorrelation());
+        assertEquals("[REDACTED]", safe.getRequestTree().get(2).detail());
+        assertEquals(second, SqlDiagnosticEvent.project(debug).correlation());
+    }
+
     private static ExecutionMetadata requestTreeEntry() {
         var metadata = entry("name", "PRIVATE-CANARY");
         metadata.setParameterLogPolicies(List.of(io.teaql.core.SqlParameterLogPolicy.MASKED));

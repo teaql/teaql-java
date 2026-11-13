@@ -75,6 +75,7 @@ public final class LogPrivacy {
         }
         if (source.getIntentRedactions() != null) source.getIntentRedactions().appendTo(secrets, allow);
         ExecutionMetadata safe = new ExecutionMetadata();
+        safe.setSqlExecutionCorrelation(source.getSqlExecutionCorrelation());
         safe.setBackend(source.getBackend()); safe.setOperation(source.getOperation());
         safe.setExecutionOutcome(source.getExecutionOutcome());
         safe.setBatchOutcome(source.getBatchOutcome());
