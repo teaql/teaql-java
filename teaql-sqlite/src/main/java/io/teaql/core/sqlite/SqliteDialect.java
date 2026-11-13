@@ -10,6 +10,10 @@ import java.util.Locale;
 /** SQLite-specific physical Decimal storage; ordinary SQL remains portable. */
 final class SqliteDialect extends PostgreSqlDialect {
 
+    @Override public String gbkOrderSql(String sql) {
+        throw new io.teaql.core.TeaQLRuntimeException("GBK ordering is unsupported by SQLite");
+    }
+
     @Override
     public String mapColumnType(String type) {
         String mapped = super.mapColumnType(type);

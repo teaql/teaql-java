@@ -99,6 +99,23 @@ public class SqliteStatisticalFunctionsTest {
         for(var function:List.of(AggrFunction.AVG,AggrFunction.STDDEV,AggrFunction.STDDEV_POP,AggrFunction.VAR_SAMP,AggrFunction.VAR_POP,AggrFunction.BIT_AND,AggrFunction.BIT_OR,AggrFunction.BIT_XOR))
             assertThrows(IllegalArgumentException.class,()->dialect.decimalAggregateSql(function,"amount",true));
     }
+    @Test public void unavailableGbkAndNonTextOperandsFailBeforeDatabaseExecution()throws Exception{
+        try(var f=new Fixture()){
+            var metadata=new SimpleEntityMetaFactory();
+            metadata.register(entity("StatKind",Kind.class,"missing_gbk_table",
+                    new String[][]{{"id","id"},{"version","version"},{"label","label"}}));
+            var context=new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata).dataService("sqlite",f.provider).build());
+            for(String key:List.of("label","types","id")){
+                var request=new Request<Kind>(Kind.class,"StatKind");request.groupBy("label");request.count("types");
+                request.addOrderByAscendingUsingGBK(key);request.top(1);
+                var error=assertThrows(TeaQLRuntimeException.class,()->request.comment("Reject unavailable or invalid GBK sorting")
+                        .purpose("Prove typed sort validation precedes the missing database table").aggregation(context));
+                String expected=key.equals("label")?"GBK ordering is unsupported":key.equals("types")?"selected text result":"statistical result";
+                assertTrue(error.getMessage(),error.getMessage().contains(expected));
+                assertFalse(error.getMessage().contains("no such table"));
+            }
+        }
+    }
     public static class School extends BaseEntity{@Override public String typeName(){return "StatSchool";}}
     public static class Kind extends BaseEntity{@Override public String typeName(){return "StatKind";}}
     private static class Request<T extends BaseEntity> extends BaseRequest<T>{

@@ -91,6 +91,29 @@ public class PostgresLayeredAggregationIT extends LayeredAggregationTest {
         request.addAggregate("bitXor",field,AggrFunction.BIT_XOR);
     }
 
+    @Test public void gbkOrdersSelectedChineseCellsAtEveryLayer() throws Exception {
+        database.execute("UPDATE rollup_kind SET \"Legacy Kind Label\"=CASE id WHEN 1001 THEN '中' ELSE '阿' END");
+        database.execute("INSERT INTO rollup_kind VALUES(1003,1,'文',3,1)");
+        database.execute("INSERT INTO rollup_school VALUES(6,1,300,1003)");
+        var oracle=database.query("SELECT \"Legacy Kind Label\" label,encode(convert_to(\"Legacy Kind Label\",'GBK'),'hex') bytes FROM rollup_kind ORDER BY convert_to(\"Legacy Kind Label\",'GBK')",new Object[0]);
+        assertEquals(List.of("阿","文","中"),oracle.stream().map(r->r.get("label")).toList());
+        assertEquals(List.of("b0a2","cec4","d6d0"),oracle.stream().map(r->r.get("bytes")).toList());
+        var ordinary=kind("label");ordinary.count("types");ordinary.addOrderByAscendingUsingGBK("label");ordinary.top(2);
+        var rows=ordinary.comment("Order completed Chinese cells by their GBK bytes")
+                .purpose("Distinguish GBK sort from native UTF8 order").aggregation(context).toList();
+        assertEquals(List.of("阿","文"),rows.stream().map(r->r.get("label")).toList());observe("gbk-ordinary",rows);
+        var parent=kind("label");parent.count("types");parent.addOrderByAscendingUsingGBK("label");parent.top(1);
+        rows=execute(source(parent));assertGbkFirst(rows);observe("gbk-parent",rows);
+        var nested=source(kind("label"));nested.addOrderByAscendingUsingGBK("kind.label");nested.top(1);
+        rows=execute(nested);assertGbkFirst(rows);observe("gbk-nested",rows);
+    }
+
+    @SuppressWarnings("unchecked") private static void assertGbkFirst(List<Map<String,Object>> rows) {
+        assertEquals(1,rows.size());assertEquals(1,number(rows.get(0),"schoolCount"));
+        assertEquals(100,number(rows.get(0),"capacityTotal"));
+        assertEquals("阿",((Map<String,Object>)rows.get(0).get("kind")).get("label"));
+    }
+
     @Test public void exactDecimalOrderingPagesTheCompletedCellsAtEveryLayer() throws Exception {
         var property=(io.teaql.core.sql.GenericSQLProperty)metadata.resolveEntityDescriptor("StatKind")
                 .getProperties().stream().filter(item->item.getName().equals("ordinal")).findFirst().orElseThrow();

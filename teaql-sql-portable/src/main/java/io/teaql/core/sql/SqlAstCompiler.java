@@ -125,15 +125,19 @@ public class SqlAstCompiler {
             }
             sql = StatisticalResultFilter.apply(userContext, sql, request.getHaving(), columns, repository, parameters);
             var ordering = new java.util.ArrayList<String>();
+            boolean gbkRelation = false;
             for (var order : request.getOrderBy() == null ? java.util.List.<io.teaql.core.OrderBy>of() : request.getOrderBy().getOrderBys()) {
                 String alias = null;
                 io.teaql.core.Expression selectedExpression = null;
-                io.teaql.core.Expression key = order.getExpression();
-                if (key instanceof io.teaql.core.AggrExpression self && self.getOperator() == io.teaql.core.AggrFunction.SELF
-                        && self.getExpressions().size() == 1) key = self.first();
+                var sort = io.teaql.core.sql.internal.StatisticalOrderExpression.parse(order.getExpression());
+                if (sort.gbk() && !gbkRelation) {
+                    sql = "SELECT * FROM (" + sql + ") AS " + repository.escapeIdentifier("__teaql_stat_order");
+                    gbkRelation = true;
+                }
+                io.teaql.core.Expression key = sort.key();
                 for (var selected : request.getAggregations().getSelectedExpressions()) {
                     if (key instanceof io.teaql.core.PropertyReference ref && ref.getPropertyName().equals(selected.name())
-                            || order.getExpression().equals(selected.getExpression())) {
+                            || sort.matches(selected.getExpression())) {
                         if (alias != null && !alias.equals(selected.name()))
                             throw new io.teaql.core.TeaQLRuntimeException("Ambiguous statistical order key");
                         alias = selected.name();
@@ -144,7 +148,7 @@ public class SqlAstCompiler {
                 String direction = order.getDirection().toUpperCase(java.util.Locale.ROOT);
                 if (!java.util.Set.of("ASC", "DESC").contains(direction))
                     throw new io.teaql.core.TeaQLRuntimeException("Invalid statistical order direction");
-                ordering.add(repository.statisticalOrderSql(userContext, selectedExpression,
+                ordering.add(sort.sql(repository,userContext, selectedExpression,
                         repository.escapeIdentifier(alias)) + " " + direction);
             }
             if (!ordering.isEmpty()) sql += " ORDER BY " + String.join(", ", ordering);

@@ -127,6 +127,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     @Override
     public String aggregateSql(UserContext context, io.teaql.core.AggrFunction function,
                                io.teaql.core.Expression operand, String columnSql) {
+        if (function == io.teaql.core.AggrFunction.GBK) return gbkOrderSql(context,operand,columnSql);
         boolean direct = operand instanceof io.teaql.core.PropertyReference;
         for (String name : operand.properties(context)) {
             PropertyDescriptor property = allProperties.stream()
@@ -143,6 +144,25 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     @Override
     public String statisticalOrderSql(UserContext context, io.teaql.core.Expression selected, String sql) {
         return isDecimalStatisticalResult(context, selected) ? dialect.decimalOrderSql(sql) : sql;
+    }
+
+    @Override public String gbkOrderSql(UserContext context, io.teaql.core.Expression selected, String sql) {
+        io.teaql.core.Expression expression = selected;
+        for (int depth=0;depth<64;depth++) {
+            if (expression instanceof SimpleNamedExpression named) { expression=named.getExpression(); continue; }
+            if (expression instanceof io.teaql.core.AggrExpression aggregate
+                    && java.util.Set.of(io.teaql.core.AggrFunction.SELF,io.teaql.core.AggrFunction.MIN,io.teaql.core.AggrFunction.MAX)
+                        .contains(aggregate.getOperator()) && aggregate.getExpressions().size()==1) {
+                expression=aggregate.first(); continue;
+            }
+            if (expression instanceof io.teaql.core.PropertyReference reference) {
+                var property=findProperty(reference.getPropertyName());
+                if (property!=null && property.getType()!=null && property.getType().javaType()==String.class)
+                    return dialect.gbkOrderSql(sql);
+            }
+            throw new TeaQLRuntimeException("GBK ordering requires a selected text result");
+        }
+        throw new TeaQLRuntimeException("GBK order exceeds expression depth limit");
     }
 
     @Override

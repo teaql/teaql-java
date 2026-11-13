@@ -10,6 +10,8 @@ import java.util.stream.Collectors;
 
 public class PostgreSqlDialect extends AbstractSqlDialect {
 
+    @Override public String gbkOrderSql(String sql) { return "convert_to(" + sql + ",'GBK')"; }
+
     @Override
     public String escapeIdentifier(String identifier) {
         if (!needsEscape(identifier)) {

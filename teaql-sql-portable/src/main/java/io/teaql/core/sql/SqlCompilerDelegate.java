@@ -20,4 +20,9 @@ public interface SqlCompilerDelegate extends SQLColumnResolver {
     }
 
     default void validateStatisticalParameter(UserContext context, io.teaql.core.Expression selected, Object value) {}
+
+    /** Providers must implement real GBK encoding; returning the same operand is not support. */
+    default String gbkOrderSql(UserContext context, io.teaql.core.Expression selected, String sql) {
+        throw new io.teaql.core.TeaQLRuntimeException("GBK ordering is unsupported by this SQL delegate");
+    }
 }

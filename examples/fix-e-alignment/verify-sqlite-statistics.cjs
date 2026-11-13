@@ -38,6 +38,9 @@ async function main() {
             'teaql-provider-jdbc/src/main/java/io/teaql/provider/jdbc/JdbcSqlExecutor.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/LayeredAggregation.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/internal/StatisticalGroupingExpression.java',
+            'teaql-sql-portable/src/main/java/io/teaql/core/sql/internal/StatisticalOrderExpression.java',
+            'teaql-sql-portable/src/test/java/io/teaql/core/sql/internal/StatisticalOrderExpressionTest.java',
+            'teaql-sql-portable/src/main/java/io/teaql/core/sql/dialect/PostgreSqlDialect.java',
             'teaql-sql-portable/src/test/java/io/teaql/core/sql/internal/StatisticalGroupingExpressionTest.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/PortableSQLRepository.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/PortableSQLDataService.java',
@@ -96,7 +99,7 @@ async function main() {
             assert.equal(run.suites['teaql-core']?.find(s => s.name.endsWith('.QueryRequestSnapshotIsolationTest.xml'))?.tests,
                 5, 'Missing independent graph snapshot/copy acceptance');
             assert.equal(run.suites['teaql-sqlite']?.find(s => s.name.endsWith('.SqliteStatisticalFunctionsTest.xml'))?.tests,
-                10, 'Missing ten statistical kernel/integration tests');
+                11, 'Missing statistical kernel/integration and GBK fail-closed tests');
             assert.equal(run.suites['teaql-sqlite']?.find(s => s.name.endsWith('.SqliteStatisticalDecimalTest.xml'))?.tests,
                 9, 'Missing exact Decimal sorting, range, HAVING and unsupported-function tests');
             assert.equal(run.suites['teaql-sqlite']?.find(s => s.name.endsWith('.DerivedQueryTraceSqliteTest.xml'))?.tests,

@@ -76,6 +76,10 @@ public interface SqlDialect {
         return sql;
     }
 
+    default String gbkOrderSql(String sql) {
+        throw new io.teaql.core.TeaQLRuntimeException("GBK ordering is unsupported by this SQL dialect");
+    }
+
     /** Providers with exact text-backed numbers can reject approximate thresholds before binding. */
     default void validateDecimalComparisonOperand(Object value) {}
 

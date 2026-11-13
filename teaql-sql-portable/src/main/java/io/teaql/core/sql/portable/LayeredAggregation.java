@@ -247,22 +247,28 @@ final class LayeredAggregation {
         }
         sql = StatisticalResultFilter.apply(context, sql, layer.request.getHaving(), columns, layer.repository, parameters);
         List<String> order = new ArrayList<>();
+        boolean gbkRelation = false;
         for (var item : layer.request.getOrderBy().getOrderBys()) {
             Binding binding = null;
             String name = null;
-            try { name = scalarProperty(item.getExpression()); } catch (TeaQLRuntimeException ignored) { }
+            var sort = io.teaql.core.sql.internal.StatisticalOrderExpression.parse(item.getExpression());
+            if (sort.gbk() && !gbkRelation) {
+                sql = "SELECT * FROM (" + sql + ") AS " + q("__teaql_stat_order");
+                gbkRelation = true;
+            }
+            try { name = scalarProperty(sort.key()); } catch (TeaQLRuntimeException ignored) { }
             for (var candidate : bindings) {
                 String relative = String.join(".", candidate.path.subList(layer.path.size(), candidate.path.size()));
                 if (Objects.equals(relative, name) || candidate.owner == layers.indexOf(layer)
-                        && candidate.expression.getExpression().equals(item.getExpression())) {
+                        && sort.matches(candidate.expression.getExpression())) {
                     if (binding != null && binding != candidate) throw invalid("Ambiguous statistical order key: " + name);
                     binding = candidate;
                 }
             }
-            if (binding == null) throw invalid("Order key is not a statistical result: " + item.getExpression());
+            if (binding == null) throw invalid("Order key is not a statistical result");
             String direction = item.getDirection().toUpperCase(Locale.ROOT);
             if (!Set.of("ASC", "DESC").contains(direction)) throw invalid("Invalid statistical order direction");
-            String operand = layers.get(binding.owner).repository.statisticalOrderSql(context,
+            String operand = sort.sql(layers.get(binding.owner).repository,context,
                     binding.expression, q(binding.label));
             order.add(operand + " " + direction);
         }
