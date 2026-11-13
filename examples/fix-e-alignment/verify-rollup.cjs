@@ -31,6 +31,7 @@ async function main() {
             'teaql-sql-portable/src/test/java/io/teaql/core/sql/StatisticalResultFilterTest.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/SqlAstCompiler.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/expression/AggrExpressionParser.java',
+            'teaql-sql-portable/src/main/java/io/teaql/core/sql/expression/SubQueryParser.java',
             'teaql-sql-portable/src/test/java/io/teaql/core/sql/expression/AggrExpressionParserTest.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/SqlLikeIntent.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/dialect/PostgreSqlDialect.java',

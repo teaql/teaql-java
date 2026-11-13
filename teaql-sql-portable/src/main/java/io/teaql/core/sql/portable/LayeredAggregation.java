@@ -25,6 +25,19 @@ final class LayeredAggregation {
     private LayeredAggregation(PortableSQLRepository<?> root) { this.root = root; }
     String sql() { return sql; }
 
+    String membershipSql(String resultKey) {
+        Binding selected = null;
+        var bindings = new ArrayList<>(dimensions); bindings.addAll(measures);
+        for (var candidate : bindings) if (String.join(".", candidate.path).equals(resultKey)) {
+            if (selected != null) throw invalid("Ambiguous statistical membership result");
+            selected = candidate;
+        }
+        if (selected == null) throw invalid("Membership key is not a selected statistical result");
+        String key = q("__teaql_membership") + "." + q(selected.label);
+        return "SELECT " + key + " FROM (" + sql + ") AS " + q("__teaql_membership")
+                + " WHERE " + key + " IS NOT NULL";
+    }
+
     static LayeredAggregation compile(PortableSQLRepository<?> repository, UserContext context,
             SearchRequest<?> request, Map<String, Object> parameters) {
         var plan = new LayeredAggregation(repository);

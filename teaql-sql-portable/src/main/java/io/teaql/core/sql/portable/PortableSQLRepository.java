@@ -179,12 +179,45 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     /**
      * A repository resolved by this data service can be embedded as a SQL
      * subquery when the nested request is explicitly unlimited. Bounded child
-     * requests retain their materialized semantics because moving LIMIT into
-     * an IN subquery can change which relation identities participate.
+     * entity requests retain their materialized semantics because moving LIMIT
+     * into an IN subquery can change which relation identities participate.
+     * Statistical requests embed their complete bounded result instead.
      */
     @Override
     public boolean canMixinSubQuery(UserContext userContext, SearchRequest subQuery) {
-        return resolver != null && subQuery != null && subQuery.getSlice() == null;
+        if (resolver == null || subQuery == null) return false;
+        if (!subQuery.hasSimpleAgg()) return subQuery.getSlice() == null;
+        var target = resolver.resolve(subQuery.getTypeName());
+        if (target == null) return false;
+        String ownRoute = entityDescriptor.getDataService();
+        String targetRoute = target.entityDescriptor.getDataService();
+        if (ownRoute == null || ownRoute.isEmpty()) ownRoute = "default";
+        if (targetRoute == null || targetRoute.isEmpty()) targetRoute = "default";
+        return ownRoute.equals(targetRoute);
+    }
+
+    /** Select one completed statistical result, without dropping HAVING or paging. */
+    public String buildStatisticalMembershipSQL(UserContext context, SearchRequest<?> request,
+            String resultKey, Map<String, Object> parameters) {
+        if (request.requestScope() == null)
+            throw new TeaQLRuntimeException("Statistical membership requires a prepared request scope");
+        if (!request.getPropagateDimensions().isEmpty())
+            return LayeredAggregation.compile(this, context, request, parameters).membershipSql(resultKey);
+        long matches = request.getAggregations().getSelectedExpressions().stream()
+                .filter(selected -> selected.name().equals(resultKey)).count();
+        if (matches != 1)
+            throw new TeaQLRuntimeException("Membership key is not an unambiguous selected statistical result");
+        var compiler = new io.teaql.core.sql.SqlAstCompiler();
+        var tables = compiler.collectAggregationTables(sqlMetadata, this, context, request);
+        Object previous = context.getObj(MULTI_TABLE);
+        context.putAttribute(MULTI_TABLE, tables.size() > 1);
+        try {
+            String sql = compiler.buildAggregationSQL(sqlMetadata, this, context, request, parameters, tables);
+            if (sql == null) return null;
+            String key = escapeIdentifier("__teaql_membership") + "." + escapeIdentifier(resultKey);
+            return "SELECT " + key + " FROM (" + sql + ") AS " + escapeIdentifier("__teaql_membership")
+                    + " WHERE " + key + " IS NOT NULL";
+        } finally { context.putAttribute(MULTI_TABLE, previous); }
     }
 
     public PortableSQLRepository(EntityDescriptor entityDescriptor, TeaQLDatabase database, PortableSQLRepositoryResolver resolver) {

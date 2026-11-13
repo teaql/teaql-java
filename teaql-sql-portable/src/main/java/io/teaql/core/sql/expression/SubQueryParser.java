@@ -50,6 +50,14 @@ public class SubQueryParser implements SQLExpressionParser<SubQuerySearchCriteri
                 && repository != null 
                 && sqlColumnResolver.canMixinSubQuery(userContext, dependsOn)) {
             PortableSQLRepository<?> subRepository = repository;
+            if (dependsOn.hasSimpleAgg()) {
+                String subQuery = subRepository.buildStatisticalMembershipSQL(
+                        userContext, dependsOn, dependsOnPropertyName, parameters);
+                if (ObjectUtil.isEmpty(subQuery)) return SearchCriteria.FALSE;
+                String leftColumn = ExpressionHelper.toSql(userContext,
+                        new PropertyReference(propertyName), idTable, parameters, sqlColumnResolver);
+                return leftColumn + " IN (" + subQuery + ")";
+            }
             TempRequest tempRequest = new TempRequest(dependsOn.returnType(), dependsOn.getTypeName());
 
             tempRequest.setOrderBy(dependsOn.getOrderBy());
@@ -80,6 +88,11 @@ public class SubQueryParser implements SQLExpressionParser<SubQuerySearchCriteri
                     new PropertyReference(propertyName),
                     idTable, parameters, sqlColumnResolver);
             return leftColumn + " IN (" + subQuery + ")";
+        }
+
+        if (dependsOn.hasSimpleAgg()) {
+            throw new io.teaql.core.TeaQLRuntimeException(
+                    "Statistical membership requires an embeddable SQL result; entity materialization is invalid");
         }
 
         // fall back

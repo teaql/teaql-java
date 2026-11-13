@@ -547,4 +547,90 @@ public class LayeredAggregationTest {
         var negated=source(grouped);negated.appendSearchCriteria(SearchCriteria.not(new SubQuerySearchCriteria("kind",independent,"id")));
         row=execute(negated).get(0);assertEquals(1,number(row,"schoolCount"));assertEquals(100,number(row,"capacityTotal"));
     }
+
+    @Test public void independentGroupedMembershipRetainsItsHaving() {
+        var independent = kind("id");
+        independent.sum("ordinalTotal", "ordinal");
+        independent.having("ordinalTotal", Operator.EQUAL, 2L);
+        independent.unlimited();
+        var request = source(kind("label"));
+        request.appendSearchCriteria(new SubQuerySearchCriteria("kind", independent, "id"));
+        var rows = execute(request);
+        assertEquals(1, rows.size());
+        assertEquals(1, number(rows.get(0), "schoolCount"));
+        assertEquals(100, number(rows.get(0), "capacityTotal"));
+        // The independent request is a business filter, not the linked roll-up parent.
+        // Its selected id is a grouping key; ordinalTotal is not an extra IN column.
+        var negated = source(kind("label"));
+        negated.appendSearchCriteria(SearchCriteria.not(new SubQuerySearchCriteria("kind", independent, "id")));
+        assertEquals(4, number(execute(negated).get(0), "schoolCount"));
+    }
+
+    @Test public void emptyIndependentGroupedMembershipDoesNotBroadenThePopulation() {
+        var independent = kind("id");
+        independent.sum("ordinalTotal", "ordinal");
+        independent.having("ordinalTotal", Operator.GREATER_THAN, 2L);
+        independent.unlimited();
+        var request = source(kind("label"));
+        request.appendSearchCriteria(new SubQuerySearchCriteria("kind", independent, "id"));
+        assertTrue(execute(request).isEmpty());
+        var negated = source(kind("label"));
+        negated.appendSearchCriteria(SearchCriteria.not(new SubQuerySearchCriteria("kind", independent, "id")));
+        assertEquals(5, number(execute(negated).get(0), "schoolCount"));
+    }
+
+    @Test public void independentGroupedMembershipKeepsPagingAndSelectedAliases() {
+        var independent = kind("id");
+        var dimension = independent.getAggregations().getSimpleDimensions().get(0);
+        independent.getAggregations().getSimpleDimensions().set(0,
+                new SimpleNamedExpression("kindKey", dimension.getExpression()));
+        independent.sum("ordinalTotal", "ordinal");
+        independent.addOrderByDescending("ordinalTotal"); independent.top(1);
+        var request = source(kind("label"));
+        request.appendSearchCriteria(new SubQuerySearchCriteria("kind", independent, "kindKey"));
+        assertEquals(1, number(execute(request).get(0), "schoolCount"));
+        assertEquals(1, independent.getSlice().getSize());
+    }
+
+    @Test public void independentGroupedMembershipRejectsAnUnselectedIdentityBeforeSql() {
+        var independent = kind("label"); independent.count("types"); independent.unlimited();
+        var request = source(kind("label"));
+        request.appendSearchCriteria(new SubQuerySearchCriteria("kind", independent, "id"));
+        database.clearQueryTrace();
+        var error = assertThrows(TeaQLRuntimeException.class, () -> execute(request));
+        assertTrue(error.getMessage().contains("selected statistical result"));
+        assertTrue(database.queryTrace().isEmpty());
+    }
+
+    @Test public void independentGroupedMembershipReceivesTypedPolicyAndIntent() {
+        var seen = new ArrayList<String>();
+        context = new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata)
+                .dataService("sql", new PortableSQLDataService("sql", database, metadata))
+                .queryPolicy(new QueryPolicy() {
+                    @Override public void enforceSelect(UserContext context, SearchRequest<?> query) {
+                        assertTrue(query instanceof Request<?>);
+                        seen.add(query.comment());
+                        if (query.getTypeName().equals("StatKind"))
+                            ((Request<?>) query).where("ordinal", Operator.EQUAL, 1L);
+                    }
+                }).build());
+        var independent = kind("id").comment("Authorize an independent statistical predicate");
+        independent.sum("ordinalTotal", "ordinal"); independent.having("ordinalTotal", Operator.EQUAL, 2L);
+        independent.unlimited();
+        var request = source(kind("label"));
+        request.appendSearchCriteria(new SubQuerySearchCriteria("kind", independent, "id"));
+        assertTrue(execute(request).isEmpty());
+        assertTrue(seen.contains("Authorize an independent statistical predicate"));
+    }
+
+    @Test public void independentStatisticalMembershipCannotCrossDataServiceBoundaries() {
+        metadata.resolveEntityDescriptor("StatKind").setDataService("another-service");
+        var independent = kind("id"); independent.sum("ordinalTotal", "ordinal"); independent.unlimited();
+        var request = new Request<>(StatSchool.class, "StatSchool"); request.count("schoolCount");
+        request.appendSearchCriteria(new SubQuerySearchCriteria("kind", independent, "id"));
+        database.clearQueryTrace();
+        var error = assertThrows(TeaQLRuntimeException.class, () -> execute(request));
+        assertTrue(error.getMessage(), error.getMessage().contains("embeddable SQL"));
+        assertTrue(database.queryTrace().isEmpty());
+    }
 }

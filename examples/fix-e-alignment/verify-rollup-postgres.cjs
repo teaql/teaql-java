@@ -42,6 +42,7 @@ async function main(){
       'teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/PortableSQLRepository.java',
       'teaql-sql-portable/src/main/java/io/teaql/core/sql/StatisticalResultFilter.java',
       'teaql-sql-portable/src/main/java/io/teaql/core/sql/expression/AggrExpressionParser.java',
+      'teaql-sql-portable/src/main/java/io/teaql/core/sql/expression/SubQueryParser.java',
       'teaql-sql-portable/src/main/java/io/teaql/core/sql/dialect/PostgreSqlDialect.java',
       'teaql-runtime/src/main/java/io/teaql/runtime/StatisticsRequestPreparation.java',
       'teaql-core/src/main/java/io/teaql/core/BaseRequest.java','teaql-core/src/main/java/io/teaql/core/AggrFunction.java',
@@ -66,7 +67,7 @@ async function main(){
         '-Dsurefire.failIfNoSpecifiedTests=false','test'],'postgres-round-'+round+'.log');
       const report=path.join(repo,'teaql-sql-portable/target/surefire-reports/TEST-io.teaql.core.sql.portable.PostgresLayeredAggregationIT.xml');
       const xml=fs.readFileSync(report,'utf8'),junit=counts(xml);fs.copyFileSync(report,path.join(output,'junit-round-'+round+'.xml'));
-      assert.deepEqual(junit,{tests:45,failures:0,errors:0,skipped:0});
+      assert.deepEqual(junit,{tests:51,failures:0,errors:0,skipped:0});
       const observations=log.split(/\r?\n/).filter(l=>l.startsWith('JAVA_POSTGRES_ROLLUP=')).map(l=>JSON.parse(l.slice('JAVA_POSTGRES_ROLLUP='.length)));
       assert.deepEqual(observations.map(o=>o.case).sort(),['extended-owner-grain','empty-extended','all-null-source-singleton-parent','variance-having'].sort());
       receipt.rounds.push({round,junit,observations});
