@@ -229,7 +229,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     private static Map<Class, String> arrayTypeMap;
     public static final String TYPE_ALIAS = "_type_";
     public static final String IGNORE_SUBTYPES = "IGNORE_SUBTYPES";
-    public static final String MULTI_TABLE = "MULTI_TABLE";
+    // The extracted compiler and all repository/parser paths share one scoped flag.
+    public static final String MULTI_TABLE = io.teaql.core.sql.SqlAstCompiler.MULTI_TABLE;
 
     private final EntityDescriptor entityDescriptor;
     private final TeaQLDatabase database;

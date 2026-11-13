@@ -23,6 +23,9 @@ async function main() {
         for (const name of ['pom.xml', 'teaql-sqlite/pom.xml',
             'teaql-core/src/main/java/io/teaql/core/AggrFunction.java',
             'teaql-core/src/main/java/io/teaql/core/BaseRequest.java',
+            'teaql-runtime/src/main/java/io/teaql/runtime/TeaQLRuntime.java',
+            'teaql-runtime/src/main/java/io/teaql/runtime/StatisticsRequestPreparation.java',
+            'teaql-runtime/src/test/java/io/teaql/runtime/StatisticalMembershipPreparationTest.java',
             'teaql-core/src/main/java/io/teaql/core/QueryRequestSnapshot.java',
             'teaql-core/src/main/java/io/teaql/core/QueryRequestGraphCopy.java',
             'teaql-core/src/main/java/io/teaql/core/SearchRequest.java',
@@ -56,6 +59,7 @@ async function main() {
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/expression/AggrExpressionParser.java',
             'teaql-sql-portable/src/test/java/io/teaql/core/sql/expression/AggrExpressionParserTest.java',
             'teaql-sql-portable/src/test/java/io/teaql/core/sql/portable/LayeredAggregationTest.java',
+            'teaql-sql-portable/src/test/java/io/teaql/core/sql/portable/InheritedSelectTableFlagTest.java',
             'teaql-sql-portable/src/test/java/io/teaql/core/sql/portable/PortableSQLDatabaseTest.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/SqlAstCompiler.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/StatisticalResultFilter.java',
@@ -104,11 +108,15 @@ async function main() {
         }
         for (let round = 1; round <= 2; round++) {
             const run = await execute('focused-' + round,
-                ['-Dtest=QueryRequestSnapshotIsolationTest,QueryCriteriaAlternativesTest,SqliteStatisticalFunctionsTest,SqliteGbkFunctionsTest,SqliteStatisticalDecimalTest,StatisticalResultFilterTest,DerivedQueryTraceSqliteTest#loadedCollectionFacetsRetainPerParentMembershipCountsAndRequestedEmpty,LayeredAggregationTest,AggrExpressionParserTest,StatisticalGroupingExpressionTest,StatisticalIntegerOperandTest,StatisticalMeasureExpressionTest', '-Dsurefire.failIfNoSpecifiedTests=false']);
+                ['-Dtest=QueryRequestSnapshotIsolationTest,QueryCriteriaAlternativesTest,SqliteStatisticalFunctionsTest,SqliteGbkFunctionsTest,SqliteStatisticalDecimalTest,StatisticalResultFilterTest,DerivedQueryTraceSqliteTest#loadedCollectionFacetsRetainPerParentMembershipCountsAndRequestedEmpty,LayeredAggregationTest,AggrExpressionParserTest,StatisticalGroupingExpressionTest,StatisticalIntegerOperandTest,StatisticalMeasureExpressionTest,InheritedSelectTableFlagTest,StatisticalMembershipPreparationTest', '-Dsurefire.failIfNoSpecifiedTests=false']);
             assert.equal(run.suites['teaql-core']?.find(s => s.name.endsWith('.QueryRequestSnapshotIsolationTest.xml'))?.tests,
                 5, 'Missing independent graph snapshot/copy acceptance');
             assert.equal(run.suites['teaql-core']?.find(s => s.name.endsWith('.QueryCriteriaAlternativesTest.xml'))?.tests,
                 6, 'Missing criteria alternative composition acceptance');
+            assert.equal(run.suites['teaql-sql-portable']?.find(s => s.name.endsWith('.InheritedSelectTableFlagTest.xml'))?.tests,
+                3, 'Missing inherited discriminator table qualification');
+            assert.equal(run.suites['teaql-runtime']?.find(s => s.name.endsWith('.StatisticalMembershipPreparationTest.xml'))?.tests,
+                5, 'Missing statistical membership preparation at entity execution boundaries');
             assert.equal(run.suites['teaql-sqlite']?.find(s => s.name.endsWith('.SqliteStatisticalFunctionsTest.xml'))?.tests,
                 16, 'Missing statistical kernels, typed expressions and GBK statistical ordering');
             assert.equal(run.suites['teaql-sqlite']?.find(s => s.name.endsWith('.SqliteGbkFunctionsTest.xml'))?.tests,

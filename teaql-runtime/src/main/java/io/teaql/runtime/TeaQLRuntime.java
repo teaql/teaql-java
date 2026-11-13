@@ -213,13 +213,12 @@ public class TeaQLRuntime implements AutoCloseable {
         QueryIntent intent = QueryIntent.of(request.comment(), request.purpose());
         var requestScope = QueryRequestScope.capture(request);
         enforceMaterializedLimit(request, request.hardLimit());
-        if (queryPolicy != null) {
-            queryPolicy.enforceSelect(context, request);
-        }
         // Existing customer policies may use generated typed request methods.
         // Freeze their result only after that hook, while the intent header was
-        // captured beforehand and cannot be overwritten by the policy.
-        request = new QueryRequestSnapshot<>(request, requestScope);
+        // captured beforehand and cannot be overwritten by the policy. Statistical
+        // membership predicates need the same child policy/scope preparation even
+        // when the outer result is an ordinary entity list rather than aggregation.
+        request = new StatisticsRequestPreparation(queryPolicy).prepare(context, request, requestScope);
         if (request.getAggregations() != null && !request.getAggregations().getDimensions().isEmpty()) {
             throw new TeaQLRuntimeException("Grouped projections require the aggregation result boundary");
         }
@@ -276,10 +275,7 @@ public class TeaQLRuntime implements AutoCloseable {
         try {
         QueryIntent intent = QueryIntent.of(request.comment(), request.purpose());
         var requestScope = QueryRequestScope.capture(request);
-        if (queryPolicy != null) {
-            queryPolicy.enforceSelect(context, request);
-        }
-        request = new QueryRequestSnapshot<>(request, requestScope);
+        request = new StatisticsRequestPreparation(queryPolicy).prepare(context, request, requestScope);
         return RuntimeQueryStream.wrap(executeForStreamResolved(context, request, intent), scope);
         } catch (RuntimeException | Error failure) {
             scope.failure(failure); throw failure;
@@ -294,10 +290,7 @@ public class TeaQLRuntime implements AutoCloseable {
             UserContext context, SearchRequest<T> request) {
         QueryIntent intent = requireInheritedQueryIntent(request);
         var requestScope = QueryRequestScope.capture(request);
-        if (queryPolicy != null) {
-            queryPolicy.enforceSelect(context, request);
-        }
-        request = new QueryRequestSnapshot<>(request, requestScope);
+        request = new StatisticsRequestPreparation(queryPolicy).prepare(context, request, requestScope);
         return executeForStreamResolved(context, request, intent);
     }
 
@@ -347,9 +340,8 @@ public class TeaQLRuntime implements AutoCloseable {
         try {
         QueryIntent intent = requireInheritedQueryIntent(request);
         enforceMaterializedLimit(request, SearchRequest.DEFAULT_HARD_LIMIT);
-        if (queryPolicy != null) {
-            queryPolicy.enforceSelect(context, request);
-        }
+        request = new StatisticsRequestPreparation(queryPolicy)
+                .prepare(context, request, QueryRequestScope.capture(request));
         SmartList<T> result = executeForListResolved(context, request, intent);
         relationScope.success(Map.of("teaql.result.cardinality", result.size()));
         return result;
