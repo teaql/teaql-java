@@ -633,4 +633,51 @@ public class LayeredAggregationTest {
         assertTrue(error.getMessage(), error.getMessage().contains("embeddable SQL"));
         assertTrue(database.queryTrace().isEmpty());
     }
+
+    @Test public void independentLayeredMembershipSelectsCompletedNestedDimensions() {
+        var independent = source(kind("id")); independent.having("schoolCount", Operator.GREATER_THAN_OR_EQUAL, 4L);
+        independent.unlimited();
+        for (boolean negative : List.of(false, true)) {
+            var request = source(kind("label"));
+            var membership = new SubQuerySearchCriteria("kind", independent, "kind.id");
+            request.appendSearchCriteria(negative ? SearchCriteria.not(membership) : membership);
+            var rows = execute(request); assertEquals(1, rows.size());
+            assertEquals(negative ? 1 : 4, number(rows.get(0), "schoolCount"));
+            assertEquals(negative ? 100 : 3200, number(rows.get(0), "capacityTotal"));
+        }
+    }
+
+    @Test public void ordinaryStatisticsAuthorizeIndependentLayeredDescendants() {
+        context = new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata)
+                .dataService("sql", new PortableSQLDataService("sql", database, metadata))
+                .queryPolicy(new QueryPolicy() {
+                    @Override public void enforceSelect(UserContext context, SearchRequest<?> query) {
+                        assertTrue(query instanceof Request<?>);
+                        if ("Independent nested type".equals(query.comment()))
+                            throw new TeaQLRuntimeException("NESTED_TYPE_DENIED");
+                    }
+                }).build());
+        var independent = source(kind("id").comment("Independent nested type")); independent.unlimited();
+        var request = new Request<>(StatSchool.class, "StatSchool"); request.count("schoolCount");
+        request.appendSearchCriteria(new SubQuerySearchCriteria("kind", independent, "kind.id"));
+        database.clearQueryTrace();
+        var error = assertThrows(TeaQLRuntimeException.class, () -> execute(request));
+        assertEquals("NESTED_TYPE_DENIED", error.getMessage()); assertTrue(database.queryTrace().isEmpty());
+    }
+
+    @Test public void independentLayeredMembershipRetainsPagingAndReusableBuilders() {
+        var independent = source(kind("id").where("ordinal", Operator.GREATER_THAN_OR_EQUAL, 1L));
+        independent.where("capacity", Operator.GREATER_THAN_OR_EQUAL, 100L);
+        independent.having("schoolCount", Operator.GREATER_THAN_OR_EQUAL, 1L);
+        independent.addOrderByDescending("kind.id"); independent.top(1);
+        var request = source(kind("label")).where("capacity", Operator.LESS_THAN_OR_EQUAL, 1000L);
+        request.appendSearchCriteria(new SubQuerySearchCriteria("kind", independent, "kind.id"));
+        var before = request.getSearchCriteria(); var havingBefore = independent.getHaving();
+        var frozen = request.copy();
+        var rows = execute(request); assertEquals(1, number(rows.get(0), "schoolCount"));
+        assertEquals(100, number(rows.get(0), "capacityTotal"));
+        assertSame(before, request.getSearchCriteria()); assertSame(havingBefore, independent.getHaving());
+        assertEquals(1, number(execute(frozen).get(0), "schoolCount"));
+        assertEquals(1, independent.getSlice().getSize());
+    }
 }
