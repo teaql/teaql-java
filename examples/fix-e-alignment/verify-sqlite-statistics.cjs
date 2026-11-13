@@ -29,11 +29,14 @@ async function main() {
             'teaql-sqlite/src/test/java/io/teaql/core/sqlite/SqliteStatisticalFunctionsTest.java',
             'teaql-provider-jdbc/src/main/java/io/teaql/provider/jdbc/JdbcSqlExecutor.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/LayeredAggregation.java',
+            'teaql-sql-portable/src/main/java/io/teaql/core/sql/internal/StatisticalGroupingExpression.java',
+            'teaql-sql-portable/src/test/java/io/teaql/core/sql/internal/StatisticalGroupingExpressionTest.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/PortableSQLRepository.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/PortableSQLDataService.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/expression/AggrExpressionParser.java',
             'teaql-sql-portable/src/test/java/io/teaql/core/sql/expression/AggrExpressionParserTest.java',
             'teaql-sql-portable/src/test/java/io/teaql/core/sql/portable/LayeredAggregationTest.java',
+            'teaql-sql-portable/src/test/java/io/teaql/core/sql/portable/PortableSQLDatabaseTest.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/SqlAstCompiler.java',
             'teaql-sqlite/src/test/java/io/teaql/sqlite/DerivedQueryTraceSqliteTest.java',
             'examples/fix-e-alignment/verify-sqlite-statistics.cjs',
@@ -75,13 +78,15 @@ async function main() {
         }
         for (let round = 1; round <= 2; round++) {
             const run = await execute('focused-' + round,
-                ['-Dtest=SqliteStatisticalFunctionsTest,DerivedQueryTraceSqliteTest#loadedCollectionFacetsRetainPerParentMembershipCountsAndRequestedEmpty,LayeredAggregationTest,AggrExpressionParserTest', '-Dsurefire.failIfNoSpecifiedTests=false']);
+                ['-Dtest=SqliteStatisticalFunctionsTest,DerivedQueryTraceSqliteTest#loadedCollectionFacetsRetainPerParentMembershipCountsAndRequestedEmpty,LayeredAggregationTest,AggrExpressionParserTest,StatisticalGroupingExpressionTest', '-Dsurefire.failIfNoSpecifiedTests=false']);
             assert.equal(run.suites['teaql-sqlite']?.find(s => s.name.endsWith('.SqliteStatisticalFunctionsTest.xml'))?.tests,
                 10, 'Missing ten statistical kernel/integration tests');
             assert.equal(run.suites['teaql-sqlite']?.find(s => s.name.endsWith('.DerivedQueryTraceSqliteTest.xml'))?.tests,
                 1, 'Missing real collection Facet regression');
             assert.equal(run.suites['teaql-sql-portable']?.find(s => s.name.endsWith('.LayeredAggregationTest.xml'))?.tests,
-                27, 'Missing complete shared roll-up statistics suite');
+                30, 'Missing complete shared roll-up statistics suite');
+            assert.equal(run.suites['teaql-sql-portable']?.find(s => s.name.endsWith('.StatisticalGroupingExpressionTest.xml'))?.tests,
+                3, 'Missing grouping expression safety and ordinary GBK compatibility tests');
             assert.equal(run.suites['teaql-sql-portable']?.find(s => s.name.endsWith('.AggrExpressionParserTest.xml'))?.tests,
                 3, 'Missing aggregate operator compiler regression');
         }

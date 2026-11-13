@@ -23,6 +23,10 @@ async function main(){
     if(exists)assert.equal(sql("SELECT COALESCE(shobj_description(oid,'pg_database'),'') FROM pg_database WHERE datname='teaql_rollup_279';"),marker);
     else{sql('CREATE DATABASE teaql_rollup_279;');sql("COMMENT ON DATABASE teaql_rollup_279 IS 'TeaQL #279 owned layered statistics fixture';");}
     receipt.database={database,container,port:Number(port),created:!exists,ownership:marker,retained:true,server:sql('SELECT version();')};
+    // Fixture provisioning only, after the exact database ownership check.
+    sql('CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;',database);
+    receipt.database.extensions={fuzzystrmatch:sql("SELECT extversion FROM pg_extension WHERE extname='fuzzystrmatch';",database)};
+    assert(receipt.database.extensions.fuzzystrmatch,'SOUNDEX grouping requires the real PostgreSQL extension');
     secret=cp.execFileSync('docker',['exec',container,'sh','-c','printf %s "$POSTGRES_PASSWORD"'],{encoding:'utf8',stdio:['ignore','pipe','pipe']});assert(secret);
     const env={...process.env,TEAQL_TEST_POSTGRES_JDBC_URL:'jdbc:postgresql://127.0.0.1:'+port+'/'+database,
       TEAQL_TEST_POSTGRES_USER:'postgres',TEAQL_TEST_POSTGRES_PASSWORD:secret};
@@ -31,6 +35,10 @@ async function main(){
       'teaql-sql-portable/src/test/java/io/teaql/core/sql/portable/LayeredAggregationTest.java',
       'teaql-sql-portable/src/test/java/io/teaql/core/sql/portable/PostgresLayeredAggregationIT.java',
       'teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/LayeredAggregation.java',
+      'teaql-sql-portable/src/main/java/io/teaql/core/sql/internal/StatisticalGroupingExpression.java',
+      'teaql-sql-portable/src/test/java/io/teaql/core/sql/internal/StatisticalGroupingExpressionTest.java',
+      'teaql-sql-portable/src/main/java/io/teaql/core/sql/SqlAstCompiler.java',
+      'teaql-sql-portable/src/test/java/io/teaql/core/sql/portable/PortableSQLDatabaseTest.java',
       'teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/PortableSQLRepository.java',
       'teaql-sql-portable/src/main/java/io/teaql/core/sql/StatisticalResultFilter.java',
       'teaql-sql-portable/src/main/java/io/teaql/core/sql/expression/AggrExpressionParser.java',
@@ -54,7 +62,7 @@ async function main(){
         '-Dsurefire.failIfNoSpecifiedTests=false','test'],'postgres-round-'+round+'.log');
       const report=path.join(repo,'teaql-sql-portable/target/surefire-reports/TEST-io.teaql.core.sql.portable.PostgresLayeredAggregationIT.xml');
       const xml=fs.readFileSync(report,'utf8'),junit=counts(xml);fs.copyFileSync(report,path.join(output,'junit-round-'+round+'.xml'));
-      assert.deepEqual(junit,{tests:31,failures:0,errors:0,skipped:0});
+      assert.deepEqual(junit,{tests:34,failures:0,errors:0,skipped:0});
       const observations=log.split(/\r?\n/).filter(l=>l.startsWith('JAVA_POSTGRES_ROLLUP=')).map(l=>JSON.parse(l.slice('JAVA_POSTGRES_ROLLUP='.length)));
       assert.deepEqual(observations.map(o=>o.case).sort(),['extended-owner-grain','empty-extended','all-null-source-singleton-parent','variance-having'].sort());
       receipt.rounds.push({round,junit,observations});
@@ -68,7 +76,7 @@ async function main(){
       receipt.nativeSuites[path.basename(path.dirname(target))]=fs.readdirSync(dir).filter(n=>/^TEST-.*\.xml$/.test(n)&&!n.includes('PostgresLayeredAggregationIT'))
         .map(name=>({name,...counts(fs.readFileSync(path.join(dir,name),'utf8'))}));}
     const suites=Object.values(receipt.nativeSuites).flat();assert(suites.every(x=>x.failures===0&&x.errors===0));
-    receipt.nativeTestsPassed=suites.reduce((n,s)=>n+s.tests-s.skipped,0);assert(receipt.nativeTestsPassed>=1096);
+    receipt.nativeTestsPassed=suites.reduce((n,s)=>n+s.tests-s.skipped,0);assert(receipt.nativeTestsPassed>=1102);
     for(const[file,expected]of Object.entries(receipt.sourceHashes))assert.equal(hash(fs.readFileSync(path.join(repo,file))),expected,'Source changed: '+file);
     receipt.sameDatabase=true;receipt.passed=true;
   }catch(error){receipt.error=secret?String(error.message).split(secret).join('[REDACTED]'):error.message;process.exitCode=1;}

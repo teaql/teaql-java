@@ -48,8 +48,9 @@ final class LayeredAggregation {
             int owner = layers.size();
             layers.add(new Layer(repository, request, path, parent, foreignKey));
             for (var dimension : request.getAggregations().getSimpleDimensions()) {
-                scalarProperty(dimension.getExpression());
-                addBinding(dimensions, owner, dimension, path, "__teaql_d");
+                var expression = io.teaql.core.sql.internal.StatisticalGroupingExpression.copy(
+                        new SqlEntityMetadata(repository.getEntityDescriptor()).getAllProperties(), dimension.getExpression());
+                addBinding(dimensions, owner, new SimpleNamedExpression(dimension.name(), expression), path, "__teaql_d");
             }
             for (var measure : request.getAggregations().getAggregates()) {
                 if (!(measure.getExpression() instanceof AggrExpression aggregate)
@@ -108,6 +109,7 @@ final class LayeredAggregation {
 
     private String lower(UserContext context, Map<String, Object> parameters) {
         List<String> ctes = new ArrayList<>();
+        Map<String, String> dimensionInputs = new HashMap<>();
         for (int index = 0; index < layers.size(); index++) {
             var layer = layers.get(index);
             Set<String> fields = new TreeSet<>(Set.of("id"));
@@ -123,6 +125,12 @@ final class LayeredAggregation {
                 layer.repository.findProperty(field);
                 population.getProjections().add(new SimpleNamedExpression(field));
             }
+            for (var dimension : dimensions) if (dimension.owner == index) {
+                String input = dimension.label + "_input";
+                while (fields.contains(input)) input += "_";
+                dimensionInputs.put(dimension.label, input);
+                population.getProjections().add(new SimpleNamedExpression(input, dimension.expression.getExpression()));
+            }
             var compiler = new SqlAstCompiler();
             String data = compiler.buildDataSQL(new SqlEntityMetadata(layer.repository.getEntityDescriptor()),
                     layer.repository, context, population, parameters);
@@ -130,7 +138,7 @@ final class LayeredAggregation {
         }
         List<String> selections = new ArrayList<>();
         for (var dimension : dimensions)
-            selections.add(field(dimension.owner, scalarProperty(dimension.expression.getExpression())) + " AS " + q(dimension.label));
+            selections.add(field(dimension.owner, dimensionInputs.get(dimension.label)) + " AS " + q(dimension.label));
         for (int index = 0; index < layers.size(); index++) selections.add(field(index, "id") + " AS " + q("__teaql_id" + index));
         for (int index = 0; index < measures.size(); index++) {
             var binding = measures.get(index);

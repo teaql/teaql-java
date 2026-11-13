@@ -247,7 +247,7 @@ public class SqlAstCompiler {
                     while (expression instanceof io.teaql.core.SimpleNamedExpression) {
                         expression = ((io.teaql.core.SimpleNamedExpression) expression).getExpression();
                     }
-                    return expression;
+                    return io.teaql.core.sql.internal.StatisticalGroupingExpression.copyOrdinary(metadata.getAllProperties(), expression);
                 })
                 .map(expression -> io.teaql.core.sql.expression.ExpressionHelper.toSql(userContext, expression, idTable, parameters, repository))
                 .collect(Collectors.joining(",", " GROUP BY ", ""));
@@ -261,6 +261,8 @@ public class SqlAstCompiler {
     }
 
     public List<String> collectAggregationTables(SqlEntityMetadata metadata, SqlCompilerDelegate repository, UserContext userContext, SearchRequest<?> request) {
+        for (var dimension : request.getAggregations().getSimpleDimensions())
+            io.teaql.core.sql.internal.StatisticalGroupingExpression.copyOrdinary(metadata.getAllProperties(), dimension.getExpression());
         Set<String> tables = new HashSet<>();
         for (String target : request.aggregationProperties(userContext)) {
             io.teaql.core.meta.PropertyDescriptor property = repository.findProperty(target);

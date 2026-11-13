@@ -1198,7 +1198,15 @@ public class PortableSQLDatabaseTest {
         private final List<String> executeTrace = new ArrayList<>();
 
         public SQLiteTeaQLDatabase() throws Exception {
+            this(null);
+        }
+
+        protected SQLiteTeaQLDatabase(org.sqlite.Function soundex) throws Exception {
             this.connection = DriverManager.getConnection("jdbc:sqlite::memory:");
+            try {
+                if (soundex != null) org.sqlite.Function.create(connection, "soundex", soundex, 1,
+                        org.sqlite.Function.FLAG_DETERMINISTIC);
+            } catch (Exception failure) { connection.close(); throw failure; }
         }
 
         @Override public void close() throws SQLException { connection.close(); }

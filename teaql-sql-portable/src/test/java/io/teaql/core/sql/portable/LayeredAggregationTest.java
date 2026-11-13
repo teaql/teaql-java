@@ -34,7 +34,27 @@ public class LayeredAggregationTest {
         List<String> queryTrace();
     }
     private static final class SQLiteFixture extends PortableSQLDatabaseTest.SQLiteTeaQLDatabase implements FixtureDatabase {
-        SQLiteFixture() throws Exception { super(); }
+        SQLiteFixture() throws Exception {
+            // This fixture uses the portable TeaQLDatabase, not the SQLite provider
+            // which registers its own functions on every physical connection.
+            super(new org.sqlite.Function() {
+                @Override protected void xFunc() throws java.sql.SQLException {
+                    String value = value_text(0);
+                    String letters = value == null ? "" : value.toUpperCase(Locale.ROOT).replaceAll("[^A-Z]", "");
+                    if (letters.isEmpty()) { result("?000"); return; }
+                    String codes = "01230120022455012623010202";
+                    StringBuilder encoded = new StringBuilder().append(letters.charAt(0));
+                    char previous = codes.charAt(letters.charAt(0) - 'A');
+                    for (int index = 1; index < letters.length() && encoded.length() < 4; index++) {
+                        char code = codes.charAt(letters.charAt(index) - 'A');
+                        if (code != '0' && code != previous) encoded.append(code);
+                        previous = code;
+                    }
+                    while (encoded.length() < 4) encoded.append('0');
+                    result(encoded.toString());
+                }
+            });
+        }
     }
     protected FixtureDatabase createDatabase() throws Exception { return new SQLiteFixture(); }
 
@@ -135,6 +155,45 @@ public class LayeredAggregationTest {
         assertEquals(2, number(execute(request).get(0), "capacities"));
         request.having("capacities", Operator.GREATER_THAN, 2L);
         assertTrue(execute(request).isEmpty());
+    }
+
+    private static void phoneticDimension(Request<?> request,String field) {
+        request.getAggregations().getSimpleDimensions().add(new SimpleNamedExpression("phonetic",
+                new FunctionApply(Operator.SOUNDS_LIKE,new PropertyReference(field))));
+    }
+    @Test public void functionDimensionMergesDistinctParentValuesBeforePaging() {
+        database.execute("UPDATE rollup_kind SET \"Legacy Kind Label\"=CASE id WHEN 1001 THEN 'Robert' ELSE 'Rupert' END");
+        var parent=new Request<>(StatKind.class,"StatKind");phoneticDimension(parent,"label");
+        parent.count("kinds");parent.sum("ordinalTotal","ordinal");
+        parent.having("phonetic",Operator.EQUAL,"R163");parent.addOrderByAscending("phonetic");parent.top(1);
+        var request=source(parent);
+        for(int round=0;round<2;round++){
+            var rows=execute(request);assertEquals(1,rows.size());var row=rows.get(0);
+            assertEquals(5,number(row,"schoolCount"));assertEquals(3300,number(row,"capacityTotal"));
+            var kind=object(row,"kind");assertEquals("R163",kind.get("phonetic"));
+            assertEquals(2,number(kind,"kinds"));assertEquals(3,number(kind,"ordinalTotal"));
+            assertFalse(kind.containsKey("label"));
+        }
+    }
+    @Test public void multihopFunctionDimensionPreservesEveryMeasureOwner() {
+        database.execute("UPDATE rollup_platform SET name='Robert' WHERE id=1");
+        database.execute("INSERT INTO rollup_platform VALUES(2,1,'Rupert')");
+        database.execute("UPDATE rollup_kind SET platform=2 WHERE id=1002");
+        var platform=new Request<>(StatPlatform.class,"StatPlatform");phoneticDimension(platform,"name");platform.count("platforms");
+        var parent=new Request<>(StatKind.class,"StatKind");parent.count("kinds");parent.sum("ordinalTotal","ordinal");parent.groupBy("platform",platform);
+        var rows=execute(source(parent));assertEquals(1,rows.size());var row=rows.get(0);
+        assertEquals(5,number(row,"schoolCount"));var kind=object(row,"kind");
+        assertEquals(2,number(kind,"kinds"));assertEquals(3,number(kind,"ordinalTotal"));
+        assertEquals("R163",object(kind,"platform").get("phonetic"));assertEquals(2,number(object(kind,"platform"),"platforms"));
+    }
+
+    @Test public void ordinaryFunctionGroupingHasTheSameKeyAndHavingSemantics() {
+        database.execute("UPDATE rollup_kind SET \"Legacy Kind Label\"=CASE id WHEN 1001 THEN 'Robert' ELSE 'Rupert' END");
+        var request=new Request<>(StatKind.class,"StatKind");phoneticDimension(request,"label");request.count("kinds");
+        request.having("phonetic",Operator.EQUAL,"R163");request.addOrderByAscending("phonetic");request.top(1);
+        var rows=request.comment("Group transformed parent labels without roll-up").purpose("Verify ordinary statistical expression keys").aggregation(context).toList();
+        assertEquals(1,rows.size());assertEquals("R163",rows.get(0).get("phonetic"));
+        assertEquals(2,number(rows.get(0),"kinds"));assertFalse(rows.get(0).containsKey("label"));
     }
     @Test public void sourceAndParentFiltersConstrainTheSamePopulation() {
         var parent = kind("label").where("ordinal", Operator.EQUAL, 1L);
