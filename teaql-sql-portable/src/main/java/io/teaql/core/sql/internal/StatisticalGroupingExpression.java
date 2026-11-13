@@ -10,7 +10,7 @@ public final class StatisticalGroupingExpression {
     private StatisticalGroupingExpression() {}
 
     public static Expression copy(List<PropertyDescriptor> properties, Expression expression) {
-        return copy(properties, expression, false, new IdentityHashMap<>(), 0);
+        return copy(properties, expression, true, new IdentityHashMap<>(), 0);
     }
 
     /** Preserve ordinary SQL's existing provider-owned GBK transformation. */
@@ -34,8 +34,8 @@ public final class StatisticalGroupingExpression {
                 boolean gbk = allowGbk && expression.getClass() == AggrExpression.class && function.getOperator() == AggrFunction.GBK;
                 if (identity || soundex || gbk) {
                     Expression argument = copy(properties, function.first(), allowGbk, active, depth + 1);
-                    var type = property(properties, source(argument)).getType();
-                    if ((soundex || gbk) && (type == null || type.javaType() != String.class))
+                    var type = resultType(properties, argument);
+                    if ((soundex || gbk) && type != String.class)
                         throw invalid("Text grouping transform requires a text field");
                     if (gbk) return new AggrExpression(AggrFunction.GBK, argument);
                     return identity ? new AggrExpression(AggrFunction.SELF, argument)
@@ -46,9 +46,15 @@ public final class StatisticalGroupingExpression {
         } finally { active.remove(expression); }
     }
 
-    private static String source(Expression expression) {
-        while (expression instanceof FunctionApply function) expression = function.first();
-        return ((PropertyReference) expression).getPropertyName();
+    private static Class<?> resultType(List<PropertyDescriptor> properties, Expression expression) {
+        if (expression instanceof PropertyReference reference) {
+            var type = property(properties, reference.getPropertyName()).getType();
+            return type == null ? null : type.javaType();
+        }
+        var function = (FunctionApply) expression;
+        if (function.getOperator() == AggrFunction.GBK) return byte[].class;
+        if (function.getOperator() == Operator.SOUNDS_LIKE) return String.class;
+        return resultType(properties, function.first());
     }
 
     private static PropertyDescriptor property(List<PropertyDescriptor> properties, String name) {

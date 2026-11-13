@@ -108,6 +108,30 @@ public class PostgresLayeredAggregationIT extends LayeredAggregationTest {
         rows=execute(nested);assertGbkFirst(rows);observe("gbk-nested",rows);
     }
 
+    @Test public void binaryGbkGroupingPreservesKeysNullsAndParentGrain() throws Exception {
+        database.execute("UPDATE rollup_kind SET \"Legacy Kind Label\"=CASE id WHEN 1001 THEN '中' ELSE '阿' END");
+        database.execute("INSERT INTO rollup_kind VALUES(1003,1,'',3,1),(1004,1,NULL,4,1)");
+        for (byte[] bytes : List.of(new byte[0], new byte[]{0,(byte)0xff,0x27}, new byte[]{(byte)0xb0,(byte)0xa2}))
+            assertArrayEquals(bytes, (byte[]) database.query("SELECT ?::bytea encoded", new Object[]{bytes}).get(0).get("encoded"));
+        assertNull(database.query("SELECT ?::bytea encoded", new Object[]{null}).get(0).get("encoded"));
+        var ordinary = new Request<>(StatKind.class,"StatKind");
+        ordinary.groupBy("encoded","label",AggrFunction.GBK); ordinary.count("types");
+        ordinary.addOrderByAscending("encoded"); ordinary.top(10);
+        var rows = ordinary.comment("Group by exact GBK bytes").purpose("Verify binary result keys on PostgreSQL").aggregation(context).toList();
+        assertEquals(4,rows.size());
+        assertArrayEquals(new byte[0],(byte[])rows.get(0).get("encoded"));
+        assertArrayEquals(new byte[]{(byte)0xb0,(byte)0xa2},(byte[])rows.get(1).get("encoded"));
+        assertArrayEquals(new byte[]{(byte)0xd6,(byte)0xd0},(byte[])rows.get(2).get("encoded"));
+        assertNull(rows.get(3).get("encoded")); observe("gbk-binary-ordinary",rows);
+        var parent = new Request<>(StatKind.class,"StatKind");
+        parent.groupBy("encoded","label",AggrFunction.GBK); parent.count("types");
+        parent.where("label",Operator.EQUAL,"阿"); parent.addOrderByAscending("encoded"); parent.top(1);
+        rows = execute(source(parent)); assertEquals(1,rows.size());
+        assertArrayEquals(new byte[]{(byte)0xb0,(byte)0xa2},(byte[])object(rows.get(0),"kind").get("encoded"));
+        assertEquals(1,number(rows.get(0),"schoolCount")); assertEquals(100,number(rows.get(0),"capacityTotal"));
+        observe("gbk-binary-parent",rows);
+    }
+
     @SuppressWarnings("unchecked") private static void assertGbkFirst(List<Map<String,Object>> rows) {
         assertEquals(1,rows.size());assertEquals(1,number(rows.get(0),"schoolCount"));
         assertEquals(100,number(rows.get(0),"capacityTotal"));

@@ -24,12 +24,21 @@ public class StatisticalGroupingExpressionTest {
         for(var expression:List.of(cycle,deep,new AggrExpression(AggrFunction.SUM,new PropertyReference("name"))))
             assertThrows(TeaQLRuntimeException.class,()->StatisticalGroupingExpression.copy(properties(),expression));
     }
-    @Test public void ordinaryGbkGroupingRetainsItsTransformWithoutClaimingLayeredBinarySupport() {
+    @Test public void ordinaryAndLayeredGbkGroupingBothRetainTheBinaryTransform() {
         var original = new AggrExpression(AggrFunction.GBK, new PropertyReference("name"));
         var copied = StatisticalGroupingExpression.copyOrdinary(properties(), original);
         assertNotSame(original, copied);
         assertEquals(AggrFunction.GBK, ((AggrExpression) copied).getOperator());
         assertEquals(List.of("name"), copied.properties(null));
-        assertThrows(TeaQLRuntimeException.class, () -> StatisticalGroupingExpression.copy(properties(), original));
+        var layered = StatisticalGroupingExpression.copy(properties(), original);
+        assertEquals(AggrFunction.GBK, ((AggrExpression) layered).getOperator());
+        assertNotSame(original, layered);
+    }
+    @Test public void binaryTransformCannotBeConsumedAsTextByAnOuterTransform() {
+        var encoded = new AggrExpression(AggrFunction.GBK, new PropertyReference("name"));
+        for (var expression : List.of(new AggrExpression(AggrFunction.GBK, encoded),
+                new FunctionApply(Operator.SOUNDS_LIKE, encoded))) {
+            assertThrows(TeaQLRuntimeException.class, () -> StatisticalGroupingExpression.copy(properties(), expression));
+        }
     }
 }

@@ -21,6 +21,47 @@ public class SqliteStatisticalFunctionsTest {
         @Override public void close() throws Exception{source.close();}
     }
     private static double value(Map<String,Object> row,String name){return ((Number)row.get(name)).doubleValue();}
+    @Test public void binaryBindingsKeepNullEmptyAndArbitraryBytesDistinct()throws Exception{
+        try(var f=new Fixture()){
+            assertNull(f.row("SELECT ? encoded",(Object)null).get("encoded"));
+            for(byte[] bytes:List.of(new byte[0],new byte[]{0,(byte)0xff,0x27},new byte[]{(byte)0xb0,(byte)0xa2}))
+                for(int round=0;round<2;round++) assertArrayEquals(bytes,(byte[])f.row("SELECT ? encoded",bytes).get("encoded"));
+            assertEquals("\"sKI=\"",new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(new byte[]{(byte)0xb0,(byte)0xa2}));
+        }
+    }
+    @Test public void gbkGroupingReturnsBinaryKeysAtOrdinaryAndParentGrain()throws Exception{
+        try(var f=new Fixture()){
+            var context=expressionContext(f,false);
+            f.jdbc.execute("UPDATE expression_kind SET label='中' WHERE id=1001");
+            f.jdbc.execute("UPDATE expression_kind SET label='阿' WHERE id=1002");
+            for(int round=0;round<2;round++){
+                var ordinary=new Request<>(Kind.class,"StatKind");ordinary.groupBy("encoded","label",AggrFunction.GBK);
+                ordinary.count("types");ordinary.addOrderByAscending("encoded");ordinary.top(10);
+                var rows=ordinary.comment("Read binary GBK grouping cells").purpose("Preserve bytes without UTF8 coercion").aggregation(context).toList();
+                assertEquals(2,rows.size());assertArrayEquals(new byte[]{(byte)0xb0,(byte)0xa2},(byte[])rows.get(0).get("encoded"));
+                assertArrayEquals(new byte[]{(byte)0xd6,(byte)0xd0},(byte[])rows.get(1).get("encoded"));
+                var parent=new Request<>(Kind.class,"StatKind");parent.groupBy("encoded","label",AggrFunction.GBK);
+                parent.count("types");parent.addOrderByAscending("encoded");parent.top(1);
+                var request=new Request<>(School.class,"StatSchool");request.count("schools");request.sum("total","capacity");request.groupBy("kind",parent);
+                rows=request.comment("Roll up to a binary parent grouping").purpose("Keep original source and parent grains").aggregation(context).toList();
+                assertEquals(1,rows.size());assertArrayEquals(new byte[]{(byte)0xb0,(byte)0xa2},(byte[])((Map<?,?>)rows.get(0).get("kind")).get("encoded"));
+                assertEquals(1,((Number)rows.get(0).get("schools")).longValue());assertEquals(100,((Number)rows.get(0).get("total")).longValue());
+            }
+        }
+    }
+    @Test public void gbkGroupingDistinguishesNullAndEmptyBinaryKeys()throws Exception{
+        try(var f=new Fixture()){
+            var context=expressionContext(f,false);
+            f.jdbc.execute("UPDATE expression_kind SET label=NULL WHERE id=1001");
+            f.jdbc.execute("UPDATE expression_kind SET label='' WHERE id=1002");
+            for(int round=0;round<2;round++){
+                var request=new Request<>(Kind.class,"StatKind");request.groupBy("encoded","label",AggrFunction.GBK);
+                request.count("types");request.addOrderByAscending("encoded");request.top(10);
+                var rows=request.comment("Keep NULL and empty binary cells distinct").purpose("Verify SQL grouping null semantics").aggregation(context).toList();
+                assertEquals(2,rows.size());assertNull(rows.get(0).get("encoded"));assertArrayEquals(new byte[0],(byte[])rows.get(1).get("encoded"));
+            }
+        }
+    }
     @Test public void knownSamplePopulationAndStandardDeviationIgnoreNulls()throws Exception{
         try(var f=new Fixture()){
             var r=f.row("SELECT var_samp(v) sample,var_pop(v) population,stddev(v) sd,stddev_pop(v) sdp,stddev_samp(v) sds FROM(SELECT 800 v UNION ALL SELECT 800 UNION ALL SELECT 800 UNION ALL SELECT 800 UNION ALL SELECT 100 UNION ALL SELECT NULL)");

@@ -118,7 +118,7 @@ async function main() {
             assert.equal(run.suites['teaql-runtime']?.find(s => s.name.endsWith('.StatisticalMembershipPreparationTest.xml'))?.tests,
                 5, 'Missing statistical membership preparation at entity execution boundaries');
             assert.equal(run.suites['teaql-sqlite']?.find(s => s.name.endsWith('.SqliteStatisticalFunctionsTest.xml'))?.tests,
-                16, 'Missing statistical kernels, typed expressions and GBK statistical ordering');
+                19, 'Missing statistical kernels, typed expressions, binary grouping and GBK ordering');
             assert.equal(run.suites['teaql-sqlite']?.find(s => s.name.endsWith('.SqliteGbkFunctionsTest.xml'))?.tests,
                 3, 'Missing GBK byte profile, error privacy and per-connection installation');
             assert.equal(run.suites['teaql-sqlite']?.find(s => s.name.endsWith('.SqliteStatisticalDecimalTest.xml'))?.tests,
@@ -130,7 +130,7 @@ async function main() {
             assert.equal(run.suites['teaql-sql-portable']?.find(s=>s.name.endsWith('.StatisticalMeasureExpressionTest.xml'))?.tests,
                 5,'Missing bounded statistical scalar typing');
             assert.equal(run.suites['teaql-sql-portable']?.find(s => s.name.endsWith('.StatisticalGroupingExpressionTest.xml'))?.tests,
-                3, 'Missing grouping expression safety and ordinary GBK compatibility tests');
+                4, 'Missing grouping expression safety and binary GBK compatibility tests');
             assert.equal(run.suites['teaql-sql-portable']?.find(s=>s.name.endsWith('.StatisticalIntegerOperandTest.xml'))?.tests,
                 4,'Missing bounded integer expression typing and custom-parser acceptance');
             assert.equal(run.suites['teaql-sql-portable']?.find(s => s.name.endsWith('.AggrExpressionParserTest.xml'))?.tests,
