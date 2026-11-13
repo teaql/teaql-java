@@ -21,12 +21,74 @@ public class SqliteStatisticalFunctionsTest {
         @Override public void close() throws Exception{source.close();}
     }
     private static double value(Map<String,Object> row,String name){return ((Number)row.get(name)).doubleValue();}
+    @Test public void combinedStatisticsLogPreservesEachRealRequestBranch()throws Exception{
+        try(var f=new Fixture()){
+            var output=new java.io.ByteArrayOutputStream();
+            var logs=new ArrayList<ExecutionMetadata>();
+            var text=new DefaultTextRuntimeLogSink(new java.io.PrintStream(output));
+            var context=expressionContext(f,false,(ctx,event)->{logs.add(event);text.writeExecutionLog(ctx,event);});
+            var parent=new Request<>(Kind.class,"StatKind");parent.groupBy("label");parent.count("types");
+            parent.comment("Group visible type population");
+            var independent=new Request<>(Kind.class,"StatKind");independent.groupBy("id");independent.count("eligible");
+            independent.top(10);independent.comment("Choose eligible type IDs");
+            var request=new Request<>(School.class,"StatSchool");request.count("schools");request.sum("total","capacity");
+            request.groupBy("kind",parent,QueryOperation.nativeMethod(QueryOperation.Kind.AGGREGATE,"rollUpToKind",null,"kind"));
+            request.appendSearchCriteria(new SubQuerySearchCriteria("kind",independent,"id"));
+            for(int round=0;round<2;round++){
+                logs.clear();output.reset();
+                var rows=request.comment("Count source observations").purpose("Render business statistics").aggregation(context).toList();
+                assertEquals(1,rows.size());assertEquals(5,((Number)rows.get(0).get("schools")).longValue());
+                assertEquals("one physical statement, not fabricated child statements",1,logs.size());
+                var nodes=logs.get(0).getRequestTree();
+                var operation=nodes.stream().filter(node->"rollUpToKind".equals(node.method())).findFirst().orElseThrow();
+                var parentNode=nodes.stream().filter(node->"Group visible type population".equals(node.detail())).findFirst().orElseThrow();
+                var independentNode=nodes.stream().filter(node->"Choose eligible type IDs".equals(node.detail())).findFirst().orElseThrow();
+                assertEquals(Integer.valueOf(operation.id()),parentNode.parentId());
+                assertNotEquals(Integer.valueOf(parentNode.id()),independentNode.parentId());
+                for(int index=0;index<nodes.size();index++){
+                    assertEquals(index,nodes.get(index).id());assertTrue(nodes.get(index).parentId()==null||nodes.get(index).parentId()<index);
+                }
+                for(String expected:List.of("Group visible type population","Choose eligible type IDs","rollUpToKind()"))
+                    assertTrue("Missing actual request branch: "+expected,output.toString(java.nio.charset.StandardCharsets.UTF_8).contains(expected));
+                System.out.println("COMBINED_STATISTICS_LOG="+new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(
+                    Map.of("physicalStatements",logs.size(),"rows",rows.size(),"requestTree",nodes,"text",output.toString(java.nio.charset.StandardCharsets.UTF_8))));
+            }
+        }
+    }
     @Test public void binaryBindingsKeepNullEmptyAndArbitraryBytesDistinct()throws Exception{
         try(var f=new Fixture()){
             assertNull(f.row("SELECT ? encoded",(Object)null).get("encoded"));
             for(byte[] bytes:List.of(new byte[0],new byte[]{0,(byte)0xff,0x27},new byte[]{(byte)0xb0,(byte)0xa2}))
                 for(int round=0;round<2;round++) assertArrayEquals(bytes,(byte[])f.row("SELECT ? encoded",bytes).get("encoded"));
             assertEquals("\"sKI=\"",new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(new byte[]{(byte)0xb0,(byte)0xa2}));
+        }
+    }
+    @Test public void ordinaryMembershipWrapperKeepsNestedStatisticalSqlRequestTree()throws Exception{
+        try(var f=new Fixture()){
+            var logs=new ArrayList<ExecutionMetadata>();
+            var context=expressionContext(f,false,(ctx,event)->logs.add(event));
+            var totals=new Request<>(Kind.class,"StatKind");totals.groupBy("id");totals.count("eligible");
+            totals.top(10);totals.comment("Read eligible type statistics");
+            // Java only inlines ordinary membership when explicitly unlimited;
+            // the nested statistics and outer request remain bounded.
+            var wrapper=new Request<>(Kind.class,"StatKind");wrapper.selectProperty("id");wrapper.unlimited();
+            wrapper.comment("Route through ordinary type identities");
+            wrapper.appendSearchCriteria(new SubQuerySearchCriteria("id",totals,"id"));
+            var parent=new Request<>(Kind.class,"StatKind");parent.groupBy("label");parent.comment("Group visible type population");
+            var request=new Request<>(School.class,"StatSchool");request.count("schools");request.groupBy("kind",parent);
+            request.appendSearchCriteria(new SubQuerySearchCriteria("kind",wrapper,"id"));
+            for(int round=0;round<2;round++){
+                logs.clear();var rows=request.comment("Count eligible school observations").purpose("Inspect nested request ownership").aggregation(context).toList();
+                assertEquals(1,rows.size());assertEquals(5,((Number)rows.get(0).get("schools")).longValue());assertEquals(1,logs.size());
+                var nodes=logs.get(0).getRequestTree();
+                var wrapperNode=nodes.stream().filter(node->"Route through ordinary type identities".equals(node.detail())).findFirst().orElseThrow();
+                var leaf=nodes.stream().filter(node->"Read eligible type statistics".equals(node.detail())).findFirst().orElseThrow();
+                var operation=nodes.get(leaf.parentId());
+                assertEquals(Integer.valueOf(wrapperNode.id()),operation.parentId());
+                assertEquals(Integer.valueOf(1),wrapperNode.parentId());
+                System.out.println("ORDINARY_WRAPPER_STATISTICS_LOG="+new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(
+                    Map.of("physicalStatements",logs.size(),"rows",rows.size(),"requestTree",nodes)));
+            }
         }
     }
     @Test public void gbkGroupingReturnsBinaryKeysAtOrdinaryAndParentGrain()throws Exception{
@@ -201,6 +263,9 @@ public class SqliteStatisticalFunctionsTest {
     }
 
     private static UserContext expressionContext(Fixture f,boolean decimal)throws Exception{
+        return expressionContext(f,decimal,new DefaultTextRuntimeLogSink());
+    }
+    private static UserContext expressionContext(Fixture f,boolean decimal,RuntimeLogSink sink)throws Exception{
         // Legacy-schema unit fixture: install the same connection primitives
         // used by ensureSchema, without reconciling these hand-bound tables.
         if(decimal){
@@ -222,7 +287,7 @@ public class SqliteStatisticalFunctionsTest {
         f.jdbc.execute(decimal?"INSERT INTO expression_kind VALUES(1001,1,'shared','2'),(1002,1,'shared','10')"
                 :"INSERT INTO expression_kind VALUES(1001,1,'shared',1),(1002,1,'shared',2)");
         f.jdbc.execute("INSERT INTO expression_school VALUES(1,1,800,1001),(2,1,800,1001),(3,1,800,1001),(4,1,800,1001),(5,1,100,1002)");
-        return new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata).dataService("sqlite",f.provider).build());
+        return new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata).dataService("sqlite",f.provider).logSink(sink).build());
     }
     @Test public void layeredExpressionOperatorsAndNullsRetainOwnerGrain()throws Exception{
         try(var f=new Fixture()){

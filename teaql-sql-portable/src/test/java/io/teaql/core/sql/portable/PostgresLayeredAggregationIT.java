@@ -33,6 +33,11 @@ public class PostgresLayeredAggregationIT extends LayeredAggregationTest {
     }
 
     private static final class JdbcFixture implements FixtureDatabase {
+        private final List<SqlLogBindings> bindings = new ArrayList<>();
+        @Override public List<Map<String,Object>> query(io.teaql.core.UserContext context, String sql, Object[] args, SqlLogBindings logBindings) {
+            bindings.add(logBindings); return query(sql, args);
+        }
+        @Override public List<SqlLogBindings> statementBindings() { return List.copyOf(bindings); }
         private final Connection connection;
         private final List<String> queries = new ArrayList<>();
         JdbcFixture(Connection connection) { this.connection = connection; }
@@ -73,7 +78,7 @@ public class PostgresLayeredAggregationIT extends LayeredAggregationTest {
         @Override public List<Map<String,Object>> getTableColumns(String table) {
             throw new UnsupportedOperationException("The statistics fixture does not emulate schema inspection");
         }
-        @Override public void clearQueryTrace() { queries.clear(); }
+        @Override public void clearQueryTrace() { queries.clear(); bindings.clear(); }
         @Override public List<String> queryTrace() { return List.copyOf(queries); }
         @Override public void close() throws SQLException {
             try { connection.rollback(); } finally { connection.close(); }

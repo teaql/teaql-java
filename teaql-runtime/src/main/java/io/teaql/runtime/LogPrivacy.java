@@ -88,6 +88,8 @@ public final class LogPrivacy {
         safe.setComment(scrub(source.getComment(), secrets)); safe.setPurpose(scrub(source.getPurpose(), secrets));
         safe.setAuditReason(scrub(source.getAuditReason(), secrets)); safe.setTraceChain(trace(source.getTraceChain(), secrets));
         safe.setRequestTraceChain(trace(source.getRequestTraceChain(), secrets));
+        safe.setRequestTree(source.getRequestTree().stream().map(node -> new io.teaql.core.QueryRequestTraceNode(
+                node.id(), node.parentId(), node.kind(), scrub(node.name(), secrets), scrub(node.detail(), secrets), scrub(node.method(), secrets))).toList());
         safe.setMutationLineage(trace(source.getMutationLineage(), secrets));
         safe.setStatementOperation(source.getStatementOperation());
         if (orphanedDebug) {
@@ -102,6 +104,8 @@ public final class LogPrivacy {
                     .map(node -> new TraceNode(node.getKind(), hideIntent(node.getName()), node.getEntityId(), hideIntent(node.getComment()))).toList());
             safe.setRequestTraceChain(source.getRequestTraceChain().stream()
                     .map(node -> new TraceNode(node.getKind(), hideIntent(node.getName()), node.getEntityId(), hideIntent(node.getComment()))).toList());
+            safe.setRequestTree(source.getRequestTree().stream().map(node -> new io.teaql.core.QueryRequestTraceNode(
+                    node.id(), node.parentId(), node.kind(), hideIntent(node.name()), hideIntent(node.detail()), hideIntent(node.method()))).toList());
         }
         String sql = source.getParameterizedQuery();
         safe.setParameterizedQuery(sql);

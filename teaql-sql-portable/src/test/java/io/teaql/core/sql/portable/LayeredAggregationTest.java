@@ -36,8 +36,15 @@ public class LayeredAggregationTest {
     protected interface FixtureDatabase extends TeaQLDatabase, AutoCloseable {
         void clearQueryTrace();
         List<String> queryTrace();
+        List<SqlLogBindings> statementBindings();
     }
     private static final class SQLiteFixture extends PortableSQLDatabaseTest.SQLiteTeaQLDatabase implements FixtureDatabase {
+        private final List<SqlLogBindings> bindings = new ArrayList<>();
+        @Override public List<Map<String,Object>> query(UserContext context, String sql, Object[] args, SqlLogBindings logBindings) {
+            bindings.add(logBindings); return query(context, sql, args);
+        }
+        @Override public List<SqlLogBindings> statementBindings() { return List.copyOf(bindings); }
+        @Override public void clearQueryTrace() { super.clearQueryTrace(); bindings.clear(); }
         SQLiteFixture() throws Exception {
             // This fixture uses the portable TeaQLDatabase, not the SQLite provider
             // which registers its own functions on every physical connection.
@@ -125,6 +132,48 @@ public class LayeredAggregationTest {
         assertEquals(100, number(row, "capacityMin")); assertEquals(800, number(row, "capacityMax"));
         assertEquals("shared", object(row, "kind").get("label"));
         assertFalse(row.containsKey("Legacy Kind Key")); assertFalse(row.containsKey("__teaql_m0"));
+    }
+
+    @Test public void combinedSqlBindingsKeepMultihopAndIndependentRequestBranches() throws Exception {
+        var eligible = kind("id"); eligible.count("eligible"); eligible.top(10);
+        eligible.comment("Read independently eligible types");
+        var wrapper = new Request<>(StatKind.class, "StatKind"); wrapper.selectProperty("id"); wrapper.unlimited();
+        wrapper.comment("Route through ordinary type identities");
+        wrapper.appendSearchCriteria(new SubQuerySearchCriteria("id", eligible, "id"));
+        var grandparent = new Request<>(StatPlatform.class, "StatPlatform"); grandparent.groupBy("name");
+        grandparent.count("platforms"); grandparent.comment("Group visible platform population");
+        var parent = new Request<>(StatKind.class, "StatKind"); parent.count("types");
+        parent.comment("Group visible type population");
+        parent.groupBy("platform", grandparent, QueryOperation.nativeMethod(QueryOperation.Kind.AGGREGATE, "rollUpToPlatform", null, "platform"));
+        var request = source(parent);
+        request.groupBy("kind", parent, QueryOperation.nativeMethod(QueryOperation.Kind.AGGREGATE, "rollUpToKind", null, "kind"));
+        request.appendSearchCriteria(new SubQuerySearchCriteria("kind", wrapper, "id"));
+        for (int round = 1; round <= 2; round++) {
+            database.clearQueryTrace();
+            var rows = execute(request); assertEquals(1, rows.size());
+            assertEquals(5, number(rows.get(0), "schoolCount")); assertEquals(3300, number(rows.get(0), "capacityTotal"));
+            assertEquals(2, number(object(rows.get(0), "kind"), "types"));
+            // These minimal JDBC adapters execute actual SQL but do not emit
+            // runtime diagnostics. Inspect real compiler-owned bindings here;
+            // provider log projection is qualified separately, never fabricated.
+            var bindings = database.statementBindings();
+            assertEquals(1, bindings.size()); assertEquals(1, database.queryTrace().size());
+            var nodes = bindings.get(0).executionTrace().requestTree();
+            var parentNode = nodes.stream().filter(node -> "Group visible type population".equals(node.detail())).findFirst().orElseThrow();
+            var grandNode = nodes.stream().filter(node -> "Group visible platform population".equals(node.detail())).findFirst().orElseThrow();
+            var wrapperNode = nodes.stream().filter(node -> "Route through ordinary type identities".equals(node.detail())).findFirst().orElseThrow();
+            var leaf = nodes.stream().filter(node -> "Read independently eligible types".equals(node.detail())).findFirst().orElseThrow();
+            assertEquals("rollUpToKind", nodes.get(parentNode.parentId()).method());
+            assertEquals("rollUpToPlatform", nodes.get(grandNode.parentId()).method());
+            assertEquals(Integer.valueOf(parentNode.id()), nodes.get(grandNode.parentId()).parentId());
+            assertEquals(Integer.valueOf(1), wrapperNode.parentId());
+            assertEquals(Integer.valueOf(wrapperNode.id()), nodes.get(leaf.parentId()).parentId());
+            for (int index = 0; index < nodes.size(); index++) {
+                assertEquals(index, nodes.get(index).id()); assertTrue(nodes.get(index).parentId() == null || nodes.get(index).parentId() < index);
+            }
+            System.out.println("COMBINED_PROVIDER_BINDINGS=" + new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(
+                    Map.of("round", round, "physicalStatements", bindings.size(), "schools", 5, "total", 3300, "requestTree", nodes)));
+        }
     }
     @Test public void expressionMeasuresUseOwnerGrainBeforeParentCellBounds() {
         var parent=kind("platform");

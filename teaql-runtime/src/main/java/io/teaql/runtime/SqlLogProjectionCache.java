@@ -35,6 +35,11 @@ final class SqlLogProjectionCache {
             add(digest, m.getComment()); add(digest, m.getPurpose()); add(digest, m.getAuditReason());
             add(digest, m.getStatementOperation());
             add(digest, m.getRequestTraceChain().size());
+            add(digest, m.getRequestTree().size());
+            for (var node : m.getRequestTree()) {
+                add(digest, node.id()); add(digest, node.parentId()); add(digest, node.kind());
+                add(digest, node.name()); add(digest, node.detail()); add(digest, node.method());
+            }
             for (var node : m.getRequestTraceChain()) {
                 add(digest, node.getKind()); add(digest, node.getName()); add(digest, node.getEntityId()); add(digest, node.getComment());
             }
@@ -86,6 +91,7 @@ final class SqlLogProjectionCache {
         c.setComment(m.getComment()); c.setPurpose(m.getPurpose()); c.setAuditReason(m.getAuditReason());
         c.setTraceChain(m.getTraceChain() == null ? null : java.util.List.copyOf(m.getTraceChain()));
         c.setRequestTraceChain(m.getRequestTraceChain());
+        c.setRequestTree(m.getRequestTree());
         c.setMutationLineage(m.getMutationLineage()); c.setStatementOperation(m.getStatementOperation());
         return c;
     }

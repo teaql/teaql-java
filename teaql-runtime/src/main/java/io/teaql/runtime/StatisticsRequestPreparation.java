@@ -56,15 +56,19 @@ final class StatisticsRequestPreparation {
         if (criteria instanceof SubQuerySearchCriteria membership
                 && BaseEntity.ID_PROPERTY.equals(membership.getDependsOnPropertyName())
                 && owner.getPropagateDimensions().get(membership.getPropertyName()) == membership.getDependsOn()) return null;
-        if (criteria instanceof SubQuerySearchCriteria membership && membership.getDependsOn().hasSimpleAgg()) {
+        if (criteria instanceof SubQuerySearchCriteria membership) {
             // Freeze ordinary operands, but authorize the original native
             // request so generated-type policy hooks remain available.
             if (!(original instanceof SubQuerySearchCriteria source))
                 throw new TeaQLRuntimeException("Statistical predicate snapshot changed structure");
             var child = source.getDependsOn();
-            var operation = scope.deriveOperation(child.getTypeName(),
-                    QueryOperation.framework(QueryOperation.Kind.AGGREGATE, null, membership.getPropertyName()));
-            var childScope = operation.deriveChild(child.getTypeName(), child.comment());
+            // An ordinary membership can itself contain statistical descendants.
+            // Authorize and freeze that real request too, without pretending it
+            // is an aggregate operation or flattening away its local comment.
+            var parentScope = child.hasSimpleAgg() || !child.getPropagateDimensions().isEmpty()
+                    ? scope.deriveOperation(child.getTypeName(), QueryOperation.framework(
+                            QueryOperation.Kind.AGGREGATE, null, membership.getPropertyName())) : scope;
+            var childScope = parentScope.deriveChild(child.getTypeName(), child.comment());
             return new SubQuerySearchCriteria(membership.getPropertyName(), prepare(context, child, childScope),
                     membership.getDependsOnPropertyName());
         }

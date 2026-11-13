@@ -11,6 +11,10 @@ public final class SqlParameters extends HashMap<String, Object> {
     private boolean generated = true;
     private io.teaql.core.QueryIntent queryIntent;
     private io.teaql.core.SearchRequest<?> originatingQuery;
+    private final java.util.List<io.teaql.core.QueryRequestScope> requestScopes = new java.util.ArrayList<>();
+    public java.util.List<io.teaql.core.QueryRequestTraceNode> requestTree() {
+        return io.teaql.core.QueryRequestTraceNode.fromScopes(requestScopes);
+    }
 
     /** Immutable originating intent for cross-provider relation predicates during this compilation. */
     public io.teaql.core.QueryIntent queryIntent() { return queryIntent; }
@@ -20,6 +24,8 @@ public final class SqlParameters extends HashMap<String, Object> {
     /** Provider-owned scoped request, retained only for this compilation. */
     public io.teaql.core.SearchRequest<?> originatingQuery() { return originatingQuery; }
     public void captureQueryContext(io.teaql.core.SearchRequest<?> request) {
+        var scope = request.requestScope();
+        if (scope != null && requestScopes.stream().noneMatch(previous -> previous == scope)) requestScopes.add(scope);
         var intent = request.inheritedQueryIntent();
         if (intent == null && request.comment() != null && request.purpose() != null) {
             intent = io.teaql.core.QueryIntent.of(request.comment(), request.purpose());

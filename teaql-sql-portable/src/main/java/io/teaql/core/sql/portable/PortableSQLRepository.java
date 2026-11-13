@@ -390,11 +390,16 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         final String sql;
         final Object[] args;
         final SqlLogBindings logBindings;
+        final List<io.teaql.core.QueryRequestTraceNode> requestTree;
 
         PositionalSQL(String sql, Object[] args, SqlLogBindings logBindings) {
+            this(sql, args, logBindings, List.of());
+        }
+        PositionalSQL(String sql, Object[] args, SqlLogBindings logBindings, List<io.teaql.core.QueryRequestTraceNode> requestTree) {
             this.sql = sql;
             this.args = args;
             this.logBindings = logBindings;
+            this.requestTree = requestTree;
         }
     }
 
@@ -418,7 +423,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         intent.capture(sql.logBindings.policies(), sql.args);
         return new PositionalSQL(sql.sql, sql.args, new SqlLogBindings(sql.logBindings.policies(),
                 sql.logBindings.generated(), sql.logBindings.diagnosticSql(), intent.copy(),
-                SqlDiagnosticRequest.statementTrace(request)));
+                SqlDiagnosticRequest.statementTrace(request).withRequestTree(sql.requestTree)), sql.requestTree);
     }
 
     private SqlLogBindings withMutationIntent(SqlLogBindings bindings, io.teaql.core.SqlIntentRedactions intent) {
@@ -451,7 +456,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         }
         m.appendTail(sb);
         return new PositionalSQL(sb.toString(), args.toArray(), new SqlLogBindings(policies,
-                params instanceof io.teaql.core.sql.SqlParameters tracked && tracked.generated()));
+                params instanceof io.teaql.core.sql.SqlParameters tracked && tracked.generated()),
+                params instanceof io.teaql.core.sql.SqlParameters tracked ? tracked.requestTree() : List.of());
     }
 
     private Collection<?> expandedParameterValues(Object value) {

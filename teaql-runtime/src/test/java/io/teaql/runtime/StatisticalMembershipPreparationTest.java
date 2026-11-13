@@ -68,6 +68,59 @@ public class StatisticalMembershipPreparationTest {
     @Test public void publicStreamPreparesStatisticalMembership() { verify(true, false); }
     @Test public void internalListPreparesStatisticalMembership() { verify(false, true); }
     @Test public void internalStreamPreparesStatisticalMembership() { verify(true, true); }
+
+    private void verifyOrdinaryWrapper(boolean stream, boolean reject) {
+        for (boolean internal : List.of(false, true)) {
+            var provider = new Provider();
+            var reviewed = new ArrayList<SearchRequest<?>>();
+            var rootIntent = QueryIntent.of("load root", "render bounded list");
+            var root = internal ? new Request(null, null) {
+                @Override public QueryIntent inheritedQueryIntent() { return rootIntent; }
+            } : new Request(rootIntent.comment(), rootIntent.purpose());
+            var wrapper = new Request("Find eligible identities", null);
+            var child = statisticalChild();
+            wrapper.appendSearchCriteria(new SubQuerySearchCriteria("id", child, "id"));
+            root.appendSearchCriteria(new SubQuerySearchCriteria("id", wrapper, "id"));
+            var runtime = TeaQLRuntime.builder().metadata(new TeaQLRuntimeTest.DummyMetaFactory()).dataService("dummy", provider)
+                    .queryPolicy(new QueryPolicy() {
+                        @Override public void enforceSelect(UserContext context, SearchRequest<?> request) {
+                            assertTrue("Policies retain native builders", request instanceof Request);
+                            reviewed.add(request);
+                            if (reject && request == child) throw new TeaQLRuntimeException("nested child policy rejected");
+                        }
+                    }).build();
+            var context = new DefaultUserContext(runtime);
+            Runnable execute = () -> {
+                if (stream) try (var values = internal ? runtime.internalExecuteForStream(context, root)
+                        : runtime.executeForStream(context, root)) { assertEquals(0, values.count()); }
+                else if (internal) runtime.internalExecuteForList(context, root); else runtime.executeForList(context, root);
+            };
+            if (reject) {
+                var error = assertThrows(TeaQLRuntimeException.class, execute::run);
+                assertEquals("nested child policy rejected", error.getMessage());
+                assertTrue("Rejection occurs before any provider call", provider.requests.isEmpty());
+            } else {
+                execute.run();
+                assertEquals(1, provider.requests.size());
+                var prepared = provider.requests.get(0);
+                var preparedWrapper = ((SubQuerySearchCriteria)prepared.getSearchCriteria()).getDependsOn();
+                var preparedChild = ((SubQuerySearchCriteria)preparedWrapper.getSearchCriteria()).getDependsOn();
+                assertEquals("Find eligible identities", preparedWrapper.requestScope().comment());
+                assertSame(prepared.requestScope(), preparedWrapper.requestScope().parentRequest());
+                assertNull("An ordinary wrapper is not an aggregate operation", preparedWrapper.requestScope().operation());
+                assertSame(preparedWrapper.requestScope(), preparedChild.requestScope().parentRequest().parentRequest());
+                assertEquals("eligible totals", preparedChild.requestScope().comment());
+                assertNotNull(preparedChild.getHaving());
+            }
+            assertEquals(List.of(root, wrapper, child), reviewed);
+            assertNull(wrapper.requestScope()); assertNull(child.requestScope());
+        }
+    }
+    @Test public void ordinaryWrapperPreservesNestedStatisticsInLists() { verifyOrdinaryWrapper(false, false); }
+    @Test public void ordinaryWrapperPreservesNestedStatisticsInStreams() { verifyOrdinaryWrapper(true, false); }
+    @Test public void ordinaryWrapperCannotBypassNestedListPolicy() { verifyOrdinaryWrapper(false, true); }
+    @Test public void ordinaryWrapperCannotBypassNestedStreamPolicy() { verifyOrdinaryWrapper(true, true); }
+
     @Test public void childPolicyRejectionStopsBeforeProviderExecution() {
         var provider = new Provider(); var child = statisticalChild();
         var runtime = TeaQLRuntime.builder().metadata(new TeaQLRuntimeTest.DummyMetaFactory()).dataService("dummy", provider)

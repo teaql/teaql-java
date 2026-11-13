@@ -34,6 +34,7 @@ public class SqlAstCompiler {
             UserContext userContext, 
             SearchRequest<?> request, 
             Map<String, Object> parameters) {
+        if (parameters instanceof SqlParameters tracked) tracked.captureQueryContext(request);
         if (request.getHaving() != null)
             throw new io.teaql.core.TeaQLRuntimeException("HAVING requires statistical execution");
             

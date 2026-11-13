@@ -32,6 +32,17 @@ async function main(){
       TEAQL_TEST_POSTGRES_USER:'postgres',TEAQL_TEST_POSTGRES_PASSWORD:secret};
     receipt.sourceHashes={};
     for(const file of ['pom.xml','teaql-sql-portable/pom.xml',
+      'teaql-core/src/main/java/io/teaql/core/QueryRequestTraceNode.java',
+      'teaql-core/src/main/java/io/teaql/core/QueryRequestScope.java',
+      'teaql-core/src/main/java/io/teaql/core/ExecutionMetadata.java',
+      'teaql-core/src/main/java/io/teaql/core/SqlExecutionTrace.java',
+      'teaql-runtime/src/main/java/io/teaql/runtime/LogPrivacy.java',
+      'teaql-runtime/src/main/java/io/teaql/runtime/SqlLogProjectionCache.java',
+      'teaql-runtime/src/main/java/io/teaql/runtime/SqlDiagnosticEvent.java',
+      'teaql-runtime/src/main/java/io/teaql/runtime/DefaultTextRuntimeLogSink.java',
+      'teaql-runtime/src/main/java/io/teaql/runtime/SensitiveDiagnosticTextRuntimeLogSink.java',
+      'teaql-sql-portable/src/main/java/io/teaql/core/sql/SqlParameters.java',
+      'teaql-sql-portable/src/main/java/io/teaql/core/internal/TempRequest.java',
       'teaql-sql-portable/src/test/java/io/teaql/core/sql/portable/LayeredAggregationTest.java',
       'teaql-sql-portable/src/test/java/io/teaql/core/sql/portable/PostgresLayeredAggregationIT.java',
       'teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/LayeredAggregation.java',
@@ -80,7 +91,7 @@ async function main(){
         '-Dsurefire.failIfNoSpecifiedTests=false','test'],'postgres-round-'+round+'.log');
       const report=path.join(repo,'teaql-sql-portable/target/surefire-reports/TEST-io.teaql.core.sql.portable.PostgresLayeredAggregationIT.xml');
       const xml=fs.readFileSync(report,'utf8'),junit=counts(xml);fs.copyFileSync(report,path.join(output,'junit-round-'+round+'.xml'));
-      assert.deepEqual(junit,{tests:65,failures:0,errors:0,skipped:0});
+      assert.deepEqual(junit,{tests:66,failures:0,errors:0,skipped:0});
       const observations=log.split(/\r?\n/).filter(l=>l.startsWith('JAVA_POSTGRES_ROLLUP=')).map(l=>JSON.parse(l.slice('JAVA_POSTGRES_ROLLUP='.length)));
       assert.deepEqual(observations.map(o=>o.case).sort(),['extended-owner-grain','empty-extended','all-null-source-singleton-parent','variance-having',
         ...['positive','negative','neighboring'].flatMap(kind=>['ordinary','parent','nested','having-ordinary','having-parent','having-nested'].map(layer=>'numeric-'+layer+'-'+kind)),

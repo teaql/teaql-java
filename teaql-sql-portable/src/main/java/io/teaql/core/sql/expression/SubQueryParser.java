@@ -75,7 +75,12 @@ public class SubQueryParser implements SQLExpressionParser<SubQuerySearchCriteri
                             dependsOnPropertyName, Operator.IS_NOT_NULL));
 
             userContext.putAttribute(IGNORE_SUBTYPES, true);
-            String subQuery = subRepository.buildDataSQL(userContext, tempRequest, parameters);
+            // This is a projection rewrite of the same inline request, not a
+            // new business request. Preserve its immutable execution identity
+            // so compiler diagnostics retain the wrapper and its descendants.
+            SearchRequest inlineRequest = dependsOn.requestScope() == null ? tempRequest
+                    : new io.teaql.core.QueryRequestSnapshot(tempRequest, dependsOn.requestScope());
+            String subQuery = subRepository.buildDataSQL(userContext, inlineRequest, parameters);
             userContext.putAttribute(IGNORE_SUBTYPES, null);
 
             if (ObjectUtil.isEmpty(subQuery)) {
