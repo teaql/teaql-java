@@ -59,6 +59,10 @@ public interface SearchRequest<T extends Entity> {
     default Map<String, QueryOperation> queryOperations() { return Map.of(); }
 
     @com.fasterxml.jackson.annotation.JsonIgnore
+    @FrameworkInternal("Generator-supplied statistical navigation, not query JSON")
+    default QueryOperation rollUpOperation(String relation) { return null; }
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
     default QueryOperation pageCountOperation() { return null; }
 
     @com.fasterxml.jackson.annotation.JsonIgnore

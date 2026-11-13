@@ -26,8 +26,9 @@ final class StatisticsRequestPreparation {
             for (var entry : request.getPropagateDimensions().entrySet()) {
                 String relation = entry.getKey();
                 SearchRequest<?> child = entry.getValue();
-                var operation = scope.deriveOperation(child.getTypeName(),
-                        QueryOperation.framework(QueryOperation.Kind.AGGREGATE, null, relation));
+                var descriptor = request.rollUpOperation(relation);
+                var operation = scope.deriveOperation(child.getTypeName(), descriptor != null ? descriptor
+                        : QueryOperation.framework(QueryOperation.Kind.AGGREGATE, null, relation));
                 var childScope = operation.deriveChild(child.getTypeName(), child.comment());
                 children.put(relation, prepare(context, child, childScope));
             }

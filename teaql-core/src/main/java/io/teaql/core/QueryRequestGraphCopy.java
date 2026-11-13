@@ -81,6 +81,11 @@ final class QueryRequestGraphCopy {
                 copy.setRequest(request(facet.getRequest(), depth + 1)); target.facetRequests.add(copy);
             }
             target.queryOperations = new HashMap<>(source.queryOperations()); target.pageCountOperation = source.pageCountOperation();
+            target.rollUpOperations = new HashMap<>();
+            target.propagateDimensions.keySet().forEach(relation -> {
+                var operation = source.rollUpOperation(relation);
+                if (operation != null) target.rollUpOperations.put(relation, operation);
+            });
             target.cacheAggregation = source.tryCacheAggregation(); target.aggregateCacheTime = source.getAggregateCacheTime();
             target.hardLimit = source.hardLimit(); target.continuousPageFetchOptions = source.continuousPageFetchOptions();
             target.idSetPaginationOptions = source.idSetPaginationOptions(); target.topNProbeParentThreshold = source.topNProbeParentThreshold();

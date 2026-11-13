@@ -32,8 +32,10 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
     protected String comment;
     protected String purpose;
     protected Map<String, QueryOperation> queryOperations = new HashMap<>();
+    protected transient Map<String, QueryOperation> rollUpOperations = new HashMap<>();
     protected QueryOperation pageCountOperation;
     @Override public Map<String, QueryOperation> queryOperations() { return Map.copyOf(queryOperations); }
+    @Override public QueryOperation rollUpOperation(String relation) { return rollUpOperations.get(relation); }
     @Override public QueryOperation pageCountOperation() { return pageCountOperation; }
     @FrameworkInternal("Generator supplies the exact native count method and alias")
     @com.fasterxml.jackson.annotation.JsonIgnore
@@ -702,15 +704,26 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
                 .getComplexDimensions()
                 .add(new SimpleNamedExpression(propertyName, new PropertyReference(propertyName)));
         this.propagateDimensions.put(propertyName, subRequest);
+        rollUpOperations.remove(propertyName);
+    }
+
+    @FrameworkInternal("Generator supplies the exact native statistical Q method")
+    public void groupBy(String propertyName, SearchRequest subRequest, QueryOperation operation) {
+        groupBy(propertyName, subRequest);
+        if (operation != null) rollUpOperations.put(propertyName, operation);
     }
 
     /** Generated navigation replaces its own binding, never an application predicate. */
     protected final void internalRollUpTo(String property, SearchRequest<?> parent) {
+        internalRollUpTo(property, parent, null);
+    }
+
+    protected final void internalRollUpTo(String property, SearchRequest<?> parent, QueryOperation operation) {
         Objects.requireNonNull(property, "property"); Objects.requireNonNull(parent, "parent");
         SearchCriteria cleaned = QueryNavigation.clear(searchCriteria, property, 0);
         searchCriteria = cleaned;
         aggregations.getComplexDimensions().removeIf(dimension -> property.equals(dimension.name()));
-        groupBy(property, parent);
+        groupBy(property, parent, operation);
         appendSearchCriteria(new SubQuerySearchCriteria(property, parent, BaseEntity.ID_PROPERTY, true));
     }
 

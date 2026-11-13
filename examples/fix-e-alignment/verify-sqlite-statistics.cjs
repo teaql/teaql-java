@@ -25,6 +25,7 @@ async function main() {
             'teaql-core/src/main/java/io/teaql/core/BaseRequest.java',
             'teaql-core/src/main/java/io/teaql/core/QueryRequestSnapshot.java',
             'teaql-core/src/main/java/io/teaql/core/QueryRequestGraphCopy.java',
+            'teaql-core/src/main/java/io/teaql/core/SearchRequest.java',
             'teaql-core/src/test/java/io/teaql/core/QueryRequestSnapshotIsolationTest.java',
             'teaql-runtime/src/test/java/io/teaql/runtime/RequestedListCountTest.java',
             'teaql-runtime/src/test/java/io/teaql/runtime/TeaQLRuntimeTest.java',
@@ -109,7 +110,7 @@ async function main() {
             assert.equal(run.suites['teaql-sqlite']?.find(s => s.name.endsWith('.DerivedQueryTraceSqliteTest.xml'))?.tests,
                 1, 'Missing real collection Facet regression');
             assert.equal(run.suites['teaql-sql-portable']?.find(s => s.name.endsWith('.LayeredAggregationTest.xml'))?.tests,
-                55, 'Missing complete shared roll-up statistics suite');
+                56, 'Missing complete shared roll-up statistics suite');
             assert.equal(run.suites['teaql-sql-portable']?.find(s=>s.name.endsWith('.StatisticalMeasureExpressionTest.xml'))?.tests,
                 5,'Missing bounded statistical scalar typing');
             assert.equal(run.suites['teaql-sql-portable']?.find(s => s.name.endsWith('.StatisticalGroupingExpressionTest.xml'))?.tests,

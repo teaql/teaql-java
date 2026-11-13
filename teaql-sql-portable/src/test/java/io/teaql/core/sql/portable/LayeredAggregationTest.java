@@ -141,6 +141,33 @@ public class LayeredAggregationTest {
             assertEquals(15,number(row,"perSchool"));assertEquals(14,number(object(row,"kind"),"perType"));
         }
     }
+    @Test public void nativeRollupOperationAndLocalCommentReachThePreparedRequestTree() {
+        for (String comment : Arrays.asList(null, "Group visible kinds")) {
+            var prepared = new ArrayList<SearchRequest<?>>();
+            var service = new PortableSQLDataService("sql", database, metadata) {
+                @Override public QueryResult query(UserContext context, QueryRequest request) {
+                    prepared.add(((DefaultQueryRequest) request).getSearchRequest());
+                    return super.query(context, request);
+                }
+            };
+            context = new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata).dataService("sql", service).build());
+            var parent = kind("ordinal"); if (comment != null) parent.comment(comment);
+            var request = new Request<>(StatSchool.class, "StatSchool"); request.count("schoolCount"); request.top(20);
+            request.groupBy("kind", parent, QueryOperation.nativeMethod(QueryOperation.Kind.AGGREGATE, "rollUpToKind", null, "kind"));
+            var copy = request.copy();
+            for (var current : List.of(request, copy)) {
+                database.clearQueryTrace(); var rows = execute(current); assertEquals(2, rows.size());
+                assertEquals("One combined statement, not an invented SQL per layer", 1, database.queryTrace().size());
+                var root = prepared.get(prepared.size()-1); var child = root.getPropagateDimensions().get("kind").requestScope();
+                var operation = child.parentRequest();
+                assertEquals("rollUpToKind", operation.operation().method()); assertEquals("kind", operation.operation().relation());
+                assertSame(root.requestScope(), operation.parentRequest()); assertSame(root.requestScope(), child.rootRequest());
+                assertEquals(List.of(current.purpose(), current.comment(), "rollUpToKind()", comment == null ? "load StatKind" : comment),
+                        child.traceChain().stream().map(TraceNode::getComment).toList());
+                assertNull(parent.requestScope()); assertNull(parent.purpose());
+            }
+        }
+    }
     @Test public void expressionMeasureOrderingUsesTheExactSelectedSourceAndParentAst() {
         for (boolean useAlias : List.of(false, true)) {
             var parent = kind("ordinal");
