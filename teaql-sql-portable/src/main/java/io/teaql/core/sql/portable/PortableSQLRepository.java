@@ -142,18 +142,27 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     @Override
     public String statisticalOrderSql(UserContext context, io.teaql.core.Expression selected, String sql) {
+        return isDecimalStatisticalResult(context, selected) ? dialect.decimalOrderSql(sql) : sql;
+    }
+
+    @Override
+    public void validateStatisticalParameter(UserContext context, io.teaql.core.Expression selected, Object value) {
+        if (isDecimalStatisticalResult(context, selected)) dialect.validateDecimalComparisonOperand(value);
+    }
+
+    private boolean isDecimalStatisticalResult(UserContext context, io.teaql.core.Expression selected) {
         io.teaql.core.Expression expression = selected instanceof SimpleNamedExpression named
                 ? named.getExpression() : selected;
         if (expression instanceof io.teaql.core.AggrExpression aggregate
                 && (aggregate.getOperator() == io.teaql.core.AggrFunction.COUNT
-                    || aggregate.getOperator() == io.teaql.core.AggrFunction.COUNT_DISTINCT)) return sql;
+                    || aggregate.getOperator() == io.teaql.core.AggrFunction.COUNT_DISTINCT)) return false;
         for (String name : expression.properties(context)) {
             PropertyDescriptor property = allProperties.stream()
                     .filter(candidate -> name.equals(candidate.getName())).findFirst().orElse(null);
             if (property != null && property.getType() != null
-                    && property.getType().javaType() == BigDecimal.class) return dialect.decimalOrderSql(sql);
+                    && property.getType().javaType() == BigDecimal.class) return true;
         }
-        return sql;
+        return false;
     }
 
         public String escapeIdentifier(String identifier) {

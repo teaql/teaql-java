@@ -12,6 +12,11 @@ import io.teaql.core.sql.expression.SQLExpressionParser;
 
 public interface SQLColumnResolver {
 
+    /** Provider-owned representation of an already bound, escaped property reference. */
+    default String propertyReferenceSql(UserContext context, String property, String sql) {
+        return sql;
+    }
+
     /** Optional provider override for typed aggregation; null uses portable SQL. */
     default String aggregateSql(UserContext context, AggrFunction function,
                                 Expression operand, String columnSql) {

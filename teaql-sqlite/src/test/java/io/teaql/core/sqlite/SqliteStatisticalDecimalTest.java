@@ -1,6 +1,7 @@
 package io.teaql.core.sqlite;
 
 import io.teaql.core.*;
+import io.teaql.core.criteria.Operator;
 import io.teaql.core.meta.*;
 import io.teaql.core.sql.GenericSQLProperty;
 import io.teaql.core.sql.GenericSQLRelation;
@@ -120,6 +121,43 @@ public class SqliteStatisticalDecimalTest {
                 var request=new Request<>(Kind.class,"NumericKind");request.groupBy("label");request.addAggregate("result","ordinal",function);
                 var error=assertThrows(RuntimeException.class,()->fixture.execute(source(request)));
                 assertTrue(causes(error),causes(error).contains("SQLite exact Decimal aggregate"));
+            }
+        }
+    }
+
+    @Test public void exactHavingUsesNumericAliasesForScalarComparisons() throws Exception {
+        try(var fixture=new Fixture("2","10")) {
+            for(var rule:List.of(new Object[]{Operator.EQUAL,2L,1001L},new Object[]{Operator.NOT_EQUAL,2L,1002L},
+                    new Object[]{Operator.GREATER_THAN,2L,1002L},new Object[]{Operator.GREATER_THAN_OR_EQUAL,10L,1002L},
+                    new Object[]{Operator.LESS_THAN,10L,1001L},new Object[]{Operator.LESS_THAN_OR_EQUAL,2L,1001L})) {
+                for(var threshold:List.of(rule[1],new BigDecimal(rule[1].toString()))) {
+                    var request=parent();request.having("total",(Operator)rule[0],threshold);
+                    var rows=fixture.execute(request);assertEquals(1,rows.size());assertEquals((long)rule[2],number(rows.get(0),"id"));
+                }
+            }
+            var between=parent();between.having("total",Operator.BETWEEN,2L,2L);
+            var rows=fixture.execute(between);assertEquals(1,rows.size());assertEquals(1001,number(rows.get(0),"id"));
+            var membership=parent();membership.having("total",Operator.IN,2L);
+            rows=fixture.execute(membership);assertEquals(1,rows.size());assertEquals(1001,number(rows.get(0),"id"));
+            membership=parent();membership.having("total",Operator.NOT_IN,2L);
+            rows=fixture.execute(membership);assertEquals(1,rows.size());assertEquals(1002,number(rows.get(0),"id"));
+        }
+    }
+    @Test public void exactHavingRetainsTheParentAndNestedOwnerTypes() throws Exception {
+        try(var fixture=new Fixture("2","10")) {
+            var parent=parent();parent.having("total",Operator.GREATER_THAN,2L);
+            var rows=fixture.execute(source(parent));assertEquals(1,rows.size());assertEquals(1,number(rows.get(0),"schools"));
+            var request=source(parent());request.having("kind.total",Operator.GREATER_THAN,new BigDecimal("2"));
+            rows=fixture.execute(request);assertEquals(1,rows.size());assertEquals(1,number(rows.get(0),"schools"));
+        }
+    }
+    @Test public void exactHavingRejectsApproximateThresholdsBeforeSqlite() throws Exception {
+        try(var fixture=new Fixture("2","10")) {
+            for(var threshold:List.of(2.0,Float.valueOf(2),Double.NaN,"PRIVATE-DECIMAL-CANARY")) {
+                var request=parent();request.having("total",Operator.GREATER_THAN,threshold);
+                var error=assertThrows(RuntimeException.class,()->fixture.execute(request));
+                assertTrue(causes(error),causes(error).contains("exact numeric operand"));
+                assertFalse(causes(error).contains("PRIVATE-DECIMAL-CANARY"));
             }
         }
     }

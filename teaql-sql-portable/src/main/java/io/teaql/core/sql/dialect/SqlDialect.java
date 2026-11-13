@@ -76,6 +76,9 @@ public interface SqlDialect {
         return sql;
     }
 
+    /** Providers with exact text-backed numbers can reject approximate thresholds before binding. */
+    default void validateDecimalComparisonOperand(Object value) {}
+
     /**
      * Compare the storage families reported by the provider with the type selected for the model.
      * Providers may override this when their storage type system has wider compatibility rules.

@@ -241,7 +241,8 @@ final class LayeredAggregation {
             String relative = String.join(".", binding.path.subList(layer.path.size(), binding.path.size()));
             var policy = ExpressionHelper.parameterPolicy(context, binding.expression,
                     layers.get(binding.owner).repository);
-            if (columns.putIfAbsent(relative, new StatisticalResultFilter.Column(binding.label, policy)) != null)
+            if (columns.putIfAbsent(relative, new StatisticalResultFilter.Column(binding.label, policy,
+                    binding.expression, layers.get(binding.owner).repository)) != null)
                 throw invalid("Ambiguous statistical result alias: " + relative);
         }
         sql = StatisticalResultFilter.apply(context, sql, layer.request.getHaving(), columns, layer.repository, parameters);

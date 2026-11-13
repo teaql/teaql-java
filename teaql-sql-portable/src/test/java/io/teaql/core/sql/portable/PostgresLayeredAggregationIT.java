@@ -116,6 +116,23 @@ public class PostgresLayeredAggregationIT extends LayeredAggregationTest {
             rows=execute(request);assertEquals(1,rows.size());assertEquals(schools,number(rows.get(0),"schoolCount"));
             assertEquals(larger,number(object(rows.get(0),"kind"),"id"));
             observe("numeric-nested-"+sample[0],rows);
+            var threshold=new java.math.BigDecimal(larger==1001?sample[2]:sample[1]);
+            var expected=new java.math.BigDecimal(larger==1001?sample[1]:sample[2]);
+            var allowed=kind("id");allowed.sum("total","ordinal");allowed.having("total",Operator.GREATER_THAN,threshold);
+            rows=allowed.comment("Filter exact completed Decimal totals")
+                    .purpose("Verify selected alias types and numeric thresholds").aggregation(context).toList();
+            assertEquals(1,rows.size());assertEquals(larger,number(rows.get(0),"id"));
+            assertEquals(0,expected.compareTo((java.math.BigDecimal)rows.get(0).get("total")));
+            observe("numeric-having-ordinary-"+sample[0],rows);
+            parent=kind("id");parent.sum("total","ordinal");parent.having("total",Operator.GREATER_THAN,threshold);
+            rows=execute(source(parent));assertEquals(1,rows.size());assertEquals(schools,number(rows.get(0),"schoolCount"));
+            assertEquals(0,expected.compareTo((java.math.BigDecimal)object(rows.get(0),"kind").get("total")));
+            observe("numeric-having-parent-"+sample[0],rows);
+            parent=kind("id");parent.sum("total","ordinal");
+            request=source(parent);request.having("kind.total",Operator.GREATER_THAN,threshold);
+            rows=execute(request);assertEquals(1,rows.size());assertEquals(schools,number(rows.get(0),"schoolCount"));
+            assertEquals(0,expected.compareTo((java.math.BigDecimal)object(rows.get(0),"kind").get("total")));
+            observe("numeric-having-nested-"+sample[0],rows);
         }
     }
     private static void numeric(Map<String,Object> row, String key, double expected) {

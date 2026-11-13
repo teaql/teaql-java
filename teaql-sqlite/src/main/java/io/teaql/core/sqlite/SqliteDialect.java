@@ -54,6 +54,35 @@ final class SqliteDialect extends PostgreSqlDialect {
     }
 
     @Override
+    public void validateDecimalComparisonOperand(Object value) {
+        validateExactOperand(value, 0);
+    }
+
+    private static void validateExactOperand(Object value, int depth) {
+        if (depth > 64) throw invalidOperand();
+        if (value == null || value instanceof BigDecimal || value instanceof BigInteger
+                || value instanceof Byte || value instanceof Short || value instanceof Integer || value instanceof Long) return;
+        if (value instanceof CharSequence text) {
+            try { new BigDecimal(text.toString()); return; }
+            catch (NumberFormatException invalid) { throw invalidOperand(); }
+        }
+        if (value instanceof Iterable<?> values) {
+            for (Object item : values) validateExactOperand(item, depth + 1);
+            return;
+        }
+        if (value.getClass().isArray()) {
+            for (int index=0;index<java.lang.reflect.Array.getLength(value);index++)
+                validateExactOperand(java.lang.reflect.Array.get(value,index), depth + 1);
+            return;
+        }
+        throw invalidOperand();
+    }
+
+    private static IllegalArgumentException invalidOperand() {
+        return new IllegalArgumentException("SQLite exact Decimal comparison requires an exact numeric operand");
+    }
+
+    @Override
     public Object decodeDecimalAggregate(Object value) {
         if (value == null || value instanceof BigDecimal) return value;
         if (value instanceof CharSequence text) return new BigDecimal(text.toString());

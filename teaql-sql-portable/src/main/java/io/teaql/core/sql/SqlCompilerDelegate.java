@@ -18,4 +18,6 @@ public interface SqlCompilerDelegate extends SQLColumnResolver {
     default String statisticalOrderSql(UserContext context, io.teaql.core.Expression selected, String sql) {
         return sql;
     }
+
+    default void validateStatisticalParameter(UserContext context, io.teaql.core.Expression selected, Object value) {}
 }

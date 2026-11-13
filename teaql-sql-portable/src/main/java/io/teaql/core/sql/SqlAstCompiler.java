@@ -119,7 +119,8 @@ public class SqlAstCompiler {
             var columns = new java.util.LinkedHashMap<String, StatisticalResultFilter.Column>();
             for (var selected : request.getAggregations().getSelectedExpressions()) {
                 var policy = ExpressionHelper.parameterPolicy(userContext, selected, repository);
-                if (columns.putIfAbsent(selected.name(), new StatisticalResultFilter.Column(selected.name(), policy)) != null)
+                if (columns.putIfAbsent(selected.name(), new StatisticalResultFilter.Column(selected.name(), policy,
+                        selected.getExpression(), repository)) != null)
                     throw new io.teaql.core.TeaQLRuntimeException("Ambiguous statistical result alias: " + selected.name());
             }
             sql = StatisticalResultFilter.apply(userContext, sql, request.getHaving(), columns, repository, parameters);
