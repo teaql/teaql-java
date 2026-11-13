@@ -99,24 +99,65 @@ public class SqliteStatisticalFunctionsTest {
         for(var function:List.of(AggrFunction.AVG,AggrFunction.STDDEV,AggrFunction.STDDEV_POP,AggrFunction.VAR_SAMP,AggrFunction.VAR_POP,AggrFunction.BIT_AND,AggrFunction.BIT_OR,AggrFunction.BIT_XOR))
             assertThrows(IllegalArgumentException.class,()->dialect.decimalAggregateSql(function,"amount",true));
     }
-    @Test public void unavailableGbkAndNonTextOperandsFailBeforeDatabaseExecution()throws Exception{
+    @Test public void nonTextGbkOperandsFailBeforeDatabaseExecution()throws Exception{
         try(var f=new Fixture()){
             var metadata=new SimpleEntityMetaFactory();
             metadata.register(entity("StatKind",Kind.class,"missing_gbk_table",
                     new String[][]{{"id","id"},{"version","version"},{"label","label"}}));
             var context=new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata).dataService("sqlite",f.provider).build());
-            for(String key:List.of("label","types","id")){
+            for(String key:List.of("types","id")){
                 var request=new Request<Kind>(Kind.class,"StatKind");request.groupBy("label");request.count("types");
                 request.addOrderByAscendingUsingGBK(key);request.top(1);
-                var error=assertThrows(TeaQLRuntimeException.class,()->request.comment("Reject unavailable or invalid GBK sorting")
+                var error=assertThrows(TeaQLRuntimeException.class,()->request.comment("Reject invalid GBK sorting")
                         .purpose("Prove typed sort validation precedes the missing database table").aggregation(context));
-                String expected=key.equals("label")?"GBK ordering is unsupported":key.equals("types")?"selected text result":"statistical result";
+                String expected=key.equals("types")?"selected text result":"statistical result";
                 assertTrue(error.getMessage(),error.getMessage().contains(expected));
                 assertFalse(error.getMessage().contains("no such table"));
             }
         }
     }
     public static class School extends BaseEntity{@Override public String typeName(){return "StatSchool";}}
+
+    @Test public void gbkOrdersOrdinaryParentAndNestedCompletedCells()throws Exception{
+        try(var f=new Fixture()){
+            var context=expressionContext(f,false);
+            f.jdbc.execute("UPDATE expression_kind SET label='中' WHERE id=1001");
+            f.jdbc.execute("UPDATE expression_kind SET label='阿' WHERE id=1002");
+            f.jdbc.execute("INSERT INTO expression_kind VALUES(1003,1,'文',3),(1004,1,NULL,4)");
+            f.jdbc.execute("INSERT INTO expression_school VALUES(6,1,50,1003)");
+            for(int round=0;round<2;round++){
+                var ordinary=new Request<>(Kind.class,"StatKind");ordinary.groupBy("label");ordinary.count("types");
+                ordinary.appendSearchCriteria(new io.teaql.core.criteria.IsNotNull(new PropertyReference("label")));
+                ordinary.addOrderByAscendingUsingGBK("label");ordinary.top(2);
+                var rows=ordinary.comment("Order completed Chinese cells by encoded bytes")
+                        .purpose("Distinguish GBK from unchanged UTF8 ordering").aggregation(context).toList();
+                assertEquals(List.of("阿","文"),rows.stream().map(row->row.get("label")).toList());
+                var descending=new Request<>(Kind.class,"StatKind");descending.groupBy("label");descending.count("types");
+                descending.appendSearchCriteria(new io.teaql.core.criteria.IsNotNull(new PropertyReference("label")));
+                descending.addOrderByDescendingUsingGBK("label");descending.offset(1,1);
+                rows=descending.comment("Page completed Chinese cells in reverse GBK order")
+                        .purpose("Apply offset after statistical sorting").aggregation(context).toList();
+                assertEquals("文",rows.get(0).get("label"));
+                for(boolean parentPage:List.of(true,false)){
+                    var parent=new Request<>(Kind.class,"StatKind");parent.groupBy("label");parent.count("types");
+                    var request=new Request<>(School.class,"StatSchool");request.count("schools");request.sum("total","capacity");
+                    request.groupBy("kind",parent);
+                    if(parentPage){parent.addOrderByAscendingUsingGBK("label");parent.offset(1,1);}
+                    else{request.addOrderByAscendingUsingGBK("kind.label");request.top(1);}
+                    rows=request.comment("Order a parent or final statistical cell")
+                            .purpose("Keep source totals and parent navigation while applying GBK").aggregation(context).toList();
+                    assertEquals(1,rows.size());assertEquals(1,((Number)rows.get(0).get("schools")).longValue());
+                    assertEquals(parentPage?50:100,((Number)rows.get(0).get("total")).longValue());
+                    assertEquals(parentPage?"文":"阿",((Map<?,?>)rows.get(0).get("kind")).get("label"));
+                }
+                var nulls=new Request<>(Kind.class,"StatKind");nulls.groupBy("label");nulls.count("types");
+                nulls.appendSearchCriteria(new io.teaql.core.criteria.IsNull(new PropertyReference("label")));
+                nulls.addOrderByAscendingUsingGBK("label");
+                rows=nulls.comment("Retain null-valued GBK keys").purpose("Do not replace null with empty text").aggregation(context).toList();
+                assertEquals(1,rows.size());assertNull(rows.get(0).get("label"));assertEquals(1,((Number)rows.get(0).get("types")).longValue());
+            }
+        }
+    }
 
     private static UserContext expressionContext(Fixture f,boolean decimal)throws Exception{
         // Legacy-schema unit fixture: install the same connection primitives

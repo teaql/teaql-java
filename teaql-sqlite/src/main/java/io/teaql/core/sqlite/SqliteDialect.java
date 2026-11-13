@@ -14,7 +14,7 @@ final class SqliteDialect extends PostgreSqlDialect {
     }
 
     @Override public String gbkOrderSql(String sql) {
-        throw new io.teaql.core.TeaQLRuntimeException("GBK ordering is unsupported by SQLite");
+        return "teaql_gbk(" + sql + ")";
     }
 
     @Override

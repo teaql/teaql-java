@@ -45,6 +45,7 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
                 synchronized (installed) {
                     if (!installed.contains(physical)) {
                         SqliteStatisticalFunctions.register(physical);
+                        SqliteGbkFunctions.register(physical);
                         installed.add(physical);
                     }
                 }
