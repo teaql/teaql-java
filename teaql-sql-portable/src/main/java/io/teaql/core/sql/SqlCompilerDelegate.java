@@ -13,4 +13,9 @@ public interface SqlCompilerDelegate extends SQLColumnResolver {
     }
     String getTypeSQL(UserContext userContext);
     String getPartitionSQL();
+
+    /** A selected statistical value may need its provider's numeric ordering domain. */
+    default String statisticalOrderSql(UserContext context, io.teaql.core.Expression selected, String sql) {
+        return sql;
+    }
 }

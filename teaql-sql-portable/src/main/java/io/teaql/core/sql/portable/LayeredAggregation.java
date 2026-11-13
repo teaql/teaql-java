@@ -261,7 +261,9 @@ final class LayeredAggregation {
             if (binding == null) throw invalid("Order key is not a statistical result: " + item.getExpression());
             String direction = item.getDirection().toUpperCase(Locale.ROOT);
             if (!Set.of("ASC", "DESC").contains(direction)) throw invalid("Invalid statistical order direction");
-            order.add(q(binding.label) + " " + direction);
+            String operand = layers.get(binding.owner).repository.statisticalOrderSql(context,
+                    binding.expression, q(binding.label));
+            order.add(operand + " " + direction);
         }
         if (!order.isEmpty()) sql += " ORDER BY " + String.join(", ", order);
         String limit = layer.repository.prepareLimit(layer.request, parameters);

@@ -140,6 +140,22 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         return null;
     }
 
+    @Override
+    public String statisticalOrderSql(UserContext context, io.teaql.core.Expression selected, String sql) {
+        io.teaql.core.Expression expression = selected instanceof SimpleNamedExpression named
+                ? named.getExpression() : selected;
+        if (expression instanceof io.teaql.core.AggrExpression aggregate
+                && (aggregate.getOperator() == io.teaql.core.AggrFunction.COUNT
+                    || aggregate.getOperator() == io.teaql.core.AggrFunction.COUNT_DISTINCT)) return sql;
+        for (String name : expression.properties(context)) {
+            PropertyDescriptor property = allProperties.stream()
+                    .filter(candidate -> name.equals(candidate.getName())).findFirst().orElse(null);
+            if (property != null && property.getType() != null
+                    && property.getType().javaType() == BigDecimal.class) return dialect.decimalOrderSql(sql);
+        }
+        return sql;
+    }
+
         public String escapeIdentifier(String identifier) {
         return dialect.escapeIdentifier(identifier);
     }

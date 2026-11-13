@@ -71,6 +71,11 @@ public interface SqlDialect {
         return value;
     }
 
+    /** Restore exact numeric ordering after a provider's Decimal aggregate returns text. */
+    default String decimalOrderSql(String sql) {
+        return sql;
+    }
+
     /**
      * Compare the storage families reported by the provider with the type selected for the model.
      * Providers may override this when their storage type system has wider compatibility rules.

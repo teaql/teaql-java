@@ -90,6 +90,34 @@ public class PostgresLayeredAggregationIT extends LayeredAggregationTest {
         request.addAggregate("bitOr",field,AggrFunction.BIT_OR);
         request.addAggregate("bitXor",field,AggrFunction.BIT_XOR);
     }
+
+    @Test public void exactDecimalOrderingPagesTheCompletedCellsAtEveryLayer() throws Exception {
+        var property=(io.teaql.core.sql.GenericSQLProperty)metadata.resolveEntityDescriptor("StatKind")
+                .getProperties().stream().filter(item->item.getName().equals("ordinal")).findFirst().orElseThrow();
+        property.setType(new io.teaql.core.meta.SimplePropertyType(java.math.BigDecimal.class));
+        property.setColumnType("NUMERIC");
+        database.execute("ALTER TABLE rollup_kind ALTER COLUMN ordinal TYPE NUMERIC USING ordinal::numeric");
+        for(var sample:List.of(new String[]{"positive","2","10","1002"},new String[]{"negative","-2","-10","1001"},
+                new String[]{"neighboring","9007199254740992.000000001","9007199254740992.000000002","1002"})) {
+            database.executeUpdate("UPDATE rollup_kind SET ordinal=CASE id WHEN 1001 THEN ? ELSE ? END",
+                    new Object[]{new java.math.BigDecimal(sample[1]),new java.math.BigDecimal(sample[2])});
+            long larger=Long.parseLong(sample[3]),schools=larger==1001?4:1;
+            var ordinary=kind("id");ordinary.sum("total","ordinal");ordinary.addOrderByDescending("total");ordinary.top(1);
+            var rows=ordinary.comment("Page exact numeric statistical cells")
+                    .purpose("Verify Decimal order without binary float conversion").aggregation(context).toList();
+            assertEquals(1,rows.size());assertEquals(larger,number(rows.get(0),"id"));
+            observe("numeric-ordinary-"+sample[0],rows);
+            var parent=kind("id");parent.sum("total","ordinal");parent.addOrderByDescending("total");parent.top(1);
+            rows=execute(source(parent));assertEquals(1,rows.size());assertEquals(schools,number(rows.get(0),"schoolCount"));
+            assertEquals(larger,number(object(rows.get(0),"kind"),"id"));
+            observe("numeric-parent-"+sample[0],rows);
+            parent=kind("id");parent.sum("total","ordinal");
+            var request=source(parent);request.addOrderByDescending("kind.total");request.top(1);
+            rows=execute(request);assertEquals(1,rows.size());assertEquals(schools,number(rows.get(0),"schoolCount"));
+            assertEquals(larger,number(object(rows.get(0),"kind"),"id"));
+            observe("numeric-nested-"+sample[0],rows);
+        }
+    }
     private static void numeric(Map<String,Object> row, String key, double expected) {
         assertNotNull(key,row.get(key));
         assertEquals(key,expected,((Number)row.get(key)).doubleValue(),1e-10*Math.max(1,Math.abs(expected)));

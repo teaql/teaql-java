@@ -126,6 +126,7 @@ public class SqlAstCompiler {
             var ordering = new java.util.ArrayList<String>();
             for (var order : request.getOrderBy() == null ? java.util.List.<io.teaql.core.OrderBy>of() : request.getOrderBy().getOrderBys()) {
                 String alias = null;
+                io.teaql.core.Expression selectedExpression = null;
                 io.teaql.core.Expression key = order.getExpression();
                 if (key instanceof io.teaql.core.AggrExpression self && self.getOperator() == io.teaql.core.AggrFunction.SELF
                         && self.getExpressions().size() == 1) key = self.first();
@@ -135,13 +136,15 @@ public class SqlAstCompiler {
                         if (alias != null && !alias.equals(selected.name()))
                             throw new io.teaql.core.TeaQLRuntimeException("Ambiguous statistical order key");
                         alias = selected.name();
+                        selectedExpression = selected.getExpression();
                     }
                 }
                 if (alias == null) throw new io.teaql.core.TeaQLRuntimeException("Order key is not a statistical result");
                 String direction = order.getDirection().toUpperCase(java.util.Locale.ROOT);
                 if (!java.util.Set.of("ASC", "DESC").contains(direction))
                     throw new io.teaql.core.TeaQLRuntimeException("Invalid statistical order direction");
-                ordering.add(repository.escapeIdentifier(alias) + " " + direction);
+                ordering.add(repository.statisticalOrderSql(userContext, selectedExpression,
+                        repository.escapeIdentifier(alias)) + " " + direction);
             }
             if (!ordering.isEmpty()) sql += " ORDER BY " + String.join(", ", ordering);
         }

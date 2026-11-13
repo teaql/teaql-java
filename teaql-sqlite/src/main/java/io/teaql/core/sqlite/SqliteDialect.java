@@ -49,6 +49,11 @@ final class SqliteDialect extends PostgreSqlDialect {
     }
 
     @Override
+    public String decimalOrderSql(String sql) {
+        return "(CAST(" + sql + " AS TEXT) COLLATE " + SqliteDecimalFunctions.COLLATION + ")";
+    }
+
+    @Override
     public Object decodeDecimalAggregate(Object value) {
         if (value == null || value instanceof BigDecimal) return value;
         if (value instanceof CharSequence text) return new BigDecimal(text.toString());
