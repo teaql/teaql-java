@@ -18,6 +18,7 @@ final class LayeredAggregation {
     private final List<Layer> layers = new ArrayList<>();
     private final List<Binding> dimensions = new ArrayList<>();
     private final List<Binding> measures = new ArrayList<>();
+    private final Map<String,io.teaql.core.sql.internal.StatisticalMeasureExpression.Input> measureOperands = new HashMap<>();
     private final List<List<String>> paths = new ArrayList<>();
     private final PortableSQLRepository<?> root;
     private String sql;
@@ -70,8 +71,11 @@ final class LayeredAggregation {
                         || !(aggregate.getOperator() instanceof AggrFunction function)
                         || function == AggrFunction.SELF || aggregate.getExpressions().size() != 1)
                     throw invalid("Statistical measure requires an aggregate expression");
-                scalarProperty(aggregate.first());
+                var input=io.teaql.core.sql.internal.StatisticalMeasureExpression.bind(
+                        new SqlEntityMetadata(repository.getEntityDescriptor()).getAllProperties(),aggregate.first());
+                io.teaql.core.sql.internal.StatisticalMeasureExpression.validate(function,input);
                 addBinding(measures, owner, measure, path, "__teaql_m");
+                measureOperands.put(measures.get(measures.size()-1).label,input);
             }
             var children = new TreeMap<>(request.getPropagateDimensions());
             Set<String> declared = new HashSet<>();
@@ -127,7 +131,7 @@ final class LayeredAggregation {
             var layer = layers.get(index);
             Set<String> fields = new TreeSet<>(Set.of("id"));
             for (var binding : dimensions) if (binding.owner == index) fields.addAll(binding.expression.properties(context));
-            for (var binding : measures) if (binding.owner == index) fields.addAll(binding.expression.properties(context));
+            for (var binding : measures) if (binding.owner == index) fields.addAll(measureOperands.get(binding.label).fields());
             for (var child : layers) if (Objects.equals(child.parent, index)) fields.add(child.foreignKey);
             var population = new QueryRequestSnapshot<>(layer.request, layer.request.requestScope());
             population.setAggregations(new Aggregations()); population.setSlice(null);
@@ -147,7 +151,23 @@ final class LayeredAggregation {
             var compiler = new SqlAstCompiler();
             String data = compiler.buildDataSQL(new SqlEntityMetadata(layer.repository.getEntityDescriptor()),
                     layer.repository, context, population, parameters);
-            ctes.add(q("__teaql_q" + index) + " AS (" + data + ")");
+            int currentOwner=index;
+            var expressions=measures.stream().filter(binding->binding.owner==currentOwner
+                    && measureOperands.get(binding.label).directField()==null).toList();
+            if(expressions.isEmpty())ctes.add(q("__teaql_q" + index) + " AS (" + data + ")");
+            else {
+                String raw="__teaql_raw"+index;
+                ctes.add(q(raw)+" AS ("+data+")");
+                List<String> projected=new ArrayList<>(List.of("*"));
+                for(var binding:expressions) {
+                    var input=measureOperands.get(binding.label);
+                    String name="__teaql_measure_expr"+measures.indexOf(binding);
+                    while(fields.contains(name)||dimensionInputs.containsValue(name))name+="_";
+                    String scalar=layers.get(index).repository.statisticalOperandSql(context,input.expression(),input.type(),raw,parameters);
+                    projected.add(scalar+" AS "+q(name));dimensionInputs.put(binding.label,name);
+                }
+                ctes.add(q("__teaql_q"+index)+" AS (SELECT "+String.join(", ",projected)+" FROM "+q(raw)+")");
+            }
         }
         List<String> selections = new ArrayList<>();
         for (var dimension : dimensions)
@@ -155,7 +175,8 @@ final class LayeredAggregation {
         for (int index = 0; index < layers.size(); index++) selections.add(field(index, "id") + " AS " + q("__teaql_id" + index));
         for (int index = 0; index < measures.size(); index++) {
             var binding = measures.get(index);
-            selections.add(field(binding.owner, scalarProperty(((AggrExpression) binding.expression.getExpression()).first())) + " AS " + q("__teaql_v" + index));
+            var input=measureOperands.get(binding.label);
+            selections.add(field(binding.owner, input.directField()==null?dimensionInputs.get(binding.label):input.directField()) + " AS " + q("__teaql_v" + index));
         }
         StringBuilder joins = new StringBuilder(q("__teaql_q0") + " AS " + q("l0"));
         for (int index = 1; index < layers.size(); index++) {

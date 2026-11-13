@@ -9,6 +9,9 @@ import java.util.Locale;
 
 /** SQLite-specific physical Decimal storage; ordinary SQL remains portable. */
 final class SqliteDialect extends PostgreSqlDialect {
+    @Override public String statisticalOperandSql(String sql,Class<?> type) {
+        return type==java.math.BigDecimal.class?"(CAST("+sql+" AS TEXT) COLLATE TEAQL_DECIMAL)":sql;
+    }
 
     @Override public String gbkOrderSql(String sql) {
         throw new io.teaql.core.TeaQLRuntimeException("GBK ordering is unsupported by SQLite");

@@ -8,6 +8,8 @@ import java.util.Locale;
 import java.util.Map;
 
 public interface SqlDialect {
+    /** Type a statistical scalar projection without rewriting its bind value. */
+    default String statisticalOperandSql(String sql,Class<?> type){return sql;}
     /**
      * Escape an identifier (table name, column name) to avoid SQL keyword conflicts.
      */

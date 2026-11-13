@@ -130,6 +130,28 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             io.teaql.core.sql.internal.StatisticalIntegerOperand.parameter(allProperties,operand,this);
     }
 
+    /** Read logical values after the original property parser ran once. */
+    String statisticalOperandSql(UserContext context,Expression operand,Class<?> type,String population,Map<String,Object> parameters) {
+        var parsers=new HashMap<Class,SQLExpressionParser>(getExpressionParsers());
+        parsers.put(PropertyReference.class,new io.teaql.core.sql.expression.PropertyParser());
+        SQLColumnResolver logical=new SQLColumnResolver() {
+            @Override public List<SQLColumn> getPropertyColumns(String table,String property) {
+                findProperty(property);
+                return List.of(new SQLColumn(population,property));
+            }
+            @Override public Map<Class,SQLExpressionParser> getExpressionParsers(){return parsers;}
+            @Override public String escapeIdentifier(String name){return PortableSQLRepository.this.escapeIdentifier(name);}
+            @Override public io.teaql.core.SqlParameterLogPolicy parameterLogPolicy(String name){return PortableSQLRepository.this.parameterLogPolicy(name);}
+        };
+        String sql=io.teaql.core.sql.expression.ExpressionHelper.toSql(context,operand,population,parameters,logical);
+        return dialect.statisticalOperandSql(sql,type);
+    }
+
+    private Class<?> scalarType(Expression operand) {
+        try {return io.teaql.core.sql.internal.StatisticalMeasureExpression.bind(allProperties,operand).type();}
+        catch(TeaQLRuntimeException unsupported){return null;}
+    }
+
     @Override
     public String aggregateSql(UserContext context, io.teaql.core.AggrFunction function,
                                io.teaql.core.Expression operand, String columnSql) {
@@ -140,6 +162,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             return new io.teaql.core.sql.expression.AggrExpressionParser().genAggrSQL(function,
                     parameter?dialect.bitwiseParameterSql(columnSql):columnSql);
         }
+        if(scalarType(operand)==BigDecimal.class)
+            return dialect.decimalAggregateSql(function,columnSql,true);
         for (String name : operand.properties(context)) {
             PropertyDescriptor property = allProperties.stream()
                     .filter(candidate -> name.equals(candidate.getName()))
@@ -187,6 +211,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         if (expression instanceof io.teaql.core.AggrExpression aggregate
                 && (aggregate.getOperator() == io.teaql.core.AggrFunction.COUNT
                     || aggregate.getOperator() == io.teaql.core.AggrFunction.COUNT_DISTINCT)) return false;
+        if(expression instanceof io.teaql.core.AggrExpression aggregate && aggregate.getExpressions().size()==1
+                && scalarType(aggregate.first())==BigDecimal.class)return true;
         for (String name : expression.properties(context)) {
             PropertyDescriptor property = allProperties.stream()
                     .filter(candidate -> name.equals(candidate.getName())).findFirst().orElse(null);
@@ -2583,10 +2609,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         if (raw == null || !(selected.getExpression() instanceof io.teaql.core.AggrExpression aggregate)
                 || aggregate.getOperator() == io.teaql.core.AggrFunction.COUNT
                 || aggregate.getOperator() == io.teaql.core.AggrFunction.COUNT_DISTINCT
-                || aggregate.getExpressions().size() != 1
-                || !(aggregate.getExpressions().get(0) instanceof io.teaql.core.PropertyReference reference)) {
+                || aggregate.getExpressions().size() != 1) {
             return raw;
         }
+        if(scalarType(aggregate.first())==BigDecimal.class)return dialect.decodeDecimalAggregate(raw);
+        if(!(aggregate.first() instanceof io.teaql.core.PropertyReference reference))return raw;
         PropertyDescriptor property = allProperties.stream()
                 .filter(candidate -> reference.getPropertyName().equals(candidate.getName()))
                 .findFirst().orElse(null);

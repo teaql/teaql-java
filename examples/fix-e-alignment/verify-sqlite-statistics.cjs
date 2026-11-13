@@ -39,6 +39,8 @@ async function main() {
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/LayeredAggregation.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/internal/StatisticalGroupingExpression.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/internal/StatisticalIntegerOperand.java',
+            'teaql-sql-portable/src/main/java/io/teaql/core/sql/internal/StatisticalMeasureExpression.java',
+            'teaql-sql-portable/src/test/java/io/teaql/core/sql/internal/StatisticalMeasureExpressionTest.java',
             'teaql-sql-portable/src/test/java/io/teaql/core/sql/internal/StatisticalIntegerOperandTest.java',
             'teaql-sql-portable/src/main/java/io/teaql/core/sql/internal/StatisticalOrderExpression.java',
             'teaql-sql-portable/src/test/java/io/teaql/core/sql/internal/StatisticalOrderExpressionTest.java',
@@ -97,17 +99,19 @@ async function main() {
         }
         for (let round = 1; round <= 2; round++) {
             const run = await execute('focused-' + round,
-                ['-Dtest=QueryRequestSnapshotIsolationTest,SqliteStatisticalFunctionsTest,SqliteStatisticalDecimalTest,StatisticalResultFilterTest,DerivedQueryTraceSqliteTest#loadedCollectionFacetsRetainPerParentMembershipCountsAndRequestedEmpty,LayeredAggregationTest,AggrExpressionParserTest,StatisticalGroupingExpressionTest,StatisticalIntegerOperandTest', '-Dsurefire.failIfNoSpecifiedTests=false']);
+                ['-Dtest=QueryRequestSnapshotIsolationTest,SqliteStatisticalFunctionsTest,SqliteStatisticalDecimalTest,StatisticalResultFilterTest,DerivedQueryTraceSqliteTest#loadedCollectionFacetsRetainPerParentMembershipCountsAndRequestedEmpty,LayeredAggregationTest,AggrExpressionParserTest,StatisticalGroupingExpressionTest,StatisticalIntegerOperandTest,StatisticalMeasureExpressionTest', '-Dsurefire.failIfNoSpecifiedTests=false']);
             assert.equal(run.suites['teaql-core']?.find(s => s.name.endsWith('.QueryRequestSnapshotIsolationTest.xml'))?.tests,
                 5, 'Missing independent graph snapshot/copy acceptance');
             assert.equal(run.suites['teaql-sqlite']?.find(s => s.name.endsWith('.SqliteStatisticalFunctionsTest.xml'))?.tests,
-                13, 'Missing statistical kernel/integration, typed bitwise and GBK fail-closed tests');
+                15, 'Missing statistical kernels, typed expression inputs and GBK fail-closed tests');
             assert.equal(run.suites['teaql-sqlite']?.find(s => s.name.endsWith('.SqliteStatisticalDecimalTest.xml'))?.tests,
                 9, 'Missing exact Decimal sorting, range, HAVING and unsupported-function tests');
             assert.equal(run.suites['teaql-sqlite']?.find(s => s.name.endsWith('.DerivedQueryTraceSqliteTest.xml'))?.tests,
                 1, 'Missing real collection Facet regression');
             assert.equal(run.suites['teaql-sql-portable']?.find(s => s.name.endsWith('.LayeredAggregationTest.xml'))?.tests,
-                52, 'Missing complete shared roll-up statistics suite');
+                55, 'Missing complete shared roll-up statistics suite');
+            assert.equal(run.suites['teaql-sql-portable']?.find(s=>s.name.endsWith('.StatisticalMeasureExpressionTest.xml'))?.tests,
+                5,'Missing bounded statistical scalar typing');
             assert.equal(run.suites['teaql-sql-portable']?.find(s => s.name.endsWith('.StatisticalGroupingExpressionTest.xml'))?.tests,
                 3, 'Missing grouping expression safety and ordinary GBK compatibility tests');
             assert.equal(run.suites['teaql-sql-portable']?.find(s=>s.name.endsWith('.StatisticalIntegerOperandTest.xml'))?.tests,

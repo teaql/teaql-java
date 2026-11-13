@@ -118,6 +118,83 @@ public class SqliteStatisticalFunctionsTest {
     }
     public static class School extends BaseEntity{@Override public String typeName(){return "StatSchool";}}
 
+    private static UserContext expressionContext(Fixture f,boolean decimal)throws Exception{
+        // Legacy-schema unit fixture: install the same connection primitives
+        // used by ensureSchema, without reconciling these hand-bound tables.
+        if(decimal){
+            SqliteDecimalFunctions.register(f.source.getConnection());
+            org.sqlite.Function.create(f.source.getConnection().unwrap(org.sqlite.SQLiteConnection.class),"soundex",new org.sqlite.Function(){
+                @Override protected void xFunc()throws SQLException{result(SqliteDataServiceExecutor.sqliteCompatibleSoundex(value_text(0)));}
+            },1,org.sqlite.Function.FLAG_DETERMINISTIC);
+        }
+        var metadata=new SimpleEntityMetaFactory();
+        var kind=entity("StatKind",Kind.class,"expression_kind",new String[][]{{"id","id"},{"version","version"},{"label","label"},{"ordinal","Legacy Rank"}});
+        if(decimal)kind.getProperties().stream().filter(p->p.getName().equals("ordinal")).findFirst().orElseThrow()
+                .setType(new SimplePropertyType(java.math.BigDecimal.class));
+        var school=entity("StatSchool",School.class,"expression_school",new String[][]{{"id","id"},{"version","version"},{"capacity","capacity"}});
+        metadata.register(kind);metadata.register(school);
+        var relation=(GenericSQLRelation)school.addObjectProperty(metadata,"kind","StatKind","schoolList",Kind.class,GenericSQLRelation::new);
+        relation.setTableName("expression_school");relation.setColumnName("kind");relation.setColumnType("BIGINT");
+        f.jdbc.execute("CREATE TABLE expression_kind(id BIGINT,version BIGINT,label TEXT,\"Legacy Rank\" "+(decimal?"TEXT":"BIGINT")+")");
+        f.jdbc.execute("CREATE TABLE expression_school(id BIGINT,version BIGINT,capacity BIGINT,kind BIGINT)");
+        f.jdbc.execute(decimal?"INSERT INTO expression_kind VALUES(1001,1,'shared','2'),(1002,1,'shared','10')"
+                :"INSERT INTO expression_kind VALUES(1001,1,'shared',1),(1002,1,'shared',2)");
+        f.jdbc.execute("INSERT INTO expression_school VALUES(1,1,800,1001),(2,1,800,1001),(3,1,800,1001),(4,1,800,1001),(5,1,100,1002)");
+        return new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata).dataService("sqlite",f.provider).build());
+    }
+    @Test public void layeredExpressionOperatorsAndNullsRetainOwnerGrain()throws Exception{
+        try(var f=new Fixture()){
+            var context=expressionContext(f,false);
+            for(var function:AggrFunction.values())if(function!=AggrFunction.SELF&&function!=AggrFunction.GBK){
+                var parent=new Request<>(Kind.class,"StatKind");parent.groupBy("label");
+                parent.addAggregate(new SimpleNamedExpression("computed",new AggrExpression(function,
+                        new AggrExpression(AggrFunction.SELF,new PropertyReference("ordinal")))));
+                var request=new Request<>(School.class,"StatSchool");request.count("schools");request.groupBy("kind",parent);
+                var rows=request.comment("Evaluate scalar expressions at the parent observation grain")
+                        .purpose("Verify all supported aggregate functions over mapped operands").aggregation(context).toList();
+                assertEquals(1,rows.size());assertEquals(5,((Number)rows.get(0).get("schools")).longValue());
+                var result=(Map<?,?>)rows.get(0).get("kind");
+                double expected=switch(function){case COUNT,COUNT_DISTINCT,MAX->2;case SUM,BIT_OR,BIT_XOR->3;
+                    case MIN->1;case AVG->1.5;case STDDEV->Math.sqrt(0.5);case STDDEV_POP,VAR_SAMP->0.5;case VAR_POP->0.25;default->0;};
+                assertEquals(function.name(),expected,((Number)result.get("computed")).doubleValue(),1e-10);
+                for(boolean empty:List.of(false,true)){
+                    var nullParent=new Request<>(Kind.class,"StatKind");
+                    nullParent.addAggregate(new SimpleNamedExpression("computed",new AggrExpression(function,
+                            new AggrExpression(AggrFunction.SELF,new Parameter("nullable",null,io.teaql.core.criteria.Operator.EQUAL)))));
+                    var outer=new Request<>(School.class,"StatSchool");outer.count("schools");outer.groupBy("kind",nullParent);
+                    if(empty)outer.appendSearchCriteria(new io.teaql.core.criteria.IsNull(new PropertyReference("id")));
+                    var values=outer.comment("Retain null and empty aggregate populations").purpose("Do not invent scalar identities")
+                            .aggregation(context).toList();assertEquals(1,values.size());
+                    var actual=((Map<?,?>)values.get(0).get("kind")).get("computed");
+                    if(function==AggrFunction.COUNT||function==AggrFunction.COUNT_DISTINCT)assertEquals(0,((Number)actual).longValue());else assertNull(actual);
+                }
+            }
+        }
+    }
+    @Test public void layeredDecimalAndTextExpressionsKeepPrecisionAndTypedResults()throws Exception{
+        try(var f=new Fixture()){
+            var context=expressionContext(f,true);var parent=new Request<>(Kind.class,"StatKind");parent.groupBy("label");
+            for(var function:List.of(AggrFunction.MIN,AggrFunction.MAX,AggrFunction.SUM))
+                parent.addAggregate(new SimpleNamedExpression(function.name(),new AggrExpression(function,
+                        new AggrExpression(AggrFunction.SELF,new PropertyReference("ordinal")))));
+            parent.addAggregate(new SimpleNamedExpression("literal",new AggrExpression(AggrFunction.SUM,
+                    new Parameter("decimal",new java.math.BigDecimal("0.000000001"),io.teaql.core.criteria.Operator.EQUAL))));
+            parent.addAggregate(new SimpleNamedExpression("labels",new AggrExpression(AggrFunction.COUNT_DISTINCT,
+                    new FunctionApply(io.teaql.core.criteria.Operator.SOUNDS_LIKE,new PropertyReference("label")))));
+            parent.having("MAX",io.teaql.core.criteria.Operator.GREATER_THAN,new java.math.BigDecimal("9"));
+            parent.addOrderByDescending("SUM");parent.getSlice().setSize(1);
+            var request=new Request<>(School.class,"StatSchool");request.count("schools");request.groupBy("kind",parent);
+            var rows=request.comment("Keep exact decimal and transformed text operands")
+                    .purpose("Verify computed input typing, collation and decoding").aggregation(context).toList();assertEquals(1,rows.size());
+            var row=(Map<?,?>)rows.get(0).get("kind");
+            for(var entry:Map.of("MIN","2","MAX","10","SUM","12","literal","0.000000002").entrySet()){
+                assertTrue(row.get(entry.getKey()) instanceof java.math.BigDecimal);
+                assertEquals(0,new java.math.BigDecimal(entry.getValue()).compareTo((java.math.BigDecimal)row.get(entry.getKey())));
+            }
+            assertEquals(1,((Number)row.get("labels")).longValue());
+        }
+    }
+
     @Test public void bitwiseParametersAndNestedSelfKeepExactIntegerResults()throws Exception{
         try(var f=new Fixture()){
             var metadata=new SimpleEntityMetaFactory();

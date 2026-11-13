@@ -214,6 +214,45 @@ public class PostgresLayeredAggregationIT extends LayeredAggregationTest {
         observe("extended-owner-grain",rows);
     }
 
+    @Test public void layeredExpressionMeasuresRetainTypedParametersAndOwnerGrain()throws Exception{
+        var parent=kind("platform");
+        parent.addAggregate(new SimpleNamedExpression("perType",new AggrExpression(AggrFunction.SUM,new Parameter("constant",7L,Operator.EQUAL))));
+        parent.addAggregate(new SimpleNamedExpression("parentXor",new AggrExpression(AggrFunction.BIT_XOR,
+                new AggrExpression(AggrFunction.SELF,new PropertyReference("id")))));
+        parent.having("perType",Operator.EQUAL,14L);parent.addOrderByDescending("perType");parent.getSlice().setSize(1);
+        var request=source(parent);request.addAggregate(new SimpleNamedExpression("perSchool",new AggrExpression(AggrFunction.SUM,
+                new Parameter("constant",3L,Operator.EQUAL))));
+        request.having("perSchool",Operator.EQUAL,15L);request.addOrderByDescending("kind.parentXor");
+        var rows=execute(request);assertEquals(1,rows.size());assertEquals(15,number(rows.get(0),"perSchool"));
+        assertEquals(14,number(object(rows.get(0),"kind"),"perType"));assertEquals(3,number(object(rows.get(0),"kind"),"parentXor"));
+        var oracle=database.query("SELECT SUM(7) total FROM rollup_kind WHERE id IN(1001,1002)",new Object[0]).get(0);
+        assertEquals(number(oracle,"total"),number(object(rows.get(0),"kind"),"perType"));
+        observe("expression-measure-owner-grain",rows);
+        for(var function:AggrFunction.values())if(function!=AggrFunction.SELF&&function!=AggrFunction.GBK){
+            parent=kind("platform");parent.addAggregate(new SimpleNamedExpression("computed",new AggrExpression(function,
+                    new AggrExpression(AggrFunction.SELF,new PropertyReference("ordinal")))));
+            rows=execute(source(parent));double expected=switch(function){case COUNT,COUNT_DISTINCT,MAX->2;case SUM,BIT_OR,BIT_XOR->3;
+                case MIN->1;case AVG->1.5;case STDDEV->Math.sqrt(0.5);case STDDEV_POP,VAR_SAMP->0.5;case VAR_POP->0.25;default->0;};
+            numeric(object(rows.get(0),"kind"),"computed",expected);
+            parent=new Request<>(StatKind.class,"StatKind");parent.addAggregate(new SimpleNamedExpression("computed",new AggrExpression(function,
+                    new AggrExpression(AggrFunction.SELF,new Parameter("nullable",null,Operator.EQUAL)))));
+            for(boolean empty:List.of(false,true)){
+                request=source(parent);if(empty)request.where("id",Operator.LESS_THAN,0L);
+                rows=execute(request);assertEquals(1,rows.size());var value=object(rows.get(0),"kind").get("computed");
+                if(function==AggrFunction.COUNT||function==AggrFunction.COUNT_DISTINCT)assertEquals(0,((Number)value).longValue());else assertNull(value);
+            }
+        }
+        parent=new Request<>(StatKind.class,"StatKind");
+        parent.addAggregate(new SimpleNamedExpression("labels",new AggrExpression(AggrFunction.COUNT_DISTINCT,
+                new FunctionApply(Operator.SOUNDS_LIKE,new PropertyReference("label")))));
+        parent.addAggregate(new SimpleNamedExpression("decimal",new AggrExpression(AggrFunction.SUM,
+                new Parameter("decimal",new java.math.BigDecimal("0.000000001"),Operator.EQUAL))));
+        rows=execute(source(parent));assertEquals(1,number(object(rows.get(0),"kind"),"labels"));
+        assertTrue(object(rows.get(0),"kind").get("decimal") instanceof java.math.BigDecimal);
+        assertEquals(0,new java.math.BigDecimal("0.000000002").compareTo((java.math.BigDecimal)object(rows.get(0),"kind").get("decimal")));
+        observe("expression-measure-transforms",rows);
+    }
+
     @Test public void emptyExtendedMeasuresKeepCountsZeroAndOtherValuesNull() throws Exception {
         var parent=new Request<>(StatKind.class,"StatKind"); parent.count("n"); measures(parent,"ordinal");
         var request=source(parent).where("capacity",Operator.LESS_THAN,0L); measures(request,"capacity");

@@ -126,6 +126,78 @@ public class LayeredAggregationTest {
         assertEquals("shared", object(row, "kind").get("label"));
         assertFalse(row.containsKey("Legacy Kind Key")); assertFalse(row.containsKey("__teaql_m0"));
     }
+    @Test public void expressionMeasuresUseOwnerGrainBeforeParentCellBounds() {
+        var parent=kind("platform");
+        parent.addAggregate(new SimpleNamedExpression("perType",new AggrExpression(AggrFunction.SUM,
+                new AggrExpression(AggrFunction.SELF,new Parameter("constant",7L,Operator.EQUAL)))));
+        parent.having("perType",Operator.EQUAL,14L);parent.addOrderByDescending("perType");parent.getSlice().setSize(1);
+        var request=source(parent);
+        request.addAggregate(new SimpleNamedExpression("perSchool",new AggrExpression(AggrFunction.SUM,
+                new Parameter("constant",3L,Operator.EQUAL))));
+        request.having("perSchool",Operator.EQUAL,15L);request.addOrderByDescending("kind.perType");request.getSlice().setSize(1);
+        for(int round=0;round<2;round++) {
+            var rows=execute(request);assertEquals(1,rows.size());var row=rows.get(0);
+            assertEquals(5,number(row,"schoolCount"));assertEquals(3300,number(row,"capacityTotal"));
+            assertEquals(15,number(row,"perSchool"));assertEquals(14,number(object(row,"kind"),"perType"));
+        }
+    }
+    @Test public void expressionMeasureOrderingUsesTheExactSelectedSourceAndParentAst() {
+        for (boolean useAlias : List.of(false, true)) {
+            var parent = kind("ordinal");
+            var rank = new AggrExpression(AggrFunction.SUM,
+                    new AggrExpression(AggrFunction.SELF, new PropertyReference("ordinal")));
+            parent.addAggregate(new SimpleNamedExpression("rankTotal", rank));
+            if (useAlias) parent.addOrderByDescending("rankTotal");
+            else {
+                var order = new OrderBy("rankTotal", "DESC"); order.setExpression(rank);
+                parent.getOrderBy().addOrderBy(order);
+            }
+            parent.top(1);
+            for (int round=0; round<2; round++) {
+                var rows = execute(source(parent)); assertEquals(1, rows.size());
+                assertEquals(1, number(rows.get(0), "schoolCount"));
+                assertEquals(2, number(object(rows.get(0), "kind"), "rankTotal"));
+            }
+            var total = new AggrExpression(AggrFunction.SUM,
+                    new AggrExpression(AggrFunction.SELF, new PropertyReference("capacity")));
+            var request = source(kind("ordinal"));
+            request.addAggregate(new SimpleNamedExpression("computed", total)); request.top(1);
+            if (useAlias) request.addOrderByDescending("computed");
+            else {
+                var order = new OrderBy("computed", "DESC"); order.setExpression(total);
+                request.getOrderBy().addOrderBy(order);
+            }
+            for (int round=0; round<2; round++) {
+                var rows = execute(request); assertEquals(1, rows.size());
+                assertEquals(4, number(rows.get(0), "schoolCount")); assertEquals(3200, number(rows.get(0), "computed"));
+            }
+        }
+    }
+
+    @Test public void expressionMeasuresApplyCustomPropertyParsersOnceBeforeLogicalStaging() {
+        var repositories = new HashMap<String, PortableSQLRepository<?>>();
+        for (String type : List.of("StatSchool", "StatKind", "StatPlatform")) {
+            var repository = new PortableSQLRepository<>(metadata.resolveEntityDescriptor(type), database, repositories::get, metadata);
+            if (type.equals("StatSchool")) repository.registerExpressionParser(new io.teaql.core.sql.expression.PropertyParser() {
+                @Override public String toSql(UserContext ctx, PropertyReference property, String table,
+                        Map<String,Object> parameters, io.teaql.core.sql.SQLColumnResolver resolver) {
+                    String sql = super.toSql(ctx, property, table, parameters, resolver);
+                    return property.getPropertyName().equals("capacity") ? "("+sql+" + 10)" : sql;
+                }
+            });
+            repositories.put(type, repository);
+        }
+        var request = source(kind("label"));
+        request.addAggregate(new SimpleNamedExpression("computed", new AggrExpression(AggrFunction.SUM,
+                new AggrExpression(AggrFunction.SELF, new PropertyReference("capacity")))));
+        request.top(20); request.comment("Apply the trusted field parser exactly once").purpose("Retain custom parser semantics across logical population staging");
+        @SuppressWarnings("unchecked") var repository = (PortableSQLRepository<StatSchool>) repositories.get("StatSchool");
+        for (int round=0; round<2; round++) {
+            var rows = repository.doAggregateInternal(context, request).toList(); assertEquals(1, rows.size());
+            // Five observations gain 10 once. A second transform would incorrectly yield 3400.
+            assertEquals(3350, number(rows.get(0), "capacityTotal")); assertEquals(3350, number(rows.get(0), "computed"));
+        }
+    }
     @Test public void distinctCountsUseFinalOwnerPopulationNotSumOfIntermediateCounts() {
         database.execute("INSERT INTO rollup_school VALUES(6,1,800,1002),(7,1,NULL,1002)");
         var parent = kind("label"); parent.countDistinctProperty("labels", "label");
