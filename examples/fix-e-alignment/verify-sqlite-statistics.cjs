@@ -27,6 +27,7 @@ async function main() {
             'teaql-core/src/main/java/io/teaql/core/QueryRequestGraphCopy.java',
             'teaql-core/src/main/java/io/teaql/core/SearchRequest.java',
             'teaql-core/src/test/java/io/teaql/core/QueryRequestSnapshotIsolationTest.java',
+            'teaql-core/src/test/java/io/teaql/core/QueryCriteriaAlternativesTest.java',
             'teaql-runtime/src/test/java/io/teaql/runtime/RequestedListCountTest.java',
             'teaql-runtime/src/test/java/io/teaql/runtime/TeaQLRuntimeTest.java',
             'teaql-runtime/src/main/java/io/teaql/runtime/StatisticsRequestPreparation.java',
@@ -103,9 +104,11 @@ async function main() {
         }
         for (let round = 1; round <= 2; round++) {
             const run = await execute('focused-' + round,
-                ['-Dtest=QueryRequestSnapshotIsolationTest,SqliteStatisticalFunctionsTest,SqliteGbkFunctionsTest,SqliteStatisticalDecimalTest,StatisticalResultFilterTest,DerivedQueryTraceSqliteTest#loadedCollectionFacetsRetainPerParentMembershipCountsAndRequestedEmpty,LayeredAggregationTest,AggrExpressionParserTest,StatisticalGroupingExpressionTest,StatisticalIntegerOperandTest,StatisticalMeasureExpressionTest', '-Dsurefire.failIfNoSpecifiedTests=false']);
+                ['-Dtest=QueryRequestSnapshotIsolationTest,QueryCriteriaAlternativesTest,SqliteStatisticalFunctionsTest,SqliteGbkFunctionsTest,SqliteStatisticalDecimalTest,StatisticalResultFilterTest,DerivedQueryTraceSqliteTest#loadedCollectionFacetsRetainPerParentMembershipCountsAndRequestedEmpty,LayeredAggregationTest,AggrExpressionParserTest,StatisticalGroupingExpressionTest,StatisticalIntegerOperandTest,StatisticalMeasureExpressionTest', '-Dsurefire.failIfNoSpecifiedTests=false']);
             assert.equal(run.suites['teaql-core']?.find(s => s.name.endsWith('.QueryRequestSnapshotIsolationTest.xml'))?.tests,
                 5, 'Missing independent graph snapshot/copy acceptance');
+            assert.equal(run.suites['teaql-core']?.find(s => s.name.endsWith('.QueryCriteriaAlternativesTest.xml'))?.tests,
+                6, 'Missing criteria alternative composition acceptance');
             assert.equal(run.suites['teaql-sqlite']?.find(s => s.name.endsWith('.SqliteStatisticalFunctionsTest.xml'))?.tests,
                 16, 'Missing statistical kernels, typed expressions and GBK statistical ordering');
             assert.equal(run.suites['teaql-sqlite']?.find(s => s.name.endsWith('.SqliteGbkFunctionsTest.xml'))?.tests,

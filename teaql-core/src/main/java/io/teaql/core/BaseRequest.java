@@ -391,10 +391,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
     }
 
     protected BaseRequest<T> internalMatchAny(SearchRequest<T> anotherRequest) {
-        if (searchCriteria == null) {
-            return this;
-        }
-
+        Objects.requireNonNull(anotherRequest, "matching request");
         if (anotherRequest.getSearchCriteria() == null) {
             return this;
         }
@@ -411,12 +408,14 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         List<Expression> subExpress = extractSearchCriteriaExcludeVersion(anotherRequest);
         // collection search criteria other than version criteria
         int length = subExpress.size();
+        if (length == 0) {
+            return this;
+        }
         SearchCriteria[] searchCriteriaArray = new SearchCriteria[length];
         for (int i = 0; i < length; i++) {
             searchCriteriaArray[i] = (SearchCriteria) subExpress.get(i);
         }
-        ((AND) this.searchCriteria).getExpressions().add(SearchCriteria.or(searchCriteriaArray));
-        return this;
+        return appendSearchCriteria(SearchCriteria.or(searchCriteriaArray));
     }
 
     protected BaseRequest<T> withDeletedRows() {
