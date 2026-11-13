@@ -66,7 +66,7 @@ async function main(){
         '-Dsurefire.failIfNoSpecifiedTests=false','test'],'postgres-round-'+round+'.log');
       const report=path.join(repo,'teaql-sql-portable/target/surefire-reports/TEST-io.teaql.core.sql.portable.PostgresLayeredAggregationIT.xml');
       const xml=fs.readFileSync(report,'utf8'),junit=counts(xml);fs.copyFileSync(report,path.join(output,'junit-round-'+round+'.xml'));
-      assert.deepEqual(junit,{tests:43,failures:0,errors:0,skipped:0});
+      assert.deepEqual(junit,{tests:45,failures:0,errors:0,skipped:0});
       const observations=log.split(/\r?\n/).filter(l=>l.startsWith('JAVA_POSTGRES_ROLLUP=')).map(l=>JSON.parse(l.slice('JAVA_POSTGRES_ROLLUP='.length)));
       assert.deepEqual(observations.map(o=>o.case).sort(),['extended-owner-grain','empty-extended','all-null-source-singleton-parent','variance-having'].sort());
       receipt.rounds.push({round,junit,observations});
@@ -80,7 +80,7 @@ async function main(){
       receipt.nativeSuites[path.basename(path.dirname(target))]=fs.readdirSync(dir).filter(n=>/^TEST-.*\.xml$/.test(n)&&!n.includes('PostgresLayeredAggregationIT'))
         .map(name=>({name,...counts(fs.readFileSync(path.join(dir,name),'utf8'))}));}
     const suites=Object.values(receipt.nativeSuites).flat();assert(suites.every(x=>x.failures===0&&x.errors===0));
-    receipt.nativeTestsPassed=suites.reduce((n,s)=>n+s.tests-s.skipped,0);assert(receipt.nativeTestsPassed>=1116);
+    receipt.nativeTestsPassed=suites.reduce((n,s)=>n+s.tests-s.skipped,0);assert(receipt.nativeTestsPassed>=1118);
     for(const[file,expected]of Object.entries(receipt.sourceHashes))assert.equal(hash(fs.readFileSync(path.join(repo,file))),expected,'Source changed: '+file);
     receipt.sameDatabase=true;receipt.passed=true;
   }catch(error){receipt.error=secret?String(error.message).split(secret).join('[REDACTED]'):error.message;process.exitCode=1;}

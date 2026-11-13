@@ -76,7 +76,7 @@ public class LayeredAggregationTest {
         database = createDatabase();
         database.execute("CREATE TABLE rollup_platform(id INTEGER PRIMARY KEY,version INTEGER,name TEXT)");
         database.execute("CREATE TABLE rollup_kind(id INTEGER PRIMARY KEY,version INTEGER,\"Legacy Kind Label\" TEXT,ordinal INTEGER,platform INTEGER)");
-        database.execute("CREATE TABLE rollup_school(id INTEGER PRIMARY KEY,version INTEGER,\"Legacy Capacity\" INTEGER,\"Legacy Kind Key\" INTEGER)");
+        database.execute("CREATE TABLE rollup_school(id INTEGER PRIMARY KEY,version INTEGER,\"Legacy Capacity\" BIGINT,\"Legacy Kind Key\" INTEGER)");
         database.execute("INSERT INTO rollup_platform VALUES(1,1,'Campus')");
         database.execute("INSERT INTO rollup_kind VALUES(1001,1,'shared',1,1),(1002,1,'shared',2,1)");
         database.execute("INSERT INTO rollup_school VALUES(1,1,800,1001),(2,1,800,1001),(3,1,800,1001),(4,1,800,1001),(5,1,100,1002)");
@@ -159,6 +159,46 @@ public class LayeredAggregationTest {
         assertEquals(2, number(execute(request).get(0), "capacities"));
         request.having("capacities", Operator.GREATER_THAN, 2L);
         assertTrue(execute(request).isEmpty());
+    }
+
+    @Test public void selfGroupingKeepsMappedValuesAliasesAndParentCellPaging() {
+        var ordinary=new Request<>(StatSchool.class,"StatSchool");
+        ordinary.groupBy("bucket","capacity",AggrFunction.SELF);ordinary.count("schoolCount");
+        ordinary.having("bucket",Operator.GREATER_THAN_OR_EQUAL,100L);
+        ordinary.addOrderByDescending("bucket");ordinary.offset(1,1);
+        var parent=new Request<>(StatKind.class,"StatKind");
+        parent.groupBy("rank","ordinal",AggrFunction.SELF);parent.count("kinds");parent.sum("ordinalTotal","ordinal");
+        parent.having("rank",Operator.GREATER_THAN_OR_EQUAL,1L);parent.addOrderByDescending("ordinal");parent.top(1);
+        var platform=new Request<>(StatPlatform.class,"StatPlatform");
+        platform.groupBy("caption","name",AggrFunction.SELF);platform.count("platforms");platform.addOrderByAscending("name");
+        var multi=new Request<>(StatKind.class,"StatKind");multi.count("kinds");multi.sum("ordinalTotal","ordinal");multi.groupBy("platform",platform);
+        for(int round=0;round<2;round++) {
+            var rows=execute(ordinary);assertEquals(1,rows.size());
+            assertEquals(100,number(rows.get(0),"bucket"));assertEquals(1,number(rows.get(0),"schoolCount"));
+            assertFalse(rows.get(0).containsKey("capacity"));
+            rows=execute(source(parent));assertEquals(1,rows.size());
+            assertEquals(1,number(rows.get(0),"schoolCount"));
+            var kind=object(rows.get(0),"kind");assertEquals(2,number(kind,"rank"));assertFalse(kind.containsKey("ordinal"));
+            rows=execute(source(multi));assertEquals(1,rows.size());assertEquals(5,number(rows.get(0),"schoolCount"));
+            kind=object(rows.get(0),"kind");assertEquals(2,number(kind,"kinds"));assertEquals(3,number(kind,"ordinalTotal"));
+            assertEquals("Campus",object(kind,"platform").get("caption"));assertEquals(1,number(object(kind,"platform"),"platforms"));
+        }
+    }
+
+    @Test public void selfGroupingRetainsNullAndExactLargeIntegerKeys() {
+        database.execute("UPDATE rollup_school SET \"Legacy Capacity\"=9007199254740993 WHERE id<=4");
+        database.execute("UPDATE rollup_school SET \"Legacy Capacity\"=NULL WHERE id=5");
+        for(boolean layered:List.of(false,true)) {
+            var request=new Request<>(StatSchool.class,"StatSchool");
+            request.groupBy("bucket","capacity",AggrFunction.SELF);request.count("schoolCount");
+            request.addOrderByDescending("capacity");
+            if(layered) {var parent=new Request<>(StatKind.class,"StatKind");parent.count("kinds");request.groupBy("kind",parent);}
+            var rows=execute(request);assertEquals(2,rows.size());
+            var nonnull=rows.stream().filter(row->row.get("bucket")!=null).findFirst().orElseThrow();
+            var nil=rows.stream().filter(row->row.get("bucket")==null).findFirst().orElseThrow();
+            assertEquals(9007199254740993L,number(nonnull,"bucket"));assertEquals(4,number(nonnull,"schoolCount"));
+            assertEquals(1,number(nil,"schoolCount"));
+        }
     }
 
     private static void phoneticDimension(Request<?> request,String field) {

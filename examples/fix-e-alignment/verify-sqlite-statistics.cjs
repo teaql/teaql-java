@@ -92,7 +92,7 @@ async function main() {
             assert.equal(run.suites['teaql-sqlite']?.find(s => s.name.endsWith('.DerivedQueryTraceSqliteTest.xml'))?.tests,
                 1, 'Missing real collection Facet regression');
             assert.equal(run.suites['teaql-sql-portable']?.find(s => s.name.endsWith('.LayeredAggregationTest.xml'))?.tests,
-                39, 'Missing complete shared roll-up statistics suite');
+                41, 'Missing complete shared roll-up statistics suite');
             assert.equal(run.suites['teaql-sql-portable']?.find(s => s.name.endsWith('.StatisticalGroupingExpressionTest.xml'))?.tests,
                 3, 'Missing grouping expression safety and ordinary GBK compatibility tests');
             assert.equal(run.suites['teaql-sql-portable']?.find(s => s.name.endsWith('.AggrExpressionParserTest.xml'))?.tests,
