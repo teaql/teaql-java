@@ -112,7 +112,7 @@ async function main(){
         'postgres-diagnostics-'+round+'.log');
       const report=path.join(repo,'teaql-postgres/target/surefire-reports/TEST-io.teaql.postgres.PostgresStatisticalDiagnosticsTest.xml');
       const xml=fs.readFileSync(report,'utf8'),junit=counts(xml);fs.copyFileSync(report,path.join(output,'diagnostic-junit-'+round+'.xml'));
-      assert.deepEqual(junit,{tests:2,failures:0,errors:0,skipped:0});
+      assert.deepEqual(junit,{tests:3,failures:0,errors:0,skipped:0});
       const observations=log.split(/\r?\n/).filter(l=>l.startsWith('JAVA_POSTGRES_DIAGNOSTICS='))
         .map(l=>JSON.parse(l.slice('JAVA_POSTGRES_DIAGNOSTICS='.length)));
       assert.equal(observations.length,2,'Missing repeated instrumented provider logs');
@@ -129,7 +129,18 @@ async function main(){
         assert.equal(failure.physicalStatements,1);assert.equal(failure.outcome,'failure');
         assert.deepEqual(failure.telemetryTree,failure.requestTree);assert(!failure.text.includes('PRIVATE-PLATFORM-279'));
       }
-      receipt.diagnosticRounds.push({round,junit,observations,failures});
+      const streams=log.split(/\r?\n/).filter(l=>l.startsWith('JAVA_POSTGRES_STREAM_DIAGNOSTICS='))
+        .map(l=>JSON.parse(l.slice('JAVA_POSTGRES_STREAM_DIAGNOSTICS='.length)));
+      assert.equal(streams.length,4,'Missing success and early-close cursor diagnostics');
+      for(const stream of streams){
+        assert.equal(stream.physicalStatements,1);assert(['success','cancelled'].includes(stream.outcome));
+        assert.equal(stream.rowsConsumed,stream.outcome==='success'?5:1);assert.deepEqual(stream.telemetryTree,stream.requestTree);
+        assert(!stream.text.includes('PRIVATE-PLATFORM-279'));
+      }
+      const denials=log.split(/\r?\n/).filter(l=>l.startsWith('JAVA_POSTGRES_STREAM_DENIAL='))
+        .map(l=>JSON.parse(l.slice('JAVA_POSTGRES_STREAM_DENIAL='.length)));
+      assert.equal(denials.length,2);for(const denial of denials)assert.equal(denial.physicalStatements,0);
+      receipt.diagnosticRounds.push({round,junit,observations,failures,streams,denials});
     }
     receipt.remainingFixtureTables=Number(sql("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN('rollup_school','rollup_kind','rollup_platform');",database));
     assert.equal(receipt.remainingFixtureTables,0,'Each test must roll back its own fixture, not leave tables for the next test');

@@ -103,6 +103,9 @@ public class PostgresStatisticalDiagnosticsTest {
 
     private static EntityDescriptor entity(String name, Class<? extends BaseEntity> type, String table, String[][] fields) {
         var descriptor = new EntityDescriptor(); descriptor.setType(name); descriptor.setTargetType(type); descriptor.setDataService("postgres");
+        if (type == School.class) descriptor.setEntitySupplier(School::new);
+        else if (type == Kind.class) descriptor.setEntitySupplier(Kind::new);
+        else if (type == Platform.class) descriptor.setEntitySupplier(Platform::new);
         var definitions = new ArrayList<String[]>(); definitions.add(new String[]{"id","id"}); definitions.add(new String[]{"version","version"});
         definitions.addAll(Arrays.asList(fields));
         for (var field : definitions) {
@@ -220,6 +223,60 @@ public class PostgresStatisticalDiagnosticsTest {
                 } finally {
                     source.connection.rollback(point); source.connection.releaseSavepoint(point);
                 }
+            }
+        }
+    }
+
+    @Test public void entityStreamsRetainStatisticalBranchesOnSuccessCancelAndDenial() throws Exception {
+        try (var source = new TransactionDataSource()) {
+            source.seed(); var output = new ByteArrayOutputStream(); var logs = new ArrayList<ExecutionMetadata>();
+            var sink = new DefaultTextRuntimeLogSink(new PrintStream(output)); var telemetry = new Telemetry();
+            var deny = new java.util.concurrent.atomic.AtomicBoolean();
+            var provider = new PostgresDataServiceExecutor("postgres",new JdbcSqlExecutor(source));
+            var context = new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata()).dataService("postgres",provider)
+                    .queryPolicy(new QueryPolicy() {
+                        @Override public void enforceSelect(UserContext ctx, SearchRequest<?> request) {
+                            if (deny.get() && request.getTypeName().equals("DiagPlatform"))
+                                throw new TeaQLRuntimeException("STATISTICAL_STREAM_CHILD_DENIED");
+                        }
+                    }).telemetry(telemetry).logSink((ctx,event)->{logs.add(event);sink.writeExecutionLog(ctx,event);}).build());
+            var eligible = new Request<>(Platform.class,"DiagPlatform"); eligible.groupBy("id"); eligible.count("eligible"); eligible.top(10);
+            eligible.comment("Read platform eligibility "+CANARY);
+            eligible.appendSearchCriteria(eligible.createBasicSearchCriteria("name",Operator.EQUAL,CANARY));
+            var wrapper = new Request<>(Kind.class,"DiagKind"); wrapper.selectProperty("id"); wrapper.unlimited();
+            wrapper.comment("Route through ordinary type identities");
+            wrapper.appendSearchCriteria(new SubQuerySearchCriteria("platform",eligible,"id"));
+            var request = new Request<>(School.class,"DiagSchool"); request.selectProperty("id"); request.selectProperty("version"); request.top(20);
+            request.comment("Stream eligible schools");request.appendSearchCriteria(new SubQuerySearchCriteria("kind",wrapper,"id"));
+            var json = new ObjectMapper();
+            for (int round=1; round<=2; round++) {
+                for (boolean complete : List.of(true,false)) {
+                    logs.clear(); telemetry.events.clear(); output.reset();
+                    long count;
+                    try (var rows = request.purpose("Verify statistical eligibility through a real entity cursor").executeForStream(context)) {
+                        count = complete ? rows.count() : rows.findFirst().stream().count();
+                    }
+                    assertEquals(complete?5L:1L,count); assertEquals(1,logs.size()); assertEquals(1,telemetry.events.size());
+                    var log=logs.get(0);var event=telemetry.events.get(0);String outcome=complete?"success":"cancelled";
+                    assertEquals(outcome,log.getExecutionOutcome()); assertEquals(outcome,event.attributes().get("teaql.sql.outcome"));
+                    assertNotNull(log.getSqlExecutionCorrelation());assertEquals(log.getSqlExecutionCorrelation(),event.correlation());
+                    var nodes=log.getRequestTree();var tree=json.readTree((String)event.attributes().get("teaql.request_tree"));
+                    assertEquals(json.valueToTree(nodes),tree);
+                    var wrapperNode=nodes.stream().filter(node->"Route through ordinary type identities".equals(node.detail())).findFirst().orElseThrow();
+                    var leaf=nodes.stream().filter(node->node.detail().startsWith("Read platform eligibility ")).findFirst().orElseThrow();
+                    assertEquals(Integer.valueOf(1),wrapperNode.parentId());
+                    assertEquals(Integer.valueOf(wrapperNode.id()),nodes.get(leaf.parentId()).parentId());
+                    var text=output.toString(java.nio.charset.StandardCharsets.UTF_8);assertFalse(text,text.contains(CANARY));
+                    assertTrue(text,text.contains("/* masked */"));
+                    System.out.println("JAVA_POSTGRES_STREAM_DIAGNOSTICS="+json.writeValueAsString(Map.of("round",round,
+                            "physicalStatements",logs.size(),"rowsConsumed",count,"outcome",outcome,"requestTree",nodes,"telemetryTree",tree,"text",text)));
+                }
+                deny.set(true); logs.clear();telemetry.events.clear();output.reset();
+                assertThrows(TeaQLRuntimeException.class,()->{
+                    try(var rows=request.purpose("Reject an unauthorized statistical stream child").executeForStream(context)){ rows.count(); }
+                });
+                assertTrue(logs.isEmpty());assertTrue(telemetry.events.isEmpty());deny.set(false);
+                System.out.println("JAVA_POSTGRES_STREAM_DENIAL="+json.writeValueAsString(Map.of("round",round,"physicalStatements",0,"outcome","denied")));
             }
         }
     }
