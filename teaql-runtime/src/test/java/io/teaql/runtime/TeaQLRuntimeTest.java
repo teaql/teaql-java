@@ -636,7 +636,9 @@ public class TeaQLRuntimeTest {
         Assert.assertEquals(2, executor.requests.size());
         Assert.assertFalse(executor.requests.get(0).hasSimpleAgg());
         Assert.assertTrue(executor.requests.get(1).hasSimpleAgg());
-        Assert.assertSame(executor.requests.get(0).getSearchCriteria(),
+        Assert.assertEquals(executor.requests.get(0).getSearchCriteria(),
+                executor.requests.get(1).getSearchCriteria());
+        Assert.assertNotSame(executor.requests.get(0).getSearchCriteria(),
                 executor.requests.get(1).getSearchCriteria());
     }
 
@@ -671,7 +673,12 @@ public class TeaQLRuntimeTest {
         Assert.assertEquals(1, policyCalls.get());
         Assert.assertNotSame(request, executor.request);
         Assert.assertNotNull(executor.request.getSearchCriteria());
-        Assert.assertSame("typed policy enrichment is retained in the frozen execution", request.getSearchCriteria(), executor.request.getSearchCriteria());
+        Assert.assertEquals("typed policy enrichment is retained in the frozen execution", request.getSearchCriteria(), executor.request.getSearchCriteria());
+        Assert.assertNotSame("The provider receives an independent policy AST", request.getSearchCriteria(), executor.request.getSearchCriteria());
+        ((io.teaql.core.FunctionApply) request.getSearchCriteria()).getExpressions().set(1,
+                new io.teaql.core.Parameter("status", "INACTIVE", Operator.EQUAL));
+        Assert.assertEquals("ACTIVE", ((io.teaql.core.Parameter)
+                ((io.teaql.core.FunctionApply) executor.request.getSearchCriteria()).second()).getValue());
         Assert.assertEquals(request.comment(), executor.request.inheritedQueryIntent().comment());
     }
 

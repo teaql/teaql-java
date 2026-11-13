@@ -20,6 +20,10 @@ public class LayeredAggregationTest {
         Request(Class<T> entity, String type) { super(entity); this.type = type; }
         @Override public String getTypeName() { return type; }
         public Request<T> comment(String text) { super.internalComment(text); return this; }
+        @Override @SuppressWarnings("unchecked")
+        protected BaseRequest<T> internalCopyTarget() { return new Request<>((Class<T>) returnType(), type); }
+        @Override @SuppressWarnings("unchecked")
+        public Request<T> copy() { return (Request<T>) super.copy(); }
         Request<T> where(String property, Operator operator, Object... values) {
             appendSearchCriteria(createBasicSearchCriteria(property, operator, values)); return this;
         }
@@ -199,6 +203,59 @@ public class LayeredAggregationTest {
         var parent = kind("label").where("ordinal", Operator.EQUAL, 1L);
         assertEquals(4, number(execute(source(parent)).get(0), "schoolCount"));
         assertTrue(execute(source(parent).where("capacity", Operator.LESS_THAN, 500L)).isEmpty());
+    }
+    @Test public void explicitCopyFreezesLiveGroupedParentAndGeneratedStyleMembership() {
+        var parent = kind("label"); parent.count("types");
+        var request = source(parent);
+        request.appendSearchCriteria(new SubQuerySearchCriteria("kind", parent, "id"));
+        database.clearQueryTrace(); var frozen = request.copy(); assertTrue(database.queryTrace().isEmpty());
+        assertEquals(request.getClass(), frozen.getClass());
+        assertEquals(parent.getClass(), frozen.getPropagateDimensions().get("kind").getClass());
+        parent.where("ordinal", Operator.EQUAL, 1L);
+        assertEquals(4, number(execute(request).get(0), "schoolCount"));
+        for (int round=0; round<2; round++) {
+            var row = execute(frozen).get(0);
+            assertEquals(5, number(row, "schoolCount")); assertEquals(3300, number(row, "capacityTotal"));
+            assertEquals(2, number(object(row, "kind"), "types"));
+        }
+    }
+    @Test public void explicitCopyRetainsIndependentGrandparentAndParentCellBounds() {
+        var platform = new Request<>(StatPlatform.class, "StatPlatform"); platform.groupBy("name");
+        var parent = new Request<>(StatKind.class, "StatKind"); parent.count("types"); parent.groupBy("platform", platform);
+        var request = source(parent); var frozen = request.copy();
+        platform.where("name", Operator.EQUAL, "Other campus");
+        parent.having("types", Operator.LESS_THAN, 2L); parent.offset(0, 1);
+        assertTrue(execute(request).isEmpty());
+        var row = execute(frozen).get(0);
+        assertEquals(5, number(row, "schoolCount")); assertEquals(2, number(object(row, "kind"), "types"));
+        assertEquals("Campus", object(object(row,"kind"),"platform").get("name"));
+    }
+    @Test public void explicitCopyDoesNotShareMutableGroupingOperands() {
+        var parent = kind("label"); var request = source(parent); var frozen = request.copy();
+        var function = (FunctionApply) parent.getAggregations().getSimpleDimensions().get(0).getExpression();
+        ((PropertyReference) function.first()).setPropertyName("ordinal");
+        assertEquals(2, execute(request).size());
+        assertEquals(1, execute(frozen).size());
+        assertEquals(3300, number(execute(frozen).get(0), "capacityTotal"));
+    }
+    @Test public void explicitCopyRetainsTypedPolicyHooksWithoutMutatingOriginalParent() {
+        var inspected = new ArrayList<String>();
+        context = new DefaultUserContext(TeaQLRuntime.builder().metadata(metadata)
+                .dataService("sql", new PortableSQLDataService("sql", database, metadata))
+                .queryPolicy(new QueryPolicy() {
+                    @Override public void enforceSelect(UserContext context, SearchRequest<?> query) {
+                        assertTrue("Policy must retain the native request type", query instanceof Request<?>);
+                        inspected.add(query.getTypeName());
+                        if (query.getTypeName().equals("StatKind"))
+                            ((Request<?>) query).where("ordinal", Operator.EQUAL, 1L);
+                    }
+                }).build());
+        var parent = kind("label"); parent.count("types"); var source = source(parent);
+        var row = execute(source.copy()).get(0);
+        assertEquals(4, number(row, "schoolCount")); assertEquals(3200, number(row, "capacityTotal"));
+        assertEquals(1, number(object(row, "kind"), "types"));
+        assertEquals(List.of("StatSchool", "StatKind"), inspected);
+        assertNull("Policy enrichment belongs to the copy", parent.getSearchCriteria());
     }
     @Test public void multihopDeduplicatesParentMeasuresBeforeJoiningFinalCells() {
         var parent = new Request<>(StatKind.class, "StatKind"); parent.count("typeCount"); parent.sum("ordinalTotal", "ordinal");

@@ -112,6 +112,18 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         this.entityFactory = entityFactory;
     }
 
+    /** An independent typed query graph; building or copying never accesses Context. */
+    @SuppressWarnings("unchecked")
+    public BaseRequest<T> copy() {
+        return (BaseRequest<T>) new QueryRequestGraphCopy(true).request(this, 0);
+    }
+
+    /** Generated requests override this factory without reflection. */
+    @FrameworkInternal("Type-preserving allocation for an explicit query graph copy")
+    protected BaseRequest<T> internalCopyTarget() {
+        throw new TeaQLRuntimeException("Query copy requires a type-preserving request factory for " + getTypeName());
+    }
+
     public String getSearchForText() {
         return searchForText;
     }
@@ -1130,6 +1142,11 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         @Override
         public String getTypeName() {
             return type;
+        }
+
+        @Override protected BaseRequest<Entity> internalCopyTarget() {
+            return entityDescriptor == null ? new TempRequest(returnType(), type, this::internalNewEntity)
+                    : new TempRequest(entityDescriptor);
         }
 
         @Override

@@ -41,7 +41,9 @@ public class RequestedListCountTest {
         assertEquals(List.of(3L, 4L), rows.toList(Entity::getId));
         assertEquals(5, rows.getTotalCount()); assertEquals(2, executor.requests.size());
         assertFalse(executor.requests.get(0).hasSimpleAgg()); assertTrue(executor.requests.get(1).hasSimpleAgg());
-        assertSame(executor.requests.get(0).getSearchCriteria(), executor.requests.get(1).getSearchCriteria());
+        assertEquals(executor.requests.get(0).getSearchCriteria(), executor.requests.get(1).getSearchCriteria());
+        assertNotSame("Rows and count retain equivalent independently frozen filters",
+                executor.requests.get(0).getSearchCriteria(), executor.requests.get(1).getSearchCriteria());
         var chain = new DefaultQueryRequest(executor.requests.get(1)).businessTraceChain();
         assertEquals("count()", chain.get(chain.size() - 1).getComment());
         assertEquals(List.of("start:query", "start:provider", "success:provider", "success:query"), events);
