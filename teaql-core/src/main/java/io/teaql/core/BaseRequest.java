@@ -704,6 +704,16 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         this.propagateDimensions.put(propertyName, subRequest);
     }
 
+    /** Generated navigation replaces its own binding, never an application predicate. */
+    protected final void internalRollUpTo(String property, SearchRequest<?> parent) {
+        Objects.requireNonNull(property, "property"); Objects.requireNonNull(parent, "parent");
+        SearchCriteria cleaned = QueryNavigation.clear(searchCriteria, property, 0);
+        searchCriteria = cleaned;
+        aggregations.getComplexDimensions().removeIf(dimension -> property.equals(dimension.name()));
+        groupBy(property, parent);
+        appendSearchCriteria(new SubQuerySearchCriteria(property, parent, BaseEntity.ID_PROPERTY, true));
+    }
+
     public void addAggregate(String retName, String propertyName, AggrFunction function) {
         addAggregate(
                 new SimpleNamedExpression(

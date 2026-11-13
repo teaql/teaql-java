@@ -46,6 +46,8 @@ async function main(){
       'teaql-sql-portable/src/main/java/io/teaql/core/sql/dialect/PostgreSqlDialect.java',
       'teaql-runtime/src/main/java/io/teaql/runtime/StatisticsRequestPreparation.java',
       'teaql-core/src/main/java/io/teaql/core/BaseRequest.java','teaql-core/src/main/java/io/teaql/core/AggrFunction.java',
+      'teaql-core/src/main/java/io/teaql/core/SubQuerySearchCriteria.java','teaql-core/src/main/java/io/teaql/core/QueryNavigation.java',
+      'teaql-core/src/test/java/io/teaql/core/QueryNavigationTest.java',
       'teaql-core/src/main/java/io/teaql/core/QueryRequestSnapshot.java',
       'teaql-core/src/main/java/io/teaql/core/QueryRequestGraphCopy.java',
       'teaql-core/src/test/java/io/teaql/core/QueryRequestSnapshotIsolationTest.java',

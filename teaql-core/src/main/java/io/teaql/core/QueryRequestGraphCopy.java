@@ -121,7 +121,8 @@ final class QueryRequestGraphCopy {
                 var named = (SimpleNamedExpression) source; copy = new SimpleNamedExpression(named.name(), expression(named.getExpression(), depth + 1));
             } else if (source.getClass() == SubQuerySearchCriteria.class) {
                 var membership = (SubQuerySearchCriteria) source;
-                copy = new SubQuerySearchCriteria(membership.getPropertyName(), request(membership.getDependsOn(), requestDepth + 1), membership.getDependsOnPropertyName());
+                copy = new SubQuerySearchCriteria(membership.getPropertyName(), request(membership.getDependsOn(), requestDepth + 1),
+                        membership.getDependsOnPropertyName(), membership.navigationOwned());
             } else if (source.getClass() == VersionSearchCriteria.class)
                 copy = new VersionSearchCriteria((SearchCriteria) expression(((VersionSearchCriteria) source).getSearchCriteria(), depth + 1));
             else if (source.getClass() == TypeCriteria.class)
