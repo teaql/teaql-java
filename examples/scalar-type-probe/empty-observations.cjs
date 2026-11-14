@@ -29,9 +29,15 @@ function observation(r,round){
    assert.deepEqual(empty.sql[index].traceChain.slice(2).map(n=>n.comment),[operation,comment]);
   }
   for(const includeAll of [true,false]){
-   const facet=next('EA-06',logging,9);assert.equal(facet.includeAll,includeAll);assert.equal(facet.visibleRows,1);
+   const facet=next('EA-06',logging,5);assert.equal(facet.includeAll,includeAll);assert.equal(facet.visibleRows,1);
    const expected=vectors.bucketCases[1].expected;assert.deepEqual(facet.values,includeAll?expected:expected.filter(v=>v.count>0));
-   for(const sql of facet.sql.slice(2))assert.equal(sql.traceChain[2].comment,'facetByTypePlatformAs("buckets")');
+   // Unlimited nested membership now stays inline instead of producing four
+   // materialization SELECTs. Keep every business count, null and lineage check.
+   for(const sql of facet.sql.slice(1))assert.equal(sql.traceChain[2].comment,'facetByTypePlatformAs("buckets")');
+   assert.deepEqual(facet.sql.map(sql=>sql.tracePath.filter(n=>n.kind==='RELATION').map(n=>n.name)),
+     [[],[],['type_platform'],['type_platform','scalar_type_probe_list'],['type_platform','scalar_type_probe_list']]);
+   for(const sql of facet.sql.slice(0,2))assert.match(sql.sql,/type_platform IN \(SELECT id FROM type_platform_data/);
+   for(const sql of facet.sql.slice(3))assert.match(sql.sql,/id IN \(SELECT id FROM scalar_type_probe_data/);
    assert(facet.sql.some(s=>s.traceChain.some(n=>n.comment==='sum facet contributions')));
    assert(facet.sql.some(s=>s.traceChain.some(n=>n.comment==='count facet contributions')));
   }
@@ -41,6 +47,6 @@ function observation(r,round){
   const recovery=next('QUERY-RECOVERY',logging,1);assert.equal(recovery.sql[0].comment,'load independent detail after SQLite failure');
   assert.equal(recovery.sql[0].traceChain[1].comment,'load independent detail after SQLite failure');
  }
- assert.equal(total,66);return {round,cases:22,sqlDriverAttempts:total,loggingModes:2,emptyVectors:8,realSQLiteErrors:2,independentRecoveries:2};
+ assert.equal(total,50);return {round,cases:22,sqlDriverAttempts:total,loggingModes:2,emptyVectors:8,realSQLiteErrors:2,independentRecoveries:2};
 }
 module.exports={observation};
