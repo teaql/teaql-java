@@ -11,6 +11,7 @@ without adding logging statements to every business method.
 
 [Try with your coding agent](#try-it-with-your-coding-agent) ·
 [Run the local example](#run-the-local-example) ·
+[Follow a Cookbook tutorial](#cookbook-tutorials-source-preview) ·
 [See automatic logs](#automatic-logs-without-handwritten-logging-code)
 
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13612/badge)](https://www.bestpractices.dev/projects/13612)
@@ -262,6 +263,32 @@ exercises SQLite schema/bootstrap and generated application APIs against this
 repository's local runtime. No external database server or generator is needed
 to run the retained generated example. Use only the example's test database;
 reset/repeated-run behavior is documented in its README.
+
+## Cookbook tutorials (source preview)
+
+Follow a complete Java walkthrough for adding attachments or editing a protected
+Order. Each guide includes setup, downloadable application code, expected output
+and recovery steps.
+
+| Task | Tutorial | Example files and run instructions |
+| --- | --- | --- |
+| Upload a PDF contract and PNG cover, save their Blob references, download, replace and clear attachments. | [Upload, Save, and Read Attachments with Blob](https://teaql.io/docs/cookbook/blob-references/) | [Attachment example](https://teaql.io/examples/blob-attachments/README.md) |
+| Open an Order, submit quantity edits, remove a line and handle duplicate requests, stale versions and revoked permission. | [Open, Edit, and Submit a Protected Order Document](https://teaql.io/docs/cookbook/secure-document-references/) | [Protected Order example](https://teaql.io/examples/secure-order-editing/README.md) |
+
+**Source-preview setup is required.** These examples use Java 21 (`java` and
+`javac` on `PATH`), Maven and Bash. Follow the guide's pinned source checkout
+at `af59bf4ee6f003f509ce8cc42a5d96bb5dcdb8c3`, install the selected example's
+dependencies from source, and set `TEAQL_JAVA_SOURCE` before running the downloaded
+`run.sh`. The Blob example also requires a dedicated PostgreSQL test database
+and actual PDF/PNG input files. The protected Order example creates a temporary
+SQLite database in-process.
+
+The recorded executions are dated **2026-11-01**. Blob uses explicit runtime
+metadata, and protected Order editing uses an application-owned JDBC service.
+For exact scope and source-preview/release qualifications, see the
+[example status page](https://teaql.io/docs/reference/blob-secure-document-reference-status/),
+[Blob receipt](https://teaql.io/examples/blob-attachments/verification.json) and
+[protected Order receipt](https://teaql.io/examples/secure-order-editing/verification.json).
 
 ## Use the published runtime
 
