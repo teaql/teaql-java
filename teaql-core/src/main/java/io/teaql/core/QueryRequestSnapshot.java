@@ -27,6 +27,8 @@ public class QueryRequestSnapshot<T extends Entity> extends BaseRequest<T> {
         this.scope = scope;
         this.diagnosticSource = diagnosticSource;
         graph.populate(request, this, depth);
+        if (scope != null && scope.parentRequest() != null && slice != null && !slice.hasExplicitPage())
+            slice = null;
         comment = scope == null ? request.comment() : scope.intent().comment();
         purpose = scope == null ? request.purpose() : scope.purpose();
     }

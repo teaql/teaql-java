@@ -143,4 +143,14 @@ public class VersionLifecyclePortableSQLTest {
         assertEquals(Long.MAX_VALUE, f.version(3)); assertEquals(3, f.version(2));
         assertEquals(Long.valueOf(Long.MAX_VALUE), recovered.get(0).persistedEntity().getVersion());
     }
+
+    @Test public void preparedRecoveryCommitsReviewedEditsWithOneVersionPerMember() throws Exception {
+        var f=new Fixture();var first=f.row(1,-2);var second=f.row(2,-6);
+        first.markAsRecover();second.markAsRecover();first.updateName("first corrected");second.updateName("second corrected");
+        var results=f.service.mutateBatch(f.context,new MutationBatchRequest("validate actual provider version lifecycle",List.of(
+                mutation(first,EntityPersistenceMutation.Action.SAVE),mutation(second,EntityPersistenceMutation.Action.SAVE))));
+        assertEquals(3,f.version(1));assertEquals(7,f.version(2));
+        assertEquals("first corrected",results.get(0).persistedEntity().getProperty("name"));
+        assertEquals("second corrected",results.get(1).persistedEntity().getProperty("name"));
+    }
 }

@@ -175,7 +175,7 @@ public interface SearchRequest<T extends Entity> {
         }
 
         String partitionProperty = getPartitionProperty();
-        if (partitionProperty != null && getSlice().getSize() != 0) {
+        if (partitionProperty != null && getSlice() != null && getSlice().getSize() != 0) {
             allRelationProperties.add(partitionProperty);
         }
 

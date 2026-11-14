@@ -56,6 +56,9 @@ public enum EntityStatus {
         statusTransaction.put(UPDATED_DELETED, UPDATE, UPDATED_DELETED);
         statusTransaction.put(UPDATED_RECOVER, PERSIST, PERSISTED);
         statusTransaction.put(UPDATED_RECOVER, RECOVER, UPDATED_RECOVER);
+        // Correcting a tombstone after marking it for recovery must keep the
+        // pending recovery, not become an ordinary positive-version update.
+        statusTransaction.put(UPDATED_RECOVER, UPDATE, UPDATED_RECOVER);
     }
 
     public EntityStatus next(EntityAction action) {

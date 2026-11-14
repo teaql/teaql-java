@@ -109,6 +109,43 @@ public class TeaQLRuntimeTest {
         }
     }
 
+    public static class SubtypeView extends DummyEntity {
+        @Override public String typeName() { return "SubtypeView"; }
+    }
+
+    @Test
+    public void subtypeMarkerCannotSelectACheckerForAnotherMaterializedView() {
+        DummyChecker parentChecker = new DummyChecker();
+        AtomicInteger childCalls = new AtomicInteger();
+        Checker<SubtypeView> childChecker = new Checker<>() {
+            @Override public String type() { return "SubtypeView"; }
+            @Override public void checkAndFix(UserContext context, SubtypeView entity, ObjectLocation location) {
+                childCalls.incrementAndGet();
+                requiredCheck(context, newLocation(location, "name"), null);
+            }
+        };
+        var runtime = TeaQLRuntime.builder().metadata(new DummyMetaFactory()).build()
+                .install(RuntimeModule.of().withCheckers(parentChecker, childChecker));
+        var context = new DefaultUserContext(runtime);
+        var parent = new DummyEntity();
+        parent.__internalSet("id", 1L); parent.__internalSet("version", 1L);
+        parent.set$status(EntityStatus.UPDATED); parent.setComment("Check the actual parent view");
+        parent.setRuntimeType("SubtypeView");
+        var parentError = Assert.assertThrows(CheckException.class, () -> runtime.saveGraph(context, parent));
+        Assert.assertEquals(1, parentChecker.calls);
+        Assert.assertEquals(0, childCalls.get());
+        Assert.assertEquals("Dummy", parentError.getViolates().get(0).getRootType());
+
+        var child = new SubtypeView();
+        child.__internalSet("id", 2L); child.__internalSet("version", 1L);
+        child.set$status(EntityStatus.UPDATED); child.setComment("Check the actual subtype view");
+        // A marker that looks like its parent cannot downgrade the subtype checker.
+        child.setRuntimeType("Dummy");
+        var childError = Assert.assertThrows(CheckException.class, () -> runtime.saveGraph(context, child));
+        Assert.assertEquals(1, childCalls.get());
+        Assert.assertEquals("SubtypeView", childError.getViolates().get(0).getRootType());
+    }
+
     public static class DummyQueryExecutor implements QueryExecutor {
         @Override
         public QueryResult query(UserContext context, QueryRequest request) {

@@ -269,7 +269,7 @@ public interface Checker<T extends BaseEntity> {
             checkAndFix(context, entity, null);
             return;
         }
-        try (var invocation = CheckerInvocation.open(context, entity == null ? type() : entity.runtimeType())) {
+        try (var invocation = CheckerInvocation.open(context, entity == null ? type() : entity.typeName())) {
             checkAndFix(context, entity, null);
             java.util.List<CheckResult> violations = (java.util.List<CheckResult>)
                     invocation.attribute(TEAQL_DATA_CHECK_RESULT);

@@ -57,8 +57,8 @@ final class QueryRequestGraphCopy {
                 var copy = new OrderBy("id"); copy.setDirection(order.getDirection());
                 copy.setExpression(expression(order.getExpression(), 0)); target.orderBys.addOrderBy(copy);
             }
-            if (source.getSlice() == null) target.slice = null;
-            else { target.slice = new Slice(); target.slice.setOffset(source.getSlice().getOffset()); target.slice.setSize(source.getSlice().getSize()); }
+            var slice = source.getSlice();
+            target.slice = slice == null || depth > 0 && !slice.hasExplicitPage() ? null : slice.copy();
             target.partitionProperty = source.getPartitionProperty();
             target.aggregations = new Aggregations();
             if (source.getAggregations() != null) {

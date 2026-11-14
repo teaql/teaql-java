@@ -261,7 +261,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     /**
      * A repository resolved by this data service can be embedded as a SQL
-     * subquery when the nested request is explicitly unlimited. Bounded child
+     * subquery when the nested request has no explicit business page. Bounded child
      * entity requests retain their materialized semantics because moving LIMIT
      * into an IN subquery can change which relation identities participate.
      * Statistical requests embed their complete bounded result instead.
@@ -269,7 +269,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     @Override
     public boolean canMixinSubQuery(UserContext userContext, SearchRequest subQuery) {
         if (resolver == null || subQuery == null) return false;
-        if (!subQuery.hasSimpleAgg()) return subQuery.getSlice() == null;
+        if (!subQuery.hasSimpleAgg()) return subQuery.getSlice() == null || !subQuery.getSlice().hasExplicitPage();
         var target = resolver.resolve(subQuery.getTypeName());
         if (target == null) return false;
         String ownRoute = entityDescriptor.getDataService();
@@ -1688,8 +1688,13 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     void updateBatchInternal(UserContext context, List<T> entities, io.teaql.core.SqlIntentRedactions intent,
             List<io.teaql.core.SqlExecutionTrace> traces) {
+        updateOrRecoverBatchInternal(context, entities, intent, traces, io.teaql.core.MutationOperationKind.UPDATE);
+    }
+
+    private void updateOrRecoverBatchInternal(UserContext context, List<T> entities, io.teaql.core.SqlIntentRedactions intent,
+            List<io.teaql.core.SqlExecutionTrace> traces, io.teaql.core.MutationOperationKind operation) {
         requireMemberTraces(entities, traces);
-        entities.forEach(entity -> io.teaql.core.MutationVersions.next(io.teaql.core.MutationOperationKind.UPDATE, entity.getVersion()));
+        entities.forEach(entity -> io.teaql.core.MutationVersions.next(operation, entity.getVersion()));
         Map<PreparedWriteShape, List<PreparedWriteRow>> rows = new java.util.LinkedHashMap<>();
         var compiler = new io.teaql.core.sql.SqlAstCompiler();
         for (int index = 0; index < entities.size(); index++) {
@@ -1710,7 +1715,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                         versionUpdated = true;
                         columns.add("version");
                         bindings.add("version"); bindings.add("id"); bindings.add("version");
-                        values.add(io.teaql.core.MutationVersions.next(io.teaql.core.MutationOperationKind.UPDATE, entity.getVersion())); values.add(entity.getId()); values.add(entity.getVersion());
+                        values.add(io.teaql.core.MutationVersions.next(operation, entity.getVersion())); values.add(entity.getId()); values.add(entity.getVersion());
                         sql = compiler.buildUpdateVersionSQL(this, table, columns, null);
                     } else if (primary) {
                         bindings.add("id"); values.add(entity.getId());
@@ -1728,7 +1733,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                         compiler.buildUpdateVersionTableVersionSQL(this, versionTableName),
                         List.of("version", "id", "version"), true, true);
                 rows.computeIfAbsent(shape, ignored -> new ArrayList<>()).add(new PreparedWriteRow(
-                        new Object[]{io.teaql.core.MutationVersions.next(io.teaql.core.MutationOperationKind.UPDATE, entity.getVersion()), entity.getId(), entity.getVersion()}, traces.get(index)));
+                        new Object[]{io.teaql.core.MutationVersions.next(operation, entity.getVersion()), entity.getId(), entity.getVersion()}, traces.get(index)));
             }
         }
         executePreparedWrites(context, rows, intent);
@@ -1741,7 +1746,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     void recoverBatchInternal(UserContext context, List<T> entities, io.teaql.core.SqlIntentRedactions intent,
             List<io.teaql.core.SqlExecutionTrace> traces) {
-        versionBatchInternal(context, entities, intent, traces, true);
+        updateOrRecoverBatchInternal(context, entities, intent, traces, io.teaql.core.MutationOperationKind.RECOVER);
     }
 
     private void versionBatchInternal(UserContext context, List<T> entities, io.teaql.core.SqlIntentRedactions intent,
@@ -1928,6 +1933,14 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             io.teaql.core.SqlExecutionTrace trace) {
         if (intent != null) entities.forEach(item -> intent.captureTargetId(item.getId()));
         if (ObjectUtil.isEmpty(entities)) return;
+        if (trace != null) {
+            recoverBatchInternal(userContext, new ArrayList<>(entities), intent,
+                    java.util.Collections.nCopies(entities.size(), trace));
+            return;
+        }
+        if (entities.stream().anyMatch(entity -> !entity.getUpdatedProperties().isEmpty())) {
+            throw new TeaQLRuntimeException("Recovery with field changes requires the audited runtime save contract");
+        }
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
         String updateSql = compiler.buildDeleteSQL(this, this.versionTableName);
         List<Object[]> args = entities.stream()

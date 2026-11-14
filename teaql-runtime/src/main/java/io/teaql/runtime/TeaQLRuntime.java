@@ -339,9 +339,15 @@ public class TeaQLRuntime implements AutoCloseable {
                         relationAttributes));
         try {
         QueryIntent intent = requireInheritedQueryIntent(request);
-        enforceMaterializedLimit(request, SearchRequest.DEFAULT_HARD_LIMIT);
+        // This is a framework-owned contributing population, not an outer page.
+        // Never inject the materialized-list ceiling into statistics or relations.
+        Slice nestedSlice = request.getSlice();
+        if (nestedSlice != null && (nestedSlice.getOffset() < 0 || nestedSlice.getSize() < 0))
+            throw new IllegalArgumentException("nested query offset and limit must not be negative");
         request = new StatisticsRequestPreparation(queryPolicy)
                 .prepare(context, request, QueryRequestScope.capture(request));
+        if (request instanceof BaseRequest<?> snapshot && snapshot.getSlice() != null
+                && !snapshot.getSlice().hasExplicitPage()) snapshot.setSlice(null);
         SmartList<T> result = executeForListResolved(context, request, intent);
         relationScope.success(Map.of("teaql.result.cardinality", result.size()));
         return result;
@@ -676,13 +682,13 @@ public class TeaQLRuntime implements AutoCloseable {
             if (!violations.isEmpty()) {
                 var presentationModel = context.checkerPresentationModel();
                 for (var violation : violations) violation.setPresentation(io.teaql.core.checker.CheckerPresentation.capture(
-                        presentationModel, entity.runtimeType(), violation.getLocation()));
+                        presentationModel, entity.typeName(), violation.getLocation()));
                 context.translateCheckResults(violations);
                 throw new CheckException(violations);
             }
             return;
         }
-        try (var invocation = io.teaql.core.checker.internal.CheckerInvocation.openMutation(context, entity.runtimeType())) {
+        try (var invocation = io.teaql.core.checker.internal.CheckerInvocation.openMutation(context, entity.typeName())) {
             context.beginFixEvidence();
             var contextUndo = new ArrayList<ContextFixCheckpoint>();
             try {
@@ -741,8 +747,10 @@ public class TeaQLRuntime implements AutoCloseable {
             io.teaql.core.checker.ObjectLocation location, Set<Entity> visited) {
         if (!(entity instanceof BaseEntity base) || !visited.add(entity)) return;
         if (base.isNew() && base.isMarkedAsDelete()) return;
-        Checker checker = checkers.get(entity.runtimeType());
-        if (checker == null) checker = checkers.get(entity.typeName());
+        // A subtype discriminator describes persisted family membership, not
+        // the Java class materialized by this typed query. A School view cannot
+        // be passed to AcademyChecker merely because its row came from Academy.
+        Checker checker = checkers.get(entity.typeName());
         if (checker != null && checker.needCheck(context, base)) {
             checker.checkAndFix(context, base, location);
         }

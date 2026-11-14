@@ -61,7 +61,8 @@ public class SubQueryParser implements SQLExpressionParser<SubQuerySearchCriteri
             TempRequest tempRequest = new TempRequest(dependsOn.returnType(), dependsOn.getTypeName());
 
             tempRequest.setOrderBy(dependsOn.getOrderBy());
-            tempRequest.setSlice(dependsOn.getSlice());
+            var slice = dependsOn.getSlice();
+            tempRequest.setSlice(slice == null || !slice.hasExplicitPage() ? null : slice.copy());
 
             // select depends on property
             tempRequest.selectProperty(dependsOnPropertyName);
