@@ -627,6 +627,7 @@ public class BaseEntity implements Entity {
         boolean wasLoaded = isPropertyLoaded(propertyName);
         Object oldValue = getProperty(propertyName);
         if (wasLoaded && ObjectUtil.equals(oldValue, value)) return this;
+        validatePendingRecoveryIdentity(propertyName, value);
         setProperty(propertyName, value);
         handleUpdate(propertyName, oldValue, value, wasLoaded);
         return this;
@@ -653,6 +654,7 @@ public class BaseEntity implements Entity {
         // Check before publishing state, including the equal-null case on an
         // ID-only reference. Null backing storage is not proof of loaded Null.
         get$status().next(EntityAction.UPDATE);
+        validatePendingRecoveryIdentity(propertyName, newValue);
         if (wasLoaded && ObjectUtil.equals(oldValue, newValue)) return;
         gotoNextStatus(EntityAction.UPDATE);
         markPropertyLoaded(propertyName);
@@ -698,6 +700,17 @@ public class BaseEntity implements Entity {
     private Map<String, PropertyChange> mutableUpdatedProperties() {
         if (updatedProperties == NO_UPDATES) updatedProperties = new ConcurrentHashMap<>();
         return updatedProperties;
+    }
+
+    private void validatePendingRecoveryIdentity(String propertyName, Object value) {
+        if ($status != EntityStatus.UPDATED_RECOVER) return;
+        Object baseline;
+        if (ID_PROPERTY.equals(propertyName)) baseline = id;
+        else if (VERSION_PROPERTY.equals(propertyName)) baseline = version;
+        else return;
+        if (!ObjectUtil.equals(baseline, value)) {
+            throw new TeaQLRuntimeException("Cannot change " + propertyName + " while entity recovery is pending");
+        }
     }
 
     public void gotoNextStatus(EntityAction action) {

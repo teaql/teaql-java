@@ -6,7 +6,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import static org.junit.Assert.*;
 
-/** Rejected operations cannot rewrite payload, availability, lifecycle or intent. */
+/** Rejections are atomic; business edits preserve pending recovery and its identity. */
 @RunWith(Parameterized.class)
 public class RejectedMutationStateTest {
     enum Availability {NOT_LOADED, NULL, VALUE}
@@ -65,15 +65,35 @@ public class RejectedMutationStateTest {
     private final EntityStatus status;private final Availability availability;
     public RejectedMutationStateTest(EntityStatus status,Availability availability){this.status=status;this.availability=availability;}
     void reject(Row row,Runnable action){var before=new Snapshot(row);assertThrows(TeaQLRuntimeException.class,action::run);before.unchanged(row);}
-    @Test public void typedUpdateRejectsBeforeChangingAvailability(){var row=row(status,availability);reject(row,()->row.updateName("attempted typed value"));}
-    @Test public void genericUpdateRejectsBeforeChangingPayload(){var row=row(status,availability);reject(row,()->row.updateProperty("name","attempted generic value"));}
+    void businessUpdate(Row row,Runnable action,Runnable accepted){
+        if(status!=EntityStatus.UPDATED_RECOVER){reject(row,action);return;}
+        var before=new Snapshot(row);action.run();accepted.run();
+        assertEquals(EntityStatus.UPDATED_RECOVER,row.get$status());
+        assertEquals(before.id,row.getId());assertEquals(before.version,row.getVersion());assertEquals(before.originalVersion,row.getOriginalVersion());
+        assertEquals(before.comment,row.getComment());assertEquals(before.trace,row.getTraceChain());
+        assertSame(before.ledger,row.getEntityMutationLedger());
+        assertEquals(before.recovered,row.getEntityMutationLedger().recoveredKeys());
+        assertEquals(before.created,row.getEntityMutationLedger().newKeys());
+        assertEquals(before.deleted,row.getEntityMutationLedger().deletedKeys());
+    }
+    @Test public void typedUpdateFollowsLifecycleBeforeChangingAvailability(){var row=row(status,availability);businessUpdate(row,()->row.updateName("attempted typed value"),()->{
+        assertEquals("attempted typed value",row.name);assertTrue(row.isPropertyLoaded("name"));
+        assertEquals("attempted typed value",row.getEntityMutationLedger().get(new EntityKey("GuardedRow",100L),"name"));
+    });}
+    @Test public void genericUpdateFollowsLifecycleBeforeChangingPayload(){var row=row(status,availability);businessUpdate(row,()->row.updateProperty("name","attempted generic value"),()->{
+        assertEquals("attempted generic value",row.name);assertTrue(row.isPropertyLoaded("name"));
+    });}
     @Test public void versionUpdateRejectsBeforeClaimingASelectedVersion(){var row=row(status,availability);reject(row,()->row.updateVersion(9L));}
     @Test public void identityUpdateRejectsWithoutChangingTheKey(){var row=row(status,availability);reject(row,()->row.updateId(101L));}
-    @Test public void directUpdateHookRejectsBeforeChangingAvailability(){var row=row(status,availability);reject(row,()->row.handleUpdate("name",row.name,"attempted hook value"));}
-    @Test public void cacheAttachmentRejectsBeforeAddingAReference(){var row=row(status,availability);reject(row,()->row.cacheRelation("owner",foreign(200)));}
-    @Test public void cacheReplacementRejectsBeforeOverwritingAPreviousReference(){
+    @Test public void genericVersionUpdateRejectsBeforeChangingPayload(){var row=row(status,availability);reject(row,()->row.updateProperty("version",9L));}
+    @Test public void genericIdentityUpdateRejectsBeforeChangingPayload(){var row=row(status,availability);reject(row,()->row.updateProperty("id",101L));}
+    @Test public void directUpdateHookFollowsLifecycleBeforeChangingAvailability(){var row=row(status,availability);businessUpdate(row,()->row.handleUpdate("name",row.name,"attempted hook value"),()->{
+        assertTrue(row.isPropertyLoaded("name"));assertEquals("attempted hook value",row.getEntityMutationLedger().get(new EntityKey("GuardedRow",100L),"name"));
+    });}
+    @Test public void cacheAttachmentFollowsLifecycleBeforeAddingAReference(){var row=row(status,availability);var owner=foreign(200);businessUpdate(row,()->row.cacheRelation("owner",owner),()->assertSame(owner,row.getProperty("owner")));}
+    @Test public void cacheReplacementFollowsLifecycleBeforeOverwritingAPreviousReference(){
         var row=row(status,availability);row.set$status(EntityStatus.NEW);row.cacheRelation("owner",foreign(200));row.set$status(status);
-        reject(row,()->row.cacheRelation("owner",foreign(201)));
+        var owner=foreign(201);businessUpdate(row,()->row.cacheRelation("owner",owner),()->assertSame(owner,row.getProperty("owner")));
     }
     @Test public void deletionRejectionAlreadyRetainsTheExistingState(){var row=row(status,availability);reject(row,row::markForDeletion);}
 }
