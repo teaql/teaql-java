@@ -92,6 +92,10 @@ jobs:
             fs.rmSync(owned, {recursive: true});
           }
           NODE
+          # This job created every reactor target above. Retain dependency
+          # downloads, but return the ephemeral CI checkout to the target-free
+          # input required by source-paired inheritance verification.
+          mvn -B -ntp clean
       - name: Start dedicated S3 example fixture
         run: |
           docker run -d --name teaql-java-example-s3 \
