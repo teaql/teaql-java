@@ -95,7 +95,7 @@ public final class RuntimeLogger {
                 this.gate = GATES.computeIfAbsent(destination, ignored -> new Object());
             }
             emit(record("INFO", "runtime.start", "TeaQL runtime started", Map.of()));
-        } catch (Exception unavailable) {
+        } catch (IOException | RuntimeException unavailable) {
             failure(validatedName, "log_destination_unavailable");
             throw new IllegalStateException("Runtime logging initialization failed");
         }
@@ -173,7 +173,13 @@ public final class RuntimeLogger {
         try {
             System.err.println(JSON.writeValueAsString(Map.of("timestamp", Instant.now().toString(), "level", "ERROR", "log_name", name,
                     "runtime", "java", "event", "logging.failure", "message", "Runtime logging failed", "error_code", code)));
-        } catch (Exception ignored) { }
+        } catch (com.fasterxml.jackson.core.JsonProcessingException unavailable) {
+            // Reporting a logging failure must remain safe even if JSON
+            // serialization itself fails. Never disclose the original error.
+            System.err.println("{\"timestamp\":\"" + Instant.now() + "\",\"level\":\"ERROR\",\"log_name\":\"teaql\","
+                    + "\"runtime\":\"java\",\"event\":\"logging.failure\",\"message\":\"Runtime logging failed\","
+                    + "\"error_code\":\"log_reporting_failed\"}");
+        }
     }
 
     private SortedMap<Integer, Path> archives() throws IOException {
