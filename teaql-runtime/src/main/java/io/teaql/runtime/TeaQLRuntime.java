@@ -27,6 +27,8 @@ public class TeaQLRuntime implements AutoCloseable {
     private final MutationPolicyApprovalProvider mutationPolicyApprovalProvider;
     private final InternalIdGenerationService idGenerationService;
     private final RuntimeLogSink logSink;
+    private final RuntimeLogger logger;
+    private final RuntimeTelemetry operationTelemetry;
     private final boolean queryExecutionLoggingEnabled;
     private final boolean mutationExecutionLoggingEnabled;
     private final RuntimeTelemetry telemetry;
@@ -53,12 +55,14 @@ public class TeaQLRuntime implements AutoCloseable {
         this.mutationPolicyRegistry = builder.mutationPolicyRegistry;
         this.mutationPolicyApprovalProvider = builder.mutationPolicyApprovalProvider;
         this.idGenerationService = builder.idGenerationService;
-        this.logSink = builder.logSink;
+        this.logger = builder.logger != null ? builder.logger : new RuntimeLogger(builder.loggingOptions);
+        this.logSink = builder.customLogSink ? builder.logSink : new RuntimeDiagnosticLogSink(logger);
         this.queryExecutionLoggingEnabled = builder.queryExecutionLoggingEnabled;
         this.mutationExecutionLoggingEnabled = builder.mutationExecutionLoggingEnabled;
         this.ownsTelemetry = builder.telemetry == null;
         this.telemetry = builder.telemetry != null ? builder.telemetry
                 : TelemetryStartup.initialize(System.getenv(), TeaQLRuntime.class.getClassLoader());
+        this.operationTelemetry = new RuntimeLoggingTelemetry(telemetry, logger);
         this.schemaExecutor = builder.schemaExecutor;
         this.businessIdService = builder.businessIdService;
         this.businessIdSchemaContributor = builder.businessIdSchemaContributor;
@@ -116,6 +120,10 @@ public class TeaQLRuntime implements AutoCloseable {
     public RuntimeTelemetry getTelemetry() {
         return telemetry;
     }
+
+    public RuntimeLogger getLogger() { return logger; }
+
+    public RuntimeTelemetry getOperationTelemetry() { return operationTelemetry; }
 
     @Override
     public synchronized void close() {
@@ -191,7 +199,7 @@ public class TeaQLRuntime implements AutoCloseable {
         try { if (!telemetry.recordsSqlDiagnostics()) return io.teaql.core.SqlStatementObservation.NOOP; }
         catch (Throwable ignored) { return io.teaql.core.SqlStatementObservation.NOOP; }
         String family = operation == null ? "unknown" : operation.name().toLowerCase(java.util.Locale.ROOT);
-        var scope = RuntimeTelemetry.startSafely(telemetry, new RuntimeTelemetry.Operation("provider", backend + ".statement",
+        var scope = RuntimeTelemetry.startSafely(operationTelemetry, new RuntimeTelemetry.Operation("provider", backend + ".statement",
                 Map.of("teaql.provider.kind", backend, "teaql.provider.operation", family,
                         "teaql.provider.execution", "statement")));
         return new io.teaql.core.SqlStatementObservation() {
@@ -206,7 +214,7 @@ public class TeaQLRuntime implements AutoCloseable {
 
     @SuppressWarnings("unchecked")
     public <T extends Entity> SmartList<T> executeForList(UserContext context, SearchRequest<T> request) {
-        RuntimeTelemetry.Scope telemetryScope = RuntimeTelemetry.startSafely(telemetry,
+        RuntimeTelemetry.Scope telemetryScope = RuntimeTelemetry.startSafely(operationTelemetry,
                 new RuntimeTelemetry.Operation("query", request.getTypeName() + ".list",
                         Map.of("teaql.entity.type", request.getTypeName())));
         try {
@@ -269,7 +277,7 @@ public class TeaQLRuntime implements AutoCloseable {
     /** Executes a business-facing streaming query after the same policy gate as list queries. */
     public <T extends Entity> Stream<T> executeForStream(
             UserContext context, SearchRequest<T> request) {
-        RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(telemetry,
+        RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(operationTelemetry,
                 new RuntimeTelemetry.Operation("query", request.getTypeName() + ".stream",
                         Map.of("teaql.entity.type", request.getTypeName())));
         try {
@@ -334,7 +342,7 @@ public class TeaQLRuntime implements AutoCloseable {
                 "teaql.internal.top_n.selected_plan", "teaql.relation.selected_plan");
         copyRelationPlanAttribute(request, relationAttributes,
                 "teaql.internal.top_n.probe_count", "teaql.relation.probe_count");
-        RuntimeTelemetry.Scope relationScope = RuntimeTelemetry.startSafely(telemetry,
+        RuntimeTelemetry.Scope relationScope = RuntimeTelemetry.startSafely(operationTelemetry,
                 new RuntimeTelemetry.Operation("relation_load", request.getTypeName() + ".relation",
                         relationAttributes));
         try {
@@ -403,7 +411,7 @@ public class TeaQLRuntime implements AutoCloseable {
             throw new TeaQLRuntimeException("No QueryExecutor registered for route: " + route);
         }
         QueryRequest queryRequest = new DefaultQueryRequest(request, intent);
-        RuntimeTelemetry.Scope providerScope = RuntimeTelemetry.startSafely(telemetry,
+        RuntimeTelemetry.Scope providerScope = RuntimeTelemetry.startSafely(operationTelemetry,
                 new RuntimeTelemetry.Operation("provider", route + ".query", Map.of(
                         "teaql.provider.kind", route,
                         "teaql.provider.operation", "query")));
@@ -483,7 +491,7 @@ public class TeaQLRuntime implements AutoCloseable {
     }
 
     public void saveGraph(UserContext context, Entity entity) {
-        RuntimeTelemetry.Scope telemetryScope = RuntimeTelemetry.startSafely(telemetry,
+        RuntimeTelemetry.Scope telemetryScope = RuntimeTelemetry.startSafely(operationTelemetry,
                 new RuntimeTelemetry.Operation("mutation", entity.typeName() + ".save", Map.of(
                         "teaql.entity.type", entity.typeName(),
                         "teaql.mutation.kind", "save")));
@@ -992,7 +1000,7 @@ public class TeaQLRuntime implements AutoCloseable {
             MutationDecision decision = Objects.requireNonNull(
                     policy.review(context, plan), "MutationPolicy.review()");
             if (!decision.allowed()) {
-                throw new TeaQLRuntimeException(
+                throw RuntimeLoggingTelemetry.policyRejection(
                         "[MUTATION POLICY DENIED] " + decision.code() + ": "
                                 + (decision.message() == null ? "mutation rejected" : decision.message()));
             }
@@ -1431,7 +1439,7 @@ public class TeaQLRuntime implements AutoCloseable {
             String entityType,
             String operation) {
         String provider = executor.getClass().getSimpleName();
-        RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(telemetry,
+        RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(operationTelemetry,
                 new RuntimeTelemetry.Operation("provider", provider + ".mutation", Map.of(
                         "teaql.provider.kind", provider,
                         "teaql.provider.operation", operation,
@@ -1458,7 +1466,7 @@ public class TeaQLRuntime implements AutoCloseable {
         }
         var request = new io.teaql.core.MutationBatchRequest(intent, requests);
         String provider = executor.getClass().getSimpleName();
-        RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(telemetry,
+        RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(operationTelemetry,
                 new RuntimeTelemetry.Operation("provider", provider + ".mutation.batch", Map.of(
                         "teaql.provider.kind", provider,
                         "teaql.provider.operation", operation,
@@ -1533,7 +1541,7 @@ public class TeaQLRuntime implements AutoCloseable {
     }
 
     private void deliverAuditEvent(UserContext context, RawAuditEvent rawEvent, SqlIntentRedactions redactions) {
-        RuntimeTelemetry.Scope telemetryScope = RuntimeTelemetry.startSafely(telemetry,
+        RuntimeTelemetry.Scope telemetryScope = RuntimeTelemetry.startSafely(operationTelemetry,
                 new RuntimeTelemetry.Operation("audit", rawEvent.entityType() + ".audit", Map.of(
                         "teaql.entity.type", rawEvent.entityType(),
                         "teaql.mutation.kind", rawEvent.kind().name().toLowerCase(Locale.ROOT),
@@ -1621,6 +1629,9 @@ public class TeaQLRuntime implements AutoCloseable {
                 MutationPolicyApprovalProvider.none();
         private InternalIdGenerationService idGenerationService;
         private RuntimeLogSink logSink = new DefaultTextRuntimeLogSink();
+        private boolean customLogSink;
+        private RuntimeLogger logger;
+        private RuntimeLogger.Options loggingOptions = new RuntimeLogger.Options();
         // Operation logging is default-on, while the default sink deliberately
         // excludes bind values and rendered Debug SQL.
         private boolean queryExecutionLoggingEnabled = true;
@@ -1715,6 +1726,35 @@ public class TeaQLRuntime implements AutoCloseable {
 
         public Builder logSink(RuntimeLogSink logSink) {
             this.logSink = logSink;
+            this.customLogSink = true;
+            return this;
+        }
+
+        public Builder runtimeLogger(RuntimeLogger logger) {
+            this.logger = Objects.requireNonNull(logger, "logger");
+            return this;
+        }
+
+        public Builder loggingOptions(RuntimeLogger.Options options) {
+            this.loggingOptions = Objects.requireNonNull(options, "options");
+            return this;
+        }
+
+        public Builder logName(String name) {
+            this.loggingOptions = new RuntimeLogger.Options(Objects.requireNonNull(name, "name"),
+                    loggingOptions.modelNames(), loggingOptions.environment(), loggingOptions.workingDirectory(), loggingOptions.logFormat());
+            return this;
+        }
+
+        public Builder logFormat(String format) {
+            this.loggingOptions = new RuntimeLogger.Options(loggingOptions.logName(), loggingOptions.modelNames(),
+                    loggingOptions.environment(), loggingOptions.workingDirectory(), Objects.requireNonNull(format, "format"));
+            return this;
+        }
+
+        public Builder knownModelNames(List<String> names) {
+            this.loggingOptions = new RuntimeLogger.Options(loggingOptions.logName(), names,
+                    loggingOptions.environment(), loggingOptions.workingDirectory(), loggingOptions.logFormat());
             return this;
         }
 
@@ -1749,6 +1789,7 @@ public class TeaQLRuntime implements AutoCloseable {
             this.logSink = enabled
                     ? new SensitiveDiagnosticTextRuntimeLogSink()
                     : new DefaultTextRuntimeLogSink();
+            this.customLogSink = enabled;
             return this;
         }
 
