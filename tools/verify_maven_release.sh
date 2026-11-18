@@ -35,8 +35,8 @@ mapfile -t modules < <(
   sed -n '/<modules>/,/<\/modules>/s:.*<module>\([^<]*\)</module>.*:\1:p' pom.xml \
     | grep -v '^examples/'
 )
-if [[ "${#modules[@]}" -ne 33 ]]; then
-  echo "Expected 33 child modules, found ${#modules[@]}" >&2
+if [[ "${#modules[@]}" -ne 34 ]]; then
+  echo "Expected 34 child modules including teaql-opentelemetry, found ${#modules[@]}" >&2
   exit 1
 fi
 
