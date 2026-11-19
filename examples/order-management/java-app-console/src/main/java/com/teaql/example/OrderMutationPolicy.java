@@ -26,7 +26,7 @@ public final class OrderMutationPolicy implements MutationPolicy {
         boolean containsHighValueOrder = plan.operations().stream()
                 .filter(operation -> operation.kind() == MutationOperationKind.CREATE
                         || operation.kind() == MutationOperationKind.UPDATE)
-                .map(operation -> operation.changedValues().get("totalAmount"))
+                .map(operation -> operation.changedValues().get("total_amount"))
                 .filter(BigDecimal.class::isInstance)
                 .map(BigDecimal.class::cast)
                 .anyMatch(amount -> amount.compareTo(HIGH_VALUE_THRESHOLD) > 0);
@@ -43,6 +43,6 @@ public final class OrderMutationPolicy implements MutationPolicy {
         return MutationDecision.deny(
                 "ORDER-HIGH-VALUE-AUTHORITY-REQUIRED",
                 "Orders above 10000.00 require the high-value order authority",
-                List.of("totalAmount"));
+                List.of("total_amount"));
     }
 }
