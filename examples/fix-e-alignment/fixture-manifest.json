@@ -31,25 +31,25 @@
     "lib/src/main/java/com/teaql/checkerfixadvanced/tenant/TenantRequest.java": "512a9f6ee04a8a27e9164c46e0ef799ce4e0cb90f7729699def1175a485449c9",
     "lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler": "82b9c9efe540331e915852a59470576d1b1ae7a11efcd6ee998bb3eee8e8838c",
     "teaql/checker-model.json": "92144f0d6092e143784685a82a9dd67c1672665bbe50fa6ca57b9ad441325b45",
-    "teaql/model-provenance.json": "79aa8ed9ea90394fb39f6a20a880522c85bbe02559877679c8637653bff3547a"
+    "teaql/model-provenance.json": "28f5192a1ab491de2a8c9708b9aa95555c6fae2c113b0839c985512c2f17c7ac"
   },
-  "generatedManifestSha256": "0acae340953ca731128da9b542106bb74a13f4b9baacaf284d60151bd1b6a5dd",
-  "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-catalog/java/fix-e-alignment/model/receipt.json",
-  "generatorCommit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-  "generatorJarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-  "generatorRelease": "v4.2.0",
+  "generatedManifestSha256": "29477059729167675daccc9f6827a122982334469dde30dab6c8e4f9bdb19e53",
+  "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-compatibility-candidate/java/fix-e-alignment/model/receipt.json",
+  "generatorCommit": "42275522b8405f65f84a7961c66b615a427391f7",
+  "generatorJarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+  "generatorRelease": "unreleased-source-42275522",
   "language": "java",
   "modelSha256": "a2cf4c907cb084cb0946e993eeba586c8c0701a89fdc4a849808aa743be033b7",
-  "previousFixtureManifestSha256": "825ca006bef60ad6db424d704d27d85b4e1b34361af4337eeaf3a98ba967f268",
+  "previousFixtureManifestSha256": "08842964a952ce9f96b94897793f3e9cc9d8f0f73e477b76eebd41a2831af0c0",
   "previousOrigin": {
-    "commit": "6365cf040c3a06d768ec7651c4e54a530b07d023",
+    "commit": "a8be22cc301ce16ce007f4e01161ab19ec322165",
     "path": "examples/fix-e-alignment/fixture-manifest.json"
   },
-  "producerReceiptSha256": "af4c8dbce6f9bf2c3490fccf30d9c917b9d70a196cab9653ff899377e7805f1f",
+  "producerReceiptSha256": "924394d26c34ceabf248701287ade25fc0e8938b13dc300a4c2c677c859440a6",
   "producerSource": {
-    "commit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-    "jarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-    "release": "v4.2.0"
+    "commit": "42275522b8405f65f84a7961c66b615a427391f7",
+    "jarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+    "release": "unreleased-source-42275522"
   },
   "schema": "teaql.generated-example-fixture/v1"
 }

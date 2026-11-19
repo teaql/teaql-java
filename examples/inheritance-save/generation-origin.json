@@ -1,9 +1,21 @@
 {
-  "schema": "teaql.generated-java-inheritance-example/v1",
-  "generatorBaseCommit": "77081b0935ab49c90b15f345c29a7724c407b3dd",
-  "sourceReceipt": "teaql-conformance/evidence/2026-11-14-java-subtype-assist-generation/receipt.json",
-  "sourceReceiptSha256": "077581ede000c6fdec9598d679a13482e5d9f18217f8dad82a33bfa6b8f5bcaf",
   "generatedFiles": 44,
   "generatedManifest": "generated-files.json",
-  "note": "The candidate contains uncommitted generator changes. The receipt source hashes identify that implementation. Its generated library is byte-identical to the runtime acceptance fixture; targeted Assist is refreshed from the same generation. Runtime dependencies use local source, not a published package."
+  "generator": {
+    "artifactKind": "new source build; not the historical v4.2.0 release artifact",
+    "baseRelease": "v4.2.0",
+    "jarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+    "qualificationReceiptSHA256": "e401e5436216b87140101f7e4f29cec3e620fa852637de397f74cd7a3b9a8cf9",
+    "sourceCommit": "42275522b8405f65f84a7961c66b615a427391f7",
+    "tag": "unreleased-source-42275522"
+  },
+  "note": "Exact output from the qualified unreleased generator source candidate. Local runtime source acceptance is recorded separately; this is not a public generator release claim.",
+  "previousOrigin": {
+    "commit": "a8be22cc301ce16ce007f4e01161ab19ec322165",
+    "path": "examples/inheritance-save/generation-origin.json",
+    "sha256": "650a3b02c5d67a14bf3d2f38d1f8fafe7161985822fc8256affd84c6add3e288"
+  },
+  "schema": "teaql.generated-java-inheritance-example/v1",
+  "sourceReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-compatibility-candidate/java/inheritance-save/model/receipt.json",
+  "sourceReceiptSha256": "42ecd382b5350e90b6257b9a7424e0306d42d55c408bfcb56be923ce9cf0c2de"
 }

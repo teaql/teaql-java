@@ -1,14 +1,16 @@
 {
   "generator": {
-    "jarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-    "releaseURL": "https://github.com/teaql/teaql-code-gen/releases/tag/v4.2.0",
-    "sourceCommit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-    "tag": "v4.2.0"
+    "artifactKind": "new source build; not the historical v4.2.0 release artifact",
+    "baseRelease": "v4.2.0",
+    "jarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+    "qualificationReceiptSHA256": "e401e5436216b87140101f7e4f29cec3e620fa852637de397f74cd7a3b9a8cf9",
+    "sourceCommit": "42275522b8405f65f84a7961c66b615a427391f7",
+    "tag": "unreleased-source-42275522"
   },
-  "installationReceiptSHA256": "ddf103df0daa060962986e92d230cc201fcc78293198a4c5b107cdbe09346680",
+  "installationReceiptSHA256": "e626eb16b0afc8ee44b8c53ec5816bfdf639f0f55f01c278493b0f65f404988c",
   "libraries": [
     {
-      "archiveSHA256": "3419da661d921a4a84a1f08ea5ad6a83527405e49386d871fef75609c57f77ca",
+      "archiveSHA256": "2c0d02ef8740a6250bd9b8d8340ba0ff049b6a6885296e6cc1b4b06670a9605d",
       "destination": "examples/conformance",
       "generatedFiles": {
         "examples/conformance/lib/pom.xml": {
@@ -105,7 +107,7 @@
         },
         "examples/conformance/teaql/model-provenance.json": {
           "emittedPath": "teaql/model-provenance.json",
-          "sha256": "6710ca9864c596bf2413ab1eee0ba59b94cc73b57e7fec6ad4a13f482a3cdfea"
+          "sha256": "6ed407a489b2240668b508c1c06c416a86f5f329df9a8c7f010859e81d9b4a89"
         }
       },
       "model": "examples/conformance/model.xml",
@@ -113,23 +115,23 @@
         "evaluatedScope": "java-lib-core",
         "evaluationErrors": 0,
         "evaluationWarnings": 0,
-        "generatedManifestSha256": "c43025f9044a73a4c38d6d9f14ed0e84aa52f8da8a7273657f37666a9f8e1c18",
-        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-catalog/java/conformance/model/receipt.json",
-        "generatorCommit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-        "generatorJarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-        "generatorRelease": "v4.2.0",
+        "generatedManifestSha256": "b2a1d96d6fb84e757767aa6b50246952d655d7684456a7edd0ee348262fdbe35",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-compatibility-candidate/java/conformance/model/receipt.json",
+        "generatorCommit": "42275522b8405f65f84a7961c66b615a427391f7",
+        "generatorJarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+        "generatorRelease": "unreleased-source-42275522",
         "modelSha256": "0a59f66db2487fdd0430087dd5985ae780225c088ad800679cb57c593c6bcee7",
-        "producerReceiptSha256": "ec16b389c68d4b2c7cb2b308f62d29b5e2a1e68627d9a49e7304dbec46bc066e",
+        "producerReceiptSha256": "a85a7972a12856d38f5a4739c8c10b0b5172d1c0dcad2481ec9a463f6d28de8f",
         "producerSource": {
-          "commit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-          "jarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-          "release": "v4.2.0"
+          "commit": "42275522b8405f65f84a7961c66b615a427391f7",
+          "jarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+          "release": "unreleased-source-42275522"
         }
       },
       "preservedApplicationFiles": {}
     },
     {
-      "archiveSHA256": "0096a2df360c2c35eee20c9f0e1a09e35b1a335b91fe2372e0eade81913a659c",
+      "archiveSHA256": "48785cfc5cddad3f5119cb33fa29ef687c75cb9b94043722e506784dc3e9fae8",
       "destination": "examples/conformance/natural-messages/automatic-fixture",
       "generatedFiles": {
         "examples/conformance/natural-messages/automatic-fixture/lib/pom.xml": {
@@ -226,7 +228,7 @@
         },
         "examples/conformance/natural-messages/automatic-fixture/teaql/model-provenance.json": {
           "emittedPath": "teaql/model-provenance.json",
-          "sha256": "713092d98415609d6c111ab9d9cc57cdcf5961842078197bb8f88573e4987e39"
+          "sha256": "b7258ff8e69db00a0119d03e41358d272756522caa89f8701ffc5744fae2a6fe"
         }
       },
       "model": "examples/conformance/natural-messages/model.xml",
@@ -234,23 +236,23 @@
         "evaluatedScope": "java-lib-core",
         "evaluationErrors": 0,
         "evaluationWarnings": 2,
-        "generatedManifestSha256": "8f5030802231a084fca5ecf2b546aa611fb8c181a2d2f921fe3b0825440688eb",
-        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-catalog/java/conformance/natural-messages/model/receipt.json",
-        "generatorCommit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-        "generatorJarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-        "generatorRelease": "v4.2.0",
+        "generatedManifestSha256": "2fa81d5b7a7b8c17a041c940b33d4ccc92da99e5b9f725cf9f611abe86577e55",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-compatibility-candidate/java/conformance/natural-messages/model/receipt.json",
+        "generatorCommit": "42275522b8405f65f84a7961c66b615a427391f7",
+        "generatorJarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+        "generatorRelease": "unreleased-source-42275522",
         "modelSha256": "4c69fcaa275d1f7d255f325305cc0c6c5071154d278f9f4af7775ae0758144a6",
-        "producerReceiptSha256": "ce5c32a67679538f22dd34bd777ee5806497dbaf3af3cd94fed49872cce23481",
+        "producerReceiptSha256": "b91b2ddd14ad34b91598ade1d20c06e5a3b3c680e233061b2e96b6f21c1fa445",
         "producerSource": {
-          "commit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-          "jarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-          "release": "v4.2.0"
+          "commit": "42275522b8405f65f84a7961c66b615a427391f7",
+          "jarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+          "release": "unreleased-source-42275522"
         }
       },
       "preservedApplicationFiles": {}
     },
     {
-      "archiveSHA256": "f7203a6661b7024af44be139c55be95827c9126690baaa008085549b60e58164",
+      "archiveSHA256": "14c13978a96d31521425bcee1c17df420fa23bb553cfda5fa865d365df53f380",
       "destination": "examples/fix-e-alignment/generated",
       "generatedFiles": {
         "examples/fix-e-alignment/generated/lib/pom.xml": {
@@ -367,7 +369,7 @@
         },
         "examples/fix-e-alignment/generated/teaql/model-provenance.json": {
           "emittedPath": "teaql/model-provenance.json",
-          "sha256": "79aa8ed9ea90394fb39f6a20a880522c85bbe02559877679c8637653bff3547a"
+          "sha256": "28f5192a1ab491de2a8c9708b9aa95555c6fae2c113b0839c985512c2f17c7ac"
         }
       },
       "model": "examples/fix-e-alignment/model.xml",
@@ -375,23 +377,23 @@
         "evaluatedScope": "java-lib-core",
         "evaluationErrors": 0,
         "evaluationWarnings": 4,
-        "generatedManifestSha256": "0acae340953ca731128da9b542106bb74a13f4b9baacaf284d60151bd1b6a5dd",
-        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-catalog/java/fix-e-alignment/model/receipt.json",
-        "generatorCommit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-        "generatorJarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-        "generatorRelease": "v4.2.0",
+        "generatedManifestSha256": "29477059729167675daccc9f6827a122982334469dde30dab6c8e4f9bdb19e53",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-compatibility-candidate/java/fix-e-alignment/model/receipt.json",
+        "generatorCommit": "42275522b8405f65f84a7961c66b615a427391f7",
+        "generatorJarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+        "generatorRelease": "unreleased-source-42275522",
         "modelSha256": "a2cf4c907cb084cb0946e993eeba586c8c0701a89fdc4a849808aa743be033b7",
-        "producerReceiptSha256": "af4c8dbce6f9bf2c3490fccf30d9c917b9d70a196cab9653ff899377e7805f1f",
+        "producerReceiptSha256": "924394d26c34ceabf248701287ade25fc0e8938b13dc300a4c2c677c859440a6",
         "producerSource": {
-          "commit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-          "jarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-          "release": "v4.2.0"
+          "commit": "42275522b8405f65f84a7961c66b615a427391f7",
+          "jarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+          "release": "unreleased-source-42275522"
         }
       },
       "preservedApplicationFiles": {}
     },
     {
-      "archiveSHA256": "63ba90219166efd74d62b57f9b55a2a77f026a7ba65f3067b05454897d38852d",
+      "archiveSHA256": "db84849eba8d0cd0a97367210be7534dd8e8eeb187cc262845af84fcbd882f4e",
       "destination": "examples/inheritance-save",
       "generatedFiles": {
         "examples/inheritance-save/lib/pom.xml": {
@@ -568,7 +570,7 @@
         },
         "examples/inheritance-save/teaql/model-provenance.json": {
           "emittedPath": "teaql/model-provenance.json",
-          "sha256": "f7e0e14b0905e8c83b54559464ef0a2a3763daee625b0696769ff4fc18b39c49"
+          "sha256": "e2f58206cb0708fbf7672c98dbbd1c849b98ec94b5ba79aa9e8f79f2c78b1be2"
         }
       },
       "model": "examples/inheritance-save/model.xml",
@@ -576,23 +578,23 @@
         "evaluatedScope": "java-lib-core",
         "evaluationErrors": 0,
         "evaluationWarnings": 1,
-        "generatedManifestSha256": "b20380c0f82114c25114ae9ccc9c34adde1bf59d134dd432f059950287141056",
-        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-catalog/java/inheritance-save/model/receipt.json",
-        "generatorCommit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-        "generatorJarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-        "generatorRelease": "v4.2.0",
+        "generatedManifestSha256": "1b4da99b919b5f2d0ad9c97f1c4204a74475d860fbfb5cc7ed106a13653ce76d",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-compatibility-candidate/java/inheritance-save/model/receipt.json",
+        "generatorCommit": "42275522b8405f65f84a7961c66b615a427391f7",
+        "generatorJarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+        "generatorRelease": "unreleased-source-42275522",
         "modelSha256": "9ed75f14ac524f18ccaba59be8c7261da203d2472bbe5d1f88dfc16d8b203d01",
-        "producerReceiptSha256": "2439bd4d0a2ea091d626d6a81f979ed35f32be85062cd0440cc1a61041d852b5",
+        "producerReceiptSha256": "42ecd382b5350e90b6257b9a7424e0306d42d55c408bfcb56be923ce9cf0c2de",
         "producerSource": {
-          "commit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-          "jarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-          "release": "v4.2.0"
+          "commit": "42275522b8405f65f84a7961c66b615a427391f7",
+          "jarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+          "release": "unreleased-source-42275522"
         }
       },
       "preservedApplicationFiles": {}
     },
     {
-      "archiveSHA256": "9e5db531452dfda719da54ce0667bbf08fcffa6862f87faea8c3aa6f3a1bc357",
+      "archiveSHA256": "02a67604db66724d9c401ca1bcf4c3c2624820402c4d3fb6037bb1fb79c57e5f",
       "destination": "examples/scalar-type-probe/json-profiles/PascalCase",
       "generatedFiles": {
         "examples/scalar-type-probe/json-profiles/PascalCase/lib/pom.xml": {
@@ -689,7 +691,7 @@
         },
         "examples/scalar-type-probe/json-profiles/PascalCase/teaql/model-provenance.json": {
           "emittedPath": "teaql/model-provenance.json",
-          "sha256": "ae427ef988d132abf6690f6dd0988e045249b7897a9ab1e3adee5c6ff789157b"
+          "sha256": "cbbab272d18a50f80c4368222f1645c6104e44108eb17d7be7e0fb44fcd63739"
         }
       },
       "model": "examples/scalar-type-probe/json-profiles/PascalCase/model.xml",
@@ -697,23 +699,23 @@
         "evaluatedScope": "java-lib-core",
         "evaluationErrors": 0,
         "evaluationWarnings": 0,
-        "generatedManifestSha256": "25c379dc3025ebcafa49055475e3dd1187f3a5e7283952beebf0245cbc7e3f71",
-        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-catalog/java/scalar-type-probe/json-profiles/PascalCase/model/receipt.json",
-        "generatorCommit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-        "generatorJarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-        "generatorRelease": "v4.2.0",
+        "generatedManifestSha256": "40c5b31b553fe5aa6f76d54153ed218d09af5a4108dad6ac3f61e74c92c36b08",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-compatibility-candidate/java/scalar-type-probe/json-profiles/PascalCase/model/receipt.json",
+        "generatorCommit": "42275522b8405f65f84a7961c66b615a427391f7",
+        "generatorJarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+        "generatorRelease": "unreleased-source-42275522",
         "modelSha256": "f836540a765f8c372bd7103a25a83ca316797253079ac63f8a1ef5ee4ded027d",
-        "producerReceiptSha256": "b71a9a18267311a0c17816d9c60181b80dd13be6acaf3413295ba946edd82fe1",
+        "producerReceiptSha256": "7b30cb89b6937462fc34d3ef6e1a4eac4259447757d996be1afc91cba0d6f8b1",
         "producerSource": {
-          "commit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-          "jarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-          "release": "v4.2.0"
+          "commit": "42275522b8405f65f84a7961c66b615a427391f7",
+          "jarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+          "release": "unreleased-source-42275522"
         }
       },
       "preservedApplicationFiles": {}
     },
     {
-      "archiveSHA256": "81d6cfccb9573007e089f8d87fa6ca4bf55ef777039a53ecff7d98f542bc6c41",
+      "archiveSHA256": "e93ecf7a09625252b13757ca2cea370531f5117f986d27a35be19ecf77f51ac3",
       "destination": "examples/scalar-type-probe/json-profiles/camelCase",
       "generatedFiles": {
         "examples/scalar-type-probe/json-profiles/camelCase/lib/pom.xml": {
@@ -810,7 +812,7 @@
         },
         "examples/scalar-type-probe/json-profiles/camelCase/teaql/model-provenance.json": {
           "emittedPath": "teaql/model-provenance.json",
-          "sha256": "84e6e6a9d56404f3923357514c795575e617b670ac6ea413306a4203b80ff14e"
+          "sha256": "f826de0d805ff6c67ef4baea267b586655ba49dbb154079490ab4844e029243d"
         }
       },
       "model": "examples/scalar-type-probe/json-profiles/camelCase/model.xml",
@@ -818,23 +820,23 @@
         "evaluatedScope": "java-lib-core",
         "evaluationErrors": 0,
         "evaluationWarnings": 0,
-        "generatedManifestSha256": "f38220297d6c482d8eb916cfccfbe2cc6fdcc3e177c151c7fddb54c43ac26147",
-        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-catalog/java/scalar-type-probe/json-profiles/camelCase/model/receipt.json",
-        "generatorCommit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-        "generatorJarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-        "generatorRelease": "v4.2.0",
+        "generatedManifestSha256": "15544db70d8dd7a1eb94f4fa21e0904095301fd06808037eba00c03b2ea2f1d7",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-compatibility-candidate/java/scalar-type-probe/json-profiles/camelCase/model/receipt.json",
+        "generatorCommit": "42275522b8405f65f84a7961c66b615a427391f7",
+        "generatorJarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+        "generatorRelease": "unreleased-source-42275522",
         "modelSha256": "8d3017392ffd00abbc06be2555ced27ac6360e2d05fabc4299e27a5ef8f1c762",
-        "producerReceiptSha256": "32de91eee5a0ac8fd0260063b2f5419c61486cfab551711e1ad858075d358df0",
+        "producerReceiptSha256": "f8c4737dd76517191020e79291b7239e5257be8454818aa11851ae100bd4ea2d",
         "producerSource": {
-          "commit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-          "jarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-          "release": "v4.2.0"
+          "commit": "42275522b8405f65f84a7961c66b615a427391f7",
+          "jarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+          "release": "unreleased-source-42275522"
         }
       },
       "preservedApplicationFiles": {}
     },
     {
-      "archiveSHA256": "081151eef5273550e1f8b5737b82df3206162c1367d64115ff8bef52930b0ed3",
+      "archiveSHA256": "6325282ab5f7230823af2422e76a2c1b812bb32a52b0d8a06762056fa91c10b7",
       "destination": "examples/scalar-type-probe/json-profiles/snake_case",
       "generatedFiles": {
         "examples/scalar-type-probe/json-profiles/snake_case/lib/pom.xml": {
@@ -931,7 +933,7 @@
         },
         "examples/scalar-type-probe/json-profiles/snake_case/teaql/model-provenance.json": {
           "emittedPath": "teaql/model-provenance.json",
-          "sha256": "aae97b2ed5d87ede29d03b620225b0cd242b8e088d6ec9fc8cdf7629ff200a98"
+          "sha256": "a83eba55390c39bdfe6466aa15467adad758c1aa30234f802d3329598bf4f03b"
         }
       },
       "model": "examples/scalar-type-probe/json-profiles/snake_case/model.xml",
@@ -939,23 +941,23 @@
         "evaluatedScope": "java-lib-core",
         "evaluationErrors": 0,
         "evaluationWarnings": 0,
-        "generatedManifestSha256": "642d8577b4379a11e9e55e5585c126bdb7f7c03634c3f68636c0ec90ecbb83c7",
-        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-catalog/java/scalar-type-probe/json-profiles/snake_case/model/receipt.json",
-        "generatorCommit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-        "generatorJarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-        "generatorRelease": "v4.2.0",
+        "generatedManifestSha256": "94ee8f28f46b9f2a7dca317147a83ed8969ad877c97108bc96e3a512f1ecba19",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-compatibility-candidate/java/scalar-type-probe/json-profiles/snake_case/model/receipt.json",
+        "generatorCommit": "42275522b8405f65f84a7961c66b615a427391f7",
+        "generatorJarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+        "generatorRelease": "unreleased-source-42275522",
         "modelSha256": "2dbbcfea6057a5dc7c7c356ea4d0dacec5d5165538f6a9c5903d4d3b64ee13c6",
-        "producerReceiptSha256": "cae8fc7833271365c96c843108f60e0ee11ae4648c06c655715145cba81cfb2c",
+        "producerReceiptSha256": "0567afbf94076fb396188604f6cd74585398007e208e9c1c5d6c8653f5c2b40d",
         "producerSource": {
-          "commit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-          "jarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-          "release": "v4.2.0"
+          "commit": "42275522b8405f65f84a7961c66b615a427391f7",
+          "jarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+          "release": "unreleased-source-42275522"
         }
       },
       "preservedApplicationFiles": {}
     },
     {
-      "archiveSHA256": "81d6cfccb9573007e089f8d87fa6ca4bf55ef777039a53ecff7d98f542bc6c41",
+      "archiveSHA256": "e93ecf7a09625252b13757ca2cea370531f5117f986d27a35be19ecf77f51ac3",
       "destination": "examples/scalar-type-probe/generated",
       "generatedFiles": {
         "examples/scalar-type-probe/generated/lib/pom.xml": {
@@ -1052,7 +1054,7 @@
         },
         "examples/scalar-type-probe/generated/teaql/model-provenance.json": {
           "emittedPath": "teaql/model-provenance.json",
-          "sha256": "84e6e6a9d56404f3923357514c795575e617b670ac6ea413306a4203b80ff14e"
+          "sha256": "f826de0d805ff6c67ef4baea267b586655ba49dbb154079490ab4844e029243d"
         }
       },
       "model": "examples/scalar-type-probe/model.xml",
@@ -1060,23 +1062,23 @@
         "evaluatedScope": "java-lib-core",
         "evaluationErrors": 0,
         "evaluationWarnings": 0,
-        "generatedManifestSha256": "f38220297d6c482d8eb916cfccfbe2cc6fdcc3e177c151c7fddb54c43ac26147",
-        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-catalog/java/scalar-type-probe/model/receipt.json",
-        "generatorCommit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-        "generatorJarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-        "generatorRelease": "v4.2.0",
+        "generatedManifestSha256": "15544db70d8dd7a1eb94f4fa21e0904095301fd06808037eba00c03b2ea2f1d7",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-compatibility-candidate/java/scalar-type-probe/model/receipt.json",
+        "generatorCommit": "42275522b8405f65f84a7961c66b615a427391f7",
+        "generatorJarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+        "generatorRelease": "unreleased-source-42275522",
         "modelSha256": "8d3017392ffd00abbc06be2555ced27ac6360e2d05fabc4299e27a5ef8f1c762",
         "producerReceiptSha256": "1ff97c9bf5491e655c2ec8ac4a48abf6a8a5efbe2608426f16ef437077e4dc1f",
         "producerSource": {
-          "commit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-          "jarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-          "release": "v4.2.0"
+          "commit": "42275522b8405f65f84a7961c66b615a427391f7",
+          "jarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+          "release": "unreleased-source-42275522"
         }
       },
       "preservedApplicationFiles": {}
     },
     {
-      "archiveSHA256": "aa05156776f942dedc0b86498baf5ef098d9704b9895729cf63e293cb010f339",
+      "archiveSHA256": "06fa9dac09a1046e0e806c05bc579305c2af1ce79f70d36bf150e0b57e76533f",
       "destination": "examples/school-management",
       "generatedFiles": {
         "examples/school-management/lib/pom.xml": {
@@ -1193,7 +1195,7 @@
         },
         "examples/school-management/teaql/model-provenance.json": {
           "emittedPath": "teaql/model-provenance.json",
-          "sha256": "e71643a0e395daf060883f2fb6752d0c6645884dffabd2934e2cabb6c90f0f92"
+          "sha256": "fabf54fdec2266a50b5d626f02c1d0ee6c7504c1b669598c15f723337a6fb7d2"
         }
       },
       "model": "examples/school-management/models/school-model.xml",
@@ -1201,23 +1203,23 @@
         "evaluatedScope": "java-lib-core",
         "evaluationErrors": 0,
         "evaluationWarnings": 0,
-        "generatedManifestSha256": "6e9fe414c95041edd0548548583560827b305a9cf05b489b514390def6b3f824",
-        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-catalog/java/school-management/models/school-model/receipt.json",
-        "generatorCommit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-        "generatorJarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-        "generatorRelease": "v4.2.0",
+        "generatedManifestSha256": "1d99cfd9dee2db6b33879aa76926486948debf0d4bb8731f84c4447a183e2f42",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-compatibility-candidate/java/school-management/models/school-model/receipt.json",
+        "generatorCommit": "42275522b8405f65f84a7961c66b615a427391f7",
+        "generatorJarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+        "generatorRelease": "unreleased-source-42275522",
         "modelSha256": "b5cd06ae44464fc29ed24de82654b47c80f546110496756aa15923cee1c511b4",
-        "producerReceiptSha256": "af212bfca6565258cc4d575b5f5ce1c09ba504937857282f70bbad29e07f276f",
+        "producerReceiptSha256": "ae0058e2d8f481784b0c3caa0f648bb7406b03a305e81dce8bf631b22df3cfff",
         "producerSource": {
-          "commit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-          "jarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-          "release": "v4.2.0"
+          "commit": "42275522b8405f65f84a7961c66b615a427391f7",
+          "jarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+          "release": "unreleased-source-42275522"
         }
       },
       "preservedApplicationFiles": {}
     },
     {
-      "archiveSHA256": "27779fca2dc258b16c11779bd69ea6ff05e17d0fb1b237523607a8a7a7bbad31",
+      "archiveSHA256": "b73fc4ac4c7141b54c058f4da25dc345a4e4d61c7c8540f41d2e1ddd0ea6e6bf",
       "destination": "examples/standard-order/generated",
       "generatedFiles": {
         "examples/standard-order/generated/lib/pom.xml": {
@@ -1374,7 +1376,7 @@
         },
         "examples/standard-order/generated/teaql/model-provenance.json": {
           "emittedPath": "teaql/model-provenance.json",
-          "sha256": "383452529a7be408d6ec9e8162bca8d2a92c2681879cf79ef4209a9edc781046"
+          "sha256": "562f70fc1f497618d085ebceb2f6d079436d2e5776ea48d6b57977508a93c029"
         }
       },
       "model": "examples/standard-order/models/model.xml",
@@ -1382,23 +1384,23 @@
         "evaluatedScope": "java-lib-core",
         "evaluationErrors": 0,
         "evaluationWarnings": 0,
-        "generatedManifestSha256": "82d3dab59287c704c92638424deead1be2788526410eabe83d7f9506bfe0eafd",
-        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-catalog/java/standard-order/models/model/receipt.json",
-        "generatorCommit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-        "generatorJarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-        "generatorRelease": "v4.2.0",
+        "generatedManifestSha256": "479f5c3671f11621d357a8b0cb3d0b8f402411a1fadab03d170663bee0062e94",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-compatibility-candidate/java/standard-order/models/model/receipt.json",
+        "generatorCommit": "42275522b8405f65f84a7961c66b615a427391f7",
+        "generatorJarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+        "generatorRelease": "unreleased-source-42275522",
         "modelSha256": "455a5b60e571859a68586678da4bd8c9f13120132dc7ecf95f0554d98af6d674",
-        "producerReceiptSha256": "ee30a0f1619c7bc1b5196668848b22feef008461ef9f52f6e199c9eb7e1e9fb2",
+        "producerReceiptSha256": "5726d2778a6a7e11b4f4341d6cc672cf39fc95b3c8be066ac11a9af7d6d94b08",
         "producerSource": {
-          "commit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-          "jarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-          "release": "v4.2.0"
+          "commit": "42275522b8405f65f84a7961c66b615a427391f7",
+          "jarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+          "release": "unreleased-source-42275522"
         }
       },
       "preservedApplicationFiles": {}
     },
     {
-      "archiveSHA256": "e2dae2be506ef2354fd57ffd360d1fd53febb330be65546f4c8480d45095bab3",
+      "archiveSHA256": "2c77b2bbc9875b334596738a515adcf695c2cc88fc56540ff61e8707920edfa8",
       "destination": "examples/trace-chain",
       "generatedFiles": {
         "examples/trace-chain/lib/pom.xml": {
@@ -1575,7 +1577,7 @@
         },
         "examples/trace-chain/teaql/model-provenance.json": {
           "emittedPath": "teaql/model-provenance.json",
-          "sha256": "5267c6d37e108c1392e71d2bd7b15264e00ae97a989d98c4391d87c80c3843d4"
+          "sha256": "1716a8cf763ca82ed6ee28c3a780b9e4172bbe5dfdfc5d17f5f0028c655a6f55"
         }
       },
       "model": "examples/trace-chain/model.xml",
@@ -1583,23 +1585,23 @@
         "evaluatedScope": "java-lib-core",
         "evaluationErrors": 0,
         "evaluationWarnings": 0,
-        "generatedManifestSha256": "7d5d4b7cb978bc5c649fc9cf111236cf1143abd5dde053d29ed00941240a4a65",
-        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-catalog/java/trace-chain/model/receipt.json",
-        "generatorCommit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-        "generatorJarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-        "generatorRelease": "v4.2.0",
+        "generatedManifestSha256": "30caddc81917445af76dadfd0db429997bd28135307102ef33157799298c61a2",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-compatibility-candidate/java/trace-chain/model/receipt.json",
+        "generatorCommit": "42275522b8405f65f84a7961c66b615a427391f7",
+        "generatorJarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+        "generatorRelease": "unreleased-source-42275522",
         "modelSha256": "c9743d776718c7b27c97792f75f492fdc99bf427e4bd0c24bf3492de6520c9a2",
-        "producerReceiptSha256": "3081b854805f8829dc8d468b31cd6d8294867111588bd5088b4ef06a676c048e",
+        "producerReceiptSha256": "e8bdf79a95f262305c9896e4307f8c9caade164bc90ef08898c8c7e1382523c6",
         "producerSource": {
-          "commit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-          "jarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-          "release": "v4.2.0"
+          "commit": "42275522b8405f65f84a7961c66b615a427391f7",
+          "jarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+          "release": "unreleased-source-42275522"
         }
       },
       "preservedApplicationFiles": {}
     },
     {
-      "archiveSHA256": "aab038b915b19c068e25398081eaba84908a4ecd5db0997a2b40b3b17b046476",
+      "archiveSHA256": "3ce74ef96d6b8fc82755c1a29a5ada2785fbdc88175a99e5317f59781b3a3fbd",
       "destination": "examples/order-management/java-lib-core",
       "generatedFiles": {
         "examples/order-management/java-lib-core/lib/pom.xml": {
@@ -1796,7 +1798,7 @@
         },
         "examples/order-management/java-lib-core/teaql/model-provenance.json": {
           "emittedPath": "teaql/model-provenance.json",
-          "sha256": "31405751e4401502c2c62606fbef4bf7319675863392872f90e3903a2d0f51a1"
+          "sha256": "d304952c86fa19e10041d50a2c9bfeb24a69ec48246d34ee9b74f2afd4a1b963"
         }
       },
       "model": "examples/order-management/model.xml",
@@ -1804,23 +1806,23 @@
         "evaluatedScope": "java-lib-core",
         "evaluationErrors": 0,
         "evaluationWarnings": 8,
-        "generatedManifestSha256": "824b44c1d120e20da7e17344bcea9b15c7720a777be4d857d4692e6a755215e1",
-        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-followup/java/order-management/model/receipt.json",
-        "generatorCommit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-        "generatorJarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-        "generatorRelease": "v4.2.0",
+        "generatedManifestSha256": "bbc2f521b14f8809bd3ba78447493faf045421f67a226a315d933503aedbc5b9",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-compatibility-candidate/java/order-management/model/receipt.json",
+        "generatorCommit": "42275522b8405f65f84a7961c66b615a427391f7",
+        "generatorJarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+        "generatorRelease": "unreleased-source-42275522",
         "modelSha256": "8b11ee844c2be184e194d8116994fb5fe95299dd593bfed83ec06d71ada0411d",
-        "producerReceiptSha256": "2b4b1118897e08d70507908cb5167c56422ad1f3f2416588cbf12baa6f297044",
+        "producerReceiptSha256": "63c340240218ac2ab7af9e147196749137f52e73771eefabe0b4e525f2a66083",
         "producerSource": {
-          "commit": "97830096360553381a3221ad5bdbe9837c68a9b4",
-          "jarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
-          "release": "v4.2.0"
+          "commit": "42275522b8405f65f84a7961c66b615a427391f7",
+          "jarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+          "release": "unreleased-source-42275522"
         }
       },
       "preservedApplicationFiles": {}
     }
   ],
-  "runtimeBaseCommit": "6365cf040c3a06d768ec7651c4e54a530b07d023",
+  "runtimeBaseCommit": "a8be22cc301ce16ce007f4e01161ab19ec322165",
   "schema": "teaql.runtime-current-generated-examples/v1",
   "sourceCodeHandEdited": false
 }

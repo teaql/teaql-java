@@ -42,5 +42,5 @@
   "lib/src/main/java/com/example/inheritancematchingservice/trainingacademy/TrainingAcademyRequest.java": "8b08986eae115dcb26476f4550b4debe70ce826aaf87baa5cf2796bc3f6a2ac7",
   "lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler": "b4712d25600d9aa37c887c75b81ae8cc95c291f91c0d8604d5e6dbec21e926e7",
   "teaql/checker-model.json": "369def38a021b04fca5a8c8d7f68b7f495a0781b816e28b917729217bd6dc242",
-  "teaql/model-provenance.json": "f7e0e14b0905e8c83b54559464ef0a2a3763daee625b0696769ff4fc18b39c49"
+  "teaql/model-provenance.json": "e2f58206cb0708fbf7672c98dbbd1c849b98ec94b5ba79aa9e8f79f2c78b1be2"
 }
