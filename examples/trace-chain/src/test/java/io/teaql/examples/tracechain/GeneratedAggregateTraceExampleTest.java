@@ -32,7 +32,7 @@ public class GeneratedAggregateTraceExampleTest {
             var count = Q.orderItems().withNameIs(PRIVATE).limit(10);
             // Public BaseRequest contract, exercised by DerivedQueryTraceSqliteTest.
             // Partition by the real forward model edge; runtime resolves the reverse edge.
-            count.setPartitionProperty("customerOrder"); count.count("count");
+            count.setPartitionProperty("customer_order"); count.count("count");
             var owner = Q.customerOrders().withIdIs(graph.order().getId()).limit(1);
             owner.addSingleAggregateDynamicProperty("selectedItemCount", count);
             CustomerOrder result = nested
@@ -43,9 +43,9 @@ public class GeneratedAggregateTraceExampleTest {
             assertEquals(graph.order().getId(), E.customerOrder(result).getId().eval());
             assertEquals("related aggregate must retain its actual scoped count", 1,
                     ((Number) result.getDynamicProperty("selectedItemCount")).intValue());
-            var routes = nested ? List.of(List.<String>of(), List.of("customerOrder"),
-                    List.of("customerOrder", "orderItemList"))
-                    : List.of(List.<String>of(), List.of("orderItemList"));
+            var routes = nested ? List.of(List.<String>of(), List.of("customer_order"),
+                    List.of("customer_order", "order_item_list"))
+                    : List.of(List.<String>of(), List.of("order_item_list"));
             var raw = assertFacts(fixture, nested ? "Payment" : "CustomerOrder", routes, COMMENT,
                     PURPOSE, "inspect [REDACTED]", logging);
             assertEquals(1, raw.stream().filter(f -> f.getParameterizedQuery().toUpperCase(java.util.Locale.ROOT).contains("COUNT(")).count());
@@ -65,7 +65,7 @@ public class GeneratedAggregateTraceExampleTest {
                         .executeForOne(fixture.context)).getCustomerOrder().eval()
                     : numericOwner.comment(COMMENT).purpose("numeric partition has no edge").executeForOne(fixture.context);
             assertEquals(1, ((Number) numeric.getDynamicProperty("selfCount")).intValue());
-            var numericRoutes = nested ? List.of(List.<String>of(), List.of("customerOrder"), List.of("customerOrder"))
+            var numericRoutes = nested ? List.of(List.<String>of(), List.of("customer_order"), List.of("customer_order"))
                     : List.of(List.<String>of(), List.<String>of());
             var numericRaw = assertFacts(fixture, nested ? "Payment" : "CustomerOrder", numericRoutes,
                     COMMENT, "numeric partition has no edge", COMMENT, logging);
@@ -87,7 +87,7 @@ public class GeneratedAggregateTraceExampleTest {
             graph.order().auditAs("seed independently scoped aggregate members").save(fixture.context);
             fixture.clear(); fixture.queryResults.clear();
             var count = Q.orderItems().withNameIs(PRIVATE).limit(10);
-            count.setPartitionProperty("customerOrder"); count.count("count");
+            count.setPartitionProperty("customer_order"); count.count("count");
             var detail = Q.customerOrders().withIdIs(filtered ? -1L : graph.order().getId()).limit(1);
             var owner = Q.customerOrders().withIdIs(graph.order().getId()).limit(1)
                     .selectOrderItemListWith(Q.orderItems().orderByIdAscending().limit(10)
@@ -109,10 +109,10 @@ public class GeneratedAggregateTraceExampleTest {
                         () -> E.customerOrder(identity).getDescription().eval());
                 else assertEquals(graph.order().getDescription(), E.customerOrder(identity).getDescription().eval());
             }
-            var routes = nested ? List.of(List.<String>of(), List.of("customerOrder"),
-                    List.of("customerOrder", "orderItemList"), List.of("customerOrder", "orderItemList", "customerOrder"),
-                    List.of("customerOrder", "orderItemList"))
-                    : List.of(List.<String>of(), List.of("orderItemList"), List.of("orderItemList", "customerOrder"), List.of("orderItemList"));
+            var routes = nested ? List.of(List.<String>of(), List.of("customer_order"),
+                    List.of("customer_order", "order_item_list"), List.of("customer_order", "order_item_list", "customer_order"),
+                    List.of("customer_order", "order_item_list"))
+                    : List.of(List.<String>of(), List.of("order_item_list"), List.of("order_item_list", "customer_order"), List.of("order_item_list"));
             var raw = assertFacts(fixture, nested ? "Payment" : "CustomerOrder", routes, COMMENT,
                     PURPOSE, "inspect [REDACTED]", logging);
             emit("JAVA_AGGREGATE_MEMBERSHIP", Map.of("nested", nested, "logging", logging,
@@ -127,7 +127,7 @@ public class GeneratedAggregateTraceExampleTest {
                 assertEquals(graph.order().getDescription(), E.customerOrder(E.orderItem(full).getCustomerOrder().eval()).getDescription().eval());
                 for (var item : items) assertThrows(io.teaql.core.value.TeaQLNotLoadedException.class,
                         () -> E.customerOrder(E.orderItem(item).getCustomerOrder().eval()).getDescription().eval());
-                var visibleRaw = assertFacts(fixture, "OrderItem", List.of(List.<String>of(), List.of("customerOrder")),
+                var visibleRaw = assertFacts(fixture, "OrderItem", List.of(List.<String>of(), List.of("customer_order")),
                         "independent full detail", "verify edge-owned view", "independent full detail", logging);
                 emit("JAVA_AGGREGATE_FORWARD", Map.of("nested", nested, "logging", logging,
                         "originalDetailsStillNotLoaded", true, "fullDetailIndependent", true, "raw", observations(visibleRaw)));
@@ -145,7 +145,7 @@ public class GeneratedAggregateTraceExampleTest {
             String parent = root;
             for (String relation : routes.get(i)) {
                 expected.add(new TraceNode(TraceKind.RELATION, relation, null, parent + "." + relation));
-                parent = relation.equals("orderItemList") ? "OrderItem" : "CustomerOrder";
+                parent = relation.equals("order_item_list") ? "OrderItem" : "CustomerOrder";
             }
             expected.add(new TraceNode(TraceKind.PROVIDER, "sqlite", null, ""));
             expected.add(new TraceNode(TraceKind.SQL, "select", null, ""));

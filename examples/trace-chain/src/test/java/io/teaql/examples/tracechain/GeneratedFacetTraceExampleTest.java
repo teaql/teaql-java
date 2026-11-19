@@ -54,8 +54,8 @@ public class GeneratedFacetTraceExampleTest {
             }
             var raw = fixture.queryResults.get(fixture.queryResults.size() - 1).statements();
             var routes = List.of(List.<String>of(), List.of("payment"), List.of("payment"),
-                    List.of("payment", "customerOrder"), List.of("payment"), List.of("payment"),
-                    List.of("payment", "customerOrder"));
+                    List.of("payment", "customer_order"), List.of("payment"), List.of("payment"),
+                    List.of("payment", "customer_order"));
             assertEquals(routes.size(), raw.size());
             for (int i = 0; i < raw.size(); i++) assertPath(raw.get(i), routes.get(i), comment, purpose);
             assertEquals(logging ? raw.size() : 0, fixture.sql.size());
@@ -106,7 +106,7 @@ public class GeneratedFacetTraceExampleTest {
                             E.customerOrder(E.payment(payment).getCustomerOrder().eval()).getId().eval());
                     var raw = fixture.queryResults.get(fixture.queryResults.size() - 1).statements();
                     var routes = List.of(List.<String>of(), List.of("payment"), List.of("payment"),
-                            List.of("payment", "customerOrder"));
+                            List.of("payment", "customer_order"));
                     assertEquals(routes.size(), raw.size());
                     for (int i = 0; i < raw.size(); i++) assertPath(raw.get(i), routes.get(i), comment, purpose);
                     assertEquals(logging ? raw.size() : 0, fixture.sql.size());
@@ -170,7 +170,7 @@ public class GeneratedFacetTraceExampleTest {
                 // two physical SELECTs for the inlined predicate.
                 var routes = List.of(List.<String>of(), List.<String>of(),
                         List.of("payment"), List.of("payment"),
-                        List.of("payment", "customerOrder"));
+                        List.of("payment", "customer_order"));
                 for (int i : List.of(0, 1)) {
                     assertTrue("membership stays in the real statement",
                             raw.get(i).getParameterizedQuery().contains("payment IN (SELECT id FROM payment_data"));

@@ -836,7 +836,7 @@ public class GeneratedTraceChainExampleTest {
         assertEquals("Trace Chain Verification", E.platform(platform).getName().eval());
         var statements = fixture.sql.stream().filter(value -> value.getOperation() == DataServiceOperation.QUERY).toList();
         assertEquals("one root query and three explicit relation queries", 4, statements.size());
-        List<String> names = List.of("payment", "customerOrder", "platform");
+        List<String> names = List.of("payment", "customer_order", "platform");
         for (int depth = 0; depth < statements.size(); depth++) {
             var entry = statements.get(depth);
             assertEquals("what: load three levels of payment context", entry.getComment());
@@ -848,7 +848,7 @@ public class GeneratedTraceChainExampleTest {
             assertEquals("actual relation depth " + depth, names.subList(0, depth), relations);
             var details = entry.getTraceChain().stream().filter(node -> node.getKind() == TraceKind.RELATION)
                     .map(TraceNode::getComment).toList();
-            assertEquals(List.of("PaymentAttempt.payment", "Payment.customerOrder", "CustomerOrder.platform")
+            assertEquals(List.of("PaymentAttempt.payment", "Payment.customer_order", "CustomerOrder.platform")
                     .subList(0, depth), details);
             var kinds = new ArrayList<>(List.of(TraceKind.OPERATION, TraceKind.REQUEST));
             for (int relation = 0; relation < depth; relation++) kinds.add(TraceKind.RELATION);
@@ -896,7 +896,7 @@ public class GeneratedTraceChainExampleTest {
         assertEquals(graph.attempt.getId(), E.paymentAttempt(row).getId().eval());
         var result = fixture.queryResults.get(fixture.queryResults.size() - 1);
         assertEquals(4, result.statements().size());
-        var names = List.of("payment", "customerOrder", "platform");
+        var names = List.of("payment", "customer_order", "platform");
         for (int depth = 0; depth < 4; depth++) {
             var entry = result.statements().get(depth);
             assertEquals(comment, entry.getComment());
@@ -962,7 +962,7 @@ public class GeneratedTraceChainExampleTest {
                     var entry = statements.get(depth);
                     assertEquals(purpose, entry.getPurpose());
                     assertEquals("PaymentAttempt", entry.getTraceChain().get(0).getName());
-                    assertEquals(List.of("payment", "customerOrder", "platform").subList(0, depth),
+                    assertEquals(List.of("payment", "customer_order", "platform").subList(0, depth),
                             entry.getTraceChain().stream().filter(node -> node.getKind() == TraceKind.RELATION)
                                     .map(TraceNode::getName).toList());
                 }
@@ -1064,7 +1064,7 @@ public class GeneratedTraceChainExampleTest {
         assertEquals(graph.payment.getId(), E.payment(payment).getId().eval());
         assertEquals(1, ((Number) payment.getDynamicProperty("count")).intValue());
         assertQueryPaths(fixture, comment, purpose, List.of(List.of(), List.of(),
-                List.of("payment"), List.of("payment"), List.of("payment", "customerOrder")));
+                List.of("payment"), List.of("payment"), List.of("payment", "customer_order")));
         System.out.println("PASS Java generated nested facets: filtered counts and original root/relation SQL paths");
     }
 
@@ -1079,7 +1079,7 @@ public class GeneratedTraceChainExampleTest {
         assertEquals(graph.attempt.getId(), E.paymentAttempt(row).getId().eval());
         assertEquals(graph.payment.getId(), E.payment(E.paymentAttempt(row).getPayment().eval()).getId().eval());
         assertQueryPaths(fixture, comment, purpose, List.of(List.of(), List.of("payment"),
-                List.of("payment"), List.of("payment", "customerOrder")));
+                List.of("payment"), List.of("payment", "customer_order")));
         System.out.println("PASS Java generated relation facet: original root and complete inherited SQL route");
     }
 

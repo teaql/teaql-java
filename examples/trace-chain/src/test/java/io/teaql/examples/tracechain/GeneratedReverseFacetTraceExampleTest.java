@@ -64,8 +64,8 @@ public class GeneratedReverseFacetTraceExampleTest {
                 var expected = new ArrayList<>(List.of(
                         new TraceNode(TraceKind.OPERATION, "CustomerOrder", null, "query"),
                         new TraceNode(TraceKind.REQUEST, "CustomerOrder", null, "")));
-                if (i > 0) expected.add(new TraceNode(TraceKind.RELATION, "paymentList", null, "CustomerOrder.paymentList"));
-                if (i > 0 && i % 3 == 0) expected.add(new TraceNode(TraceKind.RELATION, "customerOrder", null, "Payment.customerOrder"));
+                if (i > 0) expected.add(new TraceNode(TraceKind.RELATION, "payment_list", null, "CustomerOrder.payment_list"));
+                if (i > 0 && i % 3 == 0) expected.add(new TraceNode(TraceKind.RELATION, "customer_order", null, "Payment.customer_order"));
                 expected.add(new TraceNode(TraceKind.PROVIDER, "sqlite", null, ""));
                 expected.add(new TraceNode(TraceKind.SQL, "select", null, ""));
                 assertFact(raw.get(i), expected, comment, purpose);
