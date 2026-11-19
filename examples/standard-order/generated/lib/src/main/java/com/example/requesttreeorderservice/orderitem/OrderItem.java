@@ -8,6 +8,7 @@ import io.teaql.core.EntityStatus;
 import io.teaql.core.FieldLayout;
 import io.teaql.core.FrameworkInternal;
 import io.teaql.core.RemoteInput;
+import io.teaql.core.checker.JsonFieldNamingProfile;
 import java.math.BigDecimal;
 import java.util.Objects;
 
@@ -33,13 +34,14 @@ public class OrderItem extends BaseEntity implements RemoteInput {
     public static final FieldLayout __TEAQL_FIELD_LAYOUT =
         FieldLayout.installGenerated(FieldLayout.generated(
             OrderItem.class, __TEAQL_FIELD_LAYOUT_REVISION,
-            __TEAQL_FIXED_FIELD_INDEXES, __TEAQL_FIXED_FIELD_MAPPINGS, __TEAQL_FIXED_RELATION_NAMES));
+            __TEAQL_FIXED_FIELD_INDEXES, __TEAQL_FIXED_FIELD_MAPPINGS, __TEAQL_FIXED_RELATION_NAMES,
+            JsonFieldNamingProfile.fromModelValue("camelCase")));
 
 
-    public static final String CUSTOMER_ORDER_PROPERTY = "customerOrder";
-    public static final String PRODUCT_NAME_PROPERTY = "productName";
+    public static final String CUSTOMER_ORDER_PROPERTY = "customer_order";
+    public static final String PRODUCT_NAME_PROPERTY = "product_name";
     public static final String QUANTITY_PROPERTY = "quantity";
-    public static final String UNIT_PRICE_PROPERTY = "unitPrice";
+    public static final String UNIT_PRICE_PROPERTY = "unit_price";
     private CustomerOrder customerOrder;
 
     private String productName;
@@ -66,7 +68,7 @@ public class OrderItem extends BaseEntity implements RemoteInput {
     }
 
     public OrderItem updateCustomerOrder(CustomerOrder customerOrder){
-        if(Objects.equals(this.customerOrder, customerOrder)){
+        if(isPropertyLoaded(CUSTOMER_ORDER_PROPERTY) && Objects.equals(this.customerOrder, customerOrder)){
             return this;
         }
         handleUpdate(CUSTOMER_ORDER_PROPERTY, getCustomerOrder(), customerOrder);
@@ -76,7 +78,7 @@ public class OrderItem extends BaseEntity implements RemoteInput {
 
     public OrderItem updateProductName(String productName){
         productName = (productName == null ? null : productName.trim());
-        if(Objects.equals(this.productName, productName)){
+        if(isPropertyLoaded(PRODUCT_NAME_PROPERTY) && Objects.equals(this.productName, productName)){
             return this;
         }
         handleUpdate(PRODUCT_NAME_PROPERTY, getProductName(), productName);
@@ -85,7 +87,7 @@ public class OrderItem extends BaseEntity implements RemoteInput {
     }
 
     public OrderItem updateQuantity(Integer quantity){
-        if(Objects.equals(this.quantity, quantity)){
+        if(isPropertyLoaded(QUANTITY_PROPERTY) && Objects.equals(this.quantity, quantity)){
             return this;
         }
         handleUpdate(QUANTITY_PROPERTY, getQuantity(), quantity);
@@ -94,7 +96,7 @@ public class OrderItem extends BaseEntity implements RemoteInput {
     }
 
     public OrderItem updateUnitPrice(BigDecimal unitPrice){
-        if(Objects.equals(this.unitPrice, unitPrice)){
+        if(isPropertyLoaded(UNIT_PRICE_PROPERTY) && Objects.equals(this.unitPrice, unitPrice)){
             return this;
         }
         handleUpdate(UNIT_PRICE_PROPERTY, getUnitPrice(), unitPrice);
@@ -131,13 +133,13 @@ public class OrderItem extends BaseEntity implements RemoteInput {
     public void __internalSet(String property, Object value) {
         markPropertyLoaded(property);
         switch (property) {
-            case "customerOrder": this.customerOrder = (CustomerOrder) value; break;
+            case "customer_order": this.customerOrder = (CustomerOrder) value; break;
 
-            case "productName": this.productName = (value == null ? null : ((String)value).trim()); break;
+            case "product_name": this.productName = (value == null ? null : ((String)value).trim()); break;
 
             case "quantity": this.quantity = (Integer) value; break;
 
-            case "unitPrice": this.unitPrice = (BigDecimal) value; break;
+            case "unit_price": this.unitPrice = (BigDecimal) value; break;
 
             default: super.__internalSet(property, value);
         }
@@ -147,11 +149,20 @@ public class OrderItem extends BaseEntity implements RemoteInput {
     @FrameworkInternal
     public Object __internalGet(String property) {
         switch (property) {
-            case "customerOrder": return this.customerOrder;
-            case "productName": return this.productName;
+            case "customer_order": return this.customerOrder;
+            case "product_name": return this.productName;
             case "quantity": return this.quantity;
-            case "unitPrice": return this.unitPrice;
-            default: return super.__internalGet(property);
+            case "unit_price": return this.unitPrice;
+            default:
+                // Presentation uses the installed Java member mapping; SQL and
+                // hydration retain canonical names. These aliases only read.
+                switch (property) {
+                    case "customerOrder": return this.customerOrder;
+                    case "productName": return this.productName;
+                    case "quantity": return this.quantity;
+                    case "unitPrice": return this.unitPrice;
+                    default: return super.__internalGet(property);
+                }
         }
     }
 

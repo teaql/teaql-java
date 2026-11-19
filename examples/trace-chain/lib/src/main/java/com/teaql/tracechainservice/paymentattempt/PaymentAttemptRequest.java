@@ -11,6 +11,7 @@ import io.teaql.core.SearchCriteria;
 import io.teaql.core.SubQuerySearchCriteria;
 import io.teaql.core.criteria.Operator;
 import io.teaql.core.criteria.TwoOperatorCriteria;
+import java.util.Objects;
 
 public class PaymentAttemptRequest<T extends PaymentAttempt> extends BaseRequest<T> {
 
@@ -21,7 +22,11 @@ public class PaymentAttemptRequest<T extends PaymentAttempt> extends BaseRequest
     @Deprecated
     @SuppressWarnings("unchecked")
     public PaymentAttemptRequest(Class<T> returnType){
-        super(returnType, () -> (T) new PaymentAttempt());
+        this(returnType, () -> (T) new PaymentAttempt());
+    }
+
+    protected PaymentAttemptRequest(Class<T> returnType, java.util.function.Supplier<? extends T> factory){
+        super(returnType, factory);
         selectId();
         selectVersion();
     }
@@ -29,6 +34,19 @@ public class PaymentAttemptRequest<T extends PaymentAttempt> extends BaseRequest
     public PaymentAttemptRequest<T> comment(String comment){
          super.internalComment(comment);
          return this;
+    }
+
+    /** Independent query graph; ordinary roll-up handles remain live. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public PaymentAttemptRequest<T> copy(){
+        return (PaymentAttemptRequest<T>) super.copy();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected io.teaql.core.BaseRequest<T> internalCopyTarget(){
+        return new PaymentAttemptRequest<>((Class<T>) returnType(), this::internalNewEntity);
     }
 
     // purpose() 继承自 BaseRequest，返回 ExecutableRequest（终结方法）
@@ -98,6 +116,12 @@ public class PaymentAttemptRequest<T extends PaymentAttempt> extends BaseRequest
         return this;
     }
 
+    public PaymentAttemptRequest<T> matchingIdsOf(PaymentAttemptRequest<?> request){
+        Objects.requireNonNull(request, "matching request");
+        return appendSearchCriteria(new SubQuerySearchCriteria(
+                PaymentAttempt.ID_PROPERTY, request, PaymentAttempt.ID_PROPERTY));
+    }
+
     public PaymentAttemptRequest<T> enhanceChildrenIfNeeded(){
         return this;
     }
@@ -119,6 +143,16 @@ public class PaymentAttemptRequest<T extends PaymentAttempt> extends BaseRequest
 
     public PaymentAttemptRequest<T> selectSelfFields(){
         return selectSelf();
+    }
+
+    public PaymentAttemptRequest<T> selectSelfWithoutParent(){
+        selectId();
+        selectVersion();
+        selectProperty(PaymentAttempt.ID_PROPERTY);
+        selectProperty(PaymentAttempt.PAYMENT_PROPERTY);
+        selectProperty(PaymentAttempt.REFERENCE_CODE_PROPERTY);
+        selectProperty(PaymentAttempt.VERSION_PROPERTY);
+        return this;
     }
 
     public PaymentAttemptRequest<T> selectAll(){
@@ -160,7 +194,8 @@ public class PaymentAttemptRequest<T extends PaymentAttempt> extends BaseRequest
 
     public PaymentAttemptRequest<T> selectPaymentWith(PaymentRequest payment){
        selectProperty(PaymentAttempt.PAYMENT_PROPERTY);
-       enhanceRelation(PaymentAttempt.PAYMENT_PROPERTY, payment);
+       enhanceRelation(PaymentAttempt.PAYMENT_PROPERTY, payment,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_SELECT, "selectPaymentWith", null, PaymentAttempt.PAYMENT_PROPERTY));
        return this;
     }
 
@@ -414,10 +449,12 @@ public class PaymentAttemptRequest<T extends PaymentAttempt> extends BaseRequest
 
     public PaymentAttemptRequest<T> count(){
         super.count();
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "count", null, null));
         return this;
     }
     public PaymentAttemptRequest<T> countAs(String retName){
         super.count(retName);
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "countAs", retName, null));
         return this;
     }
     public PaymentAttemptRequest<T> groupByPaymentWithDetails(){
@@ -431,6 +468,38 @@ public class PaymentAttemptRequest<T extends PaymentAttempt> extends BaseRequest
 
 
 
+    public PaymentAttemptRequest<T> countDistinctId(){
+        return countDistinctIdAs("id_distinct_count");
+    }
+
+    public PaymentAttemptRequest<T> countDistinctIdAs(String alias){
+        super.countDistinctProperty(alias, PaymentAttempt.ID_PROPERTY);
+        return this;
+    }
+    public PaymentAttemptRequest<T> countDistinctPayment(){
+        return countDistinctPaymentAs("payment_distinct_count");
+    }
+
+    public PaymentAttemptRequest<T> countDistinctPaymentAs(String alias){
+        super.countDistinctProperty(alias, PaymentAttempt.PAYMENT_PROPERTY);
+        return this;
+    }
+    public PaymentAttemptRequest<T> countDistinctReferenceCode(){
+        return countDistinctReferenceCodeAs("reference_code_distinct_count");
+    }
+
+    public PaymentAttemptRequest<T> countDistinctReferenceCodeAs(String alias){
+        super.countDistinctProperty(alias, PaymentAttempt.REFERENCE_CODE_PROPERTY);
+        return this;
+    }
+    public PaymentAttemptRequest<T> countDistinctVersion(){
+        return countDistinctVersionAs("version_distinct_count");
+    }
+
+    public PaymentAttemptRequest<T> countDistinctVersionAs(String alias){
+        super.countDistinctProperty(alias, PaymentAttempt.VERSION_PROPERTY);
+        return this;
+    }
 
     public PaymentAttemptRequest<T> groupById(){
        groupBy(PaymentAttempt.ID_PROPERTY);
@@ -447,7 +516,8 @@ public class PaymentAttemptRequest<T extends PaymentAttempt> extends BaseRequest
        return this;
     }
     public PaymentAttemptRequest<T> groupByPaymentWith(PaymentRequest subRequest){
-       groupBy(PaymentAttempt.PAYMENT_PROPERTY, subRequest);
+       groupBy(PaymentAttempt.PAYMENT_PROPERTY, subRequest,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "groupByPaymentWith", null, "payment"));
        return this;
     }
     public PaymentAttemptRequest<T> groupByPayment(){
@@ -548,8 +618,8 @@ public class PaymentAttemptRequest<T extends PaymentAttempt> extends BaseRequest
 
     public PaymentRequest rollUpToPayment(){
        PaymentRequest payment = Q.payments().unlimited();
-       this.withPaymentMatching(payment)
-           .groupByPaymentWith(payment);
+       this.internalRollUpTo("payment", payment,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "rollUpToPayment", null, "payment"));
        return payment;
     }
 
@@ -561,7 +631,8 @@ public class PaymentAttemptRequest<T extends PaymentAttempt> extends BaseRequest
    }
 
    public PaymentAttemptRequest<T> facetByPaymentAs(String facetName, PaymentRequest payment, boolean includeAllFacets){
-       addFacet(facetName, PaymentAttempt.PAYMENT_PROPERTY, payment, includeAllFacets);
+       addFacet(facetName, PaymentAttempt.PAYMENT_PROPERTY, payment, includeAllFacets,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.FACET, "facetByPaymentAs", facetName, PaymentAttempt.PAYMENT_PROPERTY));
        return this;
    }
 

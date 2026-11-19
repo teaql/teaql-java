@@ -12,12 +12,14 @@ public class Q  {
   }
 
 
+
   public static com.teaql.runtimeexampleconformanceservice.workitem.WorkItemRequest<com.teaql.runtimeexampleconformanceservice.workitem.WorkItem> workItems(){
       return new com.teaql.runtimeexampleconformanceservice.workitem.WorkItemRequest(com.teaql.runtimeexampleconformanceservice.workitem.WorkItem.class).selectSelf().withVersion(Operator.GREATER_THAN, 0l);
   }
   public static com.teaql.runtimeexampleconformanceservice.workitem.WorkItemRequest<com.teaql.runtimeexampleconformanceservice.workitem.WorkItem> workItemsWithMinimalFields(){
       return new com.teaql.runtimeexampleconformanceservice.workitem.WorkItemRequest(com.teaql.runtimeexampleconformanceservice.workitem.WorkItem.class).withVersion(Operator.GREATER_THAN, 0l);
   }
+
 
 
 }

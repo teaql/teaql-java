@@ -5,8 +5,10 @@ import com.teaql.runtimeexampleconformanceservice.platform.Platform;
 import io.teaql.core.Audited;
 import io.teaql.core.BaseEntity;
 import io.teaql.core.EntityStatus;
+import io.teaql.core.FieldLayout;
 import io.teaql.core.FrameworkInternal;
 import io.teaql.core.RemoteInput;
+import io.teaql.core.checker.JsonFieldNamingProfile;
 import java.util.Objects;
 
 /**
@@ -20,48 +22,72 @@ import java.util.Objects;
 public class WorkItem extends BaseEntity implements RemoteInput {
     public static String INTERNAL_TYPE = "WorkItem";
 
+    // Framework metadata: complete fixed layout, independent of SQL/projection order.
+    public static final String __TEAQL_FIELD_LAYOUT_REVISION = "ff6df6930613256f676f63204201b7b20d7ecd9fa363bae51492c66e562f023c";
+    public static final java.util.Map<String, Integer> __TEAQL_FIXED_FIELD_INDEXES =
+        java.util.Map.ofEntries(java.util.Map.entry("id", 0), java.util.Map.entry("title", 1), java.util.Map.entry("description", 2), java.util.Map.entry("platform", 3), java.util.Map.entry("version", 4));
+    public static final java.util.Map<String, java.util.List<String>> __TEAQL_FIXED_FIELD_MAPPINGS =
+        java.util.Map.ofEntries(java.util.Map.entry("id", java.util.List.of("id", "id")), java.util.Map.entry("title", java.util.List.of("title", "title")), java.util.Map.entry("description", java.util.List.of("description", "description")), java.util.Map.entry("platform", java.util.List.of("platform", "platform")), java.util.Map.entry("version", java.util.List.of("version", "version")));
+    public static final java.util.Set<String> __TEAQL_FIXED_RELATION_NAMES = java.util.Set.of(
+);
+    public static final FieldLayout __TEAQL_FIELD_LAYOUT =
+        FieldLayout.installGenerated(FieldLayout.generated(
+            WorkItem.class, __TEAQL_FIELD_LAYOUT_REVISION,
+            __TEAQL_FIXED_FIELD_INDEXES, __TEAQL_FIXED_FIELD_MAPPINGS, __TEAQL_FIXED_RELATION_NAMES,
+            JsonFieldNamingProfile.fromModelValue("camelCase")));
+
+
     public static final String TITLE_PROPERTY = "title";
     public static final String DESCRIPTION_PROPERTY = "description";
     public static final String PLATFORM_PROPERTY = "platform";
     private String title;
+
     private String description;
+
     private Platform platform;
+
 
     public String getTitle(){
         return this.title;
     }
+
     public String getDescription(){
         return this.description;
     }
+
     public Platform getPlatform(){
         return this.platform;
     }
+
     public WorkItem updateTitle(String title){
         title = (title == null ? null : title.trim());
-        if(Objects.equals(this.title, title)){
+        if(isPropertyLoaded(TITLE_PROPERTY) && Objects.equals(this.title, title)){
             return this;
         }
         handleUpdate(TITLE_PROPERTY, getTitle(), title);
         this.title = title;
         return this;
     }
+
     public WorkItem updateDescription(String description){
         description = (description == null ? null : description.trim());
-        if(Objects.equals(this.description, description)){
+        if(isPropertyLoaded(DESCRIPTION_PROPERTY) && Objects.equals(this.description, description)){
             return this;
         }
         handleUpdate(DESCRIPTION_PROPERTY, getDescription(), description);
         this.description = description;
         return this;
     }
+
     public WorkItem updatePlatform(Platform platform){
-        if(Objects.equals(this.platform, platform)){
+        if(isPropertyLoaded(PLATFORM_PROPERTY) && Objects.equals(this.platform, platform)){
             return this;
         }
         handleUpdate(PLATFORM_PROPERTY, getPlatform(), platform);
         this.platform = platform;
         return this;
     }
+
 
     public static WorkItem refer(Long id){
         WorkItem refer = new WorkItem();
@@ -82,7 +108,7 @@ public class WorkItem extends BaseEntity implements RemoteInput {
     @Override
     @SuppressWarnings("unchecked")
     public Audited<WorkItem> auditAs(String action) {
-        return super.auditAs(action);
+        return new Audited<>(this, action);
     }
 
     // ===== Framework Internal: generated switch dispatch =====
@@ -108,7 +134,15 @@ public class WorkItem extends BaseEntity implements RemoteInput {
             case "title": return this.title;
             case "description": return this.description;
             case "platform": return this.platform;
-            default: return super.__internalGet(property);
+            default:
+                // Presentation uses the installed Java member mapping; SQL and
+                // hydration retain canonical names. These aliases only read.
+                switch (property) {
+                    case "title": return this.title;
+                    case "description": return this.description;
+                    case "platform": return this.platform;
+                    default: return super.__internalGet(property);
+                }
         }
     }
 

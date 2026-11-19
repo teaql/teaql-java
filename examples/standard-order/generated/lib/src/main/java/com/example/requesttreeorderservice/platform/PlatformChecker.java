@@ -26,6 +26,9 @@ public class PlatformChecker implements Checker<Platform>{
       if((platform == null)){
          return;
       }
+      boolean _contextFixEligible = needContextFix(_context, platform);
+      if(platform.needPersist()){
+      }
       if(platform.newItem()){
       }else if(platform.updateItem()){
         if(!platform.isPropertyLoaded("name")){

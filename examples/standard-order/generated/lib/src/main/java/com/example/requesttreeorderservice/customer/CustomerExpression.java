@@ -38,7 +38,7 @@ public class CustomerExpression<T, E, U extends Customer> extends ExpressionAdap
 
 
     public PlatformExpression<T, U, Platform> getPlatform(){
-       return new PlatformExpression(loaded("platform", Customer::getPlatform));
+       return new PlatformExpression(loaded("platform", "getPlatform", Customer::getPlatform));
     }
 
     public CustomerExpression<T, U, U> updatePlatform(Platform platform){
@@ -46,14 +46,14 @@ public class CustomerExpression<T, E, U extends Customer> extends ExpressionAdap
     }
 
     public Expression<T, String> getName(){
-       return loaded("name", Customer::getName);
+       return loaded("name", "getName", Customer::getName);
     }
     public CustomerExpression<T, U, U> updateName(String name){
        return new CustomerExpression(this, $it ->  ((Customer)$it).updateName(name));
     }
 
     public CustomerOrderListExpression<T, U, CustomerOrder> getCustomerOrderList(){
-        return new CustomerOrderListExpression(loaded("customerOrderList", Customer::getCustomerOrderList));
+        return new CustomerOrderListExpression(loaded("customer_order_list", "getCustomerOrderList", Customer::getCustomerOrderList));
     }
     public CustomerExpression<T, U, U> addCustomerOrder(CustomerOrder customerOrder){
        return new CustomerExpression(this, $it ->  ((Customer)$it).addCustomerOrder(customerOrder));

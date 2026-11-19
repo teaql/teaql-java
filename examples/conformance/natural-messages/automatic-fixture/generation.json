@@ -1,13 +1,36 @@
 {
-  "schema": "teaql.generated-example-provenance/v1",
-  "generatorCommit": "c1304f73e0ea0eb0bdbad6fd1ebdada16e3dbe12",
-  "upstreamTest": "com.skynet.codegenerator.JavaNaturalMessagesGenerationTest",
-  "fixtureOutputProperty": "teaql.java.natural.fixture.output",
-  "scope": "java-lib-core",
-  "runtimeDependency": "local repository source",
-  "modelSha256": "6e7bc9313817b3ebe452a0080c2e073d289362f450304b709f6bc794cd8e7f68",
-  "generationReceipt": "teaql-conformance/evidence/2026-11-12-natural-checker-java-generation-first/receipt.json",
-  "generationReceiptSha256": "535a7a4bd0fb153a7bb5b3032127bbf67db43789d56bdb1535bb2fb7127af05f",
+  "evaluatedScope": "java-lib-core",
+  "evaluationErrors": 0,
+  "evaluationWarnings": 2,
+  "generatedManifestSha256": "8f5030802231a084fca5ecf2b546aa611fb8c181a2d2f921fe3b0825440688eb",
+  "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-catalog/java/conformance/natural-messages/model/receipt.json",
+  "generationReceiptSha256": "ce5c32a67679538f22dd34bd777ee5806497dbaf3af3cd94fed49872cce23481",
+  "generatorCommit": "97830096360553381a3221ad5bdbe9837c68a9b4",
+  "generatorJarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
+  "generatorRelease": "v4.2.0",
   "implementationHandEdited": false,
-  "publicPublication": false
+  "modelSha256": "4c69fcaa275d1f7d255f325305cc0c6c5071154d278f9f4af7775ae0758144a6",
+  "previousGeneration": {
+    "fixtureOutputProperty": "teaql.java.natural.fixture.output",
+    "generationReceipt": "teaql-conformance/evidence/2026-11-12-natural-checker-java-generation-first/receipt.json",
+    "generationReceiptSha256": "535a7a4bd0fb153a7bb5b3032127bbf67db43789d56bdb1535bb2fb7127af05f",
+    "generatorCommit": "c1304f73e0ea0eb0bdbad6fd1ebdada16e3dbe12",
+    "implementationHandEdited": false,
+    "modelSha256": "6e7bc9313817b3ebe452a0080c2e073d289362f450304b709f6bc794cd8e7f68",
+    "publicPublication": false,
+    "runtimeDependency": "local repository source",
+    "schema": "teaql.generated-example-provenance/v1",
+    "scope": "java-lib-core",
+    "upstreamTest": "com.skynet.codegenerator.JavaNaturalMessagesGenerationTest"
+  },
+  "producerReceiptSha256": "ce5c32a67679538f22dd34bd777ee5806497dbaf3af3cd94fed49872cce23481",
+  "producerSource": {
+    "commit": "97830096360553381a3221ad5bdbe9837c68a9b4",
+    "jarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
+    "release": "v4.2.0"
+  },
+  "publicPublication": false,
+  "runtimeDependency": "local repository source",
+  "schema": "teaql.generated-example-provenance/v1",
+  "scope": "java-lib-core"
 }

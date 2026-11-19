@@ -12,6 +12,7 @@ import io.teaql.core.FieldLayout;
 import io.teaql.core.FrameworkInternal;
 import io.teaql.core.RemoteInput;
 import io.teaql.core.SmartList;
+import io.teaql.core.checker.JsonFieldNamingProfile;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Objects;
@@ -34,19 +35,20 @@ public class CustomerOrder extends BaseEntity implements RemoteInput {
     public static final java.util.Map<String, java.util.List<String>> __TEAQL_FIXED_FIELD_MAPPINGS =
         java.util.Map.ofEntries(java.util.Map.entry("id", java.util.List.of("id", "id")), java.util.Map.entry("customer", java.util.List.of("customer", "customer")), java.util.Map.entry("status", java.util.List.of("status", "status")), java.util.Map.entry("order_number", java.util.List.of("orderNumber", "order_number")), java.util.Map.entry("order_date", java.util.List.of("orderDate", "order_date")), java.util.Map.entry("total_amount", java.util.List.of("totalAmount", "total_amount")), java.util.Map.entry("version", java.util.List.of("version", "version")));
     public static final java.util.Set<String> __TEAQL_FIXED_RELATION_NAMES = java.util.Set.of(
-        "orderItemList");
+        "order_item_list");
     public static final FieldLayout __TEAQL_FIELD_LAYOUT =
         FieldLayout.installGenerated(FieldLayout.generated(
             CustomerOrder.class, __TEAQL_FIELD_LAYOUT_REVISION,
-            __TEAQL_FIXED_FIELD_INDEXES, __TEAQL_FIXED_FIELD_MAPPINGS, __TEAQL_FIXED_RELATION_NAMES));
+            __TEAQL_FIXED_FIELD_INDEXES, __TEAQL_FIXED_FIELD_MAPPINGS, __TEAQL_FIXED_RELATION_NAMES,
+            JsonFieldNamingProfile.fromModelValue("camelCase")));
 
 
     public static final String CUSTOMER_PROPERTY = "customer";
     public static final String STATUS_PROPERTY = "status";
-    public static final String ORDER_NUMBER_PROPERTY = "orderNumber";
-    public static final String ORDER_DATE_PROPERTY = "orderDate";
-    public static final String TOTAL_AMOUNT_PROPERTY = "totalAmount";
-    public static final String ORDER_ITEM_LIST_PROPERTY = "orderItemList";
+    public static final String ORDER_NUMBER_PROPERTY = "order_number";
+    public static final String ORDER_DATE_PROPERTY = "order_date";
+    public static final String TOTAL_AMOUNT_PROPERTY = "total_amount";
+    public static final String ORDER_ITEM_LIST_PROPERTY = "order_item_list";
     private Customer customer;
 
     private OrderStatus status;
@@ -80,10 +82,10 @@ public class CustomerOrder extends BaseEntity implements RemoteInput {
     }
 
     public SmartList<OrderItem> getOrderItemList(){
-        return this.orderItemList;
+        return this.orderItemList == null ? SmartList.unloaded() : this.orderItemList;
     }
     public CustomerOrder updateCustomer(Customer customer){
-        if(Objects.equals(this.customer, customer)){
+        if(isPropertyLoaded(CUSTOMER_PROPERTY) && Objects.equals(this.customer, customer)){
             return this;
         }
         handleUpdate(CUSTOMER_PROPERTY, getCustomer(), customer);
@@ -92,7 +94,7 @@ public class CustomerOrder extends BaseEntity implements RemoteInput {
     }
 
     protected CustomerOrder updateStatus(OrderStatus status){
-        if(Objects.equals(this.status, status)){
+        if(isPropertyLoaded(STATUS_PROPERTY) && Objects.equals(this.status, status)){
             return this;
         }
         handleUpdate(STATUS_PROPERTY, getStatus(), status);
@@ -102,7 +104,7 @@ public class CustomerOrder extends BaseEntity implements RemoteInput {
 
     public CustomerOrder updateOrderNumber(String orderNumber){
         orderNumber = (orderNumber == null ? null : orderNumber.trim());
-        if(Objects.equals(this.orderNumber, orderNumber)){
+        if(isPropertyLoaded(ORDER_NUMBER_PROPERTY) && Objects.equals(this.orderNumber, orderNumber)){
             return this;
         }
         handleUpdate(ORDER_NUMBER_PROPERTY, getOrderNumber(), orderNumber);
@@ -111,7 +113,7 @@ public class CustomerOrder extends BaseEntity implements RemoteInput {
     }
 
     public CustomerOrder updateOrderDate(LocalDate orderDate){
-        if(Objects.equals(this.orderDate, orderDate)){
+        if(isPropertyLoaded(ORDER_DATE_PROPERTY) && Objects.equals(this.orderDate, orderDate)){
             return this;
         }
         handleUpdate(ORDER_DATE_PROPERTY, getOrderDate(), orderDate);
@@ -120,7 +122,7 @@ public class CustomerOrder extends BaseEntity implements RemoteInput {
     }
 
     public CustomerOrder updateTotalAmount(BigDecimal totalAmount){
-        if(Objects.equals(this.totalAmount, totalAmount)){
+        if(isPropertyLoaded(TOTAL_AMOUNT_PROPERTY) && Objects.equals(this.totalAmount, totalAmount)){
             return this;
         }
         handleUpdate(TOTAL_AMOUNT_PROPERTY, getTotalAmount(), totalAmount);
@@ -134,7 +136,8 @@ public class CustomerOrder extends BaseEntity implements RemoteInput {
         }
 
         if(null == this.orderItemList){
-            this.orderItemList = new SmartList<>();
+            SmartList<OrderItem> teaqlUnloadedItems = SmartList.unloaded();
+            this.orderItemList = teaqlUnloadedItems.map(value -> value);
         }
 
         this.orderItemList.add(orderItem);
@@ -195,13 +198,13 @@ public class CustomerOrder extends BaseEntity implements RemoteInput {
 
             case "status": this.status = (OrderStatus) value; break;
 
-            case "orderNumber": this.orderNumber = (value == null ? null : ((String)value).trim()); break;
+            case "order_number": this.orderNumber = (value == null ? null : ((String)value).trim()); break;
 
-            case "orderDate": this.orderDate = (LocalDate) value; break;
+            case "order_date": this.orderDate = (LocalDate) value; break;
 
-            case "totalAmount": this.totalAmount = (BigDecimal) value; break;
+            case "total_amount": this.totalAmount = (BigDecimal) value; break;
 
-            case "orderItemList": this.orderItemList = (SmartList<OrderItem>) value; break;
+            case "order_item_list": this.orderItemList = (SmartList<OrderItem>) value; break;
             default: super.__internalSet(property, value);
         }
     }
@@ -212,11 +215,21 @@ public class CustomerOrder extends BaseEntity implements RemoteInput {
         switch (property) {
             case "customer": return this.customer;
             case "status": return this.status;
-            case "orderNumber": return this.orderNumber;
-            case "orderDate": return this.orderDate;
-            case "totalAmount": return this.totalAmount;
-            case "orderItemList": return this.orderItemList;
-            default: return super.__internalGet(property);
+            case "order_number": return this.orderNumber;
+            case "order_date": return this.orderDate;
+            case "total_amount": return this.totalAmount;
+            case "order_item_list": return this.orderItemList;
+            default:
+                // Presentation uses the installed Java member mapping; SQL and
+                // hydration retain canonical names. These aliases only read.
+                switch (property) {
+                    case "customer": return this.customer;
+                    case "status": return this.status;
+                    case "orderNumber": return this.orderNumber;
+                    case "orderDate": return this.orderDate;
+                    case "totalAmount": return this.totalAmount;
+                    default: return super.__internalGet(property);
+                }
         }
     }
 

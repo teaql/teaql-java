@@ -40,7 +40,7 @@ public class SchoolExpression<T, E, U extends School> extends ExpressionAdaptor<
 
 
     public PlatformExpression<T, U, Platform> getPlatform(){
-       return new PlatformExpression(loaded("platform", School::getPlatform));
+       return new PlatformExpression(loaded("platform", "getPlatform", School::getPlatform));
     }
 
     public SchoolExpression<T, U, U> updatePlatform(Platform platform){
@@ -48,7 +48,7 @@ public class SchoolExpression<T, E, U extends School> extends ExpressionAdaptor<
     }
 
     public SchoolTypeExpression<T, U, SchoolType> getSchoolType(){
-       return new SchoolTypeExpression(loaded("schoolType", School::getSchoolType));
+       return new SchoolTypeExpression(loaded("school_type", "getSchoolType", School::getSchoolType));
     }
 
     public SchoolExpression<T, U, U> updateSchoolTypeToPrimary(){
@@ -59,49 +59,49 @@ public class SchoolExpression<T, E, U extends School> extends ExpressionAdaptor<
     }
 
     public Expression<T, String> getName(){
-       return loaded("name", School::getName);
+       return loaded("name", "getName", School::getName);
     }
     public SchoolExpression<T, U, U> updateName(String name){
        return new SchoolExpression(this, $it ->  ((School)$it).updateName(name));
     }
 
     public Expression<T, String> getAddress(){
-       return loaded("address", School::getAddress);
+       return loaded("address", "getAddress", School::getAddress);
     }
     public SchoolExpression<T, U, U> updateAddress(String address){
        return new SchoolExpression(this, $it ->  ((School)$it).updateAddress(address));
     }
 
     public Expression<T, LocalDate> getEstablishedDate(){
-       return loaded("establishedDate", School::getEstablishedDate);
+       return loaded("established_date", "getEstablishedDate", School::getEstablishedDate);
     }
     public SchoolExpression<T, U, U> updateEstablishedDate(LocalDate establishedDate){
        return new SchoolExpression(this, $it ->  ((School)$it).updateEstablishedDate(establishedDate));
     }
 
     public Expression<T, Integer> getStudentCapacity(){
-       return loaded("studentCapacity", School::getStudentCapacity);
+       return loaded("student_capacity", "getStudentCapacity", School::getStudentCapacity);
     }
     public SchoolExpression<T, U, U> updateStudentCapacity(Integer studentCapacity){
        return new SchoolExpression(this, $it ->  ((School)$it).updateStudentCapacity(studentCapacity));
     }
 
     public Expression<T, Boolean> isActive(){
-       return loaded("active", School::isActive);
+       return loaded("active", "isActive", School::isActive);
     }
     public SchoolExpression<T, U, U> updateActive(Boolean active){
        return new SchoolExpression(this, $it ->  ((School)$it).updateActive(active));
     }
 
     public Expression<T, LocalDateTime> getCreateTime(){
-       return loaded("createTime", School::getCreateTime);
+       return loaded("create_time", "getCreateTime", School::getCreateTime);
     }
     public SchoolExpression<T, U, U> updateCreateTime(LocalDateTime createTime){
        return new SchoolExpression(this, $it ->  ((School)$it).updateCreateTime(createTime));
     }
 
     public Expression<T, LocalDateTime> getUpdateTime(){
-       return loaded("updateTime", School::getUpdateTime);
+       return loaded("update_time", "getUpdateTime", School::getUpdateTime);
     }
     public SchoolExpression<T, U, U> updateUpdateTime(LocalDateTime updateTime){
        return new SchoolExpression(this, $it ->  ((School)$it).updateUpdateTime(updateTime));

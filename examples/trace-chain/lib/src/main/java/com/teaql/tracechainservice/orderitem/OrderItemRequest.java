@@ -11,6 +11,7 @@ import io.teaql.core.SearchCriteria;
 import io.teaql.core.SubQuerySearchCriteria;
 import io.teaql.core.criteria.Operator;
 import io.teaql.core.criteria.TwoOperatorCriteria;
+import java.util.Objects;
 
 public class OrderItemRequest<T extends OrderItem> extends BaseRequest<T> {
 
@@ -21,7 +22,11 @@ public class OrderItemRequest<T extends OrderItem> extends BaseRequest<T> {
     @Deprecated
     @SuppressWarnings("unchecked")
     public OrderItemRequest(Class<T> returnType){
-        super(returnType, () -> (T) new OrderItem());
+        this(returnType, () -> (T) new OrderItem());
+    }
+
+    protected OrderItemRequest(Class<T> returnType, java.util.function.Supplier<? extends T> factory){
+        super(returnType, factory);
         selectId();
         selectVersion();
     }
@@ -29,6 +34,19 @@ public class OrderItemRequest<T extends OrderItem> extends BaseRequest<T> {
     public OrderItemRequest<T> comment(String comment){
          super.internalComment(comment);
          return this;
+    }
+
+    /** Independent query graph; ordinary roll-up handles remain live. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public OrderItemRequest<T> copy(){
+        return (OrderItemRequest<T>) super.copy();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected io.teaql.core.BaseRequest<T> internalCopyTarget(){
+        return new OrderItemRequest<>((Class<T>) returnType(), this::internalNewEntity);
     }
 
     // purpose() 继承自 BaseRequest，返回 ExecutableRequest（终结方法）
@@ -98,6 +116,12 @@ public class OrderItemRequest<T extends OrderItem> extends BaseRequest<T> {
         return this;
     }
 
+    public OrderItemRequest<T> matchingIdsOf(OrderItemRequest<?> request){
+        Objects.requireNonNull(request, "matching request");
+        return appendSearchCriteria(new SubQuerySearchCriteria(
+                OrderItem.ID_PROPERTY, request, OrderItem.ID_PROPERTY));
+    }
+
     public OrderItemRequest<T> enhanceChildrenIfNeeded(){
         return this;
     }
@@ -119,6 +143,16 @@ public class OrderItemRequest<T extends OrderItem> extends BaseRequest<T> {
 
     public OrderItemRequest<T> selectSelfFields(){
         return selectSelf();
+    }
+
+    public OrderItemRequest<T> selectSelfWithoutParent(){
+        selectId();
+        selectVersion();
+        selectProperty(OrderItem.ID_PROPERTY);
+        selectProperty(OrderItem.CUSTOMER_ORDER_PROPERTY);
+        selectProperty(OrderItem.NAME_PROPERTY);
+        selectProperty(OrderItem.VERSION_PROPERTY);
+        return this;
     }
 
     public OrderItemRequest<T> selectAll(){
@@ -160,7 +194,8 @@ public class OrderItemRequest<T extends OrderItem> extends BaseRequest<T> {
 
     public OrderItemRequest<T> selectCustomerOrderWith(CustomerOrderRequest customerOrder){
        selectProperty(OrderItem.CUSTOMER_ORDER_PROPERTY);
-       enhanceRelation(OrderItem.CUSTOMER_ORDER_PROPERTY, customerOrder);
+       enhanceRelation(OrderItem.CUSTOMER_ORDER_PROPERTY, customerOrder,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_SELECT, "selectCustomerOrderWith", null, OrderItem.CUSTOMER_ORDER_PROPERTY));
        return this;
     }
 
@@ -414,10 +449,12 @@ public class OrderItemRequest<T extends OrderItem> extends BaseRequest<T> {
 
     public OrderItemRequest<T> count(){
         super.count();
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "count", null, null));
         return this;
     }
     public OrderItemRequest<T> countAs(String retName){
         super.count(retName);
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "countAs", retName, null));
         return this;
     }
     public OrderItemRequest<T> groupByCustomerOrderWithDetails(){
@@ -431,6 +468,38 @@ public class OrderItemRequest<T extends OrderItem> extends BaseRequest<T> {
 
 
 
+    public OrderItemRequest<T> countDistinctId(){
+        return countDistinctIdAs("id_distinct_count");
+    }
+
+    public OrderItemRequest<T> countDistinctIdAs(String alias){
+        super.countDistinctProperty(alias, OrderItem.ID_PROPERTY);
+        return this;
+    }
+    public OrderItemRequest<T> countDistinctCustomerOrder(){
+        return countDistinctCustomerOrderAs("customer_order_distinct_count");
+    }
+
+    public OrderItemRequest<T> countDistinctCustomerOrderAs(String alias){
+        super.countDistinctProperty(alias, OrderItem.CUSTOMER_ORDER_PROPERTY);
+        return this;
+    }
+    public OrderItemRequest<T> countDistinctName(){
+        return countDistinctNameAs("name_distinct_count");
+    }
+
+    public OrderItemRequest<T> countDistinctNameAs(String alias){
+        super.countDistinctProperty(alias, OrderItem.NAME_PROPERTY);
+        return this;
+    }
+    public OrderItemRequest<T> countDistinctVersion(){
+        return countDistinctVersionAs("version_distinct_count");
+    }
+
+    public OrderItemRequest<T> countDistinctVersionAs(String alias){
+        super.countDistinctProperty(alias, OrderItem.VERSION_PROPERTY);
+        return this;
+    }
 
     public OrderItemRequest<T> groupById(){
        groupBy(OrderItem.ID_PROPERTY);
@@ -447,7 +516,8 @@ public class OrderItemRequest<T extends OrderItem> extends BaseRequest<T> {
        return this;
     }
     public OrderItemRequest<T> groupByCustomerOrderWith(CustomerOrderRequest subRequest){
-       groupBy(OrderItem.CUSTOMER_ORDER_PROPERTY, subRequest);
+       groupBy(OrderItem.CUSTOMER_ORDER_PROPERTY, subRequest,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "groupByCustomerOrderWith", null, "customer_order"));
        return this;
     }
     public OrderItemRequest<T> groupByCustomerOrder(){
@@ -548,8 +618,8 @@ public class OrderItemRequest<T extends OrderItem> extends BaseRequest<T> {
 
     public CustomerOrderRequest rollUpToCustomerOrder(){
        CustomerOrderRequest customerOrder = Q.customerOrders().unlimited();
-       this.withCustomerOrderMatching(customerOrder)
-           .groupByCustomerOrderWith(customerOrder);
+       this.internalRollUpTo("customer_order", customerOrder,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "rollUpToCustomerOrder", null, "customer_order"));
        return customerOrder;
     }
 
@@ -561,7 +631,8 @@ public class OrderItemRequest<T extends OrderItem> extends BaseRequest<T> {
    }
 
    public OrderItemRequest<T> facetByCustomerOrderAs(String facetName, CustomerOrderRequest customerOrder, boolean includeAllFacets){
-       addFacet(facetName, OrderItem.CUSTOMER_ORDER_PROPERTY, customerOrder, includeAllFacets);
+       addFacet(facetName, OrderItem.CUSTOMER_ORDER_PROPERTY, customerOrder, includeAllFacets,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.FACET, "facetByCustomerOrderAs", facetName, OrderItem.CUSTOMER_ORDER_PROPERTY));
        return this;
    }
 

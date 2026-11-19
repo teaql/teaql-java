@@ -14,6 +14,7 @@ import io.teaql.core.SubQuerySearchCriteria;
 import io.teaql.core.criteria.Operator;
 import io.teaql.core.criteria.TwoOperatorCriteria;
 import java.math.BigDecimal;
+import java.util.Objects;
 
 public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
 
@@ -24,7 +25,11 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
     @Deprecated
     @SuppressWarnings("unchecked")
     public SchoolTypeRequest(Class<T> returnType){
-        super(returnType, () -> (T) new SchoolType());
+        this(returnType, () -> (T) new SchoolType());
+    }
+
+    protected SchoolTypeRequest(Class<T> returnType, java.util.function.Supplier<? extends T> factory){
+        super(returnType, factory);
         selectId();
         selectVersion();
     }
@@ -32,6 +37,19 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
     public SchoolTypeRequest<T> comment(String comment){
          super.internalComment(comment);
          return this;
+    }
+
+    /** Independent query graph; ordinary roll-up handles remain live. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public SchoolTypeRequest<T> copy(){
+        return (SchoolTypeRequest<T>) super.copy();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected io.teaql.core.BaseRequest<T> internalCopyTarget(){
+        return new SchoolTypeRequest<>((Class<T>) returnType(), this::internalNewEntity);
     }
 
     // purpose() 继承自 BaseRequest，返回 ExecutableRequest（终结方法）
@@ -101,6 +119,12 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
         return this;
     }
 
+    public SchoolTypeRequest<T> matchingIdsOf(SchoolTypeRequest<?> request){
+        Objects.requireNonNull(request, "matching request");
+        return appendSearchCriteria(new SubQuerySearchCriteria(
+                SchoolType.ID_PROPERTY, request, SchoolType.ID_PROPERTY));
+    }
+
     public SchoolTypeRequest<T> enhanceChildrenIfNeeded(){
         return this;
     }
@@ -122,6 +146,18 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
 
     public SchoolTypeRequest<T> selectSelfFields(){
         return selectSelf();
+    }
+
+    public SchoolTypeRequest<T> selectSelfWithoutParent(){
+        selectId();
+        selectVersion();
+        selectProperty(SchoolType.PLATFORM_PROPERTY);
+        selectProperty(SchoolType.ID_PROPERTY);
+        selectProperty(SchoolType.NAME_PROPERTY);
+        selectProperty(SchoolType.CODE_PROPERTY);
+        selectProperty(SchoolType.DISPLAY_ORDER_PROPERTY);
+        selectProperty(SchoolType.VERSION_PROPERTY);
+        return this;
     }
 
     public SchoolTypeRequest<T> selectAll(){
@@ -147,7 +183,8 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
 
     public SchoolTypeRequest<T> selectPlatformWith(PlatformRequest platform){
        selectProperty(SchoolType.PLATFORM_PROPERTY);
-       enhanceRelation(SchoolType.PLATFORM_PROPERTY, platform);
+       enhanceRelation(SchoolType.PLATFORM_PROPERTY, platform,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_SELECT, "selectPlatformWith", null, SchoolType.PLATFORM_PROPERTY));
        return this;
     }
 
@@ -253,7 +290,8 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
     }
 
     public SchoolTypeRequest<T> selectSchoolListWith(SchoolRequest schoolList){
-       enhanceRelation(SchoolType.SCHOOL_LIST_PROPERTY, schoolList);
+       enhanceRelation(SchoolType.SCHOOL_LIST_PROPERTY, schoolList,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_SELECT, "selectSchoolListWith", null, SchoolType.SCHOOL_LIST_PROPERTY));
        return this;
     }
 
@@ -610,6 +648,7 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
        return withVersion(Operator.BETWEEN, startOfVersion, endOfVersion);
     }
 
+
     public SchoolTypeRequest<T> withSchoolListMatching(SchoolRequest schoolRequest){
         return appendSearchCriteria(new SubQuerySearchCriteria(SchoolType.ID_PROPERTY, schoolRequest, School.SCHOOL_TYPE_PROPERTY));
     }
@@ -628,10 +667,12 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
 
     public SchoolTypeRequest<T> count(){
         super.count();
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "count", null, null));
         return this;
     }
     public SchoolTypeRequest<T> countAs(String retName){
         super.count(retName);
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "countAs", retName, null));
         return this;
     }
     public SchoolTypeRequest minDisplayOrder(){
@@ -712,13 +753,62 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
 
 
 
+    public SchoolTypeRequest<T> countDistinctPlatform(){
+        return countDistinctPlatformAs("platform_distinct_count");
+    }
+
+    public SchoolTypeRequest<T> countDistinctPlatformAs(String alias){
+        super.countDistinctProperty(alias, SchoolType.PLATFORM_PROPERTY);
+        return this;
+    }
+    public SchoolTypeRequest<T> countDistinctId(){
+        return countDistinctIdAs("id_distinct_count");
+    }
+
+    public SchoolTypeRequest<T> countDistinctIdAs(String alias){
+        super.countDistinctProperty(alias, SchoolType.ID_PROPERTY);
+        return this;
+    }
+    public SchoolTypeRequest<T> countDistinctName(){
+        return countDistinctNameAs("name_distinct_count");
+    }
+
+    public SchoolTypeRequest<T> countDistinctNameAs(String alias){
+        super.countDistinctProperty(alias, SchoolType.NAME_PROPERTY);
+        return this;
+    }
+    public SchoolTypeRequest<T> countDistinctCode(){
+        return countDistinctCodeAs("code_distinct_count");
+    }
+
+    public SchoolTypeRequest<T> countDistinctCodeAs(String alias){
+        super.countDistinctProperty(alias, SchoolType.CODE_PROPERTY);
+        return this;
+    }
+    public SchoolTypeRequest<T> countDistinctDisplayOrder(){
+        return countDistinctDisplayOrderAs("display_order_distinct_count");
+    }
+
+    public SchoolTypeRequest<T> countDistinctDisplayOrderAs(String alias){
+        super.countDistinctProperty(alias, SchoolType.DISPLAY_ORDER_PROPERTY);
+        return this;
+    }
+    public SchoolTypeRequest<T> countDistinctVersion(){
+        return countDistinctVersionAs("version_distinct_count");
+    }
+
+    public SchoolTypeRequest<T> countDistinctVersionAs(String alias){
+        super.countDistinctProperty(alias, SchoolType.VERSION_PROPERTY);
+        return this;
+    }
     public SchoolTypeRequest<T> groupBySchoolsWithDetails(SchoolRequest subRequest){
        aggregate(SchoolType.SCHOOL_LIST_PROPERTY, subRequest);
        return this;
     }
 
     public SchoolTypeRequest<T> groupByPlatformWith(PlatformRequest subRequest){
-       groupBy(SchoolType.PLATFORM_PROPERTY, subRequest);
+       groupBy(SchoolType.PLATFORM_PROPERTY, subRequest,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "groupByPlatformWith", null, "platform"));
        return this;
     }
     public SchoolTypeRequest<T> groupByPlatform(){
@@ -895,8 +985,8 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
     }
 
     public SchoolTypeRequest<T> statsFromSchoolsAs(String name, SchoolRequest subRequest, boolean singleResult){
-       subRequest.setPartitionProperty(School.SCHOOL_TYPE_PROPERTY);
-       addAggregateDynamicProperty(name, subRequest, singleResult);
+       addRelationAggregate(name, subRequest, School.SCHOOL_TYPE_PROPERTY, singleResult,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "statsFromSchoolsAs", name, SchoolType.SCHOOL_LIST_PROPERTY));
        return this;
     }
 
@@ -905,8 +995,8 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
     }
     public PlatformRequest rollUpToPlatform(){
        PlatformRequest platform = Q.platforms().unlimited();
-       this.withPlatformMatching(platform)
-           .groupByPlatformWith(platform);
+       this.internalRollUpTo("platform", platform,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "rollUpToPlatform", null, "platform"));
        return platform;
     }
 
@@ -916,18 +1006,28 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
 
 
     public SchoolTypeRequest<T> countSchools(){
-        return countSchoolsAs("Count");
+        addRelationCount("Count", Q.schools().unlimited(), School.SCHOOL_TYPE_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countSchools", null, SchoolType.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
     public SchoolTypeRequest<T> countSchoolsAs(String name){
-        return countSchoolsWith(name, Q.schools().unlimited());
+        addRelationCount(name, Q.schools().unlimited(), School.SCHOOL_TYPE_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countSchoolsAs", name, SchoolType.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
     public SchoolTypeRequest<T> countSchoolsWith(String name, SchoolRequest subRequest){
-        return statsFromSchoolsAs(name, subRequest.count(), true);
+        addRelationCount(name, subRequest, School.SCHOOL_TYPE_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countSchoolsWith", name, SchoolType.SCHOOL_LIST_PROPERTY));
+        return this;
     }
     public SchoolTypeRequest<T> minStudentCapacityOfSchools(){
-        return minStudentCapacityOfSchoolsAs("minStudentCapacityOfSchools");
+        addRelationScalarAggregate("minStudentCapacityOfSchools", Q.schools().unlimited(),
+            School.SCHOOL_TYPE_PROPERTY, School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("min".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "minStudentCapacityOfSchools", null, SchoolType.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
     public SchoolTypeRequest<T> minStudentCapacityOfSchoolsAs(String name){
@@ -935,10 +1035,18 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
     }
 
     public SchoolTypeRequest<T> minStudentCapacityOfSchoolsAs(String name, SchoolRequest subRequest){
-        return statsFromSchoolsAs(name, subRequest.minStudentCapacity(), true);
+        addRelationScalarAggregate(name, subRequest, School.SCHOOL_TYPE_PROPERTY,
+            School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("min".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "minStudentCapacityOfSchoolsAs", name, SchoolType.SCHOOL_LIST_PROPERTY));
+        return this;
     }
     public SchoolTypeRequest<T> maxStudentCapacityOfSchools(){
-        return maxStudentCapacityOfSchoolsAs("maxStudentCapacityOfSchools");
+        addRelationScalarAggregate("maxStudentCapacityOfSchools", Q.schools().unlimited(),
+            School.SCHOOL_TYPE_PROPERTY, School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("max".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "maxStudentCapacityOfSchools", null, SchoolType.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
     public SchoolTypeRequest<T> maxStudentCapacityOfSchoolsAs(String name){
@@ -946,10 +1054,18 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
     }
 
     public SchoolTypeRequest<T> maxStudentCapacityOfSchoolsAs(String name, SchoolRequest subRequest){
-        return statsFromSchoolsAs(name, subRequest.maxStudentCapacity(), true);
+        addRelationScalarAggregate(name, subRequest, School.SCHOOL_TYPE_PROPERTY,
+            School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("max".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "maxStudentCapacityOfSchoolsAs", name, SchoolType.SCHOOL_LIST_PROPERTY));
+        return this;
     }
     public SchoolTypeRequest<T> sumStudentCapacityOfSchools(){
-        return sumStudentCapacityOfSchoolsAs("sumStudentCapacityOfSchools");
+        addRelationScalarAggregate("sumStudentCapacityOfSchools", Q.schools().unlimited(),
+            School.SCHOOL_TYPE_PROPERTY, School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("sum".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "sumStudentCapacityOfSchools", null, SchoolType.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
     public SchoolTypeRequest<T> sumStudentCapacityOfSchoolsAs(String name){
@@ -957,10 +1073,18 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
     }
 
     public SchoolTypeRequest<T> sumStudentCapacityOfSchoolsAs(String name, SchoolRequest subRequest){
-        return statsFromSchoolsAs(name, subRequest.sumStudentCapacity(), true);
+        addRelationScalarAggregate(name, subRequest, School.SCHOOL_TYPE_PROPERTY,
+            School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("sum".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "sumStudentCapacityOfSchoolsAs", name, SchoolType.SCHOOL_LIST_PROPERTY));
+        return this;
     }
     public SchoolTypeRequest<T> avgStudentCapacityOfSchools(){
-        return avgStudentCapacityOfSchoolsAs("avgStudentCapacityOfSchools");
+        addRelationScalarAggregate("avgStudentCapacityOfSchools", Q.schools().unlimited(),
+            School.SCHOOL_TYPE_PROPERTY, School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("avg".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "avgStudentCapacityOfSchools", null, SchoolType.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
     public SchoolTypeRequest<T> avgStudentCapacityOfSchoolsAs(String name){
@@ -968,10 +1092,18 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
     }
 
     public SchoolTypeRequest<T> avgStudentCapacityOfSchoolsAs(String name, SchoolRequest subRequest){
-        return statsFromSchoolsAs(name, subRequest.avgStudentCapacity(), true);
+        addRelationScalarAggregate(name, subRequest, School.SCHOOL_TYPE_PROPERTY,
+            School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("avg".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "avgStudentCapacityOfSchoolsAs", name, SchoolType.SCHOOL_LIST_PROPERTY));
+        return this;
     }
     public SchoolTypeRequest<T> standardDeviationStudentCapacityOfSchools(){
-        return standardDeviationStudentCapacityOfSchoolsAs("stdDevStudentCapacityOfSchools");
+        addRelationScalarAggregate("stdDevStudentCapacityOfSchools", Q.schools().unlimited(),
+            School.SCHOOL_TYPE_PROPERTY, School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("stddev".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "standardDeviationStudentCapacityOfSchools", null, SchoolType.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
     public SchoolTypeRequest<T> standardDeviationStudentCapacityOfSchoolsAs(String name){
@@ -979,10 +1111,18 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
     }
 
     public SchoolTypeRequest<T> standardDeviationStudentCapacityOfSchoolsAs(String name, SchoolRequest subRequest){
-        return statsFromSchoolsAs(name, subRequest.standardDeviationStudentCapacity(), true);
+        addRelationScalarAggregate(name, subRequest, School.SCHOOL_TYPE_PROPERTY,
+            School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("stddev".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "standardDeviationStudentCapacityOfSchoolsAs", name, SchoolType.SCHOOL_LIST_PROPERTY));
+        return this;
     }
     public SchoolTypeRequest<T> squareRootOfPopulationStandardDeviationStudentCapacityOfSchools(){
-        return squareRootOfPopulationStandardDeviationStudentCapacityOfSchoolsAs("stdDevPopStudentCapacityOfSchools");
+        addRelationScalarAggregate("stdDevPopStudentCapacityOfSchools", Q.schools().unlimited(),
+            School.SCHOOL_TYPE_PROPERTY, School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("stddev_pop".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "squareRootOfPopulationStandardDeviationStudentCapacityOfSchools", null, SchoolType.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
     public SchoolTypeRequest<T> squareRootOfPopulationStandardDeviationStudentCapacityOfSchoolsAs(String name){
@@ -990,10 +1130,18 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
     }
 
     public SchoolTypeRequest<T> squareRootOfPopulationStandardDeviationStudentCapacityOfSchoolsAs(String name, SchoolRequest subRequest){
-        return statsFromSchoolsAs(name, subRequest.squareRootOfPopulationStandardDeviationStudentCapacity(), true);
+        addRelationScalarAggregate(name, subRequest, School.SCHOOL_TYPE_PROPERTY,
+            School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("stddev_pop".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "squareRootOfPopulationStandardDeviationStudentCapacityOfSchoolsAs", name, SchoolType.SCHOOL_LIST_PROPERTY));
+        return this;
     }
     public SchoolTypeRequest<T> sampleVarianceStudentCapacityOfSchools(){
-        return sampleVarianceStudentCapacityOfSchoolsAs("varSampStudentCapacityOfSchools");
+        addRelationScalarAggregate("varSampStudentCapacityOfSchools", Q.schools().unlimited(),
+            School.SCHOOL_TYPE_PROPERTY, School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("var_samp".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "sampleVarianceStudentCapacityOfSchools", null, SchoolType.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
     public SchoolTypeRequest<T> sampleVarianceStudentCapacityOfSchoolsAs(String name){
@@ -1001,10 +1149,18 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
     }
 
     public SchoolTypeRequest<T> sampleVarianceStudentCapacityOfSchoolsAs(String name, SchoolRequest subRequest){
-        return statsFromSchoolsAs(name, subRequest.sampleVarianceStudentCapacity(), true);
+        addRelationScalarAggregate(name, subRequest, School.SCHOOL_TYPE_PROPERTY,
+            School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("var_samp".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "sampleVarianceStudentCapacityOfSchoolsAs", name, SchoolType.SCHOOL_LIST_PROPERTY));
+        return this;
     }
     public SchoolTypeRequest<T> samplePopulationVarianceStudentCapacityOfSchools(){
-        return samplePopulationVarianceStudentCapacityOfSchoolsAs("varPopStudentCapacityOfSchools");
+        addRelationScalarAggregate("varPopStudentCapacityOfSchools", Q.schools().unlimited(),
+            School.SCHOOL_TYPE_PROPERTY, School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("var_pop".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "samplePopulationVarianceStudentCapacityOfSchools", null, SchoolType.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
     public SchoolTypeRequest<T> samplePopulationVarianceStudentCapacityOfSchoolsAs(String name){
@@ -1012,7 +1168,11 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
     }
 
     public SchoolTypeRequest<T> samplePopulationVarianceStudentCapacityOfSchoolsAs(String name, SchoolRequest subRequest){
-        return statsFromSchoolsAs(name, subRequest.samplePopulationVarianceStudentCapacity(), true);
+        addRelationScalarAggregate(name, subRequest, School.SCHOOL_TYPE_PROPERTY,
+            School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("var_pop".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "samplePopulationVarianceStudentCapacityOfSchoolsAs", name, SchoolType.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
    public SchoolTypeRequest<T> facetByPlatformAs(String facetName, PlatformRequest platform){
@@ -1020,7 +1180,8 @@ public class SchoolTypeRequest<T extends SchoolType> extends BaseRequest<T> {
    }
 
    public SchoolTypeRequest<T> facetByPlatformAs(String facetName, PlatformRequest platform, boolean includeAllFacets){
-       addFacet(facetName, SchoolType.PLATFORM_PROPERTY, platform, includeAllFacets);
+       addFacet(facetName, SchoolType.PLATFORM_PROPERTY, platform, includeAllFacets,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.FACET, "facetByPlatformAs", facetName, SchoolType.PLATFORM_PROPERTY));
        return this;
    }
 

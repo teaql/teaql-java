@@ -13,6 +13,7 @@ import io.teaql.core.criteria.Operator;
 import io.teaql.core.criteria.TwoOperatorCriteria;
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.Objects;
 
 public class EntryRequest<T extends Entry> extends BaseRequest<T> {
 
@@ -35,6 +36,19 @@ public class EntryRequest<T extends Entry> extends BaseRequest<T> {
     public EntryRequest<T> comment(String comment){
          super.internalComment(comment);
          return this;
+    }
+
+    /** Independent query graph; ordinary roll-up handles remain live. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public EntryRequest<T> copy(){
+        return (EntryRequest<T>) super.copy();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected io.teaql.core.BaseRequest<T> internalCopyTarget(){
+        return new EntryRequest<>((Class<T>) returnType(), this::internalNewEntity);
     }
 
     // purpose() 继承自 BaseRequest，返回 ExecutableRequest（终结方法）
@@ -102,6 +116,12 @@ public class EntryRequest<T extends Entry> extends BaseRequest<T> {
     public EntryRequest<T> matchingAnyOf(EntryRequest entry){
         super.internalMatchAny(entry);
         return this;
+    }
+
+    public EntryRequest<T> matchingIdsOf(EntryRequest<?> request){
+        Objects.requireNonNull(request, "matching request");
+        return appendSearchCriteria(new SubQuerySearchCriteria(
+                Entry.ID_PROPERTY, request, Entry.ID_PROPERTY));
     }
 
     public EntryRequest<T> enhanceChildrenIfNeeded(){
@@ -648,6 +668,54 @@ public class EntryRequest<T extends Entry> extends BaseRequest<T> {
 
 
 
+    public EntryRequest<T> countDistinctId(){
+        return countDistinctIdAs("id_distinct_count");
+    }
+
+    public EntryRequest<T> countDistinctIdAs(String alias){
+        super.countDistinctProperty(alias, Entry.ID_PROPERTY);
+        return this;
+    }
+    public EntryRequest<T> countDistinctCatalog(){
+        return countDistinctCatalogAs("catalog_distinct_count");
+    }
+
+    public EntryRequest<T> countDistinctCatalogAs(String alias){
+        super.countDistinctProperty(alias, Entry.CATALOG_PROPERTY);
+        return this;
+    }
+    public EntryRequest<T> countDistinctName(){
+        return countDistinctNameAs("name_distinct_count");
+    }
+
+    public EntryRequest<T> countDistinctNameAs(String alias){
+        super.countDistinctProperty(alias, Entry.NAME_PROPERTY);
+        return this;
+    }
+    public EntryRequest<T> countDistinctCreateTime(){
+        return countDistinctCreateTimeAs("create_time_distinct_count");
+    }
+
+    public EntryRequest<T> countDistinctCreateTimeAs(String alias){
+        super.countDistinctProperty(alias, Entry.CREATE_TIME_PROPERTY);
+        return this;
+    }
+    public EntryRequest<T> countDistinctUpdateTime(){
+        return countDistinctUpdateTimeAs("update_time_distinct_count");
+    }
+
+    public EntryRequest<T> countDistinctUpdateTimeAs(String alias){
+        super.countDistinctProperty(alias, Entry.UPDATE_TIME_PROPERTY);
+        return this;
+    }
+    public EntryRequest<T> countDistinctVersion(){
+        return countDistinctVersionAs("version_distinct_count");
+    }
+
+    public EntryRequest<T> countDistinctVersionAs(String alias){
+        super.countDistinctProperty(alias, Entry.VERSION_PROPERTY);
+        return this;
+    }
 
     public EntryRequest<T> groupById(){
        groupBy(Entry.ID_PROPERTY);
@@ -664,7 +732,8 @@ public class EntryRequest<T extends Entry> extends BaseRequest<T> {
        return this;
     }
     public EntryRequest<T> groupByCatalogWith(CatalogRequest subRequest){
-       groupBy(Entry.CATALOG_PROPERTY, subRequest);
+       groupBy(Entry.CATALOG_PROPERTY, subRequest,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "groupByCatalogWith", null, "catalog"));
        return this;
     }
     public EntryRequest<T> groupByCatalog(){
@@ -815,8 +884,8 @@ public class EntryRequest<T extends Entry> extends BaseRequest<T> {
 
     public CatalogRequest rollUpToCatalog(){
        CatalogRequest catalog = Q.catalogs().unlimited();
-       this.withCatalogMatching(catalog)
-           .groupByCatalogWith(catalog);
+       this.internalRollUpTo("catalog", catalog,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "rollUpToCatalog", null, "catalog"));
        return catalog;
     }
 

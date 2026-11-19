@@ -67,7 +67,7 @@
         <dependency>
           <groupId>io.teaql</groupId>
           <artifactId>teaql-sqlite</artifactId>
-          <version>6.3.0</version>
+          <version>${teaql.version}</version>
         </dependency>
     <dependency>
       <groupId>io.teaql</groupId>

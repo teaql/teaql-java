@@ -52,10 +52,10 @@ public class Tenant extends BaseEntity implements RemoteInput {
     }
 
     public SmartList<PurchaseOrder> getPurchaseOrderList(){
-        return this.purchaseOrderList;
+        return this.purchaseOrderList == null ? SmartList.unloaded() : this.purchaseOrderList;
     }
     public SmartList<OrderItem> getOrderItemList(){
-        return this.orderItemList;
+        return this.orderItemList == null ? SmartList.unloaded() : this.orderItemList;
     }
     public Tenant updateName(String name){
         name = (name == null ? null : name.trim());
@@ -73,7 +73,8 @@ public class Tenant extends BaseEntity implements RemoteInput {
         }
 
         if(null == this.purchaseOrderList){
-            this.purchaseOrderList = new SmartList<>();
+            SmartList<PurchaseOrder> teaqlUnloadedItems = SmartList.unloaded();
+            this.purchaseOrderList = teaqlUnloadedItems.map(value -> value);
         }
 
         this.purchaseOrderList.add(purchaseOrder);
@@ -86,7 +87,8 @@ public class Tenant extends BaseEntity implements RemoteInput {
         }
 
         if(null == this.orderItemList){
-            this.orderItemList = new SmartList<>();
+            SmartList<OrderItem> teaqlUnloadedItems = SmartList.unloaded();
+            this.orderItemList = teaqlUnloadedItems.map(value -> value);
         }
 
         this.orderItemList.add(orderItem);
@@ -137,7 +139,13 @@ public class Tenant extends BaseEntity implements RemoteInput {
             case "name": return this.name;
             case "purchase_order_list": return this.purchaseOrderList;
             case "order_item_list": return this.orderItemList;
-            default: return super.__internalGet(property);
+            default:
+                // Presentation uses the installed Java member mapping; SQL and
+                // hydration retain canonical names. These aliases only read.
+                switch (property) {
+                    case "name": return this.name;
+                    default: return super.__internalGet(property);
+                }
         }
     }
 

@@ -36,7 +36,7 @@ public class OrderItemExpression<T, E, U extends OrderItem> extends ExpressionAd
 
 
     public CustomerOrderExpression<T, U, CustomerOrder> getCustomerOrder(){
-       return new CustomerOrderExpression(loaded("customerOrder", OrderItem::getCustomerOrder));
+       return new CustomerOrderExpression(loaded("customer_order", "getCustomerOrder", OrderItem::getCustomerOrder));
     }
 
     public OrderItemExpression<T, U, U> updateCustomerOrder(CustomerOrder customerOrder){
@@ -44,7 +44,7 @@ public class OrderItemExpression<T, E, U extends OrderItem> extends ExpressionAd
     }
 
     public Expression<T, String> getName(){
-       return loaded("name", OrderItem::getName);
+       return loaded("name", "getName", OrderItem::getName);
     }
     public OrderItemExpression<T, U, U> updateName(String name){
        return new OrderItemExpression(this, $it ->  ((OrderItem)$it).updateName(name));

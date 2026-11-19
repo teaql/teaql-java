@@ -36,14 +36,14 @@ public class PlatformExpression<T, E, U extends Platform> extends ExpressionAdap
 
 
     public Expression<T, String> getName(){
-       return loaded("name", Platform::getName);
+       return loaded("name", "getName", Platform::getName);
     }
     public PlatformExpression<T, U, U> updateName(String name){
        return new PlatformExpression(this, $it ->  ((Platform)$it).updateName(name));
     }
 
     public WorkItemListExpression<T, U, WorkItem> getWorkItemList(){
-        return new WorkItemListExpression(loaded("workItemList", Platform::getWorkItemList));
+        return new WorkItemListExpression(loaded("work_item_list", "getWorkItemList", Platform::getWorkItemList));
     }
     public PlatformExpression<T, U, U> addWorkItem(WorkItem workItem){
        return new PlatformExpression(this, $it ->  ((Platform)$it).addWorkItem(workItem));

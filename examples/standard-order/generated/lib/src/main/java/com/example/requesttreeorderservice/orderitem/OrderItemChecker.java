@@ -25,18 +25,21 @@ public class OrderItemChecker implements Checker<OrderItem>{
       if((orderItem == null)){
          return;
       }
+      boolean _contextFixEligible = needContextFix(_context, orderItem);
+      if(orderItem.needPersist()){
+      }
       if(orderItem.newItem()){
       }else if(orderItem.updateItem()){
-        if(!orderItem.isPropertyLoaded("customerOrder")){
+        if(!orderItem.isPropertyLoaded("customer_order")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "customer_order"), "Mutation requires a fully loaded entity");
         }
-        if(!orderItem.isPropertyLoaded("productName")){
+        if(!orderItem.isPropertyLoaded("product_name")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "product_name"), "Mutation requires a fully loaded entity");
         }
         if(!orderItem.isPropertyLoaded("quantity")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "quantity"), "Mutation requires a fully loaded entity");
         }
-        if(!orderItem.isPropertyLoaded("unitPrice")){
+        if(!orderItem.isPropertyLoaded("unit_price")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "unit_price"), "Mutation requires a fully loaded entity");
         }
 

@@ -18,6 +18,7 @@ import io.teaql.core.criteria.TwoOperatorCriteria;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Date;
+import java.util.Objects;
 
 public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T> {
 
@@ -40,6 +41,19 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
     public CustomerOrderRequest<T> comment(String comment){
          super.internalComment(comment);
          return this;
+    }
+
+    /** Independent query graph; ordinary roll-up handles remain live. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public CustomerOrderRequest<T> copy(){
+        return (CustomerOrderRequest<T>) super.copy();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected io.teaql.core.BaseRequest<T> internalCopyTarget(){
+        return new CustomerOrderRequest<>((Class<T>) returnType(), this::internalNewEntity);
     }
 
     // purpose() 继承自 BaseRequest，返回 ExecutableRequest（终结方法）
@@ -107,6 +121,12 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
     public CustomerOrderRequest<T> matchingAnyOf(CustomerOrderRequest customerOrder){
         super.internalMatchAny(customerOrder);
         return this;
+    }
+
+    public CustomerOrderRequest<T> matchingIdsOf(CustomerOrderRequest<?> request){
+        Objects.requireNonNull(request, "matching request");
+        return appendSearchCriteria(new SubQuerySearchCriteria(
+                CustomerOrder.ID_PROPERTY, request, CustomerOrder.ID_PROPERTY));
     }
 
     public CustomerOrderRequest<T> enhanceChildrenIfNeeded(){
@@ -798,6 +818,62 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
 
 
 
+    public CustomerOrderRequest<T> countDistinctId(){
+        return countDistinctIdAs("id_distinct_count");
+    }
+
+    public CustomerOrderRequest<T> countDistinctIdAs(String alias){
+        super.countDistinctProperty(alias, CustomerOrder.ID_PROPERTY);
+        return this;
+    }
+    public CustomerOrderRequest<T> countDistinctCustomer(){
+        return countDistinctCustomerAs("customer_distinct_count");
+    }
+
+    public CustomerOrderRequest<T> countDistinctCustomerAs(String alias){
+        super.countDistinctProperty(alias, CustomerOrder.CUSTOMER_PROPERTY);
+        return this;
+    }
+    public CustomerOrderRequest<T> countDistinctStatus(){
+        return countDistinctStatusAs("status_distinct_count");
+    }
+
+    public CustomerOrderRequest<T> countDistinctStatusAs(String alias){
+        super.countDistinctProperty(alias, CustomerOrder.STATUS_PROPERTY);
+        return this;
+    }
+    public CustomerOrderRequest<T> countDistinctOrderNumber(){
+        return countDistinctOrderNumberAs("order_number_distinct_count");
+    }
+
+    public CustomerOrderRequest<T> countDistinctOrderNumberAs(String alias){
+        super.countDistinctProperty(alias, CustomerOrder.ORDER_NUMBER_PROPERTY);
+        return this;
+    }
+    public CustomerOrderRequest<T> countDistinctOrderDate(){
+        return countDistinctOrderDateAs("order_date_distinct_count");
+    }
+
+    public CustomerOrderRequest<T> countDistinctOrderDateAs(String alias){
+        super.countDistinctProperty(alias, CustomerOrder.ORDER_DATE_PROPERTY);
+        return this;
+    }
+    public CustomerOrderRequest<T> countDistinctTotalAmount(){
+        return countDistinctTotalAmountAs("total_amount_distinct_count");
+    }
+
+    public CustomerOrderRequest<T> countDistinctTotalAmountAs(String alias){
+        super.countDistinctProperty(alias, CustomerOrder.TOTAL_AMOUNT_PROPERTY);
+        return this;
+    }
+    public CustomerOrderRequest<T> countDistinctVersion(){
+        return countDistinctVersionAs("version_distinct_count");
+    }
+
+    public CustomerOrderRequest<T> countDistinctVersionAs(String alias){
+        super.countDistinctProperty(alias, CustomerOrder.VERSION_PROPERTY);
+        return this;
+    }
     public CustomerOrderRequest<T> groupByOrderItemsWithDetails(OrderItemRequest subRequest){
        aggregate(CustomerOrder.ORDER_ITEM_LIST_PROPERTY, subRequest);
        return this;
@@ -818,7 +894,8 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
        return this;
     }
     public CustomerOrderRequest<T> groupByCustomerWith(CustomerRequest subRequest){
-       groupBy(CustomerOrder.CUSTOMER_PROPERTY, subRequest);
+       groupBy(CustomerOrder.CUSTOMER_PROPERTY, subRequest,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "groupByCustomerWith", null, "customer"));
        return this;
     }
     public CustomerOrderRequest<T> groupByCustomer(){
@@ -836,7 +913,8 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
        return this;
     }
     public CustomerOrderRequest<T> groupByStatusWith(OrderStatusRequest subRequest){
-       groupBy(CustomerOrder.STATUS_PROPERTY, subRequest);
+       groupBy(CustomerOrder.STATUS_PROPERTY, subRequest,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "groupByStatusWith", null, "status"));
        return this;
     }
     public CustomerOrderRequest<T> groupByStatus(){
@@ -1028,15 +1106,15 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
     }
     public CustomerRequest rollUpToCustomer(){
        CustomerRequest customer = Q.customers().unlimited();
-       this.withCustomerMatching(customer)
-           .groupByCustomerWith(customer);
+       this.internalRollUpTo("customer", customer,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "rollUpToCustomer", null, "customer"));
        return customer;
     }
 
     public OrderStatusRequest rollUpToStatus(){
        OrderStatusRequest status = Q.orderStatuses().unlimited();
-       this.withStatusMatching(status)
-           .groupByStatusWith(status);
+       this.internalRollUpTo("status", status,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "rollUpToStatus", null, "status"));
        return status;
     }
 

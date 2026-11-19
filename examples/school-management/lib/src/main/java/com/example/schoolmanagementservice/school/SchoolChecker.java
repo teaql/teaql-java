@@ -28,36 +28,62 @@ public class SchoolChecker implements Checker<School>{
       if((school == null)){
          return;
       }
+      boolean _contextFixEligible = needContextFix(_context, school);
+      if(school.needPersist()){
+      }
       if(school.newItem()){
-        if(school.getCreateTime() == null){
+        if(_contextFixEligible){
+           applyContextFix(_context, newLocation(_parentLocation, "create_time"), () -> {
            school.updateCreateTime(_context.evaluate("now"));
-           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "create_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
-        }if(school.getUpdateTime() == null){
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "create_time",
+              "now".equalsIgnoreCase("now") ? io.teaql.core.checker.FixEvidence.Source.CLOCK : io.teaql.core.checker.FixEvidence.Source.CONTEXT,
+              "now".equalsIgnoreCase("now") ? "graphClock" : "contextFunction:now"));
+           });
+        }if(_contextFixEligible){
+           applyContextFix(_context, newLocation(_parentLocation, "update_time"), () -> {
            school.updateUpdateTime(_context.evaluate("now"));
-           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time",
+              "now".equalsIgnoreCase("now") ? io.teaql.core.checker.FixEvidence.Source.CLOCK : io.teaql.core.checker.FixEvidence.Source.CONTEXT,
+              "now".equalsIgnoreCase("now") ? "graphClock" : "contextFunction:now"));
+           });
         }
       }else if(school.updateItem()){
-        school.updateUpdateTime(_context.evaluate("now"));
-        _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
+        if(_contextFixEligible){
+           applyContextFix(_context, newLocation(_parentLocation, "update_time"), () -> {
+           school.updateUpdateTime(_context.evaluate("now"));
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time",
+              "now".equalsIgnoreCase("now") ? io.teaql.core.checker.FixEvidence.Source.CLOCK : io.teaql.core.checker.FixEvidence.Source.CONTEXT,
+              "now".equalsIgnoreCase("now") ? "graphClock" : "contextFunction:now"));
+           });
+        }
         if(!school.isPropertyLoaded("platform")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "platform"), "Mutation requires a fully loaded entity");
-        }if(!school.isPropertyLoaded("schoolType")){
+        }
+        if(!school.isPropertyLoaded("school_type")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "school_type"), "Mutation requires a fully loaded entity");
-        }if(!school.isPropertyLoaded("name")){
+        }
+        if(!school.isPropertyLoaded("name")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "name"), "Mutation requires a fully loaded entity");
-        }if(!school.isPropertyLoaded("address")){
+        }
+        if(!school.isPropertyLoaded("address")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "address"), "Mutation requires a fully loaded entity");
-        }if(!school.isPropertyLoaded("establishedDate")){
+        }
+        if(!school.isPropertyLoaded("established_date")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "established_date"), "Mutation requires a fully loaded entity");
-        }if(!school.isPropertyLoaded("studentCapacity")){
+        }
+        if(!school.isPropertyLoaded("student_capacity")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "student_capacity"), "Mutation requires a fully loaded entity");
-        }if(!school.isPropertyLoaded("active")){
+        }
+        if(!school.isPropertyLoaded("active")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "active"), "Mutation requires a fully loaded entity");
-        }if(!school.isPropertyLoaded("createTime")){
+        }
+        if(!school.isPropertyLoaded("create_time")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "create_time"), "Mutation requires a fully loaded entity");
-        }if(!school.isPropertyLoaded("updateTime")){
+        }
+        if(!school.isPropertyLoaded("update_time")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "update_time"), "Mutation requires a fully loaded entity");
         }
+
       }
       checkPlatform(_context, school.getProperty(School.PLATFORM_PROPERTY), newLocation(_parentLocation, "platform"));
       checkSchoolType(_context, school.getProperty(School.SCHOOL_TYPE_PROPERTY), newLocation(_parentLocation, "school_type"));

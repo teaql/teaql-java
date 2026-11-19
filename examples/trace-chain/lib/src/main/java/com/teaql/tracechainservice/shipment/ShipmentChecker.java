@@ -24,12 +24,15 @@ public class ShipmentChecker implements Checker<Shipment>{
       if((shipment == null)){
          return;
       }
+      boolean _contextFixEligible = needContextFix(_context, shipment);
+      if(shipment.needPersist()){
+      }
       if(shipment.newItem()){
       }else if(shipment.updateItem()){
-        if(!shipment.isPropertyLoaded("customerOrder")){
+        if(!shipment.isPropertyLoaded("customer_order")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "customer_order"), "Mutation requires a fully loaded entity");
         }
-        if(!shipment.isPropertyLoaded("referenceCode")){
+        if(!shipment.isPropertyLoaded("reference_code")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "reference_code"), "Mutation requires a fully loaded entity");
         }
 

@@ -38,7 +38,7 @@ public class PaymentExpression<T, E, U extends Payment> extends ExpressionAdapto
 
 
     public CustomerOrderExpression<T, U, CustomerOrder> getCustomerOrder(){
-       return new CustomerOrderExpression(loaded("customerOrder", Payment::getCustomerOrder));
+       return new CustomerOrderExpression(loaded("customer_order", "getCustomerOrder", Payment::getCustomerOrder));
     }
 
     public PaymentExpression<T, U, U> updateCustomerOrder(CustomerOrder customerOrder){
@@ -46,14 +46,14 @@ public class PaymentExpression<T, E, U extends Payment> extends ExpressionAdapto
     }
 
     public Expression<T, String> getReferenceCode(){
-       return loaded("referenceCode", Payment::getReferenceCode);
+       return loaded("reference_code", "getReferenceCode", Payment::getReferenceCode);
     }
     public PaymentExpression<T, U, U> updateReferenceCode(String referenceCode){
        return new PaymentExpression(this, $it ->  ((Payment)$it).updateReferenceCode(referenceCode));
     }
 
     public PaymentAttemptListExpression<T, U, PaymentAttempt> getPaymentAttemptList(){
-        return new PaymentAttemptListExpression(loaded("paymentAttemptList", Payment::getPaymentAttemptList));
+        return new PaymentAttemptListExpression(loaded("payment_attempt_list", "getPaymentAttemptList", Payment::getPaymentAttemptList));
     }
     public PaymentExpression<T, U, U> addPaymentAttempt(PaymentAttempt paymentAttempt){
        return new PaymentExpression(this, $it ->  ((Payment)$it).addPaymentAttempt(paymentAttempt));

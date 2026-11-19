@@ -17,6 +17,7 @@ import io.teaql.core.SearchCriteria;
 import io.teaql.core.SubQuerySearchCriteria;
 import io.teaql.core.criteria.Operator;
 import io.teaql.core.criteria.TwoOperatorCriteria;
+import java.util.Objects;
 
 public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T> {
 
@@ -27,7 +28,11 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
     @Deprecated
     @SuppressWarnings("unchecked")
     public CustomerOrderRequest(Class<T> returnType){
-        super(returnType, () -> (T) new CustomerOrder());
+        this(returnType, () -> (T) new CustomerOrder());
+    }
+
+    protected CustomerOrderRequest(Class<T> returnType, java.util.function.Supplier<? extends T> factory){
+        super(returnType, factory);
         selectId();
         selectVersion();
     }
@@ -35,6 +40,19 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
     public CustomerOrderRequest<T> comment(String comment){
          super.internalComment(comment);
          return this;
+    }
+
+    /** Independent query graph; ordinary roll-up handles remain live. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public CustomerOrderRequest<T> copy(){
+        return (CustomerOrderRequest<T>) super.copy();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected io.teaql.core.BaseRequest<T> internalCopyTarget(){
+        return new CustomerOrderRequest<>((Class<T>) returnType(), this::internalNewEntity);
     }
 
     // purpose() 继承自 BaseRequest，返回 ExecutableRequest（终结方法）
@@ -104,6 +122,12 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
         return this;
     }
 
+    public CustomerOrderRequest<T> matchingIdsOf(CustomerOrderRequest<?> request){
+        Objects.requireNonNull(request, "matching request");
+        return appendSearchCriteria(new SubQuerySearchCriteria(
+                CustomerOrder.ID_PROPERTY, request, CustomerOrder.ID_PROPERTY));
+    }
+
     public CustomerOrderRequest<T> enhanceChildrenIfNeeded(){
         return this;
     }
@@ -125,6 +149,17 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
 
     public CustomerOrderRequest<T> selectSelfFields(){
         return selectSelf();
+    }
+
+    public CustomerOrderRequest<T> selectSelfWithoutParent(){
+        selectId();
+        selectVersion();
+        selectProperty(CustomerOrder.ID_PROPERTY);
+        selectProperty(CustomerOrder.PLATFORM_PROPERTY);
+        selectProperty(CustomerOrder.ORDER_NUMBER_PROPERTY);
+        selectProperty(CustomerOrder.DESCRIPTION_PROPERTY);
+        selectProperty(CustomerOrder.VERSION_PROPERTY);
+        return this;
     }
 
     public CustomerOrderRequest<T> selectAll(){
@@ -167,7 +202,8 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
 
     public CustomerOrderRequest<T> selectPlatformWith(PlatformRequest platform){
        selectProperty(CustomerOrder.PLATFORM_PROPERTY);
-       enhanceRelation(CustomerOrder.PLATFORM_PROPERTY, platform);
+       enhanceRelation(CustomerOrder.PLATFORM_PROPERTY, platform,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_SELECT, "selectPlatformWith", null, CustomerOrder.PLATFORM_PROPERTY));
        return this;
     }
 
@@ -231,7 +267,8 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
     }
 
     public CustomerOrderRequest<T> selectOrderItemListWith(OrderItemRequest orderItemList){
-       enhanceRelation(CustomerOrder.ORDER_ITEM_LIST_PROPERTY, orderItemList);
+       enhanceRelation(CustomerOrder.ORDER_ITEM_LIST_PROPERTY, orderItemList,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_SELECT, "selectOrderItemListWith", null, CustomerOrder.ORDER_ITEM_LIST_PROPERTY));
        return this;
     }
     public CustomerOrderRequest<T> selectPaymentList(){
@@ -239,7 +276,8 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
     }
 
     public CustomerOrderRequest<T> selectPaymentListWith(PaymentRequest paymentList){
-       enhanceRelation(CustomerOrder.PAYMENT_LIST_PROPERTY, paymentList);
+       enhanceRelation(CustomerOrder.PAYMENT_LIST_PROPERTY, paymentList,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_SELECT, "selectPaymentListWith", null, CustomerOrder.PAYMENT_LIST_PROPERTY));
        return this;
     }
     public CustomerOrderRequest<T> selectShipmentList(){
@@ -247,7 +285,8 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
     }
 
     public CustomerOrderRequest<T> selectShipmentListWith(ShipmentRequest shipmentList){
-       enhanceRelation(CustomerOrder.SHIPMENT_LIST_PROPERTY, shipmentList);
+       enhanceRelation(CustomerOrder.SHIPMENT_LIST_PROPERTY, shipmentList,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_SELECT, "selectShipmentListWith", null, CustomerOrder.SHIPMENT_LIST_PROPERTY));
        return this;
     }
 
@@ -593,10 +632,12 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
 
     public CustomerOrderRequest<T> count(){
         super.count();
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "count", null, null));
         return this;
     }
     public CustomerOrderRequest<T> countAs(String retName){
         super.count(retName);
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "countAs", retName, null));
         return this;
     }
     public CustomerOrderRequest<T> groupByPlatformWithDetails(){
@@ -611,6 +652,46 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
 
 
 
+    public CustomerOrderRequest<T> countDistinctId(){
+        return countDistinctIdAs("id_distinct_count");
+    }
+
+    public CustomerOrderRequest<T> countDistinctIdAs(String alias){
+        super.countDistinctProperty(alias, CustomerOrder.ID_PROPERTY);
+        return this;
+    }
+    public CustomerOrderRequest<T> countDistinctPlatform(){
+        return countDistinctPlatformAs("platform_distinct_count");
+    }
+
+    public CustomerOrderRequest<T> countDistinctPlatformAs(String alias){
+        super.countDistinctProperty(alias, CustomerOrder.PLATFORM_PROPERTY);
+        return this;
+    }
+    public CustomerOrderRequest<T> countDistinctOrderNumber(){
+        return countDistinctOrderNumberAs("order_number_distinct_count");
+    }
+
+    public CustomerOrderRequest<T> countDistinctOrderNumberAs(String alias){
+        super.countDistinctProperty(alias, CustomerOrder.ORDER_NUMBER_PROPERTY);
+        return this;
+    }
+    public CustomerOrderRequest<T> countDistinctDescription(){
+        return countDistinctDescriptionAs("description_distinct_count");
+    }
+
+    public CustomerOrderRequest<T> countDistinctDescriptionAs(String alias){
+        super.countDistinctProperty(alias, CustomerOrder.DESCRIPTION_PROPERTY);
+        return this;
+    }
+    public CustomerOrderRequest<T> countDistinctVersion(){
+        return countDistinctVersionAs("version_distinct_count");
+    }
+
+    public CustomerOrderRequest<T> countDistinctVersionAs(String alias){
+        super.countDistinctProperty(alias, CustomerOrder.VERSION_PROPERTY);
+        return this;
+    }
     public CustomerOrderRequest<T> groupByOrderItemsWithDetails(OrderItemRequest subRequest){
        aggregate(CustomerOrder.ORDER_ITEM_LIST_PROPERTY, subRequest);
        return this;
@@ -639,7 +720,8 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
        return this;
     }
     public CustomerOrderRequest<T> groupByPlatformWith(PlatformRequest subRequest){
-       groupBy(CustomerOrder.PLATFORM_PROPERTY, subRequest);
+       groupBy(CustomerOrder.PLATFORM_PROPERTY, subRequest,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "groupByPlatformWith", null, "platform"));
        return this;
     }
     public CustomerOrderRequest<T> groupByPlatform(){
@@ -776,8 +858,8 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
     }
 
     public CustomerOrderRequest<T> statsFromOrderItemsAs(String name, OrderItemRequest subRequest, boolean singleResult){
-       subRequest.setPartitionProperty(OrderItem.CUSTOMER_ORDER_PROPERTY);
-       addAggregateDynamicProperty(name, subRequest, singleResult);
+       addRelationAggregate(name, subRequest, OrderItem.CUSTOMER_ORDER_PROPERTY, singleResult,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "statsFromOrderItemsAs", name, CustomerOrder.ORDER_ITEM_LIST_PROPERTY));
        return this;
     }
 
@@ -789,8 +871,8 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
     }
 
     public CustomerOrderRequest<T> statsFromPaymentsAs(String name, PaymentRequest subRequest, boolean singleResult){
-       subRequest.setPartitionProperty(Payment.CUSTOMER_ORDER_PROPERTY);
-       addAggregateDynamicProperty(name, subRequest, singleResult);
+       addRelationAggregate(name, subRequest, Payment.CUSTOMER_ORDER_PROPERTY, singleResult,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "statsFromPaymentsAs", name, CustomerOrder.PAYMENT_LIST_PROPERTY));
        return this;
     }
 
@@ -802,8 +884,8 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
     }
 
     public CustomerOrderRequest<T> statsFromShipmentsAs(String name, ShipmentRequest subRequest, boolean singleResult){
-       subRequest.setPartitionProperty(Shipment.CUSTOMER_ORDER_PROPERTY);
-       addAggregateDynamicProperty(name, subRequest, singleResult);
+       addRelationAggregate(name, subRequest, Shipment.CUSTOMER_ORDER_PROPERTY, singleResult,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "statsFromShipmentsAs", name, CustomerOrder.SHIPMENT_LIST_PROPERTY));
        return this;
     }
 
@@ -812,8 +894,8 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
     }
     public PlatformRequest rollUpToPlatform(){
        PlatformRequest platform = Q.platforms().unlimited();
-       this.withPlatformMatching(platform)
-           .groupByPlatformWith(platform);
+       this.internalRollUpTo("platform", platform,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "rollUpToPlatform", null, "platform"));
        return platform;
     }
 
@@ -821,37 +903,55 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
 
 
     public CustomerOrderRequest<T> countOrderItems(){
-        return countOrderItemsAs("Count");
+        addRelationCount("Count", Q.orderItems().unlimited(), OrderItem.CUSTOMER_ORDER_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countOrderItems", null, CustomerOrder.ORDER_ITEM_LIST_PROPERTY));
+        return this;
     }
 
     public CustomerOrderRequest<T> countOrderItemsAs(String name){
-        return countOrderItemsWith(name, Q.orderItems().unlimited());
+        addRelationCount(name, Q.orderItems().unlimited(), OrderItem.CUSTOMER_ORDER_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countOrderItemsAs", name, CustomerOrder.ORDER_ITEM_LIST_PROPERTY));
+        return this;
     }
 
     public CustomerOrderRequest<T> countOrderItemsWith(String name, OrderItemRequest subRequest){
-        return statsFromOrderItemsAs(name, subRequest.count(), true);
+        addRelationCount(name, subRequest, OrderItem.CUSTOMER_ORDER_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countOrderItemsWith", name, CustomerOrder.ORDER_ITEM_LIST_PROPERTY));
+        return this;
     }
     public CustomerOrderRequest<T> countPayments(){
-        return countPaymentsAs("Count");
+        addRelationCount("Count", Q.payments().unlimited(), Payment.CUSTOMER_ORDER_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countPayments", null, CustomerOrder.PAYMENT_LIST_PROPERTY));
+        return this;
     }
 
     public CustomerOrderRequest<T> countPaymentsAs(String name){
-        return countPaymentsWith(name, Q.payments().unlimited());
+        addRelationCount(name, Q.payments().unlimited(), Payment.CUSTOMER_ORDER_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countPaymentsAs", name, CustomerOrder.PAYMENT_LIST_PROPERTY));
+        return this;
     }
 
     public CustomerOrderRequest<T> countPaymentsWith(String name, PaymentRequest subRequest){
-        return statsFromPaymentsAs(name, subRequest.count(), true);
+        addRelationCount(name, subRequest, Payment.CUSTOMER_ORDER_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countPaymentsWith", name, CustomerOrder.PAYMENT_LIST_PROPERTY));
+        return this;
     }
     public CustomerOrderRequest<T> countShipments(){
-        return countShipmentsAs("Count");
+        addRelationCount("Count", Q.shipments().unlimited(), Shipment.CUSTOMER_ORDER_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countShipments", null, CustomerOrder.SHIPMENT_LIST_PROPERTY));
+        return this;
     }
 
     public CustomerOrderRequest<T> countShipmentsAs(String name){
-        return countShipmentsWith(name, Q.shipments().unlimited());
+        addRelationCount(name, Q.shipments().unlimited(), Shipment.CUSTOMER_ORDER_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countShipmentsAs", name, CustomerOrder.SHIPMENT_LIST_PROPERTY));
+        return this;
     }
 
     public CustomerOrderRequest<T> countShipmentsWith(String name, ShipmentRequest subRequest){
-        return statsFromShipmentsAs(name, subRequest.count(), true);
+        addRelationCount(name, subRequest, Shipment.CUSTOMER_ORDER_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countShipmentsWith", name, CustomerOrder.SHIPMENT_LIST_PROPERTY));
+        return this;
     }
 
    public CustomerOrderRequest<T> facetByPlatformAs(String facetName, PlatformRequest platform){
@@ -859,7 +959,8 @@ public class CustomerOrderRequest<T extends CustomerOrder> extends BaseRequest<T
    }
 
    public CustomerOrderRequest<T> facetByPlatformAs(String facetName, PlatformRequest platform, boolean includeAllFacets){
-       addFacet(facetName, CustomerOrder.PLATFORM_PROPERTY, platform, includeAllFacets);
+       addFacet(facetName, CustomerOrder.PLATFORM_PROPERTY, platform, includeAllFacets,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.FACET, "facetByPlatformAs", facetName, CustomerOrder.PLATFORM_PROPERTY));
        return this;
    }
 

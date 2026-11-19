@@ -17,6 +17,7 @@ import io.teaql.core.criteria.Operator;
 import io.teaql.core.criteria.TwoOperatorCriteria;
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.Objects;
 
 public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
 
@@ -25,8 +26,13 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
      *             instead of constructing request builders directly.
      */
     @Deprecated
+    @SuppressWarnings("unchecked")
     public OrderLineRequest(Class<T> returnType){
-        super(returnType);
+        this(returnType, () -> (T) new OrderLine());
+    }
+
+    protected OrderLineRequest(Class<T> returnType, java.util.function.Supplier<? extends T> factory){
+        super(returnType, factory);
         selectId();
         selectVersion();
     }
@@ -34,6 +40,19 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
     public OrderLineRequest<T> comment(String comment){
          super.internalComment(comment);
          return this;
+    }
+
+    /** Independent query graph; ordinary roll-up handles remain live. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public OrderLineRequest<T> copy(){
+        return (OrderLineRequest<T>) super.copy();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected io.teaql.core.BaseRequest<T> internalCopyTarget(){
+        return new OrderLineRequest<>((Class<T>) returnType(), this::internalNewEntity);
     }
 
     // purpose() 继承自 BaseRequest，返回 ExecutableRequest（终结方法）
@@ -59,6 +78,36 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
         return this;
     }
 
+    /**
+     * Accept best-effort stateful seek optimization for browsing consecutive pages.
+     * Do not use this for business processing that must visit every row exactly once.
+     */
+    public OrderLineRequest<T> optimizeForContinuousPageFetch(){
+        super.optimizeForContinuousPageFetch();
+        return this;
+    }
+
+    public OrderLineRequest<T> optimizeForContinuousPageFetch(String namespace, int ttlSeconds){
+        super.optimizeForContinuousPageFetch(namespace, ttlSeconds);
+        return this;
+    }
+
+    public OrderLineRequest<T> optimizePaginationWithIdSet(){
+        super.optimizePaginationWithIdSet();
+        return this;
+    }
+
+    public OrderLineRequest<T> optimizePaginationWithIdSet(
+            String namespace, int ttlSeconds, int maxIds){
+        super.optimizePaginationWithIdSet(namespace, ttlSeconds, maxIds);
+        return this;
+    }
+
+    public OrderLineRequest<T> topNProbeParentThreshold(int threshold){
+        super.topNProbeParentThreshold(threshold);
+        return this;
+    }
+
     public OrderLineRequest<T> appendSearchCriteria(SearchCriteria searchCriteria){
         return (OrderLineRequest<T>)super.appendSearchCriteria(searchCriteria);
     }
@@ -71,6 +120,12 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
     public OrderLineRequest<T> matchingAnyOf(OrderLineRequest orderLine){
         super.internalMatchAny(orderLine);
         return this;
+    }
+
+    public OrderLineRequest<T> matchingIdsOf(OrderLineRequest<?> request){
+        Objects.requireNonNull(request, "matching request");
+        return appendSearchCriteria(new SubQuerySearchCriteria(
+                OrderLine.ID_PROPERTY, request, OrderLine.ID_PROPERTY));
     }
 
     public OrderLineRequest<T> enhanceChildrenIfNeeded(){
@@ -94,6 +149,21 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
 
     public OrderLineRequest<T> selectSelfFields(){
         return selectSelf();
+    }
+
+    public OrderLineRequest<T> selectSelfWithoutParent(){
+        selectId();
+        selectVersion();
+        selectProperty(OrderLine.ID_PROPERTY);
+        selectProperty(OrderLine.CUSTOMER_ORDER_PROPERTY);
+        selectProperty(OrderLine.PRODUCT_PROPERTY);
+        selectProperty(OrderLine.PRODUCT_NAME_PROPERTY);
+        selectProperty(OrderLine.SKU_PROPERTY);
+        selectProperty(OrderLine.QUANTITY_PROPERTY);
+        selectProperty(OrderLine.COMMERCE_PLATFORM_PROPERTY);
+        selectProperty(OrderLine.CREATE_TIME_PROPERTY);
+        selectProperty(OrderLine.VERSION_PROPERTY);
+        return this;
     }
 
     public OrderLineRequest<T> selectAll(){
@@ -135,7 +205,8 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
 
     public OrderLineRequest<T> selectCustomerOrderWith(CustomerOrderRequest customerOrder){
        selectProperty(OrderLine.CUSTOMER_ORDER_PROPERTY);
-       enhanceRelation(OrderLine.CUSTOMER_ORDER_PROPERTY, customerOrder);
+       enhanceRelation(OrderLine.CUSTOMER_ORDER_PROPERTY, customerOrder,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_SELECT, "selectCustomerOrderWith", null, OrderLine.CUSTOMER_ORDER_PROPERTY));
        return this;
     }
 
@@ -154,7 +225,8 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
 
     public OrderLineRequest<T> selectProductWith(ProductRequest product){
        selectProperty(OrderLine.PRODUCT_PROPERTY);
-       enhanceRelation(OrderLine.PRODUCT_PROPERTY, product);
+       enhanceRelation(OrderLine.PRODUCT_PROPERTY, product,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_SELECT, "selectProductWith", null, OrderLine.PRODUCT_PROPERTY));
        return this;
     }
 
@@ -232,7 +304,8 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
 
     public OrderLineRequest<T> selectCommercePlatformWith(CommercePlatformRequest commercePlatform){
        selectProperty(OrderLine.COMMERCE_PLATFORM_PROPERTY);
-       enhanceRelation(OrderLine.COMMERCE_PLATFORM_PROPERTY, commercePlatform);
+       enhanceRelation(OrderLine.COMMERCE_PLATFORM_PROPERTY, commercePlatform,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_SELECT, "selectCommercePlatformWith", null, OrderLine.COMMERCE_PLATFORM_PROPERTY));
        return this;
     }
 
@@ -283,11 +356,19 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
         return createBasicSearchCriteria(OrderLine.ID_PROPERTY, operator, values);
     }
 
+    public OrderLineRequest<T> withIdIsNot(Long id){
+       return withId(Operator.NOT_EQUAL, id);
+    }
+
+    public OrderLineRequest<T> withIdIn(Long... id){
+       return withId(Operator.IN, (Object[])id);
+    }
+
+    public OrderLineRequest<T> withIdNotIn(Long... id){
+       return withId(Operator.NOT_IN, (Object[])id);
+    }
     public OrderLineRequest<T> withIdIs(Long id){
        return withId(Operator.EQUAL, id);
-    }
-    public OrderLineRequest<T> withIdIn(Long... id){
-       return withId(Operator.EQUAL, (Object[])id);
     }
 
 
@@ -325,6 +406,11 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
        return appendSearchCriteria(new SubQuerySearchCriteria(OrderLine.CUSTOMER_ORDER_PROPERTY, customerOrder, CustomerOrder.ID_PROPERTY));
     }
 
+    public OrderLineRequest<T> withoutCustomerOrderMatching(CustomerOrderRequest customerOrder){
+       return appendSearchCriteria(SearchCriteria.not(
+           new SubQuerySearchCriteria(OrderLine.CUSTOMER_ORDER_PROPERTY, customerOrder, CustomerOrder.ID_PROPERTY)));
+    }
+
     public OrderLineRequest<T> filterByProduct(Product... product){
       if (product == null || product.length == 0) {
         throw new IllegalArgumentException("filterByProduct parameter product cannot be empty");
@@ -358,6 +444,11 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
        return appendSearchCriteria(new SubQuerySearchCriteria(OrderLine.PRODUCT_PROPERTY, product, Product.ID_PROPERTY));
     }
 
+    public OrderLineRequest<T> withoutProductMatching(ProductRequest product){
+       return appendSearchCriteria(SearchCriteria.not(
+           new SubQuerySearchCriteria(OrderLine.PRODUCT_PROPERTY, product, Product.ID_PROPERTY)));
+    }
+
     public OrderLineRequest<T> filterByProductName(String... productName){
       if (productName == null || productName.length == 0) {
         throw new IllegalArgumentException("filterByProductName parameter productName cannot be empty");
@@ -381,6 +472,17 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
         return createBasicSearchCriteria(OrderLine.PRODUCT_NAME_PROPERTY, operator, values);
     }
 
+    public OrderLineRequest<T> withProductNameIsNot(String productName){
+       return withProductName(Operator.NOT_EQUAL, productName);
+    }
+
+    public OrderLineRequest<T> withProductNameIn(String... productName){
+       return withProductName(Operator.IN, (Object[])productName);
+    }
+
+    public OrderLineRequest<T> withProductNameNotIn(String... productName){
+       return withProductName(Operator.NOT_IN, (Object[])productName);
+    }
     public OrderLineRequest<T> withProductNameGreaterThan(String productName){
        return withProductName(Operator.GREATER_THAN, productName);
     }
@@ -407,8 +509,20 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
        return withProductName(Operator.CONTAIN, productName);
     }
 
+    public OrderLineRequest<T> withProductNameNotContaining(String productName){
+       return withProductName(Operator.NOT_CONTAIN, productName);
+    }
+
+    public OrderLineRequest<T> withProductNameNotStartingWith(String productName){
+       return withProductName(Operator.NOT_BEGIN_WITH, productName);
+    }
+
     public OrderLineRequest<T> withProductNameEndingWith(String productName){
        return withProductName(Operator.END_WITH, productName);
+    }
+
+    public OrderLineRequest<T> withProductNameNotEndingWith(String productName){
+       return withProductName(Operator.NOT_END_WITH, productName);
     }
 
     public OrderLineRequest<T> withProductNameIs(String productName){
@@ -444,6 +558,17 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
         return createBasicSearchCriteria(OrderLine.SKU_PROPERTY, operator, values);
     }
 
+    public OrderLineRequest<T> withSkuIsNot(String sku){
+       return withSku(Operator.NOT_EQUAL, sku);
+    }
+
+    public OrderLineRequest<T> withSkuIn(String... sku){
+       return withSku(Operator.IN, (Object[])sku);
+    }
+
+    public OrderLineRequest<T> withSkuNotIn(String... sku){
+       return withSku(Operator.NOT_IN, (Object[])sku);
+    }
     public OrderLineRequest<T> withSkuGreaterThan(String sku){
        return withSku(Operator.GREATER_THAN, sku);
     }
@@ -470,8 +595,20 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
        return withSku(Operator.CONTAIN, sku);
     }
 
+    public OrderLineRequest<T> withSkuNotContaining(String sku){
+       return withSku(Operator.NOT_CONTAIN, sku);
+    }
+
+    public OrderLineRequest<T> withSkuNotStartingWith(String sku){
+       return withSku(Operator.NOT_BEGIN_WITH, sku);
+    }
+
     public OrderLineRequest<T> withSkuEndingWith(String sku){
        return withSku(Operator.END_WITH, sku);
+    }
+
+    public OrderLineRequest<T> withSkuNotEndingWith(String sku){
+       return withSku(Operator.NOT_END_WITH, sku);
     }
 
     public OrderLineRequest<T> withSkuIs(String sku){
@@ -507,6 +644,21 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
         return createBasicSearchCriteria(OrderLine.QUANTITY_PROPERTY, operator, values);
     }
 
+    public OrderLineRequest<T> withQuantityIs(Integer quantity){
+       return withQuantity(Operator.EQUAL, quantity);
+    }
+
+    public OrderLineRequest<T> withQuantityIsNot(Integer quantity){
+       return withQuantity(Operator.NOT_EQUAL, quantity);
+    }
+
+    public OrderLineRequest<T> withQuantityIn(Integer... quantity){
+       return withQuantity(Operator.IN, (Object[])quantity);
+    }
+
+    public OrderLineRequest<T> withQuantityNotIn(Integer... quantity){
+       return withQuantity(Operator.NOT_IN, (Object[])quantity);
+    }
     public OrderLineRequest<T> withQuantityGreaterThan(Integer quantity){
        return withQuantity(Operator.GREATER_THAN, quantity);
     }
@@ -562,6 +714,11 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
        return appendSearchCriteria(new SubQuerySearchCriteria(OrderLine.COMMERCE_PLATFORM_PROPERTY, commercePlatform, CommercePlatform.ID_PROPERTY));
     }
 
+    public OrderLineRequest<T> withoutCommercePlatformMatching(CommercePlatformRequest commercePlatform){
+       return appendSearchCriteria(SearchCriteria.not(
+           new SubQuerySearchCriteria(OrderLine.COMMERCE_PLATFORM_PROPERTY, commercePlatform, CommercePlatform.ID_PROPERTY)));
+    }
+
     public OrderLineRequest<T> filterByCreateTime(LocalDateTime... createTime){
       if (createTime == null || createTime.length == 0) {
         throw new IllegalArgumentException("filterByCreateTime parameter createTime cannot be empty");
@@ -585,6 +742,21 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
         return createBasicSearchCriteria(OrderLine.CREATE_TIME_PROPERTY, operator, values);
     }
 
+    public OrderLineRequest<T> withCreateTimeIs(LocalDateTime createTime){
+       return withCreateTime(Operator.EQUAL, createTime);
+    }
+
+    public OrderLineRequest<T> withCreateTimeIsNot(LocalDateTime createTime){
+       return withCreateTime(Operator.NOT_EQUAL, createTime);
+    }
+
+    public OrderLineRequest<T> withCreateTimeIn(LocalDateTime... createTime){
+       return withCreateTime(Operator.IN, (Object[])createTime);
+    }
+
+    public OrderLineRequest<T> withCreateTimeNotIn(LocalDateTime... createTime){
+       return withCreateTime(Operator.NOT_IN, (Object[])createTime);
+    }
     public OrderLineRequest<T> withCreateTimeGreaterThan(LocalDateTime createTime){
        return withCreateTime(Operator.GREATER_THAN, createTime);
     }
@@ -650,6 +822,21 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
         return createBasicSearchCriteria(OrderLine.VERSION_PROPERTY, operator, values);
     }
 
+    public OrderLineRequest<T> withVersionIs(Long version){
+       return withVersion(Operator.EQUAL, version);
+    }
+
+    public OrderLineRequest<T> withVersionIsNot(Long version){
+       return withVersion(Operator.NOT_EQUAL, version);
+    }
+
+    public OrderLineRequest<T> withVersionIn(Long... version){
+       return withVersion(Operator.IN, (Object[])version);
+    }
+
+    public OrderLineRequest<T> withVersionNotIn(Long... version){
+       return withVersion(Operator.NOT_IN, (Object[])version);
+    }
     public OrderLineRequest<T> withVersionGreaterThan(Long version){
        return withVersion(Operator.GREATER_THAN, version);
     }
@@ -671,12 +858,15 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
     }
 
 
+
     public OrderLineRequest<T> count(){
         super.count();
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "count", null, null));
         return this;
     }
     public OrderLineRequest<T> countAs(String retName){
         super.count(retName);
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "countAs", retName, null));
         return this;
     }
     public OrderLineRequest minQuantity(){
@@ -775,6 +965,78 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
 
 
 
+    public OrderLineRequest<T> countDistinctId(){
+        return countDistinctIdAs("id_distinct_count");
+    }
+
+    public OrderLineRequest<T> countDistinctIdAs(String alias){
+        super.countDistinctProperty(alias, OrderLine.ID_PROPERTY);
+        return this;
+    }
+    public OrderLineRequest<T> countDistinctCustomerOrder(){
+        return countDistinctCustomerOrderAs("customer_order_distinct_count");
+    }
+
+    public OrderLineRequest<T> countDistinctCustomerOrderAs(String alias){
+        super.countDistinctProperty(alias, OrderLine.CUSTOMER_ORDER_PROPERTY);
+        return this;
+    }
+    public OrderLineRequest<T> countDistinctProduct(){
+        return countDistinctProductAs("product_distinct_count");
+    }
+
+    public OrderLineRequest<T> countDistinctProductAs(String alias){
+        super.countDistinctProperty(alias, OrderLine.PRODUCT_PROPERTY);
+        return this;
+    }
+    public OrderLineRequest<T> countDistinctProductName(){
+        return countDistinctProductNameAs("product_name_distinct_count");
+    }
+
+    public OrderLineRequest<T> countDistinctProductNameAs(String alias){
+        super.countDistinctProperty(alias, OrderLine.PRODUCT_NAME_PROPERTY);
+        return this;
+    }
+    public OrderLineRequest<T> countDistinctSku(){
+        return countDistinctSkuAs("sku_distinct_count");
+    }
+
+    public OrderLineRequest<T> countDistinctSkuAs(String alias){
+        super.countDistinctProperty(alias, OrderLine.SKU_PROPERTY);
+        return this;
+    }
+    public OrderLineRequest<T> countDistinctQuantity(){
+        return countDistinctQuantityAs("quantity_distinct_count");
+    }
+
+    public OrderLineRequest<T> countDistinctQuantityAs(String alias){
+        super.countDistinctProperty(alias, OrderLine.QUANTITY_PROPERTY);
+        return this;
+    }
+    public OrderLineRequest<T> countDistinctCommercePlatform(){
+        return countDistinctCommercePlatformAs("commerce_platform_distinct_count");
+    }
+
+    public OrderLineRequest<T> countDistinctCommercePlatformAs(String alias){
+        super.countDistinctProperty(alias, OrderLine.COMMERCE_PLATFORM_PROPERTY);
+        return this;
+    }
+    public OrderLineRequest<T> countDistinctCreateTime(){
+        return countDistinctCreateTimeAs("create_time_distinct_count");
+    }
+
+    public OrderLineRequest<T> countDistinctCreateTimeAs(String alias){
+        super.countDistinctProperty(alias, OrderLine.CREATE_TIME_PROPERTY);
+        return this;
+    }
+    public OrderLineRequest<T> countDistinctVersion(){
+        return countDistinctVersionAs("version_distinct_count");
+    }
+
+    public OrderLineRequest<T> countDistinctVersionAs(String alias){
+        super.countDistinctProperty(alias, OrderLine.VERSION_PROPERTY);
+        return this;
+    }
 
     public OrderLineRequest<T> groupById(){
        groupBy(OrderLine.ID_PROPERTY);
@@ -791,7 +1053,8 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
        return this;
     }
     public OrderLineRequest<T> groupByCustomerOrderWith(CustomerOrderRequest subRequest){
-       groupBy(OrderLine.CUSTOMER_ORDER_PROPERTY, subRequest);
+       groupBy(OrderLine.CUSTOMER_ORDER_PROPERTY, subRequest,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "groupByCustomerOrderWith", null, "customer_order"));
        return this;
     }
     public OrderLineRequest<T> groupByCustomerOrder(){
@@ -809,7 +1072,8 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
        return this;
     }
     public OrderLineRequest<T> groupByProductWith(ProductRequest subRequest){
-       groupBy(OrderLine.PRODUCT_PROPERTY, subRequest);
+       groupBy(OrderLine.PRODUCT_PROPERTY, subRequest,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "groupByProductWith", null, "product"));
        return this;
     }
     public OrderLineRequest<T> groupByProduct(){
@@ -872,7 +1136,8 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
        return this;
     }
     public OrderLineRequest<T> groupByCommercePlatformWith(CommercePlatformRequest subRequest){
-       groupBy(OrderLine.COMMERCE_PLATFORM_PROPERTY, subRequest);
+       groupBy(OrderLine.COMMERCE_PLATFORM_PROPERTY, subRequest,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "groupByCommercePlatformWith", null, "commerce_platform"));
        return this;
     }
     public OrderLineRequest<T> groupByCommercePlatform(){
@@ -1031,15 +1296,15 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
 
     public CustomerOrderRequest rollUpToCustomerOrder(){
        CustomerOrderRequest customerOrder = Q.customerOrders().unlimited();
-       this.withCustomerOrderMatching(customerOrder)
-           .groupByCustomerOrderWith(customerOrder);
+       this.internalRollUpTo("customer_order", customerOrder,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "rollUpToCustomerOrder", null, "customer_order"));
        return customerOrder;
     }
 
     public ProductRequest rollUpToProduct(){
        ProductRequest product = Q.products().unlimited();
-       this.withProductMatching(product)
-           .groupByProductWith(product);
+       this.internalRollUpTo("product", product,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "rollUpToProduct", null, "product"));
        return product;
     }
 
@@ -1048,8 +1313,8 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
 
     public CommercePlatformRequest rollUpToCommercePlatform(){
        CommercePlatformRequest commercePlatform = Q.commercePlatforms().unlimited();
-       this.withCommercePlatformMatching(commercePlatform)
-           .groupByCommercePlatformWith(commercePlatform);
+       this.internalRollUpTo("commerce_platform", commercePlatform,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "rollUpToCommercePlatform", null, "commerce_platform"));
        return commercePlatform;
     }
 
@@ -1061,7 +1326,8 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
    }
 
    public OrderLineRequest<T> facetByCustomerOrderAs(String facetName, CustomerOrderRequest customerOrder, boolean includeAllFacets){
-       addFacet(facetName, OrderLine.CUSTOMER_ORDER_PROPERTY, customerOrder, includeAllFacets);
+       addFacet(facetName, OrderLine.CUSTOMER_ORDER_PROPERTY, customerOrder, includeAllFacets,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.FACET, "facetByCustomerOrderAs", facetName, OrderLine.CUSTOMER_ORDER_PROPERTY));
        return this;
    }
    public OrderLineRequest<T> facetByProductAs(String facetName, ProductRequest product){
@@ -1069,7 +1335,8 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
    }
 
    public OrderLineRequest<T> facetByProductAs(String facetName, ProductRequest product, boolean includeAllFacets){
-       addFacet(facetName, OrderLine.PRODUCT_PROPERTY, product, includeAllFacets);
+       addFacet(facetName, OrderLine.PRODUCT_PROPERTY, product, includeAllFacets,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.FACET, "facetByProductAs", facetName, OrderLine.PRODUCT_PROPERTY));
        return this;
    }
    public OrderLineRequest<T> facetByCommercePlatformAs(String facetName, CommercePlatformRequest commercePlatform){
@@ -1077,7 +1344,8 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
    }
 
    public OrderLineRequest<T> facetByCommercePlatformAs(String facetName, CommercePlatformRequest commercePlatform, boolean includeAllFacets){
-       addFacet(facetName, OrderLine.COMMERCE_PLATFORM_PROPERTY, commercePlatform, includeAllFacets);
+       addFacet(facetName, OrderLine.COMMERCE_PLATFORM_PROPERTY, commercePlatform, includeAllFacets,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.FACET, "facetByCommercePlatformAs", facetName, OrderLine.COMMERCE_PLATFORM_PROPERTY));
        return this;
    }
 
@@ -1089,6 +1357,11 @@ public class OrderLineRequest<T extends OrderLine> extends BaseRequest<T> {
     public OrderLineRequest<T> top(int topN) {
         super.top(topN);
         return this;
+    }
+
+    /** Cross-runtime bounded-query alias. */
+    public OrderLineRequest<T> limit(int limit) {
+        return top(limit);
     }
 
     /**

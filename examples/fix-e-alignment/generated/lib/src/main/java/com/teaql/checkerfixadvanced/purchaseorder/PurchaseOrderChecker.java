@@ -27,6 +27,7 @@ public class PurchaseOrderChecker implements Checker<PurchaseOrder>{
       if((purchaseOrder == null)){
          return;
       }
+      boolean _contextFixEligible = needContextFix(_context, purchaseOrder);
       if(purchaseOrder.needPersist()){
         verifyContextRoot(_context, purchaseOrder, "tenant", "Tenant", newLocation(_parentLocation, "tenant"));
 
@@ -38,16 +39,30 @@ public class PurchaseOrderChecker implements Checker<PurchaseOrder>{
         }else{
            _context.verifyActiveRoot("Tenant", purchaseOrder.getTenant().getId());
         }
-        if(purchaseOrder.getCreateTime() == null){
+        if(_contextFixEligible){
+           applyContextFix(_context, newLocation(_parentLocation, "create_time"), () -> {
            purchaseOrder.updateCreateTime(_context.evaluate("now"));
-           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "create_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
-        }if(purchaseOrder.getUpdateTime() == null){
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "create_time",
+              "now".equalsIgnoreCase("now") ? io.teaql.core.checker.FixEvidence.Source.CLOCK : io.teaql.core.checker.FixEvidence.Source.CONTEXT,
+              "now".equalsIgnoreCase("now") ? "graphClock" : "contextFunction:now"));
+           });
+        }if(_contextFixEligible){
+           applyContextFix(_context, newLocation(_parentLocation, "update_time"), () -> {
            purchaseOrder.updateUpdateTime(_context.evaluate("now"));
-           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time",
+              "now".equalsIgnoreCase("now") ? io.teaql.core.checker.FixEvidence.Source.CLOCK : io.teaql.core.checker.FixEvidence.Source.CONTEXT,
+              "now".equalsIgnoreCase("now") ? "graphClock" : "contextFunction:now"));
+           });
         }
       }else if(purchaseOrder.updateItem()){
-        purchaseOrder.updateUpdateTime(_context.evaluate("now"));
-        _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
+        if(_contextFixEligible){
+           applyContextFix(_context, newLocation(_parentLocation, "update_time"), () -> {
+           purchaseOrder.updateUpdateTime(_context.evaluate("now"));
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time",
+              "now".equalsIgnoreCase("now") ? io.teaql.core.checker.FixEvidence.Source.CLOCK : io.teaql.core.checker.FixEvidence.Source.CONTEXT,
+              "now".equalsIgnoreCase("now") ? "graphClock" : "contextFunction:now"));
+           });
+        }
         if(!purchaseOrder.isPropertyLoaded("tenant")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "tenant"), "Mutation requires a fully loaded entity");
         }

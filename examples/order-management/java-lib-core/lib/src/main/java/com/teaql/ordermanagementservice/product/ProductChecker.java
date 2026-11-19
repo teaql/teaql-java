@@ -16,77 +16,115 @@ public class ProductChecker implements Checker<Product>{
         return Product.INTERNAL_TYPE;
     }
 
-    public void checkAndFix(UserContext _ctx, Product product, ObjectLocation _parentLocation){
-        if(needCheck(_ctx, product)){
-            markAsChecked(_ctx, product);
-            doCheck(_ctx, product, _parentLocation);
+    public void checkAndFix(UserContext _context, Product product, ObjectLocation _parentLocation){
+        if(needCheck(_context, product)){
+            markAsChecked(_context, product);
+            doCheck(_context, product, _parentLocation);
         }
     }
 
-    public void doCheck(UserContext _ctx, Product product, ObjectLocation _parentLocation){
+    public void doCheck(UserContext _context, Product product, ObjectLocation _parentLocation){
       if((product == null)){
          return;
       }
+      boolean _contextFixEligible = needContextFix(_context, product);
+      if(product.needPersist()){
+      }
       if(product.newItem()){
-        if(product.getCreateTime() == null){
-           product.updateCreateTime(java.time.LocalDateTime.now());
-        }if(product.getUpdateTime() == null){
-           product.updateUpdateTime(java.time.LocalDateTime.now());
+        if(_contextFixEligible){
+           applyContextFix(_context, newLocation(_parentLocation, "create_time"), () -> {
+           product.updateCreateTime(_context.evaluate("now"));
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "create_time",
+              "now".equalsIgnoreCase("now") ? io.teaql.core.checker.FixEvidence.Source.CLOCK : io.teaql.core.checker.FixEvidence.Source.CONTEXT,
+              "now".equalsIgnoreCase("now") ? "graphClock" : "contextFunction:now"));
+           });
+        }if(_contextFixEligible){
+           applyContextFix(_context, newLocation(_parentLocation, "update_time"), () -> {
+           product.updateUpdateTime(_context.evaluate("now"));
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time",
+              "now".equalsIgnoreCase("now") ? io.teaql.core.checker.FixEvidence.Source.CLOCK : io.teaql.core.checker.FixEvidence.Source.CONTEXT,
+              "now".equalsIgnoreCase("now") ? "graphClock" : "contextFunction:now"));
+           });
         }
       }else if(product.updateItem()){
-        product.updateUpdateTime(java.time.LocalDateTime.now());
+        if(_contextFixEligible){
+           applyContextFix(_context, newLocation(_parentLocation, "update_time"), () -> {
+           product.updateUpdateTime(_context.evaluate("now"));
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time",
+              "now".equalsIgnoreCase("now") ? io.teaql.core.checker.FixEvidence.Source.CLOCK : io.teaql.core.checker.FixEvidence.Source.CONTEXT,
+              "now".equalsIgnoreCase("now") ? "graphClock" : "contextFunction:now"));
+           });
+        }
+        if(!product.isPropertyLoaded("name")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "name"), "Mutation requires a fully loaded entity");
+        }
+        if(!product.isPropertyLoaded("sku")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "sku"), "Mutation requires a fully loaded entity");
+        }
+        if(!product.isPropertyLoaded("image_url")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "image_url"), "Mutation requires a fully loaded entity");
+        }
+        if(!product.isPropertyLoaded("commerce_platform")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "commerce_platform"), "Mutation requires a fully loaded entity");
+        }
+        if(!product.isPropertyLoaded("create_time")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "create_time"), "Mutation requires a fully loaded entity");
+        }
+        if(!product.isPropertyLoaded("update_time")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "update_time"), "Mutation requires a fully loaded entity");
+        }
+
       }
-      checkName(_ctx, product.getProperty(Product.NAME_PROPERTY), newLocation(_parentLocation, Product.NAME_PROPERTY));
-      checkSku(_ctx, product.getProperty(Product.SKU_PROPERTY), newLocation(_parentLocation, Product.SKU_PROPERTY));
-      checkImageUrl(_ctx, product.getProperty(Product.IMAGE_URL_PROPERTY), newLocation(_parentLocation, Product.IMAGE_URL_PROPERTY));
-      checkCommercePlatform(_ctx, product.getProperty(Product.COMMERCE_PLATFORM_PROPERTY), newLocation(_parentLocation, Product.COMMERCE_PLATFORM_PROPERTY));
-      checkCreateTime(_ctx, product.getProperty(Product.CREATE_TIME_PROPERTY), newLocation(_parentLocation, Product.CREATE_TIME_PROPERTY));
-      checkUpdateTime(_ctx, product.getProperty(Product.UPDATE_TIME_PROPERTY), newLocation(_parentLocation, Product.UPDATE_TIME_PROPERTY));
+      checkName(_context, product.getProperty(Product.NAME_PROPERTY), newLocation(_parentLocation, "name"));
+      checkSku(_context, product.getProperty(Product.SKU_PROPERTY), newLocation(_parentLocation, "sku"));
+      checkImageUrl(_context, product.getProperty(Product.IMAGE_URL_PROPERTY), newLocation(_parentLocation, "image_url"));
+      checkCommercePlatform(_context, product.getProperty(Product.COMMERCE_PLATFORM_PROPERTY), newLocation(_parentLocation, "commerce_platform"));
+      checkCreateTime(_context, product.getProperty(Product.CREATE_TIME_PROPERTY), newLocation(_parentLocation, "create_time"));
+      checkUpdateTime(_context, product.getProperty(Product.UPDATE_TIME_PROPERTY), newLocation(_parentLocation, "update_time"));
       for(int i = 0; product.getOrderLineList() != null && i < product.getOrderLineList().size(); i++){
          OrderLine orderLine = product.getOrderLineList().get(i);
-         new OrderLineChecker().checkAndFix(_ctx, orderLine, newLocation(_parentLocation, Product.ORDER_LINE_LIST_PROPERTY, i));
+         new OrderLineChecker().checkAndFix(_context, orderLine, newLocation(_parentLocation, "order_line_list", i));
       }
     }
 
-    public void checkName(UserContext _ctx, String name, ObjectLocation _parentLocation){
-    requiredCheck(_ctx, _parentLocation, name);
+    public void checkName(UserContext _context, String name, ObjectLocation _parentLocation){
+    requiredCheck(_context, _parentLocation, name);
     if((name == null)){
         return;
     }
-    maxStringCheck(_ctx, _parentLocation, 100, name);
+    maxStringCheck(_context, _parentLocation, 100, name);
 
     }
-    public void checkSku(UserContext _ctx, String sku, ObjectLocation _parentLocation){
-    requiredCheck(_ctx, _parentLocation, sku);
+    public void checkSku(UserContext _context, String sku, ObjectLocation _parentLocation){
+    requiredCheck(_context, _parentLocation, sku);
     if((sku == null)){
         return;
     }
-    maxStringCheck(_ctx, _parentLocation, 100, sku);
+    maxStringCheck(_context, _parentLocation, 100, sku);
 
     }
-    public void checkImageUrl(UserContext _ctx, String imageUrl, ObjectLocation _parentLocation){
-    requiredCheck(_ctx, _parentLocation, imageUrl);
+    public void checkImageUrl(UserContext _context, String imageUrl, ObjectLocation _parentLocation){
     if((imageUrl == null)){
         return;
     }
-    maxStringCheck(_ctx, _parentLocation, 100, imageUrl);
+    maxStringCheck(_context, _parentLocation, 100, imageUrl);
 
     }
-    public void checkCommercePlatform(UserContext _ctx, CommercePlatform commercePlatform, ObjectLocation _parentLocation){
-    requiredCheck(_ctx, _parentLocation, commercePlatform);
+    public void checkCommercePlatform(UserContext _context, CommercePlatform commercePlatform, ObjectLocation _parentLocation){
+    requiredCheck(_context, _parentLocation, commercePlatform);
     if((commercePlatform == null)){
         return;
     }
-    new CommercePlatformChecker().checkAndFix(_ctx, commercePlatform, _parentLocation);
+    new CommercePlatformChecker().checkAndFix(_context, commercePlatform, _parentLocation);
     }
-    public void checkCreateTime(UserContext _ctx, LocalDateTime createTime, ObjectLocation _parentLocation){
-    requiredCheck(_ctx, _parentLocation, createTime);
+    public void checkCreateTime(UserContext _context, LocalDateTime createTime, ObjectLocation _parentLocation){
+    requiredCheck(_context, _parentLocation, createTime);
     if((createTime == null)){
         return;
     }
     }
-    public void checkUpdateTime(UserContext _ctx, LocalDateTime updateTime, ObjectLocation _parentLocation){
-    requiredCheck(_ctx, _parentLocation, updateTime);
+    public void checkUpdateTime(UserContext _context, LocalDateTime updateTime, ObjectLocation _parentLocation){
+    requiredCheck(_context, _parentLocation, updateTime);
     if((updateTime == null)){
         return;
     }

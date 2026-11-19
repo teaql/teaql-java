@@ -39,21 +39,21 @@ public class CustomerExpression<T, E, U extends Customer> extends ExpressionAdap
 
 
     public Expression<T, String> getName(){
-       return apply(Customer::getName);
+       return loaded("name", "getName", Customer::getName);
     }
     public CustomerExpression<T, U, U> updateName(String name){
        return new CustomerExpression(this, $it ->  ((Customer)$it).updateName(name));
     }
 
     public Expression<T, String> getEmail(){
-       return apply(Customer::getEmail);
+       return loaded("email", "getEmail", Customer::getEmail);
     }
     public CustomerExpression<T, U, U> updateEmail(String email){
        return new CustomerExpression(this, $it ->  ((Customer)$it).updateEmail(email));
     }
 
     public CommercePlatformExpression<T, U, CommercePlatform> getCommercePlatform(){
-       return new CommercePlatformExpression(this, $it ->  ((Customer)$it).getCommercePlatform());
+       return new CommercePlatformExpression(loaded("commerce_platform", "getCommercePlatform", Customer::getCommercePlatform));
     }
 
     public CustomerExpression<T, U, U> updateCommercePlatform(CommercePlatform commercePlatform){
@@ -61,21 +61,21 @@ public class CustomerExpression<T, E, U extends Customer> extends ExpressionAdap
     }
 
     public Expression<T, LocalDateTime> getCreateTime(){
-       return apply(Customer::getCreateTime);
+       return loaded("create_time", "getCreateTime", Customer::getCreateTime);
     }
     public CustomerExpression<T, U, U> updateCreateTime(LocalDateTime createTime){
        return new CustomerExpression(this, $it ->  ((Customer)$it).updateCreateTime(createTime));
     }
 
     public Expression<T, LocalDateTime> getUpdateTime(){
-       return apply(Customer::getUpdateTime);
+       return loaded("update_time", "getUpdateTime", Customer::getUpdateTime);
     }
     public CustomerExpression<T, U, U> updateUpdateTime(LocalDateTime updateTime){
        return new CustomerExpression(this, $it ->  ((Customer)$it).updateUpdateTime(updateTime));
     }
 
     public CustomerOrderListExpression<T, U, CustomerOrder> getCustomerOrderList(){
-        return new CustomerOrderListExpression(this, $it ->  ((Customer)$it).getCustomerOrderList());
+        return new CustomerOrderListExpression(loaded("customer_order_list", "getCustomerOrderList", Customer::getCustomerOrderList));
     }
     public CustomerExpression<T, U, U> addCustomerOrder(CustomerOrder customerOrder){
        return new CustomerExpression(this, $it ->  ((Customer)$it).addCustomerOrder(customerOrder));

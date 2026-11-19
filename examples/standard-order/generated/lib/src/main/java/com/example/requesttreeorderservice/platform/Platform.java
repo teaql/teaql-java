@@ -10,6 +10,7 @@ import io.teaql.core.FieldLayout;
 import io.teaql.core.FrameworkInternal;
 import io.teaql.core.RemoteInput;
 import io.teaql.core.SmartList;
+import io.teaql.core.checker.JsonFieldNamingProfile;
 import java.util.Objects;
 
 /**
@@ -30,16 +31,17 @@ public class Platform extends BaseEntity implements RemoteInput {
     public static final java.util.Map<String, java.util.List<String>> __TEAQL_FIXED_FIELD_MAPPINGS =
         java.util.Map.ofEntries(java.util.Map.entry("id", java.util.List.of("id", "id")), java.util.Map.entry("name", java.util.List.of("name", "name")), java.util.Map.entry("version", java.util.List.of("version", "version")));
     public static final java.util.Set<String> __TEAQL_FIXED_RELATION_NAMES = java.util.Set.of(
-        "orderStatusList", "customerList");
+        "order_status_list", "customer_list");
     public static final FieldLayout __TEAQL_FIELD_LAYOUT =
         FieldLayout.installGenerated(FieldLayout.generated(
             Platform.class, __TEAQL_FIELD_LAYOUT_REVISION,
-            __TEAQL_FIXED_FIELD_INDEXES, __TEAQL_FIXED_FIELD_MAPPINGS, __TEAQL_FIXED_RELATION_NAMES));
+            __TEAQL_FIXED_FIELD_INDEXES, __TEAQL_FIXED_FIELD_MAPPINGS, __TEAQL_FIXED_RELATION_NAMES,
+            JsonFieldNamingProfile.fromModelValue("camelCase")));
 
 
     public static final String NAME_PROPERTY = "name";
-    public static final String ORDER_STATUS_LIST_PROPERTY = "orderStatusList";
-    public static final String CUSTOMER_LIST_PROPERTY = "customerList";
+    public static final String ORDER_STATUS_LIST_PROPERTY = "order_status_list";
+    public static final String CUSTOMER_LIST_PROPERTY = "customer_list";
     private String name;
 
     private SmartList<OrderStatus> orderStatusList;
@@ -50,14 +52,14 @@ public class Platform extends BaseEntity implements RemoteInput {
     }
 
     public SmartList<OrderStatus> getOrderStatusList(){
-        return this.orderStatusList;
+        return this.orderStatusList == null ? SmartList.unloaded() : this.orderStatusList;
     }
     public SmartList<Customer> getCustomerList(){
-        return this.customerList;
+        return this.customerList == null ? SmartList.unloaded() : this.customerList;
     }
     public Platform updateName(String name){
         name = (name == null ? null : name.trim());
-        if(Objects.equals(this.name, name)){
+        if(isPropertyLoaded(NAME_PROPERTY) && Objects.equals(this.name, name)){
             return this;
         }
         handleUpdate(NAME_PROPERTY, getName(), name);
@@ -71,7 +73,8 @@ public class Platform extends BaseEntity implements RemoteInput {
         }
 
         if(null == this.orderStatusList){
-            this.orderStatusList = new SmartList<>();
+            SmartList<OrderStatus> teaqlUnloadedItems = SmartList.unloaded();
+            this.orderStatusList = teaqlUnloadedItems.map(value -> value);
         }
 
         this.orderStatusList.add(orderStatus);
@@ -84,7 +87,8 @@ public class Platform extends BaseEntity implements RemoteInput {
         }
 
         if(null == this.customerList){
-            this.customerList = new SmartList<>();
+            SmartList<Customer> teaqlUnloadedItems = SmartList.unloaded();
+            this.customerList = teaqlUnloadedItems.map(value -> value);
         }
 
         this.customerList.add(customer);
@@ -122,8 +126,8 @@ public class Platform extends BaseEntity implements RemoteInput {
         switch (property) {
             case "name": this.name = (value == null ? null : ((String)value).trim()); break;
 
-            case "orderStatusList": this.orderStatusList = (SmartList<OrderStatus>) value; break;
-            case "customerList": this.customerList = (SmartList<Customer>) value; break;
+            case "order_status_list": this.orderStatusList = (SmartList<OrderStatus>) value; break;
+            case "customer_list": this.customerList = (SmartList<Customer>) value; break;
             default: super.__internalSet(property, value);
         }
     }
@@ -133,9 +137,15 @@ public class Platform extends BaseEntity implements RemoteInput {
     public Object __internalGet(String property) {
         switch (property) {
             case "name": return this.name;
-            case "orderStatusList": return this.orderStatusList;
-            case "customerList": return this.customerList;
-            default: return super.__internalGet(property);
+            case "order_status_list": return this.orderStatusList;
+            case "customer_list": return this.customerList;
+            default:
+                // Presentation uses the installed Java member mapping; SQL and
+                // hydration retain canonical names. These aliases only read.
+                switch (property) {
+                    case "name": return this.name;
+                    default: return super.__internalGet(property);
+                }
         }
     }
 

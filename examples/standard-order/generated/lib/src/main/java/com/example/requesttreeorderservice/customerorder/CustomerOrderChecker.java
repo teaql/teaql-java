@@ -30,6 +30,9 @@ public class CustomerOrderChecker implements Checker<CustomerOrder>{
       if((customerOrder == null)){
          return;
       }
+      boolean _contextFixEligible = needContextFix(_context, customerOrder);
+      if(customerOrder.needPersist()){
+      }
       if(customerOrder.newItem()){
       }else if(customerOrder.updateItem()){
         if(!customerOrder.isPropertyLoaded("customer")){
@@ -38,13 +41,13 @@ public class CustomerOrderChecker implements Checker<CustomerOrder>{
         if(!customerOrder.isPropertyLoaded("status")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "status"), "Mutation requires a fully loaded entity");
         }
-        if(!customerOrder.isPropertyLoaded("orderNumber")){
+        if(!customerOrder.isPropertyLoaded("order_number")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "order_number"), "Mutation requires a fully loaded entity");
         }
-        if(!customerOrder.isPropertyLoaded("orderDate")){
+        if(!customerOrder.isPropertyLoaded("order_date")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "order_date"), "Mutation requires a fully loaded entity");
         }
-        if(!customerOrder.isPropertyLoaded("totalAmount")){
+        if(!customerOrder.isPropertyLoaded("total_amount")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "total_amount"), "Mutation requires a fully loaded entity");
         }
 

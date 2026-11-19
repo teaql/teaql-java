@@ -37,7 +37,7 @@ public class OrderItemExpression<T, E, U extends OrderItem> extends ExpressionAd
 
 
     public CustomerOrderExpression<T, U, CustomerOrder> getCustomerOrder(){
-       return new CustomerOrderExpression(loaded("customerOrder", OrderItem::getCustomerOrder));
+       return new CustomerOrderExpression(loaded("customer_order", "getCustomerOrder", OrderItem::getCustomerOrder));
     }
 
     public OrderItemExpression<T, U, U> updateCustomerOrder(CustomerOrder customerOrder){
@@ -45,21 +45,21 @@ public class OrderItemExpression<T, E, U extends OrderItem> extends ExpressionAd
     }
 
     public Expression<T, String> getProductName(){
-       return loaded("productName", OrderItem::getProductName);
+       return loaded("product_name", "getProductName", OrderItem::getProductName);
     }
     public OrderItemExpression<T, U, U> updateProductName(String productName){
        return new OrderItemExpression(this, $it ->  ((OrderItem)$it).updateProductName(productName));
     }
 
     public Expression<T, Integer> getQuantity(){
-       return loaded("quantity", OrderItem::getQuantity);
+       return loaded("quantity", "getQuantity", OrderItem::getQuantity);
     }
     public OrderItemExpression<T, U, U> updateQuantity(Integer quantity){
        return new OrderItemExpression(this, $it ->  ((OrderItem)$it).updateQuantity(quantity));
     }
 
     public Expression<T, BigDecimal> getUnitPrice(){
-       return loaded("unitPrice", OrderItem::getUnitPrice);
+       return loaded("unit_price", "getUnitPrice", OrderItem::getUnitPrice);
     }
     public OrderItemExpression<T, U, U> updateUnitPrice(BigDecimal unitPrice){
        return new OrderItemExpression(this, $it ->  ((OrderItem)$it).updateUnitPrice(unitPrice));

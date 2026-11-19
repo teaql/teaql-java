@@ -23,11 +23,11 @@ public class TrainingAcademy extends Academy implements RemoteInput {
     public static String INTERNAL_TYPE = "TrainingAcademy";
 
     // Framework metadata: complete fixed layout, independent of SQL/projection order.
-    public static final String __TEAQL_FIELD_LAYOUT_REVISION = "febc19f1547b3c9d17b9acd2ae34f398323bbe38ad635615cf4c19a534590fbc";
+    public static final String __TEAQL_FIELD_LAYOUT_REVISION = "d5c47f287adcf434556be4564044800fdadd56e6914079eb97fedf380ef46cc2";
     public static final java.util.Map<String, Integer> __TEAQL_FIXED_FIELD_INDEXES =
         java.util.Map.ofEntries(java.util.Map.entry("id", 0), java.util.Map.entry("platform", 1), java.util.Map.entry("school_type", 2), java.util.Map.entry("name", 3), java.util.Map.entry("student_capacity", 4), java.util.Map.entry("version", 5), java.util.Map.entry("campus_code", 6), java.util.Map.entry("specialty", 7));
     public static final java.util.Map<String, java.util.List<String>> __TEAQL_FIXED_FIELD_MAPPINGS =
-        java.util.Map.ofEntries(java.util.Map.entry("id", java.util.List.of("id", "id")), java.util.Map.entry("platform", java.util.List.of("platform", "platform")), java.util.Map.entry("school_type", java.util.List.of("schoolType", "school_type")), java.util.Map.entry("name", java.util.List.of("name", "name")), java.util.Map.entry("student_capacity", java.util.List.of("studentCapacity", "student_capacity")), java.util.Map.entry("version", java.util.List.of("version", "version")), java.util.Map.entry("campus_code", java.util.List.of("campusCode", "Legacy Campus Code")), java.util.Map.entry("specialty", java.util.List.of("specialty", "specialty")));
+        java.util.Map.ofEntries(java.util.Map.entry("id", java.util.List.of("id", "id")), java.util.Map.entry("platform", java.util.List.of("platform", "platform")), java.util.Map.entry("school_type", java.util.List.of("schoolType", "school_type")), java.util.Map.entry("name", java.util.List.of("name", "name")), java.util.Map.entry("student_capacity", java.util.List.of("studentCapacity", "student_capacity")), java.util.Map.entry("version", java.util.List.of("version", "version")), java.util.Map.entry("campus_code", java.util.List.of("campusCode", "campus_code")), java.util.Map.entry("specialty", java.util.List.of("specialty", "specialty")));
     public static final java.util.Set<String> __TEAQL_FIXED_RELATION_NAMES = java.util.Set.of(
 );
     public static final FieldLayout __TEAQL_FIELD_LAYOUT =

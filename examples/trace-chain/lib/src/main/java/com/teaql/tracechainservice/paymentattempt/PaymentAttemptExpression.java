@@ -36,7 +36,7 @@ public class PaymentAttemptExpression<T, E, U extends PaymentAttempt> extends Ex
 
 
     public PaymentExpression<T, U, Payment> getPayment(){
-       return new PaymentExpression(loaded("payment", PaymentAttempt::getPayment));
+       return new PaymentExpression(loaded("payment", "getPayment", PaymentAttempt::getPayment));
     }
 
     public PaymentAttemptExpression<T, U, U> updatePayment(Payment payment){
@@ -44,7 +44,7 @@ public class PaymentAttemptExpression<T, E, U extends PaymentAttempt> extends Ex
     }
 
     public Expression<T, String> getReferenceCode(){
-       return loaded("referenceCode", PaymentAttempt::getReferenceCode);
+       return loaded("reference_code", "getReferenceCode", PaymentAttempt::getReferenceCode);
     }
     public PaymentAttemptExpression<T, U, U> updateReferenceCode(String referenceCode){
        return new PaymentAttemptExpression(this, $it ->  ((PaymentAttempt)$it).updateReferenceCode(referenceCode));

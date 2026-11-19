@@ -26,6 +26,9 @@ public class CustomerChecker implements Checker<Customer>{
       if((customer == null)){
          return;
       }
+      boolean _contextFixEligible = needContextFix(_context, customer);
+      if(customer.needPersist()){
+      }
       if(customer.newItem()){
       }else if(customer.updateItem()){
         if(!customer.isPropertyLoaded("platform")){

@@ -5,8 +5,10 @@ import com.teaql.tracechainservice.customerorder.CustomerOrder;
 import io.teaql.core.Audited;
 import io.teaql.core.BaseEntity;
 import io.teaql.core.EntityStatus;
+import io.teaql.core.FieldLayout;
 import io.teaql.core.FrameworkInternal;
 import io.teaql.core.RemoteInput;
+import io.teaql.core.checker.JsonFieldNamingProfile;
 import java.util.Objects;
 
 /**
@@ -20,8 +22,22 @@ import java.util.Objects;
 public class OrderItem extends BaseEntity implements RemoteInput {
     public static String INTERNAL_TYPE = "OrderItem";
 
+    // Framework metadata: complete fixed layout, independent of SQL/projection order.
+    public static final String __TEAQL_FIELD_LAYOUT_REVISION = "f1e0aaf75e3389eec4a68edadfb443fdc23c5cce2449a98cf55d935ed897b6fb";
+    public static final java.util.Map<String, Integer> __TEAQL_FIXED_FIELD_INDEXES =
+        java.util.Map.ofEntries(java.util.Map.entry("id", 0), java.util.Map.entry("customer_order", 1), java.util.Map.entry("name", 2), java.util.Map.entry("version", 3));
+    public static final java.util.Map<String, java.util.List<String>> __TEAQL_FIXED_FIELD_MAPPINGS =
+        java.util.Map.ofEntries(java.util.Map.entry("id", java.util.List.of("id", "id")), java.util.Map.entry("customer_order", java.util.List.of("customerOrder", "customer_order")), java.util.Map.entry("name", java.util.List.of("name", "name")), java.util.Map.entry("version", java.util.List.of("version", "version")));
+    public static final java.util.Set<String> __TEAQL_FIXED_RELATION_NAMES = java.util.Set.of(
+);
+    public static final FieldLayout __TEAQL_FIELD_LAYOUT =
+        FieldLayout.installGenerated(FieldLayout.generated(
+            OrderItem.class, __TEAQL_FIELD_LAYOUT_REVISION,
+            __TEAQL_FIXED_FIELD_INDEXES, __TEAQL_FIXED_FIELD_MAPPINGS, __TEAQL_FIXED_RELATION_NAMES,
+            JsonFieldNamingProfile.fromModelValue("camelCase")));
 
-    public static final String CUSTOMER_ORDER_PROPERTY = "customerOrder";
+
+    public static final String CUSTOMER_ORDER_PROPERTY = "customer_order";
     public static final String NAME_PROPERTY = "name";
     private CustomerOrder customerOrder;
 
@@ -37,7 +53,7 @@ public class OrderItem extends BaseEntity implements RemoteInput {
     }
 
     public OrderItem updateCustomerOrder(CustomerOrder customerOrder){
-        if(Objects.equals(this.customerOrder, customerOrder)){
+        if(isPropertyLoaded(CUSTOMER_ORDER_PROPERTY) && Objects.equals(this.customerOrder, customerOrder)){
             return this;
         }
         handleUpdate(CUSTOMER_ORDER_PROPERTY, getCustomerOrder(), customerOrder);
@@ -47,7 +63,7 @@ public class OrderItem extends BaseEntity implements RemoteInput {
 
     public OrderItem updateName(String name){
         name = (name == null ? null : name.trim());
-        if(Objects.equals(this.name, name)){
+        if(isPropertyLoaded(NAME_PROPERTY) && Objects.equals(this.name, name)){
             return this;
         }
         handleUpdate(NAME_PROPERTY, getName(), name);
@@ -75,7 +91,7 @@ public class OrderItem extends BaseEntity implements RemoteInput {
     @Override
     @SuppressWarnings("unchecked")
     public Audited<OrderItem> auditAs(String action) {
-        return super.auditAs(action);
+        return new Audited<>(this, action);
     }
 
     // ===== Framework Internal: generated switch dispatch =====
@@ -84,7 +100,7 @@ public class OrderItem extends BaseEntity implements RemoteInput {
     public void __internalSet(String property, Object value) {
         markPropertyLoaded(property);
         switch (property) {
-            case "customerOrder": this.customerOrder = (CustomerOrder) value; break;
+            case "customer_order": this.customerOrder = (CustomerOrder) value; break;
 
             case "name": this.name = (value == null ? null : ((String)value).trim()); break;
 
@@ -96,9 +112,16 @@ public class OrderItem extends BaseEntity implements RemoteInput {
     @FrameworkInternal
     public Object __internalGet(String property) {
         switch (property) {
-            case "customerOrder": return this.customerOrder;
+            case "customer_order": return this.customerOrder;
             case "name": return this.name;
-            default: return super.__internalGet(property);
+            default:
+                // Presentation uses the installed Java member mapping; SQL and
+                // hydration retain canonical names. These aliases only read.
+                switch (property) {
+                    case "customerOrder": return this.customerOrder;
+                    case "name": return this.name;
+                    default: return super.__internalGet(property);
+                }
         }
     }
 

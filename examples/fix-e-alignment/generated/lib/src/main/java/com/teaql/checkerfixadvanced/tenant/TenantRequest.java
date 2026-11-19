@@ -13,6 +13,7 @@ import io.teaql.core.SearchCriteria;
 import io.teaql.core.SubQuerySearchCriteria;
 import io.teaql.core.criteria.Operator;
 import io.teaql.core.criteria.TwoOperatorCriteria;
+import java.util.Objects;
 
 public class TenantRequest<T extends Tenant> extends BaseRequest<T> {
 
@@ -35,6 +36,19 @@ public class TenantRequest<T extends Tenant> extends BaseRequest<T> {
     public TenantRequest<T> comment(String comment){
          super.internalComment(comment);
          return this;
+    }
+
+    /** Independent query graph; ordinary roll-up handles remain live. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public TenantRequest<T> copy(){
+        return (TenantRequest<T>) super.copy();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected io.teaql.core.BaseRequest<T> internalCopyTarget(){
+        return new TenantRequest<>((Class<T>) returnType(), this::internalNewEntity);
     }
 
     // purpose() 继承自 BaseRequest，返回 ExecutableRequest（终结方法）
@@ -102,6 +116,12 @@ public class TenantRequest<T extends Tenant> extends BaseRequest<T> {
     public TenantRequest<T> matchingAnyOf(TenantRequest tenant){
         super.internalMatchAny(tenant);
         return this;
+    }
+
+    public TenantRequest<T> matchingIdsOf(TenantRequest<?> request){
+        Objects.requireNonNull(request, "matching request");
+        return appendSearchCriteria(new SubQuerySearchCriteria(
+                Tenant.ID_PROPERTY, request, Tenant.ID_PROPERTY));
     }
 
     public TenantRequest<T> enhanceChildrenIfNeeded(){
@@ -427,6 +447,30 @@ public class TenantRequest<T extends Tenant> extends BaseRequest<T> {
     public TenantRequest<T> countAs(String retName){
         super.count(retName);
         setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "countAs", retName, null));
+        return this;
+    }
+    public TenantRequest<T> countDistinctId(){
+        return countDistinctIdAs("id_distinct_count");
+    }
+
+    public TenantRequest<T> countDistinctIdAs(String alias){
+        super.countDistinctProperty(alias, Tenant.ID_PROPERTY);
+        return this;
+    }
+    public TenantRequest<T> countDistinctName(){
+        return countDistinctNameAs("name_distinct_count");
+    }
+
+    public TenantRequest<T> countDistinctNameAs(String alias){
+        super.countDistinctProperty(alias, Tenant.NAME_PROPERTY);
+        return this;
+    }
+    public TenantRequest<T> countDistinctVersion(){
+        return countDistinctVersionAs("version_distinct_count");
+    }
+
+    public TenantRequest<T> countDistinctVersionAs(String alias){
+        super.countDistinctProperty(alias, Tenant.VERSION_PROPERTY);
         return this;
     }
     public TenantRequest<T> groupByPurchaseOrdersWithDetails(PurchaseOrderRequest subRequest){

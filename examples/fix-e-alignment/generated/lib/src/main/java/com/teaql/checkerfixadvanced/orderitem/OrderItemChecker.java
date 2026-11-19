@@ -28,6 +28,7 @@ public class OrderItemChecker implements Checker<OrderItem>{
       if((orderItem == null)){
          return;
       }
+      boolean _contextFixEligible = needContextFix(_context, orderItem);
       if(orderItem.needPersist()){
         verifyContextRoot(_context, orderItem, "tenant", "Tenant", newLocation(_parentLocation, "tenant"));
 
@@ -39,16 +40,30 @@ public class OrderItemChecker implements Checker<OrderItem>{
         }else{
            _context.verifyActiveRoot("Tenant", orderItem.getTenant().getId());
         }
-        if(orderItem.getCreateTime() == null){
+        if(_contextFixEligible){
+           applyContextFix(_context, newLocation(_parentLocation, "create_time"), () -> {
            orderItem.updateCreateTime(_context.evaluate("now"));
-           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "create_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
-        }if(orderItem.getUpdateTime() == null){
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "create_time",
+              "now".equalsIgnoreCase("now") ? io.teaql.core.checker.FixEvidence.Source.CLOCK : io.teaql.core.checker.FixEvidence.Source.CONTEXT,
+              "now".equalsIgnoreCase("now") ? "graphClock" : "contextFunction:now"));
+           });
+        }if(_contextFixEligible){
+           applyContextFix(_context, newLocation(_parentLocation, "update_time"), () -> {
            orderItem.updateUpdateTime(_context.evaluate("now"));
-           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time",
+              "now".equalsIgnoreCase("now") ? io.teaql.core.checker.FixEvidence.Source.CLOCK : io.teaql.core.checker.FixEvidence.Source.CONTEXT,
+              "now".equalsIgnoreCase("now") ? "graphClock" : "contextFunction:now"));
+           });
         }
       }else if(orderItem.updateItem()){
-        orderItem.updateUpdateTime(_context.evaluate("now"));
-        _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
+        if(_contextFixEligible){
+           applyContextFix(_context, newLocation(_parentLocation, "update_time"), () -> {
+           orderItem.updateUpdateTime(_context.evaluate("now"));
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time",
+              "now".equalsIgnoreCase("now") ? io.teaql.core.checker.FixEvidence.Source.CLOCK : io.teaql.core.checker.FixEvidence.Source.CONTEXT,
+              "now".equalsIgnoreCase("now") ? "graphClock" : "contextFunction:now"));
+           });
+        }
         if(!orderItem.isPropertyLoaded("purchase_order")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "purchase_order"), "Mutation requires a fully loaded entity");
         }

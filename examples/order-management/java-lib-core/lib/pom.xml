@@ -6,7 +6,7 @@
 
   <groupId>com.teaql</groupId>
   <artifactId>order-management-service-core</artifactId>
-  <version>1.0.0</version>
+  <version>0.0.1-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <properties>
@@ -82,7 +82,7 @@
     <dependency>
       <groupId>cn.hutool</groupId>
       <artifactId>hutool-all</artifactId>
-      <version>5.8.47</version>
+      <version>5.8.20</version>
     </dependency>
   </dependencies>
 

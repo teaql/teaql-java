@@ -79,7 +79,7 @@ public class PurchaseOrder extends BaseEntity implements RemoteInput {
     }
 
     public SmartList<OrderItem> getOrderItemList(){
-        return this.orderItemList;
+        return this.orderItemList == null ? SmartList.unloaded() : this.orderItemList;
     }
      PurchaseOrder updateTenant(Tenant tenant){
         if(isPropertyLoaded(TENANT_PROPERTY) && Objects.equals(this.tenant, tenant)){
@@ -134,7 +134,8 @@ public class PurchaseOrder extends BaseEntity implements RemoteInput {
         }
 
         if(null == this.orderItemList){
-            this.orderItemList = new SmartList<>();
+            SmartList<OrderItem> teaqlUnloadedItems = SmartList.unloaded();
+            this.orderItemList = teaqlUnloadedItems.map(value -> value);
         }
 
         this.orderItemList.add(orderItem);
@@ -195,7 +196,17 @@ public class PurchaseOrder extends BaseEntity implements RemoteInput {
             case "create_time": return this.createTime;
             case "update_time": return this.updateTime;
             case "order_item_list": return this.orderItemList;
-            default: return super.__internalGet(property);
+            default:
+                // Presentation uses the installed Java member mapping; SQL and
+                // hydration retain canonical names. These aliases only read.
+                switch (property) {
+                    case "tenant": return this.tenant;
+                    case "contactPhone": return this.contactPhone;
+                    case "internalNote": return this.internalNote;
+                    case "createTime": return this.createTime;
+                    case "updateTime": return this.updateTime;
+                    default: return super.__internalGet(property);
+                }
         }
     }
 

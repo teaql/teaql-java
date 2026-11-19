@@ -15,6 +15,7 @@ import io.teaql.core.criteria.Operator;
 import io.teaql.core.criteria.TwoOperatorCriteria;
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.Objects;
 
 public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
 
@@ -25,7 +26,11 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     @Deprecated
     @SuppressWarnings("unchecked")
     public PlatformRequest(Class<T> returnType){
-        super(returnType, () -> (T) new Platform());
+        this(returnType, () -> (T) new Platform());
+    }
+
+    protected PlatformRequest(Class<T> returnType, java.util.function.Supplier<? extends T> factory){
+        super(returnType, factory);
         selectId();
         selectVersion();
     }
@@ -33,6 +38,19 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     public PlatformRequest<T> comment(String comment){
          super.internalComment(comment);
          return this;
+    }
+
+    /** Independent query graph; ordinary roll-up handles remain live. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public PlatformRequest<T> copy(){
+        return (PlatformRequest<T>) super.copy();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected io.teaql.core.BaseRequest<T> internalCopyTarget(){
+        return new PlatformRequest<>((Class<T>) returnType(), this::internalNewEntity);
     }
 
     // purpose() 继承自 BaseRequest，返回 ExecutableRequest（终结方法）
@@ -102,6 +120,12 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
         return this;
     }
 
+    public PlatformRequest<T> matchingIdsOf(PlatformRequest<?> request){
+        Objects.requireNonNull(request, "matching request");
+        return appendSearchCriteria(new SubQuerySearchCriteria(
+                Platform.ID_PROPERTY, request, Platform.ID_PROPERTY));
+    }
+
     public PlatformRequest<T> enhanceChildrenIfNeeded(){
         return this;
     }
@@ -123,6 +147,18 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
 
     public PlatformRequest<T> selectSelfFields(){
         return selectSelf();
+    }
+
+    public PlatformRequest<T> selectSelfWithoutParent(){
+        selectId();
+        selectVersion();
+        selectProperty(Platform.ID_PROPERTY);
+        selectProperty(Platform.NAME_PROPERTY);
+        selectProperty(Platform.BASE_URL_PROPERTY);
+        selectProperty(Platform.CREATE_TIME_PROPERTY);
+        selectProperty(Platform.UPDATE_TIME_PROPERTY);
+        selectProperty(Platform.VERSION_PROPERTY);
+        return this;
     }
 
     public PlatformRequest<T> selectAll(){
@@ -244,7 +280,8 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> selectSchoolTypeListWith(SchoolTypeRequest schoolTypeList){
-       enhanceRelation(Platform.SCHOOL_TYPE_LIST_PROPERTY, schoolTypeList);
+       enhanceRelation(Platform.SCHOOL_TYPE_LIST_PROPERTY, schoolTypeList,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_SELECT, "selectSchoolTypeListWith", null, Platform.SCHOOL_TYPE_LIST_PROPERTY));
        return this;
     }
     public PlatformRequest<T> selectSchoolList(){
@@ -252,7 +289,8 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> selectSchoolListWith(SchoolRequest schoolList){
-       enhanceRelation(Platform.SCHOOL_LIST_PROPERTY, schoolList);
+       enhanceRelation(Platform.SCHOOL_LIST_PROPERTY, schoolList,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_SELECT, "selectSchoolListWith", null, Platform.SCHOOL_LIST_PROPERTY));
        return this;
     }
 
@@ -671,6 +709,7 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
        return withVersion(Operator.BETWEEN, startOfVersion, endOfVersion);
     }
 
+
     public PlatformRequest<T> withSchoolTypeListMatching(SchoolTypeRequest schoolTypeRequest){
         return appendSearchCriteria(new SubQuerySearchCriteria(Platform.ID_PROPERTY, schoolTypeRequest, SchoolType.PLATFORM_PROPERTY));
     }
@@ -704,10 +743,60 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
 
     public PlatformRequest<T> count(){
         super.count();
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "count", null, null));
         return this;
     }
     public PlatformRequest<T> countAs(String retName){
         super.count(retName);
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "countAs", retName, null));
+        return this;
+    }
+    public PlatformRequest<T> countDistinctId(){
+        return countDistinctIdAs("id_distinct_count");
+    }
+
+    public PlatformRequest<T> countDistinctIdAs(String alias){
+        super.countDistinctProperty(alias, Platform.ID_PROPERTY);
+        return this;
+    }
+    public PlatformRequest<T> countDistinctName(){
+        return countDistinctNameAs("name_distinct_count");
+    }
+
+    public PlatformRequest<T> countDistinctNameAs(String alias){
+        super.countDistinctProperty(alias, Platform.NAME_PROPERTY);
+        return this;
+    }
+    public PlatformRequest<T> countDistinctBaseUrl(){
+        return countDistinctBaseUrlAs("base_url_distinct_count");
+    }
+
+    public PlatformRequest<T> countDistinctBaseUrlAs(String alias){
+        super.countDistinctProperty(alias, Platform.BASE_URL_PROPERTY);
+        return this;
+    }
+    public PlatformRequest<T> countDistinctCreateTime(){
+        return countDistinctCreateTimeAs("create_time_distinct_count");
+    }
+
+    public PlatformRequest<T> countDistinctCreateTimeAs(String alias){
+        super.countDistinctProperty(alias, Platform.CREATE_TIME_PROPERTY);
+        return this;
+    }
+    public PlatformRequest<T> countDistinctUpdateTime(){
+        return countDistinctUpdateTimeAs("update_time_distinct_count");
+    }
+
+    public PlatformRequest<T> countDistinctUpdateTimeAs(String alias){
+        super.countDistinctProperty(alias, Platform.UPDATE_TIME_PROPERTY);
+        return this;
+    }
+    public PlatformRequest<T> countDistinctVersion(){
+        return countDistinctVersionAs("version_distinct_count");
+    }
+
+    public PlatformRequest<T> countDistinctVersionAs(String alias){
+        super.countDistinctProperty(alias, Platform.VERSION_PROPERTY);
         return this;
     }
     public PlatformRequest<T> groupBySchoolTypesWithDetails(SchoolTypeRequest subRequest){
@@ -893,8 +982,8 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> statsFromSchoolTypesAs(String name, SchoolTypeRequest subRequest, boolean singleResult){
-       subRequest.setPartitionProperty(SchoolType.PLATFORM_PROPERTY);
-       addAggregateDynamicProperty(name, subRequest, singleResult);
+       addRelationAggregate(name, subRequest, SchoolType.PLATFORM_PROPERTY, singleResult,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "statsFromSchoolTypesAs", name, Platform.SCHOOL_TYPE_LIST_PROPERTY));
        return this;
     }
 
@@ -906,8 +995,8 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> statsFromSchoolsAs(String name, SchoolRequest subRequest, boolean singleResult){
-       subRequest.setPartitionProperty(School.PLATFORM_PROPERTY);
-       addAggregateDynamicProperty(name, subRequest, singleResult);
+       addRelationAggregate(name, subRequest, School.PLATFORM_PROPERTY, singleResult,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "statsFromSchoolsAs", name, Platform.SCHOOL_LIST_PROPERTY));
        return this;
     }
 
@@ -915,29 +1004,45 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
        return statsFromSchoolsAs(REFINEMENTS, subRequest);
     }
     public PlatformRequest<T> countSchoolTypes(){
-        return countSchoolTypesAs("Count");
+        addRelationCount("Count", Q.schoolTypes().unlimited(), SchoolType.PLATFORM_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countSchoolTypes", null, Platform.SCHOOL_TYPE_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> countSchoolTypesAs(String name){
-        return countSchoolTypesWith(name, Q.schoolTypes().unlimited());
+        addRelationCount(name, Q.schoolTypes().unlimited(), SchoolType.PLATFORM_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countSchoolTypesAs", name, Platform.SCHOOL_TYPE_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> countSchoolTypesWith(String name, SchoolTypeRequest subRequest){
-        return statsFromSchoolTypesAs(name, subRequest.count(), true);
+        addRelationCount(name, subRequest, SchoolType.PLATFORM_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countSchoolTypesWith", name, Platform.SCHOOL_TYPE_LIST_PROPERTY));
+        return this;
     }
     public PlatformRequest<T> countSchools(){
-        return countSchoolsAs("Count");
+        addRelationCount("Count", Q.schools().unlimited(), School.PLATFORM_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countSchools", null, Platform.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> countSchoolsAs(String name){
-        return countSchoolsWith(name, Q.schools().unlimited());
+        addRelationCount(name, Q.schools().unlimited(), School.PLATFORM_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countSchoolsAs", name, Platform.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> countSchoolsWith(String name, SchoolRequest subRequest){
-        return statsFromSchoolsAs(name, subRequest.count(), true);
+        addRelationCount(name, subRequest, School.PLATFORM_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countSchoolsWith", name, Platform.SCHOOL_LIST_PROPERTY));
+        return this;
     }
     public PlatformRequest<T> minDisplayOrderOfSchoolTypes(){
-        return minDisplayOrderOfSchoolTypesAs("minDisplayOrderOfSchoolTypes");
+        addRelationScalarAggregate("minDisplayOrderOfSchoolTypes", Q.schoolTypes().unlimited(),
+            SchoolType.PLATFORM_PROPERTY, SchoolType.DISPLAY_ORDER_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("min".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "minDisplayOrderOfSchoolTypes", null, Platform.SCHOOL_TYPE_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> minDisplayOrderOfSchoolTypesAs(String name){
@@ -945,10 +1050,18 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> minDisplayOrderOfSchoolTypesAs(String name, SchoolTypeRequest subRequest){
-        return statsFromSchoolTypesAs(name, subRequest.minDisplayOrder(), true);
+        addRelationScalarAggregate(name, subRequest, SchoolType.PLATFORM_PROPERTY,
+            SchoolType.DISPLAY_ORDER_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("min".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "minDisplayOrderOfSchoolTypesAs", name, Platform.SCHOOL_TYPE_LIST_PROPERTY));
+        return this;
     }
     public PlatformRequest<T> maxDisplayOrderOfSchoolTypes(){
-        return maxDisplayOrderOfSchoolTypesAs("maxDisplayOrderOfSchoolTypes");
+        addRelationScalarAggregate("maxDisplayOrderOfSchoolTypes", Q.schoolTypes().unlimited(),
+            SchoolType.PLATFORM_PROPERTY, SchoolType.DISPLAY_ORDER_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("max".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "maxDisplayOrderOfSchoolTypes", null, Platform.SCHOOL_TYPE_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> maxDisplayOrderOfSchoolTypesAs(String name){
@@ -956,10 +1069,18 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> maxDisplayOrderOfSchoolTypesAs(String name, SchoolTypeRequest subRequest){
-        return statsFromSchoolTypesAs(name, subRequest.maxDisplayOrder(), true);
+        addRelationScalarAggregate(name, subRequest, SchoolType.PLATFORM_PROPERTY,
+            SchoolType.DISPLAY_ORDER_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("max".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "maxDisplayOrderOfSchoolTypesAs", name, Platform.SCHOOL_TYPE_LIST_PROPERTY));
+        return this;
     }
     public PlatformRequest<T> sumDisplayOrderOfSchoolTypes(){
-        return sumDisplayOrderOfSchoolTypesAs("sumDisplayOrderOfSchoolTypes");
+        addRelationScalarAggregate("sumDisplayOrderOfSchoolTypes", Q.schoolTypes().unlimited(),
+            SchoolType.PLATFORM_PROPERTY, SchoolType.DISPLAY_ORDER_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("sum".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "sumDisplayOrderOfSchoolTypes", null, Platform.SCHOOL_TYPE_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> sumDisplayOrderOfSchoolTypesAs(String name){
@@ -967,10 +1088,18 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> sumDisplayOrderOfSchoolTypesAs(String name, SchoolTypeRequest subRequest){
-        return statsFromSchoolTypesAs(name, subRequest.sumDisplayOrder(), true);
+        addRelationScalarAggregate(name, subRequest, SchoolType.PLATFORM_PROPERTY,
+            SchoolType.DISPLAY_ORDER_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("sum".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "sumDisplayOrderOfSchoolTypesAs", name, Platform.SCHOOL_TYPE_LIST_PROPERTY));
+        return this;
     }
     public PlatformRequest<T> avgDisplayOrderOfSchoolTypes(){
-        return avgDisplayOrderOfSchoolTypesAs("avgDisplayOrderOfSchoolTypes");
+        addRelationScalarAggregate("avgDisplayOrderOfSchoolTypes", Q.schoolTypes().unlimited(),
+            SchoolType.PLATFORM_PROPERTY, SchoolType.DISPLAY_ORDER_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("avg".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "avgDisplayOrderOfSchoolTypes", null, Platform.SCHOOL_TYPE_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> avgDisplayOrderOfSchoolTypesAs(String name){
@@ -978,10 +1107,18 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> avgDisplayOrderOfSchoolTypesAs(String name, SchoolTypeRequest subRequest){
-        return statsFromSchoolTypesAs(name, subRequest.avgDisplayOrder(), true);
+        addRelationScalarAggregate(name, subRequest, SchoolType.PLATFORM_PROPERTY,
+            SchoolType.DISPLAY_ORDER_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("avg".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "avgDisplayOrderOfSchoolTypesAs", name, Platform.SCHOOL_TYPE_LIST_PROPERTY));
+        return this;
     }
     public PlatformRequest<T> standardDeviationDisplayOrderOfSchoolTypes(){
-        return standardDeviationDisplayOrderOfSchoolTypesAs("stdDevDisplayOrderOfSchoolTypes");
+        addRelationScalarAggregate("stdDevDisplayOrderOfSchoolTypes", Q.schoolTypes().unlimited(),
+            SchoolType.PLATFORM_PROPERTY, SchoolType.DISPLAY_ORDER_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("stddev".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "standardDeviationDisplayOrderOfSchoolTypes", null, Platform.SCHOOL_TYPE_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> standardDeviationDisplayOrderOfSchoolTypesAs(String name){
@@ -989,10 +1126,18 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> standardDeviationDisplayOrderOfSchoolTypesAs(String name, SchoolTypeRequest subRequest){
-        return statsFromSchoolTypesAs(name, subRequest.standardDeviationDisplayOrder(), true);
+        addRelationScalarAggregate(name, subRequest, SchoolType.PLATFORM_PROPERTY,
+            SchoolType.DISPLAY_ORDER_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("stddev".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "standardDeviationDisplayOrderOfSchoolTypesAs", name, Platform.SCHOOL_TYPE_LIST_PROPERTY));
+        return this;
     }
     public PlatformRequest<T> squareRootOfPopulationStandardDeviationDisplayOrderOfSchoolTypes(){
-        return squareRootOfPopulationStandardDeviationDisplayOrderOfSchoolTypesAs("stdDevPopDisplayOrderOfSchoolTypes");
+        addRelationScalarAggregate("stdDevPopDisplayOrderOfSchoolTypes", Q.schoolTypes().unlimited(),
+            SchoolType.PLATFORM_PROPERTY, SchoolType.DISPLAY_ORDER_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("stddev_pop".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "squareRootOfPopulationStandardDeviationDisplayOrderOfSchoolTypes", null, Platform.SCHOOL_TYPE_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> squareRootOfPopulationStandardDeviationDisplayOrderOfSchoolTypesAs(String name){
@@ -1000,10 +1145,18 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> squareRootOfPopulationStandardDeviationDisplayOrderOfSchoolTypesAs(String name, SchoolTypeRequest subRequest){
-        return statsFromSchoolTypesAs(name, subRequest.squareRootOfPopulationStandardDeviationDisplayOrder(), true);
+        addRelationScalarAggregate(name, subRequest, SchoolType.PLATFORM_PROPERTY,
+            SchoolType.DISPLAY_ORDER_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("stddev_pop".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "squareRootOfPopulationStandardDeviationDisplayOrderOfSchoolTypesAs", name, Platform.SCHOOL_TYPE_LIST_PROPERTY));
+        return this;
     }
     public PlatformRequest<T> sampleVarianceDisplayOrderOfSchoolTypes(){
-        return sampleVarianceDisplayOrderOfSchoolTypesAs("varSampDisplayOrderOfSchoolTypes");
+        addRelationScalarAggregate("varSampDisplayOrderOfSchoolTypes", Q.schoolTypes().unlimited(),
+            SchoolType.PLATFORM_PROPERTY, SchoolType.DISPLAY_ORDER_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("var_samp".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "sampleVarianceDisplayOrderOfSchoolTypes", null, Platform.SCHOOL_TYPE_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> sampleVarianceDisplayOrderOfSchoolTypesAs(String name){
@@ -1011,10 +1164,18 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> sampleVarianceDisplayOrderOfSchoolTypesAs(String name, SchoolTypeRequest subRequest){
-        return statsFromSchoolTypesAs(name, subRequest.sampleVarianceDisplayOrder(), true);
+        addRelationScalarAggregate(name, subRequest, SchoolType.PLATFORM_PROPERTY,
+            SchoolType.DISPLAY_ORDER_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("var_samp".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "sampleVarianceDisplayOrderOfSchoolTypesAs", name, Platform.SCHOOL_TYPE_LIST_PROPERTY));
+        return this;
     }
     public PlatformRequest<T> samplePopulationVarianceDisplayOrderOfSchoolTypes(){
-        return samplePopulationVarianceDisplayOrderOfSchoolTypesAs("varPopDisplayOrderOfSchoolTypes");
+        addRelationScalarAggregate("varPopDisplayOrderOfSchoolTypes", Q.schoolTypes().unlimited(),
+            SchoolType.PLATFORM_PROPERTY, SchoolType.DISPLAY_ORDER_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("var_pop".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "samplePopulationVarianceDisplayOrderOfSchoolTypes", null, Platform.SCHOOL_TYPE_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> samplePopulationVarianceDisplayOrderOfSchoolTypesAs(String name){
@@ -1022,10 +1183,18 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> samplePopulationVarianceDisplayOrderOfSchoolTypesAs(String name, SchoolTypeRequest subRequest){
-        return statsFromSchoolTypesAs(name, subRequest.samplePopulationVarianceDisplayOrder(), true);
+        addRelationScalarAggregate(name, subRequest, SchoolType.PLATFORM_PROPERTY,
+            SchoolType.DISPLAY_ORDER_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("var_pop".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "samplePopulationVarianceDisplayOrderOfSchoolTypesAs", name, Platform.SCHOOL_TYPE_LIST_PROPERTY));
+        return this;
     }
     public PlatformRequest<T> minStudentCapacityOfSchools(){
-        return minStudentCapacityOfSchoolsAs("minStudentCapacityOfSchools");
+        addRelationScalarAggregate("minStudentCapacityOfSchools", Q.schools().unlimited(),
+            School.PLATFORM_PROPERTY, School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("min".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "minStudentCapacityOfSchools", null, Platform.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> minStudentCapacityOfSchoolsAs(String name){
@@ -1033,10 +1202,18 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> minStudentCapacityOfSchoolsAs(String name, SchoolRequest subRequest){
-        return statsFromSchoolsAs(name, subRequest.minStudentCapacity(), true);
+        addRelationScalarAggregate(name, subRequest, School.PLATFORM_PROPERTY,
+            School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("min".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "minStudentCapacityOfSchoolsAs", name, Platform.SCHOOL_LIST_PROPERTY));
+        return this;
     }
     public PlatformRequest<T> maxStudentCapacityOfSchools(){
-        return maxStudentCapacityOfSchoolsAs("maxStudentCapacityOfSchools");
+        addRelationScalarAggregate("maxStudentCapacityOfSchools", Q.schools().unlimited(),
+            School.PLATFORM_PROPERTY, School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("max".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "maxStudentCapacityOfSchools", null, Platform.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> maxStudentCapacityOfSchoolsAs(String name){
@@ -1044,10 +1221,18 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> maxStudentCapacityOfSchoolsAs(String name, SchoolRequest subRequest){
-        return statsFromSchoolsAs(name, subRequest.maxStudentCapacity(), true);
+        addRelationScalarAggregate(name, subRequest, School.PLATFORM_PROPERTY,
+            School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("max".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "maxStudentCapacityOfSchoolsAs", name, Platform.SCHOOL_LIST_PROPERTY));
+        return this;
     }
     public PlatformRequest<T> sumStudentCapacityOfSchools(){
-        return sumStudentCapacityOfSchoolsAs("sumStudentCapacityOfSchools");
+        addRelationScalarAggregate("sumStudentCapacityOfSchools", Q.schools().unlimited(),
+            School.PLATFORM_PROPERTY, School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("sum".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "sumStudentCapacityOfSchools", null, Platform.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> sumStudentCapacityOfSchoolsAs(String name){
@@ -1055,10 +1240,18 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> sumStudentCapacityOfSchoolsAs(String name, SchoolRequest subRequest){
-        return statsFromSchoolsAs(name, subRequest.sumStudentCapacity(), true);
+        addRelationScalarAggregate(name, subRequest, School.PLATFORM_PROPERTY,
+            School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("sum".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "sumStudentCapacityOfSchoolsAs", name, Platform.SCHOOL_LIST_PROPERTY));
+        return this;
     }
     public PlatformRequest<T> avgStudentCapacityOfSchools(){
-        return avgStudentCapacityOfSchoolsAs("avgStudentCapacityOfSchools");
+        addRelationScalarAggregate("avgStudentCapacityOfSchools", Q.schools().unlimited(),
+            School.PLATFORM_PROPERTY, School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("avg".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "avgStudentCapacityOfSchools", null, Platform.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> avgStudentCapacityOfSchoolsAs(String name){
@@ -1066,10 +1259,18 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> avgStudentCapacityOfSchoolsAs(String name, SchoolRequest subRequest){
-        return statsFromSchoolsAs(name, subRequest.avgStudentCapacity(), true);
+        addRelationScalarAggregate(name, subRequest, School.PLATFORM_PROPERTY,
+            School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("avg".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "avgStudentCapacityOfSchoolsAs", name, Platform.SCHOOL_LIST_PROPERTY));
+        return this;
     }
     public PlatformRequest<T> standardDeviationStudentCapacityOfSchools(){
-        return standardDeviationStudentCapacityOfSchoolsAs("stdDevStudentCapacityOfSchools");
+        addRelationScalarAggregate("stdDevStudentCapacityOfSchools", Q.schools().unlimited(),
+            School.PLATFORM_PROPERTY, School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("stddev".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "standardDeviationStudentCapacityOfSchools", null, Platform.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> standardDeviationStudentCapacityOfSchoolsAs(String name){
@@ -1077,10 +1278,18 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> standardDeviationStudentCapacityOfSchoolsAs(String name, SchoolRequest subRequest){
-        return statsFromSchoolsAs(name, subRequest.standardDeviationStudentCapacity(), true);
+        addRelationScalarAggregate(name, subRequest, School.PLATFORM_PROPERTY,
+            School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("stddev".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "standardDeviationStudentCapacityOfSchoolsAs", name, Platform.SCHOOL_LIST_PROPERTY));
+        return this;
     }
     public PlatformRequest<T> squareRootOfPopulationStandardDeviationStudentCapacityOfSchools(){
-        return squareRootOfPopulationStandardDeviationStudentCapacityOfSchoolsAs("stdDevPopStudentCapacityOfSchools");
+        addRelationScalarAggregate("stdDevPopStudentCapacityOfSchools", Q.schools().unlimited(),
+            School.PLATFORM_PROPERTY, School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("stddev_pop".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "squareRootOfPopulationStandardDeviationStudentCapacityOfSchools", null, Platform.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> squareRootOfPopulationStandardDeviationStudentCapacityOfSchoolsAs(String name){
@@ -1088,10 +1297,18 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> squareRootOfPopulationStandardDeviationStudentCapacityOfSchoolsAs(String name, SchoolRequest subRequest){
-        return statsFromSchoolsAs(name, subRequest.squareRootOfPopulationStandardDeviationStudentCapacity(), true);
+        addRelationScalarAggregate(name, subRequest, School.PLATFORM_PROPERTY,
+            School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("stddev_pop".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "squareRootOfPopulationStandardDeviationStudentCapacityOfSchoolsAs", name, Platform.SCHOOL_LIST_PROPERTY));
+        return this;
     }
     public PlatformRequest<T> sampleVarianceStudentCapacityOfSchools(){
-        return sampleVarianceStudentCapacityOfSchoolsAs("varSampStudentCapacityOfSchools");
+        addRelationScalarAggregate("varSampStudentCapacityOfSchools", Q.schools().unlimited(),
+            School.PLATFORM_PROPERTY, School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("var_samp".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "sampleVarianceStudentCapacityOfSchools", null, Platform.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> sampleVarianceStudentCapacityOfSchoolsAs(String name){
@@ -1099,10 +1316,18 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> sampleVarianceStudentCapacityOfSchoolsAs(String name, SchoolRequest subRequest){
-        return statsFromSchoolsAs(name, subRequest.sampleVarianceStudentCapacity(), true);
+        addRelationScalarAggregate(name, subRequest, School.PLATFORM_PROPERTY,
+            School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("var_samp".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "sampleVarianceStudentCapacityOfSchoolsAs", name, Platform.SCHOOL_LIST_PROPERTY));
+        return this;
     }
     public PlatformRequest<T> samplePopulationVarianceStudentCapacityOfSchools(){
-        return samplePopulationVarianceStudentCapacityOfSchoolsAs("varPopStudentCapacityOfSchools");
+        addRelationScalarAggregate("varPopStudentCapacityOfSchools", Q.schools().unlimited(),
+            School.PLATFORM_PROPERTY, School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("var_pop".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "samplePopulationVarianceStudentCapacityOfSchools", null, Platform.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> samplePopulationVarianceStudentCapacityOfSchoolsAs(String name){
@@ -1110,7 +1335,11 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> samplePopulationVarianceStudentCapacityOfSchoolsAs(String name, SchoolRequest subRequest){
-        return statsFromSchoolsAs(name, subRequest.samplePopulationVarianceStudentCapacity(), true);
+        addRelationScalarAggregate(name, subRequest, School.PLATFORM_PROPERTY,
+            School.STUDENT_CAPACITY_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("var_pop".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "samplePopulationVarianceStudentCapacityOfSchoolsAs", name, Platform.SCHOOL_LIST_PROPERTY));
+        return this;
     }
 
 

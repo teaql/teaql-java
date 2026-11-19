@@ -36,21 +36,21 @@ public class WorkItemExpression<T, E, U extends WorkItem> extends ExpressionAdap
 
 
     public Expression<T, String> getTitle(){
-       return loaded("title", WorkItem::getTitle);
+       return loaded("title", "getTitle", WorkItem::getTitle);
     }
     public WorkItemExpression<T, U, U> updateTitle(String title){
        return new WorkItemExpression(this, $it ->  ((WorkItem)$it).updateTitle(title));
     }
 
     public Expression<T, String> getDescription(){
-       return loaded("description", WorkItem::getDescription);
+       return loaded("description", "getDescription", WorkItem::getDescription);
     }
     public WorkItemExpression<T, U, U> updateDescription(String description){
        return new WorkItemExpression(this, $it ->  ((WorkItem)$it).updateDescription(description));
     }
 
     public PlatformExpression<T, U, Platform> getPlatform(){
-       return new PlatformExpression(loaded("platform", WorkItem::getPlatform));
+       return new PlatformExpression(loaded("platform", "getPlatform", WorkItem::getPlatform));
     }
 
     public WorkItemExpression<T, U, U> updatePlatform(Platform platform){

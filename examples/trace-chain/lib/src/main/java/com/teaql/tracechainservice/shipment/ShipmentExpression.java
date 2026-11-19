@@ -36,7 +36,7 @@ public class ShipmentExpression<T, E, U extends Shipment> extends ExpressionAdap
 
 
     public CustomerOrderExpression<T, U, CustomerOrder> getCustomerOrder(){
-       return new CustomerOrderExpression(loaded("customerOrder", Shipment::getCustomerOrder));
+       return new CustomerOrderExpression(loaded("customer_order", "getCustomerOrder", Shipment::getCustomerOrder));
     }
 
     public ShipmentExpression<T, U, U> updateCustomerOrder(CustomerOrder customerOrder){
@@ -44,7 +44,7 @@ public class ShipmentExpression<T, E, U extends Shipment> extends ExpressionAdap
     }
 
     public Expression<T, String> getReferenceCode(){
-       return loaded("referenceCode", Shipment::getReferenceCode);
+       return loaded("reference_code", "getReferenceCode", Shipment::getReferenceCode);
     }
     public ShipmentExpression<T, U, U> updateReferenceCode(String referenceCode){
        return new ShipmentExpression(this, $it ->  ((Shipment)$it).updateReferenceCode(referenceCode));

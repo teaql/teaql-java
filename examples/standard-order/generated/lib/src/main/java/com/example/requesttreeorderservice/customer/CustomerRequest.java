@@ -13,6 +13,7 @@ import io.teaql.core.SearchCriteria;
 import io.teaql.core.SubQuerySearchCriteria;
 import io.teaql.core.criteria.Operator;
 import io.teaql.core.criteria.TwoOperatorCriteria;
+import java.util.Objects;
 
 public class CustomerRequest<T extends Customer> extends BaseRequest<T> {
 
@@ -35,6 +36,19 @@ public class CustomerRequest<T extends Customer> extends BaseRequest<T> {
     public CustomerRequest<T> comment(String comment){
          super.internalComment(comment);
          return this;
+    }
+
+    /** Independent query graph; ordinary roll-up handles remain live. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public CustomerRequest<T> copy(){
+        return (CustomerRequest<T>) super.copy();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected io.teaql.core.BaseRequest<T> internalCopyTarget(){
+        return new CustomerRequest<>((Class<T>) returnType(), this::internalNewEntity);
     }
 
     // purpose() 继承自 BaseRequest，返回 ExecutableRequest（终结方法）
@@ -102,6 +116,12 @@ public class CustomerRequest<T extends Customer> extends BaseRequest<T> {
     public CustomerRequest<T> matchingAnyOf(CustomerRequest customer){
         super.internalMatchAny(customer);
         return this;
+    }
+
+    public CustomerRequest<T> matchingIdsOf(CustomerRequest<?> request){
+        Objects.requireNonNull(request, "matching request");
+        return appendSearchCriteria(new SubQuerySearchCriteria(
+                Customer.ID_PROPERTY, request, Customer.ID_PROPERTY));
     }
 
     public CustomerRequest<T> enhanceChildrenIfNeeded(){
@@ -475,6 +495,38 @@ public class CustomerRequest<T extends Customer> extends BaseRequest<T> {
 
 
 
+    public CustomerRequest<T> countDistinctId(){
+        return countDistinctIdAs("id_distinct_count");
+    }
+
+    public CustomerRequest<T> countDistinctIdAs(String alias){
+        super.countDistinctProperty(alias, Customer.ID_PROPERTY);
+        return this;
+    }
+    public CustomerRequest<T> countDistinctPlatform(){
+        return countDistinctPlatformAs("platform_distinct_count");
+    }
+
+    public CustomerRequest<T> countDistinctPlatformAs(String alias){
+        super.countDistinctProperty(alias, Customer.PLATFORM_PROPERTY);
+        return this;
+    }
+    public CustomerRequest<T> countDistinctName(){
+        return countDistinctNameAs("name_distinct_count");
+    }
+
+    public CustomerRequest<T> countDistinctNameAs(String alias){
+        super.countDistinctProperty(alias, Customer.NAME_PROPERTY);
+        return this;
+    }
+    public CustomerRequest<T> countDistinctVersion(){
+        return countDistinctVersionAs("version_distinct_count");
+    }
+
+    public CustomerRequest<T> countDistinctVersionAs(String alias){
+        super.countDistinctProperty(alias, Customer.VERSION_PROPERTY);
+        return this;
+    }
     public CustomerRequest<T> groupByCustomerOrdersWithDetails(CustomerOrderRequest subRequest){
        aggregate(Customer.CUSTOMER_ORDER_LIST_PROPERTY, subRequest);
        return this;
@@ -495,7 +547,8 @@ public class CustomerRequest<T extends Customer> extends BaseRequest<T> {
        return this;
     }
     public CustomerRequest<T> groupByPlatformWith(PlatformRequest subRequest){
-       groupBy(Customer.PLATFORM_PROPERTY, subRequest);
+       groupBy(Customer.PLATFORM_PROPERTY, subRequest,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "groupByPlatformWith", null, "platform"));
        return this;
     }
     public CustomerRequest<T> groupByPlatform(){
@@ -609,8 +662,8 @@ public class CustomerRequest<T extends Customer> extends BaseRequest<T> {
     }
     public PlatformRequest rollUpToPlatform(){
        PlatformRequest platform = Q.platforms().unlimited();
-       this.withPlatformMatching(platform)
-           .groupByPlatformWith(platform);
+       this.internalRollUpTo("platform", platform,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "rollUpToPlatform", null, "platform"));
        return platform;
     }
 

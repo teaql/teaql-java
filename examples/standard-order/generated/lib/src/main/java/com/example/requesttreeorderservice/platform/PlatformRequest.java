@@ -13,6 +13,7 @@ import io.teaql.core.SearchCriteria;
 import io.teaql.core.SubQuerySearchCriteria;
 import io.teaql.core.criteria.Operator;
 import io.teaql.core.criteria.TwoOperatorCriteria;
+import java.util.Objects;
 
 public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
 
@@ -35,6 +36,19 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     public PlatformRequest<T> comment(String comment){
          super.internalComment(comment);
          return this;
+    }
+
+    /** Independent query graph; ordinary roll-up handles remain live. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public PlatformRequest<T> copy(){
+        return (PlatformRequest<T>) super.copy();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected io.teaql.core.BaseRequest<T> internalCopyTarget(){
+        return new PlatformRequest<>((Class<T>) returnType(), this::internalNewEntity);
     }
 
     // purpose() 继承自 BaseRequest，返回 ExecutableRequest（终结方法）
@@ -102,6 +116,12 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     public PlatformRequest<T> matchingAnyOf(PlatformRequest platform){
         super.internalMatchAny(platform);
         return this;
+    }
+
+    public PlatformRequest<T> matchingIdsOf(PlatformRequest<?> request){
+        Objects.requireNonNull(request, "matching request");
+        return appendSearchCriteria(new SubQuerySearchCriteria(
+                Platform.ID_PROPERTY, request, Platform.ID_PROPERTY));
     }
 
     public PlatformRequest<T> enhanceChildrenIfNeeded(){
@@ -427,6 +447,30 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     public PlatformRequest<T> countAs(String retName){
         super.count(retName);
         setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "countAs", retName, null));
+        return this;
+    }
+    public PlatformRequest<T> countDistinctId(){
+        return countDistinctIdAs("id_distinct_count");
+    }
+
+    public PlatformRequest<T> countDistinctIdAs(String alias){
+        super.countDistinctProperty(alias, Platform.ID_PROPERTY);
+        return this;
+    }
+    public PlatformRequest<T> countDistinctName(){
+        return countDistinctNameAs("name_distinct_count");
+    }
+
+    public PlatformRequest<T> countDistinctNameAs(String alias){
+        super.countDistinctProperty(alias, Platform.NAME_PROPERTY);
+        return this;
+    }
+    public PlatformRequest<T> countDistinctVersion(){
+        return countDistinctVersionAs("version_distinct_count");
+    }
+
+    public PlatformRequest<T> countDistinctVersionAs(String alias){
+        super.countDistinctProperty(alias, Platform.VERSION_PROPERTY);
         return this;
     }
     public PlatformRequest<T> groupByOrderStatusesWithDetails(OrderStatusRequest subRequest){

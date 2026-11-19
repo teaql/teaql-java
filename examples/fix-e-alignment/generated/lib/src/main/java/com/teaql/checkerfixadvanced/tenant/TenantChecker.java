@@ -26,6 +26,7 @@ public class TenantChecker implements Checker<Tenant>{
       if((tenant == null)){
          return;
       }
+      boolean _contextFixEligible = needContextFix(_context, tenant);
       if(tenant.needPersist()){
       }
       if(tenant.newItem()){

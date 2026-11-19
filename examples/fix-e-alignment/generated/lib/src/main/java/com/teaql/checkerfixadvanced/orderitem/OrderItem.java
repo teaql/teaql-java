@@ -193,7 +193,18 @@ public class OrderItem extends BaseEntity implements RemoteInput {
             case "unit_price": return this.unitPrice;
             case "create_time": return this.createTime;
             case "update_time": return this.updateTime;
-            default: return super.__internalGet(property);
+            default:
+                // Presentation uses the installed Java member mapping; SQL and
+                // hydration retain canonical names. These aliases only read.
+                switch (property) {
+                    case "purchaseOrder": return this.purchaseOrder;
+                    case "tenant": return this.tenant;
+                    case "productName": return this.productName;
+                    case "unitPrice": return this.unitPrice;
+                    case "createTime": return this.createTime;
+                    case "updateTime": return this.updateTime;
+                    default: return super.__internalGet(property);
+                }
         }
     }
 

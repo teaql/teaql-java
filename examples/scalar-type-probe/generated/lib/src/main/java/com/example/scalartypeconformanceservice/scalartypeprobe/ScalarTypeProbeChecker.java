@@ -28,17 +28,34 @@ public class ScalarTypeProbeChecker implements Checker<ScalarTypeProbe>{
       if((scalarTypeProbe == null)){
          return;
       }
+      boolean _contextFixEligible = needContextFix(_context, scalarTypeProbe);
+      if(scalarTypeProbe.needPersist()){
+      }
       if(scalarTypeProbe.newItem()){
-        if(scalarTypeProbe.getCreateTime() == null){
+        if(_contextFixEligible){
+           applyContextFix(_context, newLocation(_parentLocation, "create_time"), () -> {
            scalarTypeProbe.updateCreateTime(_context.evaluate("now"));
-           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "create_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
-        }if(scalarTypeProbe.getUpdateTime() == null){
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "create_time",
+              "now".equalsIgnoreCase("now") ? io.teaql.core.checker.FixEvidence.Source.CLOCK : io.teaql.core.checker.FixEvidence.Source.CONTEXT,
+              "now".equalsIgnoreCase("now") ? "graphClock" : "contextFunction:now"));
+           });
+        }if(_contextFixEligible){
+           applyContextFix(_context, newLocation(_parentLocation, "update_time"), () -> {
            scalarTypeProbe.updateUpdateTime(_context.evaluate("now"));
-           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time",
+              "now".equalsIgnoreCase("now") ? io.teaql.core.checker.FixEvidence.Source.CLOCK : io.teaql.core.checker.FixEvidence.Source.CONTEXT,
+              "now".equalsIgnoreCase("now") ? "graphClock" : "contextFunction:now"));
+           });
         }
       }else if(scalarTypeProbe.updateItem()){
-        scalarTypeProbe.updateUpdateTime(_context.evaluate("now"));
-        _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
+        if(_contextFixEligible){
+           applyContextFix(_context, newLocation(_parentLocation, "update_time"), () -> {
+           scalarTypeProbe.updateUpdateTime(_context.evaluate("now"));
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time",
+              "now".equalsIgnoreCase("now") ? io.teaql.core.checker.FixEvidence.Source.CLOCK : io.teaql.core.checker.FixEvidence.Source.CONTEXT,
+              "now".equalsIgnoreCase("now") ? "graphClock" : "contextFunction:now"));
+           });
+        }
         if(!scalarTypeProbe.isPropertyLoaded("type_platform")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "type_platform"), "Mutation requires a fully loaded entity");
         }

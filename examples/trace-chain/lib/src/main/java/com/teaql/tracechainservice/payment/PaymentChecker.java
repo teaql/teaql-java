@@ -26,12 +26,15 @@ public class PaymentChecker implements Checker<Payment>{
       if((payment == null)){
          return;
       }
+      boolean _contextFixEligible = needContextFix(_context, payment);
+      if(payment.needPersist()){
+      }
       if(payment.newItem()){
       }else if(payment.updateItem()){
-        if(!payment.isPropertyLoaded("customerOrder")){
+        if(!payment.isPropertyLoaded("customer_order")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "customer_order"), "Mutation requires a fully loaded entity");
         }
-        if(!payment.isPropertyLoaded("referenceCode")){
+        if(!payment.isPropertyLoaded("reference_code")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "reference_code"), "Mutation requires a fully loaded entity");
         }
 

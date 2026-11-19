@@ -39,7 +39,7 @@ public class SchoolTypeExpression<T, E, U extends SchoolType> extends Expression
 
 
     public PlatformExpression<T, U, Platform> getPlatform(){
-       return new PlatformExpression(loaded("platform", SchoolType::getPlatform));
+       return new PlatformExpression(loaded("platform", "getPlatform", SchoolType::getPlatform));
     }
 
     public SchoolTypeExpression<T, U, U> updatePlatform(Platform platform){
@@ -47,28 +47,28 @@ public class SchoolTypeExpression<T, E, U extends SchoolType> extends Expression
     }
 
     public Expression<T, String> getName(){
-       return loaded("name", SchoolType::getName);
+       return loaded("name", "getName", SchoolType::getName);
     }
     public SchoolTypeExpression<T, U, U> updateName(String name){
        return new SchoolTypeExpression(this, $it ->  ((SchoolType)$it).updateName(name));
     }
 
     public Expression<T, String> getCode(){
-       return loaded("code", SchoolType::getCode);
+       return loaded("code", "getCode", SchoolType::getCode);
     }
     public SchoolTypeExpression<T, U, U> updateCode(String code){
        return new SchoolTypeExpression(this, $it ->  ((SchoolType)$it).updateCode(code));
     }
 
     public Expression<T, BigDecimal> getDisplayOrder(){
-       return loaded("displayOrder", SchoolType::getDisplayOrder);
+       return loaded("display_order", "getDisplayOrder", SchoolType::getDisplayOrder);
     }
     public SchoolTypeExpression<T, U, U> updateDisplayOrder(BigDecimal displayOrder){
        return new SchoolTypeExpression(this, $it ->  ((SchoolType)$it).updateDisplayOrder(displayOrder));
     }
 
     public SchoolListExpression<T, U, School> getSchoolList(){
-        return new SchoolListExpression(loaded("schoolList", SchoolType::getSchoolList));
+        return new SchoolListExpression(loaded("school_list", "getSchoolList", SchoolType::getSchoolList));
     }
     public SchoolTypeExpression<T, U, U> addSchool(School school){
        return new SchoolTypeExpression(this, $it ->  ((SchoolType)$it).addSchool(school));

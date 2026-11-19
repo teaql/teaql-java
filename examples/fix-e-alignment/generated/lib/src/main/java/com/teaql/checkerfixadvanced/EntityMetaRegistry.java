@@ -37,55 +37,101 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       ;
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.tenant.Tenant.ID_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.tenant.Tenant.ID_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "false")
+
       .with("oracle_sqlType", "number(11)")
+
       .with("javaType", "java.lang.Long")
+
       .with("sqlType", "BIGINT")
+
       .with("isId", "true")
+
       .with("isBaseEntityField", "true")
+
       .with("isBool", "false")
+
       .with("isNumber", "false")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("snowflake_sqlType", "number")
+
       .with("graphqlType", "Long")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.tenant.Tenant.NAME_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.tenant.Tenant.NAME_PROPERTY).with("isPassword", "false")
+
       .with("max", "80")
+
       .with("isVersion", "false")
+
       .with("javaType", "java.lang.String")
+
       .with("candidates", "Tenant Name")
+
       .with("sqlType", "VARCHAR(<max>)")
+
       .with("min", "1")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("isString", "true")
+
       .with("isDate", "false")
+
       .with("graphqlType", "String")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.tenant.Tenant.VERSION_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.tenant.Tenant.VERSION_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "true")
+
       .with("oracle_sqlType", "number(11)")
+
       .with("javaType", "java.lang.Long")
+
       .with("sqlType", "BIGINT")
+
       .with("isId", "false")
+
       .with("isBaseEntityField", "true")
+
       .with("isBool", "false")
+
       .with("isNumber", "false")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("snowflake_sqlType", "number")
+
       .with("graphqlType", "Long")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       $factory.register(entityDescriptor);
   }
@@ -119,110 +165,204 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       ;
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.purchaseorder.PurchaseOrder.ID_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.purchaseorder.PurchaseOrder.ID_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "false")
+
       .with("oracle_sqlType", "number(11)")
+
       .with("javaType", "java.lang.Long")
+
       .with("sqlType", "BIGINT")
+
       .with("isId", "true")
+
       .with("isBaseEntityField", "true")
+
       .with("isBool", "false")
+
       .with("isNumber", "false")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("snowflake_sqlType", "number")
+
       .with("graphqlType", "Long")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.purchaseorder.PurchaseOrder.TENANT_PROPERTY).with("required", "true");
-      entityDescriptor.findProperty(com.teaql.checkerfixadvanced.purchaseorder.PurchaseOrder.TENANT_PROPERTY).with("contextRoot", "true");
+      entityDescriptor.findProperty(com.teaql.checkerfixadvanced.purchaseorder.PurchaseOrder.TENANT_PROPERTY).with("contextRoot", "true")
+      ;
 
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.purchaseorder.PurchaseOrder.CONTACT_PHONE_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.purchaseorder.PurchaseOrder.CONTACT_PHONE_PROPERTY).with("isPassword", "false")
+
       .with("max", "32")
+
       .with("isVersion", "false")
+
       .with("javaType", "java.lang.String")
+
       .with("sqlType", "VARCHAR(<max>)")
+
       .with("min", "1")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("isString", "true")
+
       .with("isDate", "false")
+
       .with("graphqlType", "String")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.purchaseorder.PurchaseOrder.INTERNAL_NOTE_PROPERTY).with("isPassword", "false")
+
       .with("max", "100")
+
       .with("isVersion", "false")
+
       .with("optional", "true")
+
       .with("javaType", "java.lang.String")
+
       .with("sqlType", "VARCHAR(<max>)")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("isString", "true")
+
       .with("isDate", "false")
+
       .with("graphqlType", "String")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.purchaseorder.PurchaseOrder.CREATE_TIME_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.purchaseorder.PurchaseOrder.CREATE_TIME_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "false")
+
       .with("javaType", "java.time.LocalDateTime")
+
       .with("sqlType", "TIMESTAMP")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("mssql_sqlType", "dateTime")
+
       .with("isDateTime", "true")
+
       .with("createFunction", "now")
+
       .with("isDate", "true")
+
       .with("isString", "false")
+
       .with("graphqlType", "LocalTime")
+
       .with("isTime", "true")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.purchaseorder.PurchaseOrder.UPDATE_TIME_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.purchaseorder.PurchaseOrder.UPDATE_TIME_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "false")
+
       .with("updateFunction", "now")
+
       .with("javaType", "java.time.LocalDateTime")
+
       .with("sqlType", "TIMESTAMP")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("mssql_sqlType", "dateTime")
+
       .with("isDateTime", "true")
+
       .with("createFunction", "now")
+
       .with("isDate", "true")
+
       .with("isString", "false")
+
       .with("graphqlType", "LocalTime")
+
       .with("isTime", "true")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.purchaseorder.PurchaseOrder.VERSION_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.purchaseorder.PurchaseOrder.VERSION_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "true")
+
       .with("oracle_sqlType", "number(11)")
+
       .with("javaType", "java.lang.Long")
+
       .with("sqlType", "BIGINT")
+
       .with("isId", "false")
+
       .with("isBaseEntityField", "true")
+
       .with("isBool", "false")
+
       .with("isNumber", "false")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("snowflake_sqlType", "number")
+
       .with("graphqlType", "Long")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       $factory.register(entityDescriptor);
   }
@@ -259,115 +399,211 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       ;
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.orderitem.OrderItem.ID_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.orderitem.OrderItem.ID_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "false")
+
       .with("oracle_sqlType", "number(11)")
+
       .with("javaType", "java.lang.Long")
+
       .with("sqlType", "BIGINT")
+
       .with("isId", "true")
+
       .with("isBaseEntityField", "true")
+
       .with("isBool", "false")
+
       .with("isNumber", "false")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("snowflake_sqlType", "number")
+
       .with("graphqlType", "Long")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.orderitem.OrderItem.PURCHASE_ORDER_PROPERTY).with("required", "true");
 
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.orderitem.OrderItem.TENANT_PROPERTY).with("required", "true");
-      entityDescriptor.findProperty(com.teaql.checkerfixadvanced.orderitem.OrderItem.TENANT_PROPERTY).with("contextRoot", "true");
+      entityDescriptor.findProperty(com.teaql.checkerfixadvanced.orderitem.OrderItem.TENANT_PROPERTY).with("contextRoot", "true")
+      ;
 
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.orderitem.OrderItem.PRODUCT_NAME_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.orderitem.OrderItem.PRODUCT_NAME_PROPERTY).with("isPassword", "false")
+
       .with("max", "80")
+
       .with("isVersion", "false")
+
       .with("javaType", "java.lang.String")
+
       .with("sqlType", "VARCHAR(<max>)")
+
       .with("min", "1")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("isString", "true")
+
       .with("isDate", "false")
+
       .with("graphqlType", "String")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.orderitem.OrderItem.UNIT_PRICE_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.orderitem.OrderItem.UNIT_PRICE_PROPERTY).with("isPassword", "false")
+
       .with("max", "1000000")
+
       .with("db2_sqlType", "decimal(19,7)")
+
       .with("isVersion", "false")
+
       .with("oracle_sqlType", "number(19,7)")
+
       .with("javaType", "java.math.BigDecimal")
+
       .with("sqlType", "NUMERIC(19,7)")
+
       .with("min", "0.01")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "true")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("graphqlType", "BigDecimal")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.orderitem.OrderItem.CREATE_TIME_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.orderitem.OrderItem.CREATE_TIME_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "false")
+
       .with("javaType", "java.time.LocalDateTime")
+
       .with("sqlType", "TIMESTAMP")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("mssql_sqlType", "dateTime")
+
       .with("isDateTime", "true")
+
       .with("createFunction", "now")
+
       .with("isDate", "true")
+
       .with("isString", "false")
+
       .with("graphqlType", "LocalTime")
+
       .with("isTime", "true")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.orderitem.OrderItem.UPDATE_TIME_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.orderitem.OrderItem.UPDATE_TIME_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "false")
+
       .with("updateFunction", "now")
+
       .with("javaType", "java.time.LocalDateTime")
+
       .with("sqlType", "TIMESTAMP")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("mssql_sqlType", "dateTime")
+
       .with("isDateTime", "true")
+
       .with("createFunction", "now")
+
       .with("isDate", "true")
+
       .with("isString", "false")
+
       .with("graphqlType", "LocalTime")
+
       .with("isTime", "true")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.orderitem.OrderItem.VERSION_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.teaql.checkerfixadvanced.orderitem.OrderItem.VERSION_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "true")
+
       .with("oracle_sqlType", "number(11)")
+
       .with("javaType", "java.lang.Long")
+
       .with("sqlType", "BIGINT")
+
       .with("isId", "false")
+
       .with("isBaseEntityField", "true")
+
       .with("isBool", "false")
+
       .with("isNumber", "false")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("snowflake_sqlType", "number")
+
       .with("graphqlType", "Long")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       $factory.register(entityDescriptor);
   }

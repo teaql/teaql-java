@@ -12,6 +12,7 @@ public class Q  {
   }
 
 
+
   public static com.example.schoolmanagementservice.schooltype.SchoolTypeRequest<com.example.schoolmanagementservice.schooltype.SchoolType> schoolTypes(){
       return new com.example.schoolmanagementservice.schooltype.SchoolTypeRequest(com.example.schoolmanagementservice.schooltype.SchoolType.class).selectSelf().withVersion(Operator.GREATER_THAN, 0l);
   }
@@ -20,12 +21,14 @@ public class Q  {
   }
 
 
+
   public static com.example.schoolmanagementservice.school.SchoolRequest<com.example.schoolmanagementservice.school.School> schools(){
       return new com.example.schoolmanagementservice.school.SchoolRequest(com.example.schoolmanagementservice.school.School.class).selectSelf().withVersion(Operator.GREATER_THAN, 0l);
   }
   public static com.example.schoolmanagementservice.school.SchoolRequest<com.example.schoolmanagementservice.school.School> schoolsWithMinimalFields(){
       return new com.example.schoolmanagementservice.school.SchoolRequest(com.example.schoolmanagementservice.school.School.class).withVersion(Operator.GREATER_THAN, 0l);
   }
+
 
 
 }

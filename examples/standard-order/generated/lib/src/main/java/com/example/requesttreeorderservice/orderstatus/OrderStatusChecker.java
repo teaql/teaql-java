@@ -27,6 +27,9 @@ public class OrderStatusChecker implements Checker<OrderStatus>{
       if((orderStatus == null)){
          return;
       }
+      boolean _contextFixEligible = needContextFix(_context, orderStatus);
+      if(orderStatus.needPersist()){
+      }
       if(orderStatus.newItem()){
       }else if(orderStatus.updateItem()){
         if(!orderStatus.isPropertyLoaded("platform")){
@@ -41,7 +44,7 @@ public class OrderStatusChecker implements Checker<OrderStatus>{
         if(!orderStatus.isPropertyLoaded("color")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "color"), "Mutation requires a fully loaded entity");
         }
-        if(!orderStatus.isPropertyLoaded("displayOrder")){
+        if(!orderStatus.isPropertyLoaded("display_order")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "display_order"), "Mutation requires a fully loaded entity");
         }
 

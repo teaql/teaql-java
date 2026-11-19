@@ -27,17 +27,24 @@ public class SchoolTypeChecker implements Checker<SchoolType>{
       if((schoolType == null)){
          return;
       }
+      boolean _contextFixEligible = needContextFix(_context, schoolType);
+      if(schoolType.needPersist()){
+      }
       if(schoolType.newItem()){
       }else if(schoolType.updateItem()){
         if(!schoolType.isPropertyLoaded("platform")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "platform"), "Mutation requires a fully loaded entity");
-        }if(!schoolType.isPropertyLoaded("name")){
+        }
+        if(!schoolType.isPropertyLoaded("name")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "name"), "Mutation requires a fully loaded entity");
-        }if(!schoolType.isPropertyLoaded("code")){
+        }
+        if(!schoolType.isPropertyLoaded("code")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "code"), "Mutation requires a fully loaded entity");
-        }if(!schoolType.isPropertyLoaded("displayOrder")){
+        }
+        if(!schoolType.isPropertyLoaded("display_order")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "display_order"), "Mutation requires a fully loaded entity");
         }
+
       }
       checkPlatform(_context, schoolType.getProperty(SchoolType.PLATFORM_PROPERTY), newLocation(_parentLocation, "platform"));
       checkName(_context, schoolType.getProperty(SchoolType.NAME_PROPERTY), newLocation(_parentLocation, "name"));

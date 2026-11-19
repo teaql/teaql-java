@@ -16,6 +16,7 @@ import io.teaql.core.criteria.TwoOperatorCriteria;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.Objects;
 
 public class SchoolRequest<T extends School> extends BaseRequest<T> {
 
@@ -26,7 +27,11 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
     @Deprecated
     @SuppressWarnings("unchecked")
     public SchoolRequest(Class<T> returnType){
-        super(returnType, () -> (T) new School());
+        this(returnType, () -> (T) new School());
+    }
+
+    protected SchoolRequest(Class<T> returnType, java.util.function.Supplier<? extends T> factory){
+        super(returnType, factory);
         selectId();
         selectVersion();
     }
@@ -34,6 +39,19 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
     public SchoolRequest<T> comment(String comment){
          super.internalComment(comment);
          return this;
+    }
+
+    /** Independent query graph; ordinary roll-up handles remain live. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public SchoolRequest<T> copy(){
+        return (SchoolRequest<T>) super.copy();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected io.teaql.core.BaseRequest<T> internalCopyTarget(){
+        return new SchoolRequest<>((Class<T>) returnType(), this::internalNewEntity);
     }
 
     // purpose() 继承自 BaseRequest，返回 ExecutableRequest（终结方法）
@@ -103,6 +121,12 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
         return this;
     }
 
+    public SchoolRequest<T> matchingIdsOf(SchoolRequest<?> request){
+        Objects.requireNonNull(request, "matching request");
+        return appendSearchCriteria(new SubQuerySearchCriteria(
+                School.ID_PROPERTY, request, School.ID_PROPERTY));
+    }
+
     public SchoolRequest<T> enhanceChildrenIfNeeded(){
         return this;
     }
@@ -124,6 +148,23 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
 
     public SchoolRequest<T> selectSelfFields(){
         return selectSelf();
+    }
+
+    public SchoolRequest<T> selectSelfWithoutParent(){
+        selectId();
+        selectVersion();
+        selectProperty(School.ID_PROPERTY);
+        selectProperty(School.PLATFORM_PROPERTY);
+        selectProperty(School.SCHOOL_TYPE_PROPERTY);
+        selectProperty(School.NAME_PROPERTY);
+        selectProperty(School.ADDRESS_PROPERTY);
+        selectProperty(School.ESTABLISHED_DATE_PROPERTY);
+        selectProperty(School.STUDENT_CAPACITY_PROPERTY);
+        selectProperty(School.ACTIVE_PROPERTY);
+        selectProperty(School.CREATE_TIME_PROPERTY);
+        selectProperty(School.UPDATE_TIME_PROPERTY);
+        selectProperty(School.VERSION_PROPERTY);
+        return this;
     }
 
     public SchoolRequest<T> selectAll(){
@@ -165,7 +206,8 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
 
     public SchoolRequest<T> selectPlatformWith(PlatformRequest platform){
        selectProperty(School.PLATFORM_PROPERTY);
-       enhanceRelation(School.PLATFORM_PROPERTY, platform);
+       enhanceRelation(School.PLATFORM_PROPERTY, platform,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_SELECT, "selectPlatformWith", null, School.PLATFORM_PROPERTY));
        return this;
     }
 
@@ -184,7 +226,8 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
 
     public SchoolRequest<T> selectSchoolTypeWith(SchoolTypeRequest schoolType){
        selectProperty(School.SCHOOL_TYPE_PROPERTY);
-       enhanceRelation(School.SCHOOL_TYPE_PROPERTY, schoolType);
+       enhanceRelation(School.SCHOOL_TYPE_PROPERTY, schoolType,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_SELECT, "selectSchoolTypeWith", null, School.SCHOOL_TYPE_PROPERTY));
        return this;
     }
 
@@ -1001,12 +1044,15 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
     }
 
 
+
     public SchoolRequest<T> count(){
         super.count();
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "count", null, null));
         return this;
     }
     public SchoolRequest<T> countAs(String retName){
         super.count(retName);
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "countAs", retName, null));
         return this;
     }
     public SchoolRequest minStudentCapacity(){
@@ -1099,6 +1145,94 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
 
 
 
+    public SchoolRequest<T> countDistinctId(){
+        return countDistinctIdAs("id_distinct_count");
+    }
+
+    public SchoolRequest<T> countDistinctIdAs(String alias){
+        super.countDistinctProperty(alias, School.ID_PROPERTY);
+        return this;
+    }
+    public SchoolRequest<T> countDistinctPlatform(){
+        return countDistinctPlatformAs("platform_distinct_count");
+    }
+
+    public SchoolRequest<T> countDistinctPlatformAs(String alias){
+        super.countDistinctProperty(alias, School.PLATFORM_PROPERTY);
+        return this;
+    }
+    public SchoolRequest<T> countDistinctSchoolType(){
+        return countDistinctSchoolTypeAs("school_type_distinct_count");
+    }
+
+    public SchoolRequest<T> countDistinctSchoolTypeAs(String alias){
+        super.countDistinctProperty(alias, School.SCHOOL_TYPE_PROPERTY);
+        return this;
+    }
+    public SchoolRequest<T> countDistinctName(){
+        return countDistinctNameAs("name_distinct_count");
+    }
+
+    public SchoolRequest<T> countDistinctNameAs(String alias){
+        super.countDistinctProperty(alias, School.NAME_PROPERTY);
+        return this;
+    }
+    public SchoolRequest<T> countDistinctAddress(){
+        return countDistinctAddressAs("address_distinct_count");
+    }
+
+    public SchoolRequest<T> countDistinctAddressAs(String alias){
+        super.countDistinctProperty(alias, School.ADDRESS_PROPERTY);
+        return this;
+    }
+    public SchoolRequest<T> countDistinctEstablishedDate(){
+        return countDistinctEstablishedDateAs("established_date_distinct_count");
+    }
+
+    public SchoolRequest<T> countDistinctEstablishedDateAs(String alias){
+        super.countDistinctProperty(alias, School.ESTABLISHED_DATE_PROPERTY);
+        return this;
+    }
+    public SchoolRequest<T> countDistinctStudentCapacity(){
+        return countDistinctStudentCapacityAs("student_capacity_distinct_count");
+    }
+
+    public SchoolRequest<T> countDistinctStudentCapacityAs(String alias){
+        super.countDistinctProperty(alias, School.STUDENT_CAPACITY_PROPERTY);
+        return this;
+    }
+    public SchoolRequest<T> countDistinctActive(){
+        return countDistinctActiveAs("active_distinct_count");
+    }
+
+    public SchoolRequest<T> countDistinctActiveAs(String alias){
+        super.countDistinctProperty(alias, School.ACTIVE_PROPERTY);
+        return this;
+    }
+    public SchoolRequest<T> countDistinctCreateTime(){
+        return countDistinctCreateTimeAs("create_time_distinct_count");
+    }
+
+    public SchoolRequest<T> countDistinctCreateTimeAs(String alias){
+        super.countDistinctProperty(alias, School.CREATE_TIME_PROPERTY);
+        return this;
+    }
+    public SchoolRequest<T> countDistinctUpdateTime(){
+        return countDistinctUpdateTimeAs("update_time_distinct_count");
+    }
+
+    public SchoolRequest<T> countDistinctUpdateTimeAs(String alias){
+        super.countDistinctProperty(alias, School.UPDATE_TIME_PROPERTY);
+        return this;
+    }
+    public SchoolRequest<T> countDistinctVersion(){
+        return countDistinctVersionAs("version_distinct_count");
+    }
+
+    public SchoolRequest<T> countDistinctVersionAs(String alias){
+        super.countDistinctProperty(alias, School.VERSION_PROPERTY);
+        return this;
+    }
 
     public SchoolRequest<T> groupById(){
        groupBy(School.ID_PROPERTY);
@@ -1115,7 +1249,8 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
        return this;
     }
     public SchoolRequest<T> groupByPlatformWith(PlatformRequest subRequest){
-       groupBy(School.PLATFORM_PROPERTY, subRequest);
+       groupBy(School.PLATFORM_PROPERTY, subRequest,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "groupByPlatformWith", null, "platform"));
        return this;
     }
     public SchoolRequest<T> groupByPlatform(){
@@ -1133,7 +1268,8 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
        return this;
     }
     public SchoolRequest<T> groupBySchoolTypeWith(SchoolTypeRequest subRequest){
-       groupBy(School.SCHOOL_TYPE_PROPERTY, subRequest);
+       groupBy(School.SCHOOL_TYPE_PROPERTY, subRequest,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "groupBySchoolTypeWith", null, "school_type"));
        return this;
     }
     public SchoolRequest<T> groupBySchoolType(){
@@ -1414,15 +1550,15 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
 
     public PlatformRequest rollUpToPlatform(){
        PlatformRequest platform = Q.platforms().unlimited();
-       this.withPlatformMatching(platform)
-           .groupByPlatformWith(platform);
+       this.internalRollUpTo("platform", platform,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "rollUpToPlatform", null, "platform"));
        return platform;
     }
 
     public SchoolTypeRequest rollUpToSchoolType(){
        SchoolTypeRequest schoolType = Q.schoolTypes().unlimited();
-       this.withSchoolTypeMatching(schoolType)
-           .groupBySchoolTypeWith(schoolType);
+       this.internalRollUpTo("school_type", schoolType,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "rollUpToSchoolType", null, "school_type"));
        return schoolType;
     }
 
@@ -1440,7 +1576,8 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
    }
 
    public SchoolRequest<T> facetByPlatformAs(String facetName, PlatformRequest platform, boolean includeAllFacets){
-       addFacet(facetName, School.PLATFORM_PROPERTY, platform, includeAllFacets);
+       addFacet(facetName, School.PLATFORM_PROPERTY, platform, includeAllFacets,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.FACET, "facetByPlatformAs", facetName, School.PLATFORM_PROPERTY));
        return this;
    }
    public SchoolRequest<T> facetBySchoolTypeAs(String facetName, SchoolTypeRequest schoolType){
@@ -1448,7 +1585,8 @@ public class SchoolRequest<T extends School> extends BaseRequest<T> {
    }
 
    public SchoolRequest<T> facetBySchoolTypeAs(String facetName, SchoolTypeRequest schoolType, boolean includeAllFacets){
-       addFacet(facetName, School.SCHOOL_TYPE_PROPERTY, schoolType, includeAllFacets);
+       addFacet(facetName, School.SCHOOL_TYPE_PROPERTY, schoolType, includeAllFacets,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.FACET, "facetBySchoolTypeAs", facetName, School.SCHOOL_TYPE_PROPERTY));
        return this;
    }
 

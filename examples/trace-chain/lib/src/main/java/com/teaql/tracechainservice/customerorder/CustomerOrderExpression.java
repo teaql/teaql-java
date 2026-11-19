@@ -42,7 +42,7 @@ public class CustomerOrderExpression<T, E, U extends CustomerOrder> extends Expr
 
 
     public PlatformExpression<T, U, Platform> getPlatform(){
-       return new PlatformExpression(loaded("platform", CustomerOrder::getPlatform));
+       return new PlatformExpression(loaded("platform", "getPlatform", CustomerOrder::getPlatform));
     }
 
     public CustomerOrderExpression<T, U, U> updatePlatform(Platform platform){
@@ -50,27 +50,27 @@ public class CustomerOrderExpression<T, E, U extends CustomerOrder> extends Expr
     }
 
     public Expression<T, String> getOrderNumber(){
-       return loaded("orderNumber", CustomerOrder::getOrderNumber);
+       return loaded("order_number", "getOrderNumber", CustomerOrder::getOrderNumber);
     }
     public CustomerOrderExpression<T, U, U> updateOrderNumber(String orderNumber){
        return new CustomerOrderExpression(this, $it ->  ((CustomerOrder)$it).updateOrderNumber(orderNumber));
     }
 
     public Expression<T, String> getDescription(){
-       return loaded("description", CustomerOrder::getDescription);
+       return loaded("description", "getDescription", CustomerOrder::getDescription);
     }
     public CustomerOrderExpression<T, U, U> updateDescription(String description){
        return new CustomerOrderExpression(this, $it ->  ((CustomerOrder)$it).updateDescription(description));
     }
 
     public OrderItemListExpression<T, U, OrderItem> getOrderItemList(){
-        return new OrderItemListExpression(loaded("orderItemList", CustomerOrder::getOrderItemList));
+        return new OrderItemListExpression(loaded("order_item_list", "getOrderItemList", CustomerOrder::getOrderItemList));
     }
     public PaymentListExpression<T, U, Payment> getPaymentList(){
-        return new PaymentListExpression(loaded("paymentList", CustomerOrder::getPaymentList));
+        return new PaymentListExpression(loaded("payment_list", "getPaymentList", CustomerOrder::getPaymentList));
     }
     public ShipmentListExpression<T, U, Shipment> getShipmentList(){
-        return new ShipmentListExpression(loaded("shipmentList", CustomerOrder::getShipmentList));
+        return new ShipmentListExpression(loaded("shipment_list", "getShipmentList", CustomerOrder::getShipmentList));
     }
     public CustomerOrderExpression<T, U, U> addOrderItem(OrderItem orderItem){
        return new CustomerOrderExpression(this, $it ->  ((CustomerOrder)$it).addOrderItem(orderItem));

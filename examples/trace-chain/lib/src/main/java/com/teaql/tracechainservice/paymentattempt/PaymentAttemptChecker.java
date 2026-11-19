@@ -24,12 +24,15 @@ public class PaymentAttemptChecker implements Checker<PaymentAttempt>{
       if((paymentAttempt == null)){
          return;
       }
+      boolean _contextFixEligible = needContextFix(_context, paymentAttempt);
+      if(paymentAttempt.needPersist()){
+      }
       if(paymentAttempt.newItem()){
       }else if(paymentAttempt.updateItem()){
         if(!paymentAttempt.isPropertyLoaded("payment")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "payment"), "Mutation requires a fully loaded entity");
         }
-        if(!paymentAttempt.isPropertyLoaded("referenceCode")){
+        if(!paymentAttempt.isPropertyLoaded("reference_code")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "reference_code"), "Mutation requires a fully loaded entity");
         }
 

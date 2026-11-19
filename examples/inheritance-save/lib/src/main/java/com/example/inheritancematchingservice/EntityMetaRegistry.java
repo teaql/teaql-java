@@ -573,8 +573,6 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
 
       .with("max", "100")
 
-      .with("column", "Legacy Campus Code")
-      .with("columnName", "Legacy Campus Code")
       .with("isVersion", "false")
 
       .with("javaType", "java.lang.String")

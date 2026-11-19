@@ -14,6 +14,7 @@ import io.teaql.core.SubQuerySearchCriteria;
 import io.teaql.core.criteria.Operator;
 import io.teaql.core.criteria.TwoOperatorCriteria;
 import java.math.BigDecimal;
+import java.util.Objects;
 
 public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
 
@@ -36,6 +37,19 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
     public OrderStatusRequest<T> comment(String comment){
          super.internalComment(comment);
          return this;
+    }
+
+    /** Independent query graph; ordinary roll-up handles remain live. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public OrderStatusRequest<T> copy(){
+        return (OrderStatusRequest<T>) super.copy();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected io.teaql.core.BaseRequest<T> internalCopyTarget(){
+        return new OrderStatusRequest<>((Class<T>) returnType(), this::internalNewEntity);
     }
 
     // purpose() 继承自 BaseRequest，返回 ExecutableRequest（终结方法）
@@ -103,6 +117,12 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
     public OrderStatusRequest<T> matchingAnyOf(OrderStatusRequest orderStatus){
         super.internalMatchAny(orderStatus);
         return this;
+    }
+
+    public OrderStatusRequest<T> matchingIdsOf(OrderStatusRequest<?> request){
+        Objects.requireNonNull(request, "matching request");
+        return appendSearchCriteria(new SubQuerySearchCriteria(
+                OrderStatus.ID_PROPERTY, request, OrderStatus.ID_PROPERTY));
     }
 
     public OrderStatusRequest<T> enhanceChildrenIfNeeded(){
@@ -838,13 +858,70 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
 
 
 
+    public OrderStatusRequest<T> countDistinctPlatform(){
+        return countDistinctPlatformAs("platform_distinct_count");
+    }
+
+    public OrderStatusRequest<T> countDistinctPlatformAs(String alias){
+        super.countDistinctProperty(alias, OrderStatus.PLATFORM_PROPERTY);
+        return this;
+    }
+    public OrderStatusRequest<T> countDistinctId(){
+        return countDistinctIdAs("id_distinct_count");
+    }
+
+    public OrderStatusRequest<T> countDistinctIdAs(String alias){
+        super.countDistinctProperty(alias, OrderStatus.ID_PROPERTY);
+        return this;
+    }
+    public OrderStatusRequest<T> countDistinctName(){
+        return countDistinctNameAs("name_distinct_count");
+    }
+
+    public OrderStatusRequest<T> countDistinctNameAs(String alias){
+        super.countDistinctProperty(alias, OrderStatus.NAME_PROPERTY);
+        return this;
+    }
+    public OrderStatusRequest<T> countDistinctCode(){
+        return countDistinctCodeAs("code_distinct_count");
+    }
+
+    public OrderStatusRequest<T> countDistinctCodeAs(String alias){
+        super.countDistinctProperty(alias, OrderStatus.CODE_PROPERTY);
+        return this;
+    }
+    public OrderStatusRequest<T> countDistinctColor(){
+        return countDistinctColorAs("color_distinct_count");
+    }
+
+    public OrderStatusRequest<T> countDistinctColorAs(String alias){
+        super.countDistinctProperty(alias, OrderStatus.COLOR_PROPERTY);
+        return this;
+    }
+    public OrderStatusRequest<T> countDistinctDisplayOrder(){
+        return countDistinctDisplayOrderAs("display_order_distinct_count");
+    }
+
+    public OrderStatusRequest<T> countDistinctDisplayOrderAs(String alias){
+        super.countDistinctProperty(alias, OrderStatus.DISPLAY_ORDER_PROPERTY);
+        return this;
+    }
+    public OrderStatusRequest<T> countDistinctVersion(){
+        return countDistinctVersionAs("version_distinct_count");
+    }
+
+    public OrderStatusRequest<T> countDistinctVersionAs(String alias){
+        super.countDistinctProperty(alias, OrderStatus.VERSION_PROPERTY);
+        return this;
+    }
     public OrderStatusRequest<T> groupByCustomerOrdersWithDetails(CustomerOrderRequest subRequest){
        aggregate(OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY, subRequest);
        return this;
     }
 
     public OrderStatusRequest<T> groupByPlatformWith(PlatformRequest subRequest){
-       groupBy(OrderStatus.PLATFORM_PROPERTY, subRequest);
+       groupBy(OrderStatus.PLATFORM_PROPERTY, subRequest,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "groupByPlatformWith", null, "platform"));
        return this;
     }
     public OrderStatusRequest<T> groupByPlatform(){
@@ -1064,8 +1141,8 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
     }
     public PlatformRequest rollUpToPlatform(){
        PlatformRequest platform = Q.platforms().unlimited();
-       this.withPlatformMatching(platform)
-           .groupByPlatformWith(platform);
+       this.internalRollUpTo("platform", platform,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "rollUpToPlatform", null, "platform"));
        return platform;
     }
 

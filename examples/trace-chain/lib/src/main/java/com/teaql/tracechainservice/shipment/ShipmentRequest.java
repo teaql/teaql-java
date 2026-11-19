@@ -11,6 +11,7 @@ import io.teaql.core.SearchCriteria;
 import io.teaql.core.SubQuerySearchCriteria;
 import io.teaql.core.criteria.Operator;
 import io.teaql.core.criteria.TwoOperatorCriteria;
+import java.util.Objects;
 
 public class ShipmentRequest<T extends Shipment> extends BaseRequest<T> {
 
@@ -21,7 +22,11 @@ public class ShipmentRequest<T extends Shipment> extends BaseRequest<T> {
     @Deprecated
     @SuppressWarnings("unchecked")
     public ShipmentRequest(Class<T> returnType){
-        super(returnType, () -> (T) new Shipment());
+        this(returnType, () -> (T) new Shipment());
+    }
+
+    protected ShipmentRequest(Class<T> returnType, java.util.function.Supplier<? extends T> factory){
+        super(returnType, factory);
         selectId();
         selectVersion();
     }
@@ -29,6 +34,19 @@ public class ShipmentRequest<T extends Shipment> extends BaseRequest<T> {
     public ShipmentRequest<T> comment(String comment){
          super.internalComment(comment);
          return this;
+    }
+
+    /** Independent query graph; ordinary roll-up handles remain live. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public ShipmentRequest<T> copy(){
+        return (ShipmentRequest<T>) super.copy();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected io.teaql.core.BaseRequest<T> internalCopyTarget(){
+        return new ShipmentRequest<>((Class<T>) returnType(), this::internalNewEntity);
     }
 
     // purpose() 继承自 BaseRequest，返回 ExecutableRequest（终结方法）
@@ -98,6 +116,12 @@ public class ShipmentRequest<T extends Shipment> extends BaseRequest<T> {
         return this;
     }
 
+    public ShipmentRequest<T> matchingIdsOf(ShipmentRequest<?> request){
+        Objects.requireNonNull(request, "matching request");
+        return appendSearchCriteria(new SubQuerySearchCriteria(
+                Shipment.ID_PROPERTY, request, Shipment.ID_PROPERTY));
+    }
+
     public ShipmentRequest<T> enhanceChildrenIfNeeded(){
         return this;
     }
@@ -119,6 +143,16 @@ public class ShipmentRequest<T extends Shipment> extends BaseRequest<T> {
 
     public ShipmentRequest<T> selectSelfFields(){
         return selectSelf();
+    }
+
+    public ShipmentRequest<T> selectSelfWithoutParent(){
+        selectId();
+        selectVersion();
+        selectProperty(Shipment.ID_PROPERTY);
+        selectProperty(Shipment.CUSTOMER_ORDER_PROPERTY);
+        selectProperty(Shipment.REFERENCE_CODE_PROPERTY);
+        selectProperty(Shipment.VERSION_PROPERTY);
+        return this;
     }
 
     public ShipmentRequest<T> selectAll(){
@@ -160,7 +194,8 @@ public class ShipmentRequest<T extends Shipment> extends BaseRequest<T> {
 
     public ShipmentRequest<T> selectCustomerOrderWith(CustomerOrderRequest customerOrder){
        selectProperty(Shipment.CUSTOMER_ORDER_PROPERTY);
-       enhanceRelation(Shipment.CUSTOMER_ORDER_PROPERTY, customerOrder);
+       enhanceRelation(Shipment.CUSTOMER_ORDER_PROPERTY, customerOrder,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_SELECT, "selectCustomerOrderWith", null, Shipment.CUSTOMER_ORDER_PROPERTY));
        return this;
     }
 
@@ -414,10 +449,12 @@ public class ShipmentRequest<T extends Shipment> extends BaseRequest<T> {
 
     public ShipmentRequest<T> count(){
         super.count();
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "count", null, null));
         return this;
     }
     public ShipmentRequest<T> countAs(String retName){
         super.count(retName);
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "countAs", retName, null));
         return this;
     }
     public ShipmentRequest<T> groupByCustomerOrderWithDetails(){
@@ -431,6 +468,38 @@ public class ShipmentRequest<T extends Shipment> extends BaseRequest<T> {
 
 
 
+    public ShipmentRequest<T> countDistinctId(){
+        return countDistinctIdAs("id_distinct_count");
+    }
+
+    public ShipmentRequest<T> countDistinctIdAs(String alias){
+        super.countDistinctProperty(alias, Shipment.ID_PROPERTY);
+        return this;
+    }
+    public ShipmentRequest<T> countDistinctCustomerOrder(){
+        return countDistinctCustomerOrderAs("customer_order_distinct_count");
+    }
+
+    public ShipmentRequest<T> countDistinctCustomerOrderAs(String alias){
+        super.countDistinctProperty(alias, Shipment.CUSTOMER_ORDER_PROPERTY);
+        return this;
+    }
+    public ShipmentRequest<T> countDistinctReferenceCode(){
+        return countDistinctReferenceCodeAs("reference_code_distinct_count");
+    }
+
+    public ShipmentRequest<T> countDistinctReferenceCodeAs(String alias){
+        super.countDistinctProperty(alias, Shipment.REFERENCE_CODE_PROPERTY);
+        return this;
+    }
+    public ShipmentRequest<T> countDistinctVersion(){
+        return countDistinctVersionAs("version_distinct_count");
+    }
+
+    public ShipmentRequest<T> countDistinctVersionAs(String alias){
+        super.countDistinctProperty(alias, Shipment.VERSION_PROPERTY);
+        return this;
+    }
 
     public ShipmentRequest<T> groupById(){
        groupBy(Shipment.ID_PROPERTY);
@@ -447,7 +516,8 @@ public class ShipmentRequest<T extends Shipment> extends BaseRequest<T> {
        return this;
     }
     public ShipmentRequest<T> groupByCustomerOrderWith(CustomerOrderRequest subRequest){
-       groupBy(Shipment.CUSTOMER_ORDER_PROPERTY, subRequest);
+       groupBy(Shipment.CUSTOMER_ORDER_PROPERTY, subRequest,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "groupByCustomerOrderWith", null, "customer_order"));
        return this;
     }
     public ShipmentRequest<T> groupByCustomerOrder(){
@@ -548,8 +618,8 @@ public class ShipmentRequest<T extends Shipment> extends BaseRequest<T> {
 
     public CustomerOrderRequest rollUpToCustomerOrder(){
        CustomerOrderRequest customerOrder = Q.customerOrders().unlimited();
-       this.withCustomerOrderMatching(customerOrder)
-           .groupByCustomerOrderWith(customerOrder);
+       this.internalRollUpTo("customer_order", customerOrder,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "rollUpToCustomerOrder", null, "customer_order"));
        return customerOrder;
     }
 
@@ -561,7 +631,8 @@ public class ShipmentRequest<T extends Shipment> extends BaseRequest<T> {
    }
 
    public ShipmentRequest<T> facetByCustomerOrderAs(String facetName, CustomerOrderRequest customerOrder, boolean includeAllFacets){
-       addFacet(facetName, Shipment.CUSTOMER_ORDER_PROPERTY, customerOrder, includeAllFacets);
+       addFacet(facetName, Shipment.CUSTOMER_ORDER_PROPERTY, customerOrder, includeAllFacets,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.FACET, "facetByCustomerOrderAs", facetName, Shipment.CUSTOMER_ORDER_PROPERTY));
        return this;
    }
 

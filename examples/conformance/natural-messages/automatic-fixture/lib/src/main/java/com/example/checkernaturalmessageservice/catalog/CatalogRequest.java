@@ -11,6 +11,7 @@ import io.teaql.core.SearchCriteria;
 import io.teaql.core.SubQuerySearchCriteria;
 import io.teaql.core.criteria.Operator;
 import io.teaql.core.criteria.TwoOperatorCriteria;
+import java.util.Objects;
 
 public class CatalogRequest<T extends Catalog> extends BaseRequest<T> {
 
@@ -33,6 +34,19 @@ public class CatalogRequest<T extends Catalog> extends BaseRequest<T> {
     public CatalogRequest<T> comment(String comment){
          super.internalComment(comment);
          return this;
+    }
+
+    /** Independent query graph; ordinary roll-up handles remain live. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public CatalogRequest<T> copy(){
+        return (CatalogRequest<T>) super.copy();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected io.teaql.core.BaseRequest<T> internalCopyTarget(){
+        return new CatalogRequest<>((Class<T>) returnType(), this::internalNewEntity);
     }
 
     // purpose() 继承自 BaseRequest，返回 ExecutableRequest（终结方法）
@@ -100,6 +114,12 @@ public class CatalogRequest<T extends Catalog> extends BaseRequest<T> {
     public CatalogRequest<T> matchingAnyOf(CatalogRequest catalog){
         super.internalMatchAny(catalog);
         return this;
+    }
+
+    public CatalogRequest<T> matchingIdsOf(CatalogRequest<?> request){
+        Objects.requireNonNull(request, "matching request");
+        return appendSearchCriteria(new SubQuerySearchCriteria(
+                Catalog.ID_PROPERTY, request, Catalog.ID_PROPERTY));
     }
 
     public CatalogRequest<T> enhanceChildrenIfNeeded(){
@@ -401,6 +421,30 @@ public class CatalogRequest<T extends Catalog> extends BaseRequest<T> {
     public CatalogRequest<T> countAs(String retName){
         super.count(retName);
         setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "countAs", retName, null));
+        return this;
+    }
+    public CatalogRequest<T> countDistinctId(){
+        return countDistinctIdAs("id_distinct_count");
+    }
+
+    public CatalogRequest<T> countDistinctIdAs(String alias){
+        super.countDistinctProperty(alias, Catalog.ID_PROPERTY);
+        return this;
+    }
+    public CatalogRequest<T> countDistinctName(){
+        return countDistinctNameAs("name_distinct_count");
+    }
+
+    public CatalogRequest<T> countDistinctNameAs(String alias){
+        super.countDistinctProperty(alias, Catalog.NAME_PROPERTY);
+        return this;
+    }
+    public CatalogRequest<T> countDistinctVersion(){
+        return countDistinctVersionAs("version_distinct_count");
+    }
+
+    public CatalogRequest<T> countDistinctVersionAs(String alias){
+        super.countDistinctProperty(alias, Catalog.VERSION_PROPERTY);
         return this;
     }
     public CatalogRequest<T> groupByEntriesWithDetails(EntryRequest subRequest){

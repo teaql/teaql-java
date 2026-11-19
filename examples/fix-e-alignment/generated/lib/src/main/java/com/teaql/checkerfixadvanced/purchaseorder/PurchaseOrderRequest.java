@@ -15,6 +15,7 @@ import io.teaql.core.criteria.Operator;
 import io.teaql.core.criteria.TwoOperatorCriteria;
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.Objects;
 
 public class PurchaseOrderRequest<T extends PurchaseOrder> extends BaseRequest<T> {
 
@@ -37,6 +38,19 @@ public class PurchaseOrderRequest<T extends PurchaseOrder> extends BaseRequest<T
     public PurchaseOrderRequest<T> comment(String comment){
          super.internalComment(comment);
          return this;
+    }
+
+    /** Independent query graph; ordinary roll-up handles remain live. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public PurchaseOrderRequest<T> copy(){
+        return (PurchaseOrderRequest<T>) super.copy();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected io.teaql.core.BaseRequest<T> internalCopyTarget(){
+        return new PurchaseOrderRequest<>((Class<T>) returnType(), this::internalNewEntity);
     }
 
     // purpose() 继承自 BaseRequest，返回 ExecutableRequest（终结方法）
@@ -104,6 +118,12 @@ public class PurchaseOrderRequest<T extends PurchaseOrder> extends BaseRequest<T
     public PurchaseOrderRequest<T> matchingAnyOf(PurchaseOrderRequest purchaseOrder){
         super.internalMatchAny(purchaseOrder);
         return this;
+    }
+
+    public PurchaseOrderRequest<T> matchingIdsOf(PurchaseOrderRequest<?> request){
+        Objects.requireNonNull(request, "matching request");
+        return appendSearchCriteria(new SubQuerySearchCriteria(
+                PurchaseOrder.ID_PROPERTY, request, PurchaseOrder.ID_PROPERTY));
     }
 
     public PurchaseOrderRequest<T> enhanceChildrenIfNeeded(){
@@ -780,6 +800,62 @@ public class PurchaseOrderRequest<T extends PurchaseOrder> extends BaseRequest<T
 
 
 
+    public PurchaseOrderRequest<T> countDistinctId(){
+        return countDistinctIdAs("id_distinct_count");
+    }
+
+    public PurchaseOrderRequest<T> countDistinctIdAs(String alias){
+        super.countDistinctProperty(alias, PurchaseOrder.ID_PROPERTY);
+        return this;
+    }
+    public PurchaseOrderRequest<T> countDistinctTenant(){
+        return countDistinctTenantAs("tenant_distinct_count");
+    }
+
+    public PurchaseOrderRequest<T> countDistinctTenantAs(String alias){
+        super.countDistinctProperty(alias, PurchaseOrder.TENANT_PROPERTY);
+        return this;
+    }
+    public PurchaseOrderRequest<T> countDistinctContactPhone(){
+        return countDistinctContactPhoneAs("contact_phone_distinct_count");
+    }
+
+    public PurchaseOrderRequest<T> countDistinctContactPhoneAs(String alias){
+        super.countDistinctProperty(alias, PurchaseOrder.CONTACT_PHONE_PROPERTY);
+        return this;
+    }
+    public PurchaseOrderRequest<T> countDistinctInternalNote(){
+        return countDistinctInternalNoteAs("internal_note_distinct_count");
+    }
+
+    public PurchaseOrderRequest<T> countDistinctInternalNoteAs(String alias){
+        super.countDistinctProperty(alias, PurchaseOrder.INTERNAL_NOTE_PROPERTY);
+        return this;
+    }
+    public PurchaseOrderRequest<T> countDistinctCreateTime(){
+        return countDistinctCreateTimeAs("create_time_distinct_count");
+    }
+
+    public PurchaseOrderRequest<T> countDistinctCreateTimeAs(String alias){
+        super.countDistinctProperty(alias, PurchaseOrder.CREATE_TIME_PROPERTY);
+        return this;
+    }
+    public PurchaseOrderRequest<T> countDistinctUpdateTime(){
+        return countDistinctUpdateTimeAs("update_time_distinct_count");
+    }
+
+    public PurchaseOrderRequest<T> countDistinctUpdateTimeAs(String alias){
+        super.countDistinctProperty(alias, PurchaseOrder.UPDATE_TIME_PROPERTY);
+        return this;
+    }
+    public PurchaseOrderRequest<T> countDistinctVersion(){
+        return countDistinctVersionAs("version_distinct_count");
+    }
+
+    public PurchaseOrderRequest<T> countDistinctVersionAs(String alias){
+        super.countDistinctProperty(alias, PurchaseOrder.VERSION_PROPERTY);
+        return this;
+    }
     public PurchaseOrderRequest<T> groupByOrderItemsWithDetails(OrderItemRequest subRequest){
        aggregate(PurchaseOrder.ORDER_ITEM_LIST_PROPERTY, subRequest);
        return this;
@@ -800,7 +876,8 @@ public class PurchaseOrderRequest<T extends PurchaseOrder> extends BaseRequest<T
        return this;
     }
     public PurchaseOrderRequest<T> groupByTenantWith(TenantRequest subRequest){
-       groupBy(PurchaseOrder.TENANT_PROPERTY, subRequest);
+       groupBy(PurchaseOrder.TENANT_PROPERTY, subRequest,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "groupByTenantWith", null, "tenant"));
        return this;
     }
     public PurchaseOrderRequest<T> groupByTenant(){
@@ -997,8 +1074,8 @@ public class PurchaseOrderRequest<T extends PurchaseOrder> extends BaseRequest<T
     }
     public TenantRequest rollUpToTenant(){
        TenantRequest tenant = Q.tenants().unlimited();
-       this.withTenantMatching(tenant)
-           .groupByTenantWith(tenant);
+       this.internalRollUpTo("tenant", tenant,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "rollUpToTenant", null, "tenant"));
        return tenant;
     }
 

@@ -27,26 +27,47 @@ public class PlatformChecker implements Checker<Platform>{
       if((platform == null)){
          return;
       }
+      boolean _contextFixEligible = needContextFix(_context, platform);
+      if(platform.needPersist()){
+      }
       if(platform.newItem()){
-        if(platform.getCreateTime() == null){
+        if(_contextFixEligible){
+           applyContextFix(_context, newLocation(_parentLocation, "create_time"), () -> {
            platform.updateCreateTime(_context.evaluate("now"));
-           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "create_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
-        }if(platform.getUpdateTime() == null){
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "create_time",
+              "now".equalsIgnoreCase("now") ? io.teaql.core.checker.FixEvidence.Source.CLOCK : io.teaql.core.checker.FixEvidence.Source.CONTEXT,
+              "now".equalsIgnoreCase("now") ? "graphClock" : "contextFunction:now"));
+           });
+        }if(_contextFixEligible){
+           applyContextFix(_context, newLocation(_parentLocation, "update_time"), () -> {
            platform.updateUpdateTime(_context.evaluate("now"));
-           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time",
+              "now".equalsIgnoreCase("now") ? io.teaql.core.checker.FixEvidence.Source.CLOCK : io.teaql.core.checker.FixEvidence.Source.CONTEXT,
+              "now".equalsIgnoreCase("now") ? "graphClock" : "contextFunction:now"));
+           });
         }
       }else if(platform.updateItem()){
-        platform.updateUpdateTime(_context.evaluate("now"));
-        _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time", io.teaql.core.checker.FixEvidence.Source.CLOCK, "graphClock"));
+        if(_contextFixEligible){
+           applyContextFix(_context, newLocation(_parentLocation, "update_time"), () -> {
+           platform.updateUpdateTime(_context.evaluate("now"));
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time",
+              "now".equalsIgnoreCase("now") ? io.teaql.core.checker.FixEvidence.Source.CLOCK : io.teaql.core.checker.FixEvidence.Source.CONTEXT,
+              "now".equalsIgnoreCase("now") ? "graphClock" : "contextFunction:now"));
+           });
+        }
         if(!platform.isPropertyLoaded("name")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "name"), "Mutation requires a fully loaded entity");
-        }if(!platform.isPropertyLoaded("baseUrl")){
+        }
+        if(!platform.isPropertyLoaded("base_url")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "base_url"), "Mutation requires a fully loaded entity");
-        }if(!platform.isPropertyLoaded("createTime")){
+        }
+        if(!platform.isPropertyLoaded("create_time")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "create_time"), "Mutation requires a fully loaded entity");
-        }if(!platform.isPropertyLoaded("updateTime")){
+        }
+        if(!platform.isPropertyLoaded("update_time")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "update_time"), "Mutation requires a fully loaded entity");
         }
+
       }
       checkName(_context, platform.getProperty(Platform.NAME_PROPERTY), newLocation(_parentLocation, "name"));
       checkBaseUrl(_context, platform.getProperty(Platform.BASE_URL_PROPERTY), newLocation(_parentLocation, "base_url"));

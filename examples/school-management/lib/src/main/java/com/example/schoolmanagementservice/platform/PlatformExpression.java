@@ -39,38 +39,38 @@ public class PlatformExpression<T, E, U extends Platform> extends ExpressionAdap
 
 
     public Expression<T, String> getName(){
-       return loaded("name", Platform::getName);
+       return loaded("name", "getName", Platform::getName);
     }
     public PlatformExpression<T, U, U> updateName(String name){
        return new PlatformExpression(this, $it ->  ((Platform)$it).updateName(name));
     }
 
     public Expression<T, String> getBaseUrl(){
-       return loaded("baseUrl", Platform::getBaseUrl);
+       return loaded("base_url", "getBaseUrl", Platform::getBaseUrl);
     }
     public PlatformExpression<T, U, U> updateBaseUrl(String baseUrl){
        return new PlatformExpression(this, $it ->  ((Platform)$it).updateBaseUrl(baseUrl));
     }
 
     public Expression<T, LocalDateTime> getCreateTime(){
-       return loaded("createTime", Platform::getCreateTime);
+       return loaded("create_time", "getCreateTime", Platform::getCreateTime);
     }
     public PlatformExpression<T, U, U> updateCreateTime(LocalDateTime createTime){
        return new PlatformExpression(this, $it ->  ((Platform)$it).updateCreateTime(createTime));
     }
 
     public Expression<T, LocalDateTime> getUpdateTime(){
-       return loaded("updateTime", Platform::getUpdateTime);
+       return loaded("update_time", "getUpdateTime", Platform::getUpdateTime);
     }
     public PlatformExpression<T, U, U> updateUpdateTime(LocalDateTime updateTime){
        return new PlatformExpression(this, $it ->  ((Platform)$it).updateUpdateTime(updateTime));
     }
 
     public SchoolTypeListExpression<T, U, SchoolType> getSchoolTypeList(){
-        return new SchoolTypeListExpression(loaded("schoolTypeList", Platform::getSchoolTypeList));
+        return new SchoolTypeListExpression(loaded("school_type_list", "getSchoolTypeList", Platform::getSchoolTypeList));
     }
     public SchoolListExpression<T, U, School> getSchoolList(){
-        return new SchoolListExpression(loaded("schoolList", Platform::getSchoolList));
+        return new SchoolListExpression(loaded("school_list", "getSchoolList", Platform::getSchoolList));
     }
     public PlatformExpression<T, U, U> addSchoolType(SchoolType schoolType){
        return new PlatformExpression(this, $it ->  ((Platform)$it).addSchoolType(schoolType));

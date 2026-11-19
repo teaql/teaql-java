@@ -24,15 +24,21 @@ public class WorkItemChecker implements Checker<WorkItem>{
       if((workItem == null)){
          return;
       }
+      boolean _contextFixEligible = needContextFix(_context, workItem);
+      if(workItem.needPersist()){
+      }
       if(workItem.newItem()){
       }else if(workItem.updateItem()){
         if(!workItem.isPropertyLoaded("title")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "title"), "Mutation requires a fully loaded entity");
-        }if(!workItem.isPropertyLoaded("description")){
+        }
+        if(!workItem.isPropertyLoaded("description")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "description"), "Mutation requires a fully loaded entity");
-        }if(!workItem.isPropertyLoaded("platform")){
+        }
+        if(!workItem.isPropertyLoaded("platform")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "platform"), "Mutation requires a fully loaded entity");
         }
+
       }
       checkTitle(_context, workItem.getProperty(WorkItem.TITLE_PROPERTY), newLocation(_parentLocation, "title"));
       checkDescription(_context, workItem.getProperty(WorkItem.DESCRIPTION_PROPERTY), newLocation(_parentLocation, "description"));

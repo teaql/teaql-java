@@ -14,6 +14,7 @@ import io.teaql.core.SubQuerySearchCriteria;
 import io.teaql.core.criteria.Operator;
 import io.teaql.core.criteria.TwoOperatorCriteria;
 import java.math.BigDecimal;
+import java.util.Objects;
 
 public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
 
@@ -22,8 +23,13 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
      *             instead of constructing request builders directly.
      */
     @Deprecated
+    @SuppressWarnings("unchecked")
     public OrderStatusRequest(Class<T> returnType){
-        super(returnType);
+        this(returnType, () -> (T) new OrderStatus());
+    }
+
+    protected OrderStatusRequest(Class<T> returnType, java.util.function.Supplier<? extends T> factory){
+        super(returnType, factory);
         selectId();
         selectVersion();
     }
@@ -31,6 +37,19 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
     public OrderStatusRequest<T> comment(String comment){
          super.internalComment(comment);
          return this;
+    }
+
+    /** Independent query graph; ordinary roll-up handles remain live. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public OrderStatusRequest<T> copy(){
+        return (OrderStatusRequest<T>) super.copy();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected io.teaql.core.BaseRequest<T> internalCopyTarget(){
+        return new OrderStatusRequest<>((Class<T>) returnType(), this::internalNewEntity);
     }
 
     // purpose() 继承自 BaseRequest，返回 ExecutableRequest（终结方法）
@@ -56,6 +75,36 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
         return this;
     }
 
+    /**
+     * Accept best-effort stateful seek optimization for browsing consecutive pages.
+     * Do not use this for business processing that must visit every row exactly once.
+     */
+    public OrderStatusRequest<T> optimizeForContinuousPageFetch(){
+        super.optimizeForContinuousPageFetch();
+        return this;
+    }
+
+    public OrderStatusRequest<T> optimizeForContinuousPageFetch(String namespace, int ttlSeconds){
+        super.optimizeForContinuousPageFetch(namespace, ttlSeconds);
+        return this;
+    }
+
+    public OrderStatusRequest<T> optimizePaginationWithIdSet(){
+        super.optimizePaginationWithIdSet();
+        return this;
+    }
+
+    public OrderStatusRequest<T> optimizePaginationWithIdSet(
+            String namespace, int ttlSeconds, int maxIds){
+        super.optimizePaginationWithIdSet(namespace, ttlSeconds, maxIds);
+        return this;
+    }
+
+    public OrderStatusRequest<T> topNProbeParentThreshold(int threshold){
+        super.topNProbeParentThreshold(threshold);
+        return this;
+    }
+
     public OrderStatusRequest<T> appendSearchCriteria(SearchCriteria searchCriteria){
         return (OrderStatusRequest<T>)super.appendSearchCriteria(searchCriteria);
     }
@@ -68,6 +117,12 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
     public OrderStatusRequest<T> matchingAnyOf(OrderStatusRequest orderStatus){
         super.internalMatchAny(orderStatus);
         return this;
+    }
+
+    public OrderStatusRequest<T> matchingIdsOf(OrderStatusRequest<?> request){
+        Objects.requireNonNull(request, "matching request");
+        return appendSearchCriteria(new SubQuerySearchCriteria(
+                OrderStatus.ID_PROPERTY, request, OrderStatus.ID_PROPERTY));
     }
 
     public OrderStatusRequest<T> enhanceChildrenIfNeeded(){
@@ -91,6 +146,19 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
 
     public OrderStatusRequest<T> selectSelfFields(){
         return selectSelf();
+    }
+
+    public OrderStatusRequest<T> selectSelfWithoutParent(){
+        selectId();
+        selectVersion();
+        selectProperty(OrderStatus.ID_PROPERTY);
+        selectProperty(OrderStatus.NAME_PROPERTY);
+        selectProperty(OrderStatus.CODE_PROPERTY);
+        selectProperty(OrderStatus.COLOR_PROPERTY);
+        selectProperty(OrderStatus.DISPLAY_ORDER_PROPERTY);
+        selectProperty(OrderStatus.COMMERCE_PLATFORM_PROPERTY);
+        selectProperty(OrderStatus.VERSION_PROPERTY);
+        return this;
     }
 
     public OrderStatusRequest<T> selectAll(){
@@ -209,7 +277,8 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
 
     public OrderStatusRequest<T> selectCommercePlatformWith(CommercePlatformRequest commercePlatform){
        selectProperty(OrderStatus.COMMERCE_PLATFORM_PROPERTY);
-       enhanceRelation(OrderStatus.COMMERCE_PLATFORM_PROPERTY, commercePlatform);
+       enhanceRelation(OrderStatus.COMMERCE_PLATFORM_PROPERTY, commercePlatform,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_SELECT, "selectCommercePlatformWith", null, OrderStatus.COMMERCE_PLATFORM_PROPERTY));
        return this;
     }
 
@@ -239,7 +308,8 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
     }
 
     public OrderStatusRequest<T> selectCustomerOrderListWith(CustomerOrderRequest customerOrderList){
-       enhanceRelation(OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY, customerOrderList);
+       enhanceRelation(OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY, customerOrderList,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_SELECT, "selectCustomerOrderListWith", null, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY));
        return this;
     }
 
@@ -251,11 +321,19 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
         return createBasicSearchCriteria(OrderStatus.ID_PROPERTY, operator, values);
     }
 
+    public OrderStatusRequest<T> withIdIsNot(Long id){
+       return withId(Operator.NOT_EQUAL, id);
+    }
+
+    public OrderStatusRequest<T> withIdIn(Long... id){
+       return withId(Operator.IN, (Object[])id);
+    }
+
+    public OrderStatusRequest<T> withIdNotIn(Long... id){
+       return withId(Operator.NOT_IN, (Object[])id);
+    }
     public OrderStatusRequest<T> withIdIs(Long id){
        return withId(Operator.EQUAL, id);
-    }
-    public OrderStatusRequest<T> withIdIn(Long... id){
-       return withId(Operator.EQUAL, (Object[])id);
     }
 
 
@@ -283,6 +361,17 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
         return createBasicSearchCriteria(OrderStatus.NAME_PROPERTY, operator, values);
     }
 
+    public OrderStatusRequest<T> withNameIsNot(String name){
+       return withName(Operator.NOT_EQUAL, name);
+    }
+
+    public OrderStatusRequest<T> withNameIn(String... name){
+       return withName(Operator.IN, (Object[])name);
+    }
+
+    public OrderStatusRequest<T> withNameNotIn(String... name){
+       return withName(Operator.NOT_IN, (Object[])name);
+    }
     public OrderStatusRequest<T> withNameGreaterThan(String name){
        return withName(Operator.GREATER_THAN, name);
     }
@@ -309,8 +398,20 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
        return withName(Operator.CONTAIN, name);
     }
 
+    public OrderStatusRequest<T> withNameNotContaining(String name){
+       return withName(Operator.NOT_CONTAIN, name);
+    }
+
+    public OrderStatusRequest<T> withNameNotStartingWith(String name){
+       return withName(Operator.NOT_BEGIN_WITH, name);
+    }
+
     public OrderStatusRequest<T> withNameEndingWith(String name){
        return withName(Operator.END_WITH, name);
+    }
+
+    public OrderStatusRequest<T> withNameNotEndingWith(String name){
+       return withName(Operator.NOT_END_WITH, name);
     }
 
     public OrderStatusRequest<T> withNameIs(String name){
@@ -346,6 +447,17 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
         return createBasicSearchCriteria(OrderStatus.CODE_PROPERTY, operator, values);
     }
 
+    public OrderStatusRequest<T> withCodeIsNot(String code){
+       return withCode(Operator.NOT_EQUAL, code);
+    }
+
+    public OrderStatusRequest<T> withCodeIn(String... code){
+       return withCode(Operator.IN, (Object[])code);
+    }
+
+    public OrderStatusRequest<T> withCodeNotIn(String... code){
+       return withCode(Operator.NOT_IN, (Object[])code);
+    }
     public OrderStatusRequest<T> withCodeGreaterThan(String code){
        return withCode(Operator.GREATER_THAN, code);
     }
@@ -372,8 +484,20 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
        return withCode(Operator.CONTAIN, code);
     }
 
+    public OrderStatusRequest<T> withCodeNotContaining(String code){
+       return withCode(Operator.NOT_CONTAIN, code);
+    }
+
+    public OrderStatusRequest<T> withCodeNotStartingWith(String code){
+       return withCode(Operator.NOT_BEGIN_WITH, code);
+    }
+
     public OrderStatusRequest<T> withCodeEndingWith(String code){
        return withCode(Operator.END_WITH, code);
+    }
+
+    public OrderStatusRequest<T> withCodeNotEndingWith(String code){
+       return withCode(Operator.NOT_END_WITH, code);
     }
 
     public OrderStatusRequest<T> withCodeIs(String code){
@@ -409,6 +533,17 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
         return createBasicSearchCriteria(OrderStatus.COLOR_PROPERTY, operator, values);
     }
 
+    public OrderStatusRequest<T> withColorIsNot(String color){
+       return withColor(Operator.NOT_EQUAL, color);
+    }
+
+    public OrderStatusRequest<T> withColorIn(String... color){
+       return withColor(Operator.IN, (Object[])color);
+    }
+
+    public OrderStatusRequest<T> withColorNotIn(String... color){
+       return withColor(Operator.NOT_IN, (Object[])color);
+    }
     public OrderStatusRequest<T> withColorGreaterThan(String color){
        return withColor(Operator.GREATER_THAN, color);
     }
@@ -435,8 +570,20 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
        return withColor(Operator.CONTAIN, color);
     }
 
+    public OrderStatusRequest<T> withColorNotContaining(String color){
+       return withColor(Operator.NOT_CONTAIN, color);
+    }
+
+    public OrderStatusRequest<T> withColorNotStartingWith(String color){
+       return withColor(Operator.NOT_BEGIN_WITH, color);
+    }
+
     public OrderStatusRequest<T> withColorEndingWith(String color){
        return withColor(Operator.END_WITH, color);
+    }
+
+    public OrderStatusRequest<T> withColorNotEndingWith(String color){
+       return withColor(Operator.NOT_END_WITH, color);
     }
 
     public OrderStatusRequest<T> withColorIs(String color){
@@ -472,6 +619,21 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
         return createBasicSearchCriteria(OrderStatus.DISPLAY_ORDER_PROPERTY, operator, values);
     }
 
+    public OrderStatusRequest<T> withDisplayOrderIs(BigDecimal displayOrder){
+       return withDisplayOrder(Operator.EQUAL, displayOrder);
+    }
+
+    public OrderStatusRequest<T> withDisplayOrderIsNot(BigDecimal displayOrder){
+       return withDisplayOrder(Operator.NOT_EQUAL, displayOrder);
+    }
+
+    public OrderStatusRequest<T> withDisplayOrderIn(BigDecimal... displayOrder){
+       return withDisplayOrder(Operator.IN, (Object[])displayOrder);
+    }
+
+    public OrderStatusRequest<T> withDisplayOrderNotIn(BigDecimal... displayOrder){
+       return withDisplayOrder(Operator.NOT_IN, (Object[])displayOrder);
+    }
     public OrderStatusRequest<T> withDisplayOrderGreaterThan(BigDecimal displayOrder){
        return withDisplayOrder(Operator.GREATER_THAN, displayOrder);
     }
@@ -527,6 +689,11 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
        return appendSearchCriteria(new SubQuerySearchCriteria(OrderStatus.COMMERCE_PLATFORM_PROPERTY, commercePlatform, CommercePlatform.ID_PROPERTY));
     }
 
+    public OrderStatusRequest<T> withoutCommercePlatformMatching(CommercePlatformRequest commercePlatform){
+       return appendSearchCriteria(SearchCriteria.not(
+           new SubQuerySearchCriteria(OrderStatus.COMMERCE_PLATFORM_PROPERTY, commercePlatform, CommercePlatform.ID_PROPERTY)));
+    }
+
     public OrderStatusRequest<T> filterByVersion(Long... version){
       if (version == null || version.length == 0) {
         throw new IllegalArgumentException("filterByVersion parameter version cannot be empty");
@@ -550,6 +717,21 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
         return createBasicSearchCriteria(OrderStatus.VERSION_PROPERTY, operator, values);
     }
 
+    public OrderStatusRequest<T> withVersionIs(Long version){
+       return withVersion(Operator.EQUAL, version);
+    }
+
+    public OrderStatusRequest<T> withVersionIsNot(Long version){
+       return withVersion(Operator.NOT_EQUAL, version);
+    }
+
+    public OrderStatusRequest<T> withVersionIn(Long... version){
+       return withVersion(Operator.IN, (Object[])version);
+    }
+
+    public OrderStatusRequest<T> withVersionNotIn(Long... version){
+       return withVersion(Operator.NOT_IN, (Object[])version);
+    }
     public OrderStatusRequest<T> withVersionGreaterThan(Long version){
        return withVersion(Operator.GREATER_THAN, version);
     }
@@ -570,6 +752,7 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
        return withVersion(Operator.BETWEEN, startOfVersion, endOfVersion);
     }
 
+
     public OrderStatusRequest<T> withCustomerOrderListMatching(CustomerOrderRequest customerOrderRequest){
         return appendSearchCriteria(new SubQuerySearchCriteria(OrderStatus.ID_PROPERTY, customerOrderRequest, CustomerOrder.STATUS_PROPERTY));
     }
@@ -588,10 +771,12 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
 
     public OrderStatusRequest<T> count(){
         super.count();
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "count", null, null));
         return this;
     }
     public OrderStatusRequest<T> countAs(String retName){
         super.count(retName);
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "countAs", retName, null));
         return this;
     }
     public OrderStatusRequest minDisplayOrder(){
@@ -668,6 +853,62 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
     }
 
 
+    public OrderStatusRequest<T> countDistinctId(){
+        return countDistinctIdAs("id_distinct_count");
+    }
+
+    public OrderStatusRequest<T> countDistinctIdAs(String alias){
+        super.countDistinctProperty(alias, OrderStatus.ID_PROPERTY);
+        return this;
+    }
+    public OrderStatusRequest<T> countDistinctName(){
+        return countDistinctNameAs("name_distinct_count");
+    }
+
+    public OrderStatusRequest<T> countDistinctNameAs(String alias){
+        super.countDistinctProperty(alias, OrderStatus.NAME_PROPERTY);
+        return this;
+    }
+    public OrderStatusRequest<T> countDistinctCode(){
+        return countDistinctCodeAs("code_distinct_count");
+    }
+
+    public OrderStatusRequest<T> countDistinctCodeAs(String alias){
+        super.countDistinctProperty(alias, OrderStatus.CODE_PROPERTY);
+        return this;
+    }
+    public OrderStatusRequest<T> countDistinctColor(){
+        return countDistinctColorAs("color_distinct_count");
+    }
+
+    public OrderStatusRequest<T> countDistinctColorAs(String alias){
+        super.countDistinctProperty(alias, OrderStatus.COLOR_PROPERTY);
+        return this;
+    }
+    public OrderStatusRequest<T> countDistinctDisplayOrder(){
+        return countDistinctDisplayOrderAs("display_order_distinct_count");
+    }
+
+    public OrderStatusRequest<T> countDistinctDisplayOrderAs(String alias){
+        super.countDistinctProperty(alias, OrderStatus.DISPLAY_ORDER_PROPERTY);
+        return this;
+    }
+    public OrderStatusRequest<T> countDistinctCommercePlatform(){
+        return countDistinctCommercePlatformAs("commerce_platform_distinct_count");
+    }
+
+    public OrderStatusRequest<T> countDistinctCommercePlatformAs(String alias){
+        super.countDistinctProperty(alias, OrderStatus.COMMERCE_PLATFORM_PROPERTY);
+        return this;
+    }
+    public OrderStatusRequest<T> countDistinctVersion(){
+        return countDistinctVersionAs("version_distinct_count");
+    }
+
+    public OrderStatusRequest<T> countDistinctVersionAs(String alias){
+        super.countDistinctProperty(alias, OrderStatus.VERSION_PROPERTY);
+        return this;
+    }
     public OrderStatusRequest<T> groupByCustomerOrdersWithDetails(CustomerOrderRequest subRequest){
        aggregate(OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY, subRequest);
        return this;
@@ -748,7 +989,8 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
        return this;
     }
     public OrderStatusRequest<T> groupByCommercePlatformWith(CommercePlatformRequest subRequest){
-       groupBy(OrderStatus.COMMERCE_PLATFORM_PROPERTY, subRequest);
+       groupBy(OrderStatus.COMMERCE_PLATFORM_PROPERTY, subRequest,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "groupByCommercePlatformWith", null, "commerce_platform"));
        return this;
     }
     public OrderStatusRequest<T> groupByCommercePlatform(){
@@ -883,8 +1125,8 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
     }
 
     public OrderStatusRequest<T> statsFromCustomerOrdersAs(String name, CustomerOrderRequest subRequest, boolean singleResult){
-       subRequest.setPartitionProperty(CustomerOrder.STATUS_PROPERTY);
-       addAggregateDynamicProperty(name, subRequest, singleResult);
+       addRelationAggregate(name, subRequest, CustomerOrder.STATUS_PROPERTY, singleResult,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "statsFromCustomerOrdersAs", name, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY));
        return this;
     }
 
@@ -893,25 +1135,35 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
     }
     public CommercePlatformRequest rollUpToCommercePlatform(){
        CommercePlatformRequest commercePlatform = Q.commercePlatforms().unlimited();
-       this.withCommercePlatformMatching(commercePlatform)
-           .groupByCommercePlatformWith(commercePlatform);
+       this.internalRollUpTo("commerce_platform", commercePlatform,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "rollUpToCommercePlatform", null, "commerce_platform"));
        return commercePlatform;
     }
 
 
     public OrderStatusRequest<T> countCustomerOrders(){
-        return countCustomerOrdersAs("Count");
+        addRelationCount("Count", Q.customerOrders().unlimited(), CustomerOrder.STATUS_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countCustomerOrders", null, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY));
+        return this;
     }
 
     public OrderStatusRequest<T> countCustomerOrdersAs(String name){
-        return countCustomerOrdersWith(name, Q.customerOrders().unlimited());
+        addRelationCount(name, Q.customerOrders().unlimited(), CustomerOrder.STATUS_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countCustomerOrdersAs", name, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY));
+        return this;
     }
 
     public OrderStatusRequest<T> countCustomerOrdersWith(String name, CustomerOrderRequest subRequest){
-        return statsFromCustomerOrdersAs(name, subRequest.count(), true);
+        addRelationCount(name, subRequest, CustomerOrder.STATUS_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countCustomerOrdersWith", name, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY));
+        return this;
     }
     public OrderStatusRequest<T> minTotalAmountOfCustomerOrders(){
-        return minTotalAmountOfCustomerOrdersAs("minTotalAmountOfCustomerOrders");
+        addRelationScalarAggregate("minTotalAmountOfCustomerOrders", Q.customerOrders().unlimited(),
+            CustomerOrder.STATUS_PROPERTY, CustomerOrder.TOTAL_AMOUNT_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("min".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "minTotalAmountOfCustomerOrders", null, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY));
+        return this;
     }
 
     public OrderStatusRequest<T> minTotalAmountOfCustomerOrdersAs(String name){
@@ -919,10 +1171,18 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
     }
 
     public OrderStatusRequest<T> minTotalAmountOfCustomerOrdersAs(String name, CustomerOrderRequest subRequest){
-        return statsFromCustomerOrdersAs(name, subRequest.minTotalAmount(), true);
+        addRelationScalarAggregate(name, subRequest, CustomerOrder.STATUS_PROPERTY,
+            CustomerOrder.TOTAL_AMOUNT_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("min".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "minTotalAmountOfCustomerOrdersAs", name, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY));
+        return this;
     }
     public OrderStatusRequest<T> maxTotalAmountOfCustomerOrders(){
-        return maxTotalAmountOfCustomerOrdersAs("maxTotalAmountOfCustomerOrders");
+        addRelationScalarAggregate("maxTotalAmountOfCustomerOrders", Q.customerOrders().unlimited(),
+            CustomerOrder.STATUS_PROPERTY, CustomerOrder.TOTAL_AMOUNT_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("max".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "maxTotalAmountOfCustomerOrders", null, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY));
+        return this;
     }
 
     public OrderStatusRequest<T> maxTotalAmountOfCustomerOrdersAs(String name){
@@ -930,10 +1190,18 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
     }
 
     public OrderStatusRequest<T> maxTotalAmountOfCustomerOrdersAs(String name, CustomerOrderRequest subRequest){
-        return statsFromCustomerOrdersAs(name, subRequest.maxTotalAmount(), true);
+        addRelationScalarAggregate(name, subRequest, CustomerOrder.STATUS_PROPERTY,
+            CustomerOrder.TOTAL_AMOUNT_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("max".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "maxTotalAmountOfCustomerOrdersAs", name, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY));
+        return this;
     }
     public OrderStatusRequest<T> sumTotalAmountOfCustomerOrders(){
-        return sumTotalAmountOfCustomerOrdersAs("sumTotalAmountOfCustomerOrders");
+        addRelationScalarAggregate("sumTotalAmountOfCustomerOrders", Q.customerOrders().unlimited(),
+            CustomerOrder.STATUS_PROPERTY, CustomerOrder.TOTAL_AMOUNT_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("sum".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "sumTotalAmountOfCustomerOrders", null, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY));
+        return this;
     }
 
     public OrderStatusRequest<T> sumTotalAmountOfCustomerOrdersAs(String name){
@@ -941,10 +1209,18 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
     }
 
     public OrderStatusRequest<T> sumTotalAmountOfCustomerOrdersAs(String name, CustomerOrderRequest subRequest){
-        return statsFromCustomerOrdersAs(name, subRequest.sumTotalAmount(), true);
+        addRelationScalarAggregate(name, subRequest, CustomerOrder.STATUS_PROPERTY,
+            CustomerOrder.TOTAL_AMOUNT_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("sum".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "sumTotalAmountOfCustomerOrdersAs", name, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY));
+        return this;
     }
     public OrderStatusRequest<T> avgTotalAmountOfCustomerOrders(){
-        return avgTotalAmountOfCustomerOrdersAs("avgTotalAmountOfCustomerOrders");
+        addRelationScalarAggregate("avgTotalAmountOfCustomerOrders", Q.customerOrders().unlimited(),
+            CustomerOrder.STATUS_PROPERTY, CustomerOrder.TOTAL_AMOUNT_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("avg".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "avgTotalAmountOfCustomerOrders", null, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY));
+        return this;
     }
 
     public OrderStatusRequest<T> avgTotalAmountOfCustomerOrdersAs(String name){
@@ -952,10 +1228,18 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
     }
 
     public OrderStatusRequest<T> avgTotalAmountOfCustomerOrdersAs(String name, CustomerOrderRequest subRequest){
-        return statsFromCustomerOrdersAs(name, subRequest.avgTotalAmount(), true);
+        addRelationScalarAggregate(name, subRequest, CustomerOrder.STATUS_PROPERTY,
+            CustomerOrder.TOTAL_AMOUNT_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("avg".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "avgTotalAmountOfCustomerOrdersAs", name, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY));
+        return this;
     }
     public OrderStatusRequest<T> standardDeviationTotalAmountOfCustomerOrders(){
-        return standardDeviationTotalAmountOfCustomerOrdersAs("stdDevTotalAmountOfCustomerOrders");
+        addRelationScalarAggregate("stdDevTotalAmountOfCustomerOrders", Q.customerOrders().unlimited(),
+            CustomerOrder.STATUS_PROPERTY, CustomerOrder.TOTAL_AMOUNT_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("stddev".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "standardDeviationTotalAmountOfCustomerOrders", null, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY));
+        return this;
     }
 
     public OrderStatusRequest<T> standardDeviationTotalAmountOfCustomerOrdersAs(String name){
@@ -963,10 +1247,18 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
     }
 
     public OrderStatusRequest<T> standardDeviationTotalAmountOfCustomerOrdersAs(String name, CustomerOrderRequest subRequest){
-        return statsFromCustomerOrdersAs(name, subRequest.standardDeviationTotalAmount(), true);
+        addRelationScalarAggregate(name, subRequest, CustomerOrder.STATUS_PROPERTY,
+            CustomerOrder.TOTAL_AMOUNT_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("stddev".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "standardDeviationTotalAmountOfCustomerOrdersAs", name, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY));
+        return this;
     }
     public OrderStatusRequest<T> squareRootOfPopulationStandardDeviationTotalAmountOfCustomerOrders(){
-        return squareRootOfPopulationStandardDeviationTotalAmountOfCustomerOrdersAs("stdDevPopTotalAmountOfCustomerOrders");
+        addRelationScalarAggregate("stdDevPopTotalAmountOfCustomerOrders", Q.customerOrders().unlimited(),
+            CustomerOrder.STATUS_PROPERTY, CustomerOrder.TOTAL_AMOUNT_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("stddev_pop".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "squareRootOfPopulationStandardDeviationTotalAmountOfCustomerOrders", null, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY));
+        return this;
     }
 
     public OrderStatusRequest<T> squareRootOfPopulationStandardDeviationTotalAmountOfCustomerOrdersAs(String name){
@@ -974,10 +1266,18 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
     }
 
     public OrderStatusRequest<T> squareRootOfPopulationStandardDeviationTotalAmountOfCustomerOrdersAs(String name, CustomerOrderRequest subRequest){
-        return statsFromCustomerOrdersAs(name, subRequest.squareRootOfPopulationStandardDeviationTotalAmount(), true);
+        addRelationScalarAggregate(name, subRequest, CustomerOrder.STATUS_PROPERTY,
+            CustomerOrder.TOTAL_AMOUNT_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("stddev_pop".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "squareRootOfPopulationStandardDeviationTotalAmountOfCustomerOrdersAs", name, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY));
+        return this;
     }
     public OrderStatusRequest<T> sampleVarianceTotalAmountOfCustomerOrders(){
-        return sampleVarianceTotalAmountOfCustomerOrdersAs("varSampTotalAmountOfCustomerOrders");
+        addRelationScalarAggregate("varSampTotalAmountOfCustomerOrders", Q.customerOrders().unlimited(),
+            CustomerOrder.STATUS_PROPERTY, CustomerOrder.TOTAL_AMOUNT_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("var_samp".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "sampleVarianceTotalAmountOfCustomerOrders", null, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY));
+        return this;
     }
 
     public OrderStatusRequest<T> sampleVarianceTotalAmountOfCustomerOrdersAs(String name){
@@ -985,10 +1285,18 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
     }
 
     public OrderStatusRequest<T> sampleVarianceTotalAmountOfCustomerOrdersAs(String name, CustomerOrderRequest subRequest){
-        return statsFromCustomerOrdersAs(name, subRequest.sampleVarianceTotalAmount(), true);
+        addRelationScalarAggregate(name, subRequest, CustomerOrder.STATUS_PROPERTY,
+            CustomerOrder.TOTAL_AMOUNT_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("var_samp".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "sampleVarianceTotalAmountOfCustomerOrdersAs", name, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY));
+        return this;
     }
     public OrderStatusRequest<T> samplePopulationVarianceTotalAmountOfCustomerOrders(){
-        return samplePopulationVarianceTotalAmountOfCustomerOrdersAs("varPopTotalAmountOfCustomerOrders");
+        addRelationScalarAggregate("varPopTotalAmountOfCustomerOrders", Q.customerOrders().unlimited(),
+            CustomerOrder.STATUS_PROPERTY, CustomerOrder.TOTAL_AMOUNT_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("var_pop".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "samplePopulationVarianceTotalAmountOfCustomerOrders", null, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY));
+        return this;
     }
 
     public OrderStatusRequest<T> samplePopulationVarianceTotalAmountOfCustomerOrdersAs(String name){
@@ -996,7 +1304,11 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
     }
 
     public OrderStatusRequest<T> samplePopulationVarianceTotalAmountOfCustomerOrdersAs(String name, CustomerOrderRequest subRequest){
-        return statsFromCustomerOrdersAs(name, subRequest.samplePopulationVarianceTotalAmount(), true);
+        addRelationScalarAggregate(name, subRequest, CustomerOrder.STATUS_PROPERTY,
+            CustomerOrder.TOTAL_AMOUNT_PROPERTY,
+            io.teaql.core.AggrFunction.valueOf("var_pop".toUpperCase(java.util.Locale.ROOT)),
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "samplePopulationVarianceTotalAmountOfCustomerOrdersAs", name, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY));
+        return this;
     }
 
    public OrderStatusRequest<T> facetByCommercePlatformAs(String facetName, CommercePlatformRequest commercePlatform){
@@ -1004,7 +1316,8 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
    }
 
    public OrderStatusRequest<T> facetByCommercePlatformAs(String facetName, CommercePlatformRequest commercePlatform, boolean includeAllFacets){
-       addFacet(facetName, OrderStatus.COMMERCE_PLATFORM_PROPERTY, commercePlatform, includeAllFacets);
+       addFacet(facetName, OrderStatus.COMMERCE_PLATFORM_PROPERTY, commercePlatform, includeAllFacets,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.FACET, "facetByCommercePlatformAs", facetName, OrderStatus.COMMERCE_PLATFORM_PROPERTY));
        return this;
    }
 
@@ -1016,6 +1329,11 @@ public class OrderStatusRequest<T extends OrderStatus> extends BaseRequest<T> {
     public OrderStatusRequest<T> top(int topN) {
         super.top(topN);
         return this;
+    }
+
+    /** Cross-runtime bounded-query alias. */
+    public OrderStatusRequest<T> limit(int limit) {
+        return top(limit);
     }
 
     /**

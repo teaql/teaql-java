@@ -10,6 +10,7 @@ import io.teaql.core.FieldLayout;
 import io.teaql.core.FrameworkInternal;
 import io.teaql.core.RemoteInput;
 import io.teaql.core.SmartList;
+import io.teaql.core.checker.JsonFieldNamingProfile;
 import java.math.BigDecimal;
 import java.util.Objects;
 
@@ -31,19 +32,20 @@ public class OrderStatus extends BaseEntity implements RemoteInput {
     public static final java.util.Map<String, java.util.List<String>> __TEAQL_FIXED_FIELD_MAPPINGS =
         java.util.Map.ofEntries(java.util.Map.entry("platform", java.util.List.of("platform", "platform")), java.util.Map.entry("id", java.util.List.of("id", "id")), java.util.Map.entry("name", java.util.List.of("name", "name")), java.util.Map.entry("code", java.util.List.of("code", "code")), java.util.Map.entry("color", java.util.List.of("color", "color")), java.util.Map.entry("display_order", java.util.List.of("displayOrder", "display_order")), java.util.Map.entry("version", java.util.List.of("version", "version")));
     public static final java.util.Set<String> __TEAQL_FIXED_RELATION_NAMES = java.util.Set.of(
-        "customerOrderList");
+        "customer_order_list");
     public static final FieldLayout __TEAQL_FIELD_LAYOUT =
         FieldLayout.installGenerated(FieldLayout.generated(
             OrderStatus.class, __TEAQL_FIELD_LAYOUT_REVISION,
-            __TEAQL_FIXED_FIELD_INDEXES, __TEAQL_FIXED_FIELD_MAPPINGS, __TEAQL_FIXED_RELATION_NAMES));
+            __TEAQL_FIXED_FIELD_INDEXES, __TEAQL_FIXED_FIELD_MAPPINGS, __TEAQL_FIXED_RELATION_NAMES,
+            JsonFieldNamingProfile.fromModelValue("camelCase")));
 
 
     public static final String PLATFORM_PROPERTY = "platform";
     public static final String NAME_PROPERTY = "name";
     public static final String CODE_PROPERTY = "code";
     public static final String COLOR_PROPERTY = "color";
-    public static final String DISPLAY_ORDER_PROPERTY = "displayOrder";
-    public static final String CUSTOMER_ORDER_LIST_PROPERTY = "customerOrderList";
+    public static final String DISPLAY_ORDER_PROPERTY = "display_order";
+    public static final String CUSTOMER_ORDER_LIST_PROPERTY = "customer_order_list";
     private Platform platform;
 
     private String name;
@@ -77,10 +79,10 @@ public class OrderStatus extends BaseEntity implements RemoteInput {
     }
 
     public SmartList<CustomerOrder> getCustomerOrderList(){
-        return this.customerOrderList;
+        return this.customerOrderList == null ? SmartList.unloaded() : this.customerOrderList;
     }
     public OrderStatus updatePlatform(Platform platform){
-        if(Objects.equals(this.platform, platform)){
+        if(isPropertyLoaded(PLATFORM_PROPERTY) && Objects.equals(this.platform, platform)){
             return this;
         }
         handleUpdate(PLATFORM_PROPERTY, getPlatform(), platform);
@@ -90,7 +92,7 @@ public class OrderStatus extends BaseEntity implements RemoteInput {
 
     public OrderStatus updateName(String name){
         name = (name == null ? null : name.trim());
-        if(Objects.equals(this.name, name)){
+        if(isPropertyLoaded(NAME_PROPERTY) && Objects.equals(this.name, name)){
             return this;
         }
         handleUpdate(NAME_PROPERTY, getName(), name);
@@ -100,7 +102,7 @@ public class OrderStatus extends BaseEntity implements RemoteInput {
 
     public OrderStatus updateCode(String code){
         code = (code == null ? null : code.trim());
-        if(Objects.equals(this.code, code)){
+        if(isPropertyLoaded(CODE_PROPERTY) && Objects.equals(this.code, code)){
             return this;
         }
         handleUpdate(CODE_PROPERTY, getCode(), code);
@@ -110,7 +112,7 @@ public class OrderStatus extends BaseEntity implements RemoteInput {
 
     public OrderStatus updateColor(String color){
         color = (color == null ? null : color.trim());
-        if(Objects.equals(this.color, color)){
+        if(isPropertyLoaded(COLOR_PROPERTY) && Objects.equals(this.color, color)){
             return this;
         }
         handleUpdate(COLOR_PROPERTY, getColor(), color);
@@ -119,7 +121,7 @@ public class OrderStatus extends BaseEntity implements RemoteInput {
     }
 
     public OrderStatus updateDisplayOrder(BigDecimal displayOrder){
-        if(Objects.equals(this.displayOrder, displayOrder)){
+        if(isPropertyLoaded(DISPLAY_ORDER_PROPERTY) && Objects.equals(this.displayOrder, displayOrder)){
             return this;
         }
         handleUpdate(DISPLAY_ORDER_PROPERTY, getDisplayOrder(), displayOrder);
@@ -133,7 +135,8 @@ public class OrderStatus extends BaseEntity implements RemoteInput {
         }
 
         if(null == this.customerOrderList){
-            this.customerOrderList = new SmartList<>();
+            SmartList<CustomerOrder> teaqlUnloadedItems = SmartList.unloaded();
+            this.customerOrderList = teaqlUnloadedItems.map(value -> value);
         }
 
         this.customerOrderList.add(customerOrder);
@@ -177,9 +180,9 @@ public class OrderStatus extends BaseEntity implements RemoteInput {
 
             case "color": this.color = (value == null ? null : ((String)value).trim()); break;
 
-            case "displayOrder": this.displayOrder = (BigDecimal) value; break;
+            case "display_order": this.displayOrder = (BigDecimal) value; break;
 
-            case "customerOrderList": this.customerOrderList = (SmartList<CustomerOrder>) value; break;
+            case "customer_order_list": this.customerOrderList = (SmartList<CustomerOrder>) value; break;
             default: super.__internalSet(property, value);
         }
     }
@@ -192,9 +195,19 @@ public class OrderStatus extends BaseEntity implements RemoteInput {
             case "name": return this.name;
             case "code": return this.code;
             case "color": return this.color;
-            case "displayOrder": return this.displayOrder;
-            case "customerOrderList": return this.customerOrderList;
-            default: return super.__internalGet(property);
+            case "display_order": return this.displayOrder;
+            case "customer_order_list": return this.customerOrderList;
+            default:
+                // Presentation uses the installed Java member mapping; SQL and
+                // hydration retain canonical names. These aliases only read.
+                switch (property) {
+                    case "platform": return this.platform;
+                    case "name": return this.name;
+                    case "code": return this.code;
+                    case "color": return this.color;
+                    case "displayOrder": return this.displayOrder;
+                    default: return super.__internalGet(property);
+                }
         }
     }
 

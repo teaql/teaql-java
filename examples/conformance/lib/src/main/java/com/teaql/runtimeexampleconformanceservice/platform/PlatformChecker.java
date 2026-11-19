@@ -24,11 +24,15 @@ public class PlatformChecker implements Checker<Platform>{
       if((platform == null)){
          return;
       }
+      boolean _contextFixEligible = needContextFix(_context, platform);
+      if(platform.needPersist()){
+      }
       if(platform.newItem()){
       }else if(platform.updateItem()){
         if(!platform.isPropertyLoaded("name")){
            invalidTypeCheck(_context, newLocation(_parentLocation, "name"), "Mutation requires a fully loaded entity");
         }
+
       }
       checkName(_context, platform.getProperty(Platform.NAME_PROPERTY), newLocation(_parentLocation, "name"));
       for(int i = 0; platform.getWorkItemList() != null && i < platform.getWorkItemList().size(); i++){

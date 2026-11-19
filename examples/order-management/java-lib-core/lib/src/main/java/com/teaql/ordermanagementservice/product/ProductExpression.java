@@ -39,28 +39,28 @@ public class ProductExpression<T, E, U extends Product> extends ExpressionAdapto
 
 
     public Expression<T, String> getName(){
-       return apply(Product::getName);
+       return loaded("name", "getName", Product::getName);
     }
     public ProductExpression<T, U, U> updateName(String name){
        return new ProductExpression(this, $it ->  ((Product)$it).updateName(name));
     }
 
     public Expression<T, String> getSku(){
-       return apply(Product::getSku);
+       return loaded("sku", "getSku", Product::getSku);
     }
     public ProductExpression<T, U, U> updateSku(String sku){
        return new ProductExpression(this, $it ->  ((Product)$it).updateSku(sku));
     }
 
     public Expression<T, String> getImageUrl(){
-       return apply(Product::getImageUrl);
+       return loaded("image_url", "getImageUrl", Product::getImageUrl);
     }
     public ProductExpression<T, U, U> updateImageUrl(String imageUrl){
        return new ProductExpression(this, $it ->  ((Product)$it).updateImageUrl(imageUrl));
     }
 
     public CommercePlatformExpression<T, U, CommercePlatform> getCommercePlatform(){
-       return new CommercePlatformExpression(this, $it ->  ((Product)$it).getCommercePlatform());
+       return new CommercePlatformExpression(loaded("commerce_platform", "getCommercePlatform", Product::getCommercePlatform));
     }
 
     public ProductExpression<T, U, U> updateCommercePlatform(CommercePlatform commercePlatform){
@@ -68,21 +68,21 @@ public class ProductExpression<T, E, U extends Product> extends ExpressionAdapto
     }
 
     public Expression<T, LocalDateTime> getCreateTime(){
-       return apply(Product::getCreateTime);
+       return loaded("create_time", "getCreateTime", Product::getCreateTime);
     }
     public ProductExpression<T, U, U> updateCreateTime(LocalDateTime createTime){
        return new ProductExpression(this, $it ->  ((Product)$it).updateCreateTime(createTime));
     }
 
     public Expression<T, LocalDateTime> getUpdateTime(){
-       return apply(Product::getUpdateTime);
+       return loaded("update_time", "getUpdateTime", Product::getUpdateTime);
     }
     public ProductExpression<T, U, U> updateUpdateTime(LocalDateTime updateTime){
        return new ProductExpression(this, $it ->  ((Product)$it).updateUpdateTime(updateTime));
     }
 
     public OrderLineListExpression<T, U, OrderLine> getOrderLineList(){
-        return new OrderLineListExpression(this, $it ->  ((Product)$it).getOrderLineList());
+        return new OrderLineListExpression(loaded("order_line_list", "getOrderLineList", Product::getOrderLineList));
     }
     public ProductExpression<T, U, U> addOrderLine(OrderLine orderLine){
        return new ProductExpression(this, $it ->  ((Product)$it).addOrderLine(orderLine));

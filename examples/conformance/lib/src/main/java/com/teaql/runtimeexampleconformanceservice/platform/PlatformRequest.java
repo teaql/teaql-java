@@ -11,6 +11,7 @@ import io.teaql.core.SearchCriteria;
 import io.teaql.core.SubQuerySearchCriteria;
 import io.teaql.core.criteria.Operator;
 import io.teaql.core.criteria.TwoOperatorCriteria;
+import java.util.Objects;
 
 public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
 
@@ -21,7 +22,11 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     @Deprecated
     @SuppressWarnings("unchecked")
     public PlatformRequest(Class<T> returnType){
-        super(returnType, () -> (T) new Platform());
+        this(returnType, () -> (T) new Platform());
+    }
+
+    protected PlatformRequest(Class<T> returnType, java.util.function.Supplier<? extends T> factory){
+        super(returnType, factory);
         selectId();
         selectVersion();
     }
@@ -29,6 +34,19 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     public PlatformRequest<T> comment(String comment){
          super.internalComment(comment);
          return this;
+    }
+
+    /** Independent query graph; ordinary roll-up handles remain live. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public PlatformRequest<T> copy(){
+        return (PlatformRequest<T>) super.copy();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected io.teaql.core.BaseRequest<T> internalCopyTarget(){
+        return new PlatformRequest<>((Class<T>) returnType(), this::internalNewEntity);
     }
 
     // purpose() 继承自 BaseRequest，返回 ExecutableRequest（终结方法）
@@ -98,6 +116,12 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
         return this;
     }
 
+    public PlatformRequest<T> matchingIdsOf(PlatformRequest<?> request){
+        Objects.requireNonNull(request, "matching request");
+        return appendSearchCriteria(new SubQuerySearchCriteria(
+                Platform.ID_PROPERTY, request, Platform.ID_PROPERTY));
+    }
+
     public PlatformRequest<T> enhanceChildrenIfNeeded(){
         return this;
     }
@@ -119,6 +143,15 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
 
     public PlatformRequest<T> selectSelfFields(){
         return selectSelf();
+    }
+
+    public PlatformRequest<T> selectSelfWithoutParent(){
+        selectId();
+        selectVersion();
+        selectProperty(Platform.ID_PROPERTY);
+        selectProperty(Platform.NAME_PROPERTY);
+        selectProperty(Platform.VERSION_PROPERTY);
+        return this;
     }
 
     public PlatformRequest<T> selectAll(){
@@ -189,7 +222,8 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> selectWorkItemListWith(WorkItemRequest workItemList){
-       enhanceRelation(Platform.WORK_ITEM_LIST_PROPERTY, workItemList);
+       enhanceRelation(Platform.WORK_ITEM_LIST_PROPERTY, workItemList,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_SELECT, "selectWorkItemListWith", null, Platform.WORK_ITEM_LIST_PROPERTY));
        return this;
     }
 
@@ -362,6 +396,7 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
        return withVersion(Operator.BETWEEN, startOfVersion, endOfVersion);
     }
 
+
     public PlatformRequest<T> withWorkItemListMatching(WorkItemRequest workItemRequest){
         return appendSearchCriteria(new SubQuerySearchCriteria(Platform.ID_PROPERTY, workItemRequest, WorkItem.PLATFORM_PROPERTY));
     }
@@ -380,10 +415,36 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
 
     public PlatformRequest<T> count(){
         super.count();
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "count", null, null));
         return this;
     }
     public PlatformRequest<T> countAs(String retName){
         super.count(retName);
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "countAs", retName, null));
+        return this;
+    }
+    public PlatformRequest<T> countDistinctId(){
+        return countDistinctIdAs("id_distinct_count");
+    }
+
+    public PlatformRequest<T> countDistinctIdAs(String alias){
+        super.countDistinctProperty(alias, Platform.ID_PROPERTY);
+        return this;
+    }
+    public PlatformRequest<T> countDistinctName(){
+        return countDistinctNameAs("name_distinct_count");
+    }
+
+    public PlatformRequest<T> countDistinctNameAs(String alias){
+        super.countDistinctProperty(alias, Platform.NAME_PROPERTY);
+        return this;
+    }
+    public PlatformRequest<T> countDistinctVersion(){
+        return countDistinctVersionAs("version_distinct_count");
+    }
+
+    public PlatformRequest<T> countDistinctVersionAs(String alias){
+        super.countDistinctProperty(alias, Platform.VERSION_PROPERTY);
         return this;
     }
     public PlatformRequest<T> groupByWorkItemsWithDetails(WorkItemRequest subRequest){
@@ -482,8 +543,8 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
     }
 
     public PlatformRequest<T> statsFromWorkItemsAs(String name, WorkItemRequest subRequest, boolean singleResult){
-       subRequest.setPartitionProperty(WorkItem.PLATFORM_PROPERTY);
-       addAggregateDynamicProperty(name, subRequest, singleResult);
+       addRelationAggregate(name, subRequest, WorkItem.PLATFORM_PROPERTY, singleResult,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "statsFromWorkItemsAs", name, Platform.WORK_ITEM_LIST_PROPERTY));
        return this;
     }
 
@@ -491,15 +552,21 @@ public class PlatformRequest<T extends Platform> extends BaseRequest<T> {
        return statsFromWorkItemsAs(REFINEMENTS, subRequest);
     }
     public PlatformRequest<T> countWorkItems(){
-        return countWorkItemsAs("Count");
+        addRelationCount("Count", Q.workItems().unlimited(), WorkItem.PLATFORM_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countWorkItems", null, Platform.WORK_ITEM_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> countWorkItemsAs(String name){
-        return countWorkItemsWith(name, Q.workItems().unlimited());
+        addRelationCount(name, Q.workItems().unlimited(), WorkItem.PLATFORM_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countWorkItemsAs", name, Platform.WORK_ITEM_LIST_PROPERTY));
+        return this;
     }
 
     public PlatformRequest<T> countWorkItemsWith(String name, WorkItemRequest subRequest){
-        return statsFromWorkItemsAs(name, subRequest.count(), true);
+        addRelationCount(name, subRequest, WorkItem.PLATFORM_PROPERTY,
+            io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_COUNT, "countWorkItemsWith", name, Platform.WORK_ITEM_LIST_PROPERTY));
+        return this;
     }
 
 

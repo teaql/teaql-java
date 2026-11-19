@@ -42,7 +42,7 @@ public class CustomerOrderExpression<T, E, U extends CustomerOrder> extends Expr
 
 
     public CustomerExpression<T, U, Customer> getCustomer(){
-       return new CustomerExpression(loaded("customer", CustomerOrder::getCustomer));
+       return new CustomerExpression(loaded("customer", "getCustomer", CustomerOrder::getCustomer));
     }
 
     public CustomerOrderExpression<T, U, U> updateCustomer(Customer customer){
@@ -50,7 +50,7 @@ public class CustomerOrderExpression<T, E, U extends CustomerOrder> extends Expr
     }
 
     public OrderStatusExpression<T, U, OrderStatus> getStatus(){
-       return new OrderStatusExpression(loaded("status", CustomerOrder::getStatus));
+       return new OrderStatusExpression(loaded("status", "getStatus", CustomerOrder::getStatus));
     }
 
     public CustomerOrderExpression<T, U, U> updateStatusToNew(){
@@ -64,28 +64,28 @@ public class CustomerOrderExpression<T, E, U extends CustomerOrder> extends Expr
     }
 
     public Expression<T, String> getOrderNumber(){
-       return loaded("orderNumber", CustomerOrder::getOrderNumber);
+       return loaded("order_number", "getOrderNumber", CustomerOrder::getOrderNumber);
     }
     public CustomerOrderExpression<T, U, U> updateOrderNumber(String orderNumber){
        return new CustomerOrderExpression(this, $it ->  ((CustomerOrder)$it).updateOrderNumber(orderNumber));
     }
 
     public Expression<T, LocalDate> getOrderDate(){
-       return loaded("orderDate", CustomerOrder::getOrderDate);
+       return loaded("order_date", "getOrderDate", CustomerOrder::getOrderDate);
     }
     public CustomerOrderExpression<T, U, U> updateOrderDate(LocalDate orderDate){
        return new CustomerOrderExpression(this, $it ->  ((CustomerOrder)$it).updateOrderDate(orderDate));
     }
 
     public Expression<T, BigDecimal> getTotalAmount(){
-       return loaded("totalAmount", CustomerOrder::getTotalAmount);
+       return loaded("total_amount", "getTotalAmount", CustomerOrder::getTotalAmount);
     }
     public CustomerOrderExpression<T, U, U> updateTotalAmount(BigDecimal totalAmount){
        return new CustomerOrderExpression(this, $it ->  ((CustomerOrder)$it).updateTotalAmount(totalAmount));
     }
 
     public OrderItemListExpression<T, U, OrderItem> getOrderItemList(){
-        return new OrderItemListExpression(loaded("orderItemList", CustomerOrder::getOrderItemList));
+        return new OrderItemListExpression(loaded("order_item_list", "getOrderItemList", CustomerOrder::getOrderItemList));
     }
     public CustomerOrderExpression<T, U, U> addOrderItem(OrderItem orderItem){
        return new CustomerOrderExpression(this, $it ->  ((CustomerOrder)$it).addOrderItem(orderItem));
