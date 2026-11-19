@@ -26,24 +26,24 @@
     "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformRequest.java": "e403c54280f42feace6905d2c448a2ab8eb4bf56ee3531fac659695c8c8dbc4b",
     "lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler": "a2834fd53f1a3c377863d4c74804dae9ecec56022c99d645a7d6aa29e1608629",
     "teaql/checker-model.json": "ce4ae61861d89991e89b2762d48bb448ad04ad18853c9c5d5ea4e0c7ac093bab",
-    "teaql/model-provenance.json": "8d792f1114dddbf61b64f6afbae687abc9bd2410d751ea1ac1fcdef1895696dc"
+    "teaql/model-provenance.json": "53333a1d944bcd8a9478bf7428598a1f4020a497bdf1d0a264dc58076c635002"
   },
-  "generatedManifestSha256": "1bfd037aeb9adfac3757b8358e1d68eedc43fc2da0a6ffa593f596b08ecb572b",
-  "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-unified-current-source/java/scalar-type-probe/model/receipt.json",
-  "generatorCommit": "19feda8a0608d7c7e0d64c7d9ec371c9021000fd",
-  "generatorJarSHA256": "dc6e26b561f618e1f9574c5c3b4c03b7a21da9ca630cc73a78ae8ccd0d89bd7e",
-  "generatorRelease": "unreleased-source-19feda8a",
+  "generatedManifestSha256": "a6c081cce8d511300d8da685c2a9011c5ee0241dd828dbe223831f7cb8830d8c",
+  "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-unified-intent-current-source/java/scalar-type-probe/model/receipt.json",
+  "generatorCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+  "generatorJarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+  "generatorRelease": "unreleased-source-021b1ed8",
   "language": "java",
   "modelSha256": "8d3017392ffd00abbc06be2555ced27ac6360e2d05fabc4299e27a5ef8f1c762",
-  "previousFixtureManifestSha256": "7ed0ed858b49c47263ed6e3a0b7f62099b850fd8318acc75db4dcc553ed72ab6",
+  "previousFixtureManifestSha256": "dfae3928ca6765e346cb06a6b8f49d6e7767fd765ee900ffa224072fdae9c74d",
   "previousOrigin": {
-    "commit": "c80a5ebfb6ae3586c3ca492b25d06b02ce5f4a22",
+    "commit": "da34cfe478db9ae8334ffa385b396ee786464ca0",
     "path": "examples/scalar-type-probe/fixture-manifest.json"
   },
   "producerReceiptSha256": "1ff97c9bf5491e655c2ec8ac4a48abf6a8a5efbe2608426f16ef437077e4dc1f",
   "producerSource": {
-    "commit": "19feda8a0608d7c7e0d64c7d9ec371c9021000fd",
-    "jarSHA256": "dc6e26b561f618e1f9574c5c3b4c03b7a21da9ca630cc73a78ae8ccd0d89bd7e",
-    "release": "unreleased-source-19feda8a"
+    "commit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+    "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+    "release": "unreleased-source-021b1ed8"
   }
 }

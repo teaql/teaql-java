@@ -4,19 +4,19 @@
   "generator": {
     "artifactKind": "new source build; not the historical v4.2.0 release artifact",
     "baseRelease": "v4.2.0",
-    "jarSHA256": "dc6e26b561f618e1f9574c5c3b4c03b7a21da9ca630cc73a78ae8ccd0d89bd7e",
-    "qualificationReceiptSHA256": "d2ef37d0536f6d5be84baab53eb21ad8c771bee88aefe97a7c591d146cdfee44",
-    "sourceCommit": "19feda8a0608d7c7e0d64c7d9ec371c9021000fd",
-    "tag": "unreleased-source-19feda8a"
+    "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+    "qualificationReceiptSHA256": "5119b9f3a5c95fb84f527885fdd5bac0fe79a56352a55b8acf116f67fd12787d",
+    "sourceCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+    "tag": "unreleased-source-021b1ed8"
   },
-  "generatorCommit": "19feda8a0608d7c7e0d64c7d9ec371c9021000fd",
+  "generatorCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
   "note": "Exact output from the qualified unreleased generator source candidate. Local runtime source acceptance is recorded separately; this is not a public generator release claim.",
   "previousOrigin": {
-    "commit": "c80a5ebfb6ae3586c3ca492b25d06b02ce5f4a22",
+    "commit": "da34cfe478db9ae8334ffa385b396ee786464ca0",
     "path": "examples/inheritance-save/generation-origin.json",
-    "sha256": "a6c46aad29d3c992ab40327adc1b604efde8eabdbf30904858ae3febf6b99bf3"
+    "sha256": "787be9398abd04562ee19395ad7ddf713a3325ea9d47da885080d635252767e6"
   },
   "schema": "teaql.generated-java-inheritance-example/v1",
-  "sourceReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-unified-current-source/java/inheritance-save/model/receipt.json",
-  "sourceReceiptSha256": "7fb45ac05a05048cc42157f773a84fd2381531b57241f0a9ca98add6846cca78"
+  "sourceReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-unified-intent-current-source/java/inheritance-save/model/receipt.json",
+  "sourceReceiptSha256": "b8911241bfdaba2665ae26e39ea0b91013fced16b5b13d2a762df1ff5f29bf6c"
 }
