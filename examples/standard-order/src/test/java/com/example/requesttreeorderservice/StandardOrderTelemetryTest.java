@@ -79,7 +79,7 @@ public class StandardOrderTelemetryTest {
     }
 
     private static SmartList<CustomerOrder> fullOrderPage(UserContext context) {
-        return JsonRequests.findWithJson(context, Q.customerOrdersWithMinimalFields(), "{\"orderNumber\":\"" + PRIVATE + "\"}")
+        return JsonRequests.findWithJson(context, Q.customerOrdersWithMinimalFields(), "{\"order_number\":\"" + PRIVATE + "\"}")
                 .countAs("totalOrders").facetByStatusAs("statusCounts", statusFacets())
                 .selectOrderNumber().selectOrderDate().selectStatusWith(statusDetails())
                 .selectOrderItemListWith(itemPreviews()).countOrderItemsAs("itemCount")
