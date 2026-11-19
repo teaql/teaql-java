@@ -60,6 +60,8 @@ audited `save(context)` restores visibility and advances the negative version to
 a positive one. A graph can recover several children with independent local comments
 using one audited root save. Test committed SQL/readback/audit lineage as well as Q/E
 visibility; a status flag alone is not evidence that the row was recovered.
+Mark recovery before optional generated field updates; those edits and recovery
+commit together with exactly one root-version advance.
 
 
 ---
