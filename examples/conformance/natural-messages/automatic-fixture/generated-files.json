@@ -22,5 +22,5 @@
   "lib/src/main/java/com/example/checkernaturalmessageservice/sampledata/SampleDataService.java": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler": "e7343d1366c418947fc058200104a8748265db5763f3861de9cda088cdb9dbce",
   "teaql/checker-model.json": "dbac03cd54b294e3e60a62752aeb170ad1ad722a7dfb8feb639c569ff3e73b1a",
-  "teaql/model-provenance.json": "b7258ff8e69db00a0119d03e41358d272756522caa89f8701ffc5744fae2a6fe"
+  "teaql/model-provenance.json": "fb712caf023900f433faf280e9f8db87ff563d8cf1bceb30d121dce9a6cf8343"
 }

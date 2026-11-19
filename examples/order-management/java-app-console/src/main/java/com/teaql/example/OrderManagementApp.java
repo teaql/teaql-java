@@ -7,6 +7,7 @@ import com.teaql.ordermanagementservice.customer.Customer;
 import com.teaql.ordermanagementservice.customerorder.CustomerOrder;
 import com.teaql.ordermanagementservice.ordersearchpreset.OrderSearchPreset;
 import io.teaql.core.DataServiceExecutor;
+import io.teaql.core.Entity;
 import io.teaql.core.InternalIdGenerationService;
 import io.teaql.core.MutationPolicyApproval;
 import io.teaql.core.SmartList;
@@ -108,7 +109,12 @@ public final class OrderManagementApp {
     private static UserContext context(DataServiceExecutor executor) {
         SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
         AtomicLong ids = new AtomicLong(1000);
-        InternalIdGenerationService idGeneration = (context, entity) -> ids.getAndIncrement();
+        InternalIdGenerationService idGeneration = new InternalIdGenerationService() {
+            public Long generateId(UserContext context, Entity entity) { return ids.getAndIncrement(); }
+            public void ensureFloor(String typeName, long floor) {
+                ids.accumulateAndGet(Math.addExact(floor, 1), Math::max);
+            }
+        };
         OrderMutationPolicy orderPolicy = new OrderMutationPolicy();
         TeaQLRuntime runtime = TeaQLRuntime.builder().metadata(metadata)
                 .dataService("default", executor).dataService("sqlite", executor)
