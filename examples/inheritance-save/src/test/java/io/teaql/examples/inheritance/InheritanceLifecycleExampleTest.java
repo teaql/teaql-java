@@ -71,11 +71,16 @@ public class InheritanceLifecycleExampleTest {
                     return MutationDecision.allow();
                 }
             };
-            var runtime = TeaQLRuntime.builder().metadata(new SimpleEntityMetaFactory())
+            var metadata = new SimpleEntityMetaFactory();
+            var runtime = TeaQLRuntime.builder().metadata(metadata)
                     .dataService("default", provider.equals("sqlite")
                             ? new SqliteDataServiceExecutor("default", driver, source)
                             : new PostgresDataServiceExecutor("default", driver))
                     .idGenerationService(ids).mutationPolicyRegistry(key -> Optional.of(observer)).build().install(GeneratedRuntimeModule.module());
+            // Keep the deliberately quoted legacy storage mapping in application
+            // assembly so the generated library remains exact producer output.
+            metadata.resolveEntityDescriptor("Academy").findProperty("campus_code")
+                    .with("column", "Legacy Campus Code").with("columnName", "Legacy Campus Code");
             UserContext context = new DefaultUserContext(runtime);
             context.ensureSchema(); context.ensureSchema();
             var auditEvents = new ArrayList<SafeAuditEvent>();

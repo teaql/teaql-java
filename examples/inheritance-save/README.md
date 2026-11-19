@@ -48,6 +48,10 @@ combinations, minimal selection, streaming and parent update/no-op readback.
 The verifier checks root-owned versions and mapped child storage independently
 with read-only SQL. It is registered in `scripts/verify-examples.sh`.
 
+Application assembly assigns the deliberately quoted `Legacy Campus Code`
+storage column before schema reconciliation. This keeps the custom mapping
+covered while allowing the library to remain exact, reproducible generator output.
+
 The tested root-version sequence is `1 → 2 → 3 → -4 → 5 → -6 → 7 → 8`.
 Marker-only recovery, recovery with edits, stale/live/partial recovery rejection,
 and recovery audit lineage are checked on both providers. Native tests also
