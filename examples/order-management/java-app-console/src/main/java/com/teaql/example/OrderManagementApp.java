@@ -1,6 +1,6 @@
 package com.teaql.example;
 
-import com.teaql.ordermanagementservice.EntityMetaRegistry;
+import com.teaql.ordermanagementservice.GeneratedRuntimeModule;
 import com.teaql.ordermanagementservice.Q;
 import com.teaql.ordermanagementservice.commerceplatform.CommercePlatform;
 import com.teaql.ordermanagementservice.customer.Customer;
@@ -12,7 +12,6 @@ import io.teaql.core.MutationPolicyApproval;
 import io.teaql.core.SmartList;
 import io.teaql.core.TeaQLRuntimeException;
 import io.teaql.core.UserContext;
-import io.teaql.core.meta.EntityMetaFactory;
 import io.teaql.core.meta.SimpleEntityMetaFactory;
 import io.teaql.core.sqlite.SqliteDataServiceExecutor;
 import io.teaql.provider.jdbc.JdbcSqlExecutor;
@@ -108,8 +107,6 @@ public final class OrderManagementApp {
 
     private static UserContext context(DataServiceExecutor executor) {
         SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
-        new EntityMetaRegistry().assemble(metadata);
-        EntityMetaFactory.registerGlobal(metadata);
         AtomicLong ids = new AtomicLong(1000);
         InternalIdGenerationService idGeneration = (context, entity) -> ids.getAndIncrement();
         OrderMutationPolicy orderPolicy = new OrderMutationPolicy();
@@ -125,7 +122,7 @@ public final class OrderManagementApp {
                                 "example-security-review",
                                 Instant.parse("2026-09-29T12:00:00Z")))
                         : Optional.empty())
-                .build();
+                .build().install(GeneratedRuntimeModule.module());
         DefaultUserContext context = new DefaultUserContext(runtime);
         context.putAttribute(
                 MutationAuthority.class.getName(), new MutationAuthority(Set.of()));
