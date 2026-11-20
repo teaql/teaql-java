@@ -21,9 +21,17 @@
     "receipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/supplier-order-sync-generation/receipt.json",
     "receiptSHA256": "0910413b97e26c19505f98e64bb0adaecbd5cacb09936c7daeaf810757838747"
   },
+  "qualification": {
+    "businessReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-supplier-order-sync-native/business-receipt.json",
+    "businessReceiptSHA256": "b6e440a859699eec77ee5474e5f536237a751e1bf5971b2ea800ea9d1af9457b",
+    "nativeReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-supplier-order-sync-native/receipt.json",
+    "nativeReceiptSHA256": "8b2a5d7152abd83aa7200067697698c0adb5d38edbfb45f43d18fd6a82051f9e",
+    "remainingFullRuntimeInventory": true,
+    "sourceCommit": "1ca62c8052658b02d1a9cb2732d71da32354408d"
+  },
   "scene": "Reconcile a supplier order by applying only a matching response for that order",
   "schema": "teaql.model-workspace-showcase/v1",
-  "status": "implemented-pending-native-qualification",
+  "status": "focused-verified",
   "verification": [
     "bash",
     "examples/http-resilience/verify-sync.sh"
