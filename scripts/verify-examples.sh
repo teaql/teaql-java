@@ -41,8 +41,7 @@ mvn -q -o -f examples/business-id-runtime/java-app-console/pom.xml compile \
   "-Dexec.args=--teaql.datasource.url=jdbc:sqlite:$evidence_dir/business-id.sqlite"
 mvn -q -pl examples/security-foundations \
   -Dtest=SecurityFoundationsExampleTest,SqlRelationMaskingTest test
-mvn -q -pl examples/round-trip-reference-runtime \
-  -Dtest=RoundTripReferenceRuntimeExampleTest test
+TEAQL_REFERENCE_EVIDENCE_DIR="$evidence_dir/round-trip-reference" bash examples/round-trip-reference-runtime/verify.sh
 TEAQL_CONFORMANCE_EVIDENCE_DIR="$evidence_dir/conformance" bash examples/conformance/verify.sh
 mvn -q -f examples/school-management/java-lib-core/lib/pom.xml install -DskipTests
 mvn -q -f examples/school-management/java-app-console/pom.xml spring-boot:run \
