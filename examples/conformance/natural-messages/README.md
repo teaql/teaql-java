@@ -68,7 +68,7 @@ metadata hashes remain unchanged.
 
 ## Fixture origin
 
-`automatic-fixture/` is the current generated input. Its 24-file manifest,
+`java-lib-core/` is the current generated input. Its 24-file manifest,
 raw model, evaluation output and generator origin are retained alongside
 `generation.json`. `JavaNaturalMessagesGenerationTest` evaluates the model and
 generates the library from the local generator source; the paired conformance
@@ -84,3 +84,23 @@ The old Context Fix fixture remains unchanged. Its model is not reused for new
 generation because the current evaluator now requires an additional credential
 mask declaration there. This new example does not bypass evaluation or weaken
 the frozen old fixture's provenance guards.
+
+## Current model and workspace
+
+`model.xml` defines the Catalog and Entry business graph. The exact generated
+domain library is read-only in `java-lib-core/`; its current provenance points to
+the qualified generator source build, with the prior generation identity retained
+separately in its metadata. The application lives in `java-app-console/showcase-tests/io/teaql/examples/naturalmessages/GeneratedNaturalMessagesTest.java`.
+
+Run this focused business entry from the SDK repository root:
+
+```bash
+node examples/conformance/natural-messages/verify-local.cjs
+```
+
+The same graph is rejected before writes for an invalid second Entry, then
+corrected and saved through generated Q/E and audited Save. Two runs check
+actual stored values, precise machine locations, English/Chinese messages and
+private-value redaction. Language-specific native length rules remain intact.
+The verifier preserves result stores and compact receipts and removes owned
+build outputs. Full runtime example qualification remains a separate gate.
