@@ -1,5 +1,6 @@
 package com.teaql.supplierordersyncservice;
 
+import com.teaql.supplierordersyncservice.supplierorder.SupplierOrder;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import io.teaql.core.UserContext;
@@ -69,8 +70,9 @@ public class SupplierOrderSyncTest {
             }
             boolean unavailable = scenario.name().equals("failed") || (scenario.name().equals("retry") && attempt == 1);
             boolean wrongOrder = scenario.name().equals("mismatch");
+            String proposedStatus = wrongOrder || unavailable ? "dispatched" : scenario.status();
             var body = ("{\"reference\":\"" + (wrongOrder ? "OTHER-ORDER" : reference)
-                    + "\",\"status\":\"" + scenario.status() + "\"}").getBytes(StandardCharsets.UTF_8);
+                    + "\",\"status\":\"" + proposedStatus + "\"}").getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.sendResponseHeaders(unavailable ? 503 : 200, body.length);
             exchange.getResponseBody().write(body);
@@ -86,12 +88,26 @@ public class SupplierOrderSyncTest {
                         : HttpRequestService.RetryMode.NONE);
     }
 
-    private static void cancel(UserContext context, HttpRequestService.Call call,
+    private static String reconcile(UserContext context, SupplierOrder order, HttpRequestService.Response reply) {
+        if (reply.status() != 200) return "unavailable";
+        if (!(reply.jsonValue() instanceof Map<?, ?> payload)) return "invalid-status";
+        if (!E.supplierOrder(order).getExternalReference().eval().equals(payload.get("reference"))) {
+            return "wrong-order";
+        }
+        if (!(payload.get("status") instanceof String next) || !Set.of("acknowledged", "dispatched").contains(next)) {
+            return "invalid-status";
+        }
+        order.updateSyncStatus(next);
+        order.auditAs("Apply the verified supplier status").save(context);
+        return "applied";
+    }
+
+    private static void cancel(UserContext context, SupplierOrder order, HttpRequestService.Call call,
                                CountDownLatch arrived, CountDownLatch release) throws InterruptedException {
         var result = new AtomicReference<Throwable>();
         var worker = new Thread(() -> {
             try {
-                context.httpRequests().execute(context, call);
+                reconcile(context, order, context.httpRequests().execute(context, call));
             } catch (Throwable failure) {
                 result.set(failure);
             }
@@ -151,6 +167,7 @@ public class SupplierOrderSyncTest {
                 return (outcome, number, elapsedMs) -> {};
             });
             var ids = new LinkedHashMap<String, Long>();
+            var outcomes = new LinkedHashMap<String, String>();
             for (var scenario : SCENARIOS) {
                 String reference = scenario.reference(round);
                 var order = Q.supplierOrders().comment("Create a procurement order to reconcile")
@@ -160,25 +177,16 @@ public class SupplierOrderSyncTest {
                 order.updateSyncStatus("pending");
                 order.auditAs("Record an order awaiting supplier status").save(context);
                 var call = request(scenario, E.supplierOrder(order).getExternalReference().eval());
+                String outcome;
                 if (scenario.name().equals("cancel")) {
-                    cancel(context, call, arrived, release);
+                    cancel(context, order, call, arrived, release);
+                    outcome = "cancelled";
                 } else {
                     var reply = context.httpRequests().execute(context, call);
                     assertEquals(scenario.attempts(), reply.attempts());
-                    var payload = (Map<?, ?>) reply.jsonValue();
-                    if (scenario.name().equals("failed")) {
-                        assertEquals(503, reply.status());
-                    } else if (scenario.name().equals("mismatch")) {
-                        assertEquals(200, reply.status());
-                        assertNotEquals(reference, payload.get("reference"));
-                    } else {
-                        assertEquals(200, reply.status());
-                        assertEquals(reference, payload.get("reference"));
-                        assertEquals(scenario.status(), payload.get("status"));
-                        order.updateSyncStatus((String) payload.get("status"));
-                        order.auditAs("Apply the verified supplier status").save(context);
-                    }
+                    outcome = reconcile(context, order, reply);
                 }
+                outcomes.put(scenario.name(), outcome);
                 var stored = Q.supplierOrders().withIdIs(order.getId()).limit(1)
                         .comment("Read the order after the supplier call").purpose("Verify the local reconciliation")
                         .executeForOne(context);
@@ -189,13 +197,15 @@ public class SupplierOrderSyncTest {
                 assertEquals(Integer.valueOf(scenario.attempts()), attempts.get(reference));
                 ids.put(scenario.name(), stored.getId());
             }
+            assertEquals(Map.of("direct", "applied", "retry", "applied", "failed", "unavailable",
+                    "cancel", "cancelled", "mismatch", "wrong-order"), outcomes);
             assertEquals(5, observed.size());
             assertFalse(observed.toString().contains("PRIVATE_QUERY_SYNC"));
             assertEquals(7, attempts.values().stream().mapToInt(Integer::intValue).sum());
-            Class<?> type = com.teaql.supplierordersyncservice.supplierorder.SupplierOrder.class;
+            Class<?> type = SupplierOrder.class;
             assertTrue(type.getProtectionDomain().getCodeSource().getLocation().toURI().getPath()
                     .endsWith("/java-lib-core/lib/target/classes/"));
-            var marker = Map.of("round", round, "orders", ids, "requests", 7, "cancelled", true);
+            var marker = Map.of("round", round, "orders", ids, "outcomes", outcomes, "requests", 7, "cancelled", true);
             System.out.println("SUPPLIER_ORDER_SYNC=" + new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(marker));
         } finally {
             release.countDown();
