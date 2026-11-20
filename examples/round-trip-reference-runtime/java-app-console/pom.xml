@@ -13,7 +13,6 @@
   </parent>
   <groupId>com.teaql</groupId>
   <artifactId>order-edit-reference</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <properties>
