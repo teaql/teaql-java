@@ -3,8 +3,7 @@
 // Source-only ordinary example. No install/deploy, source editing or shared cleanup.
 const fs = require("node:fs"), path = require("node:path"), os = require("node:os");
 const cp = require("node:child_process"), crypto = require("node:crypto"), assert = require("node:assert/strict");
-const runtimeRoot = path.resolve(__dirname, "../.."), generatorRoot = fs.realpathSync(
-  process.env.TEAQL_CODEGEN_DIR || (() => { throw new Error("Set TEAQL_CODEGEN_DIR to the local generator checkout"); })());
+const runtimeRoot = path.resolve(__dirname, "../..");
 const requested = process.env.TEAQL_JAVA_EXACT_EVIDENCE_DIR;
 const evidence = requested ? path.resolve(requested) : fs.mkdtempSync(path.join(os.tmpdir(), "teaql-java-decimal-evidence-"));
 if (requested) { assert(!fs.existsSync(evidence), "never overwrite retained evidence"); fs.mkdirSync(evidence); }
@@ -61,40 +60,37 @@ function generatedHashes(root) {
   }
   walk(root); return result;
 }
-const before = {runtime: snapshot(runtimeRoot), generator: snapshot(generatorRoot)};
+const before = {runtime: snapshot(runtimeRoot)};
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "teaql-java-decimal-build-"));
 let passed = false, failure, generated, localClasses = {}, artifactSha256;
 try {
   const disk = fs.statfsSync(scratch);
   assert(disk.bavail * disk.bsize > 8 * 1024 ** 3, "8 GiB free build space required");
-  const runtime = path.join(scratch, "runtime"), generator = path.join(scratch, "generator"), app = path.join(scratch, "app");
-  copy(runtimeRoot, runtime); copy(generatorRoot, generator);
-  run("generator-build", ["mvn", "-B", "-ntp", "-pl", "generator", "-am", "package", "-DskipTests", "-Dexec.skip=true",
-    "org.apache.maven.plugins:maven-dependency-plugin:3.8.1:build-classpath", "-Dmdep.outputFile=target/example-classpath.txt"], generator);
-  const dependencies = fs.readFileSync(path.join(generator, "generator/target/example-classpath.txt"), "utf8").trim();
-  assert(dependencies.split(path.delimiter).some(file => file.startsWith(path.join(generator, "model/target") + path.sep)),
-    "generator must use the model artifact built from this source, not a stale local-cache coordinate");
-  const classpath = path.join(generator, "generator/target/classes") + path.delimiter + dependencies;
-  const originalModel = path.join(runtime, 'examples/exact-decimal/model.xml');
+  const runtime = path.join(scratch, "runtime");
+  copy(runtimeRoot, runtime);
+  const example = path.join(runtime, 'examples/exact-decimal');
+  const app = path.join(example, 'java-app-console');
+  const library = path.join(example, 'java-lib-core');
+  const modelSha256 = sha(fs.readFileSync(path.join(example, 'model.xml')));
+  const spec = JSON.parse(fs.readFileSync(path.join(example, 'showcase.json')));
+  assert.equal(modelSha256, spec.model.sha256);
   const version = fs.readFileSync(path.join(runtime, "pom.xml"), "utf8").match(/<version>([^<]+)<\/version>/)[1];
-  assert(!version.includes("${"));
-  const originalModelBytes = fs.readFileSync(originalModel);
-  assert(!originalModelBytes.toString().includes('teaql_java_version='));
-  const model = path.join(scratch, 'model.xml');
-  const selectedModel = originalModelBytes.toString().replace(/<root\s/, '<root teaql_java_version="' + version + '" ');
-  assert.notEqual(selectedModel, originalModelBytes.toString());
-  fs.writeFileSync(model, selectedModel);
-  run("generation", ["java", "-cp", classpath, "com.skynet.codegenerator.LocalGenerator", "java-app-console", app, model], generator);
-  // This public local entry point calls generateValidated before writing files.
-  generated = {modelSha256: sha(fs.readFileSync(model)), originalModelSha256: sha(originalModelBytes),
-    runtimeVersionOverride: {attribute: 'teaql_java_version', value: version}, files: generatedHashes(app)};
+  const evaluatedVersion = fs.readFileSync(path.join(app, 'pom.xml'), 'utf8')
+    .match(/<teaql.version>([^<]+)<\/teaql.version>/)[1];
+  assert.equal(version, evaluatedVersion, 'Maven reactor must match the evaluated example runtime');
+  const scopes = JSON.parse(fs.readFileSync(path.join(example, 'generated-scope-hashes.json')));
+  function verifyScopes() {
+    assert.deepEqual(generatedHashes(library), scopes['java-lib-core']);
+    const observed = generatedHashes(app);
+    for (const [name, digest] of Object.entries(scopes['java-app-console'])) {
+      assert.equal(observed[name], digest, 'generated workspace file changed: ' + name);
+    }
+  }
+  verifyScopes();
+  generated = {modelSha256, producer: spec.producer, files: scopes};
   fs.writeFileSync(path.join(evidence, "generated-manifest.json"), JSON.stringify(generated, null, 2) + "\n");
-  const libraryBefore = generatedHashes(path.join(app, "lib"));
-  const source = path.join(app, "src/main/java/com/example/exactdecimalservice");
-  for (const file of ["GeneratedExactDecimalProbe.java", "GeneratedWorkspaceStartupProbe.java", "GeneratedMemoryAggregateProbe.java"])
-    fs.copyFileSync(path.join(runtime, "examples/exact-decimal", file), path.join(source, file));
   const reactor = path.join(scratch, "pom.xml");
-  fs.writeFileSync(reactor, '<project><modelVersion>4.0.0</modelVersion><groupId>io.teaql.test</groupId><artifactId>exact-decimal-source-reactor</artifactId><version>0.0.0</version><packaging>pom</packaging><modules><module>runtime</module><module>app/lib</module><module>app</module></modules></project>\n');
+  fs.writeFileSync(reactor, '<project><modelVersion>4.0.0</modelVersion><groupId>io.teaql.test</groupId><artifactId>exact-decimal-source-reactor</artifactId><version>0.0.0</version><packaging>pom</packaging><modules><module>runtime</module><module>runtime/examples/exact-decimal/java-lib-core/lib</module><module>runtime/examples/exact-decimal/java-app-console</module></modules></project>\n');
   run("source-paired-build", ["mvn", "-B", "-ntp", "-f", reactor, "-pl", ":exact-decimal-service", "-am", "package",
     "-DskipTests", "-Dteaql.version=" + version], scratch);
   const artifact = path.join(app, "target/exact-decimal-service-0.0.1-SNAPSHOT.jar");
@@ -120,9 +116,9 @@ try {
     assert(startup.includes("GENERATED_EXACT_DECIMAL_WORKSPACE_PASS"));
     const memory = run("memory-" + round, ["java", "-cp", artifact, "com.example.exactdecimalservice.GeneratedMemoryAggregateProbe"], scratch);
     assert(memory.includes("GENERATED_MEMORY_AGGREGATE_PASS q=1 e=1 mutation=1 sum=0.3 empty=null fallback=0 rows=2 sql=0"));
-    assert.deepEqual(generatedHashes(path.join(app, "lib")), libraryBefore, "generated library changed during application verification");
+    verifyScopes();
   }
-  assert.deepEqual({runtime: snapshot(runtimeRoot), generator: snapshot(generatorRoot)}, before, "source changed during verification");
+  assert.deepEqual({runtime: snapshot(runtimeRoot)}, before, "source changed during verification");
   passed = true;
 } catch (error) { failure = error.stack; process.exitCode = 1; console.error(error.message); }
 finally {

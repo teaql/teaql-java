@@ -7,9 +7,9 @@
   <platform _name="Platform"
             _module="Organization"
             _module_key="organization"
-            name="Exact Decimal Platform"/>
+            name="Settlement Quote Ledger"/>
 
-  <decimal_entry _name="Decimal Entry"
+  <decimal_entry _name="Settlement Quote"
                  _module="Ledger"
                  _module_key="ledger"
                  platform="platform()"

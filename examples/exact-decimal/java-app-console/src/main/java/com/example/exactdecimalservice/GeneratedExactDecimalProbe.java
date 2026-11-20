@@ -53,8 +53,8 @@ public final class GeneratedExactDecimalProbe {
         }
         boolean fresh = existing.isEmpty();
         if (!fresh && existing.size() != 5) throw new AssertionError("incomplete retained fixture");
-        DecimalEntry first = save(source, platform, existing, "first", new BigDecimal("0.1"));
-        DecimalEntry second = save(source, platform, existing, "second", new BigDecimal("0.2"));
+        DecimalEntry first = save(source, platform, existing, "Wharf fee", new BigDecimal("0.1"));
+        DecimalEntry second = save(source, platform, existing, "Customs fee", new BigDecimal("0.2"));
         var loaded = Q.decimalEntriesWithMinimalFields()
                 .selectLabel().selectAmount()
                 .withAmountIs(new BigDecimal("0.1"))
@@ -62,14 +62,14 @@ public final class GeneratedExactDecimalProbe {
                 .comment("Read a generated exact Decimal row")
                 .purpose("Verify Q filtering and E hydration")
                 .executeForList(source);
-        if (loaded.size() != 1 || !"first".equals(E.decimalEntry(loaded.get(0)).getLabel().eval())
+        if (loaded.size() != 1 || !"Wharf fee".equals(E.decimalEntry(loaded.get(0)).getLabel().eval())
                 || E.decimalEntry(loaded.get(0)).getAmount().eval().compareTo(new BigDecimal("0.1")) != 0) {
             throw new AssertionError("generated Decimal Q/E round-trip failed");
         }
         if (sum(source, List.of(first.getId(), second.getId())).compareTo(new BigDecimal("0.3")) != 0) {
             throw new AssertionError("generated Decimal SUM is not exact");
         }
-        DecimalEntry preciseEntry = save(source, platform, existing, "precise", new BigDecimal("3.50"));
+        DecimalEntry preciseEntry = save(source, platform, existing, "Offshore settlement", new BigDecimal("3.50"));
         BigDecimal scale = reloadAmount(source, preciseEntry.getId());
         if (!new BigDecimal("3.50").equals(scale)) {
             throw new AssertionError("generated Decimal scale was not preserved: " + scale);
@@ -84,7 +84,7 @@ public final class GeneratedExactDecimalProbe {
 
         for (String exponent : new String[] {"1E-7", "1E+8"}) {
             BigDecimal input = new BigDecimal(exponent);
-            DecimalEntry entry = save(source, platform, existing, "exponent " + exponent, input);
+            DecimalEntry entry = save(source, platform, existing, "Rate adjustment " + exponent, input);
             BigDecimal reloaded = reloadAmount(source, entry.getId());
             var filtered = Q.decimalEntriesWithMinimalFields().selectAmount()
                     .withIdIs(entry.getId()).withAmountIs(input).limit(1)
