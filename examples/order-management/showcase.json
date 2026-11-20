@@ -30,9 +30,17 @@
     "receipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/order-generation/receipt.json",
     "receiptSHA256": "5041246b7c9f452219d943efa393ea380ce7f7e172da739a945bb49da2ba5db2"
   },
+  "qualification": {
+    "businessReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-order-scopes/runtime/order-management/business-receipt.json",
+    "businessReceiptSHA256": "27883d8ec19e24a82b03406e8531977ecdb213af492c2bf5bc69ef9dafecf238",
+    "nativeReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-order-scopes/receipt.json",
+    "nativeReceiptSHA256": "ac0eafbbe96387174b9f224cfb5aabe87a005615bd270acc9dbce355685fd25d",
+    "remainingFullRuntimeInventory": true,
+    "sourceCommit": "ce0eec9f271035f15eb6f147ac88de14b88de5f9"
+  },
   "scene": "Order terminal and whole-graph customer mutation policy",
   "schema": "teaql.model-workspace-showcase/v1",
-  "status": "implemented-pending-native-qualification",
+  "status": "focused-verified",
   "verification": [
     "bash",
     "verify.sh"
