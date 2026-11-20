@@ -21,9 +21,17 @@
     "receipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/purchase-order-numbering-generation/receipt.json",
     "receiptSHA256": "e65136b27d5640fa4cdd62b13413148a267ea25ae0c7947adbea2ad9121c84b4"
   },
+  "qualification": {
+    "businessReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-purchase-order-numbering-native/runtime/business-id/receipt.json",
+    "businessReceiptSHA256": "908f916123792fd276890752c23b5afaf8e985259349d949706fb09d12688b61",
+    "nativeReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-purchase-order-numbering-native/receipt.json",
+    "nativeReceiptSHA256": "17a50662e35a181faeefd766c6d7cf8fb9c48683367d9f1c0e1e5967c41f7cd1",
+    "remainingFullRuntimeInventory": true,
+    "sourceCommit": "4c46bb90f04ef55b32b414a8692745d71ee60ba6"
+  },
   "scene": "Number and re-read two purchase orders with a trusted business date",
   "schema": "teaql.model-workspace-showcase/v1",
-  "status": "implemented-pending-native-qualification",
+  "status": "focused-verified",
   "verification": [
     "java-app-console/src/main/java/com/teaql/purchaseordernumbering/App.java"
   ],
