@@ -1,5 +1,20 @@
 # Generated Java shared load state example
 
+The School model in `model.xml` generates `java-lib-core`. The
+`java-app-console` workspace runs the original school-record tests
+against that library. Two rounds share one SQLite file and check that
+partial reads distinguish omitted fields from loaded values, rejected edits
+preserve stored values, and accepted saves leave sibling records intact.
+
+```bash
+bash examples/shared-load-state/verify.sh --workspace
+bash examples/shared-load-state/benchmark-mainstream.sh --workspace
+```
+
+The comparison reuses the original full and sparse fixture at 1, 100 and
+10,000 rows as a separate calibration. The wide and inherited fixture
+options below use their own generation paths.
+
 This small SQLite acceptance example uses a newly generated School library and
 the Java runtime source from the same Maven reactor. It does not install,
 publish or substitute TeaQL jars from a public repository.

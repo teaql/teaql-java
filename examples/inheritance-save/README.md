@@ -1,5 +1,9 @@
 # Generic and inherited audited saves
 
+The scene starts from `model.xml`. The generated domain lives in
+`java-lib-core`. The `java-app-console` workspace runs the lifecycle
+against that library with the runtime from this checkout.
+
 This six-object SQLite example saves Academy through a generic audited helper,
 then reads and updates the same logical object through generated Academy and
 School Q/E APIs. It never inserts a parent row manually. The first lifecycle
