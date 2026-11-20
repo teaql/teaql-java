@@ -90,7 +90,8 @@ for round in first second; do
     }
   if [[ "$workspace" == true ]]; then
     rg -Fx -- "LOCAL_CLASS com.example.schoolmanagementservice.school.School $fixture_dir/lib/target/classes" "$run_dir/$round.log"
-    cp "$example_dir/java-app-console/target/surefire-reports/"TEST-*.xml "$run_dir/"
+    mkdir -- "$run_dir/$round-junit"
+    cp "$example_dir/java-app-console/target/surefire-reports/"TEST-*.xml "$run_dir/$round-junit/"
   fi
   rg -F "PASS generated Java indexed Q/E/Checker/create/update/delete and snapshot sharing $round" "$run_dir/$round.log"
   rg -F "PASS generated Java typed native JSON roundtrip and snapshot sharing $round" "$run_dir/$round.log"

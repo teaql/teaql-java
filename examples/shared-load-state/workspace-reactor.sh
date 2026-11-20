@@ -5,6 +5,7 @@ runtime_dir="$(cd "$example_dir/../.." && pwd)"
 reactor_dir="$(mktemp -d -t teaql-school-projection-reactor.XXXXXXXX)"
 trap 'rm -rf -- "$reactor_dir"' EXIT
 python3 -B - "$reactor_dir/pom.xml" "$runtime_dir" "$example_dir/java-lib-core/lib" "$example_dir/java-app-console" <<'PY'
+from os.path import relpath
 from pathlib import Path
 import sys
 from xml.etree.ElementTree import Element, SubElement, ElementTree
@@ -18,7 +19,7 @@ for key, value in (
     SubElement(pom, key).text = value
 modules = SubElement(pom, 'modules')
 for module in sys.argv[2:]:
-    SubElement(modules, 'module').text = module
+    SubElement(modules, 'module').text = relpath(module, Path(sys.argv[1]).parent)
 ElementTree(pom).write(Path(sys.argv[1]), encoding='utf-8', xml_declaration=True)
 PY
 mvn -q -f "$reactor_dir/pom.xml" -pl :school-record-projection-workspace -am "$@"

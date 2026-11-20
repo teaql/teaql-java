@@ -52,6 +52,8 @@ bash examples/trace-chain/verify.sh
 bash examples/trace-chain/verify-standard-telemetry.sh
 TEAQL_JAVA_STANDARD_ORDER_EVIDENCE_DIR="$verification_dir/standard-order" bash examples/standard-order/verify.sh
 TEAQL_CODEGEN_DIR="$build_dir/generator" bash examples/shared-load-state/verify.sh --generate
+TEAQL_LOAD_STATE_EVIDENCE_DIR="$evidence_dir/shared-load-state" bash examples/shared-load-state/verify.sh --workspace
+TEAQL_MAINSTREAM_EVIDENCE_DIR="$evidence_dir/mainstream-reference" bash examples/shared-load-state/benchmark-mainstream.sh --workspace
 TEAQL_JAVA_EXACT_EVIDENCE_DIR="$evidence_dir/exact-decimal" \
   bash "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/exact-decimal/verify.sh"
 TEAQL_FREIGHT_QUOTE_EVIDENCE_DIR="$evidence_dir/freight-quotes" bash "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-freight-quotes.sh"
