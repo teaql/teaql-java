@@ -82,12 +82,25 @@ try {
   function verifyScopes() {
     assert.deepEqual(generatedHashes(library), scopes['java-lib-core']);
     const observed = generatedHashes(app);
+    assert.equal(spec.workspace.useSiblingMavenLibrary, true);
+    assert(!fs.existsSync(path.join(app, 'lib')), 'Workspace must consume the sibling library');
     for (const [name, digest] of Object.entries(scopes['java-app-console'])) {
+      if (name.startsWith('lib/')) {
+        if (name !== 'lib/pom.xml') assert.equal(scopes['java-lib-core'][name], digest, name);
+        continue;
+      }
+      if (name === 'Makefile') {
+        const installed = fs.readFileSync(path.join(app, name), 'utf8');
+        const sibling = 'mvn -f ../java-lib-core/lib/pom.xml';
+        assert.equal(installed.split(sibling).length, 3);
+        assert.equal(sha(installed.replaceAll(sibling, 'mvn -f lib/pom.xml')), digest, name);
+        continue;
+      }
       assert.equal(observed[name], digest, 'generated workspace file changed: ' + name);
     }
   }
   verifyScopes();
-  generated = {modelSha256, producer: spec.producer, files: scopes};
+  generated = {modelSha256, producer: spec.producer, files: scopes, workspaceUsesSiblingMavenLibrary: true};
   fs.writeFileSync(path.join(evidence, "generated-manifest.json"), JSON.stringify(generated, null, 2) + "\n");
   const reactor = path.join(scratch, "pom.xml");
   fs.writeFileSync(reactor, '<project><modelVersion>4.0.0</modelVersion><groupId>io.teaql.test</groupId><artifactId>exact-decimal-source-reactor</artifactId><version>0.0.0</version><packaging>pom</packaging><modules><module>runtime</module><module>runtime/examples/exact-decimal/java-lib-core/lib</module><module>runtime/examples/exact-decimal/java-app-console</module></modules></project>\n');

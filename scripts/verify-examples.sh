@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+mode="${1:-}"
+if [[ "$#" -gt 1 || ( "$mode" != "" && "$mode" != "--after-shared-load-state" ) ]]; then
+  echo "Usage: bash scripts/verify-examples.sh [--after-shared-load-state]" >&2
+  exit 2
+fi
+
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 evidence_dir="${TEAQL_EXAMPLES_EVIDENCE_DIR:-$(mktemp -d -t teaql-java-examples-evidence.XXXXXXXX)}"
 verification_dir="$evidence_dir/runtime"
@@ -22,6 +28,7 @@ if [[ "${actual[*]}" != "${expected[*]}" ]]; then
 fi
 
 cd "$repo"
+if [[ -z "$mode" ]]; then
 # This verifier needs original Git provenance and already creates its own
 # disposable source-paired reactor. It never builds in the source repository.
 node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/fix-e-alignment/verify-local.cjs"
@@ -56,10 +63,17 @@ TEAQL_JAVA_STANDARD_ORDER_EVIDENCE_DIR="$verification_dir/standard-order" bash e
 TEAQL_CODEGEN_DIR="$build_dir/generator" bash examples/shared-load-state/verify.sh --generate
 TEAQL_LOAD_STATE_EVIDENCE_DIR="$evidence_dir/shared-load-state" bash examples/shared-load-state/verify.sh --workspace
 TEAQL_MAINSTREAM_EVIDENCE_DIR="$evidence_dir/mainstream-reference" bash examples/shared-load-state/benchmark-mainstream.sh --workspace
+else
+  mvn -q -DskipTests install
+fi
 TEAQL_JAVA_EXACT_EVIDENCE_DIR="$evidence_dir/exact-decimal" \
   bash "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/exact-decimal/verify.sh"
 TEAQL_FREIGHT_QUOTE_EVIDENCE_DIR="$evidence_dir/freight-quotes" bash "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-freight-quotes.sh"
 node "$repo/examples/conformance/context-derived/verify-local.cjs"
 TEAQL_NATURAL_MESSAGES_EVIDENCE_DIR="$evidence_dir/natural-messages" \
   node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/conformance/natural-messages/verify-local.cjs"
-echo "PASS: all Java examples"
+if [[ -z "$mode" ]]; then
+  echo "PASS: all Java examples"
+else
+  echo "PASS: Java examples after shared load state"
+fi
