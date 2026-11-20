@@ -8,7 +8,7 @@ cargo teaql --input examples/conformance/natural-messages/model.xml java-assist-
 ```
 
 Entities: `catalog`, `entry`. Use field-specific Query Assist when needed.
-`automatic-fixture/` is the current immutable generated library and passive
+`java-lib-core/` is the current immutable generated library and passive
 metadata; `fixture/` preserves the earlier generated input. Neither is an
 API-discovery source. Do not install replacement Checkers or hand-built
 presentation metadata in the application to make this example pass.
