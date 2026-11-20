@@ -15,7 +15,7 @@ import io.teaql.core.storage.ObjectStorage.WriteMode;
 import io.teaql.core.storage.ObjectStorageObserver;
 import io.teaql.core.storage.ObjectStorageProvider;
 import io.teaql.core.storage.StorageException;
-import io.teaql.objectstorage.s3.S3ObjectStorage;
+import io.teaql.storage.s3.S3ObjectStorage;
 import io.teaql.provider.jdbc.JdbcSqlExecutor;
 import io.teaql.runtime.AppAuditEventSink;
 import io.teaql.runtime.SafeAuditEvent;
