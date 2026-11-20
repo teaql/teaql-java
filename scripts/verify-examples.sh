@@ -54,40 +54,7 @@ TEAQL_JAVA_STANDARD_ORDER_EVIDENCE_DIR="$verification_dir/standard-order" bash e
 TEAQL_CODEGEN_DIR="$build_dir/generator" bash examples/shared-load-state/verify.sh --generate
 TEAQL_JAVA_EXACT_EVIDENCE_DIR="$evidence_dir/exact-decimal" \
   bash "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/exact-decimal/verify.sh"
-TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/scalar-type-probe" \
-  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs"
-TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/scalar-finite" \
-  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --finite
-TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/restoration-views" \
-  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --restoration-views
-TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/outer-replay" \
-  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --outer-replay
-TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/jdbc-exact" \
-  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --jdbc-exact
-TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/sql-millisecond" \
-  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --sql-millis
-TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/empty-aggregates" \
-  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --empty
-TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/memory-empty-aggregates" \
-  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --memory-empty
-TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/json-profiles" \
-  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs"
-TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/json-lifecycle" \
-  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs" --lifecycle
-TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/json-numeric" \
-  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs" --numeric
-TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/json-temporal" \
-  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs" --temporal
-TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/json-local-datetime" \
-  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs" --local-datetime
-TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/rejected-mutation" \
-  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs" --rejected
-TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/explicit-null" \
-  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs" --explicit-null
-TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/loaded-revert" \
-  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs" --loaded-revert
-TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/version-lifecycle" \
-  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs" --version-lifecycle
+TEAQL_FREIGHT_QUOTE_EVIDENCE_DIR="$evidence_dir/freight-quotes" bash "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-freight-quotes.sh"
 node "$repo/examples/conformance/context-derived/verify-local.cjs"
 TEAQL_NATURAL_MESSAGES_EVIDENCE_DIR="$evidence_dir/natural-messages" \
   node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/conformance/natural-messages/verify-local.cjs"
