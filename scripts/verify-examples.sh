@@ -33,6 +33,12 @@ mvn -q -pl teaql-sqlite \
   -Dtest=DerivedQueryTraceSqliteTest,LikeIntentPrivacySqliteTest,TypedIntentPrivacySqliteTest test
 mvn -q -pl examples/business-id-runtime \
   -Dtest=BusinessIdRuntimeExampleTest test
+mvn -q -o -f examples/business-id-runtime/java-lib-core/lib/pom.xml -DskipTests install
+TEAQL_BUSINESS_ID_KEY_V1_HEX=000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f \
+TEAQL_PURCHASE_NUMBERING_ROUND=inventory \
+mvn -q -o -f examples/business-id-runtime/java-app-console/pom.xml compile \
+  org.codehaus.mojo:exec-maven-plugin:3.5.0:java -Dexec.mainClass=com.teaql.purchaseordernumbering.App \
+  "-Dexec.args=--teaql.datasource.url=jdbc:sqlite:$evidence_dir/business-id.sqlite"
 mvn -q -pl examples/security-foundations \
   -Dtest=SecurityFoundationsExampleTest,SqlRelationMaskingTest test
 mvn -q -pl examples/round-trip-reference-runtime \
