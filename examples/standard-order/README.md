@@ -38,8 +38,8 @@ TEAQL_TELEMETRY_OTLP_ENDPOINT=http://127.0.0.1:4318 \
     -Dtest=StandardOrderTelemetryTest -Dsurefire.failIfNoSpecifiedTests=false test
 ```
 
-Ordinary SQL logs are disabled in the example. The checked model marks order
-numbers and customer names for masking; telemetry must still export safe
-expanded SQL. Conformance's `telemetry/capture-java-standard-order.cjs` checks
-actual backend delivery and parentage. A successful application run alone does
-not establish that all SQL diagnostics reached the collector.
+Ordinary SQL logs are disabled. The model marks order numbers and customer
+names for masking. The conformance `standard-order` gate runs this workspace
+against a task-owned loopback OTLP receiver and checks the exported SQL,
+parentage and metrics. It also compares all three business cases with the
+SQLite data retained from each run.
