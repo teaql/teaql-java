@@ -84,8 +84,8 @@
         <module>examples/round-trip-reference-runtime</module>
         <module>teaql-tfp-endpoint</module>
         <module>teaql-opentelemetry</module>
-        <module>examples/conformance/lib</module>
-        <module>examples/conformance</module>
+        <module>examples/conformance/java-lib-core/lib</module>
+        <module>examples/conformance/java-app-console</module>
     </modules>
 
     <dependencyManagement>

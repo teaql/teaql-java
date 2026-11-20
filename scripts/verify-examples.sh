@@ -37,11 +37,7 @@ mvn -q -pl examples/security-foundations \
   -Dtest=SecurityFoundationsExampleTest,SqlRelationMaskingTest test
 mvn -q -pl examples/round-trip-reference-runtime \
   -Dtest=RoundTripReferenceRuntimeExampleTest test
-mvn -q -f examples/conformance/lib/pom.xml install -DskipTests
-mvn -q -f examples/conformance/pom.xml spring-boot:run \
-  -Dspring-boot.run.arguments="--spring.main.web-application-type=none --spring.datasource.url=jdbc:sqlite:$verification_dir/conformance.db"
-TEAQL_JAVA_SPRING_EVIDENCE_DIR="$evidence_dir/spring-transactions" \
-  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/conformance/spring-transactions/verify-local.cjs"
+TEAQL_CONFORMANCE_EVIDENCE_DIR="$evidence_dir/conformance" bash examples/conformance/verify.sh
 mvn -q -f examples/school-management/java-lib-core/lib/pom.xml install -DskipTests
 mvn -q -f examples/school-management/java-app-console/pom.xml spring-boot:run \
   -Dspring-boot.run.arguments="--spring.main.web-application-type=none --spring.datasource.url=jdbc:sqlite:$verification_dir/school-management.db"

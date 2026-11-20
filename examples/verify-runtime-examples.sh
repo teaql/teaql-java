@@ -19,7 +19,7 @@ trap cleanup EXIT
 
 mvn -q -f "$repo_dir/pom.xml" \
   -Pruntime-examples \
-  -pl examples/conformance,examples/school-management/java-app-console \
+  -pl examples/conformance/java-app-console,examples/school-management/java-app-console \
   -am package -DskipTests
 
 run_example() {
@@ -78,7 +78,7 @@ run_example() {
 for repetition in 1 2; do
   run_example \
     "conformance" \
-    "$repo_dir/examples/conformance/target/deploy/runtime-example-conformance-service-0.0.1-SNAPSHOT.jar" \
+    "$repo_dir/examples/conformance/java-app-console/target/deploy/runtime-example-conformance-service-0.0.1-SNAPSHOT.jar" \
     "PASS Java minimum runtime conformance: 8/8" "$repetition"
 
   run_example \

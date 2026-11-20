@@ -56,7 +56,7 @@ jobs:
       - name: SpotBugs Check
         # Generated examples are verified by the dedicated Example Gate. They
         # intentionally do not inherit the runtime's SpotBugs build plugin.
-        run: mvn spotbugs:check -pl '!examples/conformance/lib,!examples/conformance'
+        run: mvn spotbugs:check -pl '!examples/conformance/java-lib-core/lib,!examples/conformance/java-app-console'
       - name: Verify trusted snapshot selection policy
         run: node --test .github/scripts/select-odc-snapshot.test.cjs
       - name: Verify snapshot freshness policy
