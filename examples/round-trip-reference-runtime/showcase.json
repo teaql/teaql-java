@@ -21,9 +21,17 @@
     "receipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/order-reference-and-line-restoration-evaluated-generation/receipt.json",
     "receiptSHA256": "21eae4c57d59881287106fe7871d0958e6596ab455f9e7e095580b0b03a05dc8"
   },
+  "qualification": {
+    "businessReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-order-edit-reference-reactor-native/business-receipt.json",
+    "businessReceiptSHA256": "83c7fa119f17ad1ccff0e291dea346b6368f3c03136ec40e41a925146f1e2d71",
+    "nativeReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-order-edit-reference-reactor-native/receipt.json",
+    "nativeReceiptSHA256": "dc656a80288f885f382d8201b0ca0cdb252e9b8663807e316b7c670479521eb1",
+    "remainingFullRuntimeInventory": true,
+    "sourceCommit": "163cd902f160508772cf03e3f949aa1af8d5dfbf"
+  },
   "scene": "Resolve a scoped order-line reference before accepting an edit",
   "schema": "teaql.model-workspace-showcase/v1",
-  "status": "implemented-pending-native-qualification",
+  "status": "focused-verified",
   "verification": [
     "bash",
     "examples/round-trip-reference-runtime/verify.sh"
