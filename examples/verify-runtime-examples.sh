@@ -6,17 +6,20 @@ run_dir="$(mktemp -d)"
 active_pid=""
 
 cleanup() {
+  local result=$?
+  trap - EXIT
   if [[ -n "$active_pid" ]] && kill -0 "$active_pid" 2>/dev/null; then
     kill "$active_pid" 2>/dev/null || true
     wait "$active_pid" 2>/dev/null || true
   fi
   rm -rf "$run_dir"
+  exit "$result"
 }
 trap cleanup EXIT
 
 mvn -q -f "$repo_dir/pom.xml" \
   -Pruntime-examples \
-  -pl examples/conformance,examples/school-management \
+  -pl examples/conformance,examples/school-management/java-app-console \
   -am package -DskipTests
 
 run_example() {
@@ -80,7 +83,7 @@ for repetition in 1 2; do
 
   run_example \
     "school-management" \
-    "$repo_dir/examples/school-management/target/deploy/school-management-service-0.0.1-SNAPSHOT.jar" \
+    "$repo_dir/examples/school-management/java-app-console/target/deploy/school-management-service-0.0.1-SNAPSHOT.jar" \
     "PASS Java School bootstrap, portable Query, and native SQLite Facet parity" "$repetition"
 done
 

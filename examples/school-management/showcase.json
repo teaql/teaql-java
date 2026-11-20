@@ -1,0 +1,57 @@
+{
+  "expected": {
+    "constantIdentities": [
+      1001,
+      1002
+    ],
+    "originalApplicationFilesRetained": 10,
+    "rootIdentity": 1,
+    "sameDatabaseStarts": 2
+  },
+  "generatedDomainLibraryHandEdited": false,
+  "goalId": "java:examples/school-management",
+  "library": {
+    "generatedFilesManifestSHA256": "36aa5ebe3434fd92b95076e0d6bd9f35f59497faa7d4950c551b45cc4328ff1b",
+    "root": "java-lib-core",
+    "scope": "java-lib-core"
+  },
+  "model": {
+    "path": "models/school-model.xml",
+    "sha256": "b5cd06ae44464fc29ed24de82654b47c80f546110496756aa15923cee1c511b4"
+  },
+  "producer": {
+    "generator": {
+      "artifactKind": "qualified source build; not a public release",
+      "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+      "qualificationReceiptSHA256": "5119b9f3a5c95fb84f527885fdd5bac0fe79a56352a55b8acf116f67fd12787d",
+      "sourceCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+      "tag": "unreleased-source-021b1ed8"
+    },
+    "receipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/school-generation/receipt.json",
+    "receiptSHA256": "86cdc634a758fdf746de3323e8cd5c4fd32a050e50c0b7b04c5e64b397a1165f"
+  },
+  "scene": "School bootstrap, constant reconciliation and complete School query/save lifecycle",
+  "schema": "teaql.model-workspace-showcase/v1",
+  "status": "implemented-pending-native-qualification",
+  "verification": [
+    "bash",
+    "verify.sh"
+  ],
+  "workspace": {
+    "applicationOwnedFiles": [
+      "Makefile",
+      "docs/teaql-java-crud-guide.md",
+      "pom.xml",
+      "src/main/java/com/example/schoolmanagementservice/App.java",
+      "src/main/java/com/example/schoolmanagementservice/BootstrapTraceVerifier.java",
+      "src/main/java/com/example/schoolmanagementservice/CustomUserContext.java",
+      "src/main/java/com/example/schoolmanagementservice/RequestIntentVerifier.java",
+      "src/main/java/com/example/schoolmanagementservice/SchoolLifecycleVerifier.java",
+      "src/main/java/com/example/schoolmanagementservice/WorkspaceTeaQLDatabase.java",
+      "src/main/resources/application.properties"
+    ],
+    "generatedFilesManifestSHA256": "820c6d2a699fd8ce6686d6f6398357195211c062f2fd95ff87a2dde57aff4765",
+    "root": "java-app-console",
+    "scope": "java-app-console"
+  }
+}

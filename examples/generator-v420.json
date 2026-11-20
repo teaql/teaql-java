@@ -1079,121 +1079,121 @@
     },
     {
       "archiveSHA256": "a8c86c7b32882a5f3eea1d53b30797ad854d117a14ccad88801be10e30d229b4",
-      "destination": "examples/school-management",
+      "destination": "examples/school-management/java-lib-core",
       "generatedFiles": {
-        "examples/school-management/lib/pom.xml": {
+        "examples/school-management/java-lib-core/lib/pom.xml": {
           "emittedPath": "lib/pom.xml",
           "sha256": "23fb23e3bd4956cf0708210611325be12e67065e0f4d673b3fde63576465d17b"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/BaseServiceConfiguration.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/BaseServiceConfiguration.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/BaseServiceConfiguration.java",
           "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/Checkers.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/Checkers.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/Checkers.java",
           "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/Constants.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/Constants.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/Constants.java",
           "sha256": "c146bba14760bcc83958d8b5b71a0e2136db3a16254c28ab9ae5a1a1643910c5"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/E.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/E.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/E.java",
           "sha256": "a2fe4f80b5ea3aada0267c717a6c9b0913715d2ed2bdee959042ec8d62958da8"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/EntityMetaRegistry.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/EntityMetaRegistry.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/EntityMetaRegistry.java",
           "sha256": "cf04c850db5199d6a6d30a6c5181526e09c068f9266a7dd9e982f07206dfc0c0"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/GeneratedRuntimeModule.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/GeneratedRuntimeModule.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/GeneratedRuntimeModule.java",
           "sha256": "fda202b9ed21f87bf65d6688ae167d2dc3e7982f2757a9f5fcbfc3513cf8d96d"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/Q.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/Q.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/Q.java",
           "sha256": "db51bb72ee4e7c0752e6256b25a65d890b3750f63d24ff839d6b158f0cdfee49"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/Repositories.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/Repositories.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/Repositories.java",
           "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/SchoolManagementServiceUserContext.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/SchoolManagementServiceUserContext.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/SchoolManagementServiceUserContext.java",
           "sha256": "b924a8e1b890211486785b9d076e0ef81eb0f94558bf2b31e3a497d0a61509a0"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/platform/Platform.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/platform/Platform.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/platform/Platform.java",
           "sha256": "2bf78b74003d5dafe571f3e20f5a91d0e6a5a38785d705a45d30f9849c15dcf3"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/platform/PlatformChecker.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/platform/PlatformChecker.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/platform/PlatformChecker.java",
           "sha256": "312df235674b87518fa3e5af3f2f1475c71d86f2c6a7499c9db20b2f7fcd8de5"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/platform/PlatformExpression.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/platform/PlatformExpression.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/platform/PlatformExpression.java",
           "sha256": "b5f09cbe63ff1f63fb9c94e1b5c81ba78465bd0c78602ddf8ce97667c980c12f"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/platform/PlatformListExpression.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/platform/PlatformListExpression.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/platform/PlatformListExpression.java",
           "sha256": "5dcf6781878f69ae68760d6767ccb8f036e5aec5cec2446a6006e20ed7684da9"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/platform/PlatformRequest.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/platform/PlatformRequest.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/platform/PlatformRequest.java",
           "sha256": "0e3e1a8bcdadee4008cdfe139d2f0a1db7ccf4920064c9544eac2afb81c9929a"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/sampledata/SampleDataService.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/sampledata/SampleDataService.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/sampledata/SampleDataService.java",
           "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/school/School.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/school/School.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/school/School.java",
           "sha256": "4de7fb018260149c521226f002beb9084a68e9c3ff233dc361bc9c5f07998528"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/school/SchoolChecker.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/school/SchoolChecker.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/school/SchoolChecker.java",
           "sha256": "eade01d79d598870b87949866e2ff15e09596bbbe6e67f3e3c288e5384e9eb9a"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/school/SchoolExpression.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/school/SchoolExpression.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/school/SchoolExpression.java",
           "sha256": "29a8f0af8c19c488ea5facf3e18b35fc4500e305960e0f1dd50e239d4b84ccea"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/school/SchoolListExpression.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/school/SchoolListExpression.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/school/SchoolListExpression.java",
           "sha256": "f8ebc48aec4c099a9c32c01dac825e2f6efa1918a437c6c617013e752fd754e7"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/school/SchoolRequest.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/school/SchoolRequest.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/school/SchoolRequest.java",
           "sha256": "78328172cc2d31caf70df4c7f80ce0c825fece345b39002475fb614a50db6292"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolType.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolType.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolType.java",
           "sha256": "6d2d2ba18e5fd8865a5c573ca222872fa2b79fe6670f8589c28d41327b27660f"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolTypeChecker.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolTypeChecker.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolTypeChecker.java",
           "sha256": "4b3e29551b77290a7fc0b3d90bd30c04ec918e424dfec48e13740ea1d1618d6d"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolTypeExpression.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolTypeExpression.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolTypeExpression.java",
           "sha256": "5aa66ba48667373431c297b9b4e72d9d7e64df475f66808eb3c427219c0554f4"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolTypeListExpression.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolTypeListExpression.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolTypeListExpression.java",
           "sha256": "cf40825a8ec01a22ae698d26d586ce1e1fd1dd5ac7b9762addc84f84233d3263"
         },
-        "examples/school-management/lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolTypeRequest.java": {
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolTypeRequest.java": {
           "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolTypeRequest.java",
           "sha256": "b706b4336e1c5b1591b7a7f94227225bb096645a97fbeabf877e9a6374513d2d"
         },
-        "examples/school-management/lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler": {
+        "examples/school-management/java-lib-core/lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler": {
           "emittedPath": "lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler",
           "sha256": "bacf17c0f620b2ddac37a9b549f0835af0d85e625b36c7c3a44f668001ee310a"
         },
-        "examples/school-management/teaql/checker-model.json": {
+        "examples/school-management/java-lib-core/teaql/checker-model.json": {
           "emittedPath": "teaql/checker-model.json",
           "sha256": "8e28ee16cddc21191816ed05999142fccb870bf42795f5a1f21268ebd4469e71"
         },
-        "examples/school-management/teaql/model-provenance.json": {
+        "examples/school-management/java-lib-core/teaql/model-provenance.json": {
           "emittedPath": "teaql/model-provenance.json",
           "sha256": "37dfcdffaeb5cabe6ffb233212ec4afec39d19c242b3cbcee53e3634c3715a2e"
         }

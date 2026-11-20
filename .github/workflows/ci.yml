@@ -88,10 +88,10 @@ jobs:
           -Dformats=HTML,JSON
       - name: OWASP Dependency Check standalone generated examples
         run: |
-          mvn -B -f examples/school-management/lib/pom.xml install -DskipTests
+          mvn -B -f examples/school-management/java-lib-core/lib/pom.xml install -DskipTests
           for pom in \
-            examples/school-management/lib/pom.xml \
-            examples/school-management/pom.xml \
+            examples/school-management/java-lib-core/lib/pom.xml \
+            examples/school-management/java-app-console/pom.xml \
             examples/order-management/java-lib-core/lib/pom.xml; do
             mvn -B -f "$pom" org.owasp:dependency-check-maven:13.0.0:check \
               -DdataDirectory=${{ runner.temp }}/teaql-odc-data \

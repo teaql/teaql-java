@@ -42,8 +42,8 @@ mvn -q -f examples/conformance/pom.xml spring-boot:run \
   -Dspring-boot.run.arguments="--spring.main.web-application-type=none --spring.datasource.url=jdbc:sqlite:$verification_dir/conformance.db"
 TEAQL_JAVA_SPRING_EVIDENCE_DIR="$evidence_dir/spring-transactions" \
   node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/conformance/spring-transactions/verify-local.cjs"
-mvn -q -f examples/school-management/lib/pom.xml install -DskipTests
-mvn -q -f examples/school-management/pom.xml spring-boot:run \
+mvn -q -f examples/school-management/java-lib-core/lib/pom.xml install -DskipTests
+mvn -q -f examples/school-management/java-app-console/pom.xml spring-boot:run \
   -Dspring-boot.run.arguments="--spring.main.web-application-type=none --spring.datasource.url=jdbc:sqlite:$verification_dir/school-management.db"
 mvn -q -f examples/order-management/pom.xml install -DskipTests
 # The console resolves .local/order.db from its process directory. Never mutate
