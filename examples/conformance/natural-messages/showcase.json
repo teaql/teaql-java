@@ -39,7 +39,8 @@
   "workspace": {
     "applicationOwnedFiles": [
       "pom.xml",
-      "showcase-tests/io/teaql/examples/naturalmessages/GeneratedNaturalMessagesTest.java"
+      "showcase-tests/io/teaql/examples/naturalmessages/GeneratedNaturalMessagesTest.java",
+      "Makefile"
     ],
     "generatedFilesManifestSHA256": "4c158e97fa019cace80ded4119dcc0fa26c4dc397ac1e6f2d78ff32389bafa6a",
     "root": "java-app-console",

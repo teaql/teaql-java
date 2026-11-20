@@ -18,11 +18,11 @@ generate-lib:
 	./gen-lib.sh || echo "Please ensure gen-lib.sh exists or run teaql code generator manually"
 
 build:
-	mvn -f lib/pom.xml install -DskipTests
+	mvn -f ../java-lib-core/lib/pom.xml install -DskipTests
 	mvn clean package -DskipTests
 
 test:
-	mvn -f lib/pom.xml install -DskipTests
+	mvn -f ../java-lib-core/lib/pom.xml install -DskipTests
 	mvn test
 
 run: build

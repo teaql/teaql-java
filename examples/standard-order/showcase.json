@@ -40,7 +40,8 @@
     "applicationOwnedFiles": [
       "pom.xml",
       "src/test/java/com/example/requesttreeorderservice/StandardOrderGraphStreamTelemetryTest.java",
-      "src/test/java/com/example/requesttreeorderservice/StandardOrderTelemetryTest.java"
+      "src/test/java/com/example/requesttreeorderservice/StandardOrderTelemetryTest.java",
+      "Makefile"
     ],
     "generatedFilesManifestSHA256": "0f6b10bd4045061b0caf8f1434c305b3bac40e34cfb7a93463242c99a85b87cd",
     "root": "java-app-console",

@@ -56,7 +56,8 @@
       "showcase-tests/io/teaql/examples/fixe/PostFixExampleTest.java",
       "showcase-tests/io/teaql/examples/fixe/RequestIntentExampleTest.java",
       "showcase-tests/io/teaql/examples/fixe/ReviewedPlanExampleTest.java",
-      "showcase-tests/io/teaql/examples/fixe/PartialAncestorExampleTest.java"
+      "showcase-tests/io/teaql/examples/fixe/PartialAncestorExampleTest.java",
+      "Makefile"
     ],
     "generatedFilesManifestSHA256": "392d8007c9b153e118e0615ea854f9feebf073cd17ebbdd755ac925850e4d116",
     "root": "java-app-console",

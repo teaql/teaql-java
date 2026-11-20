@@ -41,7 +41,8 @@
   ],
   "workspace": {
     "applicationOwnedFiles": [
-      "pom.xml"
+      "pom.xml",
+      "Makefile"
     ],
     "generatedFilesManifestSHA256": "9334c3c2f4c242922eed10f4dc1dbca1897c02add8118477e9ec6c3ac4d5034c",
     "root": "java-app-console",

@@ -39,7 +39,8 @@
   "workspace": {
     "applicationOwnedFiles": [
       "pom.xml",
-      "src/test/java/com/teaql/merchantorderprivacyservice/MerchantOrderPrivacyTest.java"
+      "src/test/java/com/teaql/merchantorderprivacyservice/MerchantOrderPrivacyTest.java",
+      "Makefile"
     ],
     "generatedFilesManifestSHA256": "80da3356c9c341da63759603e86f6d6694bc1f974e0110bd3a298fa38553da82",
     "root": "java-app-console",

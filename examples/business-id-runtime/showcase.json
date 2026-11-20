@@ -38,7 +38,8 @@
   "workspace": {
     "applicationOwnedFiles": [
       "src/main/java/com/teaql/purchaseordernumbering/App.java",
-      "src/main/java/com/teaql/purchaseordernumbering/PurchaseOrderNumbering.java"
+      "src/main/java/com/teaql/purchaseordernumbering/PurchaseOrderNumbering.java",
+      "Makefile"
     ],
     "generatedFilesManifestSHA256": "9ab05c103dd98dc0d7fc51f06cb2f7f8a4cef03524711b74101853c1dbbba719",
     "root": "java-app-console",

@@ -39,7 +39,8 @@
   "workspace": {
     "applicationOwnedFiles": [
       "pom.xml",
-      "src/test/java/com/teaql/ordereditreference/OrderReferenceEditorTest.java"
+      "src/test/java/com/teaql/ordereditreference/OrderReferenceEditorTest.java",
+      "Makefile"
     ],
     "generatedFilesManifestSHA256": "1a34d54140420df516ae53cca73e99dd5107187dddef4679221b36aabc883f73",
     "root": "java-app-console",
