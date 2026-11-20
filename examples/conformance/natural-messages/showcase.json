@@ -21,9 +21,17 @@
     "receipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/catalog-natural-generation/receipt.json",
     "receiptSHA256": "c321d972c75d8f73f7f62525162f64337461996c487f3ab3abdaef25cba5e23a"
   },
+  "qualification": {
+    "businessReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-natural-catalog-native-scopes/runtime/natural-messages/receipt.json",
+    "businessReceiptSHA256": "e1f517766eb8fc9541294313caa20e840f5bfcd7c1c28daa972f9eeb72e5c609",
+    "nativeReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-natural-catalog-native-scopes/receipt.json",
+    "nativeReceiptSHA256": "d9fdf291ed960529dafb63ed3da8970474353ee6a8cbfbd0ce98e8f33b539a4b",
+    "remainingFullRuntimeInventory": true,
+    "sourceCommit": "b6d9f0944d637462713ee029295adb0c12684e26"
+  },
   "scene": "Catalog entry validation with natural messages, exact locations and private values",
   "schema": "teaql.model-workspace-showcase/v1",
-  "status": "implemented-pending-native-qualification",
+  "status": "focused-verified",
   "verification": [
     "node",
     "verify-local.cjs"
