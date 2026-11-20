@@ -11,9 +11,7 @@
     <relativePath>../../../pom.xml</relativePath>
   </parent>
 
-  <groupId>com.example</groupId>
-  <artifactId>request-tree-order-service</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <artifactId>teaql-standard-order-example</artifactId>
   <packaging>jar</packaging>
 
   <properties>
