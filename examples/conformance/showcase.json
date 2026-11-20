@@ -30,7 +30,8 @@
     "sourceCommit": "af7e8b4ada69c18c07f08b1dcf5a3b120bfc6fc3"
   },
   "relatedShowcases": [
-    "natural-messages/showcase.json"
+    "natural-messages/showcase.json",
+    "context-derived/showcase.json"
   ],
   "scene": "WorkItem governed lifecycle and workspace-owned Spring transaction business scenarios",
   "schema": "teaql.model-workspace-showcase/v1",
