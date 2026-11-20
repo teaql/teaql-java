@@ -375,8 +375,8 @@
             <modules>
                 <module>examples/school-management/java-lib-core/lib</module>
                 <module>examples/school-management/java-app-console</module>
-                <module>examples/trace-chain/lib</module>
-                <module>examples/trace-chain</module>
+                <module>examples/trace-chain/java-lib-core/lib</module>
+                <module>examples/trace-chain/java-app-console</module>
                 <module>examples/standard-order/java-lib-core/lib</module>
                 <module>examples/standard-order/java-app-console</module>
             </modules>

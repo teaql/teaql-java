@@ -9,13 +9,13 @@ run_dir="$(cd "$run_dir" && pwd)"
 database="$run_dir/trace-chain.db"
 
 library_manifest() {
-  (cd "$example_dir" && find lib -type f ! -path '*/target/*' -print0 |
+  (cd "$example_dir" && find java-lib-core -type f ! -path '*/target/*' -print0 |
     sort -z | xargs -0 sha256sum)
 }
 library_manifest > "$run_dir/library-before.sha256"
 
 # Install only from this checkout. No candidate download, deploy, tag or publication.
-mvn -B -f "$repo_dir/pom.xml" -Pruntime-examples -pl examples/trace-chain -am \
+mvn -B -f "$repo_dir/pom.xml" -Pruntime-examples -pl examples/trace-chain/java-app-console -am \
   install -DskipTests > "$run_dir/local-source-install.log" 2>&1
 
 markers=(
@@ -44,7 +44,7 @@ markers=(
 )
 for repetition in 1 2; do
   log="$run_dir/run-$repetition.log"
-  if ! mvn -B -f "$example_dir/pom.xml" -Dtest=GeneratedTraceChainExampleTest,GeneratedFacetTraceExampleTest,GeneratedReverseFacetTraceExampleTest,GeneratedAggregateTraceExampleTest \
+  if ! mvn -B -f "$example_dir/java-app-console/pom.xml" -Dtest=GeneratedTraceChainExampleTest,GeneratedFacetTraceExampleTest,GeneratedReverseFacetTraceExampleTest,GeneratedAggregateTraceExampleTest \
     "-Dteaql.trace.database=$database" test > "$log" 2>&1; then
     tail -n 100 "$log" >&2
     exit 1
