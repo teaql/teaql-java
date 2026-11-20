@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root name="freight-quote-settlement" org="example" data_service="sqlite" _module_key="root">
+  <platform _name="Dispatch Platform" _module="Freight" _module_key="freight"
+            name="Harbor Freight Desk"/>
+  <freight_quote _name="Freight Quote" _module="Freight" _module_key="freight"
+                 platform="platform()" reference="SEA-001"
+                 amount="number()" shipment_number="long()" package_count="integer()"
+                 delivery_date="date()" pickup_time="time()" quoted_at="dateTime()"
+                 instructions="string()?"/>
+</root>
