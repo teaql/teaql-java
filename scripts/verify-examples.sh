@@ -28,6 +28,7 @@ node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/inheritance-save/verify.
   --output "$evidence_dir/inheritance-save"
 bash examples/object-storage/verify.sh
 bash examples/http-resilience/verify.sh
+TEAQL_SUPPLIER_SYNC_EVIDENCE_DIR="$evidence_dir/supplier-order-sync" bash examples/http-resilience/verify-sync.sh
 mvn -q -DskipTests install
 mvn -q -pl teaql-sqlite \
   -Dtest=DerivedQueryTraceSqliteTest,LikeIntentPrivacySqliteTest,TypedIntentPrivacySqliteTest test

@@ -1,0 +1,40 @@
+{
+  "generatedDomainLibraryHandEdited": false,
+  "goalId": "java:examples/http-resilience",
+  "library": {
+    "generatedFilesManifestSHA256": "f84ffbb2f28d65b3a28f71e75b00129d766038dfd1838c642e3b6e3513586f6f",
+    "root": "java-lib-core",
+    "scope": "java-lib-core"
+  },
+  "model": {
+    "path": "model.xml",
+    "sha256": "5d76e300a887915d0233def56cf14b4c58cf67711e347a6f4acb61fb274518d5"
+  },
+  "producer": {
+    "generator": {
+      "artifactKind": "qualified source build",
+      "jarSHA256": "029f602cf0e2de4ec0910495c340fbeb41f11772b6aca875569f498811158e7d",
+      "qualificationReceiptSHA256": "1012520de60d49cfc1e45c7e08fcf204dd2db36a163909e1e36752065a31047a",
+      "sourceCommit": "99d6bde2351d79b7d8b1b1c5cbc78c5dc777b6f2",
+      "tag": "unreleased-source-99d6bde2"
+    },
+    "receipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/supplier-order-sync-generation/receipt.json",
+    "receiptSHA256": "0910413b97e26c19505f98e64bb0adaecbd5cacb09936c7daeaf810757838747"
+  },
+  "scene": "Reconcile a supplier order by applying only a matching response for that order",
+  "schema": "teaql.model-workspace-showcase/v1",
+  "status": "implemented-pending-native-qualification",
+  "verification": [
+    "bash",
+    "examples/http-resilience/verify-sync.sh"
+  ],
+  "workspace": {
+    "applicationOwnedFiles": [
+      "pom.xml",
+      "src/test/java/com/teaql/supplierordersyncservice/SupplierOrderSyncTest.java"
+    ],
+    "generatedFilesManifestSHA256": "e3eb258f2b8cdf6fec76425ed308d03b9f2193632ba785b1d558a80cf76b6dca",
+    "root": "java-app-console",
+    "scope": "java-app-console"
+  }
+}
