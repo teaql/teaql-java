@@ -45,10 +45,7 @@ TEAQL_JAVA_SPRING_EVIDENCE_DIR="$evidence_dir/spring-transactions" \
 mvn -q -f examples/school-management/java-lib-core/lib/pom.xml install -DskipTests
 mvn -q -f examples/school-management/java-app-console/pom.xml spring-boot:run \
   -Dspring-boot.run.arguments="--spring.main.web-application-type=none --spring.datasource.url=jdbc:sqlite:$verification_dir/school-management.db"
-mvn -q -f examples/order-management/pom.xml install -DskipTests
-# The console resolves .local/order.db from its process directory. Never mutate
-# the developer's retained database while verifying the runtime checkout.
-(cd "$verification_dir" && mvn -q -f "$repo/examples/order-management/pom.xml" exec:java -pl java-app-console)
+TEAQL_ORDER_EVIDENCE_DIR="$evidence_dir/order-management" bash examples/order-management/verify.sh
 bash examples/trace-chain/verify.sh
 bash examples/trace-chain/verify-standard-telemetry.sh
 bash examples/standard-order/verify.sh
