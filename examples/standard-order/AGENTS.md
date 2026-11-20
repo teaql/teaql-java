@@ -1,6 +1,6 @@
 # Java Standard Order Example Rules
 
-Implement only application-owned code. The files under `generated/lib` are
+Implement only application-owned code. The files under `java-lib-core` and `java-app-console/lib` are
 read-only. Discover generated APIs using progressive model-aware Assist with
 `models/model.xml`; never read generated source to discover methods.
 
