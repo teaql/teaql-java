@@ -1,0 +1,39 @@
+{
+  "generatedDomainLibraryHandEdited": false,
+  "goalId": "java:examples/inheritance-save",
+  "library": {
+    "generatedFilesManifestSHA256": "ed0fd10f89d7b6dd9fad3c833d68811536d2fabd7981605bb8a09383c2a1ee99",
+    "root": "java-lib-core",
+    "scope": "java-lib-core"
+  },
+  "model": {
+    "path": "model.xml",
+    "sha256": "9ed75f14ac524f18ccaba59be8c7261da203d2472bbe5d1f88dfc16d8b203d01"
+  },
+  "producer": {
+    "generator": {
+      "artifactKind": "qualified source build",
+      "jarSHA256": "029f602cf0e2de4ec0910495c340fbeb41f11772b6aca875569f498811158e7d",
+      "qualificationReceiptSHA256": "1012520de60d49cfc1e45c7e08fcf204dd2db36a163909e1e36752065a31047a",
+      "sourceCommit": "99d6bde2351d79b7d8b1b1c5cbc78c5dc777b6f2",
+      "tag": "unreleased-source-99d6bde2"
+    },
+    "receipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/school-inheritance-and-partial-views-generation/receipt.json",
+    "receiptSHA256": "7c8fb5f6c6619d7165638972cdbbe267d68e50cadf33d70065b45a52c68cf84f"
+  },
+  "scene": "Edit inherited school and academy fields through the same identity",
+  "schema": "teaql.model-workspace-showcase/v1",
+  "status": "implemented-pending-native-qualification",
+  "verification": [
+    "node",
+    "examples/inheritance-save/verify.cjs"
+  ],
+  "workspace": {
+    "applicationOwnedFiles": [
+      "pom.xml"
+    ],
+    "generatedFilesManifestSHA256": "c3cf5b1379d400f885c7926a1d849c3459bfdda20933cf97d4bbaab79babbb13",
+    "root": "java-app-console",
+    "scope": "java-app-console"
+  }
+}
