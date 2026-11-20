@@ -21,9 +21,17 @@
     "receipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/context-field-qualified-generation/receipt.json",
     "receiptSHA256": "fd8c37aeb5622a41a2dd8768724e432d5f97b58bf720f39217a8f31a8f4c1d90"
   },
+  "qualification": {
+    "businessReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-context-field-native-scopes/runtime/context-derived/receipt.json",
+    "businessReceiptSHA256": "8766ddceb40a1d185d57163914ea457cf327951f1af4460a50171d4441ccb7c5",
+    "nativeReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-context-field-native-scopes/receipt.json",
+    "nativeReceiptSHA256": "046c9511369908719f6640d002c9d14d3ffa76e168b4ebc70adbe66e4ad60c31",
+    "remainingFullRuntimeInventory": true,
+    "sourceCommit": "87b3225d1dc13abb5a5308b22643c501295b0b41"
+  },
   "scene": "Catalog entry edits with trusted Context defaults, no-op saves and rollback",
   "schema": "teaql.model-workspace-showcase/v1",
-  "status": "implemented-pending-native-qualification",
+  "status": "focused-verified",
   "verification": [
     "node",
     "verify-local.cjs"
