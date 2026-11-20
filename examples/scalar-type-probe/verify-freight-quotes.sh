@@ -26,7 +26,7 @@ git -C "$repo" archive HEAD | tar -xf - -C "$source"
 app="$source/examples/scalar-type-probe/java-app-console"
 library="$source/examples/scalar-type-probe/java-lib-core/lib"
 cp "$app/pom.xml" "$evidence/workspace-pom.xml"
-diff -qr "$app/lib/src" "$library/src"
+[[ ! -e "$app/lib" ]]
 cat > "$scratch/pom.xml" <<'XML'
 <project xmlns="http://maven.apache.org/POM/4.0.0">
   <modelVersion>4.0.0</modelVersion>

@@ -1,7 +1,7 @@
 # Java Standard Order Example Rules
 
-Implement only application-owned code. The files under `java-lib-core` and `java-app-console/lib` are
-read-only. Discover generated APIs using progressive model-aware Assist with
+Implement only application-owned code. The workspace uses the sibling `java-lib-core/lib` Maven
+module as its read-only generated domain library. Discover generated APIs using progressive model-aware Assist with
 `models/model.xml`; never read generated source to discover methods.
 
 ```bash

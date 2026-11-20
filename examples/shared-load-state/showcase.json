@@ -43,6 +43,7 @@
     ],
     "generatedFilesManifestSHA256": "d775132150c44c4ad87a568c69c62c71d9d4a8454e80977b020c9a9c1c761b4f",
     "root": "java-app-console",
-    "scope": "java-app-console"
+    "scope": "java-app-console",
+    "useSiblingMavenLibrary": true
   }
 }

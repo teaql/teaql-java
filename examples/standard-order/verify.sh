@@ -19,7 +19,7 @@ else
   unset TEAQL_TELEMETRY_ENABLED TEAQL_TELEMETRY_SERVICE_NAME TEAQL_TELEMETRY_OTLP_ENDPOINT
 fi
 hash_library() {
-  (cd "$example" && find java-lib-core java-app-console/lib -type f \
+  (cd "$example" && find java-lib-core -type f \
     ! -path '*/target/*' -print0 | sort -z | xargs -0 sha256sum)
 }
 hash_library > "$evidence/generated-before.sha256"
