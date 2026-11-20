@@ -12,6 +12,7 @@ trap cleanup EXIT
 node "$repo/scripts/prepare-example-isolation.cjs" "$build_dir" "$TEAQL_CODEGEN_DIR" "$evidence_dir"
 runtime_version="$(node -e 'const fs=require("fs");process.stdout.write(fs.readFileSync(process.argv[1],"utf8").match(/<version>([^<]+)<\/version>/)[1])' "$repo/pom.xml")"
 export MAVEN_OPTS="${MAVEN_OPTS:-} -Dmaven.repo.local=$build_dir/maven -Dteaql.version=$runtime_version"
+export TEAQL_MAVEN_DEPENDENCY_CACHE="$build_dir/maven"
 echo "Native example artifacts use an isolated disposable Maven repository; compact evidence: $evidence_dir"
 expected=(business-id-runtime conformance exact-decimal fix-e-alignment http-resilience inheritance-save object-storage order-management round-trip-reference-runtime scalar-type-probe school-management security-foundations shared-load-state standard-order trace-chain)
 mapfile -t actual < <(find "$repo/examples" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
