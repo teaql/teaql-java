@@ -735,6 +735,8 @@ public class GeneratedTraceChainExampleTest {
                 .comment("what: inspect the stored deletion version")
                 .purpose("why: prove version-aware deletion, not physical removal").executeForOne(fixture.context);
         assertEquals(Long.valueOf(-2), E.orderItem(deleted).getVersion().eval());
+        System.out.printf("JAVA_NORMATIVE_ORDER order=%d payment=%d attempt=%d shipment=%d%n",
+                graph.order.getId(), graph.payment.getId(), graph.attempt.getId(), graph.shipment.getId());
         System.out.println("PASS Java generated normative Trace Chain graph: six physical writes and committed audits");
     }
 
