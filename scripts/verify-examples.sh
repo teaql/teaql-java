@@ -50,7 +50,7 @@ mvn -q -f examples/school-management/java-app-console/pom.xml spring-boot:run \
 TEAQL_ORDER_EVIDENCE_DIR="$evidence_dir/order-management" bash examples/order-management/verify.sh
 bash examples/trace-chain/verify.sh
 bash examples/trace-chain/verify-standard-telemetry.sh
-bash examples/standard-order/verify.sh
+TEAQL_JAVA_STANDARD_ORDER_EVIDENCE_DIR="$verification_dir/standard-order" bash examples/standard-order/verify.sh
 TEAQL_CODEGEN_DIR="$build_dir/generator" bash examples/shared-load-state/verify.sh --generate
 TEAQL_JAVA_EXACT_EVIDENCE_DIR="$evidence_dir/exact-decimal" \
   bash "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/exact-decimal/verify.sh"
