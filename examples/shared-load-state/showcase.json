@@ -1,0 +1,40 @@
+{
+  "generatedDomainLibraryHandEdited": false,
+  "goalId": "java:examples/shared-load-state",
+  "library": {
+    "generatedFilesManifestSHA256": "ae532b2a9dc6810c0065ae17179ba3c5d8ff5c9be905673361b44e663a169981",
+    "root": "java-lib-core",
+    "scope": "java-lib-core"
+  },
+  "model": {
+    "path": "model.xml",
+    "sha256": "0664ef5b32b1126100676782ec5c6c2d56e9e491920bfdfacadb4790a66b9ca9"
+  },
+  "producer": {
+    "generator": {
+      "artifactKind": "qualified source build",
+      "jarSHA256": "029f602cf0e2de4ec0910495c340fbeb41f11772b6aca875569f498811158e7d",
+      "qualificationReceiptSHA256": "1012520de60d49cfc1e45c7e08fcf204dd2db36a163909e1e36752065a31047a",
+      "sourceCommit": "99d6bde2351d79b7d8b1b1c5cbc78c5dc777b6f2",
+      "tag": "unreleased-source-99d6bde2"
+    },
+    "receipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/school-inheritance-and-partial-views-generation/receipt.json",
+    "receiptSHA256": "7c8fb5f6c6619d7165638972cdbbe267d68e50cadf33d70065b45a52c68cf84f"
+  },
+  "scene": "Read partial school records and preserve unseen business fields",
+  "schema": "teaql.model-workspace-showcase/v1",
+  "status": "implemented-pending-native-qualification",
+  "verification": [
+    "bash",
+    "examples/shared-load-state/verify.sh",
+    "--workspace"
+  ],
+  "workspace": {
+    "applicationOwnedFiles": [
+      "pom.xml"
+    ],
+    "generatedFilesManifestSHA256": "d775132150c44c4ad87a568c69c62c71d9d4a8454e80977b020c9a9c1c761b4f",
+    "root": "java-app-console",
+    "scope": "java-app-console"
+  }
+}

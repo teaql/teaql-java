@@ -3,16 +3,26 @@ set -euo pipefail
 example_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 runtime_dir="$(cd "$example_dir/../.." && pwd)"
 generate=false
+workspace=false
 wide=false
 inheritance=false
 for argument in "$@"; do
   case "$argument" in
+    --workspace) workspace=true ;;
     --generate) generate=true ;;
     --wide) wide=true ;;
     --inheritance) inheritance=true ;;
-    *) printf 'Usage: bash verify.sh [--generate] [--wide] [--inheritance]\n' >&2; exit 2 ;;
+    *) printf 'Usage: bash verify.sh --workspace | [--generate] [--wide] [--inheritance]\n' >&2; exit 2 ;;
   esac
 done
+fixture_dir="$example_dir/target/generated"
+if [[ "$workspace" == true ]]; then
+  if [[ "$generate" == true || "$wide" == true || "$inheritance" == true ]]; then
+    printf 'Choose the narrow workspace or a separate generated fixture.\n' >&2
+    exit 2
+  fi
+  fixture_dir="$example_dir/java-lib-core"
+fi
 if [[ "$generate" == true ]]; then
   : "${TEAQL_CODEGEN_DIR:?Set TEAQL_CODEGEN_DIR to the local generator checkout}"
   mvn -q -f "$TEAQL_CODEGEN_DIR/pom.xml" -pl generator -am \
@@ -21,8 +31,8 @@ if [[ "$generate" == true ]]; then
     "-Dteaql.java.dir=$runtime_dir" test
 fi
 fixture_mode=narrow
-if [[ -f "$example_dir/target/generated/fixture-mode.txt" ]]; then
-  IFS= read -r fixture_mode <"$example_dir/target/generated/fixture-mode.txt"
+if [[ -f "$fixture_dir/fixture-mode.txt" ]]; then
+  IFS= read -r fixture_mode <"$fixture_dir/fixture-mode.txt"
 fi
 if [[ "$wide" == true && "$fixture_mode" != wide ]]; then
   printf 'Wide verification requires a newly generated wide fixture.\n' >&2
@@ -34,8 +44,8 @@ case "$fixture_mode" in
   *) printf 'Invalid generated fixture mode\n' >&2; exit 1 ;;
 esac
 fixture_inheritance=false
-if [[ -f "$example_dir/target/generated/fixture-inheritance.txt" ]]; then
-  IFS= read -r fixture_inheritance <"$example_dir/target/generated/fixture-inheritance.txt"
+if [[ -f "$fixture_dir/fixture-inheritance.txt" ]]; then
+  IFS= read -r fixture_inheritance <"$fixture_dir/fixture-inheritance.txt"
 fi
 if [[ "$inheritance" == true && "$fixture_inheritance" != true ]]; then
   printf 'Inheritance verification requires a newly generated inherited fixture.\n' >&2
@@ -47,25 +57,41 @@ case "$fixture_inheritance" in
   false) ;;
   *) printf 'Invalid generated inheritance mode\n' >&2; exit 1 ;;
 esac
-if [[ ! -f "$example_dir/target/generated/lib/pom.xml" ]]; then
+if [[ ! -f "$fixture_dir/lib/pom.xml" ]]; then
   printf 'Generate first with TEAQL_CODEGEN_DIR=<local generator> bash verify.sh --generate\n' >&2
   exit 1
 fi
-run_dir="$(mktemp -d -t teaql-java-generated-state.XXXXXXXX)"
-printf 'Evidence retained at %s\n' "$run_dir"
+if [[ -n "${TEAQL_LOAD_STATE_EVIDENCE_DIR:-}" ]]; then
+  run_dir="$TEAQL_LOAD_STATE_EVIDENCE_DIR"
+  [[ "$run_dir" == /* ]]
+  mkdir -- "$run_dir"
+else
+  run_dir="$(mktemp -d -t teaql-generated-state.XXXXXXXX)"
+  if [[ "$workspace" == true ]]; then
+    trap 'rm -rf -- "$run_dir"' EXIT
+  fi
+fi
+printf 'School load-state evidence: %s\n' "$run_dir"
 export TEAQL_LOCAL_RUNTIME_ROOT="$runtime_dir"
 export TEAQL_LOAD_STATE_DATABASE="$run_dir/school.sqlite"
-rg --files --hidden --no-ignore "$example_dir/target/generated/lib/src" -0 |
+rg --files --hidden --no-ignore "$fixture_dir/lib/src" -0 |
   sort -z | xargs -0 sha256sum >"$run_dir/generated-source.sha256"
+reactor=(mvn -q -f "$runtime_dir/pom.xml" -Pshared-load-state-example -pl examples/shared-load-state -am)
+if [[ "$workspace" == true ]]; then
+  reactor=(bash "$example_dir/workspace-reactor.sh")
+fi
 for round in first second; do
   export TEAQL_LOAD_STATE_ROUND="$round"
-  mvn -q -f "$runtime_dir/pom.xml" -Pshared-load-state-example \
-    -pl examples/shared-load-state -am \
+  "${reactor[@]}" \
     "-Dtest=$test_targets" "-Dteaql.loadState.inheritance=$fixture_inheritance" -Dsurefire.failIfNoSpecifiedTests=false test \
     >"$run_dir/$round.log" 2>&1 || {
       tail -80 "$run_dir/$round.log" >&2
       exit 1
     }
+  if [[ "$workspace" == true ]]; then
+    rg -Fx -- "LOCAL_CLASS com.example.schoolmanagementservice.school.School $fixture_dir/lib/target/classes" "$run_dir/$round.log"
+    cp "$example_dir/java-app-console/target/surefire-reports/"TEST-*.xml "$run_dir/"
+  fi
   rg -F "PASS generated Java indexed Q/E/Checker/create/update/delete and snapshot sharing $round" "$run_dir/$round.log"
   rg -F "PASS generated Java typed native JSON roundtrip and snapshot sharing $round" "$run_dir/$round.log"
   rg -F "PASS generated Java reserved runtime JSON keys reject without provider entry or value leakage" "$run_dir/$round.log"
