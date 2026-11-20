@@ -24,9 +24,17 @@
     "receipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-v430-candidate/receipt.json",
     "receiptSHA256": "9bf2a08fa9c5bec0d9b1a2e1420044ffdd6bc71c6a1a09ce70d81d1cf0cdbd0a"
   },
+  "qualification": {
+    "businessReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-trace-chain-identified-order-graphs/runtime/trace-chain/receipt.json",
+    "businessReceiptSHA256": "355c2885c7f05ec9709a4e9d7d04b2cdfdd011ca0260a8f1a3f06ba61f543adf",
+    "nativeReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-trace-chain-identified-order-graphs/receipt.json",
+    "nativeReceiptSHA256": "3f41d49139cd3a9f1915599ce58805d92285863152a831e08913845c63dfb115",
+    "remainingFullRuntimeInventory": true,
+    "sourceCommit": "175650aeec08aae80e74384eb3d7bd9731156b33"
+  },
   "scene": "Save, roll back and replay customer order graphs with shared products, payment and shipment trace evidence",
   "schema": "teaql.model-workspace-showcase/v1",
-  "status": "implemented-pending-native-qualification",
+  "status": "focused-verified",
   "verification": [
     "bash",
     "examples/trace-chain/verify.sh"
