@@ -21,9 +21,17 @@
     "receipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/work-item-generation/receipt.json",
     "receiptSHA256": "99afd2b0806d9aec86d271cd5154f9447b895e9f3a5e69f2e95468bcd8a1644a"
   },
+  "qualification": {
+    "businessReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-work-item-native-scopes/runtime/conformance/business-receipt.json",
+    "businessReceiptSHA256": "e34a8d4de0960105de315925e610fed0520e3de4841987bfa0091244afbf8d56",
+    "nativeReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-work-item-native-scopes/receipt.json",
+    "nativeReceiptSHA256": "bbb8e47e2d37b6231bcae00959fc6ef1303fcc13b0e75904e3ba81f270a400c4",
+    "remainingFullRuntimeInventory": true,
+    "sourceCommit": "af7e8b4ada69c18c07f08b1dcf5a3b120bfc6fc3"
+  },
   "scene": "WorkItem governed lifecycle and workspace-owned Spring transaction business scenarios",
   "schema": "teaql.model-workspace-showcase/v1",
-  "status": "implemented-pending-native-qualification",
+  "status": "focused-verified",
   "verification": [
     "bash",
     "verify.sh"
