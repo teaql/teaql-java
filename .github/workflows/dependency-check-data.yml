@@ -30,7 +30,7 @@ jobs:
         run: echo "value=$(date -u +%Y%m%d)" >> "$GITHUB_OUTPUT"
       - name: Restore Dependency Check data
         id: odc-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ${{ runner.temp }}/teaql-odc-data
           key: odc-v13.0.0-${{ runner.os }}-${{ steps.odc-day.outputs.value }}
@@ -73,7 +73,7 @@ jobs:
           retention-days: 3
       - name: Save refreshed Dependency Check data
         if: success() && steps.odc-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ${{ runner.temp }}/teaql-odc-data
           key: odc-v13.0.0-${{ runner.os }}-${{ steps.odc-day.outputs.value }}
