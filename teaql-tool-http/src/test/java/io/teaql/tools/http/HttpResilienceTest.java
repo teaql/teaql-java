@@ -350,15 +350,21 @@ public class HttpResilienceTest {
 
     @Test public void postedRequestWithStalledResponseBodyIsAmbiguous() {
         JdkHttpRequestService service = new JdkHttpRequestService(java.util.List.of(profile()
-                .budgets(Duration.ofMillis(200), Duration.ofMillis(120), Duration.ofMillis(180))
+                .budgets(Duration.ofSeconds(2), Duration.ofSeconds(2), Duration.ofSeconds(2))
                 .build()));
         UserContext context = context(service);
-        HttpRequestService.Call call = HttpRequestService.Call.postText("orders", "slowbody",
+        assertEquals(200, service.execute(context, get("ready")).status());
+        HttpRequestService.Call call = HttpRequestService.Call.postText("orders", "stalled-post",
                 "PRIVATE_BODY_CANARY", "submit payment", "confirm external effect");
         int before = server.requests.get();
-        assertEquals(HttpRequestFailure.Code.AMBIGUOUS_OUTCOME,
-                assertThrows(HttpRequestFailure.class, () -> service.execute(context, call)).code());
-        assertEquals(before + 1, server.requests.get());
+        try {
+            assertEquals(HttpRequestFailure.Code.AMBIGUOUS_OUTCOME,
+                    assertThrows(HttpRequestFailure.class, () -> service.execute(context, call)).code());
+            assertEquals("fixture flushed a partial response before timeout", 0L, server.stalledPostStarted.getCount());
+            assertEquals(before + 1, server.requests.get());
+        } finally {
+            server.releaseStalledPost.countDown();
+        }
     }
 
     @Test public void postBudgetExpiryBeforeSendRemainsTimeoutWithoutRetry() {
@@ -781,6 +787,8 @@ public class HttpResilienceTest {
         private final CountDownLatch overflowReleased = new CountDownLatch(1);
         private final CountDownLatch gatedEntered = new CountDownLatch(2);
         private final CountDownLatch releaseGated = new CountDownLatch(1);
+        private final CountDownLatch stalledPostStarted = new CountDownLatch(1);
+        private final CountDownLatch releaseStalledPost = new CountDownLatch(1);
         private volatile boolean closed;
         Fixture() throws IOException {
             socket = new ServerSocket(0, 32, InetAddress.getLoopbackAddress());
@@ -820,7 +828,8 @@ public class HttpResilienceTest {
                     }
                     // Drain the request before replying. Closing a socket with unread POST bytes
                     // can reset an otherwise valid response on Windows TCP stacks.
-                    if (target.contains("/retry-post") || target.contains("/private-response")) {
+                    if (target.contains("/retry-post") || target.contains("/private-response")
+                            || target.endsWith("/stalled-post")) {
                         char[] body = new char[contentLength];
                         int offset = 0;
                         while (offset < body.length) {
@@ -874,7 +883,13 @@ public class HttpResilienceTest {
                             + "\r\nConnection: close\r\n"
                             + (status == 302 ? "Location: https://elsewhere.example/secret\r\n" : "") + "\r\n";
                     client.getOutputStream().write(head.getBytes(StandardCharsets.UTF_8));
-                    if (target.contains("/slowbody")) {
+                    if (target.endsWith("/stalled-post")) {
+                        client.getOutputStream().write(body, 0, 1);
+                        client.getOutputStream().flush();
+                        stalledPostStarted.countDown();
+                        if (!releaseStalledPost.await(10, TimeUnit.SECONDS)) return;
+                        client.getOutputStream().write(body, 1, body.length - 1);
+                    } else if (target.contains("/slowbody")) {
                         client.getOutputStream().write(body, 0, 1);
                         client.getOutputStream().flush();
                         Thread.sleep(300);
