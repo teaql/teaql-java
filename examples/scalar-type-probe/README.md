@@ -1,4 +1,18 @@
-# Generated canonical naming / SQLite probe
+# Freight quote settlement
+
+The generated Java console records three freight bids, revises the offshore
+rate and queries the exact total. Java's model represents the dispatch
+timestamp as a zone-free local date and time. Generated Q, E and the typed
+JSON codec preserve that value, the exact amount and the full shipment
+number. Missing required amounts are refused before an accepted revision
+can change. A second process verifies that revision on the same SQLite file.
+
+`freight-quote.xml` owns the model. The source-paired verifier builds the
+`java-lib-core` domain library and `java-app-console` workspace with the
+local runtime, then runs all original scalar and JSON checks. The canonical
+inventory launches `examples/scalar-type-probe/verify-freight-quotes.sh`.
+
+## Generated canonical naming and SQLite calibration
 
 Run `node examples/scalar-type-probe/verify-local.cjs` from this runtime checkout.
 The example always compiles repository-local runtime modules. It never installs

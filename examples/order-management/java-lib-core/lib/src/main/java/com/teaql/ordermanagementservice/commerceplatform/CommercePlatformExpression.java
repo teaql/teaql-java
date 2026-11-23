@@ -47,43 +47,43 @@ public class CommercePlatformExpression<T, E, U extends CommercePlatform> extend
 
 
     public Expression<T, String> getName(){
-       return apply(CommercePlatform::getName);
+       return loaded("name", "getName", CommercePlatform::getName);
     }
     public CommercePlatformExpression<T, U, U> updateName(String name){
        return new CommercePlatformExpression(this, $it ->  ((CommercePlatform)$it).updateName(name));
     }
 
     public Expression<T, LocalDateTime> getCreateTime(){
-       return apply(CommercePlatform::getCreateTime);
+       return loaded("create_time", "getCreateTime", CommercePlatform::getCreateTime);
     }
     public CommercePlatformExpression<T, U, U> updateCreateTime(LocalDateTime createTime){
        return new CommercePlatformExpression(this, $it ->  ((CommercePlatform)$it).updateCreateTime(createTime));
     }
 
     public Expression<T, LocalDateTime> getUpdateTime(){
-       return apply(CommercePlatform::getUpdateTime);
+       return loaded("update_time", "getUpdateTime", CommercePlatform::getUpdateTime);
     }
     public CommercePlatformExpression<T, U, U> updateUpdateTime(LocalDateTime updateTime){
        return new CommercePlatformExpression(this, $it ->  ((CommercePlatform)$it).updateUpdateTime(updateTime));
     }
 
     public CustomerListExpression<T, U, Customer> getCustomerList(){
-        return new CustomerListExpression(this, $it ->  ((CommercePlatform)$it).getCustomerList());
+        return new CustomerListExpression(loaded("customer_list", "getCustomerList", CommercePlatform::getCustomerList));
     }
     public OrderStatusListExpression<T, U, OrderStatus> getOrderStatusList(){
-        return new OrderStatusListExpression(this, $it ->  ((CommercePlatform)$it).getOrderStatusList());
+        return new OrderStatusListExpression(loaded("order_status_list", "getOrderStatusList", CommercePlatform::getOrderStatusList));
     }
     public CustomerOrderListExpression<T, U, CustomerOrder> getCustomerOrderList(){
-        return new CustomerOrderListExpression(this, $it ->  ((CommercePlatform)$it).getCustomerOrderList());
+        return new CustomerOrderListExpression(loaded("customer_order_list", "getCustomerOrderList", CommercePlatform::getCustomerOrderList));
     }
     public ProductListExpression<T, U, Product> getProductList(){
-        return new ProductListExpression(this, $it ->  ((CommercePlatform)$it).getProductList());
+        return new ProductListExpression(loaded("product_list", "getProductList", CommercePlatform::getProductList));
     }
     public OrderLineListExpression<T, U, OrderLine> getOrderLineList(){
-        return new OrderLineListExpression(this, $it ->  ((CommercePlatform)$it).getOrderLineList());
+        return new OrderLineListExpression(loaded("order_line_list", "getOrderLineList", CommercePlatform::getOrderLineList));
     }
     public OrderSearchPresetListExpression<T, U, OrderSearchPreset> getOrderSearchPresetList(){
-        return new OrderSearchPresetListExpression(this, $it ->  ((CommercePlatform)$it).getOrderSearchPresetList());
+        return new OrderSearchPresetListExpression(loaded("order_search_preset_list", "getOrderSearchPresetList", CommercePlatform::getOrderSearchPresetList));
     }
     public CommercePlatformExpression<T, U, U> addCustomer(Customer customer){
        return new CommercePlatformExpression(this, $it ->  ((CommercePlatform)$it).addCustomer(customer));

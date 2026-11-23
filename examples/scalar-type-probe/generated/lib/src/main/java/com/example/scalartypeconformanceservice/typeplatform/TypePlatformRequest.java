@@ -11,6 +11,7 @@ import io.teaql.core.SearchCriteria;
 import io.teaql.core.SubQuerySearchCriteria;
 import io.teaql.core.criteria.Operator;
 import io.teaql.core.criteria.TwoOperatorCriteria;
+import java.util.Objects;
 
 public class TypePlatformRequest<T extends TypePlatform> extends BaseRequest<T> {
 
@@ -33,6 +34,19 @@ public class TypePlatformRequest<T extends TypePlatform> extends BaseRequest<T> 
     public TypePlatformRequest<T> comment(String comment){
          super.internalComment(comment);
          return this;
+    }
+
+    /** Independent query graph; ordinary roll-up handles remain live. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public TypePlatformRequest<T> copy(){
+        return (TypePlatformRequest<T>) super.copy();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected io.teaql.core.BaseRequest<T> internalCopyTarget(){
+        return new TypePlatformRequest<>((Class<T>) returnType(), this::internalNewEntity);
     }
 
     // purpose() 继承自 BaseRequest，返回 ExecutableRequest（终结方法）
@@ -100,6 +114,12 @@ public class TypePlatformRequest<T extends TypePlatform> extends BaseRequest<T> 
     public TypePlatformRequest<T> matchingAnyOf(TypePlatformRequest typePlatform){
         super.internalMatchAny(typePlatform);
         return this;
+    }
+
+    public TypePlatformRequest<T> matchingIdsOf(TypePlatformRequest<?> request){
+        Objects.requireNonNull(request, "matching request");
+        return appendSearchCriteria(new SubQuerySearchCriteria(
+                TypePlatform.ID_PROPERTY, request, TypePlatform.ID_PROPERTY));
     }
 
     public TypePlatformRequest<T> enhanceChildrenIfNeeded(){
@@ -401,6 +421,30 @@ public class TypePlatformRequest<T extends TypePlatform> extends BaseRequest<T> 
     public TypePlatformRequest<T> countAs(String retName){
         super.count(retName);
         setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "countAs", retName, null));
+        return this;
+    }
+    public TypePlatformRequest<T> countDistinctId(){
+        return countDistinctIdAs("id_distinct_count");
+    }
+
+    public TypePlatformRequest<T> countDistinctIdAs(String alias){
+        super.countDistinctProperty(alias, TypePlatform.ID_PROPERTY);
+        return this;
+    }
+    public TypePlatformRequest<T> countDistinctName(){
+        return countDistinctNameAs("name_distinct_count");
+    }
+
+    public TypePlatformRequest<T> countDistinctNameAs(String alias){
+        super.countDistinctProperty(alias, TypePlatform.NAME_PROPERTY);
+        return this;
+    }
+    public TypePlatformRequest<T> countDistinctVersion(){
+        return countDistinctVersionAs("version_distinct_count");
+    }
+
+    public TypePlatformRequest<T> countDistinctVersionAs(String alias){
+        super.countDistinctProperty(alias, TypePlatform.VERSION_PROPERTY);
         return this;
     }
     public TypePlatformRequest<T> groupByScalarTypeProbesWithDetails(ScalarTypeProbeRequest subRequest){

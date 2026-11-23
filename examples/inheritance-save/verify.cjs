@@ -4,12 +4,13 @@ const crypto=require('node:crypto'),assert=require('node:assert/strict');
 const {createOwnedRunner,ownedBytes}=require('../fix-e-alignment/owned-command.cjs');
 const sha=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 const repo=path.resolve(__dirname,'../..');
+const app=path.join(__dirname,'java-app-console'), library=path.join(__dirname,'java-lib-core/lib');
 async function main(){
   const args={};for(let i=2;i<process.argv.length;i+=2){const key=process.argv[i];assert(['--output','--provider','--postgres-container','--postgres-port'].includes(key)&&process.argv[i+1]);assert(!args[key]);args[key]=process.argv[i+1];}
   const output=args['--output'],provider=args['--provider']||'sqlite';
   assert(output&&path.isAbsolute(output)&&!fs.existsSync(output));assert(['sqlite','postgres'].includes(provider));
   const targets=fs.readdirSync(repo).filter(name=>fs.existsSync(path.join(repo,name,'pom.xml'))).map(name=>path.join(repo,name,'target'));
-  targets.push(path.join(__dirname,'target'),path.join(__dirname,'lib/target'));
+  targets.push(path.join(app,'target'),path.join(library,'target'));
   assert(targets.every(file=>!fs.existsSync(file)),'Use an isolated target-free runtime checkout');
   assert(fs.statfsSync(repo).bavail*fs.statfsSync(repo).bsize>4*1024**3);
   fs.mkdirSync(output,{recursive:true});const runner=createOwnedRunner();let scratch,owned=false;
@@ -17,7 +18,7 @@ async function main(){
   try{
     scratch=fs.mkdtempSync(path.join(os.tmpdir(),'teaql-java-inheritance-'));owned=true;
     const generated=JSON.parse(fs.readFileSync(path.join(__dirname,'generated-files.json')));
-    const inventory=()=>Object.fromEntries(Object.keys(generated).map(name=>[name,sha(fs.readFileSync(path.join(__dirname,name)))]));
+    const inventory=()=>Object.fromEntries(Object.keys(generated).map(name=>[name,sha(fs.readFileSync(path.join(__dirname,'java-lib-core',name)))]));
     assert.deepEqual(inventory(),generated);receipt.generatedFileHashes=generated;
     receipt.sourceCommit=cp.execFileSync('git',['rev-parse','HEAD'],{cwd:repo,encoding:'utf8'}).trim();
     const sources=['pom.xml','teaql-core/src/main/java/io/teaql/core/Entity.java','teaql-core/src/main/java/io/teaql/core/Audited.java',
@@ -25,9 +26,9 @@ async function main(){
       'teaql-core/src/main/java/io/teaql/core/EntityStatus.java','teaql-core/src/test/java/io/teaql/core/EntityMutationLedgerTest.java',
       'teaql-runtime/src/main/java/io/teaql/runtime/TeaQLRuntime.java','teaql-runtime/src/test/java/io/teaql/runtime/TeaQLRuntimeTest.java',
       'teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/PortableSQLRepository.java','teaql-sql-portable/src/main/java/io/teaql/core/sql/SqlAstCompiler.java',
-      'examples/fix-e-alignment/owned-command.cjs','examples/inheritance-save/pom.xml','examples/inheritance-save/verify.cjs',
-      'examples/inheritance-save/src/test/java/io/teaql/examples/inheritance/InheritanceLifecycleExampleTest.java'];
-    sources.push('examples/inheritance-save/src/test/java/io/teaql/examples/inheritance/GraphRollbackProbe.java');
+      'examples/fix-e-alignment/owned-command.cjs','examples/inheritance-save/java-app-console/pom.xml','examples/inheritance-save/verify.cjs',
+      'examples/inheritance-save/java-app-console/src/test/java/io/teaql/examples/inheritance/InheritanceLifecycleExampleTest.java'];
+    sources.push('examples/inheritance-save/java-app-console/src/test/java/io/teaql/examples/inheritance/GraphRollbackProbe.java');
     sources.push('teaql-sql-portable/src/main/java/io/teaql/core/sql/portable/PortableSQLDataService.java',
       'teaql-sql-portable/src/test/java/io/teaql/core/sql/portable/VersionLifecyclePortableSQLTest.java',
       'teaql-sql-portable/src/test/java/io/teaql/core/sql/portable/SqlParameterPropagationTest.java',
@@ -39,7 +40,7 @@ async function main(){
     receipt.localSourceVersionOverride=version;
     const escape=value=>value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
     const reactor='<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>io.teaql.test</groupId><artifactId>inherited-save-reactor</artifactId><version>0.0.0</version><packaging>pom</packaging><modules>'
-      +[repo,path.join(__dirname,'lib'),__dirname].map(dir=>'<module>'+escape(path.relative(scratch,dir))+'</module>').join('')+'</modules></project>';
+      +[repo,library,app].map(dir=>'<module>'+escape(path.relative(scratch,dir))+'</module>').join('')+'</modules></project>';
     fs.writeFileSync(path.join(scratch,'pom.xml'),reactor);fs.writeFileSync(path.join(output,'reactor-pom.xml'),reactor);
     const env={...process.env,TEAQL_TELEMETRY_ENABLED:'false'};
     async function run(command,log){const fd=fs.openSync(path.join(output,log),'wx');let result;
@@ -63,7 +64,7 @@ async function main(){
     for(const round of [1,2]){
       const log=await run([process.env.MAVEN||'mvn','-o','-B','-ntp','-f',path.join(scratch,'pom.xml'),'-pl',':inherited-save-example','-am',
         '-Dteaql.version='+version,'-Dtest=InheritanceLifecycleExampleTest','-Dsurefire.failIfNoSpecifiedTests=false',
-        '-Dteaql.expected.runtime.root='+repo,'-Dteaql.expected.inheritance.root='+path.join(__dirname,'lib'),
+        '-Dteaql.expected.runtime.root='+repo,'-Dteaql.expected.inheritance.root='+library,
         '-Dteaql.inheritance.provider='+provider,'-Dteaql.inheritance.round='+round,
         '-Dteaql.inheritance.database='+path.join(output,'inheritance.sqlite'),'test'],'round-'+round+'.log');
       const lines=log.split('\n').filter(line=>line.startsWith('INHERITED_SAVE_PARITY='));assert.equal(lines.length,1);
@@ -78,7 +79,7 @@ async function main(){
         ['Academy','TrainingAcademy','TrainingAcademy'],['TrainingAcademy','TrainingAcademy','TrainingAcademy'],
         ['School','College','College'],['School','School','School']]);
       receipt.rounds.push(proof);
-      const report=path.join(__dirname,'target/surefire-reports/TEST-io.teaql.examples.inheritance.InheritanceLifecycleExampleTest.xml');
+      const report=path.join(app,'target/surefire-reports/TEST-io.teaql.examples.inheritance.InheritanceLifecycleExampleTest.xml');
       const xml=fs.readFileSync(report,'utf8');for(const key of ['failures','errors','skipped'])assert.equal(Number(xml.match(new RegExp('\\b'+key+'="(\\d+)"'))[1]),0);
       fs.copyFileSync(report,path.join(output,'junit-'+round+'.xml'));
     }
@@ -119,7 +120,7 @@ async function main(){
     assert.deepEqual(inventory(),generated);receipt.generatedLibraryUnchanged=true;assert.deepEqual(sourceHashes(),receipt.sourceHashes);receipt.sameDatabase=true;receipt.passed=true;
   }catch(error){receipt.error=String(error);process.exitCode=1;}
   finally{
-    if(owned&&runner.safeToClean){const reports=path.join(__dirname,'target/surefire-reports');if(fs.existsSync(reports)){
+    if(owned&&runner.safeToClean){const reports=path.join(app,'target/surefire-reports');if(fs.existsSync(reports)){
       fs.mkdirSync(path.join(output,'last-junit'),{recursive:true});
       for(const file of fs.readdirSync(reports))if(/\.(xml|txt)$/.test(file))fs.copyFileSync(path.join(reports,file),path.join(output,'last-junit',file));
     }}

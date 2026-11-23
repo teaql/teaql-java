@@ -39,35 +39,35 @@ public class OrderStatusExpression<T, E, U extends OrderStatus> extends Expressi
 
 
     public Expression<T, String> getName(){
-       return apply(OrderStatus::getName);
+       return loaded("name", "getName", OrderStatus::getName);
     }
     public OrderStatusExpression<T, U, U> updateName(String name){
        return new OrderStatusExpression(this, $it ->  ((OrderStatus)$it).updateName(name));
     }
 
     public Expression<T, String> getCode(){
-       return apply(OrderStatus::getCode);
+       return loaded("code", "getCode", OrderStatus::getCode);
     }
     public OrderStatusExpression<T, U, U> updateCode(String code){
        return new OrderStatusExpression(this, $it ->  ((OrderStatus)$it).updateCode(code));
     }
 
     public Expression<T, String> getColor(){
-       return apply(OrderStatus::getColor);
+       return loaded("color", "getColor", OrderStatus::getColor);
     }
     public OrderStatusExpression<T, U, U> updateColor(String color){
        return new OrderStatusExpression(this, $it ->  ((OrderStatus)$it).updateColor(color));
     }
 
     public Expression<T, BigDecimal> getDisplayOrder(){
-       return apply(OrderStatus::getDisplayOrder);
+       return loaded("display_order", "getDisplayOrder", OrderStatus::getDisplayOrder);
     }
     public OrderStatusExpression<T, U, U> updateDisplayOrder(BigDecimal displayOrder){
        return new OrderStatusExpression(this, $it ->  ((OrderStatus)$it).updateDisplayOrder(displayOrder));
     }
 
     public CommercePlatformExpression<T, U, CommercePlatform> getCommercePlatform(){
-       return new CommercePlatformExpression(this, $it ->  ((OrderStatus)$it).getCommercePlatform());
+       return new CommercePlatformExpression(loaded("commerce_platform", "getCommercePlatform", OrderStatus::getCommercePlatform));
     }
 
     public OrderStatusExpression<T, U, U> updateCommercePlatform(CommercePlatform commercePlatform){
@@ -75,7 +75,7 @@ public class OrderStatusExpression<T, E, U extends OrderStatus> extends Expressi
     }
 
     public CustomerOrderListExpression<T, U, CustomerOrder> getCustomerOrderList(){
-        return new CustomerOrderListExpression(this, $it ->  ((OrderStatus)$it).getCustomerOrderList());
+        return new CustomerOrderListExpression(loaded("customer_order_list", "getCustomerOrderList", OrderStatus::getCustomerOrderList));
     }
     public OrderStatusExpression<T, U, U> addCustomerOrder(CustomerOrder customerOrder){
        return new OrderStatusExpression(this, $it ->  ((OrderStatus)$it).addCustomerOrder(customerOrder));

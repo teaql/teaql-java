@@ -1,0 +1,50 @@
+{
+  "generatedDomainLibraryHandEdited": false,
+  "goalId": "java:examples/conformance",
+  "library": {
+    "generatedFilesManifestSHA256": "2dee65cb3eb73e6f4db0750a281bcc44913dcdc7e4ee98445163f9c468bebbce",
+    "root": "java-lib-core",
+    "scope": "java-lib-core"
+  },
+  "model": {
+    "path": "model.xml",
+    "sha256": "ad6f3616d5bc004471e31a97000cc79b90c28ef1300b9dfe0aeca6e53e52b634"
+  },
+  "producer": {
+    "generator": {
+      "artifactKind": "qualified source build; not a public release",
+      "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+      "qualificationReceiptSHA256": "5119b9f3a5c95fb84f527885fdd5bac0fe79a56352a55b8acf116f67fd12787d",
+      "sourceCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+      "tag": "unreleased-source-021b1ed8"
+    },
+    "receipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/context-field-qualified-generation/receipt.json",
+    "receiptSHA256": "fd8c37aeb5622a41a2dd8768724e432d5f97b58bf720f39217a8f31a8f4c1d90"
+  },
+  "qualification": {
+    "businessReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-context-field-native-scopes/runtime/context-derived/receipt.json",
+    "businessReceiptSHA256": "8766ddceb40a1d185d57163914ea457cf327951f1af4460a50171d4441ccb7c5",
+    "nativeReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-context-field-native-scopes/receipt.json",
+    "nativeReceiptSHA256": "046c9511369908719f6640d002c9d14d3ffa76e168b4ebc70adbe66e4ad60c31",
+    "remainingFullRuntimeInventory": true,
+    "sourceCommit": "87b3225d1dc13abb5a5308b22643c501295b0b41"
+  },
+  "scene": "Catalog entry edits with trusted Context defaults, no-op saves and rollback",
+  "schema": "teaql.model-workspace-showcase/v1",
+  "status": "focused-verified",
+  "verification": [
+    "node",
+    "verify-local.cjs"
+  ],
+  "workspace": {
+    "applicationOwnedFiles": [
+      "pom.xml",
+      "showcase-tests/io/teaql/examples/contextfix/GeneratedContextFixTest.java",
+      "Makefile"
+    ],
+    "generatedFilesManifestSHA256": "eb0ca431c33d68437fa9acf909d95825b07f9788f1b60597b1e7242dfe934383",
+    "root": "java-app-console",
+    "scope": "java-app-console",
+    "useSiblingMavenLibrary": true
+  }
+}

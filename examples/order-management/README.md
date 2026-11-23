@@ -1,5 +1,13 @@
 # Order Management — Java + SQLite
 
+`model.xml` owns the exact generated `java-lib-core` and `java-app-console`
+scopes. The native App entry delegates to the unchanged business program; its
+customer-owned mutation policy remains in the workspace. Current provenance is
+in `showcase.json`. The focused `bash verify.sh` gate uses disposable project
+copies and isolated offline source-built runtime artifacts, starts the native
+entry twice on one retained SQLite file, and verifies persisted orders and
+policy-denied rows independently. It removes owned build outputs.
+
 Use Java 21. No database server, fixture DB, model input, or generator installation is needed.
 
 ```bash
@@ -15,7 +23,7 @@ an unauthorized high-value order as one complete graph, and queries SQLite to
 prove that zero order rows were written. The second run demonstrates
 idempotency and repeats the policy proof.
 
-Read `java-app-console/.../OrderManagementApp.java` first (handwritten), then `java-lib-core/lib/.../Q.java`, `CustomerOrderRequest.java`, and `CustomerOrder.java` (generated). Java is the naming and governance gold standard: `comment(...)` may appear anywhere before `purpose(...)`; only the purposed request exposes execute methods.
+Read `java-app-console/.../OrderManagementApp.java` first. Discover generated APIs through current model-aware Assist. Java is the naming and governance gold standard: `comment(...)` may appear anywhere before `purpose(...)`; only the purposed request exposes execute methods.
 
 ## Verify the first result
 

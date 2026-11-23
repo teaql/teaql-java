@@ -16,66 +16,83 @@ public class OrderStatusChecker implements Checker<OrderStatus>{
         return OrderStatus.INTERNAL_TYPE;
     }
 
-    public void checkAndFix(UserContext _ctx, OrderStatus orderStatus, ObjectLocation _parentLocation){
-        if(needCheck(_ctx, orderStatus)){
-            markAsChecked(_ctx, orderStatus);
-            doCheck(_ctx, orderStatus, _parentLocation);
+    public void checkAndFix(UserContext _context, OrderStatus orderStatus, ObjectLocation _parentLocation){
+        if(needCheck(_context, orderStatus)){
+            markAsChecked(_context, orderStatus);
+            doCheck(_context, orderStatus, _parentLocation);
         }
     }
 
-    public void doCheck(UserContext _ctx, OrderStatus orderStatus, ObjectLocation _parentLocation){
+    public void doCheck(UserContext _context, OrderStatus orderStatus, ObjectLocation _parentLocation){
       if((orderStatus == null)){
          return;
       }
+      boolean _contextFixEligible = needContextFix(_context, orderStatus);
+      if(orderStatus.needPersist()){
+      }
       if(orderStatus.newItem()){
       }else if(orderStatus.updateItem()){
+        if(!orderStatus.isPropertyLoaded("name")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "name"), "Mutation requires a fully loaded entity");
+        }
+        if(!orderStatus.isPropertyLoaded("code")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "code"), "Mutation requires a fully loaded entity");
+        }
+        if(!orderStatus.isPropertyLoaded("color")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "color"), "Mutation requires a fully loaded entity");
+        }
+        if(!orderStatus.isPropertyLoaded("display_order")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "display_order"), "Mutation requires a fully loaded entity");
+        }
+        if(!orderStatus.isPropertyLoaded("commerce_platform")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "commerce_platform"), "Mutation requires a fully loaded entity");
+        }
+
       }
-      checkName(_ctx, orderStatus.getProperty(OrderStatus.NAME_PROPERTY), newLocation(_parentLocation, OrderStatus.NAME_PROPERTY));
-      checkCode(_ctx, orderStatus.getProperty(OrderStatus.CODE_PROPERTY), newLocation(_parentLocation, OrderStatus.CODE_PROPERTY));
-      checkColor(_ctx, orderStatus.getProperty(OrderStatus.COLOR_PROPERTY), newLocation(_parentLocation, OrderStatus.COLOR_PROPERTY));
-      checkDisplayOrder(_ctx, orderStatus.getProperty(OrderStatus.DISPLAY_ORDER_PROPERTY), newLocation(_parentLocation, OrderStatus.DISPLAY_ORDER_PROPERTY));
-      checkCommercePlatform(_ctx, orderStatus.getProperty(OrderStatus.COMMERCE_PLATFORM_PROPERTY), newLocation(_parentLocation, OrderStatus.COMMERCE_PLATFORM_PROPERTY));
+      checkName(_context, orderStatus.getProperty(OrderStatus.NAME_PROPERTY), newLocation(_parentLocation, "name"));
+      checkCode(_context, orderStatus.getProperty(OrderStatus.CODE_PROPERTY), newLocation(_parentLocation, "code"));
+      checkColor(_context, orderStatus.getProperty(OrderStatus.COLOR_PROPERTY), newLocation(_parentLocation, "color"));
+      checkDisplayOrder(_context, orderStatus.getProperty(OrderStatus.DISPLAY_ORDER_PROPERTY), newLocation(_parentLocation, "display_order"));
+      checkCommercePlatform(_context, orderStatus.getProperty(OrderStatus.COMMERCE_PLATFORM_PROPERTY), newLocation(_parentLocation, "commerce_platform"));
       for(int i = 0; orderStatus.getCustomerOrderList() != null && i < orderStatus.getCustomerOrderList().size(); i++){
          CustomerOrder customerOrder = orderStatus.getCustomerOrderList().get(i);
-         new CustomerOrderChecker().checkAndFix(_ctx, customerOrder, newLocation(_parentLocation, OrderStatus.CUSTOMER_ORDER_LIST_PROPERTY, i));
+         new CustomerOrderChecker().checkAndFix(_context, customerOrder, newLocation(_parentLocation, "customer_order_list", i));
       }
     }
 
-    public void checkName(UserContext _ctx, String name, ObjectLocation _parentLocation){
-    requiredCheck(_ctx, _parentLocation, name);
+    public void checkName(UserContext _context, String name, ObjectLocation _parentLocation){
+    requiredCheck(_context, _parentLocation, name);
     if((name == null)){
         return;
     }
-    maxStringCheck(_ctx, _parentLocation, 100, name);
+    maxStringCheck(_context, _parentLocation, 100, name);
 
     }
-    public void checkCode(UserContext _ctx, String code, ObjectLocation _parentLocation){
-    requiredCheck(_ctx, _parentLocation, code);
+    public void checkCode(UserContext _context, String code, ObjectLocation _parentLocation){
+    requiredCheck(_context, _parentLocation, code);
     if((code == null)){
         return;
     }
-    maxStringCheck(_ctx, _parentLocation, 100, code);
+    maxStringCheck(_context, _parentLocation, 100, code);
 
     }
-    public void checkColor(UserContext _ctx, String color, ObjectLocation _parentLocation){
-    requiredCheck(_ctx, _parentLocation, color);
+    public void checkColor(UserContext _context, String color, ObjectLocation _parentLocation){
     if((color == null)){
         return;
     }
-    maxStringCheck(_ctx, _parentLocation, 100, color);
+    maxStringCheck(_context, _parentLocation, 100, color);
 
     }
-    public void checkDisplayOrder(UserContext _ctx, BigDecimal displayOrder, ObjectLocation _parentLocation){
-    requiredCheck(_ctx, _parentLocation, displayOrder);
+    public void checkDisplayOrder(UserContext _context, BigDecimal displayOrder, ObjectLocation _parentLocation){
     if((displayOrder == null)){
         return;
     }
     }
-    public void checkCommercePlatform(UserContext _ctx, CommercePlatform commercePlatform, ObjectLocation _parentLocation){
-    requiredCheck(_ctx, _parentLocation, commercePlatform);
+    public void checkCommercePlatform(UserContext _context, CommercePlatform commercePlatform, ObjectLocation _parentLocation){
+    requiredCheck(_context, _parentLocation, commercePlatform);
     if((commercePlatform == null)){
         return;
     }
-    new CommercePlatformChecker().checkAndFix(_ctx, commercePlatform, _parentLocation);
+    new CommercePlatformChecker().checkAndFix(_context, commercePlatform, _parentLocation);
     }
 }

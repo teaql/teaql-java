@@ -1,4 +1,12 @@
-# Business ID focused runtime example
+# Number two procurement orders
+
+`model.xml` defines the purchase order and its `ORD` Business ID.
+`java-lib-core/` contains the generated domain library. The console at
+`java-app-console/src/main/java/com/teaql/purchaseordernumbering/App.java` installs the trusted business clock and SQLite allocator,
+records two orders, retries the first, and reads both back by number.
+It rejects a blank audit reason and verifies the denied order is absent.
+
+## Allocator and live-dialect calibration
 
 This example verifies the Java runtime Business ID boundary without running
 the full multi-module regression suite. It covers the default six-character

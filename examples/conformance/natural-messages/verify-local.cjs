@@ -2,7 +2,7 @@
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
 const cp = require('node:child_process'), crypto = require('node:crypto'), assert = require('node:assert/strict');
 const {createOwnedRunner, ownedBytes} = require('../../fix-e-alignment/owned-command.cjs');
-const repo = path.resolve(__dirname, '../../..'), fixture = path.join(__dirname, 'automatic-fixture');
+const repo = path.resolve(__dirname, '../../..'), fixture = path.join(__dirname, 'java-lib-core'), workspace=path.join(__dirname,'java-app-console');
 const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const requested = process.env.TEAQL_NATURAL_MESSAGES_EVIDENCE_DIR;
 const output = requested ? path.resolve(requested) : fs.mkdtempSync(path.join(os.tmpdir(), 'teaql-natural-evidence-'));
@@ -29,8 +29,8 @@ async function main() {
     report.schema = 'teaql.java-natural-checker-messages/v1';
     const sourceFiles = cp.execFileSync('git', ['-C', repo, 'ls-files', '-z', '--cached', '--others', '--exclude-standard'])
       .toString().split('\0').filter(Boolean);
-    const runtime = path.join(scratch, 'runtime'), bundle = path.join(scratch, 'model'), generated = path.join(bundle, 'lib');
-    const consumer = path.join(scratch, 'consumer'), tests = path.join(consumer, 'src/test/java/io/teaql/examples/naturalmessages');
+    const runtime = path.join(scratch, 'runtime'), bundle = path.join(scratch, 'java-lib-core'), generated = path.join(bundle, 'lib');
+    const consumer = path.join(scratch, 'java-app-console'), tests = path.join(consumer, 'showcase-tests/io/teaql/examples/naturalmessages');
     const sourceHash = crypto.createHash('sha256'); report.sourceHashes = {};
     for (const name of [...new Set(sourceFiles)].sort()) {
       const file = path.join(repo, name);
@@ -48,14 +48,12 @@ async function main() {
     }
     const version = fs.readFileSync(path.join(runtime, 'pom.xml'), 'utf8').match(/<version>([^<]+)<\/version>/)[1];
     report.metadataOverride = require('../../../scripts/pin-local-example-pom.cjs').pin(path.join(generated, 'pom.xml'), runtime, scratch);
-    fs.mkdirSync(tests, {recursive: true});
-    const app = fs.readFileSync(path.join(__dirname, 'GeneratedNaturalMessagesTest.java'));
-    report.applicationSha256 = sha(app); fs.writeFileSync(path.join(tests, 'GeneratedNaturalMessagesTest.java'), app);
-    const dependencies = ['teaql-runtime', 'teaql-provider-jdbc', 'teaql-sqlite'].map(name =>
-      `<dependency><groupId>io.teaql</groupId><artifactId>${name}</artifactId><version>${version}</version></dependency>`).join('');
-    fs.writeFileSync(path.join(consumer, 'pom.xml'), `<project><modelVersion>4.0.0</modelVersion><parent><groupId>io.teaql</groupId><artifactId>teaql-java-parent</artifactId><version>${version}</version><relativePath>../runtime/pom.xml</relativePath></parent><groupId>io.teaql.examples</groupId><artifactId>natural-checker-consumer</artifactId><version>${version}</version><dependencies><dependency><groupId>com.example</groupId><artifactId>checker-natural-message-service-core</artifactId><version>0.0.1-SNAPSHOT</version></dependency>${dependencies}<dependency><groupId>junit</groupId><artifactId>junit</artifactId><version>4.13.2</version><scope>test</scope></dependency></dependencies><build><plugins><plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><configuration><useModulePath>false</useModulePath></configuration></plugin></plugins></build></project>`);
+    fs.cpSync(workspace,consumer,{recursive:true});
+    const app=fs.readFileSync(path.join(tests,'GeneratedNaturalMessagesTest.java'));report.applicationSha256=sha(app);
+    const pom=fs.readFileSync(path.join(consumer,'pom.xml'),'utf8').replace('../../../../pom.xml','../runtime/pom.xml');
+    fs.writeFileSync(path.join(consumer,'pom.xml'),pom);fs.writeFileSync(path.join(output,'consumer-pom.xml'),pom);
     const reactor = path.join(scratch, 'pom.xml');
-    fs.writeFileSync(reactor, '<project><modelVersion>4.0.0</modelVersion><groupId>io.teaql.test</groupId><artifactId>natural-checker-reactor</artifactId><version>0</version><packaging>pom</packaging><modules><module>runtime</module><module>model/lib</module><module>consumer</module></modules></project>');
+    fs.writeFileSync(reactor, '<project><modelVersion>4.0.0</modelVersion><groupId>io.teaql.test</groupId><artifactId>natural-checker-reactor</artifactId><version>0</version><packaging>pom</packaging><modules><module>runtime</module><module>java-lib-core/lib</module><module>java-app-console</module></modules></project>');
     if (process.env.TEAQL_NATURAL_MESSAGES_UNIT_TESTS === '1') {
       const command = [process.env.MAVEN || 'mvn', '-o', '-q', '-ntp', '-f', path.join(runtime, 'pom.xml'),
         '-pl', 'teaql-runtime', '-am', 'test'];

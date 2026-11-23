@@ -1,0 +1,1828 @@
+{
+  "generator": {
+    "artifactKind": "new source build; not the historical v4.2.0 release artifact",
+    "baseRelease": "v4.2.0",
+    "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+    "qualificationReceiptSHA256": "5119b9f3a5c95fb84f527885fdd5bac0fe79a56352a55b8acf116f67fd12787d",
+    "sourceCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+    "tag": "unreleased-source-021b1ed8"
+  },
+  "installationReceiptSHA256": "f21153cb45c3168cdfd90e593790ffcae537458bc871b78cd3fdc6bc6fbc6d00",
+  "libraries": [
+    {
+      "archiveSHA256": "5652139e60f59c12374dad79ce15005206254c3bd07a650db2f49e3a24857cd4",
+      "destination": "examples/conformance",
+      "generatedFiles": {
+        "examples/conformance/lib/pom.xml": {
+          "emittedPath": "lib/pom.xml",
+          "sha256": "c7c15fd63a700b39684aab7aded3adab299e59f880c5dca7deaf4b0dda5f17aa"
+        },
+        "examples/conformance/lib/src/main/java/com/teaql/runtimeexampleconformanceservice/BaseServiceConfiguration.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/runtimeexampleconformanceservice/BaseServiceConfiguration.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/conformance/lib/src/main/java/com/teaql/runtimeexampleconformanceservice/Checkers.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/runtimeexampleconformanceservice/Checkers.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/conformance/lib/src/main/java/com/teaql/runtimeexampleconformanceservice/Constants.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/runtimeexampleconformanceservice/Constants.java",
+          "sha256": "9cf2b2e56b82fb37e2c656b36c55633eadebad04b15b4c1f3fc1d433046d6e69"
+        },
+        "examples/conformance/lib/src/main/java/com/teaql/runtimeexampleconformanceservice/E.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/runtimeexampleconformanceservice/E.java",
+          "sha256": "2139dfd49f76bcb2fd4bfd66f8a44e9c38c54265e2e5b27bc56a73a13f517d06"
+        },
+        "examples/conformance/lib/src/main/java/com/teaql/runtimeexampleconformanceservice/EntityMetaRegistry.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/runtimeexampleconformanceservice/EntityMetaRegistry.java",
+          "sha256": "c51e74637fd34af25e978a1ec12c62d5f9bbcbf67dbb25ca88b5fdcb3d076bd4"
+        },
+        "examples/conformance/lib/src/main/java/com/teaql/runtimeexampleconformanceservice/GeneratedRuntimeModule.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/runtimeexampleconformanceservice/GeneratedRuntimeModule.java",
+          "sha256": "bb14176d4d40533b69967602af37e12661c437d506d4612c6f47f7f9ecfdbe02"
+        },
+        "examples/conformance/lib/src/main/java/com/teaql/runtimeexampleconformanceservice/Q.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/runtimeexampleconformanceservice/Q.java",
+          "sha256": "bdc639e797f71baaea2b46d6645f5c3b35ec445e032af7c21a226be9b3b797e3"
+        },
+        "examples/conformance/lib/src/main/java/com/teaql/runtimeexampleconformanceservice/Repositories.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/runtimeexampleconformanceservice/Repositories.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/conformance/lib/src/main/java/com/teaql/runtimeexampleconformanceservice/RuntimeExampleConformanceServiceUserContext.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/runtimeexampleconformanceservice/RuntimeExampleConformanceServiceUserContext.java",
+          "sha256": "14e5bcd9d13b37f278b9ba7999237f6b4d41c0dcaab028c04ee29524504468ab"
+        },
+        "examples/conformance/lib/src/main/java/com/teaql/runtimeexampleconformanceservice/platform/Platform.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/runtimeexampleconformanceservice/platform/Platform.java",
+          "sha256": "9d428a2437e16c237c345b082e7387048d0db58394d94a2b4a89fc27cdea9acf"
+        },
+        "examples/conformance/lib/src/main/java/com/teaql/runtimeexampleconformanceservice/platform/PlatformChecker.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/runtimeexampleconformanceservice/platform/PlatformChecker.java",
+          "sha256": "5dc2354116a18386d5a95e18327a35faf8dc9ffb28bf30ca55beae27187dc4a2"
+        },
+        "examples/conformance/lib/src/main/java/com/teaql/runtimeexampleconformanceservice/platform/PlatformExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/runtimeexampleconformanceservice/platform/PlatformExpression.java",
+          "sha256": "c676ca5341a79d436649695f3a04f80ae378ed8923a3d3d74363d480378c7b0c"
+        },
+        "examples/conformance/lib/src/main/java/com/teaql/runtimeexampleconformanceservice/platform/PlatformListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/runtimeexampleconformanceservice/platform/PlatformListExpression.java",
+          "sha256": "9599500a66d7fbca8183f9b2c83795e3c38fadfc261ffa89cb81b2cf773c2e4b"
+        },
+        "examples/conformance/lib/src/main/java/com/teaql/runtimeexampleconformanceservice/platform/PlatformRequest.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/runtimeexampleconformanceservice/platform/PlatformRequest.java",
+          "sha256": "8edcd13cee303e8c9c621157fad07744b8cbc56ad0abd34030e8c2f87d90a48e"
+        },
+        "examples/conformance/lib/src/main/java/com/teaql/runtimeexampleconformanceservice/sampledata/SampleDataService.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/runtimeexampleconformanceservice/sampledata/SampleDataService.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/conformance/lib/src/main/java/com/teaql/runtimeexampleconformanceservice/workitem/WorkItem.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/runtimeexampleconformanceservice/workitem/WorkItem.java",
+          "sha256": "46babb02d82c9ff3fc4e496bd8e6aef68a61ff1a0e16c7e152c0297cf3a8fbf6"
+        },
+        "examples/conformance/lib/src/main/java/com/teaql/runtimeexampleconformanceservice/workitem/WorkItemChecker.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/runtimeexampleconformanceservice/workitem/WorkItemChecker.java",
+          "sha256": "4bb18dc772555a69d98598f8a53162dafc06d4dc5812eed327d147e32f1be78b"
+        },
+        "examples/conformance/lib/src/main/java/com/teaql/runtimeexampleconformanceservice/workitem/WorkItemExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/runtimeexampleconformanceservice/workitem/WorkItemExpression.java",
+          "sha256": "956acd1b090dbee2cdffaa8b6f469c7231bfe56349a4b35a2f965ea451dc0004"
+        },
+        "examples/conformance/lib/src/main/java/com/teaql/runtimeexampleconformanceservice/workitem/WorkItemListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/runtimeexampleconformanceservice/workitem/WorkItemListExpression.java",
+          "sha256": "592ad23def55d9e2c7c80a29d3f430a865436285bde951957f208091efe4d677"
+        },
+        "examples/conformance/lib/src/main/java/com/teaql/runtimeexampleconformanceservice/workitem/WorkItemRequest.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/runtimeexampleconformanceservice/workitem/WorkItemRequest.java",
+          "sha256": "ed164767c0290cf95b8bed2870c58e110587c5302bbc0e2bee91e39ffffa4c19"
+        },
+        "examples/conformance/lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler": {
+          "emittedPath": "lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler",
+          "sha256": "33a51a8a85d8d9d4ef8b7c67ab4e4a3c4c8944b243dd36796cf5fe6579b31dae"
+        },
+        "examples/conformance/teaql/checker-model.json": {
+          "emittedPath": "teaql/checker-model.json",
+          "sha256": "4824e2986933569c4d827ca44cae7e3a028012aec1e7dbacd245fff5fd5ffe1b"
+        },
+        "examples/conformance/teaql/model-provenance.json": {
+          "emittedPath": "teaql/model-provenance.json",
+          "sha256": "25c3c0f1f8b30ca2e94d36c7abdb4aa911bd735e0012ccfe1bb987a0882b9107"
+        }
+      },
+      "model": "examples/conformance/model.xml",
+      "origin": {
+        "evaluatedScope": "java-lib-core",
+        "evaluationErrors": 0,
+        "evaluationWarnings": 0,
+        "generatedManifestSha256": "77e4e26185f8bd2e7f9254222d1295df8cf5a59d5d7e847cba4abbc520e8c7e9",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-unified-intent-current-source/java/conformance/model/receipt.json",
+        "generatorCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+        "generatorJarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+        "generatorRelease": "unreleased-source-021b1ed8",
+        "modelSha256": "0a59f66db2487fdd0430087dd5985ae780225c088ad800679cb57c593c6bcee7",
+        "producerReceiptSha256": "950b9b8c63f5491779402d655c4788f6edfe33a5f2e21ca7f9e8931c73d99687",
+        "producerSource": {
+          "commit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+          "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+          "release": "unreleased-source-021b1ed8"
+        }
+      },
+      "preservedApplicationFiles": {}
+    },
+    {
+      "archiveSHA256": "70c856a2b5a4785b14f291db9360c6786171ff778468ffd9bf37664700683fa3",
+      "destination": "examples/conformance/natural-messages/automatic-fixture",
+      "generatedFiles": {
+        "examples/conformance/natural-messages/automatic-fixture/lib/pom.xml": {
+          "emittedPath": "lib/pom.xml",
+          "sha256": "347a095ed81296d0277594cf121719bc5d27f515373c762dd6cdb3ec9498f40d"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/lib/src/main/java/com/example/checkernaturalmessageservice/BaseServiceConfiguration.java": {
+          "emittedPath": "lib/src/main/java/com/example/checkernaturalmessageservice/BaseServiceConfiguration.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/lib/src/main/java/com/example/checkernaturalmessageservice/CheckerNaturalMessageServiceUserContext.java": {
+          "emittedPath": "lib/src/main/java/com/example/checkernaturalmessageservice/CheckerNaturalMessageServiceUserContext.java",
+          "sha256": "2d2f927741f43badf499995f1b1715e7132856b9b495ab5392e31404b272d68e"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/lib/src/main/java/com/example/checkernaturalmessageservice/Checkers.java": {
+          "emittedPath": "lib/src/main/java/com/example/checkernaturalmessageservice/Checkers.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/lib/src/main/java/com/example/checkernaturalmessageservice/Constants.java": {
+          "emittedPath": "lib/src/main/java/com/example/checkernaturalmessageservice/Constants.java",
+          "sha256": "0a3f386cf80db0789aa7f49f4490643e598dff29c093f3ba36efb408b38dc34c"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/lib/src/main/java/com/example/checkernaturalmessageservice/E.java": {
+          "emittedPath": "lib/src/main/java/com/example/checkernaturalmessageservice/E.java",
+          "sha256": "01b3a1dc741ed939a0f6f7ccecdbe80f26ff96c6994ad0ea79ae0aff6d0d41e6"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/lib/src/main/java/com/example/checkernaturalmessageservice/EntityMetaRegistry.java": {
+          "emittedPath": "lib/src/main/java/com/example/checkernaturalmessageservice/EntityMetaRegistry.java",
+          "sha256": "da12aacb3fce39a2c6dd015935b90f42872466771daa52275c03f399423445b5"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/lib/src/main/java/com/example/checkernaturalmessageservice/GeneratedRuntimeModule.java": {
+          "emittedPath": "lib/src/main/java/com/example/checkernaturalmessageservice/GeneratedRuntimeModule.java",
+          "sha256": "4c95cb099a8ce1ab7236f6053f697f1a4a51ce99bc29a078f6a514aff41bf244"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/lib/src/main/java/com/example/checkernaturalmessageservice/Q.java": {
+          "emittedPath": "lib/src/main/java/com/example/checkernaturalmessageservice/Q.java",
+          "sha256": "8c7a515a0258aa1c2e14f409b39593662fea7f70469604d00fec37d5ab4639ce"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/lib/src/main/java/com/example/checkernaturalmessageservice/Repositories.java": {
+          "emittedPath": "lib/src/main/java/com/example/checkernaturalmessageservice/Repositories.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/lib/src/main/java/com/example/checkernaturalmessageservice/catalog/Catalog.java": {
+          "emittedPath": "lib/src/main/java/com/example/checkernaturalmessageservice/catalog/Catalog.java",
+          "sha256": "e0da39fe42d25ed3bf188707608d2902ca832db884d829e572f4ab18a4d4698e"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/lib/src/main/java/com/example/checkernaturalmessageservice/catalog/CatalogChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/checkernaturalmessageservice/catalog/CatalogChecker.java",
+          "sha256": "eca4ca4a74652d673dec8474df6bf84b3962e2ed0bc100e1ff65a6cb9258bbc6"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/lib/src/main/java/com/example/checkernaturalmessageservice/catalog/CatalogExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/checkernaturalmessageservice/catalog/CatalogExpression.java",
+          "sha256": "4dd395c2be2af0d42cff8cef266ee8558579075a0af93c078d65b0490c727a75"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/lib/src/main/java/com/example/checkernaturalmessageservice/catalog/CatalogListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/checkernaturalmessageservice/catalog/CatalogListExpression.java",
+          "sha256": "29e679c28f5a44fed2128801f482fe24c2d282f13aaccf7e8c5b97d399436ac2"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/lib/src/main/java/com/example/checkernaturalmessageservice/catalog/CatalogRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/checkernaturalmessageservice/catalog/CatalogRequest.java",
+          "sha256": "1b37405c34f51a0b99ea00d03b9d0a25232522679dabd7898cb90266f6f82098"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/lib/src/main/java/com/example/checkernaturalmessageservice/entry/Entry.java": {
+          "emittedPath": "lib/src/main/java/com/example/checkernaturalmessageservice/entry/Entry.java",
+          "sha256": "6e004619e98d31cdcfcffe82dfd9a94c5207e04efca5346ff8fd15a4aa22547c"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/lib/src/main/java/com/example/checkernaturalmessageservice/entry/EntryChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/checkernaturalmessageservice/entry/EntryChecker.java",
+          "sha256": "d6c13306e3d1460045be65bc784877feb42965d3ba13553c7042a70a26b4ac36"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/lib/src/main/java/com/example/checkernaturalmessageservice/entry/EntryExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/checkernaturalmessageservice/entry/EntryExpression.java",
+          "sha256": "a9f23feb178ab004742193070857a988154cb1a320bd8aef099c9f6756b98bf0"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/lib/src/main/java/com/example/checkernaturalmessageservice/entry/EntryListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/checkernaturalmessageservice/entry/EntryListExpression.java",
+          "sha256": "c5c16734297e776337278c1f8df2371a4df5f51103f6cf2c0b0b7975b2f805b9"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/lib/src/main/java/com/example/checkernaturalmessageservice/entry/EntryRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/checkernaturalmessageservice/entry/EntryRequest.java",
+          "sha256": "954839230e25c444c776ebe74755d4203beb244e8a5d7c2895733ed867e6d27d"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/lib/src/main/java/com/example/checkernaturalmessageservice/sampledata/SampleDataService.java": {
+          "emittedPath": "lib/src/main/java/com/example/checkernaturalmessageservice/sampledata/SampleDataService.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler": {
+          "emittedPath": "lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler",
+          "sha256": "e7343d1366c418947fc058200104a8748265db5763f3861de9cda088cdb9dbce"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/teaql/checker-model.json": {
+          "emittedPath": "teaql/checker-model.json",
+          "sha256": "dbac03cd54b294e3e60a62752aeb170ad1ad722a7dfb8feb639c569ff3e73b1a"
+        },
+        "examples/conformance/natural-messages/automatic-fixture/teaql/model-provenance.json": {
+          "emittedPath": "teaql/model-provenance.json",
+          "sha256": "7a1c08d3bcc033947aa11600d1a18ea30f8fa7d31951680e81ed39eed4f9cece"
+        }
+      },
+      "model": "examples/conformance/natural-messages/model.xml",
+      "origin": {
+        "evaluatedScope": "java-lib-core",
+        "evaluationErrors": 0,
+        "evaluationWarnings": 2,
+        "generatedManifestSha256": "c4c234c7fe34ac2eff76027240f192dab3362af6b6657a29ed1a233e7d74fe70",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-unified-intent-current-source/java/conformance/natural-messages/model/receipt.json",
+        "generatorCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+        "generatorJarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+        "generatorRelease": "unreleased-source-021b1ed8",
+        "modelSha256": "4c69fcaa275d1f7d255f325305cc0c6c5071154d278f9f4af7775ae0758144a6",
+        "producerReceiptSha256": "b91b2ddd14ad34b91598ade1d20c06e5a3b3c680e233061b2e96b6f21c1fa445",
+        "producerSource": {
+          "commit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+          "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+          "release": "unreleased-source-021b1ed8"
+        }
+      },
+      "preservedApplicationFiles": {}
+    },
+    {
+      "archiveSHA256": "730e4313058c1e6ec9aa67ce28cec3db37bd1b807f380f3a445ba5de1b26d420",
+      "destination": "examples/fix-e-alignment/generated",
+      "generatedFiles": {
+        "examples/fix-e-alignment/generated/lib/pom.xml": {
+          "emittedPath": "lib/pom.xml",
+          "sha256": "af5afa26a1d4942219495ab5a6a47a85fdf2aa4749efb33fea05b37fde7c556b"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/BaseServiceConfiguration.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/BaseServiceConfiguration.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/CheckerFixAdvancedUserContext.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/CheckerFixAdvancedUserContext.java",
+          "sha256": "13bd28eaa0b207f409b99a0cb7d5fdfd6eb646b5be4f063175d0792449fa5551"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/Checkers.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/Checkers.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/Constants.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/Constants.java",
+          "sha256": "69732def8bf31885c5a15fab50e002cdd5f722581b26cafd55fd09beaa95a4c2"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/E.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/E.java",
+          "sha256": "866a318903fe482396ff28d529c14a827872d2fd7457cda57af5ffdaf1671cd1"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/EntityMetaRegistry.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/EntityMetaRegistry.java",
+          "sha256": "a84c4a6831ca7a3ddcd6b9f3b4c9fbc8d752e2cf8fd5cc2d7db36d5521911434"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/GeneratedRuntimeModule.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/GeneratedRuntimeModule.java",
+          "sha256": "53ac9265c060116fef838ea7989b579302fb567d8d182c2d4fa6e9da2dd7f62f"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/Q.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/Q.java",
+          "sha256": "1d20fed9963ce79b3b229a799dfb6210c9ad15a2ee408900d613ad9d9bd2dcb8"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/Repositories.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/Repositories.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/orderitem/OrderItem.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/orderitem/OrderItem.java",
+          "sha256": "8dbab969b5d31f567e689aa03b901dd729ced9e3fcd770cb7086a60a147a4087"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/orderitem/OrderItemChecker.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/orderitem/OrderItemChecker.java",
+          "sha256": "05a96a52d1815cde70f37d6f06299674ef7854d0e94575bc44840533930e95d4"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/orderitem/OrderItemExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/orderitem/OrderItemExpression.java",
+          "sha256": "38ed52b714534d7a96ff550fb4e1f78acb8a9522522c58b7e12eb5d00796dcc3"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/orderitem/OrderItemListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/orderitem/OrderItemListExpression.java",
+          "sha256": "6c37ba6ab252b50f5b520ac048b714f491ff73c2333f9480245e78dea3e7fce2"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/orderitem/OrderItemRequest.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/orderitem/OrderItemRequest.java",
+          "sha256": "a3513d6e1696e83a29b68b811d3e1ab2663a4528cf80a6e93183183135b3c4d7"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/purchaseorder/PurchaseOrder.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/purchaseorder/PurchaseOrder.java",
+          "sha256": "571703659d7e66ba7f9ef936c7ef458a246935ad651b968ab169e9ba98b563ad"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/purchaseorder/PurchaseOrderChecker.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/purchaseorder/PurchaseOrderChecker.java",
+          "sha256": "799a961a1f6c086bf1519cfafedf94331bad225f84de4a36f2bfba2d16181b1b"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/purchaseorder/PurchaseOrderExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/purchaseorder/PurchaseOrderExpression.java",
+          "sha256": "3ff0b93627835982e58293ccfcaccbeae321900d7546cbdaa2ac50450ac15659"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/purchaseorder/PurchaseOrderListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/purchaseorder/PurchaseOrderListExpression.java",
+          "sha256": "758175bbb1694344e892cabdd5cdedf3e785e533b9780e368607ddae93f8a0c3"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/purchaseorder/PurchaseOrderRequest.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/purchaseorder/PurchaseOrderRequest.java",
+          "sha256": "f3fb7c6197f8dbeb5bea6751284584321c46cf23928e6d8143f4cd6adf01214f"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/sampledata/SampleDataService.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/sampledata/SampleDataService.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/tenant/Tenant.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/tenant/Tenant.java",
+          "sha256": "34412c091331c303e4d7b55c634e15acf84a2439f202cdaa9091a1c456e92f6b"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/tenant/TenantChecker.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/tenant/TenantChecker.java",
+          "sha256": "485ae02b8fb871638836ad27f70f9282b6a3033892edf581aafb19be8fc9359c"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/tenant/TenantExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/tenant/TenantExpression.java",
+          "sha256": "5446849fcb34da25e1ce3a984fd8930d11d363f5454b94cc81de18a29eb80161"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/tenant/TenantListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/tenant/TenantListExpression.java",
+          "sha256": "d6f02514a43866feb38fe121384083203f0eb85a944e4a83d2eec3f07ab51e6b"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/java/com/teaql/checkerfixadvanced/tenant/TenantRequest.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/checkerfixadvanced/tenant/TenantRequest.java",
+          "sha256": "512a9f6ee04a8a27e9164c46e0ef799ce4e0cb90f7729699def1175a485449c9"
+        },
+        "examples/fix-e-alignment/generated/lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler": {
+          "emittedPath": "lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler",
+          "sha256": "82b9c9efe540331e915852a59470576d1b1ae7a11efcd6ee998bb3eee8e8838c"
+        },
+        "examples/fix-e-alignment/generated/teaql/checker-model.json": {
+          "emittedPath": "teaql/checker-model.json",
+          "sha256": "92144f0d6092e143784685a82a9dd67c1672665bbe50fa6ca57b9ad441325b45"
+        },
+        "examples/fix-e-alignment/generated/teaql/model-provenance.json": {
+          "emittedPath": "teaql/model-provenance.json",
+          "sha256": "80eb2676b8ca3b65b6eb913b1eaf159e848cd1234f5158af95ef388d89ec0d40"
+        }
+      },
+      "model": "examples/fix-e-alignment/model.xml",
+      "origin": {
+        "evaluatedScope": "java-lib-core",
+        "evaluationErrors": 0,
+        "evaluationWarnings": 4,
+        "generatedManifestSha256": "ea5da31929c18998e8eeec4b2abb3268a628f67935c38ac3dd141e05bf5f2f05",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-unified-intent-current-source/java/fix-e-alignment/model/receipt.json",
+        "generatorCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+        "generatorJarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+        "generatorRelease": "unreleased-source-021b1ed8",
+        "modelSha256": "a2cf4c907cb084cb0946e993eeba586c8c0701a89fdc4a849808aa743be033b7",
+        "producerReceiptSha256": "b674ff24ef4e83fc6ebdf7de11a7e3bbc79657e2e3e76be4f3b4a2675fa901ec",
+        "producerSource": {
+          "commit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+          "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+          "release": "unreleased-source-021b1ed8"
+        }
+      },
+      "preservedApplicationFiles": {}
+    },
+    {
+      "archiveSHA256": "21a0f7f2468daa22fdda9772d9f2818dcfe579764e8e0d7df6743054bf30990e",
+      "destination": "examples/inheritance-save",
+      "generatedFiles": {
+        "examples/inheritance-save/lib/pom.xml": {
+          "emittedPath": "lib/pom.xml",
+          "sha256": "b005d331eb709ab62bbab5e035e7e142b815505351e7e79e1856bdfb89915f6c"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/BaseServiceConfiguration.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/BaseServiceConfiguration.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/Checkers.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/Checkers.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/Constants.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/Constants.java",
+          "sha256": "916f41797ceeeb89650ed3df3c69f744baaaadf69273ac1a5ef5df7c23210dba"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/E.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/E.java",
+          "sha256": "8259d4ff7302a5cb632dd6f54654a363a381d7cf4b4768cb69ac7f0b5e0d8ec1"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/EntityMetaRegistry.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/EntityMetaRegistry.java",
+          "sha256": "868fb313b930e27224e95bd0316440c6e60913c7b8e0a23924f209bc4c3d8548"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/GeneratedRuntimeModule.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/GeneratedRuntimeModule.java",
+          "sha256": "693701578b8c35182dfe78ffdf1be8a28078e9a598ee0fed003fd30d29b61e9a"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/InheritanceMatchingServiceUserContext.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/InheritanceMatchingServiceUserContext.java",
+          "sha256": "97b48694df0e8ea0757e3ad11768dfbf8c0bc74c459784860d16c8e1ae8dd937"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/Q.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/Q.java",
+          "sha256": "f8c44522ddaeebf36a6a0428fac2500224c02bb0ec23c141b1f2a81737bd7666"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/Repositories.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/Repositories.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/academy/Academy.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/academy/Academy.java",
+          "sha256": "286844c23da99af8108df1647d6253c74e8a1149dd9e5bd4cff92aa46c399636"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/academy/AcademyChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/academy/AcademyChecker.java",
+          "sha256": "1e0187a88488e968d93cd180dfd84e10330a9011cb4fe3edf5b60a8898b45708"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/academy/AcademyExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/academy/AcademyExpression.java",
+          "sha256": "8370df1fe82550fe482581d296c1e31876c65038e3b3082c41a1e0af61936b13"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/academy/AcademyListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/academy/AcademyListExpression.java",
+          "sha256": "6a2ca94ca8e7343a2ab074580ced5a4494bcacd5afd66d175f72837248fd4ecb"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/academy/AcademyRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/academy/AcademyRequest.java",
+          "sha256": "22bac4800a50da9f944d7adf744c95effc2f6368d3f40a0913eaf9b91d961ccd"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/college/College.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/college/College.java",
+          "sha256": "9bdb82ee2d16ac37faacafc35bb8212e7a530b7e46335e06257f058374461c05"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/college/CollegeChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/college/CollegeChecker.java",
+          "sha256": "e8edd9178db335cbad64504e7f94d60bf83f719d119ac01a00d16932c5e57d63"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/college/CollegeExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/college/CollegeExpression.java",
+          "sha256": "f21d4bb04ec6f36aebc11c86552052dee53f2b02808d839d7058e51310461abd"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/college/CollegeListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/college/CollegeListExpression.java",
+          "sha256": "a89b341c3c2d55ef8650d7dfe75cb5d954b16e3b392b959f8d6c585223ca74d0"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/college/CollegeRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/college/CollegeRequest.java",
+          "sha256": "27588840f5de0800c406bf6ec142c64423d93954f175ece95954aa7236f96d9a"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/platform/Platform.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/platform/Platform.java",
+          "sha256": "2d0347e54ca56a14edfdd7781b34db313dd263736e60518dc0af2443d706665d"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/platform/PlatformChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/platform/PlatformChecker.java",
+          "sha256": "297a063a3dc563562ee3ac4581b48072a793b7bbd748552682f080e8cafb4f79"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/platform/PlatformExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/platform/PlatformExpression.java",
+          "sha256": "e8c00499b35b4e62ee357629653644e2634bb3d7bec45961763ab791dcc73cd5"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/platform/PlatformListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/platform/PlatformListExpression.java",
+          "sha256": "c1d13f123bab9409a9b6e1133d0fb8de06f8235322afe5c550e8a24204d07bff"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/platform/PlatformRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/platform/PlatformRequest.java",
+          "sha256": "18c6b2b7d319bbfff05bc3946c2e92e536c9a891cdc46d49694404a00f4968ab"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/sampledata/SampleDataService.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/sampledata/SampleDataService.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/school/School.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/school/School.java",
+          "sha256": "3ba2a4ad5f4220ead5f9dadfb7a720fad4407e0046382d9daf41346b9c9c5d92"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/school/SchoolChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/school/SchoolChecker.java",
+          "sha256": "d5fbbad3eadf1baed8f8e61e90cbcf6f95eb6756e22786ba1488ed95c4e976a9"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/school/SchoolExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/school/SchoolExpression.java",
+          "sha256": "f668134245f8392fecaf18b979516b6d60aa0af5b9922325720f2e666e417095"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/school/SchoolListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/school/SchoolListExpression.java",
+          "sha256": "67e482d8be45be9d6f23c206dc7564cff7da1b2ccd69205d3df109c2e6c77749"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/school/SchoolRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/school/SchoolRequest.java",
+          "sha256": "f826a9b55aa8fbcd4d78e7c6499930c19d01d0e3a635fd35b973b8a6926fdc3b"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/schooltype/SchoolType.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/schooltype/SchoolType.java",
+          "sha256": "eb3e51a859272074c1cf7ed27b001db49b6dd3e649f3d748c59951af7fe2ec94"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/schooltype/SchoolTypeChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/schooltype/SchoolTypeChecker.java",
+          "sha256": "3be09b35400e494a050d687ac746a19f5abc863aa6abe0d2356993d3c3a0df35"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/schooltype/SchoolTypeExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/schooltype/SchoolTypeExpression.java",
+          "sha256": "fc23cff73051d98628fab7f060bc6309f01403d6f11939d8fd02d2e9dc6c9c97"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/schooltype/SchoolTypeListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/schooltype/SchoolTypeListExpression.java",
+          "sha256": "cd36a4d43c5e0d775e84998504f7ca3625516ce6fa87fbe7aa2f74cdd295287a"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/schooltype/SchoolTypeRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/schooltype/SchoolTypeRequest.java",
+          "sha256": "25075ebfc9217aff119603328924d02584c285228917a267b6d4195093e5b9b4"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/trainingacademy/TrainingAcademy.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/trainingacademy/TrainingAcademy.java",
+          "sha256": "76a5fa64a2f1d26a764d69de7144081f4f4414ce36192c5c5e35e84a142de69a"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/trainingacademy/TrainingAcademyChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/trainingacademy/TrainingAcademyChecker.java",
+          "sha256": "a42c0eaae62ce9375e9e4563bbc9c11674331180c49969a3c5d2a5ba70ea7a17"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/trainingacademy/TrainingAcademyExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/trainingacademy/TrainingAcademyExpression.java",
+          "sha256": "a4afe5f0732e93b7428d1d34fb5484274555f968b42fecd0e41923405952be22"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/trainingacademy/TrainingAcademyListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/trainingacademy/TrainingAcademyListExpression.java",
+          "sha256": "2184e87b2b4ec812738d871c840eee3ab46aeb764fa92e0ed40cac76733d2f8f"
+        },
+        "examples/inheritance-save/lib/src/main/java/com/example/inheritancematchingservice/trainingacademy/TrainingAcademyRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/inheritancematchingservice/trainingacademy/TrainingAcademyRequest.java",
+          "sha256": "8b08986eae115dcb26476f4550b4debe70ce826aaf87baa5cf2796bc3f6a2ac7"
+        },
+        "examples/inheritance-save/lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler": {
+          "emittedPath": "lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler",
+          "sha256": "b4712d25600d9aa37c887c75b81ae8cc95c291f91c0d8604d5e6dbec21e926e7"
+        },
+        "examples/inheritance-save/teaql/checker-model.json": {
+          "emittedPath": "teaql/checker-model.json",
+          "sha256": "369def38a021b04fca5a8c8d7f68b7f495a0781b816e28b917729217bd6dc242"
+        },
+        "examples/inheritance-save/teaql/model-provenance.json": {
+          "emittedPath": "teaql/model-provenance.json",
+          "sha256": "1390be549b4b3dfb23404f36479839defc69fdf6b1b0bfa44a31d434d0a50e9d"
+        }
+      },
+      "model": "examples/inheritance-save/model.xml",
+      "origin": {
+        "evaluatedScope": "java-lib-core",
+        "evaluationErrors": 0,
+        "evaluationWarnings": 1,
+        "generatedManifestSha256": "125866d45632822e73355bfb99799859621381c240fac58923b725de1e03bc0b",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-unified-intent-current-source/java/inheritance-save/model/receipt.json",
+        "generatorCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+        "generatorJarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+        "generatorRelease": "unreleased-source-021b1ed8",
+        "modelSha256": "9ed75f14ac524f18ccaba59be8c7261da203d2472bbe5d1f88dfc16d8b203d01",
+        "producerReceiptSha256": "b8911241bfdaba2665ae26e39ea0b91013fced16b5b13d2a762df1ff5f29bf6c",
+        "producerSource": {
+          "commit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+          "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+          "release": "unreleased-source-021b1ed8"
+        }
+      },
+      "preservedApplicationFiles": {}
+    },
+    {
+      "archiveSHA256": "321ef8a8fb3109473ce4302b324443fc7e3c519502191c2c181f8c2ea02de702",
+      "destination": "examples/scalar-type-probe/json-profiles/PascalCase",
+      "generatedFiles": {
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/pom.xml": {
+          "emittedPath": "lib/pom.xml",
+          "sha256": "4a5ce36eb242e7e67fe06b9f554ff98d4d287c85e57a36ef9acdb9c41073c061"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/BaseServiceConfiguration.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/BaseServiceConfiguration.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/Checkers.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/Checkers.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/Constants.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/Constants.java",
+          "sha256": "532173f7d3bf649e53a770c582a0b7992783c7d7c0c091690f930a3006be7051"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/E.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/E.java",
+          "sha256": "897af4eeaa2235e2fd4cf3665977ba6326aae246d659f8f12a87cf98083c0e68"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/EntityMetaRegistry.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/EntityMetaRegistry.java",
+          "sha256": "22fe6ce8742b4c596fae00207b04a47275d7a167395f54e7a968afb512b4a22c"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/GeneratedRuntimeModule.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/GeneratedRuntimeModule.java",
+          "sha256": "f219e3a5eb0ac5d6fa44717f9db083d91befc1d4c7c623cb7e3f18ac93d0741c"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/Q.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/Q.java",
+          "sha256": "1323cb489c5002e29f1df2d059815954391f6a520d82c0dc6c13deda1d381264"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/Repositories.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/Repositories.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/ScalarTypeConformanceServiceUserContext.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/ScalarTypeConformanceServiceUserContext.java",
+          "sha256": "da51c7752e2e3ad48a51a74fc4e30d8b5d624528967c93cb8289c496aa68c153"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/sampledata/SampleDataService.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/sampledata/SampleDataService.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbe.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbe.java",
+          "sha256": "6c1a64b50196d7701518a1820f61e38de837372e7d0fa04ee7e87e0f655eddc5"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeChecker.java",
+          "sha256": "d380c790184d4f25950b987de14df8632ca8a1c144655a3bf97d499ffe875e90"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeExpression.java",
+          "sha256": "f8d1e40d33d446ef9bc8b07755216ee85664591fcddeddbf8841feff2a7877fe"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeListExpression.java",
+          "sha256": "5bde5287effdfbe050f53f9735cdf56c84cc337dd5c38d1bc180f55312423fdc"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeRequest.java",
+          "sha256": "4da1c8d4d3d73abcb9719e327f1a436993609e0f303cc075ba8004d6ae0236f9"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatform.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatform.java",
+          "sha256": "0a2c88bf2e955240e090e8921f3c711ab38beb2352426fdd212a25a53989e9e1"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformChecker.java",
+          "sha256": "4162eb2929b8f15b5c2cb2c55f65809304d31cb1110ad922082c7c70c3483a53"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformExpression.java",
+          "sha256": "892aa2db6927d1076e41ac6e9c0e6a382cb31d8e2530cdcbe87c37d540b53a11"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformListExpression.java",
+          "sha256": "30aee627dec3b9ce89f23d90cc615ba22bb94b44a6af420b0f9683781cddb72a"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformRequest.java",
+          "sha256": "e403c54280f42feace6905d2c448a2ab8eb4bf56ee3531fac659695c8c8dbc4b"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler": {
+          "emittedPath": "lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler",
+          "sha256": "a2834fd53f1a3c377863d4c74804dae9ecec56022c99d645a7d6aa29e1608629"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/teaql/checker-model.json": {
+          "emittedPath": "teaql/checker-model.json",
+          "sha256": "ce4ae61861d89991e89b2762d48bb448ad04ad18853c9c5d5ea4e0c7ac093bab"
+        },
+        "examples/scalar-type-probe/json-profiles/PascalCase/teaql/model-provenance.json": {
+          "emittedPath": "teaql/model-provenance.json",
+          "sha256": "f7f81c86cc8303bdb2fed7c7bfd33b3ab44b7242bd49311c4525dfa1dcdaad17"
+        }
+      },
+      "model": "examples/scalar-type-probe/json-profiles/PascalCase/model.xml",
+      "origin": {
+        "evaluatedScope": "java-lib-core",
+        "evaluationErrors": 0,
+        "evaluationWarnings": 0,
+        "generatedManifestSha256": "46a28188829b0edb3458314c4f78613939c7b71a9ae9494c2f0044f5a6b75dcc",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-unified-intent-current-source/java/scalar-type-probe/json-profiles/PascalCase/model/receipt.json",
+        "generatorCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+        "generatorJarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+        "generatorRelease": "unreleased-source-021b1ed8",
+        "modelSha256": "f836540a765f8c372bd7103a25a83ca316797253079ac63f8a1ef5ee4ded027d",
+        "producerReceiptSha256": "e334f952e421204c932e94d111e1e367894d92002de8b1daec379b754fe684d5",
+        "producerSource": {
+          "commit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+          "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+          "release": "unreleased-source-021b1ed8"
+        }
+      },
+      "preservedApplicationFiles": {}
+    },
+    {
+      "archiveSHA256": "1d5934dca3bce464b5465cbee4addb1444247f304473dcbdcedada42d274911c",
+      "destination": "examples/scalar-type-probe/json-profiles/camelCase",
+      "generatedFiles": {
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/pom.xml": {
+          "emittedPath": "lib/pom.xml",
+          "sha256": "4a5ce36eb242e7e67fe06b9f554ff98d4d287c85e57a36ef9acdb9c41073c061"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/BaseServiceConfiguration.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/BaseServiceConfiguration.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/Checkers.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/Checkers.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/Constants.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/Constants.java",
+          "sha256": "532173f7d3bf649e53a770c582a0b7992783c7d7c0c091690f930a3006be7051"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/E.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/E.java",
+          "sha256": "5b30ec087b361856c32a7cfaa7adaf494a1351692256004bfdefe834d7011d99"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/EntityMetaRegistry.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/EntityMetaRegistry.java",
+          "sha256": "22fe6ce8742b4c596fae00207b04a47275d7a167395f54e7a968afb512b4a22c"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/GeneratedRuntimeModule.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/GeneratedRuntimeModule.java",
+          "sha256": "2ca2464dbc834c0a6be263a8313552ffacc7ed3a59b6f8c2b7a54329024ed796"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/Q.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/Q.java",
+          "sha256": "1323cb489c5002e29f1df2d059815954391f6a520d82c0dc6c13deda1d381264"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/Repositories.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/Repositories.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/ScalarTypeConformanceServiceUserContext.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/ScalarTypeConformanceServiceUserContext.java",
+          "sha256": "da51c7752e2e3ad48a51a74fc4e30d8b5d624528967c93cb8289c496aa68c153"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/sampledata/SampleDataService.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/sampledata/SampleDataService.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbe.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbe.java",
+          "sha256": "04158167dbfc7a0a6afa4655597f7070b06ba7f1db828c99df59350489812daa"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeChecker.java",
+          "sha256": "d380c790184d4f25950b987de14df8632ca8a1c144655a3bf97d499ffe875e90"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeExpression.java",
+          "sha256": "f8d1e40d33d446ef9bc8b07755216ee85664591fcddeddbf8841feff2a7877fe"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeListExpression.java",
+          "sha256": "5bde5287effdfbe050f53f9735cdf56c84cc337dd5c38d1bc180f55312423fdc"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeRequest.java",
+          "sha256": "4da1c8d4d3d73abcb9719e327f1a436993609e0f303cc075ba8004d6ae0236f9"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatform.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatform.java",
+          "sha256": "b177989e4a5fec42f98de8374eccc93d398288f16605751fd0cc789388690b54"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformChecker.java",
+          "sha256": "4162eb2929b8f15b5c2cb2c55f65809304d31cb1110ad922082c7c70c3483a53"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformExpression.java",
+          "sha256": "892aa2db6927d1076e41ac6e9c0e6a382cb31d8e2530cdcbe87c37d540b53a11"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformListExpression.java",
+          "sha256": "30aee627dec3b9ce89f23d90cc615ba22bb94b44a6af420b0f9683781cddb72a"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformRequest.java",
+          "sha256": "e403c54280f42feace6905d2c448a2ab8eb4bf56ee3531fac659695c8c8dbc4b"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler": {
+          "emittedPath": "lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler",
+          "sha256": "a2834fd53f1a3c377863d4c74804dae9ecec56022c99d645a7d6aa29e1608629"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/teaql/checker-model.json": {
+          "emittedPath": "teaql/checker-model.json",
+          "sha256": "ce4ae61861d89991e89b2762d48bb448ad04ad18853c9c5d5ea4e0c7ac093bab"
+        },
+        "examples/scalar-type-probe/json-profiles/camelCase/teaql/model-provenance.json": {
+          "emittedPath": "teaql/model-provenance.json",
+          "sha256": "53333a1d944bcd8a9478bf7428598a1f4020a497bdf1d0a264dc58076c635002"
+        }
+      },
+      "model": "examples/scalar-type-probe/json-profiles/camelCase/model.xml",
+      "origin": {
+        "evaluatedScope": "java-lib-core",
+        "evaluationErrors": 0,
+        "evaluationWarnings": 0,
+        "generatedManifestSha256": "a6c081cce8d511300d8da685c2a9011c5ee0241dd828dbe223831f7cb8830d8c",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-unified-intent-current-source/java/scalar-type-probe/json-profiles/camelCase/model/receipt.json",
+        "generatorCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+        "generatorJarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+        "generatorRelease": "unreleased-source-021b1ed8",
+        "modelSha256": "8d3017392ffd00abbc06be2555ced27ac6360e2d05fabc4299e27a5ef8f1c762",
+        "producerReceiptSha256": "2359c20744a43507a036ba738f0eeac654236489d8490b5555040d6a213d21cf",
+        "producerSource": {
+          "commit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+          "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+          "release": "unreleased-source-021b1ed8"
+        }
+      },
+      "preservedApplicationFiles": {}
+    },
+    {
+      "archiveSHA256": "15cb4724f4599a25f9353bdeabc47d00665427165684a0f79d780189fc530f6d",
+      "destination": "examples/scalar-type-probe/json-profiles/snake_case",
+      "generatedFiles": {
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/pom.xml": {
+          "emittedPath": "lib/pom.xml",
+          "sha256": "4a5ce36eb242e7e67fe06b9f554ff98d4d287c85e57a36ef9acdb9c41073c061"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/BaseServiceConfiguration.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/BaseServiceConfiguration.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/Checkers.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/Checkers.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/Constants.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/Constants.java",
+          "sha256": "532173f7d3bf649e53a770c582a0b7992783c7d7c0c091690f930a3006be7051"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/E.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/E.java",
+          "sha256": "07bda7cfc1c24acea406381d33150f44bf6c32c7a5e9485abbdda5fdc3cec4d1"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/EntityMetaRegistry.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/EntityMetaRegistry.java",
+          "sha256": "22fe6ce8742b4c596fae00207b04a47275d7a167395f54e7a968afb512b4a22c"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/GeneratedRuntimeModule.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/GeneratedRuntimeModule.java",
+          "sha256": "50928e3ee1fb00938f4759b69a2c09ca2f9334465081d2d6bc0205ae7a1fffa0"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/Q.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/Q.java",
+          "sha256": "1323cb489c5002e29f1df2d059815954391f6a520d82c0dc6c13deda1d381264"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/Repositories.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/Repositories.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/ScalarTypeConformanceServiceUserContext.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/ScalarTypeConformanceServiceUserContext.java",
+          "sha256": "da51c7752e2e3ad48a51a74fc4e30d8b5d624528967c93cb8289c496aa68c153"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/sampledata/SampleDataService.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/sampledata/SampleDataService.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbe.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbe.java",
+          "sha256": "da3fe55f44510b3b54d4eb6fd081f19964ed825025be8c0c245824a13d9ab3c8"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeChecker.java",
+          "sha256": "d380c790184d4f25950b987de14df8632ca8a1c144655a3bf97d499ffe875e90"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeExpression.java",
+          "sha256": "f8d1e40d33d446ef9bc8b07755216ee85664591fcddeddbf8841feff2a7877fe"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeListExpression.java",
+          "sha256": "5bde5287effdfbe050f53f9735cdf56c84cc337dd5c38d1bc180f55312423fdc"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeRequest.java",
+          "sha256": "4da1c8d4d3d73abcb9719e327f1a436993609e0f303cc075ba8004d6ae0236f9"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatform.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatform.java",
+          "sha256": "9152e4dd26331cc7950b21fc1bc3c343968ae0cb702ba3f3aeb970201a99d205"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformChecker.java",
+          "sha256": "4162eb2929b8f15b5c2cb2c55f65809304d31cb1110ad922082c7c70c3483a53"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformExpression.java",
+          "sha256": "892aa2db6927d1076e41ac6e9c0e6a382cb31d8e2530cdcbe87c37d540b53a11"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformListExpression.java",
+          "sha256": "30aee627dec3b9ce89f23d90cc615ba22bb94b44a6af420b0f9683781cddb72a"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformRequest.java",
+          "sha256": "e403c54280f42feace6905d2c448a2ab8eb4bf56ee3531fac659695c8c8dbc4b"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler": {
+          "emittedPath": "lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler",
+          "sha256": "a2834fd53f1a3c377863d4c74804dae9ecec56022c99d645a7d6aa29e1608629"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/teaql/checker-model.json": {
+          "emittedPath": "teaql/checker-model.json",
+          "sha256": "ce4ae61861d89991e89b2762d48bb448ad04ad18853c9c5d5ea4e0c7ac093bab"
+        },
+        "examples/scalar-type-probe/json-profiles/snake_case/teaql/model-provenance.json": {
+          "emittedPath": "teaql/model-provenance.json",
+          "sha256": "1a37f3d936bc281cd9bb78425c3ef25e88776fe545ab420c9a3d588b0b16c0c2"
+        }
+      },
+      "model": "examples/scalar-type-probe/json-profiles/snake_case/model.xml",
+      "origin": {
+        "evaluatedScope": "java-lib-core",
+        "evaluationErrors": 0,
+        "evaluationWarnings": 0,
+        "generatedManifestSha256": "cf5d6ec63a773ea686b8cf6cdd6907a5b8c7591320a73d0a5d786800e8ced716",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-unified-intent-current-source/java/scalar-type-probe/json-profiles/snake_case/model/receipt.json",
+        "generatorCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+        "generatorJarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+        "generatorRelease": "unreleased-source-021b1ed8",
+        "modelSha256": "2dbbcfea6057a5dc7c7c356ea4d0dacec5d5165538f6a9c5903d4d3b64ee13c6",
+        "producerReceiptSha256": "9e85c9075e65ed658e719cda2316ba34a8c8110c885d1a1795f55320ef7bc358",
+        "producerSource": {
+          "commit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+          "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+          "release": "unreleased-source-021b1ed8"
+        }
+      },
+      "preservedApplicationFiles": {}
+    },
+    {
+      "archiveSHA256": "1d5934dca3bce464b5465cbee4addb1444247f304473dcbdcedada42d274911c",
+      "destination": "examples/scalar-type-probe/generated",
+      "generatedFiles": {
+        "examples/scalar-type-probe/generated/lib/pom.xml": {
+          "emittedPath": "lib/pom.xml",
+          "sha256": "4a5ce36eb242e7e67fe06b9f554ff98d4d287c85e57a36ef9acdb9c41073c061"
+        },
+        "examples/scalar-type-probe/generated/lib/src/main/java/com/example/scalartypeconformanceservice/BaseServiceConfiguration.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/BaseServiceConfiguration.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/scalar-type-probe/generated/lib/src/main/java/com/example/scalartypeconformanceservice/Checkers.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/Checkers.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/scalar-type-probe/generated/lib/src/main/java/com/example/scalartypeconformanceservice/Constants.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/Constants.java",
+          "sha256": "532173f7d3bf649e53a770c582a0b7992783c7d7c0c091690f930a3006be7051"
+        },
+        "examples/scalar-type-probe/generated/lib/src/main/java/com/example/scalartypeconformanceservice/E.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/E.java",
+          "sha256": "5b30ec087b361856c32a7cfaa7adaf494a1351692256004bfdefe834d7011d99"
+        },
+        "examples/scalar-type-probe/generated/lib/src/main/java/com/example/scalartypeconformanceservice/EntityMetaRegistry.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/EntityMetaRegistry.java",
+          "sha256": "22fe6ce8742b4c596fae00207b04a47275d7a167395f54e7a968afb512b4a22c"
+        },
+        "examples/scalar-type-probe/generated/lib/src/main/java/com/example/scalartypeconformanceservice/GeneratedRuntimeModule.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/GeneratedRuntimeModule.java",
+          "sha256": "2ca2464dbc834c0a6be263a8313552ffacc7ed3a59b6f8c2b7a54329024ed796"
+        },
+        "examples/scalar-type-probe/generated/lib/src/main/java/com/example/scalartypeconformanceservice/Q.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/Q.java",
+          "sha256": "1323cb489c5002e29f1df2d059815954391f6a520d82c0dc6c13deda1d381264"
+        },
+        "examples/scalar-type-probe/generated/lib/src/main/java/com/example/scalartypeconformanceservice/Repositories.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/Repositories.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/scalar-type-probe/generated/lib/src/main/java/com/example/scalartypeconformanceservice/ScalarTypeConformanceServiceUserContext.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/ScalarTypeConformanceServiceUserContext.java",
+          "sha256": "da51c7752e2e3ad48a51a74fc4e30d8b5d624528967c93cb8289c496aa68c153"
+        },
+        "examples/scalar-type-probe/generated/lib/src/main/java/com/example/scalartypeconformanceservice/sampledata/SampleDataService.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/sampledata/SampleDataService.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/scalar-type-probe/generated/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbe.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbe.java",
+          "sha256": "04158167dbfc7a0a6afa4655597f7070b06ba7f1db828c99df59350489812daa"
+        },
+        "examples/scalar-type-probe/generated/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeChecker.java",
+          "sha256": "d380c790184d4f25950b987de14df8632ca8a1c144655a3bf97d499ffe875e90"
+        },
+        "examples/scalar-type-probe/generated/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeExpression.java",
+          "sha256": "f8d1e40d33d446ef9bc8b07755216ee85664591fcddeddbf8841feff2a7877fe"
+        },
+        "examples/scalar-type-probe/generated/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeListExpression.java",
+          "sha256": "5bde5287effdfbe050f53f9735cdf56c84cc337dd5c38d1bc180f55312423fdc"
+        },
+        "examples/scalar-type-probe/generated/lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/scalartypeprobe/ScalarTypeProbeRequest.java",
+          "sha256": "4da1c8d4d3d73abcb9719e327f1a436993609e0f303cc075ba8004d6ae0236f9"
+        },
+        "examples/scalar-type-probe/generated/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatform.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatform.java",
+          "sha256": "b177989e4a5fec42f98de8374eccc93d398288f16605751fd0cc789388690b54"
+        },
+        "examples/scalar-type-probe/generated/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformChecker.java",
+          "sha256": "4162eb2929b8f15b5c2cb2c55f65809304d31cb1110ad922082c7c70c3483a53"
+        },
+        "examples/scalar-type-probe/generated/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformExpression.java",
+          "sha256": "892aa2db6927d1076e41ac6e9c0e6a382cb31d8e2530cdcbe87c37d540b53a11"
+        },
+        "examples/scalar-type-probe/generated/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformListExpression.java",
+          "sha256": "30aee627dec3b9ce89f23d90cc615ba22bb94b44a6af420b0f9683781cddb72a"
+        },
+        "examples/scalar-type-probe/generated/lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/scalartypeconformanceservice/typeplatform/TypePlatformRequest.java",
+          "sha256": "e403c54280f42feace6905d2c448a2ab8eb4bf56ee3531fac659695c8c8dbc4b"
+        },
+        "examples/scalar-type-probe/generated/lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler": {
+          "emittedPath": "lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler",
+          "sha256": "a2834fd53f1a3c377863d4c74804dae9ecec56022c99d645a7d6aa29e1608629"
+        },
+        "examples/scalar-type-probe/generated/teaql/checker-model.json": {
+          "emittedPath": "teaql/checker-model.json",
+          "sha256": "ce4ae61861d89991e89b2762d48bb448ad04ad18853c9c5d5ea4e0c7ac093bab"
+        },
+        "examples/scalar-type-probe/generated/teaql/model-provenance.json": {
+          "emittedPath": "teaql/model-provenance.json",
+          "sha256": "53333a1d944bcd8a9478bf7428598a1f4020a497bdf1d0a264dc58076c635002"
+        }
+      },
+      "model": "examples/scalar-type-probe/model.xml",
+      "origin": {
+        "evaluatedScope": "java-lib-core",
+        "evaluationErrors": 0,
+        "evaluationWarnings": 0,
+        "generatedManifestSha256": "a6c081cce8d511300d8da685c2a9011c5ee0241dd828dbe223831f7cb8830d8c",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-unified-intent-current-source/java/scalar-type-probe/model/receipt.json",
+        "generatorCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+        "generatorJarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+        "generatorRelease": "unreleased-source-021b1ed8",
+        "modelSha256": "8d3017392ffd00abbc06be2555ced27ac6360e2d05fabc4299e27a5ef8f1c762",
+        "producerReceiptSha256": "1ff97c9bf5491e655c2ec8ac4a48abf6a8a5efbe2608426f16ef437077e4dc1f",
+        "producerSource": {
+          "commit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+          "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+          "release": "unreleased-source-021b1ed8"
+        }
+      },
+      "preservedApplicationFiles": {}
+    },
+    {
+      "archiveSHA256": "a8c86c7b32882a5f3eea1d53b30797ad854d117a14ccad88801be10e30d229b4",
+      "destination": "examples/school-management/java-lib-core",
+      "generatedFiles": {
+        "examples/school-management/java-lib-core/lib/pom.xml": {
+          "emittedPath": "lib/pom.xml",
+          "sha256": "23fb23e3bd4956cf0708210611325be12e67065e0f4d673b3fde63576465d17b"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/BaseServiceConfiguration.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/BaseServiceConfiguration.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/Checkers.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/Checkers.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/Constants.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/Constants.java",
+          "sha256": "c146bba14760bcc83958d8b5b71a0e2136db3a16254c28ab9ae5a1a1643910c5"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/E.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/E.java",
+          "sha256": "a2fe4f80b5ea3aada0267c717a6c9b0913715d2ed2bdee959042ec8d62958da8"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/EntityMetaRegistry.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/EntityMetaRegistry.java",
+          "sha256": "cf04c850db5199d6a6d30a6c5181526e09c068f9266a7dd9e982f07206dfc0c0"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/GeneratedRuntimeModule.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/GeneratedRuntimeModule.java",
+          "sha256": "fda202b9ed21f87bf65d6688ae167d2dc3e7982f2757a9f5fcbfc3513cf8d96d"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/Q.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/Q.java",
+          "sha256": "db51bb72ee4e7c0752e6256b25a65d890b3750f63d24ff839d6b158f0cdfee49"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/Repositories.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/Repositories.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/SchoolManagementServiceUserContext.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/SchoolManagementServiceUserContext.java",
+          "sha256": "b924a8e1b890211486785b9d076e0ef81eb0f94558bf2b31e3a497d0a61509a0"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/platform/Platform.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/platform/Platform.java",
+          "sha256": "2bf78b74003d5dafe571f3e20f5a91d0e6a5a38785d705a45d30f9849c15dcf3"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/platform/PlatformChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/platform/PlatformChecker.java",
+          "sha256": "312df235674b87518fa3e5af3f2f1475c71d86f2c6a7499c9db20b2f7fcd8de5"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/platform/PlatformExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/platform/PlatformExpression.java",
+          "sha256": "b5f09cbe63ff1f63fb9c94e1b5c81ba78465bd0c78602ddf8ce97667c980c12f"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/platform/PlatformListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/platform/PlatformListExpression.java",
+          "sha256": "5dcf6781878f69ae68760d6767ccb8f036e5aec5cec2446a6006e20ed7684da9"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/platform/PlatformRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/platform/PlatformRequest.java",
+          "sha256": "0e3e1a8bcdadee4008cdfe139d2f0a1db7ccf4920064c9544eac2afb81c9929a"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/sampledata/SampleDataService.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/sampledata/SampleDataService.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/school/School.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/school/School.java",
+          "sha256": "4de7fb018260149c521226f002beb9084a68e9c3ff233dc361bc9c5f07998528"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/school/SchoolChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/school/SchoolChecker.java",
+          "sha256": "eade01d79d598870b87949866e2ff15e09596bbbe6e67f3e3c288e5384e9eb9a"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/school/SchoolExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/school/SchoolExpression.java",
+          "sha256": "29a8f0af8c19c488ea5facf3e18b35fc4500e305960e0f1dd50e239d4b84ccea"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/school/SchoolListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/school/SchoolListExpression.java",
+          "sha256": "f8ebc48aec4c099a9c32c01dac825e2f6efa1918a437c6c617013e752fd754e7"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/school/SchoolRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/school/SchoolRequest.java",
+          "sha256": "78328172cc2d31caf70df4c7f80ce0c825fece345b39002475fb614a50db6292"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolType.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolType.java",
+          "sha256": "6d2d2ba18e5fd8865a5c573ca222872fa2b79fe6670f8589c28d41327b27660f"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolTypeChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolTypeChecker.java",
+          "sha256": "4b3e29551b77290a7fc0b3d90bd30c04ec918e424dfec48e13740ea1d1618d6d"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolTypeExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolTypeExpression.java",
+          "sha256": "5aa66ba48667373431c297b9b4e72d9d7e64df475f66808eb3c427219c0554f4"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolTypeListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolTypeListExpression.java",
+          "sha256": "cf40825a8ec01a22ae698d26d586ce1e1fd1dd5ac7b9762addc84f84233d3263"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolTypeRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/schoolmanagementservice/schooltype/SchoolTypeRequest.java",
+          "sha256": "b706b4336e1c5b1591b7a7f94227225bb096645a97fbeabf877e9a6374513d2d"
+        },
+        "examples/school-management/java-lib-core/lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler": {
+          "emittedPath": "lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler",
+          "sha256": "bacf17c0f620b2ddac37a9b549f0835af0d85e625b36c7c3a44f668001ee310a"
+        },
+        "examples/school-management/java-lib-core/teaql/checker-model.json": {
+          "emittedPath": "teaql/checker-model.json",
+          "sha256": "8e28ee16cddc21191816ed05999142fccb870bf42795f5a1f21268ebd4469e71"
+        },
+        "examples/school-management/java-lib-core/teaql/model-provenance.json": {
+          "emittedPath": "teaql/model-provenance.json",
+          "sha256": "37dfcdffaeb5cabe6ffb233212ec4afec39d19c242b3cbcee53e3634c3715a2e"
+        }
+      },
+      "model": "examples/school-management/models/school-model.xml",
+      "origin": {
+        "evaluatedScope": "java-lib-core",
+        "evaluationErrors": 0,
+        "evaluationWarnings": 0,
+        "generatedManifestSha256": "36aa5ebe3434fd92b95076e0d6bd9f35f59497faa7d4950c551b45cc4328ff1b",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-unified-intent-current-source/java/school-management/models/school-model/receipt.json",
+        "generatorCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+        "generatorJarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+        "generatorRelease": "unreleased-source-021b1ed8",
+        "modelSha256": "b5cd06ae44464fc29ed24de82654b47c80f546110496756aa15923cee1c511b4",
+        "producerReceiptSha256": "288a151c506048352f583308de05248f5ba0f0bd7435db0a265d5a39ea1f65af",
+        "producerSource": {
+          "commit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+          "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+          "release": "unreleased-source-021b1ed8"
+        }
+      },
+      "preservedApplicationFiles": {}
+    },
+    {
+      "archiveSHA256": "7f6df4cd62627c64e7f58b95105a1edf2c57e60f6afbcbf00b89ba0094294308",
+      "destination": "examples/standard-order/generated",
+      "generatedFiles": {
+        "examples/standard-order/generated/lib/pom.xml": {
+          "emittedPath": "lib/pom.xml",
+          "sha256": "aa3d20c43f253d8b54b465d3f7efc25794e642795c735f18afdbf4e6aefcf649"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/BaseServiceConfiguration.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/BaseServiceConfiguration.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/Checkers.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/Checkers.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/Constants.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/Constants.java",
+          "sha256": "6616fd2e2688db16e668dc44e1c04181e0e09ba6235f1626e25f3ba075beb44f"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/E.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/E.java",
+          "sha256": "4702c8b91a9a24bc319472aedb97697b6ec0e8551571402cb4724b88a6be51b1"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/EntityMetaRegistry.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/EntityMetaRegistry.java",
+          "sha256": "88b93f17283d9c59d97a3c703faececd96160e1c944030da6d605a7e319b8def"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/GeneratedRuntimeModule.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/GeneratedRuntimeModule.java",
+          "sha256": "0bff7cd3b404a5720bcffbd3821a9d5a8a205100a107c15e7cb7ee3c323da68f"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/Q.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/Q.java",
+          "sha256": "da1a4bc7d477878877cd275b4ea0ad31ccded12894a3c26741ce7af394e1ad45"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/Repositories.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/Repositories.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/RequestTreeOrderServiceUserContext.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/RequestTreeOrderServiceUserContext.java",
+          "sha256": "1bc0a93d370f90faaa13ec7f3333a13bf788754c6ed3a499ac3d6a3f41f3f03b"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/customer/Customer.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/customer/Customer.java",
+          "sha256": "e32fe91d9c4d0c9dd737d76009d9a517e14a86d74cc4b9656f1c4109fa68a1d5"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/customer/CustomerChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/customer/CustomerChecker.java",
+          "sha256": "dd111fa5c9be48380e1cf2dec94c1ffa0b21683da563ffe890964ecca004b352"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/customer/CustomerExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/customer/CustomerExpression.java",
+          "sha256": "0aae219b9e565560155beb078e710d0b97c584a563f1add175ca4373374c77b5"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/customer/CustomerListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/customer/CustomerListExpression.java",
+          "sha256": "7d017d7c8752f068504b7c57d0c758af1ef7fa5582b2335a54a95d6d263cb95b"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/customer/CustomerRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/customer/CustomerRequest.java",
+          "sha256": "96d6745f2a6e008966eda59234b840a25bbff6ebdc379129ec883998de0f4463"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/customerorder/CustomerOrder.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/customerorder/CustomerOrder.java",
+          "sha256": "5b0e33d3bf7a5c3c6368e17f648d89cd1bf2c933248b4221814ed611b1a2d7a7"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/customerorder/CustomerOrderChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/customerorder/CustomerOrderChecker.java",
+          "sha256": "2d7fd6fed2d3cb5e40fa351f7801f5fb329552c3e98e118c2b2bb1575f1c7090"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/customerorder/CustomerOrderExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/customerorder/CustomerOrderExpression.java",
+          "sha256": "1b0ed544f79c7bc7aaf74a901d75569ab81a955535f83e55e80fb7d570a24bdd"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/customerorder/CustomerOrderListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/customerorder/CustomerOrderListExpression.java",
+          "sha256": "213d88c60048a94671bdcef3748bb82306cb3ed08397cbd21717200d0f18a071"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/customerorder/CustomerOrderRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/customerorder/CustomerOrderRequest.java",
+          "sha256": "08e32011edc586af0ca014b5ff647f813b918342522a82a1f919b0375cc12e66"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/orderitem/OrderItem.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/orderitem/OrderItem.java",
+          "sha256": "2110b97c87669e11dcddf7f977178260b1a30c07a21e6d6402fdb2e073d5bea3"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/orderitem/OrderItemChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/orderitem/OrderItemChecker.java",
+          "sha256": "28d270f7023a57cd69254e4ac03dc20b59d527b7bb13bc57813fa69ce792598c"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/orderitem/OrderItemExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/orderitem/OrderItemExpression.java",
+          "sha256": "ec132615f09ff24ae45e24d6ded880a86c80eddc309072f8ac9f5874ffc56faa"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/orderitem/OrderItemListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/orderitem/OrderItemListExpression.java",
+          "sha256": "2da9ca5c069e11f4247455920273fbbcde9db184e6cf23c950f5ba88c224a8a0"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/orderitem/OrderItemRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/orderitem/OrderItemRequest.java",
+          "sha256": "25ee269243d8766fafa86253adbfc919f8982da8eebc6792c5eaa015514a9cc1"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/orderstatus/OrderStatus.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/orderstatus/OrderStatus.java",
+          "sha256": "72b874ae0065c3afd136ffcae4112c1d1aa4b5e5d97ecd8048405f05bd021c82"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/orderstatus/OrderStatusChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/orderstatus/OrderStatusChecker.java",
+          "sha256": "8b20927853e782791c91eabee5bd76b124a770d5c69c467db1f8d1b1c51b2978"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/orderstatus/OrderStatusExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/orderstatus/OrderStatusExpression.java",
+          "sha256": "b7ed6147399c07e0041a44caf3da0e61d06ec63cabce0f7d56b3875c9203efaf"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/orderstatus/OrderStatusListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/orderstatus/OrderStatusListExpression.java",
+          "sha256": "999f6f0fdb1f46511f1990fc15ec8fbc25a72d10935ee49ee2e22360fe64b32f"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/orderstatus/OrderStatusRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/orderstatus/OrderStatusRequest.java",
+          "sha256": "49046e050ed7dba860a6147016918f16ed63fa25356676c261048b2d2d16f1d3"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/platform/Platform.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/platform/Platform.java",
+          "sha256": "3740dd9b56d421949d0fc465a14432ab1aae86aab23b656ecccc95d1993c7d97"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/platform/PlatformChecker.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/platform/PlatformChecker.java",
+          "sha256": "b8e7666030f2300ae57fc5c3e4d99c62dcd2c3c9e9fc1e0fccd8799094d323f7"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/platform/PlatformExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/platform/PlatformExpression.java",
+          "sha256": "fd6e515d30839dd5c0f6b012fd3d39ad988a8e465dbe70d7c01aa39639209b33"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/platform/PlatformListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/platform/PlatformListExpression.java",
+          "sha256": "4efc0af02ee6f5a5eb1a3500707e4027c6029a9ab7f9a4437210a494832a2a94"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/platform/PlatformRequest.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/platform/PlatformRequest.java",
+          "sha256": "fcb23d9bd5215a530226da2a7f1e253a24f14a3e8cbe2c19cbfb1d2ae18f21cb"
+        },
+        "examples/standard-order/generated/lib/src/main/java/com/example/requesttreeorderservice/sampledata/SampleDataService.java": {
+          "emittedPath": "lib/src/main/java/com/example/requesttreeorderservice/sampledata/SampleDataService.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/standard-order/generated/lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler": {
+          "emittedPath": "lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler",
+          "sha256": "1ccbac54ea338ecd530e99d5436a006c999e5fb9c7a851020ed85710016a8091"
+        },
+        "examples/standard-order/generated/teaql/checker-model.json": {
+          "emittedPath": "teaql/checker-model.json",
+          "sha256": "11e9102d94684fd30e13941514301d2cf6f20522c275cfa36eece9842ff1014e"
+        },
+        "examples/standard-order/generated/teaql/model-provenance.json": {
+          "emittedPath": "teaql/model-provenance.json",
+          "sha256": "5caac595e97bde8c7dcc1636bbf42163abf361a44826f9a0775486eb4d21d983"
+        }
+      },
+      "model": "examples/standard-order/models/model.xml",
+      "origin": {
+        "evaluatedScope": "java-lib-core",
+        "evaluationErrors": 0,
+        "evaluationWarnings": 0,
+        "generatedManifestSha256": "61b57912a2ca63e86958a3b54e9943257e8aaad9d4f213476a34faa9999aa478",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-unified-intent-current-source/java/standard-order/models/model/receipt.json",
+        "generatorCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+        "generatorJarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+        "generatorRelease": "unreleased-source-021b1ed8",
+        "modelSha256": "455a5b60e571859a68586678da4bd8c9f13120132dc7ecf95f0554d98af6d674",
+        "producerReceiptSha256": "dc4ccc783f815d985ec1d35a4b7a824e3bb311338c1d5c5ac29b146c183fe838",
+        "producerSource": {
+          "commit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+          "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+          "release": "unreleased-source-021b1ed8"
+        }
+      },
+      "preservedApplicationFiles": {}
+    },
+    {
+      "archiveSHA256": "48dddea022bf94fcc5cd2b2e21ed6393f70d7421765bbdd156c389094d2bf0b9",
+      "destination": "examples/trace-chain",
+      "generatedFiles": {
+        "examples/trace-chain/lib/pom.xml": {
+          "emittedPath": "lib/pom.xml",
+          "sha256": "0fee7388b4b98cea713fdb836bbc82605bb95c84748f815dd0dc88cd529f8dfb"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/BaseServiceConfiguration.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/BaseServiceConfiguration.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/Checkers.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/Checkers.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/Constants.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/Constants.java",
+          "sha256": "7c4c4322c7bd699b3b0bd6408ec6697a696e676f323c885725d924d4680d7d84"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/E.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/E.java",
+          "sha256": "c94315e814895c4a634d471cf95385b6399aaadb1e2f072a3b7c01bc72f6d39a"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/EntityMetaRegistry.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/EntityMetaRegistry.java",
+          "sha256": "b2bfc4bed3d662b6498770ea4fbe7b95b922794f657e986b0189951441070a71"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/GeneratedRuntimeModule.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/GeneratedRuntimeModule.java",
+          "sha256": "ba88b1d63497019158af4b1e9c18fffdb0beb5c55a59579ef8aa3e9f25e6ac6e"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/Q.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/Q.java",
+          "sha256": "2179c15d8d5990b1d275a4777a6d8ff1879a0015871cd15821a3b614632acac3"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/Repositories.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/Repositories.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/TraceChainServiceUserContext.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/TraceChainServiceUserContext.java",
+          "sha256": "02aad8535d1292690cc7fd6e8000035e42aca040c7b3a1ea9d293776acab9262"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/customerorder/CustomerOrder.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/customerorder/CustomerOrder.java",
+          "sha256": "61dab24aa7a168a204e4032588d62fe2b921e8e7bb23232fa0c1c1e2581df22b"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/customerorder/CustomerOrderChecker.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/customerorder/CustomerOrderChecker.java",
+          "sha256": "cd79d40a84c017032168d03e5d4479f3de03f308785303427022e7c4f6cbc1ca"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/customerorder/CustomerOrderExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/customerorder/CustomerOrderExpression.java",
+          "sha256": "87fdd314bdd4b2bdc22f7e7d2dbf5dac000a19aa98cd9c3fe9a0e84ff3b9ad2b"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/customerorder/CustomerOrderListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/customerorder/CustomerOrderListExpression.java",
+          "sha256": "ae19af3c6b2d03d3be333e2d640c59d0ff5dca1e14a1d7c3e6e5c6ed1b775c45"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/customerorder/CustomerOrderRequest.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/customerorder/CustomerOrderRequest.java",
+          "sha256": "2f401c8ac35998595af563b97be9f7c166e1b915948dc35c4ab7fdccb04c92c4"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/orderitem/OrderItem.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/orderitem/OrderItem.java",
+          "sha256": "3c9372ced32e32c20ccdcc2f76f5d8d4f7594c4c45f2839ddbe288b76c3b524d"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/orderitem/OrderItemChecker.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/orderitem/OrderItemChecker.java",
+          "sha256": "477efa373106fd1483708977669d6cd0ead2a6f521446f0e7a842d656cd9554f"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/orderitem/OrderItemExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/orderitem/OrderItemExpression.java",
+          "sha256": "a1f9fc8557a29ccef9b0662741b1491dc59cf441f35fcb5bf8b82b63a34cab49"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/orderitem/OrderItemListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/orderitem/OrderItemListExpression.java",
+          "sha256": "1cb7ead158a0ef4acb2bce76a36687b4dd2a4d572f288ccf9c0ec04a0728f317"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/orderitem/OrderItemRequest.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/orderitem/OrderItemRequest.java",
+          "sha256": "72999e60668e4c58f2585f0bb4952422b810b3061735168782ba0a520c369232"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/payment/Payment.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/payment/Payment.java",
+          "sha256": "6836a6b6c566530633ccc353433a8b47ec010f5513ed554e6848284c587de848"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/payment/PaymentChecker.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/payment/PaymentChecker.java",
+          "sha256": "e44d6bb79a8e9284eeccfea04376c298a39dd6beb0a705667608ef246a3514af"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/payment/PaymentExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/payment/PaymentExpression.java",
+          "sha256": "00874e5e70da06d62e9f1341b094f4b3f9e00c2ffc08103284068e0896fad167"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/payment/PaymentListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/payment/PaymentListExpression.java",
+          "sha256": "af31ed30d7e80e96458fdbdfcb0775deebe42a25216f876049d928f25b60fd3e"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/payment/PaymentRequest.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/payment/PaymentRequest.java",
+          "sha256": "d09d871d11aea0d4f248c7fefbce58d9a2a3850f2d707ee70d663307eeef3085"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/paymentattempt/PaymentAttempt.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/paymentattempt/PaymentAttempt.java",
+          "sha256": "14b2cdca50d110b4f5b5b21ab171d52d0f53d4003b8c71dc3ce805a194f41bfa"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/paymentattempt/PaymentAttemptChecker.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/paymentattempt/PaymentAttemptChecker.java",
+          "sha256": "0d347175a739fe2c06f42be0c753ee321df7662cede476c910e1669bb292ae59"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/paymentattempt/PaymentAttemptExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/paymentattempt/PaymentAttemptExpression.java",
+          "sha256": "235adc079946b468741fa2744e76af2a7ed7ee567c8c01a4b0dc3eb27d9bc17d"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/paymentattempt/PaymentAttemptListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/paymentattempt/PaymentAttemptListExpression.java",
+          "sha256": "cbb5df62a779664ff82da8f34c0739823b5ee219df8d257b0ba60dfa9e14a6b9"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/paymentattempt/PaymentAttemptRequest.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/paymentattempt/PaymentAttemptRequest.java",
+          "sha256": "89bf66d5f74e1ed59f69e594da5b78205fb1b258d110a11e4608115bc2c1ec2b"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/platform/Platform.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/platform/Platform.java",
+          "sha256": "432fb08ddc4fa197294646b4001057fc91a99dee84b9519db952eaab7736d68b"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/platform/PlatformChecker.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/platform/PlatformChecker.java",
+          "sha256": "114b16bbc115d78b49f379bbfa6b56b0be6addf3e60147906be6004c387e24f8"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/platform/PlatformExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/platform/PlatformExpression.java",
+          "sha256": "0fd9ca4e9d677bd9f7b656b6f11f8a5ea3aee975bd09d8f856981ebcf86282ea"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/platform/PlatformListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/platform/PlatformListExpression.java",
+          "sha256": "6ee2c88507f9f3152b325e1daed2dad77817c2cc782240a4ce48ca84f95e8c58"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/platform/PlatformRequest.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/platform/PlatformRequest.java",
+          "sha256": "a612f83d861d5d0a4821447285059aa34aaa33976afed9795676f27b850a87b2"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/sampledata/SampleDataService.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/sampledata/SampleDataService.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/shipment/Shipment.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/shipment/Shipment.java",
+          "sha256": "b45c3f3138982558f41dfed31a6b67e827292512731d386b3ba1aad83ffb369b"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/shipment/ShipmentChecker.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/shipment/ShipmentChecker.java",
+          "sha256": "d0ea2d86009ffd8f66059171b98cb95d6be766583460e8732d10a0f3c393fc31"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/shipment/ShipmentExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/shipment/ShipmentExpression.java",
+          "sha256": "4d26c4420927ad33175655164944af87d0dfc5b3b21ae7f5fe4d7c69f8168bba"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/shipment/ShipmentListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/shipment/ShipmentListExpression.java",
+          "sha256": "5ad66968d1979255432fcb92d2611b57b1eca94854fb92293cdf2eed8e145247"
+        },
+        "examples/trace-chain/lib/src/main/java/com/teaql/tracechainservice/shipment/ShipmentRequest.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/tracechainservice/shipment/ShipmentRequest.java",
+          "sha256": "4e1d004e804103baf2d2fdc1f61c869f08a07076d49bf632e7de56620e594bb0"
+        },
+        "examples/trace-chain/lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler": {
+          "emittedPath": "lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler",
+          "sha256": "ffd19eb50d0ebd6fba4ff3a18940bd13dc4df1d77ff0ffb23e8e6b2c5a834fee"
+        },
+        "examples/trace-chain/teaql/checker-model.json": {
+          "emittedPath": "teaql/checker-model.json",
+          "sha256": "4e3a105f6a25a68a4565f8bb5addf7bb560cc2d53f113c300689986959ad8ec0"
+        },
+        "examples/trace-chain/teaql/model-provenance.json": {
+          "emittedPath": "teaql/model-provenance.json",
+          "sha256": "b34f98f91832753bf90101458f7dfb8a0626d8fc4a97a1cfe939546f1fd8a4d8"
+        }
+      },
+      "model": "examples/trace-chain/model.xml",
+      "origin": {
+        "evaluatedScope": "java-lib-core",
+        "evaluationErrors": 0,
+        "evaluationWarnings": 0,
+        "generatedManifestSha256": "0657b896f40e4c4a0a60064ff3a6f15669d343e2c10b8be66babcf1678d5c321",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-unified-intent-current-source/java/trace-chain/model/receipt.json",
+        "generatorCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+        "generatorJarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+        "generatorRelease": "unreleased-source-021b1ed8",
+        "modelSha256": "c9743d776718c7b27c97792f75f492fdc99bf427e4bd0c24bf3492de6520c9a2",
+        "producerReceiptSha256": "c76ac873eaafc560f650ca5088b18d81e1307c482b3e8bda092d6a50b7000020",
+        "producerSource": {
+          "commit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+          "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+          "release": "unreleased-source-021b1ed8"
+        }
+      },
+      "preservedApplicationFiles": {}
+    },
+    {
+      "archiveSHA256": "306cffd6cd13abdd4c3f8dca80343be022a3d649b34ef9cecb3852e7cf95c2dd",
+      "destination": "examples/order-management/java-lib-core",
+      "generatedFiles": {
+        "examples/order-management/java-lib-core/lib/pom.xml": {
+          "emittedPath": "lib/pom.xml",
+          "sha256": "ebc33330e0d8bea91c8a68eb9e0806006619f9e223129274d2b460a0ed0874de"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/BaseServiceConfiguration.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/BaseServiceConfiguration.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/Checkers.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/Checkers.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/Constants.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/Constants.java",
+          "sha256": "0ead4d99d80a3bc4a6891ce9ef00deffd60b9d5395a9f34df55c2e7af3e99d13"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/E.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/E.java",
+          "sha256": "1aae139e962d37be1eda53dc8ec41ab69c4d58537b96488587e292918e9b0c46"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/EntityMetaRegistry.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/EntityMetaRegistry.java",
+          "sha256": "72c4c025ef7c82deeea841ee7cb84feac2a62e3cdba670d79a8abd7ca9e23a21"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/GeneratedRuntimeModule.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/GeneratedRuntimeModule.java",
+          "sha256": "f745d8cf1e0bf7a7989362680df4e7f83d962210a91e04ac7aba24c1edf3726e"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/OrderManagementServiceUserContext.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/OrderManagementServiceUserContext.java",
+          "sha256": "e3b18c77a767e68d4585aa6fbb2708c935944a0d305c756b42f2217d1bbdbc62"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/Q.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/Q.java",
+          "sha256": "331df52f4327e1465374a6b5c2061c6ff7a81d6d1d4e9ce17aba5e61904939ea"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/Repositories.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/Repositories.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/commerceplatform/CommercePlatform.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/commerceplatform/CommercePlatform.java",
+          "sha256": "4871537e392a02ff60b20a6a4a304c7888369a42de2d62aa26891cd6100e17bf"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/commerceplatform/CommercePlatformChecker.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/commerceplatform/CommercePlatformChecker.java",
+          "sha256": "fcbcf78eae49bf297476c03ac9454ad9b8d2376de6b33d661c0bdf144bfcf500"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/commerceplatform/CommercePlatformExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/commerceplatform/CommercePlatformExpression.java",
+          "sha256": "fe59124058e9405cbc7865410a0b5191b9fe260d66423d52751f246033af0e14"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/commerceplatform/CommercePlatformListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/commerceplatform/CommercePlatformListExpression.java",
+          "sha256": "17b46a2615a0418a2d611eebf59f2d33383b0bb2cd4a7736788d9b18208a2ca1"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/commerceplatform/CommercePlatformRequest.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/commerceplatform/CommercePlatformRequest.java",
+          "sha256": "ecc0881171e10758d1fdc9fa543837c343db59dcbe6b147ee86dbbac9f264666"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/customer/Customer.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/customer/Customer.java",
+          "sha256": "0a84f29455b7458c680270799f531b337fa720b022723f15f957a6f6e093205d"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/customer/CustomerChecker.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/customer/CustomerChecker.java",
+          "sha256": "be0a752623e3873999edbf7728851ac2bfb8cad06eefa3f81fa6ce4425e772a1"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/customer/CustomerExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/customer/CustomerExpression.java",
+          "sha256": "0a740cb0c86aca68ac7df5f4acf401ab093ae01f4394c7e50276de7b1c478791"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/customer/CustomerListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/customer/CustomerListExpression.java",
+          "sha256": "49c40ce00a7f49e0b52c9b0a00ac13cdda6cc2ec294df310b9cbacf494c32a2b"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/customer/CustomerRequest.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/customer/CustomerRequest.java",
+          "sha256": "e32e82a5c0cd929cf88bba063bf8e17080fca7d7f9fa3bbcf15e69cdbc9bf967"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/customerorder/CustomerOrder.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/customerorder/CustomerOrder.java",
+          "sha256": "1b67e2c2646fa192b4ecb0e32e249f94833a96f1c96e421dcf62d7a4aa317835"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/customerorder/CustomerOrderChecker.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/customerorder/CustomerOrderChecker.java",
+          "sha256": "88763b09c8a9c49dc246491bac935d59a8ad1d270578f20fbeff3d23548d13ba"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/customerorder/CustomerOrderExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/customerorder/CustomerOrderExpression.java",
+          "sha256": "8cec54d3f6865b0d2ea690f141499b5f22f05f78624afc3f4a83eb4495d58370"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/customerorder/CustomerOrderListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/customerorder/CustomerOrderListExpression.java",
+          "sha256": "07b967017411961a96cd406977a094ae9c59727a8b652d0068202ef1803a713a"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/customerorder/CustomerOrderRequest.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/customerorder/CustomerOrderRequest.java",
+          "sha256": "cea4c876d2bad93619507151766f604b798727dbc5ec47c97a847965b2b70418"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/orderline/OrderLine.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/orderline/OrderLine.java",
+          "sha256": "1efba1e35f311ed96d0c16f4464dbcbefd5edc550cc640fc504e7db7c1344987"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/orderline/OrderLineChecker.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/orderline/OrderLineChecker.java",
+          "sha256": "264dc06f179f176930b29b134357fda9b5490dd03362fdddf923c49aa857d659"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/orderline/OrderLineExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/orderline/OrderLineExpression.java",
+          "sha256": "7e9fa5d0a12547a6f38f8b851c25a16d2a41253df0b6560da312888aabcd709b"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/orderline/OrderLineListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/orderline/OrderLineListExpression.java",
+          "sha256": "5dc82764d4d94ac3b786e48b4aa46120296aca02ae10045301e0b92b9e85e523"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/orderline/OrderLineRequest.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/orderline/OrderLineRequest.java",
+          "sha256": "06fdb11c9d3fedd893ffe6ece0a54bbb0a144ee8bd7fb2ac0ac8c4e274055413"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/ordersearchpreset/OrderSearchPreset.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/ordersearchpreset/OrderSearchPreset.java",
+          "sha256": "2bc72303845ecc923fb60fbf19b3317f418f67aaf901529a2b5b92f063699772"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/ordersearchpreset/OrderSearchPresetChecker.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/ordersearchpreset/OrderSearchPresetChecker.java",
+          "sha256": "3f475c27c129caf0b267c760d550c1ce6b4504315df3c31c43c2d37775f2e091"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/ordersearchpreset/OrderSearchPresetExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/ordersearchpreset/OrderSearchPresetExpression.java",
+          "sha256": "35ae3815d8cabaa55e1ef35690533271f0cf3c2244eefb9d23d37cd649f99aad"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/ordersearchpreset/OrderSearchPresetListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/ordersearchpreset/OrderSearchPresetListExpression.java",
+          "sha256": "2cbe1b83006c81b2c221f4551747f329ecaa9da2e0816ed93a8086b21a03a86f"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/ordersearchpreset/OrderSearchPresetRequest.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/ordersearchpreset/OrderSearchPresetRequest.java",
+          "sha256": "00395a3b18753befa78750e1a8a59af7b8715d29a47299083dba6593c6b62866"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/orderstatus/OrderStatus.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/orderstatus/OrderStatus.java",
+          "sha256": "7d9e9738eb52b7ffbaec1ffa92d02e48a6af946f7671b16a6a8e1d0a2c66c300"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/orderstatus/OrderStatusChecker.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/orderstatus/OrderStatusChecker.java",
+          "sha256": "2ac058241c9afe0993b81959e6d08ea79071bca38702e98e21a6154bd0fecebe"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/orderstatus/OrderStatusExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/orderstatus/OrderStatusExpression.java",
+          "sha256": "144eda5eec2d95e4ccf622c80c4e993b08436385e3ac1ab916cd261545bb98ce"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/orderstatus/OrderStatusListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/orderstatus/OrderStatusListExpression.java",
+          "sha256": "2d4e1a76ef69b8853c43043fb0d340417b55656f7345357b876df629c655f05f"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/orderstatus/OrderStatusRequest.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/orderstatus/OrderStatusRequest.java",
+          "sha256": "316741cc5436441e03fb6f4babe82e85413fe91dfe49ee79111833c6988c466d"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/product/Product.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/product/Product.java",
+          "sha256": "166a688f1ec6b78a6da091e6f8fad662b50af0e48df1d667eed23e0bbd8636f0"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/product/ProductChecker.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/product/ProductChecker.java",
+          "sha256": "689c2e5187d2a8298ef644a1e29cc26266a01d006820ae1060e62a49901fdbcf"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/product/ProductExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/product/ProductExpression.java",
+          "sha256": "609df2656ee902e76f7ffe8cc5f7e3dab76ff6a1399df2d9ee0a1ad5d57228de"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/product/ProductListExpression.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/product/ProductListExpression.java",
+          "sha256": "1480416326ebd28041a408355a8bb2f87b25f6cb8f40c98d01e8648f32949fac"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/product/ProductRequest.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/product/ProductRequest.java",
+          "sha256": "a2a9d3d7e0423f9375e23436a22f91074f9b1b44c47dae25f49935a79e19cc31"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/java/com/teaql/ordermanagementservice/sampledata/SampleDataService.java": {
+          "emittedPath": "lib/src/main/java/com/teaql/ordermanagementservice/sampledata/SampleDataService.java",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "examples/order-management/java-lib-core/lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler": {
+          "emittedPath": "lib/src/main/resources/META-INF/services/io.teaql.core.meta.EntityMetaAssembler",
+          "sha256": "7b4edfdeca872586554a76b412cd8124386a70c3c7377a62ce867e5271e5003b"
+        },
+        "examples/order-management/java-lib-core/teaql/checker-model.json": {
+          "emittedPath": "teaql/checker-model.json",
+          "sha256": "82f1556c56fd3ed10f2e947da68d0defb73215bf2192ccd213cc9c7e8eae9b95"
+        },
+        "examples/order-management/java-lib-core/teaql/model-provenance.json": {
+          "emittedPath": "teaql/model-provenance.json",
+          "sha256": "49d9c58bee8d5f8e0f85a915656d61233a99d1288ca1bd6f053a1077afec3382"
+        }
+      },
+      "model": "examples/order-management/model.xml",
+      "origin": {
+        "evaluatedScope": "java-lib-core",
+        "evaluationErrors": 0,
+        "evaluationWarnings": 8,
+        "generatedManifestSha256": "3aaef0ccd2aad4a0cd6165aea29f6d113876e2fdbb0fbd4f1bb091588df12d60",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-unified-intent-current-source/java/order-management/model/receipt.json",
+        "generatorCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+        "generatorJarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+        "generatorRelease": "unreleased-source-021b1ed8",
+        "modelSha256": "8b11ee844c2be184e194d8116994fb5fe95299dd593bfed83ec06d71ada0411d",
+        "producerReceiptSha256": "8469485fd0dfd6601070aaa2a3036c8da8ef262c2524b20a344b48fd6c418ebf",
+        "producerSource": {
+          "commit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+          "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+          "release": "unreleased-source-021b1ed8"
+        }
+      },
+      "preservedApplicationFiles": {}
+    }
+  ],
+  "runtimeBaseCommit": "da34cfe478db9ae8334ffa385b396ee786464ca0",
+  "schema": "teaql.runtime-current-generated-examples/v1",
+  "sourceCodeHandEdited": false
+}

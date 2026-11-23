@@ -49,7 +49,7 @@ public class TypePlatform extends BaseEntity implements RemoteInput {
     }
 
     public SmartList<ScalarTypeProbe> getScalarTypeProbeList(){
-        return this.scalarTypeProbeList;
+        return this.scalarTypeProbeList == null ? SmartList.unloaded() : this.scalarTypeProbeList;
     }
     public TypePlatform updateName(String name){
         name = (name == null ? null : name.trim());
@@ -67,7 +67,8 @@ public class TypePlatform extends BaseEntity implements RemoteInput {
         }
 
         if(null == this.scalarTypeProbeList){
-            this.scalarTypeProbeList = new SmartList<>();
+            SmartList<ScalarTypeProbe> teaqlUnloadedItems = SmartList.unloaded();
+            this.scalarTypeProbeList = teaqlUnloadedItems.map(value -> value);
         }
 
         this.scalarTypeProbeList.add(scalarTypeProbe);
@@ -116,7 +117,13 @@ public class TypePlatform extends BaseEntity implements RemoteInput {
         switch (property) {
             case "name": return this.name;
             case "scalar_type_probe_list": return this.scalarTypeProbeList;
-            default: return super.__internalGet(property);
+            default:
+                // Presentation uses the installed Java member mapping; SQL and
+                // hydration retain canonical names. These aliases only read.
+                switch (property) {
+                    case "name": return this.name;
+                    default: return super.__internalGet(property);
+                }
         }
     }
 

@@ -1,0 +1,50 @@
+{
+  "generatedDomainLibraryHandEdited": false,
+  "goalId": "java:examples/object-storage",
+  "library": {
+    "generatedFilesManifestSHA256": "a9250638eaf44bfdbe5e919b85df3e5b7fd3bdff22884cd1bd06e732868adae3",
+    "root": "java-lib-core",
+    "scope": "java-lib-core"
+  },
+  "model": {
+    "path": "model.xml",
+    "sha256": "1e35ffb88509f292b75620d82996bbc50868c61fd34716f8be010dff7280eafc"
+  },
+  "producer": {
+    "generator": {
+      "artifactKind": "qualified source build",
+      "jarSHA256": "029f602cf0e2de4ec0910495c340fbeb41f11772b6aca875569f498811158e7d",
+      "qualificationReceiptSHA256": "1012520de60d49cfc1e45c7e08fcf204dd2db36a163909e1e36752065a31047a",
+      "sourceCommit": "99d6bde2351d79b7d8b1b1c5cbc78c5dc777b6f2",
+      "tag": "unreleased-source-99d6bde2"
+    },
+    "receipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/order-attachment-generation/receipt.json",
+    "receiptSHA256": "715bd8f8f61f6ecd96611db1121cb54ce40d72f533b23289c5919e92de0cd95e"
+  },
+  "qualification": {
+    "businessReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-order-attachment-native/runtime/object-storage/receipt.json",
+    "businessReceiptSHA256": "4b04ef3ceb8cce64a18e0cfb820815b4e0c357fc570ab64ff511834f38514fe9",
+    "nativeReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-order-attachment-native/receipt.json",
+    "nativeReceiptSHA256": "4496c243fc3ca8a532ce08fdc9583be683bfb8c6f71aebf3454bc8e8b8dce0e9",
+    "remainingFullRuntimeInventory": true,
+    "sourceCommit": "95c097603a716b8888df2b60fad0b7846291c132"
+  },
+  "scene": "Store and retrieve an order receipt through a trusted provider",
+  "schema": "teaql.model-workspace-showcase/v1",
+  "status": "focused-verified",
+  "verification": [
+    "bash",
+    "examples/object-storage/verify.sh"
+  ],
+  "workspace": {
+    "applicationOwnedFiles": [
+      "pom.xml",
+      "src/main/java/com/teaql/orderattachmentservice/App.java",
+      "Makefile"
+    ],
+    "generatedFilesManifestSHA256": "9b50d62f8a83f6cd23192b8ea0e03758ad109fb6a1692ef2ab090bc1ce278b9f",
+    "root": "java-app-console",
+    "scope": "java-app-console",
+    "useSiblingMavenLibrary": true
+  }
+}

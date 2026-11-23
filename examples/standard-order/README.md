@@ -1,4 +1,4 @@
-# Java Standard Telemetry Order Example
+# Operations queue and order telemetry
 
 This example uses generated Q/E and the ordinary `executeForList(context)`
 entry point to load a filtered order list with bounded pagination, status
@@ -10,10 +10,12 @@ generated audited mutations. Repeated ensureSchema does not produce duplicate
 writes or audits. Four orders and twenty items are created through the same
 mutation API. The filtered result contains three orders; the selected one-row
 slice has three item previews and an independent count of five items. Status
-facets have counts `1, 2, 0` and amount totals `100, 500, 0`. The deliberately
+facets have counts `1, 2, 0` and amount totals `100, 500, null`. The deliberately
 omitted order amount remains NotLoaded.
 
-The local runtime handles a declared ungrouped count alongside rows under one
+The model is `models/model.xml`. Maven compiles the immutable `java-lib-core/lib`
+and runs the application checks in the generated `java-app-console`. The local
+runtime handles a declared ungrouped count alongside rows under one
 logical list invocation. Grouped and mixed aggregate requests keep their
 existing aggregate semantics. All generated library files are produced from
 the checked model; do not patch them to change query behavior.
@@ -32,12 +34,12 @@ process settings:
 TEAQL_TELEMETRY_ENABLED=true \
 TEAQL_TELEMETRY_SERVICE_NAME=order-example \
 TEAQL_TELEMETRY_OTLP_ENDPOINT=http://127.0.0.1:4318 \
-  mvn -q -Pruntime-examples -pl examples/standard-order -am \
+  mvn -q -Pruntime-examples -pl examples/standard-order/java-app-console -am \
     -Dtest=StandardOrderTelemetryTest -Dsurefire.failIfNoSpecifiedTests=false test
 ```
 
-Ordinary SQL logs are disabled in the example. The checked model marks order
-numbers and customer names for masking; telemetry must still export safe
-expanded SQL. Conformance's `telemetry/capture-java-standard-order.cjs` checks
-actual backend delivery and parentage. A successful application run alone does
-not establish that all SQL diagnostics reached the collector.
+Ordinary SQL logs are disabled. The model marks order numbers and customer
+names for masking. The conformance `standard-order` gate runs this workspace
+against a task-owned loopback OTLP receiver and checks the exported SQL,
+parentage and metrics. It also compares all three business cases with the
+SQLite data retained from each run.

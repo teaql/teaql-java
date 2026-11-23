@@ -1,4 +1,26 @@
-# School Management bootstrap example
+# School startup and lifecycle showcase
+
+`models/school-model.xml` owns `java-lib-core` and `java-app-console`. The
+workspace retains all original application, request-intent, bootstrap and
+lifecycle sources byte for byte. Current scope provenance is in `showcase.json`.
+The focused gate builds disposable copies of both projects against freshly
+source-built runtime artifacts in an isolated offline Maven repository. It
+starts the School application twice on one retained SQLite file and verifies
+active Schools, deleted lifecycle rows and constant versions independently.
+These are new source outputs, not historical or public artifact identities.
+
+From teaql-conformance, run:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 model-aware-services/generation/verify/qualify-runtime-example-inventory.py \
+  --runtime java --gate school --source /path/to/teaql-java \
+  --generator-source /path/to/teaql-code-gen --output /new/evidence-directory
+```
+
+The qualifier uses empty settings, an isolated dependency repository, retained
+third-party artifacts and offline Maven. It never reads host Maven settings or
+uses private-feed credentials. Disposable source/build/cache copies are removed
+after compact evidence is written.
 
 This generated example retains `models/school-model.xml`. It explicitly calls
 SQLite `ensureSchema` twice and verifies Platform `id=1` plus SchoolType constants

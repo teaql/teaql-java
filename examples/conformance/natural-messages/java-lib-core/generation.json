@@ -1,0 +1,121 @@
+{
+  "artifactKind": "qualified generator source build; not a public release",
+  "generationReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/catalog-natural-generation/java/catalog-natural-messages/library/receipt.json",
+  "generationReceiptSha256": "6126f2e88783014ad5fa72447db9d3f77cd5048f7c4e6bf98b8922b1af8e5515",
+  "generator": {
+    "artifactKind": "qualified source build; not a public release",
+    "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+    "qualificationReceiptSHA256": "5119b9f3a5c95fb84f527885fdd5bac0fe79a56352a55b8acf116f67fd12787d",
+    "sourceCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+    "tag": "unreleased-source-021b1ed8"
+  },
+  "implementationHandEdited": false,
+  "modelSha256": "4c69fcaa275d1f7d255f325305cc0c6c5071154d278f9f4af7775ae0758144a6",
+  "previousGeneration": {
+    "evaluatedScope": "java-lib-core",
+    "evaluationErrors": 0,
+    "evaluationWarnings": 2,
+    "generatedManifestSha256": "c4c234c7fe34ac2eff76027240f192dab3362af6b6657a29ed1a233e7d74fe70",
+    "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-unified-intent-current-source/java/conformance/natural-messages/model/receipt.json",
+    "generationReceiptSha256": "b91b2ddd14ad34b91598ade1d20c06e5a3b3c680e233061b2e96b6f21c1fa445",
+    "generatorCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+    "generatorJarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+    "generatorRelease": "unreleased-source-021b1ed8",
+    "implementationHandEdited": false,
+    "modelSha256": "4c69fcaa275d1f7d255f325305cc0c6c5071154d278f9f4af7775ae0758144a6",
+    "previousGeneration": {
+      "evaluatedScope": "java-lib-core",
+      "evaluationErrors": 0,
+      "evaluationWarnings": 2,
+      "generatedManifestSha256": "9941c602ae7db08a299246001c5c7b5407dc846c55540d52411e9ad815407ccc",
+      "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-unified-current-source/java/conformance/natural-messages/model/receipt.json",
+      "generationReceiptSha256": "b91b2ddd14ad34b91598ade1d20c06e5a3b3c680e233061b2e96b6f21c1fa445",
+      "generatorCommit": "19feda8a0608d7c7e0d64c7d9ec371c9021000fd",
+      "generatorJarSHA256": "dc6e26b561f618e1f9574c5c3b4c03b7a21da9ca630cc73a78ae8ccd0d89bd7e",
+      "generatorRelease": "unreleased-source-19feda8a",
+      "implementationHandEdited": false,
+      "modelSha256": "4c69fcaa275d1f7d255f325305cc0c6c5071154d278f9f4af7775ae0758144a6",
+      "previousGeneration": {
+        "evaluatedScope": "java-lib-core",
+        "evaluationErrors": 0,
+        "evaluationWarnings": 2,
+        "generatedManifestSha256": "2fa81d5b7a7b8c17a041c940b33d4ccc92da99e5b9f725cf9f611abe86577e55",
+        "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-compatibility-candidate/java/conformance/natural-messages/model/receipt.json",
+        "generationReceiptSha256": "b91b2ddd14ad34b91598ade1d20c06e5a3b3c680e233061b2e96b6f21c1fa445",
+        "generatorCommit": "42275522b8405f65f84a7961c66b615a427391f7",
+        "generatorJarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+        "generatorRelease": "unreleased-source-42275522",
+        "implementationHandEdited": false,
+        "modelSha256": "4c69fcaa275d1f7d255f325305cc0c6c5071154d278f9f4af7775ae0758144a6",
+        "previousGeneration": {
+          "evaluatedScope": "java-lib-core",
+          "evaluationErrors": 0,
+          "evaluationWarnings": 2,
+          "generatedManifestSha256": "8f5030802231a084fca5ecf2b546aa611fb8c181a2d2f921fe3b0825440688eb",
+          "generationReceipt": "teaql-conformance/evidence/2026-11-19-runtime-examples-refresh/generation-catalog/java/conformance/natural-messages/model/receipt.json",
+          "generationReceiptSha256": "ce5c32a67679538f22dd34bd777ee5806497dbaf3af3cd94fed49872cce23481",
+          "generatorCommit": "97830096360553381a3221ad5bdbe9837c68a9b4",
+          "generatorJarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
+          "generatorRelease": "v4.2.0",
+          "implementationHandEdited": false,
+          "modelSha256": "4c69fcaa275d1f7d255f325305cc0c6c5071154d278f9f4af7775ae0758144a6",
+          "previousGeneration": {
+            "fixtureOutputProperty": "teaql.java.natural.fixture.output",
+            "generationReceipt": "teaql-conformance/evidence/2026-11-12-natural-checker-java-generation-first/receipt.json",
+            "generationReceiptSha256": "535a7a4bd0fb153a7bb5b3032127bbf67db43789d56bdb1535bb2fb7127af05f",
+            "generatorCommit": "c1304f73e0ea0eb0bdbad6fd1ebdada16e3dbe12",
+            "implementationHandEdited": false,
+            "modelSha256": "6e7bc9313817b3ebe452a0080c2e073d289362f450304b709f6bc794cd8e7f68",
+            "publicPublication": false,
+            "runtimeDependency": "local repository source",
+            "schema": "teaql.generated-example-provenance/v1",
+            "scope": "java-lib-core",
+            "upstreamTest": "com.skynet.codegenerator.JavaNaturalMessagesGenerationTest"
+          },
+          "producerReceiptSha256": "ce5c32a67679538f22dd34bd777ee5806497dbaf3af3cd94fed49872cce23481",
+          "producerSource": {
+            "commit": "97830096360553381a3221ad5bdbe9837c68a9b4",
+            "jarSHA256": "a22cfb9d9442958404cfb0d8e085af2c223c618018bbeb5e42a78765c23c4dd6",
+            "release": "v4.2.0"
+          },
+          "publicPublication": false,
+          "runtimeDependency": "local repository source",
+          "schema": "teaql.generated-example-provenance/v1",
+          "scope": "java-lib-core"
+        },
+        "producerReceiptSha256": "b91b2ddd14ad34b91598ade1d20c06e5a3b3c680e233061b2e96b6f21c1fa445",
+        "producerSource": {
+          "commit": "42275522b8405f65f84a7961c66b615a427391f7",
+          "jarSHA256": "6a9420e4ffd686e0813ca9c0d2ad20991fa2f8ff2e365d39148c85e79acad86e",
+          "release": "unreleased-source-42275522"
+        },
+        "publicPublication": false,
+        "runtimeDependency": "local repository source",
+        "schema": "teaql.generated-example-provenance/v1",
+        "scope": "java-lib-core"
+      },
+      "producerReceiptSha256": "b91b2ddd14ad34b91598ade1d20c06e5a3b3c680e233061b2e96b6f21c1fa445",
+      "producerSource": {
+        "commit": "19feda8a0608d7c7e0d64c7d9ec371c9021000fd",
+        "jarSHA256": "dc6e26b561f618e1f9574c5c3b4c03b7a21da9ca630cc73a78ae8ccd0d89bd7e",
+        "release": "unreleased-source-19feda8a"
+      },
+      "publicPublication": false,
+      "runtimeDependency": "local repository source",
+      "schema": "teaql.generated-example-provenance/v1",
+      "scope": "java-lib-core"
+    },
+    "producerReceiptSha256": "b91b2ddd14ad34b91598ade1d20c06e5a3b3c680e233061b2e96b6f21c1fa445",
+    "producerSource": {
+      "commit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+      "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+      "release": "unreleased-source-021b1ed8"
+    },
+    "publicPublication": false,
+    "runtimeDependency": "local repository source",
+    "schema": "teaql.generated-example-provenance/v1",
+    "scope": "java-lib-core"
+  },
+  "publicPublication": false,
+  "schema": "teaql.native-natural-message-generation/v1"
+}
