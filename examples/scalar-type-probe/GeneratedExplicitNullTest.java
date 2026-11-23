@@ -57,7 +57,7 @@ public class GeneratedExplicitNullTest {
         assertFalse(full.__internalHasMutationLedger());
         full.updateOptionalInteger(37);full.updateOptionalString(null);
         full.updateProperty("optional_integer",37);full.updateProperty("optional_string",null);
-        full.handleUpdate("optional_integer",37,37);full.updateId(id);full.updateVersion(1L);
+        full.handleUpdate("optional_integer",37,37);
         assertSame(state,full.__internalLoadState());assertEquals(EntityStatus.PERSISTED,full.get$status());
         assertTrue(full.getUpdatedProperties().isEmpty());assertFalse(full.__internalHasMutationLedger());
         full.auditAs("Confirm equal loaded values produce no write").save(f.context);
@@ -68,7 +68,7 @@ public class GeneratedExplicitNullTest {
         boolean hadLedger=reference.__internalHasMutationLedger();
         var referenceLedger=hadLedger?reference.getEntityMutationLedger():null;
         assertFalse(reference.isPropertyLoaded("version"));
-        assertThrows(TeaQLRuntimeException.class,()->reference.updateVersion(null));
+        assertThrows(TeaQLRuntimeException.class,()->reference.updateProperty("version",null));
         assertSame(referenceState,reference.__internalLoadState());assertEquals(EntityStatus.REFER,reference.get$status());
         assertEquals(hadLedger,reference.__internalHasMutationLedger());
         if(hadLedger)assertSame(referenceLedger,reference.getEntityMutationLedger());

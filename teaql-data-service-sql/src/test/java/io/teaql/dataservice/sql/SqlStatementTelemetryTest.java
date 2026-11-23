@@ -72,7 +72,7 @@ public class SqlStatementTelemetryTest {
     @Test public void writeAndReadbackUseDistinctExecutionsAndRetainLineageWithoutEntityIds() throws Exception {
         var db = database((proxy, method, args) -> method.getName().equals("update") ? 1 : List.of(Map.of("id", 17L)));
         var entity = new BaseEntity();
-        entity.updateId(17L);
+        entity.__internalSet("id", 17L);
         var intent = MutationIntent.of("save school");
         var lineage = List.of(new TraceNode(TraceKind.AUDIT_REASON, "School", 99887766L, "save school"));
         var trace = SqlExecutionTrace.mutation(entity, lineage, "update", intent);

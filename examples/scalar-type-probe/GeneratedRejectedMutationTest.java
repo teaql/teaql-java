@@ -36,7 +36,7 @@ public class GeneratedRejectedMutationTest {
         long before=f.data.calls;int auditCount=f.audits.size(),policyCount=f.policies.size();int rejected=0;
         assertThrows(TeaQLRuntimeException.class,()->reference.updateName("must not appear"));unchanged(reference,state);rejected++;
         assertThrows(TeaQLRuntimeException.class,()->reference.updateProperty("name","must not appear either"));unchanged(reference,state);rejected++;
-        assertThrows(TeaQLRuntimeException.class,()->reference.updateVersion(9L));unchanged(reference,state);rejected++;
+        assertThrows(TeaQLRuntimeException.class,()->reference.updateProperty("version",9L));unchanged(reference,state);rejected++;
         // Explicit negative fault injection through the legacy runtime cache
         // seam; this is not an application API discovery/recommendation.
         assertThrows(TeaQLRuntimeException.class,()->reference.cacheRelation("negative_cache",owner));unchanged(reference,state);rejected++;
