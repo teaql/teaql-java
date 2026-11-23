@@ -22,10 +22,6 @@ public class SchoolExpression<T, E, U extends School> extends ExpressionAdaptor<
         super(expression, function);
     }
 
-     public SchoolExpression<T, U, U> updateId(Long id){
-        return new SchoolExpression(this, $it -> {((School)$it).__internalSet("id", id); return this;});
-     }
-
      public SchoolExpression<T, U, U> save(UserContext userContext){
         return new SchoolExpression(this, $it -> ((School)$it).auditAs("Saved by Expression").save(userContext));
      }

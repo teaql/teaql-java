@@ -18,10 +18,6 @@ public class SchoolCapacitySummaryExpression<T, E, U extends SchoolCapacitySumma
         super(expression, function);
     }
 
-     public SchoolCapacitySummaryExpression<T, U, U> updateId(Long id){
-        return new SchoolCapacitySummaryExpression(this, $it -> {((SchoolCapacitySummary)$it).__internalSet("id", id); return this;});
-     }
-
      public SchoolCapacitySummaryExpression<T, U, U> save(UserContext userContext){
         return new SchoolCapacitySummaryExpression(this, $it -> ((SchoolCapacitySummary)$it).auditAs("Saved by Expression").save(userContext));
      }

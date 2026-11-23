@@ -18,10 +18,6 @@ public class SupplierOrderExpression<T, E, U extends SupplierOrder> extends Expr
         super(expression, function);
     }
 
-     public SupplierOrderExpression<T, U, U> updateId(Long id){
-        return new SupplierOrderExpression(this, $it -> {((SupplierOrder)$it).__internalSet("id", id); return this;});
-     }
-
      public SupplierOrderExpression<T, U, U> save(UserContext userContext){
         return new SupplierOrderExpression(this, $it -> ((SupplierOrder)$it).auditAs("Saved by Expression").save(userContext));
      }

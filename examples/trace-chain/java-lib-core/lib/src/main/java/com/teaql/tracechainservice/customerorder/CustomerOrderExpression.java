@@ -24,10 +24,6 @@ public class CustomerOrderExpression<T, E, U extends CustomerOrder> extends Expr
         super(expression, function);
     }
 
-     public CustomerOrderExpression<T, U, U> updateId(Long id){
-        return new CustomerOrderExpression(this, $it -> {((CustomerOrder)$it).__internalSet("id", id); return this;});
-     }
-
      public CustomerOrderExpression<T, U, U> save(UserContext userContext){
         return new CustomerOrderExpression(this, $it -> ((CustomerOrder)$it).auditAs("Saved by Expression").save(userContext));
      }

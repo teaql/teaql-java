@@ -27,12 +27,4 @@ public interface BaseEntityExpression<T, U extends BaseEntity> extends Expressio
             return entity;
         });
     }
-
-    default Expression<T, U> updateId(Long id) {
-        return apply(
-                entity -> {
-                    entity.__internalSet("id", id);
-                    return entity;
-                });
-    }
 }

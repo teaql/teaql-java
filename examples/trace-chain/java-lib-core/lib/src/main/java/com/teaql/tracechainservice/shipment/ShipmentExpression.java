@@ -18,10 +18,6 @@ public class ShipmentExpression<T, E, U extends Shipment> extends ExpressionAdap
         super(expression, function);
     }
 
-     public ShipmentExpression<T, U, U> updateId(Long id){
-        return new ShipmentExpression(this, $it -> {((Shipment)$it).__internalSet("id", id); return this;});
-     }
-
      public ShipmentExpression<T, U, U> save(UserContext userContext){
         return new ShipmentExpression(this, $it -> ((Shipment)$it).auditAs("Saved by Expression").save(userContext));
      }

@@ -18,10 +18,6 @@ public class OrderAttachmentExpression<T, E, U extends OrderAttachment> extends 
         super(expression, function);
     }
 
-     public OrderAttachmentExpression<T, U, U> updateId(Long id){
-        return new OrderAttachmentExpression(this, $it -> {((OrderAttachment)$it).__internalSet("id", id); return this;});
-     }
-
      public OrderAttachmentExpression<T, U, U> save(UserContext userContext){
         return new OrderAttachmentExpression(this, $it -> ((OrderAttachment)$it).auditAs("Saved by Expression").save(userContext));
      }

@@ -18,10 +18,6 @@ public class PlatformExpression<T, E, U extends Platform> extends ExpressionAdap
         super(expression, function);
     }
 
-     public PlatformExpression<T, U, U> updateId(Long id){
-        return new PlatformExpression(this, $it -> {((Platform)$it).__internalSet("id", id); return this;});
-     }
-
      public PlatformExpression<T, U, U> save(UserContext userContext){
         return new PlatformExpression(this, $it -> ((Platform)$it).auditAs("Saved by Expression").save(userContext));
      }

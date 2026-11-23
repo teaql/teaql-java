@@ -18,10 +18,6 @@ public class SupplierExpression<T, E, U extends Supplier> extends ExpressionAdap
         super(expression, function);
     }
 
-     public SupplierExpression<T, U, U> updateId(Long id){
-        return new SupplierExpression(this, $it -> {((Supplier)$it).__internalSet("id", id); return this;});
-     }
-
      public SupplierExpression<T, U, U> save(UserContext userContext){
         return new SupplierExpression(this, $it -> ((Supplier)$it).auditAs("Saved by Expression").save(userContext));
      }

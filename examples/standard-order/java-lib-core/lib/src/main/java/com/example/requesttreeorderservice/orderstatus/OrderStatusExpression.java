@@ -21,10 +21,6 @@ public class OrderStatusExpression<T, E, U extends OrderStatus> extends Expressi
         super(expression, function);
     }
 
-     public OrderStatusExpression<T, U, U> updateId(Long id){
-        return new OrderStatusExpression(this, $it -> {((OrderStatus)$it).__internalSet("id", id); return this;});
-     }
-
      public OrderStatusExpression<T, U, U> save(UserContext userContext){
         return new OrderStatusExpression(this, $it -> ((OrderStatus)$it).auditAs("Saved by Expression").save(userContext));
      }

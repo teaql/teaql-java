@@ -23,10 +23,6 @@ public class OrderLineExpression<T, E, U extends OrderLine> extends ExpressionAd
         super(expression, function);
     }
 
-     public OrderLineExpression<T, U, U> updateId(Long id){
-        return new OrderLineExpression(this, $it -> {((OrderLine)$it).__internalSet("id", id); return this;});
-     }
-
      public OrderLineExpression<T, U, U> save(UserContext userContext){
         return new OrderLineExpression(this, $it -> ((OrderLine)$it).auditAs("Saved by Expression").save(userContext));
      }
