@@ -48,7 +48,9 @@ public final class WireFieldAdapter {
     public static void retainSubmittedPaths(Iterable<CheckResult> results,
             NormalizedWireObject normalized) {
         for (CheckResult result : results) {
-            if (result.getLocation() == null || result.getLocation().segments().isEmpty()) continue;
+            // This map covers one object, not the descendants already prefixed
+            // into a graph result. A parent alias is not a leaf source pointer.
+            if (result.getLocation() == null || result.getLocation().segments().size() != 1) continue;
             WireLocationSegment first = result.getLocation().segments().get(0);
             if (!"property".equals(first.kind())) continue;
             String path = normalized.sourceInstancePaths().get(first.name());

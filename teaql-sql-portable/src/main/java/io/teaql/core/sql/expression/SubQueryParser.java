@@ -50,10 +50,19 @@ public class SubQueryParser implements SQLExpressionParser<SubQuerySearchCriteri
                 && repository != null 
                 && sqlColumnResolver.canMixinSubQuery(userContext, dependsOn)) {
             PortableSQLRepository<?> subRepository = repository;
+            if (dependsOn.hasSimpleAgg()) {
+                String subQuery = subRepository.buildStatisticalMembershipSQL(
+                        userContext, dependsOn, dependsOnPropertyName, parameters);
+                if (ObjectUtil.isEmpty(subQuery)) return SearchCriteria.FALSE;
+                String leftColumn = ExpressionHelper.toSql(userContext,
+                        new PropertyReference(propertyName), idTable, parameters, sqlColumnResolver);
+                return leftColumn + " IN (" + subQuery + ")";
+            }
             TempRequest tempRequest = new TempRequest(dependsOn.returnType(), dependsOn.getTypeName());
 
             tempRequest.setOrderBy(dependsOn.getOrderBy());
-            tempRequest.setSlice(dependsOn.getSlice());
+            var slice = dependsOn.getSlice();
+            tempRequest.setSlice(slice == null || !slice.hasExplicitPage() ? null : slice.copy());
 
             // select depends on property
             tempRequest.selectProperty(dependsOnPropertyName);
@@ -67,7 +76,12 @@ public class SubQueryParser implements SQLExpressionParser<SubQuerySearchCriteri
                             dependsOnPropertyName, Operator.IS_NOT_NULL));
 
             userContext.putAttribute(IGNORE_SUBTYPES, true);
-            String subQuery = subRepository.buildDataSQL(userContext, tempRequest, parameters);
+            // This is a projection rewrite of the same inline request, not a
+            // new business request. Preserve its immutable execution identity
+            // so compiler diagnostics retain the wrapper and its descendants.
+            SearchRequest inlineRequest = dependsOn.requestScope() == null ? tempRequest
+                    : new io.teaql.core.QueryRequestSnapshot(tempRequest, dependsOn.requestScope());
+            String subQuery = subRepository.buildDataSQL(userContext, inlineRequest, parameters);
             userContext.putAttribute(IGNORE_SUBTYPES, null);
 
             if (ObjectUtil.isEmpty(subQuery)) {
@@ -80,6 +94,11 @@ public class SubQueryParser implements SQLExpressionParser<SubQuerySearchCriteri
                     new PropertyReference(propertyName),
                     idTable, parameters, sqlColumnResolver);
             return leftColumn + " IN (" + subQuery + ")";
+        }
+
+        if (dependsOn.hasSimpleAgg()) {
+            throw new io.teaql.core.TeaQLRuntimeException(
+                    "Statistical membership requires an embeddable SQL result; entity materialization is invalid");
         }
 
         // fall back
@@ -100,6 +119,13 @@ public class SubQueryParser implements SQLExpressionParser<SubQuerySearchCriteri
             if (!ObjectUtil.isEmpty(propertyValue)) {
                 dependsOnValues.add(propertyValue);
             }
+        }
+        // This is a completed relation subquery, not a caller-supplied empty
+        // IN argument. Its empty set is FALSE; the normal NOT parser must be
+        // able to invert it to TRUE. Binding an empty collection would expand
+        // to IN (NULL), whose negation is UNKNOWN and incorrectly drops rows.
+        if (dependsOnValues.isEmpty()) {
+            return SearchCriteria.FALSE;
         }
         // The fallback has already materialized the nested result. Bind those
         // identifiers as an ordinary parameterized IN list. IN_LARGE compiles

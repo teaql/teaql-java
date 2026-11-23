@@ -9,13 +9,24 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class PostgreSqlDialect extends AbstractSqlDialect {
+    @Override public String statisticalOperandSql(String sql,Class<?> type) {
+        String kind=java.util.Set.of(Byte.class,Short.class,Integer.class,Long.class,byte.class,short.class,int.class,long.class).contains(type)?"BIGINT"
+                :java.util.Set.of(Float.class,Double.class,float.class,double.class).contains(type)?"DOUBLE PRECISION"
+                :type==java.math.BigDecimal.class?"NUMERIC":type==String.class?"TEXT"
+                :type==Boolean.class||type==boolean.class?"BOOLEAN":type==java.time.LocalDate.class?"DATE"
+                :type==java.time.Instant.class?"TIMESTAMPTZ":type==java.time.LocalDateTime.class?"TIMESTAMP":null;
+        return kind==null?sql:"CAST("+sql+" AS "+kind+")";
+    }
+
+    @Override public String gbkOrderSql(String sql) { return "convert_to(" + sql + ",'GBK')"; }
+    @Override public String bitwiseParameterSql(String sql) {return "CAST("+sql+" AS BIGINT)";}
 
     @Override
     public String escapeIdentifier(String identifier) {
         if (!needsEscape(identifier)) {
             return identifier;
         }
-        return "\"" + identifier + "\"";
+        return "\"" + identifier.replace("\"", "\"\"") + "\"";
     }
 
     @Override

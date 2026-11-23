@@ -3,21 +3,22 @@ package io.teaql.runtime;
 import io.teaql.core.AggregationResult;
 import io.teaql.core.QueryResult;
 import io.teaql.core.SmartList;
+import io.teaql.core.Entity;
 
 public class DefaultQueryResult implements QueryResult {
-    private final SmartList<?> result;
+    private final SmartList<? extends Entity> result;
     private final AggregationResult aggregationResult;
     private final java.util.List<io.teaql.core.ExecutionMetadata> statements;
 
-    public DefaultQueryResult(SmartList<?> result) {
+    public DefaultQueryResult(SmartList<? extends Entity> result) {
         this(result, null);
     }
 
-    public DefaultQueryResult(SmartList<?> result, AggregationResult aggregationResult) {
+    public DefaultQueryResult(SmartList<? extends Entity> result, AggregationResult aggregationResult) {
         this(result, aggregationResult, java.util.List.of());
     }
 
-    public DefaultQueryResult(SmartList<?> result, AggregationResult aggregationResult,
+    public DefaultQueryResult(SmartList<? extends Entity> result, AggregationResult aggregationResult,
             java.util.List<io.teaql.core.ExecutionMetadata> statements) {
         this.result = result;
         this.aggregationResult = aggregationResult;
@@ -26,7 +27,7 @@ public class DefaultQueryResult implements QueryResult {
 
     @Override public java.util.List<io.teaql.core.ExecutionMetadata> statements() { return statements; }
 
-    public SmartList<?> getResult() {
+    public SmartList<? extends Entity> getResult() {
         return result;
     }
 

@@ -104,7 +104,10 @@ public class GraphTraceChainTest {
             var children = new Relation();
             children.setName("children");
             children.setOwner(descriptor);
-            descriptor.setProperties(List.of(children));
+            var name = new PropertyDescriptor();
+            name.setName("name");
+            name.setOwner(descriptor);
+            descriptor.setProperties(List.of(name, children));
             metadata.register(descriptor);
         }
         return metadata;

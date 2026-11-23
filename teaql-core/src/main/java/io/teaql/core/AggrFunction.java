@@ -6,6 +6,7 @@ public enum AggrFunction implements PropertyFunction {
     MAX,
     AVG,
     COUNT,
+    COUNT_DISTINCT,
     SUM,
     GBK,
     STDDEV,

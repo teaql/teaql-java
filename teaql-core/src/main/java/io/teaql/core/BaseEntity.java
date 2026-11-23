@@ -105,8 +105,9 @@ public class BaseEntity implements Entity {
     }
 
     public BaseEntity updateId(Long id) {
-		markPropertyLoaded(ID_PROPERTY);
-        if (ObjectUtil.equals(this.id, id)) return this;
+        if (isPropertyLoaded(ID_PROPERTY) && ObjectUtil.equals(this.id, id)) {
+            return this;
+        }
         handleUpdate(ID_PROPERTY, getId(), id);
         this.id = id;
         return this;
@@ -131,8 +132,9 @@ public class BaseEntity implements Entity {
     }
 
     public BaseEntity updateVersion(Long version) {
-		markPropertyLoaded(VERSION_PROPERTY);
-        if (ObjectUtil.equals(this.version, version)) return this;
+        if (isPropertyLoaded(VERSION_PROPERTY) && ObjectUtil.equals(this.version, version)) {
+            return this;
+        }
         handleUpdate(VERSION_PROPERTY, getVersion(), version);
         this.version = version;
         return this;
@@ -208,7 +210,7 @@ public class BaseEntity implements Entity {
 
     @Override
     public boolean newItem() {
-        return $status == EntityStatus.NEW;
+        return $status == EntityStatus.NEW || $status == EntityStatus.NEW_DELETED;
     }
 
     @Override
@@ -218,7 +220,7 @@ public class BaseEntity implements Entity {
 
     @Override
     public boolean deleteItem() {
-        return $status == EntityStatus.UPDATED_DELETED;
+        return $status == EntityStatus.UPDATED_DELETED || $status == EntityStatus.NEW_DELETED;
     }
 
     @Override
@@ -374,6 +376,77 @@ public class BaseEntity implements Entity {
         if (!updatedProperties.isEmpty()) updatedProperties.clear();
     }
 
+    /** Restore only automatic Context assignments after failed admission, not caller edits. */
+    @FrameworkInternal("Context Fix rollback before persistence")
+    public Runnable __internalCaptureContextFix(java.util.Set<String> fields) {
+        record Before(Object value, boolean loaded, PropertyChange change, boolean ledgerField, Object ledgerValue) {}
+        var before = new java.util.LinkedHashMap<String, Before>();
+        var key = id == null ? null : new EntityKey(typeName(), id);
+        var status = $status;
+        for (String field : fields) {
+            boolean present = entityMutationLedger != null && key != null && entityMutationLedger.containsField(key, field);
+            before.put(field, new Before(__internalGet(field), isPropertyLoaded(field), updatedProperties.get(field),
+                    present, present ? entityMutationLedger.get(key, field) : null));
+        }
+        return () -> {
+            before.forEach((field, old) -> {
+                __internalSet(field, old.value());
+                loadState = loadState.withLoaded(field, old.loaded());
+                if (old.change() == null) {
+                    if (!updatedProperties.isEmpty()) updatedProperties.remove(field);
+                } else mutableUpdatedProperties().put(field, old.change());
+                if (entityMutationLedger != null && key != null) {
+                    if (old.ledgerField()) entityMutationLedger.set(key, field, old.ledgerValue());
+                    else entityMutationLedger.clearField(key, field);
+                }
+            });
+            // Fix may have repaired the last caller edit as well. A saved
+            // UPDATED status alone must not survive when all native/dynamic
+            // intent for this exact entity has gone away.
+            boolean pending = entityMutationLedger != null && key != null && (
+                    !entityMutationLedger.changedFieldNames(key).isEmpty()
+                    || entityMutationLedger.isNew(key) || entityMutationLedger.isMarkedAsDelete(key)
+                    || entityMutationLedger.recoveredKeys().contains(key));
+            if ($status == EntityStatus.UPDATED
+                    && (status == EntityStatus.PERSISTED || status == EntityStatus.UPDATED)
+                    && updatedProperties.isEmpty() && __internalDynamicMutations().isEmpty() && !pending) {
+                $status = EntityStatus.PERSISTED;
+            }
+        };
+    }
+
+    @FrameworkInternal("Physical transaction rollback; native values are captured by runtime metadata")
+    public Runnable __internalCaptureMutationRollback() {
+        var savedUpdates = new HashMap<>(updatedProperties);
+        var savedAdditional = new HashMap<>(additionalInfo);
+        var savedDynamic = new HashMap<>(dynamicMutations);
+        var savedOriginal = new HashMap<>(dynamicOriginalValues);
+        var savedDynamicValues = dynamicFieldValues;
+        var savedState = loadState; var savedVersion = version; var savedStatus = $status;
+        var savedBaseline = hydratedOriginalVersion;
+        var savedLedger = entityMutationLedger;
+        return () -> {
+            updatedProperties = savedUpdates.isEmpty() ? NO_UPDATES : new ConcurrentHashMap<>(savedUpdates);
+            additionalInfo = savedAdditional.isEmpty() ? Map.of() : new HashMap<>(savedAdditional);
+            dynamicMutations = savedDynamic.isEmpty() ? Map.of() : new HashMap<>(savedDynamic);
+            dynamicOriginalValues = savedOriginal.isEmpty() ? Map.of() : new HashMap<>(savedOriginal);
+            dynamicFieldValues = savedDynamicValues; loadState = savedState;
+            version = savedVersion; $status = savedStatus; hydratedOriginalVersion = savedBaseline;
+            entityMutationLedger = savedLedger;
+        };
+    }
+
+    @FrameworkInternal("Physical rollback replay of already tracked native input; never raw-ledger admission")
+    public void __internalReplayRetryNative(String property, Object value) {
+        handleUpdate(property, __internalGet(property), value);
+        __internalSet(property, value);
+    }
+
+    @FrameworkInternal("Physical rollback replay of already tracked extension input")
+    public void __internalReplayRetryDynamic(io.teaql.data.dynamic.DynamicFieldMutation mutation) {
+        stageDynamicMutation(mutation);
+    }
+
     public void addAction(Object action) {
         synchronized (this) {
             if (actionList == null) {
@@ -449,6 +522,7 @@ public class BaseEntity implements Entity {
     }
 
     public boolean isMarkedAsDelete() {
+        if ($status == EntityStatus.NEW_DELETED) return true;
         if (entityMutationLedger == null || id == null) {
             return deleteItem();
         }
@@ -456,6 +530,7 @@ public class BaseEntity implements Entity {
     }
 
     public boolean isNew() {
+        if ($status == EntityStatus.NEW_DELETED) return true;
         if (entityMutationLedger == null || id == null) {
             return newItem();
         }
@@ -472,8 +547,17 @@ public class BaseEntity implements Entity {
 
     @Override
     public void setProperty(String propertyName, Object value) {
-		markPropertyLoaded(propertyName);
-        this.__internalSet(propertyName, value);
+        // Generated internal setters cast the value before assignment, but may
+        // mark it loaded first. Publish availability only after the assignment
+        // succeeds; this is not hydration and must not replace the version baseline.
+        boolean previousHydrating = hydratingProperty;
+        hydratingProperty = true;
+        try {
+            this.__internalSet(propertyName, value);
+        } finally {
+            hydratingProperty = previousHydrating;
+        }
+        if (!previousHydrating) markPropertyLoaded(propertyName);
     }
 
     @FrameworkInternal("Expression and hydration infrastructure only")
@@ -538,9 +622,15 @@ public class BaseEntity implements Entity {
 
     @Override
     public Entity updateProperty(String propertyName, Object value) {
+        // Validate a forbidden lifecycle before a generic assignment can change
+        // either the payload or its loaded state. This lookup has no side effects.
+        get$status().next(EntityAction.UPDATE);
+        boolean wasLoaded = isPropertyLoaded(propertyName);
         Object oldValue = getProperty(propertyName);
+        if (wasLoaded && ObjectUtil.equals(oldValue, value)) return this;
+        validatePendingRecoveryIdentity(propertyName, value);
         setProperty(propertyName, value);
-        handleUpdate(propertyName, oldValue, value);
+        handleUpdate(propertyName, oldValue, value, wasLoaded);
         return this;
     }
 
@@ -558,17 +648,45 @@ public class BaseEntity implements Entity {
     }
 
     public void handleUpdate(String propertyName, Object oldValue, Object newValue) {
-		markPropertyLoaded(propertyName);
+        handleUpdate(propertyName, oldValue, newValue, isPropertyLoaded(propertyName));
+    }
+
+    private void handleUpdate(String propertyName, Object oldValue, Object newValue, boolean wasLoaded) {
+        // Check before publishing state, including the equal-null case on an
+        // ID-only reference. Null backing storage is not proof of loaded Null.
+        get$status().next(EntityAction.UPDATE);
+        validatePendingRecoveryIdentity(propertyName, newValue);
+        if (wasLoaded && ObjectUtil.equals(oldValue, newValue)) return;
         gotoNextStatus(EntityAction.UPDATE);
+        markPropertyLoaded(propertyName);
         PropertyChange propertyChange = updatedProperties.get(propertyName);
+        // A NEW object has no hidden persisted value to preserve. Its initial
+        // null can still be restored; only a persisted unselected baseline is
+        // unknown across later edits.
+        boolean originalWasLoaded = wasLoaded || newItem();
         if (propertyChange != null) {
             oldValue = propertyChange.getOldValue();
+            originalWasLoaded = propertyChange.wasOldValueLoaded();
         }
-        if (ObjectUtil.equals(oldValue, newValue)) {
+        if (originalWasLoaded && ObjectUtil.equals(oldValue, newValue)) {
             if (!updatedProperties.isEmpty()) updatedProperties.remove(propertyName);
+            EntityKey key = id == null ? null : new EntityKey(typeName(), id);
+            if (entityMutationLedger != null && key != null) {
+                entityMutationLedger.clearField(key, propertyName);
+            }
+            // Reverting one fixed property cannot cancel another fixed/dynamic
+            // edit, creation, deletion or recovery, nor another entity's intent.
+            boolean hasPendingIntent = entityMutationLedger != null && key != null && (
+                    !entityMutationLedger.changedFieldNames(key).isEmpty()
+                    || entityMutationLedger.isNew(key)
+                    || entityMutationLedger.isMarkedAsDelete(key)
+                    || entityMutationLedger.recoveredKeys().contains(key));
+            if (get$status() == EntityStatus.UPDATED && updatedProperties.isEmpty() && !hasPendingIntent) {
+                set$status(EntityStatus.PERSISTED);
+            }
             return;
         }
-        mutableUpdatedProperties().put(propertyName, new PropertyChange(propertyName, oldValue, newValue));
+        mutableUpdatedProperties().put(propertyName, new PropertyChange(propertyName, oldValue, newValue, originalWasLoaded));
 
         if (id != null) {
             EntityMutationLedger entityMutationLedger = getEntityMutationLedger();
@@ -585,11 +703,25 @@ public class BaseEntity implements Entity {
         return updatedProperties;
     }
 
+    private void validatePendingRecoveryIdentity(String propertyName, Object value) {
+        if ($status != EntityStatus.UPDATED_RECOVER) return;
+        Object baseline;
+        if (ID_PROPERTY.equals(propertyName)) baseline = id;
+        else if (VERSION_PROPERTY.equals(propertyName)) baseline = version;
+        else return;
+        if (!ObjectUtil.equals(baseline, value)) {
+            throw new TeaQLRuntimeException("Cannot change " + propertyName + " while entity recovery is pending");
+        }
+    }
+
     public void gotoNextStatus(EntityAction action) {
         set$status(get$status().next(action));
     }
 
     public void cacheRelation(String relationName, Entity relation) {
+        // Preserve the existing cache contract for allowed states, but do not
+        // attach/replace anything before a read-only lifecycle has been rejected.
+        get$status().next(EntityAction.UPDATE);
 		markPropertyLoaded(relationName);
         if (relationCache.isEmpty()) relationCache = new HashMap<>();
         relationCache.put(relationName, relation);
@@ -601,6 +733,12 @@ public class BaseEntity implements Entity {
         PropertyChange propertyChange = updatedProperties.get(propertyName);
         if (propertyChange == null) return null;
         return propertyChange.getOldValue();
+    }
+
+    /** Immutable first-change provenance; no ledger allocation or change publication. */
+    @FrameworkInternal("Generated Checker original-value admission only; canonical model keys required")
+    public PropertyChange __internalPropertyChange(String propertyName) {
+        return updatedProperties.get(propertyName);
     }
 
     public Object getNewValue(String propertyName) {
@@ -665,6 +803,13 @@ public class BaseEntity implements Entity {
 
     private void stageDynamicMutation(io.teaql.data.dynamic.DynamicFieldMutation mutation) {
         EntityStatus nextStatus = get$status().next(EntityAction.UPDATE);
+        DynamicFieldValue original = dynamicOriginalValues.getOrDefault(mutation.code(), dynamicFieldValues.field(mutation.code()));
+        boolean restored = !newItem() && original.isLoaded()
+                && mutation.kind() == io.teaql.data.dynamic.DynamicFieldMutation.Kind.SET
+                && original.dataType() == mutation.dataType() && ObjectUtil.equals(original.value(), mutation.value());
+        // A loaded persisted value, including explicit NULL, is a baseline.
+        // An absent/unselected value is not; new objects must still stage writes.
+        if (restored && !dynamicMutations.containsKey(mutation.code())) return;
         Map<String, DynamicFieldValue> next = new HashMap<>(dynamicFieldValues.toMap());
         if (mutation.kind() == io.teaql.data.dynamic.DynamicFieldMutation.Kind.SET) next.put(mutation.code(), mutation.asLoadedValue());
         else next.remove(mutation.code());
@@ -673,6 +818,17 @@ public class BaseEntity implements Entity {
         if (dynamicOriginalValues.isEmpty()) dynamicOriginalValues = new HashMap<>();
         dynamicOriginalValues.putIfAbsent(mutation.code(), dynamicFieldValues.field(mutation.code()));
         __internalHydrateDynamicFields(values, state);
+        if (restored) {
+            dynamicMutations.remove(mutation.code()); dynamicOriginalValues.remove(mutation.code());
+            EntityKey key = id == null ? null : new EntityKey(typeName(), id);
+            if (entityMutationLedger != null && key != null) entityMutationLedger.clearDynamicField(key, mutation.code());
+            boolean pending = entityMutationLedger != null && key != null && (
+                    !entityMutationLedger.changedFieldNames(key).isEmpty() || entityMutationLedger.isNew(key)
+                    || entityMutationLedger.isMarkedAsDelete(key) || entityMutationLedger.recoveredKeys().contains(key));
+            if (get$status() == EntityStatus.UPDATED && updatedProperties.isEmpty() && dynamicMutations.isEmpty() && !pending)
+                set$status(EntityStatus.PERSISTED);
+            return;
+        }
         if (dynamicMutations.isEmpty()) dynamicMutations = new HashMap<>();
         dynamicMutations.put(mutation.code(), mutation);
         set$status(nextStatus);

@@ -10,6 +10,22 @@ jobs:
   build:
     name: Build and Test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+        env:
+          POSTGRES_DB: teaql_rollup_279
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: teaql-example-ci-fixture-only
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d teaql_rollup_279"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      TEAQL_TEST_POSTGRES_JDBC_URL: jdbc:postgresql://127.0.0.1:5432/teaql_rollup_279
+      TEAQL_TEST_POSTGRES_USER: postgres
+      TEAQL_TEST_POSTGRES_PASSWORD: teaql-example-ci-fixture-only
     timeout-minutes: 150
     permissions:
       contents: read
@@ -22,6 +38,13 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
+      - name: Mark dedicated PostgreSQL diagnostics fixture
+        run: |
+          docker exec -i -u postgres '${{ job.services.postgres.id }}' \
+            psql -X -v ON_ERROR_STOP=1 -d teaql_rollup_279 <<'SQL'
+          COMMENT ON DATABASE teaql_rollup_279 IS 'TeaQL #279 owned layered statistics fixture';
+          CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;
+          SQL
       - name: Build with Maven
         run: mvn -B install
       - name: Verify managed Jackson runtime versions

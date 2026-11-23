@@ -5,22 +5,17 @@ import io.teaql.core.TraceNode;
 import io.teaql.core.SqlParameterLogPolicy;
 import io.teaql.core.utils.SqlLogRenderer;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Shared log projection boundary; execution and business event values are never mutated. */
 public final class LogPrivacy {
     public static final String ENVIRONMENT = "TEAQL_ALLOW_SENSITIVE_PLAINTEXT_LOGS";
     public static final String ACKNOWLEDGEMENT = "I_UNDERSTAND_SENSITIVE_DATA_MAY_BE_WRITTEN_TO_DISK";
     public static final String REDACTED = "[REDACTED]";
-    private static final AtomicBoolean WARNED = new AtomicBoolean();
     private static final String DEBUG_LABEL = "-- TeaQL DEBUG PLAINTEXT; EXPLICIT OPT-IN\n";
     private LogPrivacy() {}
 
     public static boolean plaintextEnabled() {
-        if (!ACKNOWLEDGEMENT.equals(System.getenv(ENVIRONMENT))) return false;
-        if (WARNED.compareAndSet(false, true)) System.err.println(
-                "[TeaQL WARNING] Sensitive plaintext logging enabled; business data may be written to disk. Credentials remain redacted.");
-        return true;
+        return io.teaql.core.utils.SensitiveValueProjection.plaintextEnabled();
     }
 
     public static boolean credential(String name) {
@@ -28,35 +23,11 @@ public final class LogPrivacy {
     }
 
     public static boolean hasCredentials(Object value) {
-        if (value instanceof Map<?, ?> map) return map.entrySet().stream()
-                .anyMatch(e -> credential(String.valueOf(e.getKey())) || hasCredentials(e.getValue()));
-        if (value instanceof Iterable<?> items) for (Object item : items) if (hasCredentials(item)) return true;
-        if (value != null && value.getClass().isArray())
-            for (int i = 0; i < java.lang.reflect.Array.getLength(value); i++)
-                if (hasCredentials(java.lang.reflect.Array.get(value, i))) return true;
-        return false;
-    }
-
-    private static void collect(Object value, List<String> result) {
-        if (value == null) return;
-        if (value instanceof Map<?, ?> map) { map.values().forEach(item -> collect(item, result)); return; }
-        if (value instanceof Iterable<?> items) { items.forEach(item -> collect(item, result)); return; }
-        if (value.getClass().isArray()) {
-            for (int i = 0; i < java.lang.reflect.Array.getLength(value); i++)
-                collect(java.lang.reflect.Array.get(value, i), result);
-            return;
-        }
-        String text = String.valueOf(value);
-        if (!text.isEmpty()) result.add(text);
+        return io.teaql.core.utils.SensitiveValueProjection.hasCredentials(value);
     }
 
     public static String scrub(String text, Collection<?> values) {
-        if (text == null) return null;
-        List<String> strings = new ArrayList<>();
-        values.forEach(value -> collect(value, strings));
-        strings.sort(Comparator.comparingInt(String::length).reversed());
-        for (String value : strings) text = text.replace(value, REDACTED);
-        return text;
+        return io.teaql.core.utils.SensitiveValueProjection.scrub(text, values);
     }
 
     public static List<TraceNode> trace(List<TraceNode> nodes, Collection<?> values) {
@@ -104,6 +75,7 @@ public final class LogPrivacy {
         }
         if (source.getIntentRedactions() != null) source.getIntentRedactions().appendTo(secrets, allow);
         ExecutionMetadata safe = new ExecutionMetadata();
+        safe.setSqlExecutionCorrelation(source.getSqlExecutionCorrelation());
         safe.setBackend(source.getBackend()); safe.setOperation(source.getOperation());
         safe.setExecutionOutcome(source.getExecutionOutcome());
         safe.setBatchOutcome(source.getBatchOutcome());
@@ -117,6 +89,8 @@ public final class LogPrivacy {
         safe.setComment(scrub(source.getComment(), secrets)); safe.setPurpose(scrub(source.getPurpose(), secrets));
         safe.setAuditReason(scrub(source.getAuditReason(), secrets)); safe.setTraceChain(trace(source.getTraceChain(), secrets));
         safe.setRequestTraceChain(trace(source.getRequestTraceChain(), secrets));
+        safe.setRequestTree(source.getRequestTree().stream().map(node -> new io.teaql.core.QueryRequestTraceNode(
+                node.id(), node.parentId(), node.kind(), scrub(node.name(), secrets), scrub(node.detail(), secrets), scrub(node.method(), secrets))).toList());
         safe.setMutationLineage(trace(source.getMutationLineage(), secrets));
         safe.setStatementOperation(source.getStatementOperation());
         if (orphanedDebug) {
@@ -131,6 +105,8 @@ public final class LogPrivacy {
                     .map(node -> new TraceNode(node.getKind(), hideIntent(node.getName()), node.getEntityId(), hideIntent(node.getComment()))).toList());
             safe.setRequestTraceChain(source.getRequestTraceChain().stream()
                     .map(node -> new TraceNode(node.getKind(), hideIntent(node.getName()), node.getEntityId(), hideIntent(node.getComment()))).toList());
+            safe.setRequestTree(source.getRequestTree().stream().map(node -> new io.teaql.core.QueryRequestTraceNode(
+                    node.id(), node.parentId(), node.kind(), hideIntent(node.name()), hideIntent(node.detail()), hideIntent(node.method()))).toList());
         }
         String sql = source.getParameterizedQuery();
         safe.setParameterizedQuery(sql);

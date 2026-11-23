@@ -14,19 +14,23 @@ public final class RuntimeModule {
     private final List<EntityMetaAssembler> metadataAssemblers;
     private final List<Checker<?>> checkers;
     private final List<GeneratedSchemaBootstrap> bootstraps;
+    private final io.teaql.core.checker.CheckerPresentation.Model checkerPresentation;
 
     private RuntimeModule(List<EntityMetaAssembler> metadataAssemblers, List<Checker<?>> checkers,
-                          List<GeneratedSchemaBootstrap> bootstraps) {
+                          List<GeneratedSchemaBootstrap> bootstraps,
+                          io.teaql.core.checker.CheckerPresentation.Model checkerPresentation) {
         this.metadataAssemblers = Collections.unmodifiableList(new ArrayList<>(metadataAssemblers));
         this.checkers = Collections.unmodifiableList(new ArrayList<>(checkers));
         this.bootstraps = Collections.unmodifiableList(new ArrayList<>(bootstraps));
+        this.checkerPresentation = checkerPresentation;
     }
 
     public static RuntimeModule of(EntityMetaAssembler... metadataAssemblers) {
         Objects.requireNonNull(metadataAssemblers, "metadataAssemblers");
         Arrays.stream(metadataAssemblers).forEach(assembler ->
                 Objects.requireNonNull(assembler, "metadataAssembler"));
-        return new RuntimeModule(Arrays.asList(metadataAssemblers), Collections.emptyList(), Collections.emptyList());
+        return new RuntimeModule(Arrays.asList(metadataAssemblers), Collections.emptyList(), Collections.emptyList(),
+                io.teaql.core.checker.CheckerPresentation.Model.empty());
     }
 
     /** Adds generated model checkers to this passive manifest. */
@@ -35,15 +39,22 @@ public final class RuntimeModule {
         List<Checker<?>> combined = new ArrayList<>(this.checkers);
         Arrays.stream(checkers).forEach(checker ->
                 combined.add(Objects.requireNonNull(checker, "checker")));
-        return new RuntimeModule(metadataAssemblers, combined, bootstraps);
+        return new RuntimeModule(metadataAssemblers, combined, bootstraps, checkerPresentation);
     }
 
     /** Adds generated typed bootstrap code while keeping installation passive. */
     public RuntimeModule withBootstrap(GeneratedSchemaBootstrap bootstrap) {
         List<GeneratedSchemaBootstrap> combined = new ArrayList<>(bootstraps);
         combined.add(Objects.requireNonNull(bootstrap, "bootstrap"));
-        return new RuntimeModule(metadataAssemblers, checkers, combined);
+        return new RuntimeModule(metadataAssemblers, checkers, combined, checkerPresentation);
     }
+
+    /** Adds immutable generated vocabulary and explicit canonical/alias mappings; installation performs no I/O. */
+    public RuntimeModule withCheckerPresentation(io.teaql.core.checker.CheckerPresentation.Model model) {
+        return new RuntimeModule(metadataAssemblers, checkers, bootstraps, Objects.requireNonNull(model, "model"));
+    }
+
+    public io.teaql.core.checker.CheckerPresentation.Model checkerPresentation() { return checkerPresentation; }
 
     public RuntimeModule and(RuntimeModule other) {
         Objects.requireNonNull(other, "other");
@@ -53,7 +64,7 @@ public final class RuntimeModule {
         combinedCheckers.addAll(other.checkers);
         List<GeneratedSchemaBootstrap> combinedBootstraps = new ArrayList<>(bootstraps);
         combinedBootstraps.addAll(other.bootstraps);
-        return new RuntimeModule(combined, combinedCheckers, combinedBootstraps);
+        return new RuntimeModule(combined, combinedCheckers, combinedBootstraps, checkerPresentation.merge(other.checkerPresentation));
     }
 
     public void install(EntityMetaFactory metadata) {

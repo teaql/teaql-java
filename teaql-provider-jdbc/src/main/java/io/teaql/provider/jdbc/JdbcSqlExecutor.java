@@ -20,13 +20,20 @@ import java.util.logging.Logger;
 public class JdbcSqlExecutor implements SqlExecutionAdapter {
 
     private static final Logger LOG = Logger.getLogger(JdbcSqlExecutor.class.getName());
+    // Cap SQLite plain-text materialization before expanding exponent-form
+    // BigDecimal inputs. Model precision/scale checks remain separate.
+    private static final long MAX_SQLITE_DECIMAL_TEXT_LENGTH = 1_000_000L;
 
     private final DataSource dataSource;
     private volatile boolean ordinaryMutationsReadOnly;
     // A held view retains only this token, not the executor, connection or DataSource.
     private final Object storageIdentity = new Object();
     private final ThreadLocal<Connection> transactionConnection = new ThreadLocal<>();
-    private final ThreadLocal<Boolean> transactionRollbackOnly = new ThreadLocal<>();
+    private final ThreadLocal<TransactionCompletion> transactionCompletion = new ThreadLocal<>();
+    private static final class TransactionCompletion {
+        final List<Runnable> commits = new ArrayList<>(), rollbacks = new ArrayList<>(), unknown = new ArrayList<>();
+        boolean rollbackOnly;
+    }
     private final List<Consumer<Connection>> connectionInitializers = new CopyOnWriteArrayList<>();
 
     public JdbcSqlExecutor(DataSource dataSource) {
@@ -240,7 +247,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         @Override
         public Object get(int columnIndex) {
             try {
-                return resultSet.getObject(columnIndex);
+                return finiteColumn(resultSet, columnIndex);
             } catch (SQLException exception) {
                 throw new RuntimeException("Failed to read JDBC column " + columnIndex, exception);
             }
@@ -249,17 +256,31 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         @Override
         public <V> V get(int columnIndex, Class<V> type) {
             try {
-                Object value = resultSet.getObject(columnIndex);
+                Object value = finiteConversion(resultSet.getObject(columnIndex));
                 return convertColumn(type, value);
             } catch (SQLException exception) {
                 throw new RuntimeException("Failed to read JDBC column " + columnIndex + " as "
                         + type.getName(), exception);
+            } catch (ArithmeticException | IllegalArgumentException invalid) {
+                String label = null;
+                try {
+                    label = resultSet.getMetaData().getColumnLabel(columnIndex);
+                } catch (SQLException ignored) { }
+                // NumberFormatException messages and causes can retain private
+                // text. Report the column/type, not the value or its exception.
+                throw io.teaql.dataservice.sql.SqlNumericConversions.invalidColumn(columnIndex, label, type);
             }
         }
 
         @SuppressWarnings("unchecked")
         private static <V> V convertColumn(Class<V> type, Object value) {
-            if (value == null || type.isInstance(value)) return (V) value;
+            if (value == null) return null;
+            // Check floating targets even when JDBC already returned the same
+            // boxed type; otherwise NaN/Infinity bypass validation entirely.
+            if (value instanceof Number number && (type == Float.class || type == Double.class)) {
+                return (V) io.teaql.dataservice.sql.SqlNumericConversions.convert(type, number);
+            }
+            if (type.isInstance(value)) return (V) value;
             if (value instanceof Number number) {
                 if (type == java.time.Instant.class) {
                     if (!(number instanceof Long || number instanceof Integer
@@ -268,17 +289,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                     }
                     return (V) java.time.Instant.ofEpochMilli(number.longValue());
                 }
-                if (type == Long.class) return (V) Long.valueOf(number.longValue());
-                if (type == Integer.class) return (V) Integer.valueOf(number.intValue());
-                if (type == Double.class) return (V) Double.valueOf(number.doubleValue());
-                if (type == Float.class) return (V) Float.valueOf(number.floatValue());
-                if (type == Short.class) return (V) Short.valueOf(number.shortValue());
-                if (type == Byte.class) return (V) Byte.valueOf(number.byteValue());
-                if (type == java.math.BigDecimal.class) {
-                    return (V) (number instanceof java.math.BigInteger integer
-                            ? new java.math.BigDecimal(integer)
-                            : java.math.BigDecimal.valueOf(number.doubleValue()));
-                }
+                if (io.teaql.dataservice.sql.SqlNumericConversions.supports(type)) return (V) io.teaql.dataservice.sql.SqlNumericConversions.convert(type, number);
                 if (type == Boolean.class) return (V) Boolean.valueOf(number.longValue() != 0);
             }
             if (type == java.time.LocalDateTime.class && value instanceof java.sql.Timestamp timestamp) {
@@ -315,6 +326,9 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 return (V) java.time.LocalTime.parse(separator < 0 ? text : text.substring(separator + 1));
             }
             if (type == String.class) return (V) String.valueOf(value);
+            if (type == java.math.BigDecimal.class && value instanceof CharSequence text) {
+                return (V) new java.math.BigDecimal(text.toString());
+            }
             throw new IllegalArgumentException("Cannot convert JDBC value " + value.getClass().getName()
                     + " to " + type.getName());
         }
@@ -323,8 +337,26 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
     private static JdbcColumnRow readColumnRow(ResultSet resultSet, JdbcColumnRow.Layout layout, int width)
             throws SQLException {
         Object[] values = new Object[width];
-        for (int i = 0; i < width; i++) values[i] = resultSet.getObject(i + 1);
+        for (int i = 0; i < width; i++) values[i] = finiteColumn(resultSet, i + 1);
         return new JdbcColumnRow(layout, values);
+    }
+
+    private static Object finiteColumn(ResultSet resultSet, int column) throws SQLException {
+        Object value = resultSet.getObject(column);
+        if (nonFiniteNumber(value))
+            throw new SQLException("Non-finite JDBC numeric field " + resultSet.getMetaData().getColumnLabel(column));
+        return value;
+    }
+
+    private static Object finiteConversion(Object value) {
+        if (nonFiniteNumber(value))
+            throw new IllegalArgumentException("JDBC numeric value is outside the finite target range");
+        return value;
+    }
+
+    private static boolean nonFiniteNumber(Object value) {
+        return value instanceof Double doubleValue && !Double.isFinite(doubleValue)
+                || value instanceof Float floatValue && !Float.isFinite(floatValue);
     }
 
     private static String[] columnLabels(ResultSet resultSet) throws SQLException {
@@ -434,16 +466,18 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 // The nested action shares the outer JDBC transaction. Without a
                 // savepoint, its partial writes cannot be committed safely even if
                 // application code catches the exception before the outer returns.
-                transactionRollbackOnly.set(true);
+                transactionCompletion.get().rollbackOnly = true;
                 throw failure;
             }
             return;
         }
+        var completion = new TransactionCompletion();
+        Throwable failure = null;
         Connection connection;
         try {
             connection = openConnection();
-        } catch (SQLException failure) {
-            throw new RuntimeException("JDBC transaction failed", failure);
+        } catch (SQLException openFailure) {
+            throw new RuntimeException("JDBC transaction failed", openFailure);
         }
         boolean committed = false;
         boolean outcomeUnknown = false;
@@ -452,33 +486,33 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             boolean autoCommit = connection.getAutoCommit();
             connection.setAutoCommit(false);
             transactionConnection.set(connection);
-            transactionRollbackOnly.set(false);
+            transactionCompletion.set(completion);
             try {
                 try {
                     action.run();
-                    if (Boolean.TRUE.equals(transactionRollbackOnly.get())) {
+                    if (completion.rollbackOnly) {
                         throw new IllegalStateException(
                                 "JDBC transaction is rollback-only after a failed operation");
                     }
-                } catch (RuntimeException | Error failure) {
+                } catch (RuntimeException | Error actionFailure) {
                     try {
                         connection.rollback();
                     } catch (SQLException | RuntimeException | Error rollbackFailure) {
                         outcomeUnknown = true;
                         rollbackUnconfirmed = true;
                         warnTransactionCleanup("rollback after failed action", false, true);
-                        if (failure instanceof Error) {
+                        if (actionFailure instanceof Error) {
                             // The graph runtime must fence the ledger before
                             // rethrowing the original Error. A suppressed marker
                             // is unreliable because Error may disable suppression.
-                            throw new TransactionOutcomeUnknownException((Error) failure);
+                            throw new TransactionOutcomeUnknownException((Error) actionFailure);
                         }
                         if (rollbackFailure instanceof Error) {
                             throw new TransactionOutcomeUnknownException((Error) rollbackFailure);
                         }
                         throw new TransactionOutcomeUnknownException();
                     }
-                    throw failure;
+                    throw actionFailure;
                 }
                 try {
                     connection.commit();
@@ -501,7 +535,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 }
             } finally {
                 transactionConnection.remove();
-                transactionRollbackOnly.remove();
+                transactionCompletion.remove();
                 // A confirmed rollback leaves no pending write to commit. If
                 // rollback itself failed, changing autoCommit could commit it.
                 if (!rollbackUnconfirmed) {
@@ -514,8 +548,8 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                     }
                 }
             }
-        } catch (SQLException e) {
-            throw new RuntimeException("JDBC transaction failed", e);
+        } catch (RuntimeException | Error | SQLException transactionFailure) {
+            failure = transactionFailure;
         } finally {
             if (rollbackUnconfirmed) {
                 // JDBC leaves close() with an active transaction implementation-defined.
@@ -556,6 +590,19 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 }
             }
         }
+        // Never deliver audit while a connection is still marked active. A sink
+        // failure after successful commit must not manufacture a rollback.
+        var callbacks = committed ? completion.commits : outcomeUnknown ? completion.unknown : completion.rollbacks;
+        for (int index = 0; index < callbacks.size(); index++) {
+            int selected = committed ? index : callbacks.size() - 1 - index;
+            try { callbacks.get(selected).run(); }
+            catch (RuntimeException | Error error) {
+                if (failure == null) failure = error; else if (failure != error) failure.addSuppressed(error);
+            }
+        }
+        if (failure instanceof Error error) throw error;
+        if (failure instanceof RuntimeException error) throw error;
+        if (failure != null) throw new RuntimeException("JDBC transaction failed", failure);
     }
 
     private static void warnTransactionCleanup(String operation, boolean committed, boolean outcomeUnknown) {
@@ -573,10 +620,24 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         // A failed statement, mapper or adapter operation may have left earlier
         // writes in the shared transaction. Without a savepoint, catching the
         // failure cannot make the transaction safe to commit.
-        if (transactionConnection.get() != null) transactionRollbackOnly.set(true);
+        var completion = transactionCompletion.get();
+        if (completion != null) completion.rollbackOnly = true;
     }
 
     @Override public boolean hasActiveTransaction() { return transactionConnection.get() != null; }
+
+    @Override public boolean registerTransactionSynchronization(Runnable committed, Runnable rolledBack) {
+        return registerTransactionSynchronization(committed, rolledBack, () -> {});
+    }
+
+    @Override public boolean registerTransactionSynchronization(Runnable committed, Runnable rolledBack, Runnable unknown) {
+        var completion = transactionCompletion.get();
+        if (completion == null) return false;
+        completion.commits.add(java.util.Objects.requireNonNull(committed));
+        completion.rollbacks.add(java.util.Objects.requireNonNull(rolledBack));
+        completion.unknown.add(java.util.Objects.requireNonNull(unknown));
+        return true;
+    }
 
     static void bind(PreparedStatement statement, int index, Object value) throws SQLException {
         if (value == null) {
@@ -593,10 +654,27 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         } else if (value instanceof Byte number) {
             statement.setByte(index, number);
         } else if (value instanceof java.math.BigDecimal number) {
-            statement.setBigDecimal(index, number);
+            // SQLite's exact Decimal columns require canonical plain text. The
+            // driver binds exponent-form BigDecimal values (for example 1E-7)
+            // as exponent text, which the column CHECK correctly rejects.
+            // Keep native numeric binding for the other JDBC providers.
+            if (isSqlite(statement)) {
+                long precision = number.precision();
+                long scale = number.scale();
+                long plainLength = scale <= 0
+                        ? precision - scale
+                        : Math.max(precision, scale + 1) + 1;
+                if (number.signum() < 0) plainLength++;
+                if (plainLength > MAX_SQLITE_DECIMAL_TEXT_LENGTH) {
+                    throw new SQLException("SQLite Decimal plain-text representation exceeds safe length");
+                }
+                statement.setString(index, number.toPlainString());
+            } else statement.setBigDecimal(index, number);
         } else if (value instanceof Double number) {
+            if (!Double.isFinite(number)) throw new SQLException("Non-finite JDBC floating-point parameter " + index);
             statement.setDouble(index, number);
         } else if (value instanceof Float number) {
+            if (!Float.isFinite(number)) throw new SQLException("Non-finite JDBC floating-point parameter " + index);
             statement.setFloat(index, number);
         } else if (value instanceof Boolean booleanValue) {
             statement.setBoolean(index, booleanValue);
@@ -610,7 +688,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             }
         } else if (value instanceof java.time.LocalDateTime dateTime) {
             if (isSqlite(statement)) {
-                statement.setString(index, java.sql.Timestamp.valueOf(dateTime).toString());
+                statement.setString(index, io.teaql.core.utils.LocalDateTimeUtil.formatSql(dateTime));
             } else {
                 statement.setTimestamp(index, java.sql.Timestamp.valueOf(dateTime));
             }

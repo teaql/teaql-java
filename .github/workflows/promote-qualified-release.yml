@@ -1,0 +1,73 @@
+name: Promote qualified Maven release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing signed version tag
+        required: true
+        type: string
+      qualification_sha256:
+        description: SHA256 of the internally qualified artifact manifest
+        required: true
+        type: string
+
+concurrency:
+  group: teaql-java-maven-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    environment: maven
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          path: publisher
+          persist-credentials: false
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.release_tag }}
+          fetch-depth: 0
+          path: qualified-source
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          server-id: TEAQL
+          server-username: TEAQL_MAVEN_USERNAME
+          server-password: TEAQL_MAVEN_PASSWORD
+      - name: Import the pinned public signing key
+        run: |
+          install -d -m 700 "$RUNNER_TEMP/qualified-release-gnupg"
+          gpg --homedir "$RUNNER_TEMP/qualified-release-gnupg" --batch --import publisher/.github/release-signing-key.asc
+      - name: Promote exact qualified Maven files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TEAQL_MAVEN_USERNAME: ${{ secrets.TEAQL_MAVEN_USERNAME }}
+          TEAQL_MAVEN_PASSWORD: ${{ secrets.TEAQL_MAVEN_PASSWORD }}
+          GNUPGHOME: ${{ runner.temp }}/qualified-release-gnupg
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          QUALIFICATION_SHA256: ${{ inputs.qualification_sha256 }}
+        run: |
+          python3 -B publisher/.github/scripts/promote_qualified_maven.py \
+            --source "$GITHUB_WORKSPACE/qualified-source" \
+            --tag "$RELEASE_TAG" --manifest-sha256 "$QUALIFICATION_SHA256" \
+            --settings "$HOME/.m2/settings.xml" --deploy \
+            --output "$RUNNER_TEMP/qualified-maven-receipts"
+      - name: Verify native remote release completeness
+        working-directory: qualified-source
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: tools/verify_maven_release.sh "${RELEASE_TAG#v}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qualified-maven-promotion
+          path: ${{ runner.temp }}/qualified-maven-receipts
+          if-no-files-found: error

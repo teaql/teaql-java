@@ -9,13 +9,22 @@ public class SubQuerySearchCriteria implements SearchCriteria, PropertyAware {
     private String propertyName;
     private SearchRequest dependsOn;
     private String dependsOnPropertyName;
+    private final boolean navigationOwned;
 
     public SubQuerySearchCriteria(
             String pPropertyName, SearchRequest pDependsOn, String pDependsOnPropertyName) {
+        this(pPropertyName, pDependsOn, pDependsOnPropertyName, false);
+    }
+
+    SubQuerySearchCriteria(String pPropertyName, SearchRequest pDependsOn,
+            String pDependsOnPropertyName, boolean navigationOwned) {
         propertyName = pPropertyName;
         dependsOn = pDependsOn;
         dependsOnPropertyName = pDependsOnPropertyName;
+        this.navigationOwned = navigationOwned;
     }
+
+    boolean navigationOwned() { return navigationOwned; }
 
     public String getPropertyName() {
         return propertyName;

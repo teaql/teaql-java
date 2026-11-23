@@ -65,7 +65,8 @@ public class DuckDataServiceExecutor extends SqlDataServiceExecutor {
                     String tableName, String indexName, List<String> orderedColumns) {
                 List<Map<String, Object>> matches = getExecutionAdapter().queryForList(
                         "SELECT table_name, is_unique, sql FROM duckdb_indexes() "
-                                + "WHERE index_name = ?", new Object[] {indexName});
+                                + "WHERE database_name = current_database() "
+                                + "AND schema_name = current_schema() AND index_name = ?", new Object[] {indexName});
                 if (matches.isEmpty()) return Optional.of(false);
                 if (matches.size() != 1) {
                     throw new IllegalStateException("DuckDB canonical relation index name is ambiguous");
@@ -77,6 +78,18 @@ public class DuckDataServiceExecutor extends SqlDataServiceExecutor {
                     throw new IllegalStateException("DuckDB canonical relation index has incompatible shape");
                 }
                 return Optional.of(true);
+            }
+
+            @Override
+            public Optional<Boolean> indexExists(
+                    UserContext context, String tableName, String indexName) {
+                List<Map<String, Object>> rows = getExecutionAdapter().queryForList(
+                        "SELECT 1 AS present FROM duckdb_indexes() "
+                                + "WHERE database_name = current_database() "
+                                + "AND schema_name = current_schema() "
+                                + "AND table_name = ? AND index_name = ? LIMIT 1",
+                        new Object[] {tableName, indexName});
+                return Optional.of(!rows.isEmpty());
             }
         };
 

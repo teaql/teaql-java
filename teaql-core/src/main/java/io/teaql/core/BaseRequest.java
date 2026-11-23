@@ -32,8 +32,10 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
     protected String comment;
     protected String purpose;
     protected Map<String, QueryOperation> queryOperations = new HashMap<>();
+    protected transient Map<String, QueryOperation> rollUpOperations = new HashMap<>();
     protected QueryOperation pageCountOperation;
     @Override public Map<String, QueryOperation> queryOperations() { return Map.copyOf(queryOperations); }
+    @Override public QueryOperation rollUpOperation(String relation) { return rollUpOperations.get(relation); }
     @Override public QueryOperation pageCountOperation() { return pageCountOperation; }
     @FrameworkInternal("Generator supplies the exact native count method and alias")
     @com.fasterxml.jackson.annotation.JsonIgnore
@@ -51,6 +53,9 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
 
     // search conditions
     protected SearchCriteria searchCriteria;
+
+    // Statistical result conditions are not predicates on the source rows.
+    protected SearchCriteria having;
 
     // order by
     protected OrderBys orderBys = new OrderBys();
@@ -107,6 +112,18 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
     public BaseRequest(Class<T> pReturnType, Supplier<? extends T> entityFactory) {
         returnType = pReturnType;
         this.entityFactory = entityFactory;
+    }
+
+    /** An independent typed query graph; building or copying never accesses Context. */
+    @SuppressWarnings("unchecked")
+    public BaseRequest<T> copy() {
+        return (BaseRequest<T>) new QueryRequestGraphCopy(true).request(this, 0);
+    }
+
+    /** Generated requests override this factory without reflection. */
+    @FrameworkInternal("Type-preserving allocation for an explicit query graph copy")
+    protected BaseRequest<T> internalCopyTarget() {
+        throw new TeaQLRuntimeException("Query copy requires a type-preserving request factory for " + getTypeName());
     }
 
     public String getSearchForText() {
@@ -234,6 +251,23 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         return searchCriteria;
     }
 
+    @Override public SearchCriteria getHaving() { return having; }
+
+    @FrameworkInternal("Parser and derived population copies replace statistical result conditions")
+    public void replaceHaving(SearchCriteria condition) { having = condition; }
+
+    /** Append an AND condition on selected group/measure aliases. */
+    public BaseRequest<T> having(SearchCriteria condition) {
+        if (condition != null) having = having == null ? condition : SearchCriteria.and(having, condition);
+        return this;
+    }
+
+    public BaseRequest<T> having(String alias, Operator operator, Object... values) {
+        SearchCriteria condition = internalCreateSearchCriteria(alias, refineOperator(operator, values), values);
+        if (condition == null) throw new TeaQLRuntimeException("unsupported HAVING operator: " + operator);
+        return having(condition);
+    }
+
     /**
      * Replaces the current criteria as one atomic parser operation. Dynamic input adapters use
      * this to roll back a partially resolved relation path when a later field segment is stale.
@@ -357,10 +391,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
     }
 
     protected BaseRequest<T> internalMatchAny(SearchRequest<T> anotherRequest) {
-        if (searchCriteria == null) {
-            return this;
-        }
-
+        Objects.requireNonNull(anotherRequest, "matching request");
         if (anotherRequest.getSearchCriteria() == null) {
             return this;
         }
@@ -377,12 +408,14 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         List<Expression> subExpress = extractSearchCriteriaExcludeVersion(anotherRequest);
         // collection search criteria other than version criteria
         int length = subExpress.size();
+        if (length == 0) {
+            return this;
+        }
         SearchCriteria[] searchCriteriaArray = new SearchCriteria[length];
         for (int i = 0; i < length; i++) {
             searchCriteriaArray[i] = (SearchCriteria) subExpress.get(i);
         }
-        ((AND) this.searchCriteria).getExpressions().add(SearchCriteria.or(searchCriteriaArray));
-        return this;
+        return appendSearchCriteria(SearchCriteria.or(searchCriteriaArray));
     }
 
     protected BaseRequest<T> withDeletedRows() {
@@ -670,6 +703,27 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
                 .getComplexDimensions()
                 .add(new SimpleNamedExpression(propertyName, new PropertyReference(propertyName)));
         this.propagateDimensions.put(propertyName, subRequest);
+        rollUpOperations.remove(propertyName);
+    }
+
+    @FrameworkInternal("Generator supplies the exact native statistical Q method")
+    public void groupBy(String propertyName, SearchRequest subRequest, QueryOperation operation) {
+        groupBy(propertyName, subRequest);
+        if (operation != null) rollUpOperations.put(propertyName, operation);
+    }
+
+    /** Generated navigation replaces its own binding, never an application predicate. */
+    protected final void internalRollUpTo(String property, SearchRequest<?> parent) {
+        internalRollUpTo(property, parent, null);
+    }
+
+    protected final void internalRollUpTo(String property, SearchRequest<?> parent, QueryOperation operation) {
+        Objects.requireNonNull(property, "property"); Objects.requireNonNull(parent, "parent");
+        SearchCriteria cleaned = QueryNavigation.clear(searchCriteria, property, 0);
+        searchCriteria = cleaned;
+        aggregations.getComplexDimensions().removeIf(dimension -> property.equals(dimension.name()));
+        groupBy(property, parent, operation);
+        appendSearchCriteria(new SubQuerySearchCriteria(property, parent, BaseEntity.ID_PROPERTY, true));
     }
 
     public void addAggregate(String retName, String propertyName, AggrFunction function) {
@@ -711,6 +765,17 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
 
     public void countProperty(String retName, String propertyName) {
         addAggregate(retName, propertyName, AggrFunction.COUNT);
+    }
+
+    public void countDistinctProperty(String propertyName) {
+        countDistinctProperty(propertyName, propertyName);
+    }
+
+    public void countDistinctProperty(String retName, String propertyName) {
+        if ("*".equals(propertyName)) {
+            throw new IllegalArgumentException("COUNT DISTINCT requires a field, not all rows");
+        }
+        addAggregate(retName, propertyName, AggrFunction.COUNT_DISTINCT);
     }
 
     public void sum(String propertyName) {
@@ -973,6 +1038,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
                 && Objects.equals(getSimpleDynamicProperties(), that.getSimpleDynamicProperties())
                 && Objects.equals(getDynamicPropertyMetadata(), that.getDynamicPropertyMetadata())
                 && Objects.equals(getSearchCriteria(), that.getSearchCriteria())
+                && Objects.equals(getHaving(), that.getHaving())
                 && Objects.equals(orderBys, that.orderBys)
                 && Objects.equals(getSlice(), that.getSlice())
                 && Objects.equals(enhanceRelations, that.enhanceRelations)
@@ -995,6 +1061,7 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
                 getSimpleDynamicProperties(),
                 getDynamicPropertyMetadata(),
                 getSearchCriteria(),
+                getHaving(),
                 orderBys,
                 getSlice(),
                 enhanceRelations,
@@ -1097,6 +1164,11 @@ public abstract class BaseRequest<T extends Entity> implements SearchRequest<T> 
         @Override
         public String getTypeName() {
             return type;
+        }
+
+        @Override protected BaseRequest<Entity> internalCopyTarget() {
+            return entityDescriptor == null ? new TempRequest(returnType(), type, this::internalNewEntity)
+                    : new TempRequest(entityDescriptor);
         }
 
         @Override

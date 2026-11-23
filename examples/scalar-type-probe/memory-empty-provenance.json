@@ -1,0 +1,10 @@
+{
+  "schema": "teaql.java-memory-empty-example-provenance/v1",
+  "applicationSha256": "6f69d9d0ef91dd881919b5ac1b48300b2e62430c5b26171e27e2bea0a1c76e20",
+  "vectorsSha256": "cfaa8dec196bbfa85e830fd0d67f321b17875b6f7d7c5f7cd28e0f2f6770ced0",
+  "derivedFromSqlApplicationSha256": "631599a3734e174ad1abb2e42f07c459b94a6b1c59b02107ab36b6388c9052af",
+  "runtimeProductionCommit": "0afe545b5aa97cfc8b46808e814b7e45018f620e",
+  "generatedImplementationsChanged": false,
+  "provider": "existing pure-memory MemoryDataService",
+  "sqlFaultInjectionRemovedAsInapplicable": true
+}

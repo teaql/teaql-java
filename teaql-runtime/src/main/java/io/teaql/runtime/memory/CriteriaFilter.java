@@ -116,10 +116,13 @@ public class CriteriaFilter<T extends Entity> implements Filter<T> {
             propertyValue = ((BaseEntity) propertyValue).getId();
         }
 
-        int compare = 0;
-        if (!ArrayUtil.isArray(value)) {
-            compare = ObjectUtil.compare((Comparable) propertyValue, (Comparable) value);
-        }
+        // A multi-value Parameter is normalized to a List. It is not a scalar
+        // Comparable, and string/membership operators do not need an ordering.
+        int compare = switch ((Operator) operator) {
+            case EQUAL, NOT_EQUAL, LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL ->
+                    ObjectUtil.compare((Comparable) propertyValue, (Comparable) value);
+            default -> 0;
+        };
         switch (((Operator) operator)) {
             case EQUAL -> {
                 return compare == 0;
@@ -158,35 +161,30 @@ public class CriteriaFilter<T extends Entity> implements Filter<T> {
                 return !StrUtil.endWith((String) propertyValue, (String) value);
             }
             case IN, IN_LARGE -> {
-                if (ArrayUtil.isArray(value)) {
-                    int length = ArrayUtil.length(value);
-                    for (int i = 0; i < length; i++) {
-                        Object o = ArrayUtil.get(value, i);
-                        compare = ObjectUtil.compare((Comparable) propertyValue, (Comparable) o);
-                        if (compare == 0) {
-                            return true;
-                        }
-                    }
-                    return false;
-                }
-                throw new TeaQLRuntimeException("operator in/in large should have the array parameter");
+                return membership(propertyValue, value, false);
             }
             case NOT_IN, NOT_IN_LARGE -> {
-                if (ArrayUtil.isArray(value)) {
-                    int length = ArrayUtil.length(value);
-                    for (int i = 0; i < length; i++) {
-                        Object o = ArrayUtil.get(value, i);
-                        compare = ObjectUtil.compare((Comparable) propertyValue, (Comparable) o);
-                        if (compare == 0) {
-                            return false;
-                        }
-                    }
-                    return true;
-                }
-                throw new TeaQLRuntimeException("operator not in/not in large should have the array parameter");
+                return membership(propertyValue, value, true);
             }
         }
         return false;
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean membership(Object propertyValue, Object candidates, boolean negated) {
+        int length;
+        if (candidates instanceof List<?> list) length = list.size();
+        else if (ArrayUtil.isArray(candidates)) length = ArrayUtil.length(candidates);
+        else throw new TeaQLRuntimeException("memory membership requires a list or array parameter");
+        if (length == 0) return negated;
+        if (propertyValue == null) return false;
+        boolean hasNull = false;
+        for (int i = 0; i < length; i++) {
+            Object candidate = candidates instanceof List<?> list ? list.get(i) : ArrayUtil.get(candidates, i);
+            if (candidate == null) { hasNull = true; continue; }
+            if (ObjectUtil.compare((Comparable) propertyValue, (Comparable) candidate) == 0) return !negated;
+        }
+        return negated && !hasNull;
     }
 
     public boolean oneOperatorCriteria(T entity, OneOperatorCriteria oneOperatorCriteria) {

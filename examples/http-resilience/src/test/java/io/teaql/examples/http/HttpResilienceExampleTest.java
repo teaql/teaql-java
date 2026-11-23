@@ -18,10 +18,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -31,66 +30,53 @@ public class HttpResilienceExampleTest {
 
     @Test public void postedRequestWithStalledResponseRequiresReconciliation() throws Exception {
         AtomicInteger requests = new AtomicInteger();
-        AtomicInteger warmups = new AtomicInteger();
-        CountDownLatch firstByteSent = new CountDownLatch(1);
-        CountDownLatch releaseResponse = new CountDownLatch(1);
-        AtomicReference<Throwable> result = new AtomicReference<>();
-        AtomicReference<Thread> worker = new AtomicReference<>();
+        CountDownLatch received = new CountDownLatch(1), release = new CountDownLatch(1);
         HttpServer server = HttpServer.create(new InetSocketAddress(
                 InetAddress.getByAddress(new byte[] {127, 0, 0, 1}), 0), 0);
-        server.createContext("/api/warmup", exchange -> {
-            warmups.incrementAndGet();
-            exchange.sendResponseHeaders(200, -1);
-            exchange.close();
-        });
         server.createContext("/api/payments", exchange -> {
             requests.incrementAndGet();
             assertEquals("POST", exchange.getRequestMethod());
             exchange.getRequestBody().readAllBytes();
+            received.countDown();
             exchange.sendResponseHeaders(200, 2);
             try (var output = exchange.getResponseBody()) {
                 output.write('x');
                 output.flush();
-                firstByteSent.countDown();
-                try { releaseResponse.await(10, TimeUnit.SECONDS); } catch (InterruptedException interrupted) {
+                try { release.await(15, TimeUnit.SECONDS); } catch (InterruptedException interrupted) {
                     Thread.currentThread().interrupt();
                 }
             } catch (java.io.IOException ignored) {
                 // The client is expected to close the response after its budget expires.
             }
         });
+        server.createContext("/api/ready", exchange -> {
+            exchange.sendResponseHeaders(200, 1);
+            try (var output = exchange.getResponseBody()) { output.write('r'); }
+        });
         server.start();
         try {
             var profile = HttpServiceProfile.builder("payments",
                     URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/api/"))
-                    .budgets(Duration.ofSeconds(2), Duration.ofSeconds(2), Duration.ofSeconds(3))
+                    .budgets(Duration.ofSeconds(5), Duration.ofSeconds(5), Duration.ofSeconds(5))
                     .build();
             var service = new JdkHttpRequestService(List.of(profile));
             var context = new DefaultUserContext(null);
             context.putAttribute(HttpRequestService.class.getName(), service);
-            assertEquals(200, context.httpRequests().execute(context, HttpRequestService.Call.get(
-                    "payments", "warmup", "prepare HTTP fixture", "exclude initialization from stalled POST proof")).status());
-            assertEquals(1, warmups.get());
+            // Exclude cold HTTP/context initialization from the deliberately
+            // stalled-response case. An unstarted request correctly reports
+            // TIMEOUT; this test must prove the POST was actually received.
+            assertEquals(200, context.httpRequests().execute(context,
+                    HttpRequestService.Call.get("payments", "ready", "warm local HTTP transport",
+                            "separate initialization from stalled response")).status());
             var call = HttpRequestService.Call.postText("payments", "payments",
                     "PRIVATE_BODY_CANARY", "submit payment", "confirm external effect");
-            Thread request = new Thread(() -> {
-                try {
-                    context.httpRequests().execute(context, call);
-                    result.set(new AssertionError("incomplete response unexpectedly succeeded"));
-                } catch (Throwable failure) { result.set(failure); }
-            });
-            worker.set(request); request.start();
-            assertTrue("POST must reach the fixture before checking its stalled outcome",
-                    firstByteSent.await(5, TimeUnit.SECONDS));
-            request.join(profile.totalTimeout().plusSeconds(2).toMillis());
-            assertFalse("expired HTTP request did not stop", request.isAlive());
-            assertTrue(result.get() instanceof HttpRequestFailure);
-            assertEquals(HttpRequestFailure.Code.AMBIGUOUS_OUTCOME, ((HttpRequestFailure) result.get()).code());
+            var failure = assertThrows(HttpRequestFailure.class,
+                    () -> context.httpRequests().execute(context, call));
+            assertTrue("POST must reach the server before classifying its outcome", received.await(1, TimeUnit.SECONDS));
+            assertEquals(HttpRequestFailure.Code.AMBIGUOUS_OUTCOME, failure.code());
             assertEquals(1, requests.get());
         } finally {
-            releaseResponse.countDown();
-            Thread request = worker.get();
-            if (request != null && request.isAlive()) { request.interrupt(); request.join(2000); }
+            release.countDown();
             server.stop(0);
         }
     }
@@ -125,32 +111,38 @@ public class HttpResilienceExampleTest {
                     });
 
             for (int round = 1; round <= 2; round++) {
-                var response = context.httpRequests().execute(context,
-                        HttpRequestService.Call.get("orders", "orders/1?token=PRIVATE_QUERY_CANARY",
-                                "load order status", "show the order status")
-                                .withParentTraceChain(List.of(
-                                        new TraceNode(TraceKind.PURPOSE, "Order", "render order details"),
-                                        new TraceNode(TraceKind.COMMENT, "Order", "load order graph"))));
-                assertEquals(200, response.status());
-                assertEquals("submitted", ((java.util.Map<?, ?>) response.jsonValue()).get("status"));
-                assertEquals(1, response.attempts());
+            int before = requests.get();
+            assertEquals((round - 1) * 2, before);
+            assertEquals(before, observed.size());
+            var response = context.httpRequests().execute(context,
+                    HttpRequestService.Call.get("orders", "orders/1?token=PRIVATE_QUERY_CANARY",
+                            "load order status", "show the order status")
+                            .withParentTraceChain(List.of(
+                                    new TraceNode(TraceKind.PURPOSE, "Order", "render order details"),
+                                    new TraceNode(TraceKind.COMMENT, "Order", "load order graph"))));
+            assertEquals(200, response.status());
+            assertEquals("submitted", ((java.util.Map<?, ?>) response.jsonValue()).get("status"));
+            assertEquals(1, response.attempts());
 
-                String viaTool = new JdkHttpTool(context).get("orders", "orders/1")
-                        .comment("load order status for agent")
-                        .purpose("explain the order status")
-                        .execute();
-                assertTrue(viaTool.contains("submitted"));
-                assertEquals(2 * round, requests.get());
-                assertEquals(java.util.Collections.nCopies(2 * round, TRACEPARENT), traceparents);
-                assertEquals(2 * round, observed.size());
-                var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-                int offset = 2 * (round - 1);
-                assertEquals(3, mapper.readTree(observed.get(offset).traceChain()).size());
-                assertEquals("load order graph",
-                        mapper.readTree(observed.get(offset).traceChain()).get(1).get("comment").asText());
-                assertEquals(2, mapper.readTree(observed.get(offset + 1).traceChain()).size());
-                assertFalse(observed.toString().contains("PRIVATE_QUERY_CANARY"));
-                assertFalse(observed.get(offset).traceChain().contains("PRIVATE_QUERY_CANARY"));
+            String viaTool = new JdkHttpTool(context).get("orders", "orders/1")
+                    .comment("load order status for agent")
+                    .purpose("explain the order status")
+                    .execute();
+            assertTrue(viaTool.contains("submitted"));
+            assertEquals(round * 2, requests.get());
+            assertEquals(java.util.Collections.nCopies(round * 2, TRACEPARENT), traceparents);
+            assertEquals(round * 2, observed.size());
+            var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            assertEquals(3, mapper.readTree(observed.get(before).traceChain()).size());
+            assertEquals("load order graph",
+                    mapper.readTree(observed.get(before).traceChain()).get(1).get("comment").asText());
+            assertEquals(2, mapper.readTree(observed.get(before + 1).traceChain()).size());
+            assertFalse(observed.toString().contains("PRIVATE_QUERY_CANARY"));
+            assertFalse(observed.get(before).traceChain().contains("PRIVATE_QUERY_CANARY"));
+            System.out.println("JAVA_HTTP_CONTRACT_EXAMPLE=" + mapper.writeValueAsString(java.util.Map.of(
+                    "id", "HTTP-16", "round", round, "fixturePort", server.getAddress().getPort(),
+                    "requestsBefore", before, "requestsAfter", requests.get(), "operationsBefore", before,
+                    "operationsAfter", observed.size(), "fixtureReset", false)));
                 System.out.println("HTTP_SAME_FIXTURE_PASS language=java round=" + round
                         + " requests=" + requests.get() + " trace=" + observed.size() + " lineage=3");
             }

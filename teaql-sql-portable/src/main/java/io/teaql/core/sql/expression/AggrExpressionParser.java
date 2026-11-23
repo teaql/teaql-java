@@ -36,10 +36,13 @@ public class AggrExpressionParser implements SQLExpressionParser<AggrExpression>
         if (CollectionUtil.size(expressions) != 1) {
             throw new TeaQLRuntimeException("AggrExpression operator should have 1 expression");
         }
+        sqlColumnResolver.validateAggregateOperand(userContext,(AggrFunction)operator,expressions.get(0));
         String sqlColumn =
                 ExpressionHelper.toSql(
                         userContext, expressions.get(0), idTable, parameters, sqlColumnResolver);
-        return genAggrSQL((AggrFunction) operator, sqlColumn);
+        String specialized = sqlColumnResolver.aggregateSql(
+                userContext, (AggrFunction) operator, expressions.get(0), sqlColumn);
+        return specialized == null ? genAggrSQL((AggrFunction) operator, sqlColumn) : specialized;
     }
 
     public String genAggrSQL(AggrFunction operator, String sqlColumn) {
@@ -55,6 +58,10 @@ public class AggrExpressionParser implements SQLExpressionParser<AggrExpression>
                 return StrUtil.format("sum({})", sqlColumn);
             case COUNT:
                 return StrUtil.format("count({})", sqlColumn);
+            case COUNT_DISTINCT:
+                if ("*".equals(sqlColumn.trim()))
+                    throw new TeaQLRuntimeException("COUNT DISTINCT requires a field, not all rows");
+                return StrUtil.format("count(DISTINCT {})", sqlColumn);
             case AVG:
                 return StrUtil.format("avg({})", sqlColumn);
             case STDDEV:
@@ -65,6 +72,12 @@ public class AggrExpressionParser implements SQLExpressionParser<AggrExpression>
                 return StrUtil.format("var_samp({})", sqlColumn);
             case VAR_POP:
                 return StrUtil.format("var_pop({})", sqlColumn);
+            case BIT_AND:
+                return StrUtil.format("bit_and({})", sqlColumn);
+            case BIT_OR:
+                return StrUtil.format("bit_or({})", sqlColumn);
+            case BIT_XOR:
+                return StrUtil.format("bit_xor({})", sqlColumn);
             case GBK:
                 return StrUtil.format("convert_to({},'GBK')", sqlColumn);
         }

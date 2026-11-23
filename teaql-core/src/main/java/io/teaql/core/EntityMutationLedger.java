@@ -65,16 +65,46 @@ public class EntityMutationLedger {
         }
     }
 
+    @FrameworkInternal("Physical transaction rollback only")
+    public Runnable __internalCaptureRollback() {
+        Runnable changes = changeSets.captureRollback();
+        var deleted = new TreeSet<>(deletedKeys); var recovered = new TreeSet<>(recoveredKeys);
+        var created = new TreeSet<>(newKeys); var traces = new TreeMap<>(traceChains);
+        var versions = new TreeMap<>(originalVersions); String reason = comment;
+        return () -> {
+            changes.run();
+            deletedKeys.clear(); deletedKeys.addAll(deleted);
+            recoveredKeys.clear(); recoveredKeys.addAll(recovered);
+            newKeys.clear(); newKeys.addAll(created);
+            traceChains.clear(); traceChains.putAll(traces);
+            originalVersions.clear(); originalVersions.putAll(versions); comment = reason;
+        };
+    }
+
     public void set(EntityKey key, String field, Object value) {
         changeSets.set(key, field, value);
+    }
+
+    void clearField(EntityKey key, String field) {
+        changeSets.clearField(key, field);
     }
 
     public void setDynamic(EntityKey key, io.teaql.data.dynamic.DynamicFieldMutation mutation) {
         changeSets.currentMut().setDynamic(key, mutation);
     }
 
+    void clearDynamicField(EntityKey key, String code) {
+        changeSets.clearDynamicField(key, code);
+    }
+
     public Object get(EntityKey key, String field) {
         return changeSets.get(key, field);
+    }
+
+    /** Read-only presence test, including explicit null, without copying field sets. */
+    @FrameworkInternal("Generated Checker pending-field admission only")
+    public boolean containsField(EntityKey key, String field) {
+        return changeSets.contains(key, field);
     }
 
     public EntityChangeSet currentChangeSet() {

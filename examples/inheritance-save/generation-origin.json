@@ -1,0 +1,9 @@
+{
+  "schema": "teaql.generated-java-inheritance-example/v1",
+  "generatorBaseCommit": "77081b0935ab49c90b15f345c29a7724c407b3dd",
+  "sourceReceipt": "teaql-conformance/evidence/2026-11-14-java-subtype-assist-generation/receipt.json",
+  "sourceReceiptSha256": "077581ede000c6fdec9598d679a13482e5d9f18217f8dad82a33bfa6b8f5bcaf",
+  "generatedFiles": 44,
+  "generatedManifest": "generated-files.json",
+  "note": "The candidate contains uncommitted generator changes. The receipt source hashes identify that implementation. Its generated library is byte-identical to the runtime acceptance fixture; targeted Assist is refreshed from the same generation. Runtime dependencies use local source, not a published package."
+}

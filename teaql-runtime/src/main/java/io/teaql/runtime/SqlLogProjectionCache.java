@@ -29,12 +29,20 @@ final class SqlLogProjectionCache {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             add(digest, m.getBackend()); add(digest, m.getOperation());
+            var correlation = m.getSqlExecutionCorrelation();
+            add(digest, correlation == null ? null : correlation.traceId());
+            add(digest, correlation == null ? null : correlation.spanId());
             add(digest, m.getStartedAt()); add(digest, m.getEndedAt()); add(digest, m.getElapsedUs());
             add(digest, m.getAffectedRows()); add(digest, m.getResultCount()); add(digest, m.getResultSummary());
             add(digest, m.getBackendRequestId()); add(digest, m.getParameterizedQuery()); add(digest, m.getDebugQuery());
             add(digest, m.getComment()); add(digest, m.getPurpose()); add(digest, m.getAuditReason());
             add(digest, m.getStatementOperation());
             add(digest, m.getRequestTraceChain().size());
+            add(digest, m.getRequestTree().size());
+            for (var node : m.getRequestTree()) {
+                add(digest, node.id()); add(digest, node.parentId()); add(digest, node.kind());
+                add(digest, node.name()); add(digest, node.detail()); add(digest, node.method());
+            }
             for (var node : m.getRequestTraceChain()) {
                 add(digest, node.getKind()); add(digest, node.getName()); add(digest, node.getEntityId()); add(digest, node.getComment());
             }
@@ -73,6 +81,7 @@ final class SqlLogProjectionCache {
 
     private static ExecutionMetadata copy(ExecutionMetadata m) {
         var c = new ExecutionMetadata();
+        c.setSqlExecutionCorrelation(m.getSqlExecutionCorrelation());
         c.setBackend(m.getBackend()); c.setOperation(m.getOperation());
         c.setStartedAt(m.getStartedAt()); c.setEndedAt(m.getEndedAt()); c.setElapsedUs(m.getElapsedUs());
         c.setAffectedRows(m.getAffectedRows()); c.setResultCount(m.getResultCount());
@@ -86,6 +95,7 @@ final class SqlLogProjectionCache {
         c.setComment(m.getComment()); c.setPurpose(m.getPurpose()); c.setAuditReason(m.getAuditReason());
         c.setTraceChain(m.getTraceChain() == null ? null : java.util.List.copyOf(m.getTraceChain()));
         c.setRequestTraceChain(m.getRequestTraceChain());
+        c.setRequestTree(m.getRequestTree());
         c.setMutationLineage(m.getMutationLineage()); c.setStatementOperation(m.getStatementOperation());
         return c;
     }

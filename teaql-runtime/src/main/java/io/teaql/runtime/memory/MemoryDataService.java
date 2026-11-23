@@ -12,7 +12,6 @@ public class MemoryDataService implements DataServiceExecutor, QueryExecutor, Mu
     private final String name;
     private final DataServiceCapabilities capabilities;
     private final Map<String, TypeStorage> database = new ConcurrentHashMap<>();
-    private final CriteriaFilter<Entity> filter = new CriteriaFilter<>();
     private final int maxEntriesPerType;
 
     private static class TypeStorage {
@@ -39,6 +38,7 @@ public class MemoryDataService implements DataServiceExecutor, QueryExecutor, Mu
         this.capabilities = new DataServiceCapabilities();
         this.capabilities.setQuery(true);
         this.capabilities.setMutation(true);
+        this.capabilities.setAggregation(true);
     }
 
     @Override
@@ -57,21 +57,18 @@ public class MemoryDataService implements DataServiceExecutor, QueryExecutor, Mu
             throw new TeaQLRuntimeException("Unsupported QueryRequest in MemoryDataService");
         }
         SearchRequest<?> searchRequest = ((DefaultQueryRequest) request).getSearchRequest();
-        String typeName = searchRequest.getTypeName();
-        TypeStorage storage = database.computeIfAbsent(typeName, k -> new TypeStorage(maxEntriesPerType));
+        return new MemoryQueries(context, this::rows).execute(searchRequest);
+    }
 
-        SmartList<Entity> result = new SmartList<>();
+    /** Snapshot membership under the lock; nested requests never execute while it is held. */
+    private List<Entity> rows(String typeName) {
+        TypeStorage storage = database.computeIfAbsent(typeName, k -> new TypeStorage(maxEntriesPerType));
         storage.lock.readLock().lock();
         try {
-            for (Entity entity : storage.data.values()) {
-                if (filter.accept(entity, searchRequest.getSearchCriteria())) {
-                    result.add(entity);
-                }
-            }
+            return new ArrayList<>(storage.data.values());
         } finally {
             storage.lock.readLock().unlock();
         }
-        return new DefaultQueryResult(result);
     }
 
     @Override
@@ -81,6 +78,11 @@ public class MemoryDataService implements DataServiceExecutor, QueryExecutor, Mu
         }
         EntityPersistenceMutation mutation = (EntityPersistenceMutation) request;
         Entity entity = mutation.getEntity();
+        var kind = mutation.getAction() == EntityPersistenceMutation.Action.DELETE ? MutationOperationKind.DELETE
+                : entity.newItem() ? MutationOperationKind.CREATE
+                : entity.recoverItem() ? MutationOperationKind.RECOVER : MutationOperationKind.UPDATE;
+        // Validate before publishing a row into storage or changing its state.
+        long nextVersion = MutationVersions.next(kind, entity.getVersion());
         String typeName = entity.typeName();
         TypeStorage storage = database.computeIfAbsent(typeName, k -> new TypeStorage(maxEntriesPerType));
 
@@ -91,12 +93,13 @@ public class MemoryDataService implements DataServiceExecutor, QueryExecutor, Mu
                     throw new TeaQLRuntimeException("Entity ID must be allocated before save");
                 }
                 storage.data.put(entity.getId(), entity);
-                ((BaseEntity) entity).__internalSet("version", entity.getVersion() == null ? 1L : entity.getVersion() + 1);
+                ((BaseEntity) entity).__internalSet("version", nextVersion);
                 if (entity instanceof BaseEntity) {
                     ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);
                 }
             } else if (mutation.getAction() == EntityPersistenceMutation.Action.DELETE) {
                 storage.data.remove(entity.getId());
+                ((BaseEntity) entity).__internalSet("version", nextVersion);
                 if (entity instanceof BaseEntity) {
                     ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);
                 }

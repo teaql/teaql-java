@@ -24,6 +24,9 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
 
     String TEAQL_LOCALE = "teaql.locale";
     String TEAQL_I18N_CATALOG = "teaql.i18n.catalog";
+    String TEAQL_CHECKER_MESSAGES = "teaql.checker.messages";
+    String TEAQL_CHECKER_PRESENTATION_MODEL = "teaql.checker.presentation.model";
+    String TEAQL_CHECKER_MESSAGE_RENDERER = "teaql.checker.message.renderer";
     String TEAQL_ACTIVE_ROOT = "teaql.active.root";
     String TEAQL_FIX_EVIDENCE_CURRENT = "teaql.fix.evidence.current";
     String TEAQL_FIX_EVIDENCE_LAST = "teaql.fix.evidence.last";
@@ -113,6 +116,9 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
         if (!root.entityType().equals(expectedType)) {
             throw new ContextRootException(ContextRootException.Reason.TYPE_MISMATCH, expectedType, root);
         }
+        if (root.id() <= 0) {
+            throw new ContextRootException(ContextRootException.Reason.INVALID_ID, expectedType, root);
+        }
         return root;
     }
 
@@ -149,13 +155,52 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
         return catalog == null ? I18nCatalog.builtin() : catalog;
     }
 
+    /** Trusted composition only; never hydrate these resources from query or mutation JSON. */
+    default UserContext installCheckerMessageCatalog(io.teaql.core.i18n.CheckerMessageCatalog catalog) {
+        putAttribute(TEAQL_CHECKER_MESSAGES, java.util.Objects.requireNonNull(catalog, "catalog"));
+        return this;
+    }
+
+    default io.teaql.core.i18n.CheckerMessageCatalog checkerMessageCatalog() {
+        Object value = getAttribute(TEAQL_CHECKER_MESSAGES);
+        return value instanceof io.teaql.core.i18n.CheckerMessageCatalog catalog ? catalog
+                : io.teaql.core.i18n.CheckerMessageCatalog.builtin();
+    }
+
+    default UserContext installCheckerPresentationModel(io.teaql.core.checker.CheckerPresentation.Model model) {
+        putAttribute(TEAQL_CHECKER_PRESENTATION_MODEL, java.util.Objects.requireNonNull(model, "model"));
+        return this;
+    }
+
+    default io.teaql.core.checker.CheckerPresentation.Model checkerPresentationModel() {
+        Object value = getAttribute(TEAQL_CHECKER_PRESENTATION_MODEL);
+        return value instanceof io.teaql.core.checker.CheckerPresentation.Model model ? model
+                : io.teaql.core.checker.CheckerPresentation.Model.empty();
+    }
+
+    default UserContext installCheckerMessageRenderer(io.teaql.core.checker.CheckerMessageRenderer renderer) {
+        putAttribute(TEAQL_CHECKER_MESSAGE_RENDERER, java.util.Objects.requireNonNull(renderer, "renderer"));
+        return this;
+    }
+
+    default io.teaql.core.checker.CheckerMessageRenderer checkerMessageRenderer() {
+        Object value = getAttribute(TEAQL_CHECKER_MESSAGE_RENDERER);
+        return value instanceof io.teaql.core.checker.CheckerMessageRenderer renderer ? renderer
+                : io.teaql.core.checker.CheckerMessageRenderer.STANDARD;
+    }
+
+    /** Value-free quality diagnostics; application adapters may collect these fixed framework codes. */
+    default void checkerMessageWarning(String code) {
+        System.getLogger("io.teaql.core.checker.messages").log(System.Logger.Level.WARNING, code);
+    }
+
     default CheckResult translateCheckResult(CheckResult result) {
-        result.setNaturalLanguageStatement(i18nCatalog().render(result, locale()));
+        io.teaql.core.checker.internal.CheckerDiagnostics.translate(this, List.of(result));
         return result;
     }
 
     default List<CheckResult> translateCheckResults(List<CheckResult> results) {
-        results.forEach(this::translateCheckResult);
+        io.teaql.core.checker.internal.CheckerDiagnostics.translateBatch(this, results);
         return results;
     }
 
@@ -163,15 +208,11 @@ public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
      * Applies trusted, context-owned defaults to a newly generated entity.
      * Business input must not supply tenant, actor, policy, provider, or audit
      * infrastructure values directly.
+     * The default path reserves a real ID through this Context's ID service;
+     * abandoning the object may leave a gap, but does not persist the object.
      */
     default <T extends Entity> T initializeEntity(String entityName, T entity) {
-        if (entityName == null || entityName.trim().isEmpty()) {
-            throw new IllegalArgumentException("entityName must not be empty");
-        }
-        if (entity == null) {
-            throw new IllegalArgumentException("entity must not be null");
-        }
-        return entity;
+        return NewEntityLifecycle.initialize(this, entityName, entity);
     }
 
     void pushTrace(String comment);

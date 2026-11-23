@@ -143,6 +143,44 @@ public class HttpProfileTrustTest {
         }
     }
 
+    @Test public void rejectsMixedPemMaterialAndDerWithSafeErrors() throws Exception {
+        byte[] root = roots.get(0), key = Files.readAllBytes(directory.resolve("root-0.key"));
+        var invalid = new java.util.LinkedHashMap<String, byte[]>();
+        invalid.put("leading-text", joined("PRIVATE_ROOT_PREFIX_CANARY\n".getBytes(StandardCharsets.US_ASCII), root));
+        invalid.put("trailing-text", joined(root, "\nPRIVATE_ROOT_TRAILING_CANARY".getBytes(StandardCharsets.US_ASCII)));
+        invalid.put("key-before-certificate", joined(key, root));
+        invalid.put("key-after-certificate", joined(root, key));
+        byte[] footer = "-----END CERTIFICATE-----\n".getBytes(StandardCharsets.US_ASCII);
+        invalid.put("extra-footer", joined(root, footer));
+        invalid.put("key-and-extra-footer", joined(root, key, footer));
+        invalid.put("nested-header", joined("-----BEGIN CERTIFICATE-----\n".getBytes(StandardCharsets.US_ASCII), root));
+        invalid.put("byte-order-marker", joined(new byte[] {(byte) 0xef, (byte) 0xbb, (byte) 0xbf}, root));
+        invalid.put("raw-der", ((X509Certificate) CertificateFactory.getInstance("X.509")
+                .generateCertificate(new java.io.ByteArrayInputStream(root))).getEncoded());
+        var accepted = new ArrayList<String>();
+        for (var entry : invalid.entrySet()) {
+            try { profile("upstream", URI.create("https://127.0.0.1/")).trustedRootPem(entry.getValue()); accepted.add(entry.getKey()); }
+            catch (IllegalArgumentException failure) {
+                assertEquals("invalid trusted TLS root", failure.getMessage()); assertNull(failure.getCause());
+            }
+        }
+        boolean padded;
+        try { profile("upstream", URI.create("https://127.0.0.1/")).trustedRootPem(joined(
+                "\r\n\t ".getBytes(StandardCharsets.US_ASCII), root, "\n \t\r\n".getBytes(StandardCharsets.US_ASCII))); padded = true; }
+        catch (IllegalArgumentException failure) { padded = false; }
+        System.out.println("JAVA_HTTP_TRUST_ENVELOPE_CASE={\"total\":" + invalid.size()
+                + ",\"accepted\":" + accepted.size() + ",\"rejected\":" + (invalid.size() - accepted.size())
+                + ",\"padded\":" + padded + "}");
+        assertTrue("only one PEM certificate and surrounding whitespace are allowed; accepted labels: " + accepted, accepted.isEmpty());
+        assertTrue("surrounding ASCII whitespace must be allowed", padded);
+    }
+
+    private static byte[] joined(byte[]... values) {
+        var output = new java.io.ByteArrayOutputStream();
+        for (byte[] value : values) output.writeBytes(value);
+        return output.toByteArray();
+    }
+
     @Test public void overlappingRootsRotateAcrossBothLivePeersWithoutReset() throws Exception {
         try (var old = new Peer("server-0.pem", 0); var next = new Peer("server-1.pem", 1)) {
             var oldOnly = new JdkHttpRequestService(List.of(profile("old", old.uri()).trustedRootPem(roots.get(0)).build(),

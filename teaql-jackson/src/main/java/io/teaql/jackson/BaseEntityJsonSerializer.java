@@ -23,11 +23,13 @@ public class BaseEntityJsonSerializer extends JsonSerializer<BaseEntity> {
         boolean added = path.add(value);
         try {
             gen.writeStartObject();
+            var state = value.__internalLoadState();
+            var layout = state.layout();
             if (value.getId() != null) {
-                serializers.defaultSerializeField(BaseEntity.ID_PROPERTY, value.getId(), gen);
+                ModelScalarJson.writeField(value, layout.isGenerated() ? layout.jsonFieldName(BaseEntity.ID_PROPERTY) : BaseEntity.ID_PROPERTY, value.getId(), gen, serializers);
             }
             if (value.getVersion() != null) {
-                serializers.defaultSerializeField(BaseEntity.VERSION_PROPERTY, value.getVersion(), gen);
+                ModelScalarJson.writeField(value, layout.isGenerated() ? layout.jsonFieldName(BaseEntity.VERSION_PROPERTY) : BaseEntity.VERSION_PROPERTY, value.getVersion(), gen, serializers);
             }
             // A cycle retains the existing identity-only reference shape, without
             // recursively reserializing the same object's business fields.
@@ -35,26 +37,32 @@ public class BaseEntityJsonSerializer extends JsonSerializer<BaseEntity> {
                 gen.writeEndObject();
                 return;
             }
-            var state = value.__internalLoadState();
-            var layout = state.layout();
             if (layout.isGenerated()) {
                 for (String field : layout.indexes().keySet()) {
                     if (BaseEntity.ID_PROPERTY.equals(field) || BaseEntity.VERSION_PROPERTY.equals(field)) continue;
                     if (!state.isLoaded(field)) continue;
-                    String member = layout.memberName(field);
+                    String member = layout.jsonFieldName(field);
                     // Preserve this provider's graph path, configured serializers
                     // and per-call attributes during nested serialization.
-                    serializers.defaultSerializeField(member, value.__internalGet(member), gen);
+                    // The selected wire spelling is not the native/member or model key used by
+                    // generated entity access and the mutation ledger.
+                    ModelScalarJson.writeField(value, member, value.__internalGet(field), gen, serializers);
                 }
                 for (String relation : layout.relationNames()) {
-                    if (layout.findIndex(relation) != null || !state.isLoaded(relation)) continue;
-                    serializers.defaultSerializeField(relation, value.__internalGet(relation), gen);
+                    if (layout.findIndex(relation) != null) continue;
+                    Object children = value.__internalGet(relation);
+                    // Pending business edits are present without certifying that
+                    // this relation was queried. Merely reading never loads it.
+                    boolean pending = children instanceof io.teaql.core.SmartList<?> list
+                            && list.stream().anyMatch(child -> child instanceof io.teaql.core.Entity entity && entity.needPersist());
+                    if (!state.isLoaded(relation) && !pending) continue;
+                    ModelScalarJson.writeField(value, layout.jsonFieldName(relation), children, gen, serializers);
                 }
             }
             for (Map.Entry<String, Object> entry : value.getAdditionalInfo().entrySet()) {
                 if (BaseEntity.ID_PROPERTY.equals(entry.getKey()) || BaseEntity.VERSION_PROPERTY.equals(entry.getKey())
                         || layout.findIndex(entry.getKey()) != null
-                        || layout.relationNames().contains(entry.getKey())) continue;
+                        || layout.canonicalRelationName(entry.getKey()) != null) continue;
                 serializers.defaultSerializeField(entry.getKey(), entry.getValue(), gen);
             }
             gen.writeEndObject();

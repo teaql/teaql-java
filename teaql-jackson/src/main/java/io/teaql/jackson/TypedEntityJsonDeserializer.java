@@ -3,9 +3,11 @@ package io.teaql.jackson;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.teaql.core.BaseEntity;
 import io.teaql.core.Entity;
+import io.teaql.core.EntityStatus;
 import io.teaql.core.FieldLayout;
 import io.teaql.core.LoadState;
 import io.teaql.core.SmartList;
@@ -65,12 +67,20 @@ final class TypedEntityJsonDeserializer extends JsonDeserializer<BaseEntity> {
     }
 
     private Binding binding(String name) {
-        Integer index = layout.findIndex(name);
-        return index == null ? relations.get(name) : fixed.get(index);
+        String canonical = layout.canonicalJsonField(name);
+        if (canonical == null) return null;
+        Integer index = layout.findIndex(canonical);
+        if (index != null) return fixed.get(index);
+        String relation = layout.canonicalRelationName(canonical);
+        return relation == null ? null : relations.get(relation);
     }
 
     @Override public BaseEntity deserialize(JsonParser parser, DeserializationContext context) throws IOException {
-        JsonNode node = parser.getCodec().readTree(parser);
+        boolean strictDuplicates = parser.isEnabled(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
+        JsonNode node;
+        parser.enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
+        try { node = ModelScalarJson.readTree(parser); }
+        finally { if (!strictDuplicates) parser.disable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION); }
         if (!node.isObject()) return context.reportInputMismatch(target, "Expected a model entity object");
         List<String> members = new ArrayList<>();
         var names = node.fieldNames();
@@ -121,17 +131,39 @@ final class TypedEntityJsonDeserializer extends JsonDeserializer<BaseEntity> {
             }
             Binding binding = binding(name);
             Object converted;
-            if (binding.element() != null && !value.isNull()) {
-                if (!value.isArray()) return context.reportInputMismatch(target, "Expected relation array: %s", name);
-                List<Entity> children = new ArrayList<>(value.size());
-                for (JsonNode child : value) {
-                    if (child.isNull()) return context.reportInputMismatch(target, "Null relation-list element: %s", name);
-                    children.add(parser.getCodec().treeToValue(child, binding.element()));
+            if (binding.element() != null) {
+                if (value.isNull()) converted = null;
+                else {
+                    if (!value.isArray()) return context.reportInputMismatch(target, "Expected relation array: %s", name);
+                    List<Entity> children = new ArrayList<>(value.size());
+                    for (JsonNode child : value) {
+                        if (child.isNull()) return context.reportInputMismatch(target, "Null relation-list element: %s", name);
+                        try { children.add(parser.getCodec().treeToValue(child, binding.element())); }
+                        catch (JsonMappingException error) {
+                            error.prependPath(children, children.size()); error.prependPath(target, name); throw error;
+                        }
+                    }
+                    converted = SmartList.takeOwnership(children);
                 }
-                converted = SmartList.takeOwnership(children);
-            } else converted = parser.getCodec().treeToValue(value, binding.type());
+            } else if (ModelScalarJson.supports(binding.type())) converted = ModelScalarJson.read(value, binding.type(), target, name);
+            else {
+                try { converted = parser.getCodec().treeToValue(value, binding.type()); }
+                catch (JsonMappingException error) { error.prependPath(target, name); throw error; }
+            }
             if (binding.index() >= 0) entity.__internalHydrate(binding.member(), converted, binding.index());
             else entity.__internalSet(binding.member(), converted);
+        }
+        // Persistence state is derived from the hydrated identity, never accepted
+        // as wire metadata or invented as mutation intent. Hydrate all members
+        // first so JSON order cannot change the lifecycle or original version.
+        if (entity.getId() != null && entity.getVersion() != null && entity.getVersion() != 0) {
+            entity.set$status(entity.getVersion() > 0 ? EntityStatus.PERSISTED : EntityStatus.PERSISTED_DELETED);
+        } else if (entity.getId() != null && entity.getVersion() == null
+                && members.stream().allMatch(name -> BaseEntity.ID_PROPERTY.equals(name) || BaseEntity.VERSION_PROPERTY.equals(name))) {
+            // Native FK stubs carry identity but no editable snapshot/version.
+            // Retain that reference-only contract across JSON without loading
+            // target details, validating them as a new entity, or permitting edits.
+            entity.set$status(EntityStatus.REFER);
         }
         return entity;
     }

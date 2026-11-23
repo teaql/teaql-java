@@ -54,6 +54,13 @@ public interface SqlExecutionAdapter {
         throw new UnsupportedOperationException("SQL adapter does not support ordinary mutation isolation");
     }
 
+    /** Provider-owned completion callbacks. Unsupported adapters must not claim registration. */
+    default boolean registerTransactionSynchronization(Runnable committed, Runnable rolledBack) { return false; }
+
+    default boolean registerTransactionSynchronization(Runnable committed, Runnable rolledBack, Runnable unknown) {
+        return registerTransactionSynchronization(committed, rolledBack);
+    }
+
     /** Opaque, non-reused instance token for held storage views; never a URL or transaction handle. */
     default Object storageIdentity() { return null; }
 }

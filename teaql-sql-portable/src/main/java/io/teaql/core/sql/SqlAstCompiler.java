@@ -34,6 +34,9 @@ public class SqlAstCompiler {
             UserContext userContext, 
             SearchRequest<?> request, 
             Map<String, Object> parameters) {
+        if (parameters instanceof SqlParameters tracked) tracked.captureQueryContext(request);
+        if (request.getHaving() != null)
+            throw new io.teaql.core.TeaQLRuntimeException("HAVING requires statistical execution");
             
         boolean preConfig = userContext.getBool(MULTI_TABLE, false);
 
@@ -113,6 +116,48 @@ public class SqlAstCompiler {
         if (!io.teaql.core.utils.ObjectUtil.isEmpty(groupBy)) {
             sql = io.teaql.core.utils.StrUtil.format("{} {}", sql, groupBy);
         }
+        if (request.getHaving() != null || request.getOrderBy() != null && !request.getOrderBy().isEmpty()) {
+            var columns = new java.util.LinkedHashMap<String, StatisticalResultFilter.Column>();
+            for (var selected : request.getAggregations().getSelectedExpressions()) {
+                var policy = ExpressionHelper.parameterPolicy(userContext, selected, repository);
+                if (columns.putIfAbsent(selected.name(), new StatisticalResultFilter.Column(selected.name(), policy,
+                        selected.getExpression(), repository)) != null)
+                    throw new io.teaql.core.TeaQLRuntimeException("Ambiguous statistical result alias: " + selected.name());
+            }
+            sql = StatisticalResultFilter.apply(userContext, sql, request.getHaving(), columns, repository, parameters);
+            var ordering = new java.util.ArrayList<String>();
+            boolean gbkRelation = false;
+            for (var order : request.getOrderBy() == null ? java.util.List.<io.teaql.core.OrderBy>of() : request.getOrderBy().getOrderBys()) {
+                String alias = null;
+                io.teaql.core.Expression selectedExpression = null;
+                var sort = io.teaql.core.sql.internal.StatisticalOrderExpression.parse(order.getExpression());
+                if (sort.gbk() && !gbkRelation) {
+                    sql = "SELECT * FROM (" + sql + ") AS " + repository.escapeIdentifier("__teaql_stat_order");
+                    gbkRelation = true;
+                }
+                io.teaql.core.Expression key = sort.key();
+                for (var selected : request.getAggregations().getSelectedExpressions()) {
+                    if (key instanceof io.teaql.core.PropertyReference ref && ref.getPropertyName().equals(selected.name())
+                            || sort.matches(selected.getExpression())) {
+                        if (alias != null && !alias.equals(selected.name()))
+                            throw new io.teaql.core.TeaQLRuntimeException("Ambiguous statistical order key");
+                        alias = selected.name();
+                        selectedExpression = selected.getExpression();
+                    }
+                }
+                if (alias == null) throw new io.teaql.core.TeaQLRuntimeException("Order key is not a statistical result");
+                String direction = order.getDirection().toUpperCase(java.util.Locale.ROOT);
+                if (!java.util.Set.of("ASC", "DESC").contains(direction))
+                    throw new io.teaql.core.TeaQLRuntimeException("Invalid statistical order direction");
+                ordering.add(sort.sql(repository,userContext, selectedExpression,
+                        repository.escapeIdentifier(alias)) + " " + direction);
+            }
+            if (!ordering.isEmpty()) sql += " ORDER BY " + String.join(", ", ordering);
+        }
+        if (request.getSlice() != null && (request.getSlice().getOffset() < 0 || request.getSlice().getSize() < 0))
+            throw new io.teaql.core.TeaQLRuntimeException("Invalid statistical page boundary");
+        String limit = prepareLimit(repository, request, parameters);
+        if (!io.teaql.core.utils.ObjectUtil.isEmpty(limit)) sql += " " + limit;
         return sql;
     }
 
@@ -211,7 +256,7 @@ public class SqlAstCompiler {
                     while (expression instanceof io.teaql.core.SimpleNamedExpression) {
                         expression = ((io.teaql.core.SimpleNamedExpression) expression).getExpression();
                     }
-                    return expression;
+                    return io.teaql.core.sql.internal.StatisticalGroupingExpression.copyOrdinary(metadata.getAllProperties(), expression);
                 })
                 .map(expression -> io.teaql.core.sql.expression.ExpressionHelper.toSql(userContext, expression, idTable, parameters, repository))
                 .collect(Collectors.joining(",", " GROUP BY ", ""));
@@ -225,6 +270,8 @@ public class SqlAstCompiler {
     }
 
     public List<String> collectAggregationTables(SqlEntityMetadata metadata, SqlCompilerDelegate repository, UserContext userContext, SearchRequest<?> request) {
+        for (var dimension : request.getAggregations().getSimpleDimensions())
+            io.teaql.core.sql.internal.StatisticalGroupingExpression.copyOrdinary(metadata.getAllProperties(), dimension.getExpression());
         Set<String> tables = new HashSet<>();
         for (String target : request.aggregationProperties(userContext)) {
             io.teaql.core.meta.PropertyDescriptor property = repository.findProperty(target);

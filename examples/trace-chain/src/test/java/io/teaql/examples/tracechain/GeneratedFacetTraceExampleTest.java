@@ -165,18 +165,25 @@ public class GeneratedFacetTraceExampleTest {
                 assertEquals(orderId, E.customerOrder(order).getId().eval().longValue());
                 assertEquals("nested count uses both filtered payments, not the visible payment page", 2, count(order));
                 var raw = fixture.queryResults.get(fixture.queryResults.size() - 1).statements();
-                // The page and its COUNT each materialize the predicate. Both
-                // real SELECTs must belong to the originating collector.
-                var routes = List.of(List.of("payment"), List.<String>of(), List.of("payment"),
-                        List.<String>of(), List.of("payment"), List.of("payment"),
+                // Unbounded membership is now inlined into both the page and
+                // COUNT. It must retain request ancestry, without inventing
+                // two physical SELECTs for the inlined predicate.
+                var routes = List.of(List.<String>of(), List.<String>of(),
+                        List.of("payment"), List.of("payment"),
                         List.of("payment", "customerOrder"));
+                for (int i : List.of(0, 1)) {
+                    assertTrue("membership stays in the real statement",
+                            raw.get(i).getParameterizedQuery().contains("payment IN (SELECT id FROM payment_data"));
+                    assertTrue("inlined Payment request retains its diagnostic ancestry",
+                            raw.get(i).getRequestTree().stream().anyMatch(node -> "Payment".equals(node.name())));
+                }
                 assertEquals(routes.size(), raw.size());
                 for (int i = 0; i < raw.size(); i++) {
                     assertPath(raw.get(i), routes.get(i), comment, purpose);
                     assertEquals("real SELECT completed", "success", raw.get(i).getExecutionOutcome());
                     var safe = LogPrivacy.sql(raw.get(i), false);
                     assertPath(safe, routes.get(i), comment, purpose);
-                    if (i == 3 || i == 5) {
+                    if (i == 1 || i == 3) {
                         assertTrue("physical membership COUNT", raw.get(i).getParameterizedQuery().toUpperCase().contains("COUNT("));
                         assertFalse("membership count must not reuse the visible page limit",
                                 raw.get(i).getParameterizedQuery().toUpperCase().contains("LIMIT 1"));
@@ -185,7 +192,7 @@ public class GeneratedFacetTraceExampleTest {
                 assertEquals(logging ? raw.size() : 0, fixture.sql.size());
                 for (int i = 0; i < fixture.sql.size(); i++) assertPath(fixture.sql.get(i), routes.get(i), comment, purpose);
                 assertTrue(fixture.context.getTraceChain().isEmpty());
-                System.out.printf("JAVA_NESTED_FACET {\"logging\":%s,\"includeAll\":%s,\"visible\":1,\"paymentCount\":2,\"orderCount\":2,\"physicalStatements\":7,\"safeSinkStatements\":%d}%n",
+                System.out.printf("JAVA_NESTED_FACET {\"logging\":%s,\"includeAll\":%s,\"visible\":1,\"paymentCount\":2,\"orderCount\":2,\"physicalStatements\":5,\"safeSinkStatements\":%d}%n",
                         logging, includeAll, fixture.sql.size());
             }
         }
