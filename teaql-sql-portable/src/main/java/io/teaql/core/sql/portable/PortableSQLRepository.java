@@ -1548,8 +1548,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     private static Object convertTemporalColumnValue(Class<?> targetType, Object value,
             String entityType, String field) {
-        if (value == null || targetType == java.time.Instant.class && targetType.isInstance(value)) return value;
         if (targetType == java.time.Instant.class) {
+            if (value == null || value instanceof java.time.Instant) return value;
             if (value instanceof Long || value instanceof Integer || value instanceof Short
                     || value instanceof Byte) {
                 return java.time.Instant.ofEpochMilli(((Number) value).longValue());
