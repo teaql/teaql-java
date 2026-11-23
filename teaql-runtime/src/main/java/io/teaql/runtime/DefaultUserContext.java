@@ -42,6 +42,13 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
         return runtime;
     }
 
+    /** Trusted bootstrap installation; never bind a provider from request data. */
+    public DefaultUserContext withSecretProvider(io.teaql.core.secret.SecretProvider provider) {
+        if (provider == null) throw new IllegalArgumentException("provider must not be null");
+        putAttribute(io.teaql.core.secret.SecretProvider.class.getName(), provider);
+        return this;
+    }
+
     @Override
     public io.teaql.core.checker.CheckerPresentation.Model checkerPresentationModel() {
         Object explicit = getAttribute(TEAQL_CHECKER_PRESENTATION_MODEL);

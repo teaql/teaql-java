@@ -20,7 +20,7 @@ runtime_version="$(node -e 'const fs=require("fs");process.stdout.write(fs.readF
 export MAVEN_OPTS="${MAVEN_OPTS:-} -Dmaven.repo.local=$build_dir/maven -Dteaql.version=$runtime_version"
 export TEAQL_MAVEN_DEPENDENCY_CACHE="$build_dir/maven"
 echo "Native example artifacts use an isolated disposable Maven repository; compact evidence: $evidence_dir"
-expected=(business-id-runtime conformance exact-decimal fix-e-alignment http-resilience inheritance-save object-storage order-management round-trip-reference-runtime scalar-type-probe school-management security-foundations shared-load-state standard-order supplier-onboarding-i18n trace-chain)
+expected=(business-id-runtime conformance exact-decimal fix-e-alignment http-resilience inheritance-save object-storage order-management round-trip-reference-runtime scalar-type-probe school-management secret-provider security-foundations shared-load-state standard-order supplier-onboarding-i18n trace-chain)
 mapfile -t actual < <(find "$repo/examples" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
 if [[ "${actual[*]}" != "${expected[*]}" ]]; then
   echo "example inventory changed; update scripts/verify-examples.sh: ${actual[*]}" >&2
@@ -37,6 +37,7 @@ node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/inheritance-save/verify.
 bash examples/object-storage/verify.sh
 bash examples/http-resilience/verify.sh
 TEAQL_SUPPLIER_SYNC_EVIDENCE_DIR="$evidence_dir/supplier-order-sync" bash examples/http-resilience/verify-sync.sh
+bash examples/secret-provider/verify.sh
 mvn -q -DskipTests install
 mvn -q -pl teaql-sqlite \
   -Dtest=DerivedQueryTraceSqliteTest,LikeIntentPrivacySqliteTest,TypedIntentPrivacySqliteTest test
