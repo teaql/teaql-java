@@ -34,6 +34,10 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
 
     private static void installStatisticalInitializer(SqlExecutionAdapter adapter) {
         if (!(adapter instanceof JdbcSqlExecutor jdbc)) return;
+        // A deferred SQLite foreign key violation rejects COMMIT while leaving
+        // the transaction open. The JDBC owner still requires confirmed rollback.
+        jdbc.setConfirmedCommitRejection(failure -> failure instanceof org.sqlite.SQLiteException sqlite
+                && sqlite.getResultCode() == org.sqlite.SQLiteErrorCode.SQLITE_CONSTRAINT_FOREIGNKEY);
         // Track physical connections, not short-lived pool wrappers. Weak keys
         // avoid retaining discarded pool connections for the provider lifetime.
         java.util.Set<java.sql.Connection> installed = java.util.Collections.newSetFromMap(

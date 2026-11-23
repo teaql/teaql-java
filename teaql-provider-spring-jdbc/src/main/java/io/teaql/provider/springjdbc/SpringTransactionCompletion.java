@@ -26,10 +26,11 @@ final class SpringTransactionCompletion {
 
     boolean active() { return manager.active(); }
 
-    boolean register(Runnable committed, Runnable rolledBack) {
+    boolean register(Runnable committed, Runnable rolledBack, Runnable unknown) {
         if (!active()) return false;
         Objects.requireNonNull(committed, "committed");
         Objects.requireNonNull(rolledBack, "rolledBack");
+        Objects.requireNonNull(unknown, "unknown");
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             // Never fall back to an immediate audit inside an unsynchronized physical transaction.
             throw new IllegalStateException("Spring transaction synchronization is required for mutation completion");
@@ -39,7 +40,7 @@ final class SpringTransactionCompletion {
             completion = new Completion(manager.getDataSource(), outsideTransaction);
             TransactionSynchronizationManager.registerSynchronization(completion);
         }
-        completion.callbacks.add(new Callbacks(committed, rolledBack));
+        completion.callbacks.add(new Callbacks(committed, rolledBack, unknown));
         return true;
     }
 
@@ -63,6 +64,11 @@ final class SpringTransactionCompletion {
             // Spring deliberately logs afterCompletion failures instead of replacing an action's error.
             // For an adapter-owned invocation, retain that failure as a suppressed diagnostic as well.
             for (Completion completion : observed) {
+                if (completion.completed && completion.outcome == TransactionSynchronization.STATUS_UNKNOWN) {
+                    throw failure instanceof Error error
+                            ? new io.teaql.core.TransactionOutcomeUnknownException(error)
+                            : new io.teaql.core.TransactionOutcomeUnknownException();
+                }
                 Throwable callbackFailure = completion.failure;
                 if (callbackFailure != null && callbackFailure != failure
                         && java.util.Arrays.stream(failure.getSuppressed()).noneMatch(v -> v == callbackFailure)) {
@@ -90,7 +96,7 @@ final class SpringTransactionCompletion {
         boolean active() { return isExistingTransaction(doGetTransaction()); }
     }
 
-    private record Callbacks(Runnable committed, Runnable rolledBack) {}
+    private record Callbacks(Runnable committed, Runnable rolledBack, Runnable unknown) {}
 
     private static final class Completion implements TransactionSynchronization {
         private final DataSource source;
@@ -99,6 +105,7 @@ final class SpringTransactionCompletion {
         private final IdentityHashMap<Object, Integer> savepoints = new IdentityHashMap<>();
         private Throwable failure;
         private boolean completed;
+        private int outcome;
 
         Completion(DataSource source, TransactionTemplate outsideTransaction) {
             this.source = source;
@@ -118,33 +125,40 @@ final class SpringTransactionCompletion {
             savepoints.entrySet().removeIf(entry -> entry.getValue() > start);
             // Spring invokes this hook before the physical savepoint rollback. These framework-only
             // rollback callbacks restore in-memory intent; they must not run new SQL or stop rollback.
-            invoke(abandoned, false);
+            invoke(abandoned, STATUS_ROLLED_BACK);
         }
 
         @Override public void beforeCommit(boolean readOnly) { rethrow(failure); }
 
-        @Override public void afterCommit() { complete(true); }
+        @Override public void afterCommit() { complete(STATUS_COMMITTED); }
 
         @Override public void afterCompletion(int status) {
             // An earlier Spring synchronization may have thrown afterCommit. COMMITTED must still
             // deliver our remaining committed audits, never run the rollback restorations instead.
-            if (!completed) complete(status == STATUS_COMMITTED);
+            if (!completed) complete(status);
         }
 
-        private void complete(boolean committed) {
+        private void complete(int status) {
             completed = true;
+            outcome = status;
             var selected = new ArrayList<>(callbacks);
             callbacks.clear(); savepoints.clear();
             // Spring still binds the completed connection during these hooks. Suspend it through
             // supported propagation APIs so an observer cannot accidentally reuse uncommittable DML.
-            outsideTransaction.executeWithoutResult(status -> invoke(selected, committed));
+            outsideTransaction.executeWithoutResult(ignored -> invoke(selected, status));
             rethrow(failure);
         }
 
-        private void invoke(List<Callbacks> selected, boolean committed) {
+        private void invoke(List<Callbacks> selected, int status) {
+            boolean committed = status == STATUS_COMMITTED;
             for (int i = 0; i < selected.size(); i++) {
                 Callbacks next = selected.get(committed ? i : selected.size() - i - 1);
-                try { (committed ? next.committed() : next.rolledBack()).run(); }
+                Runnable action = switch (status) {
+                    case STATUS_COMMITTED -> next.committed();
+                    case STATUS_ROLLED_BACK -> next.rolledBack();
+                    default -> next.unknown();
+                };
+                try { action.run(); }
                 catch (RuntimeException | Error error) {
                     if (failure == null) failure = error;
                     else if (failure != error) failure.addSuppressed(error);

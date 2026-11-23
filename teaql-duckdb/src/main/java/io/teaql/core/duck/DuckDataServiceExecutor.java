@@ -61,6 +61,26 @@ public class DuckDataServiceExecutor extends SqlDataServiceExecutor {
             }
 
             @Override
+            public Optional<Boolean> canonicalRelationIndexMatches(UserContext caller,
+                    String tableName, String indexName, List<String> orderedColumns) {
+                List<Map<String, Object>> matches = getExecutionAdapter().queryForList(
+                        "SELECT table_name, is_unique, sql FROM duckdb_indexes() "
+                                + "WHERE database_name = current_database() "
+                                + "AND schema_name = current_schema() AND index_name = ?", new Object[] {indexName});
+                if (matches.isEmpty()) return Optional.of(false);
+                if (matches.size() != 1) {
+                    throw new IllegalStateException("DuckDB canonical relation index name is ambiguous");
+                }
+                Map<String, Object> index = matches.get(0);
+                if (!tableName.equals(index.get("table_name"))
+                        || !Boolean.FALSE.equals(index.get("is_unique"))
+                        || !sameSimpleOrderedColumns(index.get("sql"), orderedColumns)) {
+                    throw new IllegalStateException("DuckDB canonical relation index has incompatible shape");
+                }
+                return Optional.of(true);
+            }
+
+            @Override
             public Optional<Boolean> indexExists(
                     UserContext context, String tableName, String indexName) {
                 List<Map<String, Object>> rows = getExecutionAdapter().queryForList(
@@ -77,5 +97,24 @@ public class DuckDataServiceExecutor extends SqlDataServiceExecutor {
             PortableSQLRepository repository = new PortableSQLRepository(descriptor, dbAdapter, null);
             repository.ensurePhysicalSchema(context);
         }
+    }
+
+    private static boolean sameSimpleOrderedColumns(Object definition, List<String> expected) {
+        if (!(definition instanceof String ddl)) return false;
+        int open = ddl.indexOf('(');
+        int close = ddl.lastIndexOf(')');
+        if (open < 0 || close <= open || !ddl.regionMatches(true, 0, "CREATE INDEX ", 0, 13)) {
+            return false;
+        }
+        String[] actual = ddl.substring(open + 1, close).split(",", -1);
+        if (actual.length != expected.size()) return false;
+        for (int i = 0; i < actual.length; i++) {
+            String column = actual[i].trim().replaceFirst("(?i)\\s+(ASC|DESC)$", "");
+            if (column.startsWith("\"") && column.endsWith("\"") && column.length() >= 2) {
+                column = column.substring(1, column.length() - 1).replace("\"\"", "\"");
+            }
+            if (!column.equals(expected.get(i))) return false;
+        }
+        return true;
     }
 }

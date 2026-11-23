@@ -242,11 +242,14 @@ public class GeneratedSpringTransactionTest {
 
     @Test public void failedPostCommitDeliveryCannotInventRollback() throws Exception {
         var f = new Fixture("audit-delivery-failure"); var row = f.create("Original"); int audits = f.audits.size(); f.failDelivery = true;
-        var error = assertThrows(RuntimeException.class, () -> f.transaction().executeWithoutResult(status -> {
+        var error = assertThrows(io.teaql.runtime.AuditDeliveryAfterCommitException.class, () -> f.transaction().executeWithoutResult(status -> {
             row.updateTitle("Committed despite delivery failure").auditAs("Commit before failing the observer").save(f.context);
             assertEquals(audits, f.audits.size());
         }));
-        assertTrue(error.toString().contains("EXPECTED_AUDIT_DELIVERY_FAILURE")); f.failDelivery = false;
+        assertEquals(1, error.failureCount());
+        assertFalse(error.toString().contains("EXPECTED_AUDIT_DELIVERY_FAILURE"));
+        assertNull(error.getCause());
+        f.failDelivery = false;
         assertEquals(audits + 1, f.audits.size()); assertEquals(Long.valueOf(2), row.getVersion()); assertTrue(row.getUpdatedProperties().isEmpty());
         f.oracle(row.getId(), "Committed despite delivery failure", null, 2);
         row.updateDescription("Later successful edit").auditAs("Continue after a delivery-only failure").save(f.context);

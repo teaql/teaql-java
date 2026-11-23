@@ -1,0 +1,674 @@
+package io.teaql.sqlite;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.teaql.core.BaseEntity;
+import io.teaql.core.meta.EntityDescriptor;
+import io.teaql.core.meta.EntityMetaFactory;
+import io.teaql.core.meta.SimpleEntityMetaFactory;
+import io.teaql.core.sqlite.SqliteCommittedEventStore;
+import io.teaql.core.sqlite.SqliteCommittedEventStore.CommittedEventException;
+import io.teaql.core.sqlite.SqliteCommittedEventStore.OutboxRecord;
+import io.teaql.core.sqlite.SqliteModelCheckedCommittedTarget;
+import io.teaql.core.sqlite.SqliteCommittedOutboxPublisher;
+import io.teaql.provider.jdbc.JdbcSqlExecutor;
+import io.teaql.runtime.DefaultUserContext;
+import io.teaql.runtime.TeaQLRuntime;
+import org.junit.Test;
+import org.junit.Assume;
+import org.sqlite.SQLiteDataSource;
+
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.util.HexFormat;
+import java.util.Map;
+
+import static org.junit.Assert.*;
+
+public class SqliteModelCheckedCommittedTargetTest {
+    private static final String SOURCE = "sqlite-order-source";
+    private static final String HASH = "sha256:" + "0".repeat(64);
+    private static final long ORDER_ID = 9_007_199_254_740_993L;
+    private static final long ITEM_ID = ORDER_ID + 1;
+
+    private record Target(JdbcSqlExecutor sql, SqliteModelCheckedCommittedTarget target,
+            DefaultUserContext context) { }
+
+    private static Target target(Path path) {
+        return target(path, "NUMERIC(19,7)");
+    }
+
+    private static Target target(Path path, String amountType) {
+        SQLiteDataSource source = new SQLiteDataSource();
+        source.setUrl("jdbc:sqlite:" + path);
+        JdbcSqlExecutor sql = new JdbcSqlExecutor(source);
+        EntityDescriptor order = new EntityDescriptor();
+        order.setType("order");
+        order.addSimpleProperty("id", Long.class);
+        order.addSimpleProperty("version", Long.class);
+        order.addSimpleProperty("order_number", String.class);
+        order.addSimpleProperty("status", String.class);
+        order.addSimpleProperty("planned_date", java.time.LocalDate.class);
+        order.addSimpleProperty("occurred_at", java.time.Instant.class).with("required", "true");
+        var amount = order.addSimpleProperty("amount", java.math.BigDecimal.class);
+        if (amountType != null) amount.with("sqlType", amountType);
+        order.addSimpleProperty("active", Boolean.class).with("required", "true");
+        order.addSimpleProperty("ratio", Double.class).with("required", "true");
+        order.addSimpleProperty("optional_note", String.class);
+        order.addSimpleProperty("optional_label", String.class);
+        SimpleEntityMetaFactory metadata = new SimpleEntityMetaFactory();
+        metadata.register(order);
+        EntityDescriptor item = new EntityDescriptor();
+        item.setType("order_item");
+        item.addSimpleProperty("id", Long.class);
+        item.addSimpleProperty("version", Long.class);
+        item.addObjectProperty(metadata, "order", "order", "items", BaseEntity.class)
+                .with("columnName", "order_id");
+        item.addSimpleProperty("quantity", Long.class);
+        metadata.register(item);
+        DefaultUserContext context = new DefaultUserContext(
+                TeaQLRuntime.builder().metadata(metadata).build());
+        sql.execute("CREATE TABLE order_data (id INTEGER PRIMARY KEY, version INTEGER NOT NULL, "
+                + "order_number TEXT NOT NULL, status TEXT NOT NULL, planned_date DATE, "
+                + "occurred_at INTEGER NOT NULL, amount NUMERIC, "
+                + "active INTEGER NOT NULL, ratio REAL NOT NULL, optional_note TEXT, optional_label TEXT)");
+        sql.execute("CREATE TABLE order_item_data (id INTEGER PRIMARY KEY, version INTEGER NOT NULL, "
+                + "order_id INTEGER NOT NULL, quantity INTEGER NOT NULL)");
+        SqliteModelCheckedCommittedTarget target = new SqliteModelCheckedCommittedTarget(sql, SOURCE, HASH);
+        target.ensureSchema();
+        return new Target(sql, target, context);
+    }
+
+    private static String payload(long sequence, String change, String mutations) {
+        return """
+                {"protocol_version":1,"change_set_id":"%s","source_runtime_id":"%s",
+                 "source_sequence":"%d","source_model_hash":"%s","source_transaction_id":"tx-%d",
+                 "committed_at":"2026-10-16T00:00:00Z",
+                 "audit":{"actor_ref":"fixture:operator","comment":"Apply order graph",
+                          "purpose":"Verify target application","trace_id":"fixture-trace"},
+                 "mutations":%s}
+                """.formatted(change, SOURCE, sequence, HASH, sequence, mutations);
+    }
+
+    private static String created() {
+        return """
+                [{"entity_type":"order","entity_id":"9007199254740993","operation":"create",
+                  "base_version":null,"committed_version":"1",
+                  "fields":{"order_number":"ORD-0001","status":"DRAFT",
+                            "planned_date":"2026-10-16","occurred_at":"-315619199877",
+                            "amount":"0",
+                            "active":true,"ratio":0.5,"optional_note":null,
+                            "optional_label":"initial label"},"trace_chain":[]},
+                 {"entity_type":"order_item","entity_id":"9007199254740994","operation":"create",
+                  "base_version":null,"committed_version":"1",
+                  "fields":{"order":{"entity_type":"order","entity_id":"9007199254740993"},
+                            "quantity":"2"},"trace_chain":[]}]
+                """;
+    }
+
+    private static String submitted() {
+        return """
+                [{"entity_type":"order","entity_id":"9007199254740993","operation":"update",
+                  "base_version":"1","committed_version":"2",
+                  "fields":{"status":"SUBMITTED","optional_note":"submitted note",
+                            "optional_label":null},"trace_chain":[]},
+                 {"entity_type":"order_item","entity_id":"9007199254740994","operation":"delete",
+                  "base_version":"1","committed_version":"-2","fields":{},"trace_chain":[]}]
+                """;
+    }
+
+    private static OutboxRecord record(long sequence, String change, String mutations) {
+        return recordBody(sequence, change, payload(sequence, change, mutations));
+    }
+
+    private static OutboxRecord recordBody(long sequence, String change, String body) {
+        try {
+            String digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(body.getBytes(StandardCharsets.UTF_8)));
+            return new OutboxRecord(SOURCE, sequence, change, HASH, digest, body);
+        } catch (java.security.NoSuchAlgorithmException impossible) {
+            throw new AssertionError("JDK SHA-256 is unavailable", impossible);
+        }
+    }
+
+    private static void expect(String code, Runnable action) {
+        try {
+            action.run();
+            fail("expected " + code);
+        } catch (CommittedEventException failure) {
+            assertEquals(code, failure.code());
+        }
+    }
+
+    private static long count(JdbcSqlExecutor sql, String table) {
+        return ((Number) sql.queryForList("SELECT COUNT(*) AS n FROM " + table,
+                new Object[0]).get(0).get("n")).longValue();
+    }
+
+    private static final class ForbiddenBusinessApi extends RuntimeException {
+        ForbiddenBusinessApi(String method) { super("business API reached: " + method); }
+    }
+
+    /** CMR-09: deny every Context method except its actual metadata capability. */
+    @Test public void committedTargetUsesOnlyMetadataAndNeverReplaysBusinessApis() throws Exception {
+        Path path = Files.createTempFile("teaql-target-nonreplay-", ".sqlite");
+        try {
+            Target t = target(path);
+            EntityMetaFactory metadata = EntityMetaFactory.requireFrom(t.context());
+            var unexpected = new java.util.ArrayList<String>();
+            var metadataReads = new java.util.concurrent.atomic.AtomicInteger();
+            io.teaql.core.UserContext guarded = (io.teaql.core.UserContext)
+                    java.lang.reflect.Proxy.newProxyInstance(io.teaql.core.UserContext.class.getClassLoader(),
+                            new Class<?>[] {io.teaql.core.UserContext.class}, (proxy, method, args) -> {
+                                if (method.getName().equals("capability") && args.length == 1
+                                        && args[0] == EntityMetaFactory.class) {
+                                    metadataReads.incrementAndGet();
+                                    return metadata;
+                                }
+                                unexpected.add(method.getName());
+                                throw new ForbiddenBusinessApi(method.getName());
+                            });
+            // Positive controls: the guard must intercept real entrypoints,
+            // not count zero because a test double was never wired in.
+            Runnable[] controls = {
+                () -> guarded.capability(io.teaql.core.checker.Checker.class),
+                () -> guarded.beginFixEvidence(),
+                () -> guarded.saveGraph((io.teaql.core.Entity) null),
+                () -> guarded.businessTime(),
+                () -> guarded.capability(io.teaql.core.InternalIdGenerationService.class),
+                () -> guarded.httpRequests(),
+                () -> guarded.extension("llm"),
+                () -> guarded.extension("notifications")
+            };
+            for (Runnable control : controls) {
+                boolean intercepted = false;
+                try { control.run(); } catch (ForbiddenBusinessApi expected) { intercepted = true; }
+                assertTrue("positive control did not reach the Context guard", intercepted);
+            }
+            assertEquals(8, unexpected.size());
+            unexpected.clear();
+            String deleted = """
+                    [{"entity_type":"order","entity_id":"9007199254740993","operation":"delete",
+                      "base_version":"2","committed_version":"-3","fields":{},"trace_chain":[]}]
+                    """;
+            String recovered = """
+                    [{"entity_type":"order","entity_id":"9007199254740993","operation":"recover",
+                      "base_version":"-3","committed_version":"4",
+                      "fields":{"status":"RECOVERED"},"trace_chain":[]}]
+                    """;
+            String[] facts = {created(), submitted(), deleted, recovered};
+            for (int index = 0; index < facts.length; index++) {
+                OutboxRecord event = record(index + 1, "nonreplay-" + index, facts[index]);
+                assertEquals(index + 1, t.target().apply(guarded, event).checkpoint());
+                assertTrue(t.target().apply(guarded, event).duplicate());
+                assertTrue("target invoked a forbidden business API: " + unexpected, unexpected.isEmpty());
+            }
+            Map<String, Object> row = t.sql().queryForList(
+                    "SELECT id,version,order_number,status,occurred_at FROM order_data WHERE id=?",
+                    new Object[] {ORDER_ID}).get(0);
+            assertEquals(ORDER_ID, ((Number) row.get("id")).longValue());
+            assertEquals(4, ((Number) row.get("version")).longValue());
+            assertEquals("ORD-0001", row.get("order_number"));
+            assertEquals("RECOVERED", row.get("status"));
+            assertEquals(-315_619_199_877L, ((Number) row.get("occurred_at")).longValue());
+            assertEquals(4, count(t.sql(), "teaql_event_inbox"));
+            assertEquals(4, count(t.sql(), "teaql_event_applied_payload"));
+            assertEquals(8, metadataReads.get());
+            System.out.println("CMR_NONREPLAY_PASS language=java controls=8 business_calls=0 metadata_reads=8 operations=4 duplicates=4");
+        } finally { Files.deleteIfExists(path); }
+    }
+
+    @Test public void appliesSharedConformanceFixtureWhenConfigured() throws Exception {
+        String fixturePath = System.getenv("TEAQL_COMMITTED_EVENT_FIXTURE");
+        Assume.assumeTrue("shared fixture path was not supplied",
+                fixturePath != null && !fixturePath.isBlank());
+        JsonNode fixture = new ObjectMapper().readTree(Files.readString(Path.of(fixturePath)));
+        assertEquals(1, fixture.path("fixture_version").asInt());
+        assertEquals(2, fixture.path("sets").size());
+        Path path = Files.createTempFile("teaql-shared-model-target-", ".sqlite");
+        try {
+            Target t = target(path);
+            for (int index = 0; index < 2; index++) {
+                JsonNode set = fixture.path("sets").get(index);
+                long sequence = Long.parseLong(set.path("source_sequence").asText());
+                OutboxRecord record = recordBody(sequence,
+                        set.path("change_set_id").asText(), set.toString());
+                assertEquals(sequence, t.target().apply(t.context(), record).checkpoint());
+            }
+            assertEquals("SUBMITTED", t.sql().queryForList(
+                    "SELECT status FROM order_data WHERE id = ?", new Object[] {ORDER_ID})
+                    .get(0).get("status"));
+            assertEquals("2026-10-16", t.sql().queryForList(
+                    "SELECT planned_date FROM order_data WHERE id = ?", new Object[] {ORDER_ID})
+                    .get(0).get("planned_date"));
+            Map<String, Object> instant = t.sql().queryForList(
+                    "SELECT typeof(occurred_at) AS storage_type, occurred_at FROM order_data WHERE id = ?",
+                    new Object[] {ORDER_ID}).get(0);
+            assertEquals("integer", instant.get("storage_type"));
+            assertEquals(-315_619_199_877L, ((Number) instant.get("occurred_at")).longValue());
+            Map<String, Object> scalars = t.sql().queryForList(
+                    "SELECT active, ratio, optional_note, optional_label FROM order_data WHERE id = ?",
+                    new Object[] {ORDER_ID}).get(0);
+            assertEquals(1L, ((Number) scalars.get("active")).longValue());
+            assertEquals(0.5, ((Number) scalars.get("ratio")).doubleValue(), 0.0);
+            assertEquals("submitted note", scalars.get("optional_note"));
+            assertNull(scalars.get("optional_label"));
+            assertEquals(-2L, ((Number) t.sql().queryForList(
+                    "SELECT version FROM order_item_data WHERE id = ?", new Object[] {ITEM_ID})
+                    .get(0).get("version")).longValue());
+            assertEquals(2, count(t.sql(), "teaql_event_applied_payload"));
+        } finally { Files.deleteIfExists(path); }
+    }
+
+    @Test public void appliesWholeOrderGraphAndReturnsStableDuplicateAcks() throws Exception {
+        Path path = Files.createTempFile("teaql-model-target-", ".sqlite");
+        try {
+            Target t = target(path);
+            OutboxRecord first = record(1, "order-graph-0001", created());
+            OutboxRecord second = record(2, "order-graph-0002", submitted());
+            OutboxRecord otherSource = new OutboxRecord("other-source", first.sourceSequence(),
+                    first.changeSetId(), first.modelHash(), first.payloadSha256(), first.payloadJson());
+            expect("UNAUTHORIZED_SOURCE", () -> t.target().apply(t.context(), otherSource));
+            OutboxRecord otherModel = new OutboxRecord(first.sourceRuntimeId(), first.sourceSequence(),
+                    first.changeSetId(), "sha256:" + "1".repeat(64), first.payloadSha256(), first.payloadJson());
+            expect("MODEL_MISMATCH", () -> t.target().apply(t.context(), otherModel));
+            String unsupported = payload(1, "unsupported", created())
+                    .replace("\"protocol_version\":1", "\"protocol_version\":2");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    recordBody(1, "unsupported", unsupported)));
+            expect("SEQUENCE_GAP", () -> t.target().apply(t.context(), second));
+            assertEquals(0, count(t.sql(), "order_data"));
+            assertEquals(1, t.target().apply(t.context(), first).checkpoint());
+            assertTrue(t.target().apply(t.context(), first).duplicate());
+            assertEquals(2, t.target().apply(t.context(), second).checkpoint());
+            var oldAck = t.target().apply(t.context(), first);
+            assertTrue(oldAck.duplicate());
+            assertEquals(1, oldAck.checkpoint());
+            Map<String, Object> order = t.sql().queryForList(
+                    "SELECT version, order_number, status FROM order_data WHERE id = ?",
+                    new Object[] {ORDER_ID}).get(0);
+            assertEquals(2L, ((Number) order.get("version")).longValue());
+            assertEquals("ORD-0001", order.get("order_number"));
+            assertEquals("SUBMITTED", order.get("status"));
+            Map<String, Object> item = t.sql().queryForList(
+                    "SELECT version, order_id, quantity FROM order_item_data WHERE id = ?",
+                    new Object[] {ITEM_ID}).get(0);
+            assertEquals(-2L, ((Number) item.get("version")).longValue());
+            assertEquals(ORDER_ID, ((Number) item.get("order_id")).longValue());
+            assertEquals(2L, ((Number) item.get("quantity")).longValue());
+            assertEquals(2, count(t.sql(), "teaql_event_inbox"));
+            assertEquals(2, count(t.sql(), "teaql_event_applied_payload"));
+            SQLiteDataSource reopenedSource = new SQLiteDataSource();
+            reopenedSource.setUrl("jdbc:sqlite:" + path);
+            SqliteModelCheckedCommittedTarget reopened = new SqliteModelCheckedCommittedTarget(
+                    new JdbcSqlExecutor(reopenedSource), SOURCE, HASH);
+            var retryAfterRestart = reopened.apply(t.context(), first);
+            assertTrue(retryAfterRestart.duplicate());
+            assertEquals(1, retryAfterRestart.checkpoint());
+            String retained = (String) t.sql().queryForList(
+                    "SELECT payload_json FROM teaql_event_applied_payload WHERE source_sequence = 2",
+                    new Object[0]).get(0).get("payload_json");
+            assertTrue(retained.contains("fixture-trace"));
+        } finally { Files.deleteIfExists(path); }
+    }
+
+    /** CMR-05/06: all three operations in one set, not separate successful sets. */
+    @Test public void mixedCreateUpdateDeleteRollsBackThenRetriesAndDeduplicates() throws Exception {
+        Path path = Files.createTempFile("teaql-mixed-target-", ".sqlite");
+        try {
+            Target t = target(path);
+            assertEquals(1, t.target().apply(t.context(), record(1, "mixed-baseline", created())).checkpoint());
+            var mutations = (com.fasterxml.jackson.databind.node.ArrayNode) new ObjectMapper().readTree(submitted());
+            mutations.add(new ObjectMapper().readTree("""
+                    {"entity_type":"order_item","entity_id":"9007199254740995","operation":"create",
+                     "base_version":null,"committed_version":"1",
+                     "fields":{"order":{"entity_type":"order","entity_id":"9007199254740993"},
+                               "quantity":"3"},"trace_chain":[]}
+                    """));
+            OutboxRecord mixed = record(2, "mixed-three-operations", mutations.toString());
+            // The fault fires only if update and delete were already executed.
+            // A failure before those writes cannot masquerade as rollback proof.
+            t.sql().execute("CREATE TRIGGER reject_mixed_create BEFORE INSERT ON order_item_data "
+                    + "WHEN NEW.id = 9007199254740995 "
+                    + "AND (SELECT version FROM order_data WHERE id = 9007199254740993) = 2 "
+                    + "AND (SELECT version FROM order_item_data WHERE id = 9007199254740994) = -2 "
+                    + "BEGIN SELECT RAISE(ABORT, 'fixture rejects final create'); END");
+            try {
+                t.target().apply(t.context(), mixed);
+                fail("expected final-create failure after update and delete");
+            } catch (RuntimeException expected) {
+                var order = t.sql().queryForList("SELECT version,status FROM order_data WHERE id = ?",
+                        new Object[] {ORDER_ID}).get(0);
+                assertEquals(1L, ((Number) order.get("version")).longValue());
+                assertEquals("DRAFT", order.get("status"));
+                assertEquals(1L, ((Number) t.sql().queryForList(
+                        "SELECT version FROM order_item_data WHERE id = ?", new Object[] {ITEM_ID})
+                        .get(0).get("version")).longValue());
+                assertTrue(t.sql().queryForList("SELECT id FROM order_item_data WHERE id = ?",
+                        new Object[] {ITEM_ID + 1}).isEmpty());
+                assertEquals(1, count(t.sql(), "teaql_event_inbox"));
+                assertEquals(1, count(t.sql(), "teaql_event_applied_payload"));
+                assertEquals(1L, ((Number) t.sql().queryForList(
+                        "SELECT source_sequence FROM teaql_event_checkpoint WHERE source_runtime_id = ?",
+                        new Object[] {SOURCE}).get(0).get("source_sequence")).longValue());
+            }
+            t.sql().execute("DROP TRIGGER reject_mixed_create"); // disarm fault; do not reset data
+            assertEquals(2, t.target().apply(t.context(), mixed).checkpoint());
+            var duplicate = t.target().apply(t.context(), mixed);
+            assertTrue(duplicate.duplicate());
+            assertEquals(2, duplicate.checkpoint());
+            var order = t.sql().queryForList("SELECT version,status FROM order_data WHERE id = ?",
+                    new Object[] {ORDER_ID}).get(0);
+            assertEquals(2L, ((Number) order.get("version")).longValue());
+            assertEquals("SUBMITTED", order.get("status"));
+            assertEquals(-2L, ((Number) t.sql().queryForList(
+                    "SELECT version FROM order_item_data WHERE id = ?", new Object[] {ITEM_ID})
+                    .get(0).get("version")).longValue());
+            var added = t.sql().queryForList("SELECT version,order_id,quantity FROM order_item_data WHERE id = ?",
+                    new Object[] {ITEM_ID + 1}).get(0);
+            assertEquals(1L, ((Number) added.get("version")).longValue());
+            assertEquals(ORDER_ID, ((Number) added.get("order_id")).longValue());
+            assertEquals(3L, ((Number) added.get("quantity")).longValue());
+            assertEquals(1, count(t.sql(), "order_data"));
+            assertEquals(2, count(t.sql(), "order_item_data"));
+            assertEquals(2, count(t.sql(), "teaql_event_inbox"));
+            assertEquals(2, count(t.sql(), "teaql_event_applied_payload"));
+            assertEquals(2L, ((Number) t.sql().queryForList(
+                    "SELECT source_sequence FROM teaql_event_checkpoint WHERE source_runtime_id = ?",
+                    new Object[] {SOURCE}).get(0).get("source_sequence")).longValue());
+            String retained = (String) t.sql().queryForList(
+                    "SELECT payload_json FROM teaql_event_applied_payload WHERE source_sequence = 2",
+                    new Object[0]).get(0).get("payload_json");
+            assertEquals(3, new ObjectMapper().readTree(retained).path("mutations").size());
+            System.out.println("MIXED_TARGET_ATOMIC_PASS language=java mixed=3 rollback=1 retry=1 duplicate=1");
+        } finally { Files.deleteIfExists(path); }
+    }
+
+    @Test public void rejectsUnknownModelAndRollsBackWhenSecondObjectFails() throws Exception {
+        Path path = Files.createTempFile("teaql-model-target-negative-", ".sqlite");
+        try {
+            Target t = target(path);
+            OutboxRecord first = record(1, "order-graph-0001", created());
+            String unknownEntity = created().replace("\"entity_type\":\"order_item\"",
+                    "\"entity_type\":\"not_in_model\"");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(), record(1, "unknown-entity", unknownEntity)));
+            String unknown = created().replace("\"quantity\":\"2\"",
+                    "\"quantity\":\"2\",\"not_in_model\":1");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(), record(1, "unknown", unknown)));
+            String reverseRelation = created().replace("\"status\":\"DRAFT\"",
+                    "\"status\":\"DRAFT\",\"items\":[]");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(1, "reverse-relation", reverseRelation)));
+            String invalidTrace = created().replace("\"trace_chain\":[]",
+                    "\"trace_chain\":[{\"kind\":\"AuditReason\",\"entity_type\":\"order\","
+                    + "\"entity_id\":\"9007199254740993\",\"comment\":\"Create order\"}]");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(1, "invalid-trace", invalidTrace)));
+            String missingTrace = created().replace(",\"trace_chain\":[]", "");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(1, "missing-trace", missingTrace)));
+            t.sql().execute("CREATE TRIGGER reject_item BEFORE INSERT ON order_item_data "
+                    + "BEGIN SELECT RAISE(ABORT, 'reject item'); END");
+            try {
+                t.target().apply(t.context(), first);
+                fail("expected second-object failure");
+            } catch (RuntimeException expected) {
+                assertEquals(0, count(t.sql(), "order_data"));
+                assertEquals(0, count(t.sql(), "order_item_data"));
+                assertEquals(0, count(t.sql(), "teaql_event_inbox"));
+                assertEquals(0, count(t.sql(), "teaql_event_applied_payload"));
+                assertEquals(0, count(t.sql(), "teaql_event_checkpoint"));
+            }
+        } finally { Files.deleteIfExists(path); }
+    }
+
+    @Test public void preservesLargeLongFieldWithoutJsonNumberRounding() throws Exception {
+        Path path = Files.createTempFile("teaql-model-target-large-long-", ".sqlite");
+        try {
+            Target t = target(path);
+            String numeric = created().replace("\"quantity\":\"2\"",
+                    "\"quantity\":9007199254740993");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(1, "unsafe-json-number", numeric)));
+            for (String invalid : new String[] {"02", "-0", "9223372036854775808"}) {
+                String malformed = created().replace("\"quantity\":\"2\"",
+                        "\"quantity\":\"" + invalid + "\"");
+                expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                        record(1, "invalid-integer", malformed)));
+            }
+            assertEquals(0, count(t.sql(), "order_data"));
+            String textual = created().replace("\"quantity\":\"2\"",
+                    "\"quantity\":\"9007199254740993\"");
+            t.target().apply(t.context(), record(1, "lossless-long", textual));
+            Object stored = t.sql().queryForList("SELECT quantity FROM order_item_data WHERE id = ?",
+                    new Object[] {ITEM_ID}).get(0).get("quantity");
+            assertEquals(9_007_199_254_740_993L, ((Number) stored).longValue());
+        } finally { Files.deleteIfExists(path); }
+    }
+
+    @Test public void acceptsOnlyCanonicalCalendarDate() throws Exception {
+        Path path = Files.createTempFile("teaql-model-target-date-", ".sqlite");
+        try {
+            Target t = target(path);
+            for (String invalid : new String[] {"2026-2-3", "2026-02-30", "2026-10-16T00:00:00Z"}) {
+                String malformed = created().replace("\"planned_date\":\"2026-10-16\"",
+                        "\"planned_date\":\"" + invalid + "\"");
+                expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                        record(1, "invalid-date", malformed)));
+            }
+            String numeric = created().replace("\"planned_date\":\"2026-10-16\"",
+                    "\"planned_date\":20261016");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(1, "numeric-date", numeric)));
+            assertEquals(0, count(t.sql(), "order_data"));
+            t.target().apply(t.context(), record(1, "valid-date", created()));
+            assertEquals("2026-10-16", t.sql().queryForList(
+                    "SELECT planned_date FROM order_data WHERE id = ?", new Object[] {ORDER_ID})
+                    .get(0).get("planned_date"));
+        } finally { Files.deleteIfExists(path); }
+    }
+
+    @Test public void acceptsOnlyLosslessInstantMillisecondText() throws Exception {
+        Path path = Files.createTempFile("teaql-model-target-instant-", ".sqlite");
+        try {
+            Target t = target(path);
+            for (String invalid : new String[] {
+                    "-315619199877", "\"1960-01-01T00:00:00.123Z\"",
+                    "\"1960-01-01T00:00:00.123\"", "\"-0315619199877\"",
+                    "\"-0\"", "\"9223372036854775808\""}) {
+                String malformed = created().replace("\"occurred_at\":\"-315619199877\"",
+                        "\"occurred_at\":" + invalid);
+                expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                        record(1, "invalid-instant", malformed)));
+            }
+            assertEquals(0, count(t.sql(), "order_data"));
+            assertEquals(0, count(t.sql(), "teaql_event_inbox"));
+            t.target().apply(t.context(), record(1, "valid-instant", created()));
+            Map<String, Object> stored = t.sql().queryForList(
+                    "SELECT typeof(occurred_at) AS storage_type, occurred_at FROM order_data WHERE id = ?",
+                    new Object[] {ORDER_ID}).get(0);
+            assertEquals("integer", stored.get("storage_type"));
+            assertEquals(-315_619_199_877L, ((Number) stored.get("occurred_at")).longValue());
+        } finally { Files.deleteIfExists(path); }
+    }
+
+    @Test public void rejectsSqliteRealCoercionOfExactDecimal() throws Exception {
+        Path path = Files.createTempFile("teaql-model-target-decimal-", ".sqlite");
+        try {
+            Target t = target(path);
+            for (String decimal : new String[] {
+                    "0.1", "123456789012345.6789", "0.12345678", "1234567890123"}) {
+                String inexact = created().replace("\"amount\":\"0\"",
+                        "\"amount\":\"" + decimal + "\"");
+                expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                        record(1, "inexact-decimal", inexact)));
+                assertEquals(0, count(t.sql(), "order_data"));
+                assertEquals(0, count(t.sql(), "teaql_event_inbox"));
+                assertEquals(0, count(t.sql(), "teaql_event_checkpoint"));
+                assertEquals(0, count(t.sql(), "teaql_event_applied_payload"));
+            }
+            t.target().apply(t.context(), record(1, "exact-decimal", created()));
+            Map<String, Object> stored = t.sql().queryForList(
+                    "SELECT typeof(amount) AS storage_type, amount FROM order_data WHERE id = ?",
+                    new Object[] {ORDER_ID}).get(0);
+            assertEquals("integer", stored.get("storage_type"));
+            assertEquals(0L, ((Number) stored.get("amount")).longValue());
+        } finally { Files.deleteIfExists(path); }
+    }
+
+    @Test public void rejectsDecimalWithoutExplicitModeledPrecisionAndScale() throws Exception {
+        Path path = Files.createTempFile("teaql-model-target-untyped-decimal-", ".sqlite");
+        try {
+            Target t = target(path, null);
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(1, "untyped-decimal", created())));
+            assertEquals(0, count(t.sql(), "order_data"));
+            assertEquals(0, count(t.sql(), "teaql_event_inbox"));
+        } finally { Files.deleteIfExists(path); }
+    }
+
+    @Test public void preservesBooleanFiniteFloatAndExplicitNull() throws Exception {
+        Path path = Files.createTempFile("teaql-model-target-scalar-kinds-", ".sqlite");
+        try {
+            Target t = target(path);
+            String textBoolean = created().replace("\"active\":true", "\"active\":\"true\"");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(1, "text-boolean", textBoolean)));
+            String textFloat = created().replace("\"ratio\":0.5", "\"ratio\":\"0.5\"");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(1, "text-float", textFloat)));
+            String nullBoolean = created().replace("\"active\":true", "\"active\":null");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(1, "null-boolean", nullBoolean)));
+            String omitted = created().replace(",\"optional_note\":null", "");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(1, "omitted-note", omitted)));
+            assertEquals(0, count(t.sql(), "order_data"));
+
+            t.target().apply(t.context(), record(1, "valid-scalar-kinds", created()));
+            Map<String, Object> stored = t.sql().queryForList(
+                    "SELECT active, ratio, optional_note FROM order_data WHERE id = ?",
+                    new Object[] {ORDER_ID}).get(0);
+            assertEquals(1L, ((Number) stored.get("active")).longValue());
+            assertEquals(0.5, ((Number) stored.get("ratio")).doubleValue(), 0.0);
+            assertNull(stored.get("optional_note"));
+        } finally { Files.deleteIfExists(path); }
+    }
+
+    @Test public void appliesNullableTransitionsWithoutTreatingOmissionAsNull() throws Exception {
+        Path path = Files.createTempFile("teaql-model-target-null-transition-", ".sqlite");
+        try {
+            Target t = target(path);
+            t.target().apply(t.context(), record(1, "created-null-transition", created()));
+            String nullRequired = submitted().replace("\"status\":\"SUBMITTED\"",
+                    "\"status\":\"SUBMITTED\",\"active\":null");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(2, "null-required-update", nullRequired)));
+            String wrongKind = submitted().replace("\"optional_note\":\"submitted note\"",
+                    "\"optional_note\":123");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(),
+                    record(2, "wrong-note-kind", wrongKind)));
+            assertEquals(1, count(t.sql(), "teaql_event_inbox"));
+            Map<String, Object> unchanged = t.sql().queryForList(
+                    "SELECT version, optional_note, optional_label FROM order_data WHERE id = ?",
+                    new Object[] {ORDER_ID}).get(0);
+            assertEquals(1L, ((Number) unchanged.get("version")).longValue());
+            assertNull(unchanged.get("optional_note"));
+            assertEquals("initial label", unchanged.get("optional_label"));
+
+            t.target().apply(t.context(), record(2, "changed-null-transition", submitted()));
+            Map<String, Object> stored = t.sql().queryForList(
+                    "SELECT version, active, optional_note, optional_label FROM order_data WHERE id = ?",
+                    new Object[] {ORDER_ID}).get(0);
+            assertEquals(2L, ((Number) stored.get("version")).longValue());
+            assertEquals(1L, ((Number) stored.get("active")).longValue());
+            assertEquals("submitted note", stored.get("optional_note"));
+            assertNull(stored.get("optional_label"));
+        } finally { Files.deleteIfExists(path); }
+    }
+
+    @Test public void rejectsTriggerRewriteAndStalePredecessor() throws Exception {
+        Path path = Files.createTempFile("teaql-model-target-trigger-", ".sqlite");
+        try {
+            Target t = target(path);
+            OutboxRecord first = record(1, "order-graph-0001", created());
+            t.sql().execute("CREATE TRIGGER rewrite_order AFTER INSERT ON order_data "
+                    + "BEGIN UPDATE order_data SET status = 'TARGET_OVERRIDE' WHERE id = NEW.id; END");
+            expect("INVALID_ENVELOPE", () -> t.target().apply(t.context(), first));
+            assertEquals(0, count(t.sql(), "order_data"));
+            assertEquals(0, count(t.sql(), "teaql_event_inbox"));
+            t.sql().execute("DROP TRIGGER rewrite_order");
+            t.target().apply(t.context(), first);
+            String stale = submitted().replaceFirst("\\\"base_version\\\":\\\"1\\\"",
+                    "\"base_version\":\"9\"").replaceFirst("\\\"committed_version\\\":\\\"2\\\"",
+                    "\"committed_version\":\"10\"");
+            expect("VERSION_CONFLICT", () -> t.target().apply(t.context(), record(2, "stale", stale)));
+            assertEquals(1, count(t.sql(), "teaql_event_inbox"));
+        } finally { Files.deleteIfExists(path); }
+    }
+
+    @Test public void orderedPublisherRecoversAmbiguousAckAfterSourceReopen() throws Exception {
+        Path sourcePath = Files.createTempFile("teaql-source-delivery-", ".sqlite");
+        Path targetPath = Files.createTempFile("teaql-target-delivery-", ".sqlite");
+        try {
+            SQLiteDataSource sourceDataSource = new SQLiteDataSource();
+            sourceDataSource.setUrl("jdbc:sqlite:" + sourcePath);
+            JdbcSqlExecutor sourceSql = new JdbcSqlExecutor(sourceDataSource);
+            SqliteCommittedEventStore sourceEvents = new SqliteCommittedEventStore(sourceSql);
+            sourceEvents.ensureSchema();
+            for (String change : new String[] {"order-graph-0001", "order-graph-0002"}) {
+                String mutations = change.endsWith("0001") ? created() : submitted();
+                sourceSql.executeInTransaction(() -> sourceEvents.append(SOURCE, change, HASH,
+                        sequence -> record(sequence, change, mutations).payloadJson()));
+            }
+            Target target = target(targetPath);
+            SqliteCommittedOutboxPublisher publisher = new SqliteCommittedOutboxPublisher(
+                    sourceSql, SOURCE, "analytics", HASH);
+            assertEquals(2, publisher.status().backlog());
+            expect("ACK_MISMATCH", () -> publisher.publishBatch(2,
+                    record -> SqliteCommittedEventStore.InboxOutcome.applied(99)));
+            assertEquals(0, publisher.status().ackedSequence());
+            try {
+                publisher.publishBatch(2, record -> {
+                    target.target().apply(target.context(), record);
+                    throw new IllegalStateException("acknowledgement lost after target commit");
+                });
+                fail("expected ambiguous acknowledgement");
+            } catch (IllegalStateException expected) {
+                assertEquals("acknowledgement lost after target commit", expected.getMessage());
+            }
+            assertEquals(0, publisher.status().ackedSequence());
+            assertEquals(1, count(target.sql(), "teaql_event_inbox"));
+
+            SqliteCommittedOutboxPublisher restarted = new SqliteCommittedOutboxPublisher(
+                    new JdbcSqlExecutor(sourceDataSource), SOURCE, "analytics", HASH);
+            var outcome = restarted.publishBatch(2,
+                    record -> target.target().apply(target.context(), record));
+            assertEquals(2, outcome.acknowledged());
+            assertEquals(2, outcome.status().ackedSequence());
+            assertEquals(0, outcome.status().backlog());
+            assertEquals(0, restarted.publishBatch(2, record -> {
+                throw new AssertionError("acked event must not be delivered again");
+            }).acknowledged());
+            assertEquals(2, count(target.sql(), "teaql_event_inbox"));
+            assertEquals("SUBMITTED", target.sql().queryForList(
+                    "SELECT status FROM order_data WHERE id = ?", new Object[] {ORDER_ID})
+                    .get(0).get("status"));
+            assertEquals(2, new SqliteCommittedOutboxPublisher(sourceSql, SOURCE,
+                    "second-target", HASH).status().backlog());
+            expect("MODEL_MISMATCH", () -> new SqliteCommittedOutboxPublisher(sourceSql,
+                    SOURCE, "analytics", "sha256:" + "1".repeat(64)).status());
+            sourceSql.update("DELETE FROM teaql_event_outbox WHERE source_runtime_id = ? "
+                    + "AND source_sequence = 1", new Object[] {SOURCE});
+            expect("SEQUENCE_GAP", () -> new SqliteCommittedOutboxPublisher(sourceSql,
+                    SOURCE, "second-target", HASH).publishBatch(2, record -> {
+                throw new AssertionError("gap must be rejected before delivery");
+            }));
+        } finally {
+            Files.deleteIfExists(sourcePath);
+            Files.deleteIfExists(targetPath);
+        }
+    }
+}

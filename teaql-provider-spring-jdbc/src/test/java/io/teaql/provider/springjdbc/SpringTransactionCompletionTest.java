@@ -120,6 +120,40 @@ public class SpringTransactionCompletionTest {
         assertEquals(List.of("delivered"), observed); assertEquals(1, physicalCount()); outside();
     }
 
+    @Test public void lostCommitAcknowledgementDiscardsAuditAndFencesTheGraph() {
+        var wrapped = new org.springframework.jdbc.datasource.DelegatingDataSource(source) {
+            @Override public java.sql.Connection getConnection() throws java.sql.SQLException {
+                var connection = super.getConnection();
+                return (java.sql.Connection) java.lang.reflect.Proxy.newProxyInstance(
+                        getClass().getClassLoader(), new Class<?>[]{java.sql.Connection.class},
+                        (proxy, method, args) -> {
+                            try {
+                                Object result = method.invoke(connection, args);
+                                if (method.getName().equals("commit")) {
+                                    throw new java.sql.SQLException("PRIVATE_SPRING_COMMIT_CANARY");
+                                }
+                                return result;
+                            } catch (java.lang.reflect.InvocationTargetException error) {
+                                throw error.getCause();
+                            }
+                        });
+            }
+        };
+        sql = new SpringJdbcSqlExecutor(new NamedParameterJdbcTemplate(wrapped));
+        var observed = new ArrayList<String>();
+        var failure = assertThrows(io.teaql.core.TransactionOutcomeUnknownException.class,
+                () -> sql.executeInTransaction(() -> {
+                    insert(1);
+                    assertTrue(sql.registerTransactionSynchronization(() -> fail(), () -> fail(), () -> {
+                        outside();
+                        observed.add("unknown");
+                    }));
+                }));
+        assertFalse(failure.getMessage().contains("PRIVATE_SPRING_COMMIT_CANARY"));
+        assertEquals(List.of("unknown"), observed);
+        assertEquals(1, physicalCount());
+    }
+
     @Test public void assertionRollbackDoesNotLeakCallbacksIntoTheNextTransaction() {
         var observed = new ArrayList<String>();
         assertThrows(AssertionError.class, () -> sql.executeInTransaction(() -> {

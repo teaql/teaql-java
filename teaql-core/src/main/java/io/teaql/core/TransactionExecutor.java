@@ -7,5 +7,13 @@ public interface TransactionExecutor extends DataServiceExecutor {
     @FrameworkInternal("Runtime commit audit and rollback intent; not a workspace API")
     default boolean registerTransactionSynchronization(
             UserContext context, Runnable committed, Runnable rolledBack) { return false; }
+    @FrameworkInternal("Unknown physical outcome fences the affected mutation graphs")
+    default boolean registerTransactionSynchronization(
+            UserContext context, Runnable committed, Runnable rolledBack, Runnable unknown) {
+        return registerTransactionSynchronization(context, committed, rolledBack);
+    }
+    /** True only when the next transaction invocation owns physical completion. */
+    @FrameworkInternal("Select reconciliation timing without changing the workspace transaction API")
+    default boolean ownsNextPhysicalTransaction(UserContext context) { return false; }
     <T> T executeInTransaction(UserContext context, TransactionCallback<T> action);
 }

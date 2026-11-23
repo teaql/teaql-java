@@ -1,5 +1,6 @@
 package io.teaql.provider.jdbc;
 
+import io.teaql.core.TransactionOutcomeUnknownException;
 import io.teaql.dataservice.sql.SqlExecutionAdapter;
 import io.teaql.dataservice.sql.SqlRowMapper;
 
@@ -14,20 +15,25 @@ import java.util.Map;
 import java.util.stream.Stream;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.logging.Logger;
 
 public class JdbcSqlExecutor implements SqlExecutionAdapter {
 
+    private static final Logger LOG = Logger.getLogger(JdbcSqlExecutor.class.getName());
     // Cap SQLite plain-text materialization before expanding exponent-form
     // BigDecimal inputs. Model precision/scale checks remain separate.
     private static final long MAX_SQLITE_DECIMAL_TEXT_LENGTH = 1_000_000L;
 
     private final DataSource dataSource;
+    private Predicate<SQLException> confirmedCommitRejection = failure -> false;
+    private volatile boolean ordinaryMutationsReadOnly;
     // A held view retains only this token, not the executor, connection or DataSource.
     private final Object storageIdentity = new Object();
     private final ThreadLocal<Connection> transactionConnection = new ThreadLocal<>();
     private final ThreadLocal<TransactionCompletion> transactionCompletion = new ThreadLocal<>();
     private static final class TransactionCompletion {
-        final List<Runnable> commits = new ArrayList<>(), rollbacks = new ArrayList<>();
+        final List<Runnable> commits = new ArrayList<>(), rollbacks = new ArrayList<>(), unknown = new ArrayList<>();
         boolean rollbackOnly;
     }
     private final List<Consumer<Connection>> connectionInitializers = new CopyOnWriteArrayList<>();
@@ -36,8 +42,20 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         this.dataSource = dataSource;
     }
 
+    @io.teaql.core.FrameworkInternal("Dialect-owned classification of a definitive physical commit rejection")
+    public void setConfirmedCommitRejection(Predicate<SQLException> classifier) {
+        confirmedCommitRejection = java.util.Objects.requireNonNull(classifier);
+    }
+
     @Override
     public Object storageIdentity() { return storageIdentity; }
+
+    @Override public void restrictOrdinaryMutations() { ordinaryMutationsReadOnly = true; }
+
+    @Override public void requireOrdinaryMutationAllowed() {
+        if (ordinaryMutationsReadOnly) throw new io.teaql.core.TeaQLRuntimeException(
+                "READ_ONLY_TARGET: ordinary mutations are disabled on this replication target");
+    }
 
     public JdbcSqlExecutor addConnectionInitializer(Consumer<Connection> initializer) {
         connectionInitializers.add(initializer);
@@ -192,7 +210,11 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 return result;
             }
         } catch (SQLException e) {
+            markTransactionRollbackOnly();
             throw new RuntimeException("JDBC query failed for parameterized SQL: " + sql, e);
+        } catch (RuntimeException | Error failure) {
+            markTransactionRollbackOnly();
+            throw failure;
         } finally {
             if (owned && connection != null) try { connection.close(); } catch (SQLException ignored) { }
         }
@@ -218,7 +240,11 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             }
             return result;
         } catch (SQLException exception) {
+            markTransactionRollbackOnly();
             throw new RuntimeException("JDBC typed query failed for parameterized SQL: " + sql, exception);
+        } catch (RuntimeException | Error failure) {
+            markTransactionRollbackOnly();
+            throw failure;
         } finally {
             if (owned && connection != null) try { connection.close(); } catch (SQLException ignored) { }
         }
@@ -263,11 +289,24 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             }
             if (type.isInstance(value)) return (V) value;
             if (value instanceof Number number) {
+                if (type == java.time.Instant.class) {
+                    if (!(number instanceof Long || number instanceof Integer
+                            || number instanceof Short || number instanceof Byte)) {
+                        throw new IllegalArgumentException("Instant JDBC value is not an exact integer");
+                    }
+                    return (V) java.time.Instant.ofEpochMilli(number.longValue());
+                }
                 if (io.teaql.dataservice.sql.SqlNumericConversions.supports(type)) return (V) io.teaql.dataservice.sql.SqlNumericConversions.convert(type, number);
                 if (type == Boolean.class) return (V) Boolean.valueOf(number.longValue() != 0);
             }
             if (type == java.time.LocalDateTime.class && value instanceof java.sql.Timestamp timestamp) {
                 return (V) timestamp.toLocalDateTime();
+            }
+            if (type == java.time.Instant.class && value instanceof java.sql.Timestamp timestamp) {
+                return (V) timestamp.toInstant();
+            }
+            if (type == java.time.Instant.class && value instanceof CharSequence text) {
+                return (V) java.time.Instant.parse(text);
             }
             if (type == java.time.LocalDateTime.class) {
                 return (V) java.time.LocalDateTime.parse(String.valueOf(value).replace(' ', 'T'));
@@ -359,7 +398,11 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
             ps.execute();
             }
         } catch (SQLException e) {
+            markTransactionRollbackOnly();
             throw new RuntimeException(e);
+        } catch (RuntimeException | Error failure) {
+            markTransactionRollbackOnly();
+            throw failure;
         } finally {
             if (owned && connection != null) try { connection.close(); } catch (SQLException ignored) { }
         }
@@ -384,7 +427,11 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 return ps.executeUpdate();
             }
         } catch (SQLException e) {
+            markTransactionRollbackOnly();
             throw new RuntimeException(e);
+        } catch (RuntimeException | Error failure) {
+            markTransactionRollbackOnly();
+            throw failure;
         } finally {
             if (owned && connection != null) try { connection.close(); } catch (SQLException ignored) { }
         }
@@ -407,7 +454,11 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 return ps.executeBatch();
             }
         } catch (SQLException e) {
+            markTransactionRollbackOnly();
             throw new RuntimeException(e);
+        } catch (RuntimeException | Error failure) {
+            markTransactionRollbackOnly();
+            throw failure;
         } finally {
             if (owned && connection != null) try { connection.close(); } catch (SQLException ignored) { }
         }
@@ -416,40 +467,141 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
     @Override
     public void executeInTransaction(Runnable action) {
         if (transactionConnection.get() != null) {
-            try { action.run(); }
-            catch (RuntimeException | Error failure) {
+            try {
+                action.run();
+            } catch (RuntimeException | Error failure) {
+                // The nested action shares the outer JDBC transaction. Without a
+                // savepoint, its partial writes cannot be committed safely even if
+                // application code catches the exception before the outer returns.
                 transactionCompletion.get().rollbackOnly = true;
                 throw failure;
             }
             return;
         }
         var completion = new TransactionCompletion();
-        boolean committed = false;
         Throwable failure = null;
-        try (Connection connection = openConnection()) {
+        Connection connection;
+        try {
+            connection = openConnection();
+        } catch (SQLException openFailure) {
+            throw new RuntimeException("JDBC transaction failed", openFailure);
+        }
+        boolean committed = false;
+        boolean outcomeUnknown = false;
+        boolean rollbackUnconfirmed = false;
+        try {
             boolean autoCommit = connection.getAutoCommit();
             connection.setAutoCommit(false);
             transactionConnection.set(connection);
             transactionCompletion.set(completion);
             try {
-                action.run();
-                if (completion.rollbackOnly) throw new IllegalStateException("JDBC transaction is rollback-only");
-                connection.commit();
-                committed = true;
-            } catch (RuntimeException | Error | SQLException error) {
-                try { connection.rollback(); } catch (SQLException rollback) { error.addSuppressed(rollback); }
-                throw error;
+                try {
+                    action.run();
+                    if (completion.rollbackOnly) {
+                        throw new IllegalStateException(
+                                "JDBC transaction is rollback-only after a failed operation");
+                    }
+                } catch (RuntimeException | Error actionFailure) {
+                    try {
+                        connection.rollback();
+                    } catch (SQLException | RuntimeException | Error rollbackFailure) {
+                        outcomeUnknown = true;
+                        rollbackUnconfirmed = true;
+                        warnTransactionCleanup("rollback after failed action", false, true);
+                        if (actionFailure instanceof Error) {
+                            // The graph runtime must fence the ledger before
+                            // rethrowing the original Error. A suppressed marker
+                            // is unreliable because Error may disable suppression.
+                            throw new TransactionOutcomeUnknownException((Error) actionFailure);
+                        }
+                        if (rollbackFailure instanceof Error) {
+                            throw new TransactionOutcomeUnknownException((Error) rollbackFailure);
+                        }
+                        throw new TransactionOutcomeUnknownException();
+                    }
+                    throw actionFailure;
+                }
+                try {
+                    connection.commit();
+                    committed = true;
+                } catch (SQLException | RuntimeException | Error commitFailure) {
+                    // The database may have committed before the driver lost the
+                    // acknowledgement. Conversely, restoring autoCommit without a
+                    // rollback can commit a transaction the driver never attempted.
+                    outcomeUnknown = !isConfirmedCommitRejection(commitFailure);
+                    try {
+                        connection.rollback();
+                    } catch (SQLException | RuntimeException | Error rollbackFailure) {
+                        outcomeUnknown = true;
+                        rollbackUnconfirmed = true;
+                        warnTransactionCleanup("rollback after unsuccessful commit", false, true);
+                    }
+                    if (!outcomeUnknown) throw commitFailure;
+                    warnTransactionCleanup("commit confirmation", false, true);
+                    throw commitFailure instanceof Error
+                            ? new TransactionOutcomeUnknownException((Error) commitFailure)
+                            : new TransactionOutcomeUnknownException();
+                }
             } finally {
                 transactionConnection.remove();
                 transactionCompletion.remove();
-                connection.setAutoCommit(autoCommit);
+                // A confirmed rollback leaves no pending write to commit. If
+                // rollback itself failed, changing autoCommit could commit it.
+                if (!rollbackUnconfirmed) {
+                    try {
+                        connection.setAutoCommit(autoCommit);
+                    } catch (SQLException | RuntimeException | Error cleanupFailure) {
+                        // A successful commit is already durable. A cleanup error
+                        // must not make the caller replay that business mutation.
+                        warnTransactionCleanup("autoCommit restoration", committed, outcomeUnknown);
+                    }
+                }
             }
-        } catch (RuntimeException | Error | SQLException error) {
-            failure = error;
+        } catch (RuntimeException | Error | SQLException transactionFailure) {
+            failure = transactionFailure;
+        } finally {
+            if (rollbackUnconfirmed) {
+                // JDBC leaves close() with an active transaction implementation-defined.
+                // A pool may even commit when close() returns the connection, so never
+                // return an unconfirmed transaction to it. A one-shot rollback fault
+                // can recover on retry, allowing a confirmed rollback before close.
+                boolean rollbackConfirmed = false;
+                try {
+                    connection.rollback();
+                    rollbackConfirmed = true;
+                } catch (SQLException | RuntimeException | Error cleanupFailure) {
+                    warnTransactionCleanup("rollback retry before connection disposal", committed, outcomeUnknown);
+                }
+                if (rollbackConfirmed) {
+                    try {
+                        connection.close();
+                    } catch (SQLException | RuntimeException | Error cleanupFailure) {
+                        warnTransactionCleanup("connection close after confirmed rollback", committed, outcomeUnknown);
+                    }
+                } else {
+                    try {
+                        connection.abort(Runnable::run);
+                        // Some drivers incorrectly implement abort() as a no-op.
+                        if (!connection.isClosed()) {
+                            warnTransactionCleanup("connection abort completion", committed, outcomeUnknown);
+                        }
+                    } catch (SQLException | RuntimeException | Error cleanupFailure) {
+                        // Do not fall back to close(): correctness takes precedence
+                        // over reclaiming a still-active transaction.
+                        warnTransactionCleanup("connection abort", committed, outcomeUnknown);
+                    }
+                }
+            } else {
+                try {
+                    connection.close();
+                } catch (SQLException | RuntimeException | Error cleanupFailure) {
+                    warnTransactionCleanup("connection close", committed, outcomeUnknown);
+                }
+            }
         }
         // Never deliver audit while a connection is still marked active. A sink
         // failure after successful commit must not manufacture a rollback.
-        var callbacks = committed ? completion.commits : completion.rollbacks;
+        var callbacks = committed ? completion.commits : outcomeUnknown ? completion.unknown : completion.rollbacks;
         for (int index = 0; index < callbacks.size(); index++) {
             int selected = committed ? index : callbacks.size() - 1 - index;
             try { callbacks.get(selected).run(); }
@@ -462,13 +614,46 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         if (failure != null) throw new RuntimeException("JDBC transaction failed", failure);
     }
 
+    private boolean isConfirmedCommitRejection(Throwable failure) {
+        if (!(failure instanceof SQLException sqlFailure)) return false;
+        try {
+            return confirmedCommitRejection.test(sqlFailure);
+        } catch (RuntimeException | Error classifierFailure) {
+            return false;
+        }
+    }
+
+    private static void warnTransactionCleanup(String operation, boolean committed, boolean outcomeUnknown) {
+        try {
+            String state = committed ? "committed" : outcomeUnknown ? "outcome unknown" : "unsuccessful";
+            LOG.warning("JDBC transaction " + state + "; " + operation + " failed");
+        } catch (RuntimeException | Error ignored) {
+            // A user-installed logging handler must not turn a committed write
+            // back into an apparently retryable transaction failure, even if it
+            // throws an Error with suppressed diagnostics disabled.
+        }
+    }
+
+    private void markTransactionRollbackOnly() {
+        // A failed statement, mapper or adapter operation may have left earlier
+        // writes in the shared transaction. Without a savepoint, catching the
+        // failure cannot make the transaction safe to commit.
+        var completion = transactionCompletion.get();
+        if (completion != null) completion.rollbackOnly = true;
+    }
+
     @Override public boolean hasActiveTransaction() { return transactionConnection.get() != null; }
 
     @Override public boolean registerTransactionSynchronization(Runnable committed, Runnable rolledBack) {
+        return registerTransactionSynchronization(committed, rolledBack, () -> {});
+    }
+
+    @Override public boolean registerTransactionSynchronization(Runnable committed, Runnable rolledBack, Runnable unknown) {
         var completion = transactionCompletion.get();
         if (completion == null) return false;
         completion.commits.add(java.util.Objects.requireNonNull(committed));
         completion.rollbacks.add(java.util.Objects.requireNonNull(rolledBack));
+        completion.unknown.add(java.util.Objects.requireNonNull(unknown));
         return true;
     }
 
@@ -524,6 +709,14 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                 statement.setString(index, io.teaql.core.utils.LocalDateTimeUtil.formatSql(dateTime));
             } else {
                 statement.setTimestamp(index, java.sql.Timestamp.valueOf(dateTime));
+            }
+        } else if (value instanceof java.time.Instant instant && isSqlite(statement)) {
+            if (instant.getNano() % 1_000_000 != 0) {
+                throw new SQLException("Instant has precision finer than milliseconds");
+            }
+            try { statement.setLong(index, instant.toEpochMilli()); }
+            catch (ArithmeticException overflow) {
+                throw new SQLException("Instant exceeds epoch-millisecond range", overflow);
             }
         } else if (value instanceof java.time.LocalTime time) {
             if (isSqlite(statement)) {

@@ -228,6 +228,80 @@ public class HttpResilienceTest {
         assertEquals(3, server.requests.get());
     }
 
+    @Test public void missingContextOrIntentCannotStartNetworkIo() {
+        var service = new JdkHttpRequestService(java.util.List.of(profile().build()));
+        assertEquals(HttpRequestFailure.Code.INVALID_INPUT, assertThrows(HttpRequestFailure.class,
+                () -> service.execute(null, get("ok"))).code());
+        for (String[] intent : new String[][] {{" ", "render order"}, {"load order", " \t"}}) {
+            assertEquals(HttpRequestFailure.Code.INVALID_INPUT, assertThrows(HttpRequestFailure.class,
+                    () -> service.execute(context(service), HttpRequestService.Call.get(
+                            "orders", "ok", intent[0], intent[1]))).code());
+        }
+        assertEquals(0, server.requests.get());
+        System.out.println("HTTP_NUMBERED_PASS language=java case=HTTP-01 requests=0");
+    }
+
+    @Test public void alwaysFailingEndpointStopsAtConfiguredAttemptCeiling() {
+        for (int ceiling : new int[] {1, 2, 3, 5}) {
+            var service = new JdkHttpRequestService(java.util.List.of(profile()
+                    .retry(ceiling, Duration.ofMillis(1), Set.of(HttpRequestService.Method.GET)).build()));
+            int before = server.requests.get();
+            var response = service.execute(context(service), call(HttpRequestService.Method.GET,
+                    "fail", HttpRequestService.RetryMode.CONFIRMED_IDEMPOTENT));
+            assertEquals(503, response.status());
+            assertEquals(ceiling, response.attempts());
+            assertEquals(ceiling, server.requests.get() - before);
+        }
+        System.out.println("HTTP_NUMBERED_PASS language=java case=HTTP-07 ceilings=1,2,3,5");
+    }
+
+    @Test public void oversizedIncompleteResponseReleasesPeerBeforeNextCall() throws Exception {
+        var service = new JdkHttpRequestService(java.util.List.of(profile().maxResponseBytes(16).build()));
+        assertEquals(HttpRequestFailure.Code.RESPONSE_TOO_LARGE, assertThrows(HttpRequestFailure.class,
+                () -> service.execute(context(service), get("overflow-open"))).code());
+        assertTrue("incomplete oversized response did not close at the peer",
+                server.overflowReleased.await(2, TimeUnit.SECONDS));
+        assertEquals(200, service.execute(context(service), get("ok")).status());
+        assertEquals(2, server.requests.get());
+        System.out.println("HTTP_NUMBERED_PASS language=java case=HTTP-09 peer_closed=1 next_call=1");
+    }
+
+    @Test public void successfulHalfOpenProbeClosesCircuitForConcurrentCalls() throws Exception {
+        AtomicLong monotonic = new AtomicLong(1);
+        HttpOperationalClock clock = new HttpOperationalClock() {
+            @Override public long nanoTime() { return monotonic.get(); }
+            @Override public void pauseNanos(long nanos) { monotonic.addAndGet(nanos); }
+        };
+        var service = new JdkHttpRequestService(java.util.List.of(profile()
+                .circuit(1, Duration.ofSeconds(5), 1).build()), clock);
+        assertEquals(503, service.execute(context(service), get("fail")).status());
+        assertEquals(HttpRequestFailure.Code.CIRCUIT_OPEN, assertThrows(HttpRequestFailure.class,
+                () -> service.execute(context(service), get("ok"))).code());
+        monotonic.addAndGet(Duration.ofSeconds(5).toNanos());
+        assertEquals(200, service.execute(context(service), get("ok")).status());
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicInteger completed = new AtomicInteger();
+        Runnable request = () -> {
+            try {
+                assertEquals(200, service.execute(context(service), get("gated")).status());
+                completed.incrementAndGet();
+            } catch (Throwable error) { failure.compareAndSet(null, error); }
+        };
+        Thread first = new Thread(request), second = new Thread(request);
+        first.start(); second.start();
+        try {
+            // Neither response is released until both physical requests arrive.
+            assertTrue("successful probe left circuit in one-at-a-time half-open state",
+                    server.gatedEntered.await(3, TimeUnit.SECONDS));
+        } finally {
+            server.releaseGated.countDown(); first.join(2000); second.join(2000);
+        }
+        assertFalse(first.isAlive()); assertFalse(second.isAlive());
+        if (failure.get() != null) throw new AssertionError(failure.get());
+        assertEquals(2, completed.get()); assertEquals(4, server.requests.get());
+        System.out.println("HTTP_NUMBERED_PASS language=java case=HTTP-11 concurrent_after_probe=2");
+    }
+
     @Test public void retryIsExplicitAndPostTransportFailureIsAmbiguous() {
         HttpServiceProfile configured = profile().retry(3, Duration.ofMillis(1),
                 Set.of(HttpRequestService.Method.GET)).build();
@@ -298,15 +372,21 @@ public class HttpResilienceTest {
 
     @Test public void postedRequestWithStalledResponseBodyIsAmbiguous() {
         JdkHttpRequestService service = new JdkHttpRequestService(java.util.List.of(profile()
-                .budgets(Duration.ofMillis(200), Duration.ofMillis(120), Duration.ofMillis(180))
+                .budgets(Duration.ofSeconds(2), Duration.ofSeconds(2), Duration.ofSeconds(2))
                 .build()));
         UserContext context = context(service);
-        HttpRequestService.Call call = HttpRequestService.Call.postText("orders", "slowbody",
+        assertEquals(200, service.execute(context, get("ready")).status());
+        HttpRequestService.Call call = HttpRequestService.Call.postText("orders", "stalled-post",
                 "PRIVATE_BODY_CANARY", "submit payment", "confirm external effect");
         int before = server.requests.get();
-        assertEquals(HttpRequestFailure.Code.AMBIGUOUS_OUTCOME,
-                assertThrows(HttpRequestFailure.class, () -> service.execute(context, call)).code());
-        assertEquals(before + 1, server.requests.get());
+        try {
+            assertEquals(HttpRequestFailure.Code.AMBIGUOUS_OUTCOME,
+                    assertThrows(HttpRequestFailure.class, () -> service.execute(context, call)).code());
+            assertEquals("fixture flushed a partial response before timeout", 0L, server.stalledPostStarted.getCount());
+            assertEquals(before + 1, server.requests.get());
+        } finally {
+            server.releaseStalledPost.countDown();
+        }
     }
 
     @Test public void postBudgetExpiryBeforeSendRemainsTimeoutWithoutRetry() {
@@ -726,6 +806,11 @@ public class HttpResilienceTest {
         private final AtomicInteger retryPost = new AtomicInteger();
         private final ConcurrentLinkedQueue<String> traceparents = new ConcurrentLinkedQueue<>();
         private final ConcurrentLinkedQueue<String> retryBodies = new ConcurrentLinkedQueue<>();
+        private final CountDownLatch overflowReleased = new CountDownLatch(1);
+        private final CountDownLatch gatedEntered = new CountDownLatch(2);
+        private final CountDownLatch releaseGated = new CountDownLatch(1);
+        private final CountDownLatch stalledPostStarted = new CountDownLatch(1);
+        private final CountDownLatch releaseStalledPost = new CountDownLatch(1);
         private volatile boolean closed;
         Fixture() throws IOException {
             socket = new ServerSocket(0, 32, InetAddress.getLoopbackAddress());
@@ -765,7 +850,8 @@ public class HttpResilienceTest {
                     }
                     // Drain the request before replying. Closing a socket with unread POST bytes
                     // can reset an otherwise valid response on Windows TCP stacks.
-                    if (target.contains("/retry-post") || target.contains("/private-response")) {
+                    if (target.contains("/retry-post") || target.contains("/private-response")
+                            || target.endsWith("/stalled-post")) {
                         char[] body = new char[contentLength];
                         int offset = 0;
                         while (offset < body.length) {
@@ -776,6 +862,20 @@ public class HttpResilienceTest {
                         if (target.contains("/retry-post")) retryBodies.add(new String(body));
                     }
                     if (target.contains("/close")) return;
+                    if (target.endsWith("/overflow-open")) {
+                        client.setSoTimeout(3000);
+                        client.getOutputStream().write(("HTTP/1.1 200 OK\r\nContent-Length: 4096\r\n"
+                                + "Connection: close\r\n\r\n" + "L".repeat(32)).getBytes(StandardCharsets.UTF_8));
+                        client.getOutputStream().flush();
+                        // Never finish the body: only the client can release this connection.
+                        try { if (reader.read() == -1) overflowReleased.countDown(); }
+                        catch (java.net.SocketException closedByPeer) { overflowReleased.countDown(); }
+                        return;
+                    }
+                    if (target.endsWith("/gated")) {
+                        gatedEntered.countDown();
+                        if (!releaseGated.await(4, TimeUnit.SECONDS)) return;
+                    }
                     if (target.contains("/incomplete-large")) {
                         client.getOutputStream().write(("HTTP/1.1 200 OK\r\nContent-Length: 4096\r\nConnection: keep-alive\r\n\r\n"
                                 + "X".repeat(64)).getBytes(StandardCharsets.US_ASCII));
@@ -805,7 +905,13 @@ public class HttpResilienceTest {
                             + "\r\nConnection: close\r\n"
                             + (status == 302 ? "Location: https://elsewhere.example/secret\r\n" : "") + "\r\n";
                     client.getOutputStream().write(head.getBytes(StandardCharsets.UTF_8));
-                    if (target.contains("/slowbody")) {
+                    if (target.endsWith("/stalled-post")) {
+                        client.getOutputStream().write(body, 0, 1);
+                        client.getOutputStream().flush();
+                        stalledPostStarted.countDown();
+                        if (!releaseStalledPost.await(10, TimeUnit.SECONDS)) return;
+                        client.getOutputStream().write(body, 1, body.length - 1);
+                    } else if (target.contains("/slowbody")) {
                         client.getOutputStream().write(body, 0, 1);
                         client.getOutputStream().flush();
                         Thread.sleep(300);

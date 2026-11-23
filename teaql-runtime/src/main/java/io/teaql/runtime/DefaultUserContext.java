@@ -165,6 +165,9 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
             return null;
         }
         Object value = getObj(capabilityType.getName());
+        if (value == null && capabilityType == RuntimeTelemetry.class) {
+            value = runtime == null ? RuntimeTelemetry.NOOP : runtime.getTelemetry();
+        }
         if (value == null && capabilityType == RuntimeLogger.class) value = runtimeLogger;
         if (value == null && capabilityType == SchemaExecutor.class) {
             value = runtime.getSchemaExecutor();
@@ -192,6 +195,9 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
         }
         if (value == null && capabilityType == BusinessIdSchemaContributor.class) {
             value = runtime.getBusinessIdSchemaContributor();
+        }
+        if (value == null && capabilityType == CommittedEventSchemaContributor.class) {
+            value = runtime.getCommittedEventSchemaContributor();
         }
         if (value == null && capabilityType == BusinessIdKeyProvider.class) {
             value = runtime.getBusinessIdKeyProvider();

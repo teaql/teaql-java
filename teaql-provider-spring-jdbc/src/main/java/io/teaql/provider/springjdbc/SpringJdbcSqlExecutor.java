@@ -99,7 +99,11 @@ public class SpringJdbcSqlExecutor implements SqlExecutionAdapter {
     @Override public boolean hasActiveTransaction() { return transactionCompletion.active(); }
 
     @Override public boolean registerTransactionSynchronization(Runnable committed, Runnable rolledBack) {
-        return transactionCompletion.register(committed, rolledBack);
+        return registerTransactionSynchronization(committed, rolledBack, () -> {});
+    }
+
+    @Override public boolean registerTransactionSynchronization(Runnable committed, Runnable rolledBack, Runnable unknown) {
+        return transactionCompletion.register(committed, rolledBack, unknown);
     }
 
     private record SpringJdbcDataRow(ResultSet resultSet) implements io.teaql.core.DataRow {

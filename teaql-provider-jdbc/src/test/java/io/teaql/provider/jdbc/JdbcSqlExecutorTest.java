@@ -64,6 +64,96 @@ public class JdbcSqlExecutorTest {
     }
 
     @Test
+    public void nestedFailureCaughtByCallerStillRollsBackOuterTransaction() {
+        assertThrows(IllegalStateException.class, () -> sqlExecutor.executeInTransaction(() -> {
+            sqlExecutor.update("INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
+                    new Object[] {91, "before failure", 20});
+            try {
+                sqlExecutor.executeInTransaction(() -> {
+                    sqlExecutor.update("INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
+                            new Object[] {92, "failed save", 20});
+                    throw new IllegalStateException("simulated outbox append failure");
+                });
+            } catch (IllegalStateException expected) {
+                // Application code may log a failed save and continue its outer callback.
+            }
+        }));
+
+        assertEquals(0, ((Number) sqlExecutor.queryForList(
+                "SELECT count(*) AS total FROM test_user", new Object[0])
+                .get(0).get("total")).intValue());
+
+        sqlExecutor.executeInTransaction(() -> sqlExecutor.executeInTransaction(() ->
+                sqlExecutor.update("INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
+                        new Object[] {93, "next transaction", 20})));
+        assertEquals(1, ((Number) sqlExecutor.queryForList(
+                "SELECT count(*) AS total FROM test_user", new Object[0])
+                .get(0).get("total")).intValue());
+    }
+
+    @Test
+    public void caughtJdbcWriteFailureStillRollsBackOuterTransaction() {
+        assertThrows(IllegalStateException.class, () -> sqlExecutor.executeInTransaction(() -> {
+            sqlExecutor.update("INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
+                    new Object[] {94, "first write", 20});
+            try {
+                sqlExecutor.update("INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
+                        new Object[] {94, "duplicate key", 21});
+            } catch (RuntimeException expected) {
+                // A caller may handle a low-level JDBC failure before returning.
+            }
+        }));
+
+        assertEquals(0, ((Number) sqlExecutor.queryForList(
+                "SELECT count(*) AS total FROM test_user", new Object[0])
+                .get(0).get("total")).intValue());
+    }
+
+    @Test
+    public void caughtStatementOrReadFailureCannotCommitEarlierWrites() {
+        List<Runnable> failures = List.of(
+                () -> sqlExecutor.execute("INSERT INTO test_user (id, name, age) VALUES (94, 'duplicate', 21)"),
+                () -> sqlExecutor.batchUpdate(
+                        "INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
+                        java.util.Collections.singletonList(new Object[] {94, "duplicate", 21})),
+                () -> sqlExecutor.queryForList("SELECT * FROM missing_test_table", new Object[0]),
+                () -> sqlExecutor.query("SELECT * FROM missing_test_table", new Object[0],
+                        row -> new TypedRow()));
+        for (Runnable failedStatement : failures) {
+            assertThrows(IllegalStateException.class, () -> sqlExecutor.executeInTransaction(() -> {
+                sqlExecutor.update("INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
+                        new Object[] {94, "must roll back", 20});
+                try {
+                    failedStatement.run();
+                } catch (RuntimeException expected) {
+                    // The failed statement must poison the shared transaction.
+                }
+            }));
+            assertEquals(0, ((Number) sqlExecutor.queryForList(
+                    "SELECT count(*) AS total FROM test_user", new Object[0])
+                    .get(0).get("total")).intValue());
+        }
+    }
+
+    @Test
+    public void caughtTypedRowMapperFailureCannotCommitEarlierWrites() {
+        assertThrows(IllegalStateException.class, () -> sqlExecutor.executeInTransaction(() -> {
+            sqlExecutor.update("INSERT INTO test_user (id, name, age) VALUES (?, ?, ?)",
+                    new Object[] {95, "must roll back", 20});
+            try {
+                sqlExecutor.query("SELECT id FROM test_user WHERE id = ?", new Object[] {95},
+                        row -> { throw new IllegalArgumentException("bad typed row"); });
+            } catch (IllegalArgumentException expected) {
+                // The mapper failure escaped a query using the same transaction.
+            }
+        }));
+
+        assertEquals(0, ((Number) sqlExecutor.queryForList(
+                "SELECT count(*) AS total FROM test_user", new Object[0])
+                .get(0).get("total")).intValue());
+    }
+
+    @Test
     public void testQueryForListNormalizesAliasesForPortableMapping() {
         List<Map<String, Object>> rows = sqlExecutor.queryForList(
                 "SELECT 1 AS \"customerOrder\", 2 AS plain_name",

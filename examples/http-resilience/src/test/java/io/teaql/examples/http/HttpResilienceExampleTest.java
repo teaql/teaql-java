@@ -143,6 +143,8 @@ public class HttpResilienceExampleTest {
                     "id", "HTTP-16", "round", round, "fixturePort", server.getAddress().getPort(),
                     "requestsBefore", before, "requestsAfter", requests.get(), "operationsBefore", before,
                     "operationsAfter", observed.size(), "fixtureReset", false)));
+                System.out.println("HTTP_SAME_FIXTURE_PASS language=java round=" + round
+                        + " requests=" + requests.get() + " trace=" + observed.size() + " lineage=3");
             }
         } finally {
             server.stop(0);
