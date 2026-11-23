@@ -12,8 +12,56 @@ else
   evidence="$(mktemp -d -t teaql-java-committed-generated.XXXXXXXX)"
   disposable_evidence="$evidence"
 fi
-cleanup() { status=$?; trap - EXIT; if [[ -n "$disposable_evidence" ]]; then rm -rf -- "$disposable_evidence"; fi; exit "$status"; }
+scratch=""
+cleanup() {
+  status=$?
+  trap - EXIT
+  [[ -z "$scratch" ]] || rm -rf -- "$scratch"
+  [[ -z "$disposable_evidence" ]] || rm -rf -- "$disposable_evidence"
+  exit "$status"
+}
 trap cleanup EXIT
+scratch="$(mktemp -d -t teaql-java-committed-reactor.XXXXXXXX)"
+python3 - "$repo" "$scratch" <<'PY_REACTOR'
+from pathlib import Path
+import os
+import shutil
+import sys
+import xml.etree.ElementTree as ET
+
+repo, scratch = map(Path, sys.argv[1:])
+standard_order = repo / 'examples/standard-order'
+library = scratch / 'library'
+application = scratch / 'application'
+shutil.copytree(standard_order / 'generated/lib', library, ignore=shutil.ignore_patterns('target'))
+shutil.copytree(standard_order / 'src', application / 'src')
+
+namespace = 'http://maven.apache.org/POM/4.0.0'
+ET.register_namespace('', namespace)
+def tag(name):
+    return '{' + namespace + '}' + name
+
+project = ET.parse(standard_order / 'pom.xml')
+parent = project.getroot().find(tag('parent'))
+parent.find(tag('relativePath')).text = os.path.relpath(repo / 'pom.xml', application)
+project.write(application / 'pom.xml', encoding='utf-8', xml_declaration=True)
+
+reactor = ET.Element(tag('project'))
+for key, value in [('modelVersion', '4.0.0'), ('groupId', 'io.teaql.test'),
+                   ('artifactId', 'committed-readback-reactor'), ('version', '1'), ('packaging', 'pom')]:
+    ET.SubElement(reactor, tag(key)).text = value
+modules = ET.SubElement(reactor, tag('modules'))
+for module in (repo, library, application):
+    ET.SubElement(modules, tag('module')).text = os.path.relpath(module, scratch)
+ET.ElementTree(reactor).write(scratch / 'pom.xml', encoding='utf-8', xml_declaration=True)
+PY_REACTOR
+runtime_version="$(node - "$repo" "$scratch" <<'NODE'
+const path = require('node:path');
+const [repo, scratch] = process.argv.slice(2);
+const {pin} = require(path.join(repo, 'scripts/pin-local-example-pom.cjs'));
+console.log(pin(path.join(scratch, 'library/pom.xml'), repo, scratch).version);
+NODE
+)"
 generated_library_hash() {
   (cd "$repo/examples/standard-order" && rg --files generated/lib -g '!target/**' \
     | LC_ALL=C sort | xargs -d '\n' sha256sum)
@@ -26,8 +74,8 @@ for round in 1 2; do
   rg -Fq 'COMMITTED_DELIVERY_RECOVERY_PASS language=java ordered=2 lost_ack=1 restart=1 duplicate=1' \
     "$evidence/runtime-$round.log"
   echo "PASS Java committed-events example round $round"
-  mvn -B -q -Pruntime-examples -pl examples/standard-order -am \
-    -Dtest=StandardOrderCommittedTargetTest -Dsurefire.failIfNoSpecifiedTests=false test \
+  mvn -B -q -f "$scratch/pom.xml" -pl :teaql-standard-order-example -am \
+    "-Dteaql.version=$runtime_version" -Dtest=StandardOrderCommittedTargetTest -Dsurefire.failIfNoSpecifiedTests=false test \
     2>&1 | tee "$evidence/generated-$round.log"
   rg -Fq 'JAVA_COMMITTED_GENERATED_Q_PASS source=sqlite target=duckdb outbox=1' \
     "$evidence/generated-$round.log"
