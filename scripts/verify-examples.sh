@@ -20,7 +20,7 @@ runtime_version="$(node -e 'const fs=require("fs");process.stdout.write(fs.readF
 export MAVEN_OPTS="${MAVEN_OPTS:-} -Dmaven.repo.local=$build_dir/maven -Dteaql.version=$runtime_version"
 export TEAQL_MAVEN_DEPENDENCY_CACHE="$build_dir/maven"
 echo "Native example artifacts use an isolated disposable Maven repository; compact evidence: $evidence_dir"
-expected=(business-id-runtime conformance exact-decimal fix-e-alignment http-resilience inheritance-save object-storage order-management round-trip-reference-runtime scalar-type-probe school-management security-foundations shared-load-state standard-order trace-chain)
+expected=(business-id-runtime conformance exact-decimal fix-e-alignment http-resilience inheritance-save object-storage order-management round-trip-reference-runtime scalar-type-probe school-management security-foundations shared-load-state standard-order supplier-onboarding-i18n trace-chain)
 mapfile -t actual < <(find "$repo/examples" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
 if [[ "${actual[*]}" != "${expected[*]}" ]]; then
   echo "example inventory changed; update scripts/verify-examples.sh: ${actual[*]}" >&2
@@ -106,6 +106,7 @@ TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/version-lifecycle" \
 node "$repo/examples/conformance/context-derived/verify-local.cjs"
 TEAQL_NATURAL_MESSAGES_EVIDENCE_DIR="$evidence_dir/natural-messages" \
   node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/conformance/natural-messages/verify-local.cjs"
+bash "$repo/examples/supplier-onboarding-i18n/run.sh" --verify > "$evidence_dir/supplier-i18n.jsonl"
 if [[ -z "$mode" ]]; then
   echo "PASS: all Java examples"
 else
