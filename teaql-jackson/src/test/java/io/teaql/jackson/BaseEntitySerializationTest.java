@@ -94,9 +94,9 @@ public class BaseEntitySerializationTest {
     }
 
     @Test public void smartListBackReferencesKeepTheActiveSerializationPath() throws Exception {
-        var parent = new NamedRelationsEntity(); parent.updateId(7L);
+        var parent = new NamedRelationsEntity(); parent.__internalSet("id", 7L);
         parent.childList = io.teaql.core.SmartList.<BaseEntity>unloaded().map(child -> child);
-        var child = new JsonGraphEntity(); child.updateId(9L); child.__internalSet("child", parent);
+        var child = new JsonGraphEntity(); child.__internalSet("id", 9L); child.__internalSet("child", parent);
         parent.childList.add(child);
         var mapper = new ObjectMapper().registerModule(TeaQLModule.INSTANCE);
         var tree = mapper.valueToTree(parent);
