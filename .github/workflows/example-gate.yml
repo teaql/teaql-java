@@ -93,6 +93,20 @@ jobs:
               cp.execFileSync('mvn', ['-B', '-ntp', '-f', selected,
                 'org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline'], {stdio: 'inherit'});
             }
+            // Resolve the standalone console reactor's actual mediated runtime
+            // dependencies. Dependency go-offline alone visits a different
+            // Netty version through this workspace's Spring/AWS dependency graph.
+            const attachmentSource = path.join(runtime, 'examples/object-storage');
+            const attachment = path.join(owned, 'order-attachment-workspace');
+            fs.mkdirSync(attachment);
+            fs.copyFileSync(path.join(attachmentSource, 'workspace-pom.xml'), path.join(attachment, 'pom.xml'));
+            for (const role of ['java-lib-core', 'java-app-console']) {
+              fs.cpSync(path.join(attachmentSource, role), path.join(attachment, role), {
+                recursive: true, filter: file => path.basename(file) !== 'target',
+              });
+            }
+            cp.execFileSync('mvn', ['-B', '-ntp', '-f', path.join(attachment, 'pom.xml'),
+              '-DskipTests', 'install'], {stdio: 'inherit'});
           } finally {
             fs.rmSync(owned, {recursive: true});
           }

@@ -30,7 +30,10 @@ mvn -o -B -pl examples/object-storage,teaql-sqlite,teaql-provider-jdbc -am -Dtea
   -Dsurefire.failIfNoSpecifiedTests=false install 2>&1 | tee "$evidence/s3-calibration.log"
 cp "$example/workspace-pom.xml" "$scratch/pom.xml"
 cp -R "$example/java-lib-core" "$example/java-app-console" "$scratch/"
-mvn -o -f "$scratch/pom.xml" -DskipTests install > "$evidence/workspace-build.log" 2>&1
+if ! mvn -o -f "$scratch/pom.xml" -DskipTests install > "$evidence/workspace-build.log" 2>&1; then
+  tail -80 "$evidence/workspace-build.log" >&2
+  exit 1
+fi
 jar="$scratch/java-lib-core/lib/target/order-attachment-service-core-0.0.1-SNAPSHOT.jar"
 installed="$TEAQL_MAVEN_DEPENDENCY_CACHE/com/teaql/order-attachment-service-core/0.0.1-SNAPSHOT/${jar##*/}"
 cmp "$jar" "$installed"
