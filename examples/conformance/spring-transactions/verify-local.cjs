@@ -4,6 +4,7 @@ const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),cp=r
 const assert=require('node:assert/strict'),crypto=require('node:crypto');
 const {createOwnedRunner,ownedBytes}=require('../../fix-e-alignment/owned-command.cjs');
 const ROOT=path.resolve(__dirname,'../../..'),REFERENCE='6d162bb0cff43335e570302a95a5abc721915b77';
+const TEST_SOURCE=path.join(ROOT,'examples/conformance/java-app-console/showcase-tests/GeneratedSpringTransactionTest.java');
 const CASES=['admission','audit-delivery-failure','graph-write-failure','nested-rollback','outer-commit-noop','outer-rollback-retry','requires-new','savepoint-boundaries'];
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 const digest=f=>sha(fs.readFileSync(f));
@@ -15,7 +16,7 @@ function source(){
  return{commit:git('rev-parse','HEAD').toString().trim(),contentsSha256:hash.digest('hex'),files,dirty:git('status','--porcelain').toString()};
 }
 function fixture(){
- const prefix='examples/conformance/lib/';
+ const prefix='examples/conformance/java-lib-core/lib/';
  const files=git('ls-files','-z','--',prefix).toString().split('\0').filter(Boolean).sort();assert(files.length>10);
  const hashes={};for(const n of files){hashes[n.slice(prefix.length)]=digest(path.join(ROOT,n));assert.equal(sha(git('show','HEAD:'+n)),hashes[n.slice(prefix.length)],'never edit generated library: '+n);}
  const model='examples/conformance/model.xml';assert.equal(digest(path.join(ROOT,model)),sha(git('show','HEAD:'+model)));
@@ -52,7 +53,7 @@ async function main(){
  }
  try{
   const disk=fs.statfsSync(scratch);assert(disk.bavail*disk.bsize>8*1024**3);
-  const original=source();report.source=original;report.fixture=fixture();report.applicationSha256=digest(path.join(__dirname,'GeneratedSpringTransactionTest.java'));report.verifierSha256=digest(__filename);
+  const original=source();report.source=original;report.fixture=fixture();report.applicationSha256=digest(TEST_SOURCE);report.verifierSha256=digest(__filename);
   const runtime=path.join(scratch,'source'),consumer=path.join(scratch,'consumer'),maven=path.join(scratch,'maven');
   fs.mkdirSync(runtime);report.testedProductionCommit=baseline?REFERENCE:original.commit;
   if(baseline){
@@ -61,9 +62,9 @@ async function main(){
   }else for(const n of original.files){const to=path.join(runtime,n);fs.mkdirSync(path.dirname(to),{recursive:true});fs.copyFileSync(path.join(ROOT,n),to);}
   // This library is already a module of the runtime's reactor. Verify it in
   // place rather than introduce a second module with the same Maven identity.
-  for(const[n,h]of Object.entries(report.fixture.files))assert.equal(digest(path.join(runtime,'examples/conformance/lib',n)),h);
+  for(const[n,h]of Object.entries(report.fixture.files))assert.equal(digest(path.join(runtime,baseline?'examples/conformance/lib':'examples/conformance/java-lib-core/lib',n)),h);
   const tests=path.join(consumer,'src/test/java/com/teaql/runtimeexampleconformanceservice');fs.mkdirSync(tests,{recursive:true});
-  fs.copyFileSync(path.join(__dirname,'GeneratedSpringTransactionTest.java'),path.join(tests,'GeneratedSpringTransactionTest.java'));
+  fs.copyFileSync(TEST_SOURCE,path.join(tests,'GeneratedSpringTransactionTest.java'));
   const version=fs.readFileSync(path.join(runtime,'pom.xml'),'utf8').match(/<version>([^<]+)<\/version>/)[1];
   const dependencies=['teaql-runtime','teaql-sqlite','teaql-provider-spring-jdbc','teaql-jackson'].map(n=>`<dependency><groupId>io.teaql</groupId><artifactId>${n}</artifactId><version>${version}</version></dependency>`).join('');
   const pom=`<project><modelVersion>4.0.0</modelVersion><parent><groupId>io.teaql</groupId><artifactId>teaql-java-parent</artifactId><version>${version}</version><relativePath>../source/pom.xml</relativePath></parent><groupId>io.teaql.examples</groupId><artifactId>teaql-spring-business-example</artifactId><version>${version}</version><dependencies><dependency><groupId>com.teaql</groupId><artifactId>runtime-example-conformance-service-core</artifactId><version>1.0.0</version></dependency>${dependencies}<dependency><groupId>junit</groupId><artifactId>junit</artifactId><version>4.13.2</version><scope>test</scope></dependency></dependencies><build><plugins><plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><configuration><useModulePath>false</useModulePath></configuration></plugin></plugins></build></project>`;

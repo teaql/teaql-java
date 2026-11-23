@@ -74,7 +74,7 @@ own Java APIs.
 These application-code excerpts assume the example's generated imports, trusted
 Context and an existing object identity. `Q` and `E` belong to the generated
 domain library, not a generic runtime object with arbitrary field strings.
-See the [application source](examples/school-management/src/main/java/com/example/schoolmanagementservice/SchoolLifecycleVerifier.java) for complete setup.
+See the [application source](examples/school-management/java-app-console/src/main/java/com/example/schoolmanagementservice/SchoolLifecycleVerifier.java) for complete setup.
 
 ```java
 var schoolTypeDetails = Q.schoolTypesWithMinimalFields().selectCode();

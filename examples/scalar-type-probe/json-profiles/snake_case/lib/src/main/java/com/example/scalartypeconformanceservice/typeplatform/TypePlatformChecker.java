@@ -24,6 +24,7 @@ public class TypePlatformChecker implements Checker<TypePlatform>{
       if((typePlatform == null)){
          return;
       }
+      boolean _contextFixEligible = needContextFix(_context, typePlatform);
       if(typePlatform.needPersist()){
       }
       if(typePlatform.newItem()){

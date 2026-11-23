@@ -1,4 +1,16 @@
-# Round-Trip Reference runtime example
+# Edit an order using an opaque line reference
+
+The [model](model.xml) defines the merchant, sales order and line. Its
+Java workspace installs the runtime reference provider and current
+merchant editor policy, resolves the stored line and changes its quantity.
+The original runtime tests still exercise key rotation, expiry and raw
+diagnostics.
+
+```bash
+bash examples/round-trip-reference-runtime/verify.sh
+```
+
+## Original adapter-neutral calibration
 
 This example proves that the reusable runtime serialization boundary can be
 called by any Web adapter without depending on Spring, JAX-RS, Servlet, or a

@@ -1,5 +1,9 @@
 # Generic and inherited audited saves
 
+The scene starts from `model.xml`. The generated domain lives in
+`java-lib-core`. The `java-app-console` workspace runs the lifecycle
+against that library with the runtime from this checkout.
+
 This six-object SQLite example saves Academy through a generic audited helper,
 then reads and updates the same logical object through generated Academy and
 School Q/E APIs. It never inserts a parent row manually. The first lifecycle
@@ -47,6 +51,10 @@ checker or authorizes a cast. The example covers six base/middle/leaf/sibling
 combinations, minimal selection, streaming and parent update/no-op readback.
 The verifier checks root-owned versions and mapped child storage independently
 with read-only SQL. It is registered in `scripts/verify-examples.sh`.
+
+Application assembly assigns the deliberately quoted `Legacy Campus Code`
+storage column before schema reconciliation. This keeps the custom mapping
+covered while allowing the library to remain exact, reproducible generator output.
 
 The tested root-version sequence is `1 → 2 → 3 → -4 → 5 → -6 → 7 → 8`.
 Marker-only recovery, recovery with edits, stale/live/partial recovery rejection,

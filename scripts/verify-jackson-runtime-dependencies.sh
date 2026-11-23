@@ -6,7 +6,7 @@ cd "$repo"
 
 # Generated applications have their own dependency management. This gate
 # verifies published runtime modules and the parent-owned Business ID example.
-tree=$(mvn -B -pl '!examples/conformance/lib,!examples/conformance' \
+tree=$(mvn -B -pl '!examples/conformance/java-lib-core/lib,!examples/conformance/java-app-console' \
   dependency:tree \
   -Dincludes=com.fasterxml.jackson.core:jackson-databind,com.fasterxml.jackson.core:jackson-core,com.fasterxml.jackson.core:jackson-annotations \
   -DoutputType=text)

@@ -41,7 +41,7 @@ public class OrderLineExpression<T, E, U extends OrderLine> extends ExpressionAd
 
 
     public CustomerOrderExpression<T, U, CustomerOrder> getCustomerOrder(){
-       return new CustomerOrderExpression(this, $it ->  ((OrderLine)$it).getCustomerOrder());
+       return new CustomerOrderExpression(loaded("customer_order", "getCustomerOrder", OrderLine::getCustomerOrder));
     }
 
     public OrderLineExpression<T, U, U> updateCustomerOrder(CustomerOrder customerOrder){
@@ -49,7 +49,7 @@ public class OrderLineExpression<T, E, U extends OrderLine> extends ExpressionAd
     }
 
     public ProductExpression<T, U, Product> getProduct(){
-       return new ProductExpression(this, $it ->  ((OrderLine)$it).getProduct());
+       return new ProductExpression(loaded("product", "getProduct", OrderLine::getProduct));
     }
 
     public OrderLineExpression<T, U, U> updateProduct(Product product){
@@ -57,28 +57,28 @@ public class OrderLineExpression<T, E, U extends OrderLine> extends ExpressionAd
     }
 
     public Expression<T, String> getProductName(){
-       return apply(OrderLine::getProductName);
+       return loaded("product_name", "getProductName", OrderLine::getProductName);
     }
     public OrderLineExpression<T, U, U> updateProductName(String productName){
        return new OrderLineExpression(this, $it ->  ((OrderLine)$it).updateProductName(productName));
     }
 
     public Expression<T, String> getSku(){
-       return apply(OrderLine::getSku);
+       return loaded("sku", "getSku", OrderLine::getSku);
     }
     public OrderLineExpression<T, U, U> updateSku(String sku){
        return new OrderLineExpression(this, $it ->  ((OrderLine)$it).updateSku(sku));
     }
 
     public Expression<T, Integer> getQuantity(){
-       return apply(OrderLine::getQuantity);
+       return loaded("quantity", "getQuantity", OrderLine::getQuantity);
     }
     public OrderLineExpression<T, U, U> updateQuantity(Integer quantity){
        return new OrderLineExpression(this, $it ->  ((OrderLine)$it).updateQuantity(quantity));
     }
 
     public CommercePlatformExpression<T, U, CommercePlatform> getCommercePlatform(){
-       return new CommercePlatformExpression(this, $it ->  ((OrderLine)$it).getCommercePlatform());
+       return new CommercePlatformExpression(loaded("commerce_platform", "getCommercePlatform", OrderLine::getCommercePlatform));
     }
 
     public OrderLineExpression<T, U, U> updateCommercePlatform(CommercePlatform commercePlatform){
@@ -86,7 +86,7 @@ public class OrderLineExpression<T, E, U extends OrderLine> extends ExpressionAd
     }
 
     public Expression<T, LocalDateTime> getCreateTime(){
-       return apply(OrderLine::getCreateTime);
+       return loaded("create_time", "getCreateTime", OrderLine::getCreateTime);
     }
     public OrderLineExpression<T, U, U> updateCreateTime(LocalDateTime createTime){
        return new OrderLineExpression(this, $it ->  ((OrderLine)$it).updateCreateTime(createTime));

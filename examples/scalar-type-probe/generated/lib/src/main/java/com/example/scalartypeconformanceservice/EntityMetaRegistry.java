@@ -27,8 +27,11 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       entityDescriptor.setTargetType(com.example.scalartypeconformanceservice.typeplatform.TypePlatform.class);
       entityDescriptor.setEntitySupplier(com.example.scalartypeconformanceservice.typeplatform.TypePlatform::new);
       entityDescriptor.with("name", "Type Platform")
+
       .with("module", "Type Conformance")
-      .with("module_key", "type-conformance");
+
+      .with("module_key", "type-conformance")
+      ;
 
       entityDescriptor.setAuditMaskFields(java.util.List.of());
       PropertyDescriptor id = 
@@ -42,54 +45,99 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       ;
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.typeplatform.TypePlatform.ID_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.typeplatform.TypePlatform.ID_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "false")
+
       .with("oracle_sqlType", "number(11)")
+
       .with("javaType", "java.lang.Long")
+
       .with("sqlType", "BIGINT")
+
       .with("isId", "true")
+
       .with("isBaseEntityField", "true")
+
       .with("isBool", "false")
+
       .with("isNumber", "false")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("snowflake_sqlType", "number")
+
       .with("graphqlType", "Long")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.typeplatform.TypePlatform.NAME_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.typeplatform.TypePlatform.NAME_PROPERTY).with("isPassword", "false")
+
       .with("max", "100")
+
       .with("isVersion", "false")
+
       .with("javaType", "java.lang.String")
+
       .with("candidates", "Scalar Type Conformance")
+
       .with("sqlType", "VARCHAR(<max>)")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("isString", "true")
+
       .with("isDate", "false")
+
       .with("graphqlType", "String")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.typeplatform.TypePlatform.VERSION_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.typeplatform.TypePlatform.VERSION_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "true")
+
       .with("oracle_sqlType", "number(11)")
+
       .with("javaType", "java.lang.Long")
+
       .with("sqlType", "BIGINT")
+
       .with("isId", "false")
+
       .with("isBaseEntityField", "true")
+
       .with("isBool", "false")
+
       .with("isNumber", "false")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("snowflake_sqlType", "number")
+
       .with("graphqlType", "Long")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       $factory.register(entityDescriptor);
   }
@@ -100,8 +148,11 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       entityDescriptor.setTargetType(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.class);
       entityDescriptor.setEntitySupplier(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe::new);
       entityDescriptor.with("name", "Scalar Type Probe")
+
       .with("module", "Type Conformance")
-      .with("module_key", "type-conformance");
+
+      .with("module_key", "type-conformance")
+      ;
 
       entityDescriptor.setAuditMaskFields(java.util.List.of());
       PropertyDescriptor id = 
@@ -184,433 +235,822 @@ public class EntityMetaRegistry implements EntityMetaAssembler {
       ;
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.ID_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.ID_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "false")
+
       .with("oracle_sqlType", "number(11)")
+
       .with("javaType", "java.lang.Long")
+
       .with("sqlType", "BIGINT")
+
       .with("isId", "true")
+
       .with("isBaseEntityField", "true")
+
       .with("isBool", "false")
+
       .with("isNumber", "false")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("snowflake_sqlType", "number")
+
       .with("graphqlType", "Long")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.TYPE_PLATFORM_PROPERTY).with("required", "true");
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.REQUIRED_STRING_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.REQUIRED_STRING_PROPERTY).with("isPassword", "false")
+
       .with("max", "100")
+
       .with("isVersion", "false")
+
       .with("javaType", "java.lang.String")
+
       .with("sqlType", "VARCHAR(<max>)")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("isString", "true")
+
       .with("isDate", "false")
+
       .with("graphqlType", "String")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.OPTIONAL_STRING_PROPERTY).with("isPassword", "false")
+
       .with("max", "100")
+
       .with("isVersion", "false")
+
       .with("optional", "true")
+
       .with("javaType", "java.lang.String")
+
       .with("sqlType", "VARCHAR(<max>)")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("isString", "true")
+
       .with("isDate", "false")
+
       .with("graphqlType", "String")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.LARGE_TEXT_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "false")
+
       .with("optional", "true")
+
       .with("javaType", "java.lang.String")
+
       .with("sqlType", "LARGE_TEXT")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("isString", "true")
+
       .with("isDate", "false")
+
       .with("graphqlType", "String")
+
       .with("isText", "true")
-      .with("isTime", "false");
+
+      .with("isTime", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.REQUIRED_BOOLEAN_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.REQUIRED_BOOLEAN_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "false")
+
       .with("oracle_sqlType", "number(1)")
+
       .with("javaType", "java.lang.Boolean")
+
       .with("sqlType", "BOOLEAN")
+
       .with("isId", "false")
+
       .with("isBool", "true")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("mssql_sqlType", "bit")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("graphqlType", "Boolean")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.OPTIONAL_BOOLEAN_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "false")
+
       .with("optional", "true")
+
       .with("oracle_sqlType", "number(1)")
+
       .with("javaType", "java.lang.Boolean")
+
       .with("sqlType", "BOOLEAN")
+
       .with("isId", "false")
+
       .with("isBool", "true")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("mssql_sqlType", "bit")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("graphqlType", "Boolean")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.REQUIRED_INTEGER_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.REQUIRED_INTEGER_PROPERTY).with("isPassword", "false")
+
       .with("db2_sqlType", "decimal(19,7)")
+
       .with("isVersion", "false")
+
       .with("oracle_sqlType", "number(19,7)")
+
       .with("javaType", "java.lang.Integer")
+
       .with("sqlType", "INTEGER")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "true")
+
       .with("isInt", "true")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("graphqlType", "Int")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.OPTIONAL_INTEGER_PROPERTY).with("isPassword", "false")
+
       .with("db2_sqlType", "decimal(19,7)")
+
       .with("isVersion", "false")
+
       .with("optional", "true")
+
       .with("oracle_sqlType", "number(19,7)")
+
       .with("javaType", "java.lang.Integer")
+
       .with("sqlType", "INTEGER")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "true")
+
       .with("isInt", "true")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("graphqlType", "Int")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.REQUIRED_LONG_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.REQUIRED_LONG_PROPERTY).with("isPassword", "false")
+
       .with("db2_sqlType", "decimal(19,7)")
+
       .with("isVersion", "false")
+
       .with("oracle_sqlType", "number(11)")
+
       .with("javaType", "java.lang.Long")
+
       .with("sqlType", "BIGINT")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "true")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("snowflake_sqlType", "number")
+
       .with("graphqlType", "Long")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.OPTIONAL_LONG_PROPERTY).with("isPassword", "false")
+
       .with("db2_sqlType", "decimal(19,7)")
+
       .with("isVersion", "false")
+
       .with("optional", "true")
+
       .with("oracle_sqlType", "number(11)")
+
       .with("javaType", "java.lang.Long")
+
       .with("sqlType", "BIGINT")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "true")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("snowflake_sqlType", "number")
+
       .with("graphqlType", "Long")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.REQUIRED_DECIMAL_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.REQUIRED_DECIMAL_PROPERTY).with("isPassword", "false")
+
       .with("db2_sqlType", "decimal(19,7)")
+
       .with("isVersion", "false")
+
       .with("oracle_sqlType", "number(19,7)")
+
       .with("javaType", "java.math.BigDecimal")
+
       .with("sqlType", "NUMERIC(19,7)")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "true")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("graphqlType", "BigDecimal")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.OPTIONAL_DECIMAL_PROPERTY).with("isPassword", "false")
+
       .with("db2_sqlType", "decimal(19,7)")
+
       .with("isVersion", "false")
+
       .with("optional", "true")
+
       .with("oracle_sqlType", "number(19,7)")
+
       .with("javaType", "java.math.BigDecimal")
+
       .with("sqlType", "NUMERIC(19,7)")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "true")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("graphqlType", "BigDecimal")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.REQUIRED_FLOAT_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.REQUIRED_FLOAT_PROPERTY).with("isPassword", "false")
+
       .with("db2_sqlType", "decimal(19,7)")
+
       .with("isVersion", "false")
+
       .with("isFloat", "true")
+
       .with("oracle_sqlType", "binary_float")
+
       .with("javaType", "java.lang.Float")
+
       .with("sqlType", "REAL")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "true")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("graphqlType", "Float")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.OPTIONAL_FLOAT_PROPERTY).with("isPassword", "false")
+
       .with("db2_sqlType", "decimal(19,7)")
+
       .with("isVersion", "false")
+
       .with("optional", "true")
+
       .with("isFloat", "true")
+
       .with("oracle_sqlType", "binary_float")
+
       .with("javaType", "java.lang.Float")
+
       .with("sqlType", "REAL")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "true")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("graphqlType", "Float")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.REQUIRED_DOUBLE_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.REQUIRED_DOUBLE_PROPERTY).with("isPassword", "false")
+
       .with("db2_sqlType", "decimal(19,7)")
+
       .with("isVersion", "false")
+
       .with("oracle_sqlType", "binary_double")
+
       .with("javaType", "java.lang.Double")
+
       .with("sqlType", "DOUBLE PRECISION")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "true")
+
       .with("mssql_sqlType", "FLOAT")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("mysql_sqlType", "DOUBLE")
+
       .with("graphqlType", "Float")
+
       .with("isTime", "false")
+
       .with("isText", "false")
-      .with("isDouble", "true");
+
+      .with("isDouble", "true")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.OPTIONAL_DOUBLE_PROPERTY).with("isPassword", "false")
+
       .with("db2_sqlType", "decimal(19,7)")
+
       .with("isVersion", "false")
+
       .with("optional", "true")
+
       .with("oracle_sqlType", "binary_double")
+
       .with("javaType", "java.lang.Double")
+
       .with("sqlType", "DOUBLE PRECISION")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "true")
+
       .with("mssql_sqlType", "FLOAT")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("mysql_sqlType", "DOUBLE")
+
       .with("graphqlType", "Float")
+
       .with("isTime", "false")
+
       .with("isText", "false")
-      .with("isDouble", "true");
+
+      .with("isDouble", "true")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.REQUIRED_DATE_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.REQUIRED_DATE_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "false")
+
       .with("javaType", "java.time.LocalDate")
+
       .with("sqlType", "DATE")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("isDate", "true")
+
       .with("isString", "false")
+
       .with("graphqlType", "Date")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.OPTIONAL_DATE_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "false")
+
       .with("optional", "true")
+
       .with("javaType", "java.time.LocalDate")
+
       .with("sqlType", "DATE")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("isDate", "true")
+
       .with("isString", "false")
+
       .with("graphqlType", "Date")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.REQUIRED_TIME_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.REQUIRED_TIME_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "false")
+
       .with("javaType", "java.time.LocalTime")
+
       .with("sqlType", "TIME")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("graphqlType", "Time")
+
       .with("isTime", "true")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.OPTIONAL_TIME_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "false")
+
       .with("optional", "true")
+
       .with("javaType", "java.time.LocalTime")
+
       .with("sqlType", "TIME")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("graphqlType", "Time")
+
       .with("isTime", "true")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.REQUIRED_DATETIME_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.REQUIRED_DATETIME_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "false")
+
       .with("javaType", "java.time.LocalDateTime")
+
       .with("sqlType", "TIMESTAMP")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("mssql_sqlType", "dateTime")
+
       .with("isDateTime", "true")
+
       .with("isDate", "true")
+
       .with("isString", "false")
+
       .with("graphqlType", "LocalTime")
+
       .with("isTime", "true")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.OPTIONAL_DATETIME_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "false")
+
       .with("optional", "true")
+
       .with("javaType", "java.time.LocalDateTime")
+
       .with("sqlType", "TIMESTAMP")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("mssql_sqlType", "dateTime")
+
       .with("isDateTime", "true")
+
       .with("isDate", "true")
+
       .with("isString", "false")
+
       .with("graphqlType", "LocalTime")
+
       .with("isTime", "true")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.CREATE_TIME_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.CREATE_TIME_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "false")
+
       .with("javaType", "java.time.LocalDateTime")
+
       .with("sqlType", "TIMESTAMP")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("mssql_sqlType", "dateTime")
+
       .with("isDateTime", "true")
+
       .with("createFunction", "now")
+
       .with("isDate", "true")
+
       .with("isString", "false")
+
       .with("graphqlType", "LocalTime")
+
       .with("isTime", "true")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.UPDATE_TIME_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.UPDATE_TIME_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "false")
+
       .with("updateFunction", "now")
+
       .with("javaType", "java.time.LocalDateTime")
+
       .with("sqlType", "TIMESTAMP")
+
       .with("isId", "false")
+
       .with("isBool", "false")
+
       .with("isBaseEntityField", "false")
+
       .with("isNumber", "false")
+
       .with("mssql_sqlType", "dateTime")
+
       .with("isDateTime", "true")
+
       .with("createFunction", "now")
+
       .with("isDate", "true")
+
       .with("isString", "false")
+
       .with("graphqlType", "LocalTime")
+
       .with("isTime", "true")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.VERSION_PROPERTY).with("required", "true");
       entityDescriptor.findProperty(com.example.scalartypeconformanceservice.scalartypeprobe.ScalarTypeProbe.VERSION_PROPERTY).with("isPassword", "false")
+
       .with("isVersion", "true")
+
       .with("oracle_sqlType", "number(11)")
+
       .with("javaType", "java.lang.Long")
+
       .with("sqlType", "BIGINT")
+
       .with("isId", "false")
+
       .with("isBaseEntityField", "true")
+
       .with("isBool", "false")
+
       .with("isNumber", "false")
+
       .with("isString", "false")
+
       .with("isDate", "false")
+
       .with("snowflake_sqlType", "number")
+
       .with("graphqlType", "Long")
+
       .with("isTime", "false")
-      .with("isText", "false");
+
+      .with("isText", "false")
+      ;
 
       $factory.register(entityDescriptor);
   }

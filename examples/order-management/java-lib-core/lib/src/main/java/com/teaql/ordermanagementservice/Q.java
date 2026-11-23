@@ -12,12 +12,14 @@ public class Q  {
   }
 
 
+
   public static com.teaql.ordermanagementservice.customer.CustomerRequest<com.teaql.ordermanagementservice.customer.Customer> customers(){
       return new com.teaql.ordermanagementservice.customer.CustomerRequest(com.teaql.ordermanagementservice.customer.Customer.class).selectSelf().withVersion(Operator.GREATER_THAN, 0l);
   }
   public static com.teaql.ordermanagementservice.customer.CustomerRequest<com.teaql.ordermanagementservice.customer.Customer> customersWithMinimalFields(){
       return new com.teaql.ordermanagementservice.customer.CustomerRequest(com.teaql.ordermanagementservice.customer.Customer.class).withVersion(Operator.GREATER_THAN, 0l);
   }
+
 
 
   public static com.teaql.ordermanagementservice.orderstatus.OrderStatusRequest<com.teaql.ordermanagementservice.orderstatus.OrderStatus> orderStatuses(){
@@ -28,12 +30,14 @@ public class Q  {
   }
 
 
+
   public static com.teaql.ordermanagementservice.customerorder.CustomerOrderRequest<com.teaql.ordermanagementservice.customerorder.CustomerOrder> customerOrders(){
       return new com.teaql.ordermanagementservice.customerorder.CustomerOrderRequest(com.teaql.ordermanagementservice.customerorder.CustomerOrder.class).selectSelf().withVersion(Operator.GREATER_THAN, 0l);
   }
   public static com.teaql.ordermanagementservice.customerorder.CustomerOrderRequest<com.teaql.ordermanagementservice.customerorder.CustomerOrder> customerOrdersWithMinimalFields(){
       return new com.teaql.ordermanagementservice.customerorder.CustomerOrderRequest(com.teaql.ordermanagementservice.customerorder.CustomerOrder.class).withVersion(Operator.GREATER_THAN, 0l);
   }
+
 
 
   public static com.teaql.ordermanagementservice.product.ProductRequest<com.teaql.ordermanagementservice.product.Product> products(){
@@ -44,6 +48,7 @@ public class Q  {
   }
 
 
+
   public static com.teaql.ordermanagementservice.orderline.OrderLineRequest<com.teaql.ordermanagementservice.orderline.OrderLine> orderLines(){
       return new com.teaql.ordermanagementservice.orderline.OrderLineRequest(com.teaql.ordermanagementservice.orderline.OrderLine.class).selectSelf().withVersion(Operator.GREATER_THAN, 0l);
   }
@@ -52,12 +57,14 @@ public class Q  {
   }
 
 
+
   public static com.teaql.ordermanagementservice.ordersearchpreset.OrderSearchPresetRequest<com.teaql.ordermanagementservice.ordersearchpreset.OrderSearchPreset> orderSearchPresets(){
       return new com.teaql.ordermanagementservice.ordersearchpreset.OrderSearchPresetRequest(com.teaql.ordermanagementservice.ordersearchpreset.OrderSearchPreset.class).selectSelf().withVersion(Operator.GREATER_THAN, 0l);
   }
   public static com.teaql.ordermanagementservice.ordersearchpreset.OrderSearchPresetRequest<com.teaql.ordermanagementservice.ordersearchpreset.OrderSearchPreset> orderSearchPresetsWithMinimalFields(){
       return new com.teaql.ordermanagementservice.ordersearchpreset.OrderSearchPresetRequest(com.teaql.ordermanagementservice.ordersearchpreset.OrderSearchPreset.class).withVersion(Operator.GREATER_THAN, 0l);
   }
+
 
 
 }

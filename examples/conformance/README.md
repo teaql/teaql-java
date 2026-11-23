@@ -1,5 +1,8 @@
 # Java minimum runtime conformance example
 
+`model.xml` owns `java-lib-core` and `java-app-console`. The original application and Spring transaction business source now live in the native workspace. `bash examples/conformance/verify.sh` uses source-built runtime/domain artifacts with isolated offline Maven, runs both lifecycle and eight Spring scenarios twice on retained databases, and removes owned scratch. See `showcase.json` for actual qualification state.
+
+
 This retained SQLite workspace is generated from `model.xml`. It verifies
 explicit `ensureSchema`, Checker rejection before persistence, Create, typed Q
 and `SmartList`, E loaded/null/not-loaded semantics, Update/version, and Delete.

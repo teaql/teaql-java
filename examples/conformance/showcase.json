@@ -1,0 +1,58 @@
+{
+  "generatedDomainLibraryHandEdited": false,
+  "goalId": "java:examples/conformance",
+  "library": {
+    "generatedFilesManifestSHA256": "77e4e26185f8bd2e7f9254222d1295df8cf5a59d5d7e847cba4abbc520e8c7e9",
+    "root": "java-lib-core",
+    "scope": "java-lib-core"
+  },
+  "model": {
+    "path": "model.xml",
+    "sha256": "0a59f66db2487fdd0430087dd5985ae780225c088ad800679cb57c593c6bcee7"
+  },
+  "producer": {
+    "generator": {
+      "artifactKind": "qualified source build; not a public release",
+      "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+      "qualificationReceiptSHA256": "5119b9f3a5c95fb84f527885fdd5bac0fe79a56352a55b8acf116f67fd12787d",
+      "sourceCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+      "tag": "unreleased-source-021b1ed8"
+    },
+    "receipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/work-item-generation/receipt.json",
+    "receiptSHA256": "99afd2b0806d9aec86d271cd5154f9447b895e9f3a5e69f2e95468bcd8a1644a"
+  },
+  "qualification": {
+    "businessReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-work-item-native-scopes/runtime/conformance/business-receipt.json",
+    "businessReceiptSHA256": "e34a8d4de0960105de315925e610fed0520e3de4841987bfa0091244afbf8d56",
+    "nativeReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-work-item-native-scopes/receipt.json",
+    "nativeReceiptSHA256": "bbb8e47e2d37b6231bcae00959fc6ef1303fcc13b0e75904e3ba81f270a400c4",
+    "remainingFullRuntimeInventory": true,
+    "sourceCommit": "af7e8b4ada69c18c07f08b1dcf5a3b120bfc6fc3"
+  },
+  "relatedShowcases": [
+    "natural-messages/showcase.json",
+    "context-derived/showcase.json"
+  ],
+  "scene": "WorkItem governed lifecycle and workspace-owned Spring transaction business scenarios",
+  "schema": "teaql.model-workspace-showcase/v1",
+  "status": "focused-verified",
+  "verification": [
+    "bash",
+    "verify.sh"
+  ],
+  "workspace": {
+    "applicationOwnedFiles": [
+      "pom.xml",
+      "Makefile",
+      "showcase-tests/GeneratedSpringTransactionTest.java",
+      "src/main/java/com/teaql/runtimeexampleconformanceservice/WorkspaceTeaQLDatabase.java",
+      "src/main/java/com/teaql/runtimeexampleconformanceservice/App.java",
+      "src/main/java/com/teaql/runtimeexampleconformanceservice/CustomUserContext.java",
+      "src/main/resources/application.properties"
+    ],
+    "generatedFilesManifestSHA256": "da19ce1214da1fee5a30f8b68d6a9c51cca7ce30adf6297f15d0f2619b0de254",
+    "root": "java-app-console",
+    "scope": "java-app-console",
+    "useSiblingMavenLibrary": true
+  }
+}

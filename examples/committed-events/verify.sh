@@ -33,15 +33,15 @@ repo, scratch = map(Path, sys.argv[1:])
 standard_order = repo / 'examples/standard-order'
 library = scratch / 'library'
 application = scratch / 'application'
-shutil.copytree(standard_order / 'generated/lib', library, ignore=shutil.ignore_patterns('target'))
-shutil.copytree(standard_order / 'src', application / 'src')
+shutil.copytree(standard_order / 'java-lib-core/lib', library, ignore=shutil.ignore_patterns('target'))
+shutil.copytree(standard_order / 'java-app-console/src', application / 'src')
 
 namespace = 'http://maven.apache.org/POM/4.0.0'
 ET.register_namespace('', namespace)
 def tag(name):
     return '{' + namespace + '}' + name
 
-project = ET.parse(standard_order / 'pom.xml')
+project = ET.parse(standard_order / 'java-app-console/pom.xml')
 parent = project.getroot().find(tag('parent'))
 parent.find(tag('relativePath')).text = os.path.relpath(repo / 'pom.xml', application)
 project.write(application / 'pom.xml', encoding='utf-8', xml_declaration=True)
@@ -63,7 +63,7 @@ console.log(pin(path.join(scratch, 'library/pom.xml'), repo, scratch).version);
 NODE
 )"
 generated_library_hash() {
-  (cd "$repo/examples/standard-order" && rg --files generated/lib -g '!target/**' \
+  (cd "$repo/examples/standard-order" && rg --files java-lib-core/lib -g '!target/**' \
     | LC_ALL=C sort | xargs -d '\n' sha256sum)
 }
 generated_library_hash > "$evidence/generated-before.sha256"

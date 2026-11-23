@@ -8,6 +8,7 @@ import io.teaql.core.EntityStatus;
 import io.teaql.core.FieldLayout;
 import io.teaql.core.FrameworkInternal;
 import io.teaql.core.RemoteInput;
+import io.teaql.core.checker.JsonFieldNamingProfile;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -36,7 +37,8 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     public static final FieldLayout __TEAQL_FIELD_LAYOUT =
         FieldLayout.installGenerated(FieldLayout.generated(
             ScalarTypeProbe.class, __TEAQL_FIELD_LAYOUT_REVISION,
-            __TEAQL_FIXED_FIELD_INDEXES, __TEAQL_FIXED_FIELD_MAPPINGS, __TEAQL_FIXED_RELATION_NAMES));
+            __TEAQL_FIXED_FIELD_INDEXES, __TEAQL_FIXED_FIELD_MAPPINGS, __TEAQL_FIXED_RELATION_NAMES,
+            JsonFieldNamingProfile.fromModelValue("camelCase")));
 
 
     public static final String TYPE_PLATFORM_PROPERTY = "type_platform";
@@ -209,7 +211,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateTypePlatform(TypePlatform typePlatform){
-        if(Objects.equals(this.typePlatform, typePlatform)){
+        if(isPropertyLoaded(TYPE_PLATFORM_PROPERTY) && Objects.equals(this.typePlatform, typePlatform)){
             return this;
         }
         handleUpdate(TYPE_PLATFORM_PROPERTY, getTypePlatform(), typePlatform);
@@ -219,7 +221,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
 
     public ScalarTypeProbe updateRequiredString(String requiredString){
         requiredString = (requiredString == null ? null : requiredString.trim());
-        if(Objects.equals(this.requiredString, requiredString)){
+        if(isPropertyLoaded(REQUIRED_STRING_PROPERTY) && Objects.equals(this.requiredString, requiredString)){
             return this;
         }
         handleUpdate(REQUIRED_STRING_PROPERTY, getRequiredString(), requiredString);
@@ -229,7 +231,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
 
     public ScalarTypeProbe updateOptionalString(String optionalString){
         optionalString = (optionalString == null ? null : optionalString.trim());
-        if(Objects.equals(this.optionalString, optionalString)){
+        if(isPropertyLoaded(OPTIONAL_STRING_PROPERTY) && Objects.equals(this.optionalString, optionalString)){
             return this;
         }
         handleUpdate(OPTIONAL_STRING_PROPERTY, getOptionalString(), optionalString);
@@ -238,7 +240,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateLargeText(String largeText){
-        if(Objects.equals(this.largeText, largeText)){
+        if(isPropertyLoaded(LARGE_TEXT_PROPERTY) && Objects.equals(this.largeText, largeText)){
             return this;
         }
         handleUpdate(LARGE_TEXT_PROPERTY, getLargeText(), largeText);
@@ -247,7 +249,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateRequiredBoolean(Boolean requiredBoolean){
-        if(Objects.equals(this.requiredBoolean, requiredBoolean)){
+        if(isPropertyLoaded(REQUIRED_BOOLEAN_PROPERTY) && Objects.equals(this.requiredBoolean, requiredBoolean)){
             return this;
         }
         handleUpdate(REQUIRED_BOOLEAN_PROPERTY, isRequiredBoolean(), requiredBoolean);
@@ -256,7 +258,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateOptionalBoolean(Boolean optionalBoolean){
-        if(Objects.equals(this.optionalBoolean, optionalBoolean)){
+        if(isPropertyLoaded(OPTIONAL_BOOLEAN_PROPERTY) && Objects.equals(this.optionalBoolean, optionalBoolean)){
             return this;
         }
         handleUpdate(OPTIONAL_BOOLEAN_PROPERTY, isOptionalBoolean(), optionalBoolean);
@@ -265,7 +267,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateRequiredInteger(Integer requiredInteger){
-        if(Objects.equals(this.requiredInteger, requiredInteger)){
+        if(isPropertyLoaded(REQUIRED_INTEGER_PROPERTY) && Objects.equals(this.requiredInteger, requiredInteger)){
             return this;
         }
         handleUpdate(REQUIRED_INTEGER_PROPERTY, getRequiredInteger(), requiredInteger);
@@ -274,7 +276,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateOptionalInteger(Integer optionalInteger){
-        if(Objects.equals(this.optionalInteger, optionalInteger)){
+        if(isPropertyLoaded(OPTIONAL_INTEGER_PROPERTY) && Objects.equals(this.optionalInteger, optionalInteger)){
             return this;
         }
         handleUpdate(OPTIONAL_INTEGER_PROPERTY, getOptionalInteger(), optionalInteger);
@@ -283,7 +285,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateRequiredLong(Long requiredLong){
-        if(Objects.equals(this.requiredLong, requiredLong)){
+        if(isPropertyLoaded(REQUIRED_LONG_PROPERTY) && Objects.equals(this.requiredLong, requiredLong)){
             return this;
         }
         handleUpdate(REQUIRED_LONG_PROPERTY, getRequiredLong(), requiredLong);
@@ -292,7 +294,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateOptionalLong(Long optionalLong){
-        if(Objects.equals(this.optionalLong, optionalLong)){
+        if(isPropertyLoaded(OPTIONAL_LONG_PROPERTY) && Objects.equals(this.optionalLong, optionalLong)){
             return this;
         }
         handleUpdate(OPTIONAL_LONG_PROPERTY, getOptionalLong(), optionalLong);
@@ -301,7 +303,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateRequiredDecimal(BigDecimal requiredDecimal){
-        if(Objects.equals(this.requiredDecimal, requiredDecimal)){
+        if(isPropertyLoaded(REQUIRED_DECIMAL_PROPERTY) && Objects.equals(this.requiredDecimal, requiredDecimal)){
             return this;
         }
         handleUpdate(REQUIRED_DECIMAL_PROPERTY, getRequiredDecimal(), requiredDecimal);
@@ -310,7 +312,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateOptionalDecimal(BigDecimal optionalDecimal){
-        if(Objects.equals(this.optionalDecimal, optionalDecimal)){
+        if(isPropertyLoaded(OPTIONAL_DECIMAL_PROPERTY) && Objects.equals(this.optionalDecimal, optionalDecimal)){
             return this;
         }
         handleUpdate(OPTIONAL_DECIMAL_PROPERTY, getOptionalDecimal(), optionalDecimal);
@@ -319,7 +321,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateRequiredFloat(Float requiredFloat){
-        if(Objects.equals(this.requiredFloat, requiredFloat)){
+        if(isPropertyLoaded(REQUIRED_FLOAT_PROPERTY) && Objects.equals(this.requiredFloat, requiredFloat)){
             return this;
         }
         handleUpdate(REQUIRED_FLOAT_PROPERTY, getRequiredFloat(), requiredFloat);
@@ -328,7 +330,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateOptionalFloat(Float optionalFloat){
-        if(Objects.equals(this.optionalFloat, optionalFloat)){
+        if(isPropertyLoaded(OPTIONAL_FLOAT_PROPERTY) && Objects.equals(this.optionalFloat, optionalFloat)){
             return this;
         }
         handleUpdate(OPTIONAL_FLOAT_PROPERTY, getOptionalFloat(), optionalFloat);
@@ -337,7 +339,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateRequiredDouble(Double requiredDouble){
-        if(Objects.equals(this.requiredDouble, requiredDouble)){
+        if(isPropertyLoaded(REQUIRED_DOUBLE_PROPERTY) && Objects.equals(this.requiredDouble, requiredDouble)){
             return this;
         }
         handleUpdate(REQUIRED_DOUBLE_PROPERTY, getRequiredDouble(), requiredDouble);
@@ -346,7 +348,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateOptionalDouble(Double optionalDouble){
-        if(Objects.equals(this.optionalDouble, optionalDouble)){
+        if(isPropertyLoaded(OPTIONAL_DOUBLE_PROPERTY) && Objects.equals(this.optionalDouble, optionalDouble)){
             return this;
         }
         handleUpdate(OPTIONAL_DOUBLE_PROPERTY, getOptionalDouble(), optionalDouble);
@@ -355,7 +357,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateRequiredDate(LocalDate requiredDate){
-        if(Objects.equals(this.requiredDate, requiredDate)){
+        if(isPropertyLoaded(REQUIRED_DATE_PROPERTY) && Objects.equals(this.requiredDate, requiredDate)){
             return this;
         }
         handleUpdate(REQUIRED_DATE_PROPERTY, getRequiredDate(), requiredDate);
@@ -364,7 +366,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateOptionalDate(LocalDate optionalDate){
-        if(Objects.equals(this.optionalDate, optionalDate)){
+        if(isPropertyLoaded(OPTIONAL_DATE_PROPERTY) && Objects.equals(this.optionalDate, optionalDate)){
             return this;
         }
         handleUpdate(OPTIONAL_DATE_PROPERTY, getOptionalDate(), optionalDate);
@@ -373,7 +375,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateRequiredTime(LocalTime requiredTime){
-        if(Objects.equals(this.requiredTime, requiredTime)){
+        if(isPropertyLoaded(REQUIRED_TIME_PROPERTY) && Objects.equals(this.requiredTime, requiredTime)){
             return this;
         }
         handleUpdate(REQUIRED_TIME_PROPERTY, getRequiredTime(), requiredTime);
@@ -382,7 +384,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateOptionalTime(LocalTime optionalTime){
-        if(Objects.equals(this.optionalTime, optionalTime)){
+        if(isPropertyLoaded(OPTIONAL_TIME_PROPERTY) && Objects.equals(this.optionalTime, optionalTime)){
             return this;
         }
         handleUpdate(OPTIONAL_TIME_PROPERTY, getOptionalTime(), optionalTime);
@@ -391,7 +393,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateRequiredDatetime(LocalDateTime requiredDatetime){
-        if(Objects.equals(this.requiredDatetime, requiredDatetime)){
+        if(isPropertyLoaded(REQUIRED_DATETIME_PROPERTY) && Objects.equals(this.requiredDatetime, requiredDatetime)){
             return this;
         }
         handleUpdate(REQUIRED_DATETIME_PROPERTY, getRequiredDatetime(), requiredDatetime);
@@ -400,7 +402,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateOptionalDatetime(LocalDateTime optionalDatetime){
-        if(Objects.equals(this.optionalDatetime, optionalDatetime)){
+        if(isPropertyLoaded(OPTIONAL_DATETIME_PROPERTY) && Objects.equals(this.optionalDatetime, optionalDatetime)){
             return this;
         }
         handleUpdate(OPTIONAL_DATETIME_PROPERTY, getOptionalDatetime(), optionalDatetime);
@@ -409,7 +411,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateCreateTime(LocalDateTime createTime){
-        if(Objects.equals(this.createTime, createTime)){
+        if(isPropertyLoaded(CREATE_TIME_PROPERTY) && Objects.equals(this.createTime, createTime)){
             return this;
         }
         handleUpdate(CREATE_TIME_PROPERTY, getCreateTime(), createTime);
@@ -418,7 +420,7 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
     }
 
     public ScalarTypeProbe updateUpdateTime(LocalDateTime updateTime){
-        if(Objects.equals(this.updateTime, updateTime)){
+        if(isPropertyLoaded(UPDATE_TIME_PROPERTY) && Objects.equals(this.updateTime, updateTime)){
             return this;
         }
         handleUpdate(UPDATE_TIME_PROPERTY, getUpdateTime(), updateTime);
@@ -535,7 +537,36 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
             case "optional_datetime": return this.optionalDatetime;
             case "create_time": return this.createTime;
             case "update_time": return this.updateTime;
-            default: return super.__internalGet(property);
+            default:
+                // Presentation uses the installed Java member mapping; SQL and
+                // hydration retain canonical names. These aliases only read.
+                switch (property) {
+                    case "typePlatform": return this.typePlatform;
+                    case "requiredString": return this.requiredString;
+                    case "optionalString": return this.optionalString;
+                    case "largeText": return this.largeText;
+                    case "requiredBoolean": return this.requiredBoolean;
+                    case "optionalBoolean": return this.optionalBoolean;
+                    case "requiredInteger": return this.requiredInteger;
+                    case "optionalInteger": return this.optionalInteger;
+                    case "requiredLong": return this.requiredLong;
+                    case "optionalLong": return this.optionalLong;
+                    case "requiredDecimal": return this.requiredDecimal;
+                    case "optionalDecimal": return this.optionalDecimal;
+                    case "requiredFloat": return this.requiredFloat;
+                    case "optionalFloat": return this.optionalFloat;
+                    case "requiredDouble": return this.requiredDouble;
+                    case "optionalDouble": return this.optionalDouble;
+                    case "requiredDate": return this.requiredDate;
+                    case "optionalDate": return this.optionalDate;
+                    case "requiredTime": return this.requiredTime;
+                    case "optionalTime": return this.optionalTime;
+                    case "requiredDatetime": return this.requiredDatetime;
+                    case "optionalDatetime": return this.optionalDatetime;
+                    case "createTime": return this.createTime;
+                    case "updateTime": return this.updateTime;
+                    default: return super.__internalGet(property);
+                }
         }
     }
 

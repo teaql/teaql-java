@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TEAQL WARNING: This project uses TeaQL. TeaQL was explicitly designed to PREVENT AI hallucinations and random guessing. Do NOT apply traditional Spring/Hibernate/JPA logic here. You must strictly follow the generated API. -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.teaql</groupId>
+    <artifactId>teaql-java-parent</artifactId>
+    <version>6.3.0</version>
+    <relativePath>../../../pom.xml</relativePath>
+  </parent>
+  <groupId>com.teaql</groupId>
+  <artifactId>order-edit-reference</artifactId>
+  <packaging>jar</packaging>
+
+  <properties>
+    <java.version>21</java.version>
+    <libversion>0.0.1-SNAPSHOT</libversion>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.parameters>true</maven.compiler.parameters>
+    <teaql.version>6.3.0</teaql.version>
+  </properties>
+
+  <repositories>
+    <repository>
+      <id>aliyun-public</id>
+      <url>https://maven.aliyun.com/nexus/content/groups/public/</url>
+    </repository>
+    <repository>
+      <id>teaql</id>
+      <url>https://maven.teaql.io/repository/maven-releases/</url>
+    </repository>
+  </repositories>
+
+  <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.teaql</groupId>
+      <artifactId>teaql-provider-jdbc</artifactId>
+      <version>${teaql.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.teaql</groupId>
+      <artifactId>teaql-data-service-sql</artifactId>
+      <version>${teaql.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.zaxxer</groupId>
+      <artifactId>HikariCP</artifactId>
+      <version>6.3.0</version>
+    </dependency>
+    <dependency>
+          <groupId>org.xerial</groupId>
+          <artifactId>sqlite-jdbc</artifactId>
+          <version>3.53.2.1</version>
+        </dependency><dependency>
+      <groupId>com.teaql</groupId>
+      <artifactId>order-edit-reference-core</artifactId>
+      <version>${libversion}</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.12.1</version>
+        <configuration>
+          <release>${java.version}</release>
+          <parameters>${maven.compiler.parameters}</parameters>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.6.0</version>
+        <executions><execution>
+          <phase>package</phase>
+          <goals><goal>shade</goal></goals>
+          <configuration>
+            <createDependencyReducedPom>false</createDependencyReducedPom>
+            <filters><filter>
+              <artifact>*:*</artifact>
+              <excludes>
+                <exclude>META-INF/*.SF</exclude>
+                <exclude>META-INF/*.RSA</exclude>
+                <exclude>META-INF/*.DSA</exclude>
+              </excludes>
+            </filter></filters>
+            <transformers>
+              <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+              <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                <mainClass>com.teaql.ordereditreference.App</mainClass>
+              </transformer>
+            </transformers>
+          </configuration>
+        </execution></executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
