@@ -589,7 +589,11 @@ public class TeaQLRuntime implements AutoCloseable {
                                 realEntities.get(key).dynamicFields().metadata())));
             });
             Map<EntityKey, io.teaql.data.dynamic.DynamicFieldValues> dynamicReadbacks = dynamicRequests.isEmpty() ? Collections.emptyMap() : new HashMap<>();
-            var completion = new GraphCompletion();
+            var completion = new GraphCompletion(() -> {
+                entityMutationLedger.markCommittedStateRequiresReload();
+                realEntities.values().forEach(target ->
+                        target.getEntityMutationLedger().markCommittedStateRequiresReload());
+            });
             Runnable rollback = captureGraphRollback(realEntities.values());
             Runnable fenceUnknown = () -> {
                 entityMutationLedger.markTransactionOutcomeUnknownRequiresReload();
@@ -599,6 +603,7 @@ public class TeaQLRuntime implements AutoCloseable {
             List<PendingMutation> completed;
             try {
                 if (mutationExecutor instanceof TransactionExecutor transactionExecutor) {
+                    boolean ownsPhysicalTransaction = transactionExecutor.ownsNextPhysicalTransaction(context);
                     completed = transactionExecutor.executeInTransaction(context, () -> {
                         completion.synchronizedTransaction = transactionExecutor.registerTransactionSynchronization(
                                 context, completion::deliver, rollback, fenceUnknown);
@@ -641,7 +646,12 @@ public class TeaQLRuntime implements AutoCloseable {
                                 entityMutationLedger, true);
                         if (completion.synchronizedTransaction) {
                             prepareCommittedAudits(context, results, completion);
-                            completeGraphPlan(results, dynamicReadbacks, realEntities, entityMutationLedger);
+                            // A joined save must present authoritative versions to later saves in
+                            // the same transaction. An owned save may reconcile after durable commit.
+                            Runnable reconcile = () -> completeGraphPlan(results, dynamicReadbacks,
+                                    realEntities, entityMutationLedger);
+                            if (ownsPhysicalTransaction) completion.reconcile = reconcile;
+                            else reconcile.run();
                         }
                         return results;
                     });
@@ -672,21 +682,10 @@ public class TeaQLRuntime implements AutoCloseable {
                 throw failure;
             }
             if (!completion.synchronizedTransaction) {
-                CommittedStateReconciliationException reconciliationOutcome = null;
-                try {
-                    prepareCommittedAudits(context, completed, completion);
-                    completeGraphPlan(completed, dynamicReadbacks, realEntities, entityMutationLedger);
-                } catch (RuntimeException failure) {
-                    entityMutationLedger.markCommittedStateRequiresReload();
-                    reconciliationOutcome = new CommittedStateReconciliationException();
-                }
-                try {
-                    completion.deliver();
-                } catch (AuditDeliveryAfterCommitException failure) {
-                    if (reconciliationOutcome == null) throw failure;
-                    reconciliationOutcome.addSuppressed(failure);
-                }
-                if (reconciliationOutcome != null) throw reconciliationOutcome;
+                prepareCommittedAudits(context, completed, completion);
+                completion.reconcile = () -> completeGraphPlan(completed, dynamicReadbacks,
+                        realEntities, entityMutationLedger);
+                completion.deliver();
             }
             telemetryScope.success();
         } catch (RuntimeException | Error error) {
@@ -1311,10 +1310,23 @@ public class TeaQLRuntime implements AutoCloseable {
     }
 
     private static final class GraphCompletion {
-        boolean synchronizedTransaction;
+        final Runnable fenceReconciliationFailure;
         final List<java.util.function.IntSupplier> audits = new ArrayList<>();
+        boolean synchronizedTransaction;
+        Runnable reconcile = () -> {};
+
+        GraphCompletion(Runnable fenceReconciliationFailure) {
+            this.fenceReconciliationFailure = fenceReconciliationFailure;
+        }
+
         void deliver() {
             Throwable failure = null;
+            try {
+                reconcile.run();
+            } catch (RuntimeException error) {
+                fenceReconciliationFailure.run();
+                failure = new CommittedStateReconciliationException();
+            }
             int failedDeliveries = 0;
             for (var audit : audits) {
                 try { failedDeliveries += audit.getAsInt(); }
@@ -1322,9 +1334,13 @@ public class TeaQLRuntime implements AutoCloseable {
                     if (failure == null) failure = error; else if (failure != error) failure.addSuppressed(error);
                 }
             }
+            if (failedDeliveries != 0) {
+                var auditFailure = new AuditDeliveryAfterCommitException(failedDeliveries);
+                if (failure == null) failure = auditFailure;
+                else failure.addSuppressed(auditFailure);
+            }
             if (failure instanceof Error error) throw error;
             if (failure instanceof RuntimeException error) throw error;
-            if (failedDeliveries != 0) throw new AuditDeliveryAfterCommitException(failedDeliveries);
         }
     }
 
