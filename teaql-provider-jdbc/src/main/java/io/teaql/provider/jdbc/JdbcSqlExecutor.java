@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.stream.Stream;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.logging.Logger;
 
 public class JdbcSqlExecutor implements SqlExecutionAdapter {
@@ -25,6 +26,7 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
     private static final long MAX_SQLITE_DECIMAL_TEXT_LENGTH = 1_000_000L;
 
     private final DataSource dataSource;
+    private Predicate<SQLException> confirmedCommitRejection = failure -> false;
     private volatile boolean ordinaryMutationsReadOnly;
     // A held view retains only this token, not the executor, connection or DataSource.
     private final Object storageIdentity = new Object();
@@ -38,6 +40,11 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
 
     public JdbcSqlExecutor(DataSource dataSource) {
         this.dataSource = dataSource;
+    }
+
+    @io.teaql.core.FrameworkInternal("Dialect-owned classification of a definitive physical commit rejection")
+    public void setConfirmedCommitRejection(Predicate<SQLException> classifier) {
+        confirmedCommitRejection = java.util.Objects.requireNonNull(classifier);
     }
 
     @Override
@@ -521,14 +528,16 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
                     // The database may have committed before the driver lost the
                     // acknowledgement. Conversely, restoring autoCommit without a
                     // rollback can commit a transaction the driver never attempted.
-                    outcomeUnknown = true;
-                    warnTransactionCleanup("commit confirmation", false, true);
+                    outcomeUnknown = !isConfirmedCommitRejection(commitFailure);
                     try {
                         connection.rollback();
                     } catch (SQLException | RuntimeException | Error rollbackFailure) {
+                        outcomeUnknown = true;
                         rollbackUnconfirmed = true;
-                        warnTransactionCleanup("rollback after unconfirmed commit", false, true);
+                        warnTransactionCleanup("rollback after unsuccessful commit", false, true);
                     }
+                    if (!outcomeUnknown) throw commitFailure;
+                    warnTransactionCleanup("commit confirmation", false, true);
                     throw commitFailure instanceof Error
                             ? new TransactionOutcomeUnknownException((Error) commitFailure)
                             : new TransactionOutcomeUnknownException();
@@ -603,6 +612,15 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
         if (failure instanceof Error error) throw error;
         if (failure instanceof RuntimeException error) throw error;
         if (failure != null) throw new RuntimeException("JDBC transaction failed", failure);
+    }
+
+    private boolean isConfirmedCommitRejection(Throwable failure) {
+        if (!(failure instanceof SQLException sqlFailure)) return false;
+        try {
+            return confirmedCommitRejection.test(sqlFailure);
+        } catch (RuntimeException | Error classifierFailure) {
+            return false;
+        }
     }
 
     private static void warnTransactionCleanup(String operation, boolean committed, boolean outcomeUnknown) {
