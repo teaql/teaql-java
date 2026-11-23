@@ -37,7 +37,7 @@ public class BusinessIdRuntimeExampleTest {
         private OrderNumber orderNumber;
 
         private Order(long id) {
-            updateId(id);
+            __internalSet("id", id);
         }
 
         @Override
