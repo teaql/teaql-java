@@ -31,7 +31,7 @@ public class SecretProviderExampleTest {
         private String name = "original";
 
         private LedgerProbe(long id) {
-            updateId(id);
+            __internalInitializeNewEntityId(id);
         }
 
         private void updateName(String replacement) {
