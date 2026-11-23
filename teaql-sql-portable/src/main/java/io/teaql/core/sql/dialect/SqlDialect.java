@@ -1,11 +1,15 @@
 package io.teaql.core.sql.dialect;
 
 import io.teaql.core.SearchRequest;
+import io.teaql.core.AggrFunction;
+import io.teaql.core.sql.SQLColumn;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 public interface SqlDialect {
+    /** Type a statistical scalar projection without rewriting its bind value. */
+    default String statisticalOperandSql(String sql,Class<?> type){return sql;}
     /**
      * Escape an identifier (table name, column name) to avoid SQL keyword conflicts.
      */
@@ -53,6 +57,36 @@ public interface SqlDialect {
     default String mapColumnType(String type) {
         return type;
     }
+
+    /** Physical type plus column-local constraints needed by a provider. */
+    default String columnTypeAndConstraintsSql(SQLColumn column) {
+        return mapColumnType(column.getType());
+    }
+
+    /** Override only when a provider needs an exact Decimal aggregate. */
+    default String decimalAggregateSql(AggrFunction function, String columnSql, boolean directColumn) {
+        return null;
+    }
+
+    /** Decode an exact modeled Decimal aggregate without binary-float fallback. */
+    default Object decodeDecimalAggregate(Object value) {
+        return value;
+    }
+
+    /** Restore exact numeric ordering after a provider's Decimal aggregate returns text. */
+    default String decimalOrderSql(String sql) {
+        return sql;
+    }
+
+    default String gbkOrderSql(String sql) {
+        throw new io.teaql.core.TeaQLRuntimeException("GBK ordering is unsupported by this SQL dialect");
+    }
+
+    /** Preserve integer parameter types when a provider overload needs a hint. */
+    default String bitwiseParameterSql(String sql) {return sql;}
+
+    /** Providers with exact text-backed numbers can reject approximate thresholds before binding. */
+    default void validateDecimalComparisonOperand(Object value) {}
 
     /**
      * Compare the storage families reported by the provider with the type selected for the model.

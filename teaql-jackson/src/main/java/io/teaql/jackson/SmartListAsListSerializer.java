@@ -19,6 +19,8 @@ public class SmartListAsListSerializer extends StdSerializer<SmartList> {
     public void serialize(SmartList value, JsonGenerator gen, SerializerProvider provider)
             throws IOException {
         List<?> data = value.getData();
-        gen.writePOJO(data);
+        // Reuse the active provider's cycle path and scalar serializers even
+        // when the generator is a TokenBuffer (ObjectMapper.valueToTree).
+        provider.defaultSerializeValue(data, gen);
     }
 }

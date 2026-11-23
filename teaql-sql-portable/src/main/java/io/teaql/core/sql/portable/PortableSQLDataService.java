@@ -87,7 +87,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                     repository.doAggregateInternal(context, (SearchRequest) searchRequest, intent);
             return new DefaultQueryResult(new SmartList<>(), aggregation, statements);
         }
-        SmartList<?> result = repository.loadInternal(context, (SearchRequest) searchRequest, intent);
+        SmartList<? extends Entity> result = repository.loadInternal(context, (SearchRequest) searchRequest, intent);
         
         if (searchRequest.enhanceRelations() != null && !searchRequest.enhanceRelations().isEmpty()) {
             enhanceRelations(context, (SmartList<Entity>) result, searchRequest, intent);
@@ -99,11 +99,11 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         return new DefaultQueryResult((SmartList<Entity>) result, null, statements);
     }
 
-    private void attachDynamicFields(UserContext context, SmartList<?> results, SearchRequest<?> request) {
+    private void attachDynamicFields(UserContext context, SmartList<? extends Entity> results, SearchRequest<?> request) {
         attachDynamicFields(context, results, request, new java.util.HashMap<>());
     }
 
-    private void attachDynamicFields(UserContext context, SmartList<?> results, SearchRequest<?> request,
+    private void attachDynamicFields(UserContext context, SmartList<? extends Entity> results, SearchRequest<?> request,
             Map<LoadState, Map<Set<String>, LoadState>> shapes) {
         var selection = request.getDynamicFieldSelection();
         if (selection == null || results.isEmpty()) return;
@@ -194,8 +194,9 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             AggregationResult aggregation =
                     aggregateRepository.doAggregateInternal(userContext, request, intent == null ? null : intent.copy());
             if (attribute.isSingleNumber()) {
+                Number emptyValue = emptySingleAggregateValue(aggregateRequest);
                 for (Entity parent : parentsById.values()) {
-                    parent.addDynamicProperty(attribute.getName(), 0);
+                    parent.addDynamicProperty(attribute.getName(), emptyValue);
                 }
                 aggregation
                         .toSimpleMap()
@@ -217,6 +218,17 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                 }
             }
         }
+    }
+
+    private static Number emptySingleAggregateValue(SearchRequest<?> request) {
+        var expressions = request.getAggregations().getAggregates();
+        // Keep the main-branch empty-bucket policy for all scalar aggregates:
+        // implicit/explicit COUNT is zero; value aggregates have no value.
+        boolean count = expressions.isEmpty() || expressions.size() == 1
+                && expressions.get(0).getExpression() instanceof AggrExpression aggregate
+                && (aggregate.getOperator() == AggrFunction.COUNT
+                    || aggregate.getOperator() == AggrFunction.COUNT_DISTINCT);
+        return count ? 0 : null;
     }
 
     private SqlDiagnosticRequest dynamicAggregateRequest(SearchRequest<?> aggregateRequest,
@@ -451,13 +463,13 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             }
         }
         // A successful explicit selection must materialize even an empty list.
-        // Use the shared typed empty payload; availability stays in the parent's
-        // private view, and no mutation ledger is created by this hydration.
+        // A selected relation is an owner-local mutable collection: generated
+        // add-child APIs append to it. Share availability/layout, not the value
+        // container. The typed shared-empty singleton remains read-only.
         if (relation.getType() != null && SmartList.class.isAssignableFrom(relation.getType().javaType())) {
-            Class<? extends Entity> childType = reverseProperty.getOwner().getTargetType();
             for (Entity parent : dataSet) {
                 if (parent.getProperty(relation.getName()) == null) {
-                    parent.setProperty(relation.getName(), SmartList.empty(childType));
+                    parent.setProperty(relation.getName(), new SmartList<>(0));
                 }
             }
         }
@@ -525,6 +537,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
         }
         EntityPersistenceMutation mutation = (EntityPersistenceMutation) request;
         Entity entity = mutation.getEntity();
+        long nextVersion = MutationVersions.next(mutationKind(mutation), entity.getVersion());
         String typeName = entity.typeName();
         PortableSQLRepository repository = getRepository(typeName);
         // Local to this mutation, never stored on context or a shared repository.
@@ -549,17 +562,17 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                 repository.createInternal(context, Collections.singletonList(entity), readbackIntent, trace);
             } else if (entity.updateItem()) {
                 repository.updateInternal(context, Collections.singletonList(entity), readbackIntent, trace);
-                ((BaseEntity) entity).__internalSet("version", entity.getVersion() + 1);
+                ((BaseEntity) entity).__internalSet("version", nextVersion);
             } else if (entity.recoverItem()) {
                 repository.recoverInternal(context, Collections.singletonList(entity), readbackIntent, trace);
-                ((BaseEntity) entity).__internalSet("version", -entity.getVersion() + 1);
+                ((BaseEntity) entity).__internalSet("version", nextVersion);
             }
             if (entity instanceof BaseEntity) {
                 ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);
             }
         } else if (mutation.getAction() == EntityPersistenceMutation.Action.DELETE) {
             repository.deleteInternal(context, Collections.singletonList(entity), readbackIntent, trace);
-            ((BaseEntity) entity).__internalSet("version", -(entity.getVersion() + 1));
+            ((BaseEntity) entity).__internalSet("version", nextVersion);
             if (entity instanceof BaseEntity) {
                 ((BaseEntity) entity).gotoNextStatus(EntityAction.PERSIST);
             }
@@ -592,6 +605,8 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                 || !batchOperation(item).equals(operation))) {
             throw new TeaQLRuntimeException("Portable SQL prepared batch requires one entity type and mutation operation");
         }
+        // Admit every original before the first transaction, ID allocation or write.
+        var nextVersions = items.stream().map(item -> MutationVersions.next(mutationKind(item), item.getEntity().getVersion())).toList();
         return executeInTransaction(context, () -> {
             PortableSQLRepository repository = getRepository(type);
             var redactions = new SqlIntentRedactions();
@@ -630,9 +645,7 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
                 var item = items.get(index);
                 var entity = (BaseEntity) item.getEntity();
                 if (!operation.equals("insert")) {
-                    long version = entity.getVersion();
-                    entity.__internalSet("version", operation.equals("delete") ? -(version + 1)
-                            : operation.equals("recover") ? -version + 1 : version + 1);
+                    entity.__internalSet("version", nextVersions.get(index));
                 }
                 entity.gotoNextStatus(EntityAction.PERSIST);
                 Entity persisted = repository.loadPersistedById(context, entity.getId(), redactions,
@@ -653,6 +666,15 @@ public class PortableSQLDataService implements DataServiceExecutor, QueryExecuto
             if (entity.recoverItem()) return "recover";
         }
         throw new TeaQLRuntimeException("Prepared mutation member has no executable persistence state");
+    }
+
+    private MutationOperationKind mutationKind(EntityPersistenceMutation item) {
+        return switch (batchOperation(item)) {
+            case "insert" -> MutationOperationKind.CREATE;
+            case "delete" -> MutationOperationKind.DELETE;
+            case "recover" -> MutationOperationKind.RECOVER;
+            default -> MutationOperationKind.UPDATE;
+        };
     }
 
     @Override

@@ -1,0 +1,13 @@
+{
+  "schema": "teaql.generated-example-provenance/v1",
+  "generatorCommit": "c1304f73e0ea0eb0bdbad6fd1ebdada16e3dbe12",
+  "upstreamTest": "com.skynet.codegenerator.JavaNaturalMessagesGenerationTest",
+  "fixtureOutputProperty": "teaql.java.natural.fixture.output",
+  "scope": "java-lib-core",
+  "runtimeDependency": "local repository source",
+  "modelSha256": "6e7bc9313817b3ebe452a0080c2e073d289362f450304b709f6bc794cd8e7f68",
+  "generationReceipt": "teaql-conformance/evidence/2026-11-12-natural-checker-java-generation-first/receipt.json",
+  "generationReceiptSha256": "535a7a4bd0fb153a7bb5b3032127bbf67db43789d56bdb1535bb2fb7127af05f",
+  "implementationHandEdited": false,
+  "publicPublication": false
+}

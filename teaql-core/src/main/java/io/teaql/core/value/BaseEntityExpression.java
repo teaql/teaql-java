@@ -17,6 +17,10 @@ public interface BaseEntityExpression<T, U extends BaseEntity> extends Expressio
 		return new LoadedPropertyExpression<>(this, property, getter);
 	}
 
+    default <V> Expression<T, V> loaded(String property, String method, Function<U, V> getter) {
+        return new LoadedPropertyExpression<>(this, property, method, getter);
+    }
+
     default Expression<T, U> save(UserContext userContext) {
         return apply(entity -> {
             entity.auditAs("save via expression").save(userContext);

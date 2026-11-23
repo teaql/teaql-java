@@ -109,6 +109,43 @@ public class TeaQLRuntimeTest {
         }
     }
 
+    public static class SubtypeView extends DummyEntity {
+        @Override public String typeName() { return "SubtypeView"; }
+    }
+
+    @Test
+    public void subtypeMarkerCannotSelectACheckerForAnotherMaterializedView() {
+        DummyChecker parentChecker = new DummyChecker();
+        AtomicInteger childCalls = new AtomicInteger();
+        Checker<SubtypeView> childChecker = new Checker<>() {
+            @Override public String type() { return "SubtypeView"; }
+            @Override public void checkAndFix(UserContext context, SubtypeView entity, ObjectLocation location) {
+                childCalls.incrementAndGet();
+                requiredCheck(context, newLocation(location, "name"), null);
+            }
+        };
+        var runtime = TeaQLRuntime.builder().metadata(new DummyMetaFactory()).build()
+                .install(RuntimeModule.of().withCheckers(parentChecker, childChecker));
+        var context = new DefaultUserContext(runtime);
+        var parent = new DummyEntity();
+        parent.__internalSet("id", 1L); parent.__internalSet("version", 1L);
+        parent.set$status(EntityStatus.UPDATED); parent.setComment("Check the actual parent view");
+        parent.setRuntimeType("SubtypeView");
+        var parentError = Assert.assertThrows(CheckException.class, () -> runtime.saveGraph(context, parent));
+        Assert.assertEquals(1, parentChecker.calls);
+        Assert.assertEquals(0, childCalls.get());
+        Assert.assertEquals("Dummy", parentError.getViolates().get(0).getRootType());
+
+        var child = new SubtypeView();
+        child.__internalSet("id", 2L); child.__internalSet("version", 1L);
+        child.set$status(EntityStatus.UPDATED); child.setComment("Check the actual subtype view");
+        // A marker that looks like its parent cannot downgrade the subtype checker.
+        child.setRuntimeType("Dummy");
+        var childError = Assert.assertThrows(CheckException.class, () -> runtime.saveGraph(context, child));
+        Assert.assertEquals(1, childCalls.get());
+        Assert.assertEquals("SubtypeView", childError.getViolates().get(0).getRootType());
+    }
+
     public static class DummyQueryExecutor implements QueryExecutor {
         @Override
         public QueryResult query(UserContext context, QueryRequest request) {
@@ -355,6 +392,7 @@ public class TeaQLRuntimeTest {
                 .build();
         ContainerEntity root = new ContainerEntity();
         root.__internalSet("id", 910L);
+        root.__internalSet("version", 1L);
         root.set$status(EntityStatus.PERSISTED);
         DummyEntity child = changedEntity(911L, "child change");
         root.updateProperty("rel1", child);
@@ -477,9 +515,12 @@ public class TeaQLRuntimeTest {
                 .install(RuntimeModule.of().withCheckers(checker));
         var context = new DefaultUserContext(runtime);
         var root = new DummyEntity(); root.name = "complete parent";
+        root.__internalSet("id", 1L); root.__internalSet("version", 1L);
         root.set$status(EntityStatus.UPDATED); root.setComment("check modified descendants");
         root.child = new DummyEntity(); root.child.set$status(EntityStatus.PERSISTED);
+        root.child.__internalSet("id", 2L); root.child.__internalSet("version", 1L);
         root.child.child = new DummyEntity(); root.child.child.set$status(EntityStatus.UPDATED);
+        root.child.child.__internalSet("id", 3L); root.child.child.__internalSet("version", 1L);
         // Cycle exercises the independent persistence walk's identity boundary.
         root.child.child.child = root;
         var error = Assert.assertThrows(CheckException.class, () -> runtime.saveGraph(context, root));
@@ -632,7 +673,9 @@ public class TeaQLRuntimeTest {
         Assert.assertEquals(2, executor.requests.size());
         Assert.assertFalse(executor.requests.get(0).hasSimpleAgg());
         Assert.assertTrue(executor.requests.get(1).hasSimpleAgg());
-        Assert.assertSame(executor.requests.get(0).getSearchCriteria(),
+        Assert.assertEquals(executor.requests.get(0).getSearchCriteria(),
+                executor.requests.get(1).getSearchCriteria());
+        Assert.assertNotSame(executor.requests.get(0).getSearchCriteria(),
                 executor.requests.get(1).getSearchCriteria());
     }
 
@@ -667,7 +710,12 @@ public class TeaQLRuntimeTest {
         Assert.assertEquals(1, policyCalls.get());
         Assert.assertNotSame(request, executor.request);
         Assert.assertNotNull(executor.request.getSearchCriteria());
-        Assert.assertSame("typed policy enrichment is retained in the frozen execution", request.getSearchCriteria(), executor.request.getSearchCriteria());
+        Assert.assertEquals("typed policy enrichment is retained in the frozen execution", request.getSearchCriteria(), executor.request.getSearchCriteria());
+        Assert.assertNotSame("The provider receives an independent policy AST", request.getSearchCriteria(), executor.request.getSearchCriteria());
+        ((io.teaql.core.FunctionApply) request.getSearchCriteria()).getExpressions().set(1,
+                new io.teaql.core.Parameter("status", "INACTIVE", Operator.EQUAL));
+        Assert.assertEquals("ACTIVE", ((io.teaql.core.Parameter)
+                ((io.teaql.core.FunctionApply) executor.request.getSearchCriteria()).second()).getValue());
         Assert.assertEquals(request.comment(), executor.request.inheritedQueryIntent().comment());
     }
 
@@ -904,12 +952,14 @@ public class TeaQLRuntimeTest {
 
         DummyEntity e1 = new DummyEntity(); // to delete
         e1.__internalSet("id", 101L);
+        e1.__internalSet("version", 1L);
         e1.set$status(EntityStatus.PERSISTED);
         e1.setEntityMutationLedger(root);
         e1.markForDeletion();
 
         DummyEntity e2 = new DummyEntity(); // to update
         e2.__internalSet("id", 102L);
+        e2.__internalSet("version", 1L);
         e2.set$status(EntityStatus.PERSISTED);
         e2.setEntityMutationLedger(root);
         e2.updateProperty("name", "updated");
@@ -923,24 +973,25 @@ public class TeaQLRuntimeTest {
 
         DummyEntity e4 = new DummyEntity(); // to delete only
         e4.__internalSet("id", 104L);
+        e4.__internalSet("version", 1L);
         e4.set$status(EntityStatus.PERSISTED);
         e4.setEntityMutationLedger(root);
         e4.markForDeletion();
         
-        java.util.Map<EntityKey, BaseEntity> realEntities = new java.util.HashMap<>();
-        realEntities.put(new EntityKey("Dummy", 101L), e1);
-        realEntities.put(new EntityKey("Dummy", 102L), e2);
-        realEntities.put(new EntityKey("Dummy", 103L), e3);
-        realEntities.put(new EntityKey("Dummy", 104L), e4);
-
-        java.lang.reflect.Method method = TeaQLRuntime.class.getDeclaredMethod(
-            "executeLedgerPlan", UserContext.class, EntityMutationLedger.class,
-            MutationExecutor.class, java.util.Map.class, MutationGovernanceSnapshot.class, MutationIntent.class,
-            java.util.Map.class, MutationTraceScope.class);
-        method.setAccessible(true);
-        method.invoke(runtime, new DefaultUserContext(runtime), root, executor, realEntities, null,
-                MutationIntent.of("root comment"), java.util.Map.of(),
-                MutationTraceScope.append(null, "Dummy", null, "root comment"));
+        // Exercise public graph admission, review and execution rather than a
+        // private helper signature. Hydration attaches the already-owned graph
+        // without turning the unchanged container into another write.
+        ContainerEntity graph = new ContainerEntity();
+        graph.__internalSet("id", 200L);
+        graph.__internalSet("version", 1L);
+        graph.set$status(EntityStatus.PERSISTED);
+        graph.setEntityMutationLedger(root);
+        graph.__internalSet("rel1", e1);
+        graph.__internalSet("rel2", e2);
+        graph.__internalSet("rel3", e3);
+        graph.__internalSet("rel4", e4);
+        graph.setComment("root comment");
+        runtime.saveGraph(new DefaultUserContext(runtime), graph);
 
         List<EntityPersistenceMutation> requests = executor.requests;
 
@@ -971,8 +1022,10 @@ public class TeaQLRuntimeTest {
         Assert.assertFalse(saves.stream().anyMatch(r -> r.getEntity().getId().equals(104L))); // 104 shouldn't be saved
         
         Assert.assertTrue(requests.stream().allMatch(r -> "root comment".equals(r.getEntity().getComment())));
-        // The current change set is not cleared by executeLedgerPlan, it's cleared by saveGraph, so we can't test that here unless we do it.
-        // I will omit that check or just check saveGraph does it.
+        Assert.assertEquals("Only the four changed children are written", 4, requests.size());
+        Assert.assertTrue(root.currentChangeSet().changes().isEmpty());
+        Assert.assertTrue(root.newKeys().isEmpty());
+        Assert.assertTrue(root.deletedKeys().isEmpty());
     }
 
     @Test
@@ -985,18 +1038,22 @@ public class TeaQLRuntimeTest {
 
         ContainerEntity rootEntity = new ContainerEntity();
         rootEntity.__internalSet("id", 1L);
+        rootEntity.__internalSet("version", 1L);
         rootEntity.set$status(EntityStatus.PERSISTED);
 
         DummyEntity toOneChild = new DummyEntity();
         toOneChild.__internalSet("id", 2L);
+        toOneChild.__internalSet("version", 1L);
         toOneChild.set$status(EntityStatus.PERSISTED);
         
         DummyEntity listChild1 = new DummyEntity();
         listChild1.__internalSet("id", 3L);
+        listChild1.__internalSet("version", 1L);
         listChild1.set$status(EntityStatus.PERSISTED);
 
         DummyEntity listChild2 = new DummyEntity();
         listChild2.__internalSet("id", 4L);
+        listChild2.__internalSet("version", 1L);
         listChild2.set$status(EntityStatus.PERSISTED);
         
         rootEntity.updateProperty("rel1", toOneChild);
@@ -1031,12 +1088,14 @@ public class TeaQLRuntimeTest {
 
         DummyEntity first = new DummyEntity();
         first.__internalSet("id", 11L);
+        first.__internalSet("version", 1L);
         first.set$status(EntityStatus.PERSISTED);
         first.updateProperty("name", "save me");
         first.setComment("save first graph only");
 
         DummyEntity independent = new DummyEntity();
         independent.__internalSet("id", 22L);
+        independent.__internalSet("version", 1L);
         independent.set$status(EntityStatus.PERSISTED);
         independent.updateProperty("name", "keep pending");
 
@@ -1070,12 +1129,14 @@ public class TeaQLRuntimeTest {
 
         DummyEntity failing = new DummyEntity();
         failing.__internalSet("id", 31L);
+        failing.__internalSet("version", 1L);
         failing.set$status(EntityStatus.PERSISTED);
         failing.updateProperty("name", "must remain pending");
         failing.setComment("fail this graph");
 
         DummyEntity independent = new DummyEntity();
         independent.__internalSet("id", 32L);
+        independent.__internalSet("version", 1L);
         independent.set$status(EntityStatus.PERSISTED);
         independent.updateProperty("name", "independent pending");
 

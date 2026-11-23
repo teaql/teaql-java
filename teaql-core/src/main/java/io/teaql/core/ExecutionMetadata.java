@@ -18,6 +18,7 @@ public final class ExecutionMetadata {
     private String debugQuery;
     private List<TraceNode> traceChain;
     private List<TraceNode> requestTraceChain = List.of();
+    private List<QueryRequestTraceNode> requestTree = List.of();
     private List<TraceNode> mutationLineage = List.of();
     private String statementOperation;
     private String comment;
@@ -116,6 +117,9 @@ public final class ExecutionMetadata {
     public List<TraceNode> getRequestTraceChain() { return requestTraceChain; }
     @com.fasterxml.jackson.annotation.JsonProperty("traceChain")
     public void setRequestTraceChain(List<TraceNode> trace) { requestTraceChain = trace == null ? List.of() : List.copyOf(trace); }
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY)
+    public List<QueryRequestTraceNode> getRequestTree() { return requestTree; }
+    public void setRequestTree(List<QueryRequestTraceNode> nodes) { requestTree = nodes == null ? List.of() : List.copyOf(nodes); }
     @com.fasterxml.jackson.annotation.JsonProperty("tracePath")
     public List<TraceNode> getTracePath() { return traceChain == null ? List.of() : traceChain; }
 

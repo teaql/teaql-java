@@ -29,13 +29,25 @@ public final class CheckerInvocation implements AutoCloseable {
     private final UserContext context;
     private final CheckerInvocation parent;
     private final boolean mutationOnly;
+    private final io.teaql.core.checker.CheckerPresentation.Model presentationModel;
+    private final String presentationOrigin;
+    private final java.util.Set<String> presentationWarnings = new java.util.HashSet<>();
     private final Map<String, Object> attributes = new HashMap<>();
     private boolean closed;
+    private List<String> diagnosticSecrets;
 
-    private CheckerInvocation(UserContext context, boolean mutationOnly) {
+    /** Transient synchronous diagnostics only; never retained on UserContext or returned errors. */
+    List<String> diagnosticSecrets() {
+        if (diagnosticSecrets == null) diagnosticSecrets = new ArrayList<>();
+        return diagnosticSecrets;
+    }
+
+    private CheckerInvocation(UserContext context, boolean mutationOnly, String presentationOrigin) {
         this.context = java.util.Objects.requireNonNull(context, "context");
         this.parent = ACTIVE.get();
         this.mutationOnly = mutationOnly;
+        this.presentationOrigin = presentationOrigin;
+        this.presentationModel = context.checkerPresentationModel();
         attributes.put(Checker.TEAQL_DATA_CHECK_RESULT, new ArrayList<CheckResult>());
         attributes.put(Checker.TEAQL_DATA_CHECKED_ITEMS, new ArrayList<>());
         attributes.put(UserContext.TEAQL_FIX_EVIDENCE_CURRENT, new ArrayList<FixEvidence>());
@@ -46,13 +58,27 @@ public final class CheckerInvocation implements AutoCloseable {
 
     /** Internal synchronous runtime boundary; do not open scopes in business code. */
     public static CheckerInvocation open(UserContext context) {
-        return new CheckerInvocation(context, false);
+        return open(context, null);
+    }
+
+    public static CheckerInvocation open(UserContext context, String origin) {
+        return new CheckerInvocation(context, false, origin);
     }
 
     /** Save validates changed objects, not untouched partial reference details. */
     public static CheckerInvocation openMutation(UserContext context) {
-        return new CheckerInvocation(context, true);
+        return openMutation(context, null);
     }
+
+    public static CheckerInvocation openMutation(UserContext context, String origin) {
+        return new CheckerInvocation(context, true, origin);
+    }
+
+    public io.teaql.core.checker.CheckerPresentation presentation(io.teaql.core.checker.ObjectLocation location) {
+        return io.teaql.core.checker.CheckerPresentation.capture(presentationModel, presentationOrigin, location);
+    }
+
+    boolean firstPresentationWarning(String code) { return presentationWarnings.add(code); }
 
     public boolean mutationOnly() {
         return mutationOnly;
@@ -118,6 +144,8 @@ public final class CheckerInvocation implements AutoCloseable {
             if (parent == null) ACTIVE.remove();
             else ACTIVE.set(parent);
             attributes.clear();
+            if (diagnosticSecrets != null) diagnosticSecrets.clear();
+            presentationWarnings.clear();
             closed = true;
         }
     }

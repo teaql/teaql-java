@@ -1,0 +1,22 @@
+{
+  "schema": "teaql.natural-checker-example-generation/v1",
+  "command": [
+    "cargo-teaql",
+    "--input",
+    "model.xml",
+    "--output",
+    "fixture",
+    "java-lib-core"
+  ],
+  "cliVersion": "2.0.14",
+  "modelSha256": "ee15bf3c0a5867537456abea4935b85781eb56c5e7f5c9628bc4e3945ca90fb1",
+  "archiveSha256": "7df3f71c6a842b87c7547a4a3b006ebf2ea9c42f444aac2fdd79fa0c05cd5a3d",
+  "archiveBytes": 25728,
+  "archiveSourceEquality": true,
+  "provenance": {
+    "schemaVersion": 1,
+    "modelUuid": null,
+    "revisionHash": "sha256:3f21a8d130e4d3f3006fbdaf1ef336ab8b4db99932935b966f6be220293ad287",
+    "generatorVersion": "061eb063"
+  }
+}

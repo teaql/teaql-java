@@ -1,0 +1,15 @@
+{
+  "schema": "teaql.empty-aggregates/v1",
+  "scalarCases": [
+    {"id": "EA-01", "values": [], "countStar": 0, "countValue": 0, "sum": null},
+    {"id": "EA-02", "values": [null, null], "countStar": 2, "countValue": 0, "sum": null},
+    {"id": "EA-03", "values": [null, 2, -1, null], "countStar": 4, "countValue": 2, "sum": 1},
+    {"id": "EA-04", "values": [4, -4], "countStar": 2, "countValue": 2, "sum": 0}
+  ],
+  "bucketCases": [
+    {"id": "EA-05", "parents": [1], "children": [], "expected": [{"parent": 1, "count": 0, "sum": null}]},
+    {"id": "EA-06", "parents": [1, 2, 3, 4], "children": [{"parent": 1, "value": 2}, {"parent": 1, "value": -2}, {"parent": 2, "value": null}, {"parent": 3, "value": 7}], "expected": [{"parent": 1, "count": 2, "sum": 0}, {"parent": 2, "count": 1, "sum": null}, {"parent": 3, "count": 1, "sum": 7}, {"parent": 4, "count": 0, "sum": null}]}
+  ],
+  "explicitFallback": {"id": "EA-07", "raw": null, "default": 0, "result": 0, "rawRemains": null},
+  "emptyGrouped": {"id": "EA-08", "values": [], "rows": []}
+}

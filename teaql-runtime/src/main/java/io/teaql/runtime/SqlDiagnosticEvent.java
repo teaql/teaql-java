@@ -28,6 +28,7 @@ final class SqlDiagnosticEvent {
         put(attributes, "teaql.sql.result_count", safe.getResultCount());
         put(attributes, "teaql.sql.affected_rows", safe.getAffectedRows());
         put(attributes, "teaql.trace_chain", JSON.writeValueAsString(path(safe.getRequestTraceChain())));
+        if (!safe.getRequestTree().isEmpty()) put(attributes, "teaql.request_tree", JSON.writeValueAsString(safe.getRequestTree()));
         put(attributes, "teaql.trace_path", JSON.writeValueAsString(path(safe.getTracePath())));
         put(attributes, "teaql.mutation_lineage", JSON.writeValueAsString(path(safe.getMutationLineage())));
         return new RuntimeTelemetry.Diagnostic(raw.getSqlExecutionCorrelation(), attributes);

@@ -25,6 +25,17 @@ public class ChangeSetStack {
         stack.add(new EntityChangeSet());
     }
 
+    Runnable captureRollback() {
+        var saved = new ArrayList<EntityChangeSet>();
+        for (var current : stack) {
+            var copy = new EntityChangeSet();
+            current.changes().forEach((key, fields) -> fields.forEach((field, value) -> copy.set(key, field, value)));
+            current.dynamicChanges().forEach((key, fields) -> fields.values().forEach(value -> copy.setDynamic(key, value)));
+            saved.add(copy);
+        }
+        return () -> { stack.clear(); stack.addAll(saved); };
+    }
+
     public EntityChangeSet pop() {
         return stack.isEmpty() ? null : stack.remove(stack.size() - 1);
     }
@@ -37,6 +48,13 @@ public class ChangeSetStack {
             }
         }
         return null;
+    }
+
+    boolean contains(EntityKey key, String field) {
+        for (int i = stack.size() - 1; i >= 0; i--) {
+            if (stack.get(i).contains(key, field)) return true;
+        }
+        return false;
     }
 
     public void set(EntityKey key, String field, Object value) {
@@ -53,6 +71,17 @@ public class ChangeSetStack {
         for (EntityChangeSet changeSet : stack) {
             changeSet.clearEntity(key);
         }
+    }
+
+    // Like clearEntity, this is an explicit cancellation against the entity's
+    // persistent baseline, not a scope pop/rollback. No older intermediate value
+    // of this one field may reappear; other fields, keys and frames remain.
+    void clearField(EntityKey key, String field) {
+        for (EntityChangeSet changeSet : stack) changeSet.clearField(key, field);
+    }
+
+    void clearDynamicField(EntityKey key, String code) {
+        for (EntityChangeSet changeSet : stack) changeSet.clearDynamicField(key, code);
     }
 
     public Set<String> changedFieldNames(EntityKey key) {

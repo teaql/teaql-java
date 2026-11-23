@@ -34,6 +34,7 @@ public class MutationPlanner {
      * 3. Tracking property changes in the entity root
      */
     public EntityMutationLedger prepareEntity(UserContext ctx, Entity entity) {
+        MutationVersionAdmission.validateGraph(metadata, entity);
         EntityMutationLedger entityRoot = ((BaseEntity) entity).getEntityMutationLedger();
         mergeRelatedEntityRoots(entity, entityRoot);
 
@@ -58,6 +59,7 @@ public class MutationPlanner {
      */
     public void executePlan(UserContext ctx, EntityMutationLedger entityRoot, Entity entity,
                            MutationExecutor mutationExecutor) {
+        MutationVersionAdmission.validateGraph(metadata, entity);
         Map<EntityKey, BaseEntity> realEntities = new HashMap<>();
         collectRealEntities(entity, realEntities);
         executeLedgerPlan(ctx, entityRoot, mutationExecutor, realEntities);

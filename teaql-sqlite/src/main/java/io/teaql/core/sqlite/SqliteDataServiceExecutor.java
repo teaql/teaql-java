@@ -21,19 +21,50 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
             System.getLogger(SqliteDataServiceExecutor.class.getName());
     private final DataSource dataSource;
     private boolean soundexInstalled;
+    private boolean decimalInstalled;
 
     public SqliteDataServiceExecutor(String name, SqlExecutionAdapter executionAdapter, DataSource dataSource) {
         super(name, executionAdapter);
+        this.dialect = new SqliteDialect();
         this.debugDatabaseKind = "sqlite";
         this.topNRelationPlanPolicy = io.teaql.core.sql.portable.TopNRelationPlanPolicy.ALWAYS_PROBE;
         this.dataSource = dataSource;
+        installStatisticalInitializer(executionAdapter);
+    }
+
+    private static void installStatisticalInitializer(SqlExecutionAdapter adapter) {
+        if (!(adapter instanceof JdbcSqlExecutor jdbc)) return;
+        // Track physical connections, not short-lived pool wrappers. Weak keys
+        // avoid retaining discarded pool connections for the provider lifetime.
+        java.util.Set<java.sql.Connection> installed = java.util.Collections.newSetFromMap(
+                new java.util.WeakHashMap<>());
+        jdbc.addConnectionInitializer(connection -> {
+            try {
+                java.sql.Connection physical = connection instanceof org.sqlite.SQLiteConnection
+                        ? connection : connection.unwrap(org.sqlite.SQLiteConnection.class);
+                synchronized (installed) {
+                    if (!installed.contains(physical)) {
+                        SqliteStatisticalFunctions.register(physical);
+                        SqliteGbkFunctions.register(physical);
+                        installed.add(physical);
+                    }
+                }
+            } catch (java.sql.SQLException failure) {
+                throw new IllegalStateException("Unable to register SQLite statistical functions", failure);
+            }
+        });
     }
 
     @Override
     public void ensureSchema(UserContext context, io.teaql.core.SchemaExecutor.Invocation invocation) {
         io.teaql.core.SchemaExecutor.Invocation.requireContextOwned(invocation);
-        ensureSoundexOnEveryConnection();
         List<EntityDescriptor> descriptors = EntityMetaFactory.requireFrom(context).allEntityDescriptors();
+        if (descriptors.stream().flatMap(descriptor -> descriptor.getOwnProperties().stream())
+                .flatMap(property -> io.teaql.core.sql.portable.SQLPropertyUtil.getColumns(property).stream())
+                .anyMatch(this::isExactDecimalColumn)) {
+            ensureDecimalOnEveryConnection();
+        }
+        ensureSoundexOnEveryConnection();
 
         TeaQLDatabase dbAdapter = new TeaQLDatabase() {
             @Override
@@ -97,8 +128,47 @@ public class SqliteDataServiceExecutor extends SqlDataServiceExecutor {
 
         for (EntityDescriptor descriptor : descriptors) {
             PortableSQLRepository repository = new PortableSQLRepository(descriptor, dbAdapter, null);
+            repository.setDialect(dialect);
             repository.ensurePhysicalSchema(context);
+            for (var property : descriptor.getOwnProperties()) {
+                for (var column : io.teaql.core.sql.portable.SQLPropertyUtil.getColumns(property)) {
+                    if (isExactDecimalColumn(column)) {
+                        SqliteDecimalSchemaVerifier.verify(
+                                getExecutionAdapter(), column.getTableName(), column.getColumnName());
+                    }
+                }
+            }
         }
+    }
+
+    private boolean isExactDecimalColumn(io.teaql.core.sql.SQLColumn column) {
+        String mapped = dialect.mapColumnType(column.getType());
+        return mapped != null && mapped.toUpperCase(java.util.Locale.ROOT).startsWith("DECIMAL_TEXT");
+    }
+
+    private synchronized void ensureDecimalOnEveryConnection() {
+        if (decimalInstalled) return;
+        if (getExecutionAdapter() instanceof JdbcSqlExecutor jdbc) {
+            jdbc.addConnectionInitializer(connection -> {
+                try {
+                    SqliteDecimalFunctions.register(connection);
+                } catch (java.sql.SQLException failure) {
+                    throw new IllegalStateException("Unable to register SQLite exact Decimal functions", failure);
+                }
+            });
+        }
+        try {
+            getExecutionAdapter().queryForList(
+                    "SELECT teaql_decimal_valid('1') AS valid, "
+                            + "'1' = '1' COLLATE TEAQL_DECIMAL AS ordered, "
+                            + "teaql_decimal_sum(value) AS total FROM (SELECT '1' AS value)",
+                    new Object[0]);
+        } catch (RuntimeException missing) {
+            throw new IllegalStateException(
+                    "SQLite exact Decimal functions and collation must be registered on every connection",
+                    missing);
+        }
+        decimalInstalled = true;
     }
 
     private synchronized void ensureSoundexOnEveryConnection() {

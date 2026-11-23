@@ -436,6 +436,50 @@ public class PortableSQLDatabaseTest {
         }
     }
 
+    @Test
+    public void selectedEmptyReverseListsAreMutableAndOwnerLocalWithoutLedgerAllocation() {
+        registerTopNFixture();
+        TopNChildRequest child = new TopNChildRequest().where("state", Operator.EQUAL, "no-child-state");
+        child.selectProperty("id"); child.selectProperty("version"); child.offset(0, 2);
+        TopNParentRequest parent = new TopNParentRequest();
+        parent.selectProperty("id"); parent.selectProperty("version"); parent.selectProperty("name");
+        parent.addOrderByAscending("id"); parent.offset(0, 3); parent.enhanceRelation("children", child);
+        int writesBefore = sqliteDb.executeTrace().size();
+        SmartList<TopNParent> rows = parent.comment("Load three explicitly empty child lists")
+                .purpose("Verify mutable relation values remain private while load states are shared")
+                .executeForList(context);
+        assertEquals(3, rows.size());
+        SmartList<TopNChild> first = rows.get(0).getProperty("children");
+        SmartList<TopNChild> second = rows.get(1).getProperty("children");
+        SmartList<TopNChild> third = rows.get(2).getProperty("children");
+        assertNotSame(first, second); assertNotSame(first, third); assertNotSame(second, third);
+        for (TopNParent row : rows) {
+            assertTrue(row.isPropertyLoaded("children"));
+            assertFalse(row.__internalHasMutationLedger());
+            assertSame(rows.get(0).__internalLoadState(), row.__internalLoadState());
+        }
+        TopNChild appended = new TopNChild(); first.add(appended);
+        assertSame(appended, first.first()); assertTrue(second.isEmpty()); assertTrue(third.isEmpty());
+        assertTrue(SmartList.empty(TopNChild.class).isEmpty());
+        assertEquals(writesBefore, sqliteDb.executeTrace().size());
+        for (TopNParent row : rows) assertFalse(row.__internalHasMutationLedger());
+    }
+
+    @Test
+    public void unselectedReverseListRemainsNotLoadedWithoutLedgerOrWrites() {
+        registerTopNFixture();
+        TopNParentRequest parent = new TopNParentRequest();
+        parent.selectProperty("id"); parent.selectProperty("version"); parent.selectProperty("name");
+        parent.addOrderByAscending("id"); parent.offset(0, 1);
+        int writesBefore = sqliteDb.executeTrace().size();
+        SmartList<TopNParent> rows = parent.comment("Load an owner without selecting children")
+                .purpose("Keep absent relation details distinct from an explicitly empty list")
+                .executeForList(context);
+        assertEquals(1, rows.size()); assertFalse(rows.first().isPropertyLoaded("children"));
+        assertNull(rows.first().getProperty("children")); assertFalse(rows.first().__internalHasMutationLedger());
+        assertEquals(writesBefore, sqliteDb.executeTrace().size());
+    }
+
     private Map<Long, List<Long>> loadTopNFixture(Integer threshold) {
         sqliteDb.clearQueryTrace();
         TopNChildRequest child = new TopNChildRequest().where("state", Operator.EQUAL, "visible");
@@ -463,7 +507,10 @@ public class PortableSQLDatabaseTest {
             assertTrue("selected relation marker must include empty parents", row.isPropertyLoaded("children"));
             assertFalse("read hydration must not allocate a mutation ledger", row.__internalHasMutationLedger());
             assertSame("loaded and empty reverse parents share one actual shape", shared, row.__internalLoadState());
-            if (children.isEmpty()) assertSame(SmartList.empty(TopNChild.class), children);
+            if (children.isEmpty()) {
+                assertFalse("entity-owned lists must accept generated child attachment", children.isSharedEmpty());
+                assertNotSame(SmartList.empty(TopNChild.class), children);
+            }
             result.put(row.getId(), children.toList(Entity::getId));
         }
         return result;
@@ -510,6 +557,87 @@ public class PortableSQLDatabaseTest {
                 + "(11,1,'same','visible',1),(12,1,'same','visible',1),(13,1,'same','visible',1),"
                 + "(14,1,'hidden','hidden',1),(21,1,'same','visible',2),(22,1,'same','visible',2),"
                 + "(23,1,'same','visible',2)");
+    }
+
+    @Test
+    public void rollupParentFilterMustConstrainTheOriginalSourceStatistics() {
+        registerTopNFixture();
+        TopNParentRequest parent = new TopNParentRequest()
+                .where("name", Operator.EQUAL, "A")
+                .comment("Include only parent A in the statistical population");
+        TopNChildRequest source = new TopNChildRequest();
+        source.count("childCount");
+        source.groupBy("parent", parent);
+
+        List<Map<String, Object>> rows = source
+                .comment("Count children grouped by eligible parents")
+                .purpose("Verify roll-up filters change source membership")
+                .aggregation(context).toList();
+
+        assertEquals("parent B must not survive the parent filter", 1, rows.size());
+        assertEquals(4L, ((Number) rows.get(0).get("childCount")).longValue());
+    }
+
+    @Test
+    public void rollupGroupedParentMustMergeSourceCountsAtTheParentDimensionGrain() {
+        registerTopNFixture();
+        sqliteDb.execute("UPDATE top_n_parent_data SET name='shared' WHERE id IN (1,2)");
+        TopNParentRequest parent = new TopNParentRequest()
+                .comment("Group distinct parents with the same business dimension");
+        parent.groupBy("name");
+        TopNChildRequest source = new TopNChildRequest();
+        source.count("childCount");
+        source.groupBy("parent", parent);
+
+        List<Map<String, Object>> rows = source
+                .comment("Count source children at the parent-name grain")
+                .purpose("Verify grouped parent keys are not treated as parent IDs")
+                .aggregation(context).toList();
+
+        assertEquals("the two parent IDs belong to one final dimension", 1, rows.size());
+        assertEquals(7L, ((Number) rows.get(0).get("childCount")).longValue());
+    }
+
+    @Test
+    public void rollupParentPolicyDenialMustStopBeforeDatabaseExecution() {
+        registerTopNFixture();
+        List<String> seen = new ArrayList<>();
+        TeaQLRuntime guardedRuntime = TeaQLRuntime.builder().metadata(metaFactory)
+                .dataService("sql", sqlDataService).queryPolicy(new QueryPolicy() {
+                    @Override public void enforceSelect(UserContext context, SearchRequest<?> request) {
+                        seen.add(request.getTypeName());
+                        if (request instanceof TopNParentRequest) {
+                            throw new TeaQLRuntimeException("STATISTICS_PARENT_DENIED");
+                        }
+                    }
+                }).build();
+        TopNChildRequest source = new TopNChildRequest(); source.count("childCount");
+        source.groupBy("parent", new TopNParentRequest());
+        sqliteDb.clearQueryTrace();
+        try {
+            source.comment("Count children only after every parent is authorized")
+                    .purpose("Verify a parent layer cannot bypass policy")
+                    .aggregation(new DefaultUserContext(guardedRuntime));
+            fail("parent denial must stop statistics");
+        } catch (TeaQLRuntimeException expected) {
+            assertEquals("STATISTICS_PARENT_DENIED", expected.getMessage());
+        }
+        assertEquals(List.of("TopNChild", "TopNParent"), seen);
+        assertTrue("no SQL may precede parent authorization", sqliteDb.queryTrace().isEmpty());
+    }
+
+    @Test
+    public void rollupCycleMustBeRejectedBeforeRequestSnapshotRecursion() {
+        TopNChildRequest source = new TopNChildRequest(); source.count("childCount");
+        source.groupBy("parent", source);
+        try {
+            source.comment("Reject a cyclic statistical builder")
+                    .purpose("Bound snapshot construction before SQL")
+                    .aggregation(context);
+            fail("cyclic request must fail before cloning");
+        } catch (TeaQLRuntimeException expected) {
+            assertTrue(expected.getMessage(), expected.getMessage().contains("Cyclic statistics"));
+        }
     }
 
     @Test
@@ -878,6 +1006,60 @@ public class PortableSQLDatabaseTest {
                 new QueryGroupRequest().withoutRecordsMatching(allRecords));
     }
 
+    @Test public void testEmptyMaterializedReverseRelationPreservesNegation() {
+        prepareEmptyRelationFixture();
+        for (boolean materialized : List.of(false, true)) {
+            QueryRecordRequest absent = new QueryRecordRequest().where("name", Operator.EQUAL, "no match");
+            if (materialized) absent.top(5); else absent.unlimited();
+            assertNames(List.of(), new QueryGroupRequest().withRecordsMatching(absent));
+            assertNames(List.of("Core", "Other", "Empty"), new QueryGroupRequest().withoutRecordsMatching(absent));
+        }
+    }
+
+    @Test public void testNullOnlyMaterializedReverseRelationPreservesNegation() {
+        prepareEmptyRelationFixture();
+        for (boolean materialized : List.of(false, true)) {
+            QueryRecordRequest orphan = new QueryRecordRequest().where("name", Operator.EQUAL, "orphan");
+            if (materialized) orphan.top(5); else orphan.unlimited();
+            assertNames(List.of(), new QueryGroupRequest().withRecordsMatching(orphan));
+            assertNames(List.of("Core", "Other", "Empty"), new QueryGroupRequest().withoutRecordsMatching(orphan));
+        }
+    }
+
+    @Test public void testEmptyMaterializedForwardRelationPreservesNegation() {
+        prepareEmptyRelationFixture();
+        for (boolean materialized : List.of(false, true)) {
+            QueryGroupRequest absent = new QueryGroupRequest().where("name", Operator.EQUAL, "no match");
+            if (materialized) absent.top(5); else absent.unlimited();
+            assertNames(List.of(), new QueryRecordRequest().withGroupMatching(absent));
+            assertNames(List.of("included", "excluded", "orphan"), new QueryRecordRequest().withoutGroupMatching(absent));
+        }
+    }
+
+    @Test public void testEmptyMaterializedNegativeRelationPreservesOuterConjunction() {
+        prepareEmptyRelationFixture();
+        for (boolean materialized : List.of(false, true)) {
+            QueryRecordRequest absent = new QueryRecordRequest().where("name", Operator.EQUAL, "no match");
+            if (materialized) absent.top(5); else absent.unlimited();
+            assertNames(List.of("Core"), new QueryGroupRequest().where("name", Operator.EQUAL, "Core").withoutRecordsMatching(absent));
+            assertNames(List.of(), new QueryGroupRequest().where("name", Operator.EQUAL, "Core").withRecordsMatching(absent));
+        }
+    }
+
+    private static void prepareEmptyRelationFixture() {
+        metaFactory.register(relationEntity("QueryGroup", QueryGroup.class, QueryGroup::new, "query_group_data",
+                List.of(new Object[] {"id", "INTEGER", Long.class}, new Object[] {"name", "VARCHAR(100)", String.class}, new Object[] {"version", "INTEGER", Long.class})));
+        metaFactory.register(relationEntity("QueryRecord", QueryRecord.class, QueryRecord::new, "query_record_data",
+                List.of(new Object[] {"id", "INTEGER", Long.class}, new Object[] {"query_group", "INTEGER", Long.class},
+                        new Object[] {"name", "VARCHAR(100)", String.class}, new Object[] {"version", "INTEGER", Long.class})));
+        sqlDataService.getRepository("QueryGroup").ensurePhysicalSchema(context);
+        sqlDataService.getRepository("QueryRecord").ensurePhysicalSchema(context);
+        sqliteDb.execute("DELETE FROM query_group_data");
+        sqliteDb.execute("DELETE FROM query_record_data");
+        sqliteDb.execute("INSERT INTO query_group_data VALUES (1,'Core',1),(2,'Other',1),(3,'Empty',1)");
+        sqliteDb.execute("INSERT INTO query_record_data VALUES (11,1,'included',1),(12,2,'excluded',1),(13,NULL,'orphan',1)");
+    }
+
     private static <T extends BaseEntity> EntityDescriptor relationEntity(
             String type, Class<T> targetType, java.util.function.Supplier<T> supplier,
             String table, List<Object[]> definitions) {
@@ -1010,14 +1192,24 @@ public class PortableSQLDatabaseTest {
 
     // ── SQLite TeaQLDatabase Implementation ────────────────
 
-    public static class SQLiteTeaQLDatabase implements TeaQLDatabase {
+    public static class SQLiteTeaQLDatabase implements TeaQLDatabase, AutoCloseable {
         private final Connection connection;
         private final List<String> queryTrace = new ArrayList<>();
         private final List<String> executeTrace = new ArrayList<>();
 
         public SQLiteTeaQLDatabase() throws Exception {
-            this.connection = DriverManager.getConnection("jdbc:sqlite::memory:");
+            this(null);
         }
+
+        protected SQLiteTeaQLDatabase(org.sqlite.Function soundex) throws Exception {
+            this.connection = DriverManager.getConnection("jdbc:sqlite::memory:");
+            try {
+                if (soundex != null) org.sqlite.Function.create(connection, "soundex", soundex, 1,
+                        org.sqlite.Function.FLAG_DETERMINISTIC);
+            } catch (Exception failure) { connection.close(); throw failure; }
+        }
+
+        @Override public void close() throws SQLException { connection.close(); }
 
         @Override
         public List<Map<String, Object>> query(String sql, Object[] args) {

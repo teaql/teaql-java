@@ -7,7 +7,15 @@ import java.util.List;
 public record SqlExecutionTrace(List<TraceNode> source, List<TraceNode> mutationLineage, String operation,
         @com.fasterxml.jackson.annotation.JsonIgnore java.util.function.Consumer<ExecutionMetadata> statementObserver,
         @com.fasterxml.jackson.annotation.JsonIgnore MutationIntent mutationIntent,
-        @com.fasterxml.jackson.annotation.JsonIgnore QueryRequestScope queryScope) {
+        @com.fasterxml.jackson.annotation.JsonIgnore QueryRequestScope queryScope,
+        @com.fasterxml.jackson.annotation.JsonIgnore List<QueryRequestTraceNode> requestTree) {
+    public SqlExecutionTrace(List<TraceNode> source, List<TraceNode> mutationLineage, String operation,
+            java.util.function.Consumer<ExecutionMetadata> observer, MutationIntent intent, QueryRequestScope scope) {
+        this(source, mutationLineage, operation, observer, intent, scope, List.of());
+    }
+    public SqlExecutionTrace withRequestTree(List<QueryRequestTraceNode> nodes) {
+        return new SqlExecutionTrace(source, mutationLineage, operation, statementObserver, mutationIntent, queryScope, nodes);
+    }
     public SqlExecutionTrace(List<TraceNode> source, List<TraceNode> mutationLineage, String operation,
             java.util.function.Consumer<ExecutionMetadata> statementObserver, MutationIntent mutationIntent) {
         this(source, mutationLineage, operation, statementObserver, mutationIntent, null);
@@ -22,10 +30,11 @@ public record SqlExecutionTrace(List<TraceNode> source, List<TraceNode> mutation
 
     /** Invocation-owned collection; never installed on Context or a cached repository. */
     public SqlExecutionTrace collecting(java.util.function.Consumer<ExecutionMetadata> observer) {
-        return new SqlExecutionTrace(source, mutationLineage, operation, observer, mutationIntent, queryScope);
+        return new SqlExecutionTrace(source, mutationLineage, operation, observer, mutationIntent, queryScope, requestTree);
     }
 
     public void recordStatement(ExecutionMetadata metadata) {
+        metadata.setRequestTree(requestTree);
         var path = SqlTracePath.canonical(metadata.getTraceChain(), metadata.getBackend(), operation);
         metadata.setTraceChain(path.path());
         metadata.setComment(path.comment());
@@ -44,6 +53,7 @@ public record SqlExecutionTrace(List<TraceNode> source, List<TraceNode> mutation
     public SqlExecutionTrace {
         source = List.copyOf(source);
         mutationLineage = List.copyOf(mutationLineage);
+        requestTree = List.copyOf(requestTree);
     }
 
     public static SqlExecutionTrace mutation(Entity entity, List<TraceNode> lineage, String operation,
@@ -74,6 +84,7 @@ public record SqlExecutionTrace(List<TraceNode> source, List<TraceNode> mutation
     }
 
     public void applyTo(ExecutionMetadata metadata) {
+        metadata.setRequestTree(requestTree);
         metadata.setTraceChain(source);
         if (queryScope != null) metadata.setRequestTraceChain(queryScope.traceChain());
         metadata.setMutationLineage(mutationLineage);

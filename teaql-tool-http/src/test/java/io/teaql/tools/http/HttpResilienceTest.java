@@ -74,6 +74,75 @@ public class HttpResilienceTest {
         return HttpRequestService.Call.get("orders", path, "load order status", "show current order");
     }
 
+    @Test public void contextAndBothIntentKindsFailBeforeAnyConnection() {
+        var service = new JdkHttpRequestService(java.util.List.of(profile().build()));
+        var context = context(service);
+        for (org.junit.function.ThrowingRunnable work : java.util.List.<org.junit.function.ThrowingRunnable>of(
+                () -> service.execute(null, get("ok")), () -> service.execute(context, null),
+                () -> HttpRequestService.Call.get("orders", "ok", " ", "purpose"),
+                () -> HttpRequestService.Call.get("orders", "ok", "comment", " "),
+                () -> new HttpRequestService.Call("orders", HttpRequestService.Method.GET, "ok", Map.of(),
+                        null, null, "comment", HttpRequestService.IntentKind.AUDIT, " ", HttpRequestService.RetryMode.NONE))) {
+            assertEquals(HttpRequestFailure.Code.INVALID_INPUT, assertThrows(HttpRequestFailure.class, work).code());
+        }
+        assertEquals(0, server.connections.get()); assertEquals(0, server.requests.get());
+        assertEquals(200, service.execute(context, get("ok")).status());
+        assertEquals(1, server.requests.get());
+        System.out.println("JAVA_HTTP_CONTRACT_CASE={\"id\":\"HTTP-01\",\"invalidInputs\":5,\"connectionsBeforeRecovery\":0,\"requestsBeforeRecovery\":0,\"recoveryRequests\":1}");
+    }
+
+    @Test public void persistentFailuresStopAtConfiguredPhysicalAttemptCeiling() {
+        var service = new JdkHttpRequestService(java.util.List.of(profile()
+                .retry(3, Duration.ofMillis(1), Set.of(HttpRequestService.Method.GET)).build()));
+        var response = service.execute(context(service), call(HttpRequestService.Method.GET,
+                "fail", HttpRequestService.RetryMode.CONFIRMED_IDEMPOTENT));
+        assertEquals(503, response.status()); assertEquals(3, response.attempts()); assertEquals(3, server.requests.get());
+        System.out.println("JAVA_HTTP_CONTRACT_CASE={\"id\":\"HTTP-07\",\"configuredAttempts\":3,\"physicalRequests\":3,\"reportedAttempts\":3}");
+    }
+
+    @Test public void incompleteOversizedBodyReleasesConnectionBeforeRecovery() throws Exception {
+        var service = new JdkHttpRequestService(java.util.List.of(profile().maxResponseBytes(16).build()));
+        assertEquals(HttpRequestFailure.Code.RESPONSE_TOO_LARGE, assertThrows(HttpRequestFailure.class,
+                () -> service.execute(context(service), get("incomplete-large"))).code());
+        long deadline = System.nanoTime() + Duration.ofSeconds(2).toNanos();
+        while (server.overflowPeerClosed.get() == 0 && System.nanoTime() < deadline) Thread.sleep(5);
+        assertEquals("overflow must release the incomplete response", 1, server.overflowPeerClosed.get());
+        assertEquals(200, service.execute(context(service), get("ok")).status());
+        assertEquals(2, server.requests.get());
+        System.out.println("JAVA_HTTP_CONTRACT_CASE={\"id\":\"HTTP-09\",\"peerClosedBeforeRecovery\":1,\"physicalRequests\":2,\"sameServiceReused\":true}");
+    }
+
+    @Test public void successfulProbeClosesCircuitForConcurrentFollowups() throws Exception {
+        AtomicLong time = new AtomicLong(1);
+        HttpOperationalClock clock = new HttpOperationalClock() {
+            @Override public long nanoTime() { return time.get(); }
+            @Override public void pauseNanos(long nanos) { time.addAndGet(nanos); }
+        };
+        var service = new JdkHttpRequestService(java.util.List.of(profile()
+                .circuit(1, Duration.ofSeconds(5), 1).build()), clock);
+        assertEquals(503, service.execute(context(service), get("fail")).status());
+        time.addAndGet(Duration.ofSeconds(5).toNanos());
+        assertEquals(200, service.execute(context(service), get("ok")).status());
+        server.concurrentGate = new CountDownLatch(3);
+        var errors = new ConcurrentLinkedQueue<Throwable>();
+        var workers = new java.util.ArrayList<Thread>();
+        for (int i = 0; i < 3; i++) {
+            Thread worker = new Thread(() -> {
+                try { assertEquals(200, service.execute(context(service), get("concurrent-after-probe")).status()); }
+                catch (Throwable error) { errors.add(error); }
+            }); workers.add(worker); worker.start();
+        }
+        try {
+            for (Thread worker : workers) worker.join(5000);
+            assertTrue("closed circuit admits all three simultaneous requests", errors.isEmpty());
+            for (Thread worker : workers) assertFalse(worker.isAlive());
+            assertEquals(0, server.concurrentGate.getCount()); assertEquals(5, server.requests.get());
+        } finally {
+            for (Thread worker : workers) { if (worker.isAlive()) worker.interrupt(); worker.join(2000); }
+        }
+        System.out.println("JAVA_HTTP_CONTRACT_CASE={\"id\":\"HTTP-11\",\"halfOpenLimit\":1,\"successfulConcurrentFollowups\":3,\"physicalRequests\":5}");
+    }
+
     @Test public void brokenObservationCannotChangeTransportOutcome() {
         var service = new JdkHttpRequestService(java.util.List.of(profile().build()));
         HttpObservation brokenStart = operation -> { throw new IllegalStateException("observer failed"); };
@@ -628,6 +697,9 @@ public class HttpResilienceTest {
         private final ServerSocket socket;
         private final Thread thread;
         private final AtomicInteger requests = new AtomicInteger();
+        private final AtomicInteger connections = new AtomicInteger();
+        private final AtomicInteger overflowPeerClosed = new AtomicInteger();
+        private volatile CountDownLatch concurrentGate;
         private final AtomicInteger flaky = new AtomicInteger();
         private final AtomicInteger retryPost = new AtomicInteger();
         private final ConcurrentLinkedQueue<String> traceparents = new ConcurrentLinkedQueue<>();
@@ -644,6 +716,7 @@ public class HttpResilienceTest {
             while (!closed) {
                 try {
                     Socket client = socket.accept();
+                    connections.incrementAndGet();
                     Thread handler = new Thread(() -> handle(client), "teaql-http-fixture-request");
                     handler.setDaemon(true);
                     handler.start();
@@ -681,6 +754,18 @@ public class HttpResilienceTest {
                         if (target.contains("/retry-post")) retryBodies.add(new String(body));
                     }
                     if (target.contains("/close")) return;
+                    if (target.contains("/incomplete-large")) {
+                        client.getOutputStream().write(("HTTP/1.1 200 OK\r\nContent-Length: 4096\r\nConnection: keep-alive\r\n\r\n"
+                                + "X".repeat(64)).getBytes(StandardCharsets.US_ASCII));
+                        client.getOutputStream().flush(); client.setSoTimeout(2000);
+                        try { if (reader.read() == -1) overflowPeerClosed.incrementAndGet(); }
+                        catch (java.net.SocketException peerReset) { overflowPeerClosed.incrementAndGet(); }
+                        return;
+                    }
+                    if (target.contains("/concurrent-after-probe")) {
+                        concurrentGate.countDown();
+                        if (!concurrentGate.await(3, TimeUnit.SECONDS)) throw new IOException("concurrent fixture budget exhausted");
+                    }
                     if (target.endsWith("/slow")) Thread.sleep(300);
                     int status = target.contains("/private-response") ? 503
                             : target.contains("/redirect") ? 302 : target.contains("/missing") ? 404
