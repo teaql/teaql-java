@@ -18,10 +18,6 @@ public class MerchantExpression<T, E, U extends Merchant> extends ExpressionAdap
         super(expression, function);
     }
 
-     public MerchantExpression<T, U, U> updateId(Long id){
-        return new MerchantExpression(this, $it -> {((Merchant)$it).__internalSet("id", id); return this;});
-     }
-
      public MerchantExpression<T, U, U> save(UserContext userContext){
         return new MerchantExpression(this, $it -> ((Merchant)$it).auditAs("Saved by Expression").save(userContext));
      }

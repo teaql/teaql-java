@@ -20,10 +20,6 @@ public class CustomerExpression<T, E, U extends Customer> extends ExpressionAdap
         super(expression, function);
     }
 
-     public CustomerExpression<T, U, U> updateId(Long id){
-        return new CustomerExpression(this, $it -> {((Customer)$it).__internalSet("id", id); return this;});
-     }
-
      public CustomerExpression<T, U, U> save(UserContext userContext){
         return new CustomerExpression(this, $it -> ((Customer)$it).auditAs("Saved by Expression").save(userContext));
      }

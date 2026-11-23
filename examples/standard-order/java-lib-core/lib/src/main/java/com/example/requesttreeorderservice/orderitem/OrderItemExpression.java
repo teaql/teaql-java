@@ -19,10 +19,6 @@ public class OrderItemExpression<T, E, U extends OrderItem> extends ExpressionAd
         super(expression, function);
     }
 
-     public OrderItemExpression<T, U, U> updateId(Long id){
-        return new OrderItemExpression(this, $it -> {((OrderItem)$it).__internalSet("id", id); return this;});
-     }
-
      public OrderItemExpression<T, U, U> save(UserContext userContext){
         return new OrderItemExpression(this, $it -> ((OrderItem)$it).auditAs("Saved by Expression").save(userContext));
      }

@@ -20,10 +20,6 @@ public class PaymentExpression<T, E, U extends Payment> extends ExpressionAdapto
         super(expression, function);
     }
 
-     public PaymentExpression<T, U, U> updateId(Long id){
-        return new PaymentExpression(this, $it -> {((Payment)$it).__internalSet("id", id); return this;});
-     }
-
      public PaymentExpression<T, U, U> save(UserContext userContext){
         return new PaymentExpression(this, $it -> ((Payment)$it).auditAs("Saved by Expression").save(userContext));
      }

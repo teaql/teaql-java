@@ -18,10 +18,6 @@ public class CommercePlatformExpression<T, E, U extends CommercePlatform> extend
         super(expression, function);
     }
 
-     public CommercePlatformExpression<T, U, U> updateId(Long id){
-        return new CommercePlatformExpression(this, $it -> {((CommercePlatform)$it).__internalSet("id", id); return this;});
-     }
-
      public CommercePlatformExpression<T, U, U> save(UserContext userContext){
         return new CommercePlatformExpression(this, $it -> ((CommercePlatform)$it).auditAs("Saved by Expression").save(userContext));
      }

@@ -18,10 +18,6 @@ public class WorkItemExpression<T, E, U extends WorkItem> extends ExpressionAdap
         super(expression, function);
     }
 
-     public WorkItemExpression<T, U, U> updateId(Long id){
-        return new WorkItemExpression(this, $it -> {((WorkItem)$it).__internalSet("id", id); return this;});
-     }
-
      public WorkItemExpression<T, U, U> save(UserContext userContext){
         return new WorkItemExpression(this, $it -> ((WorkItem)$it).auditAs("Saved by Expression").save(userContext));
      }

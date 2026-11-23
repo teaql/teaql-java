@@ -19,10 +19,6 @@ public class OrderSearchPresetExpression<T, E, U extends OrderSearchPreset> exte
         super(expression, function);
     }
 
-     public OrderSearchPresetExpression<T, U, U> updateId(Long id){
-        return new OrderSearchPresetExpression(this, $it -> {((OrderSearchPreset)$it).__internalSet("id", id); return this;});
-     }
-
      public OrderSearchPresetExpression<T, U, U> save(UserContext userContext){
         return new OrderSearchPresetExpression(this, $it -> ((OrderSearchPreset)$it).auditAs("Saved by Expression").save(userContext));
      }

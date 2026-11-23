@@ -36,6 +36,13 @@ public class LoadedPropertyExpressionTest {
     }
 
     @Test
+    public void exposesIdentityForReadingOnly() throws NoSuchMethodException {
+        assertNotNull(BaseEntityExpression.class.getMethod("getId"));
+        assertThrows(NoSuchMethodException.class,
+                () -> BaseEntityExpression.class.getMethod("updateId", Long.class));
+    }
+
+    @Test
     public void fallbackDoesNotTreatEmptyStringAsNull() {
         Subject subject = new Subject(); subject.loadName("");
         Expression<Subject, String> expression = new LoadedPropertyExpression<>(

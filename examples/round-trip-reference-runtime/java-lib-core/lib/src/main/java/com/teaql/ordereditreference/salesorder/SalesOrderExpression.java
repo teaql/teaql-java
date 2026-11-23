@@ -20,10 +20,6 @@ public class SalesOrderExpression<T, E, U extends SalesOrder> extends Expression
         super(expression, function);
     }
 
-     public SalesOrderExpression<T, U, U> updateId(Long id){
-        return new SalesOrderExpression(this, $it -> {((SalesOrder)$it).__internalSet("id", id); return this;});
-     }
-
      public SalesOrderExpression<T, U, U> save(UserContext userContext){
         return new SalesOrderExpression(this, $it -> ((SalesOrder)$it).auditAs("Saved by Expression").save(userContext));
      }

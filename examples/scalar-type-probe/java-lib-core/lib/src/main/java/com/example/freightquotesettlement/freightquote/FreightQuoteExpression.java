@@ -22,10 +22,6 @@ public class FreightQuoteExpression<T, E, U extends FreightQuote> extends Expres
         super(expression, function);
     }
 
-     public FreightQuoteExpression<T, U, U> updateId(Long id){
-        return new FreightQuoteExpression(this, $it -> {((FreightQuote)$it).__internalSet("id", id); return this;});
-     }
-
      public FreightQuoteExpression<T, U, U> save(UserContext userContext){
         return new FreightQuoteExpression(this, $it -> ((FreightQuote)$it).auditAs("Saved by Expression").save(userContext));
      }

@@ -18,10 +18,6 @@ public class PaymentAttemptExpression<T, E, U extends PaymentAttempt> extends Ex
         super(expression, function);
     }
 
-     public PaymentAttemptExpression<T, U, U> updateId(Long id){
-        return new PaymentAttemptExpression(this, $it -> {((PaymentAttempt)$it).__internalSet("id", id); return this;});
-     }
-
      public PaymentAttemptExpression<T, U, U> save(UserContext userContext){
         return new PaymentAttemptExpression(this, $it -> ((PaymentAttempt)$it).auditAs("Saved by Expression").save(userContext));
      }

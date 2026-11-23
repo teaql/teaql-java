@@ -21,10 +21,6 @@ public class ProductExpression<T, E, U extends Product> extends ExpressionAdapto
         super(expression, function);
     }
 
-     public ProductExpression<T, U, U> updateId(Long id){
-        return new ProductExpression(this, $it -> {((Product)$it).__internalSet("id", id); return this;});
-     }
-
      public ProductExpression<T, U, U> save(UserContext userContext){
         return new ProductExpression(this, $it -> ((Product)$it).auditAs("Saved by Expression").save(userContext));
      }

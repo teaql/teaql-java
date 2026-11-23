@@ -20,10 +20,6 @@ public class CustomerProfileExpression<T, E, U extends CustomerProfile> extends 
         super(expression, function);
     }
 
-     public CustomerProfileExpression<T, U, U> updateId(Long id){
-        return new CustomerProfileExpression(this, $it -> {((CustomerProfile)$it).__internalSet("id", id); return this;});
-     }
-
      public CustomerProfileExpression<T, U, U> save(UserContext userContext){
         return new CustomerProfileExpression(this, $it -> ((CustomerProfile)$it).auditAs("Saved by Expression").save(userContext));
      }
