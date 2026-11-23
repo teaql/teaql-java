@@ -73,6 +73,11 @@ jobs:
         # Keep its offline checks; prepare a fresh runner before they start.
         run: |
           mvn -B -ntp install
+          # These standalone console dependencies are absent from generated
+          # library manifests and are used by the offline workspace checks.
+          for artifact in com.zaxxer:HikariCP:6.3.0 org.mybatis:mybatis:3.5.19 org.codehaus.mojo:exec-maven-plugin:3.5.0; do
+            mvn -B -ntp org.apache.maven.plugins:maven-dependency-plugin:3.8.1:get "-Dartifact=$artifact"
+          done
           node <<'NODE'
           const fs = require('node:fs'), path = require('node:path'), os = require('node:os'), cp = require('node:child_process');
           const runtime = process.cwd(), owned = fs.mkdtempSync(path.join(os.tmpdir(), 'teaql-ci-example-dependencies-'));
