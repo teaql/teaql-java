@@ -13,4 +13,16 @@ public interface SqlCompilerDelegate extends SQLColumnResolver {
     }
     String getTypeSQL(UserContext userContext);
     String getPartitionSQL();
+
+    /** A selected statistical value may need its provider's numeric ordering domain. */
+    default String statisticalOrderSql(UserContext context, io.teaql.core.Expression selected, String sql) {
+        return sql;
+    }
+
+    default void validateStatisticalParameter(UserContext context, io.teaql.core.Expression selected, Object value) {}
+
+    /** Providers must implement real GBK encoding; returning the same operand is not support. */
+    default String gbkOrderSql(UserContext context, io.teaql.core.Expression selected, String sql) {
+        throw new io.teaql.core.TeaQLRuntimeException("GBK ordering is unsupported by this SQL delegate");
+    }
 }

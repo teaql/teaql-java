@@ -17,19 +17,19 @@ public class BaseEntitySerializationTest {
                         java.util.Map.of("id", 0, "version", 1),
                         java.util.Map.of("id", java.util.List.of("id", "id"),
                                 "version", java.util.List.of("version", "version")),
-                        java.util.Set.of("childList", "child")));
+                        java.util.Set.of("child_list", "child")));
         io.teaql.core.SmartList<BaseEntity> childList;
         BaseEntity child;
         @Override public void __internalSet(String field, Object value) {
             switch (field) {
-                case "childList" -> { markPropertyLoaded(field); childList = (io.teaql.core.SmartList<BaseEntity>) value; }
+                case "child_list" -> { markPropertyLoaded(field); childList = (io.teaql.core.SmartList<BaseEntity>) value; }
                 case "child" -> { markPropertyLoaded(field); child = (BaseEntity) value; }
                 default -> super.__internalSet(field, value);
             }
         }
         @Override public Object __internalGet(String field) {
             return switch (field) {
-                case "childList" -> childList;
+                case "child_list" -> childList;
                 case "child" -> child;
                 default -> super.__internalGet(field);
             };
@@ -40,7 +40,7 @@ public class BaseEntitySerializationTest {
         var parent = new NamedRelationsEntity(); parent.__internalSet("id", 1L); parent.__internalSet("version", 1L);
         var child = new JsonGraphEntity(); child.__internalSet("id", 1L); child.__internalSet("version", 1L); child.__internalSet("name", "same ID different type");
         var list = new io.teaql.core.SmartList<BaseEntity>(); list.add(child);
-        parent.__internalSet("childList", list);
+        parent.__internalSet("child_list", list);
         parent.__internalSet("child", null);
         parent.putAdditional("childList", "must not replace the declared relation");
         parent.addDynamicProperty("childList", "readonly summary");
@@ -54,7 +54,7 @@ public class BaseEntitySerializationTest {
         assertTrue(state == parent.__internalLoadState());
         assertEquals(hadLedger, parent.__internalHasMutationLedger());
         assertNull(NamedRelationsEntity.LAYOUT.findIndex("childList"));
-        var empty = new NamedRelationsEntity(); empty.__internalSet("childList", new io.teaql.core.SmartList<BaseEntity>());
+        var empty = new NamedRelationsEntity(); empty.__internalSet("child_list", new io.teaql.core.SmartList<BaseEntity>());
         json = mapper.readTree(mapper.writeValueAsString(empty));
         assertTrue(json.get("childList").isArray()); assertEquals(0, json.get("childList").size());
         assertFalse(json.has("child"));
@@ -77,6 +77,33 @@ public class BaseEntitySerializationTest {
         @Override public Object __internalGet(String field) {
             return switch (field) { case "name" -> name; case "child" -> child; default -> super.__internalGet(field); };
         }
+    }
+
+    @Test public void pendingLocalChildrenSerializeWithoutLoadingAnUnqueriedRelation() throws Exception {
+        var parent = new NamedRelationsEntity();
+        parent.childList = io.teaql.core.SmartList.<BaseEntity>unloaded().map(child -> child);
+        var child = new JsonGraphEntity(); child.__internalSet("name", "local child");
+        parent.childList.add(child);
+        var state = parent.__internalLoadState();
+        var mapper = new ObjectMapper().registerModule(TeaQLModule.INSTANCE);
+        assertEquals("local child", mapper.valueToTree(parent).get("childList").get(0).get("name").asText());
+        assertFalse(parent.childList.isLoaded()); assertFalse(parent.isPropertyLoaded("childList"));
+        assertTrue(state == parent.__internalLoadState()); assertFalse(parent.__internalHasMutationLedger());
+        child.set$status(io.teaql.core.EntityStatus.PERSISTED);
+        assertFalse(mapper.valueToTree(parent).has("childList"));
+    }
+
+    @Test public void smartListBackReferencesKeepTheActiveSerializationPath() throws Exception {
+        var parent = new NamedRelationsEntity(); parent.updateId(7L);
+        parent.childList = io.teaql.core.SmartList.<BaseEntity>unloaded().map(child -> child);
+        var child = new JsonGraphEntity(); child.updateId(9L); child.__internalSet("child", parent);
+        parent.childList.add(child);
+        var mapper = new ObjectMapper().registerModule(TeaQLModule.INSTANCE);
+        var tree = mapper.valueToTree(parent);
+        var backReference = tree.get("childList").get(0).get("child");
+        assertEquals(7L, backReference.get("id").asLong()); assertFalse(backReference.has("childList"));
+        assertEquals(tree.toString(), mapper.writeValueAsString(parent));
+        assertFalse(parent.childList.isLoaded()); assertFalse(parent.isPropertyLoaded("childList"));
     }
 
     @Test public void nestedGraphsKeepThreeNamespacesAndLiteralPayloadWithoutInternalMetadata() throws Exception {
@@ -156,12 +183,12 @@ public class BaseEntitySerializationTest {
             markPropertyLoaded(field);
             switch (field) {
                 case "name" -> name = (String) value;
-                case "baseUrl" -> baseUrl = (String) value;
+                case "base_url" -> baseUrl = (String) value;
                 default -> super.__internalSet(field, value);
             }
         }
         @Override public Object __internalGet(String field) {
-            return switch (field) { case "name" -> name; case "baseUrl" -> baseUrl; default -> super.__internalGet(field); };
+            return switch (field) { case "name" -> name; case "base_url" -> baseUrl; default -> super.__internalGet(field); };
         }
     }
 
@@ -187,10 +214,25 @@ public class BaseEntitySerializationTest {
         assertTrue(json.get("_nil").isNull()); assertTrue(json.get("#nil").isNull());
         assertFalse(json.has("#missing")); assertFalse(json.has("baseUrl"));
         assertFalse(json.has("loadState")); assertFalse(json.has("entityMutationLedger"));
-        entity.__internalSet("baseUrl", null);
+        entity.__internalSet("base_url", null);
         json = mapper.readTree(mapper.writeValueAsString(entity));
         assertTrue(json.has("baseUrl")); assertTrue(json.get("baseUrl").isNull());
         assertFalse(json.has("base_url")); assertFalse(json.has("legacy_url"));
+    }
+
+    @Test
+    public void nativeJsonNamesDoNotBecomeInternalModelKeys() throws Exception {
+        var entity = new IndexedEntity();
+        entity.__internalSet("base_url", "https://example.test");
+        var state = entity.__internalLoadState();
+        var mapper = new ObjectMapper().registerModule(TeaQLModule.INSTANCE);
+        var json = mapper.readTree(mapper.writeValueAsString(entity));
+        assertEquals("https://example.test", json.get("baseUrl").asText());
+        assertFalse(json.has("base_url"));
+        assertFalse(json.has("legacy_url"));
+        assertFalse(json.has("name"));
+        assertTrue(state == entity.__internalLoadState());
+        assertFalse(entity.__internalHasMutationLedger());
     }
 
 

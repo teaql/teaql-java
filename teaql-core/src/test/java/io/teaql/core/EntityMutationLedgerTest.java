@@ -10,6 +10,20 @@ import org.junit.Test;
 
 public class EntityMutationLedgerTest {
 
+    @Test
+    public void recoveryPreservesSubsequentEditsAndItsDistinctVersionTransition() {
+        var pending = EntityStatus.PERSISTED_DELETED.next(EntityAction.RECOVER).next(EntityAction.UPDATE);
+        assertEquals(EntityStatus.UPDATED_RECOVER,pending);
+        assertEquals(EntityStatus.PERSISTED,pending.next(EntityAction.PERSIST));
+        var ledger = new EntityMutationLedger();
+        var key = new EntityKey("Academy",7L);
+        ledger.set(key,"campus_code","WEST");
+        ledger.markAsRecover(key);
+        assertEquals("WEST",ledger.get(key,"campus_code"));
+        assertTrue(ledger.recoveredKeys().contains(key));
+        assertEquals(7L,MutationVersions.next(MutationOperationKind.RECOVER,-6L));
+    }
+
     private static final EntityKey ORDER = new EntityKey("Order", 1L);
     private static final EntityKey OTHER_ORDER = new EntityKey("Order", 2L);
 

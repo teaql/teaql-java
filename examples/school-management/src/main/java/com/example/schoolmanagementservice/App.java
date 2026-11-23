@@ -184,7 +184,7 @@ public class App {
               .comment("Facet SchoolType values including zero-count constants")
               .purpose("Verify Java native SQLite Facet semantics")
               .executeForList(context);
-          SmartList<SchoolType> allValues = includeAllFacet.getFacet("schoolTypeFacet");
+          SmartList<SchoolType> allValues = includeAllFacet.getFacet("schoolTypeFacet").map(SchoolType.class::cast);
           require(allValues != null && allValues.size() == 2,
               "include-all SchoolType facet did not retain both constants");
           Number primaryCount = allValues.get(0).getDynamicProperty("schoolCount");
@@ -205,7 +205,7 @@ public class App {
               .comment("Facet only SchoolType values matched by the outer School filter")
               .purpose("Verify Java native SQLite matched-only Facet semantics")
               .executeForList(context);
-          SmartList<SchoolType> matchedValues = matchedOnlyFacet.getFacet("schoolTypeFacet");
+          SmartList<SchoolType> matchedValues = matchedOnlyFacet.getFacet("schoolTypeFacet").map(SchoolType.class::cast);
           require(matchedValues != null && matchedValues.size() == 1,
               "matched-only SchoolType facet must contain one value");
           require("PRIMARY".equals(matchedValues.get(0).getCode())

@@ -28,7 +28,7 @@ public class DefaultTextRuntimeLogSink implements RuntimeLogSink {
     public void writeExecutionLog(UserContext context, ExecutionMetadata metadata) {
         metadata = LogPrivacy.sql(metadata, false);
         output.printf(
-                "[TeaQL SQL][%s][%dus] %s outcome=%s batchOutcome=%s comment=%s purpose=%s auditReason=%s traceChain=%s tracePath=%s mutationLineage=%s%n"
+                "[TeaQL SQL][%s][%dus] %s outcome=%s batchOutcome=%s comment=%s purpose=%s auditReason=%s traceChain=%s tracePath=%s mutationLineage=%s%s%n"
                         + "SQL: %s%n",
                 metadata.getOperation() == null ? "unknown" : metadata.getOperation().name().toLowerCase(),
                 metadata.getElapsedUs(), resultSummary(metadata),
@@ -37,6 +37,7 @@ public class DefaultTextRuntimeLogSink implements RuntimeLogSink {
                 nullToEmpty(metadata.getComment()), nullToEmpty(metadata.getPurpose()),
                 nullToEmpty(metadata.getAuditReason()), formatTrace(metadata.getRequestTraceChain()), formatTrace(metadata.getTracePath()),
                 formatTrace(metadata.getMutationLineage()),
+                formatRequestTree(metadata),
                 nullToEmpty(metadata.getDebugQuery()));
     }
 
@@ -62,6 +63,18 @@ public class DefaultTextRuntimeLogSink implements RuntimeLogSink {
 
     protected static String nullToEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    protected static String formatRequestTree(ExecutionMetadata metadata) {
+        if (metadata.getRequestTree().isEmpty()) return "";
+        return RequestTreeJson.render(metadata.getRequestTree());
+    }
+    private static final class RequestTreeJson {
+        static final com.fasterxml.jackson.databind.ObjectMapper JSON = new com.fasterxml.jackson.databind.ObjectMapper();
+        static String render(java.util.List<io.teaql.core.QueryRequestTraceNode> nodes) {
+            try { return " requestTree=" + JSON.writeValueAsString(nodes); }
+            catch (com.fasterxml.jackson.core.JsonProcessingException unavailable) { return " requestTree=[unavailable]"; }
+        }
     }
 
     protected static String resultSummary(ExecutionMetadata metadata) {

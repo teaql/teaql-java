@@ -1,0 +1,55 @@
+name: HTTP resilience cross-OS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/http-platforms.yml
+      - pom.xml
+      - teaql-core/**
+      - teaql-runtime/**
+      - teaql-context-runtime-tools/**
+      - teaql-tool-http/**
+      - examples/http-resilience/**
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/http-platforms.yml
+      - pom.xml
+      - teaql-core/**
+      - teaql-runtime/**
+      - teaql-context-runtime-tools/**
+      - teaql-tool-http/**
+      - examples/http-resilience/**
+
+permissions:
+  contents: read
+
+jobs:
+  http-resilience:
+    name: HTTP contract and example (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, macos-26-intel, windows-2025]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+      - name: Run focused HTTP contract tests
+        run: >-
+          mvn -B -pl teaql-tool-http -am
+          -Dtest=HttpResilienceTest
+          -Dsurefire.failIfNoSpecifiedTests=false test
+      - name: Run Context-owned HTTP example twice
+        run: bash examples/http-resilience/verify.sh

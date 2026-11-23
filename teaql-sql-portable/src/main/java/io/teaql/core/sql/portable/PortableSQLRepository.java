@@ -124,6 +124,104 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         this.dialect = dialect;
     }
 
+    @Override
+    public void validateAggregateOperand(UserContext context,io.teaql.core.AggrFunction function,io.teaql.core.Expression operand) {
+        if(io.teaql.core.sql.internal.StatisticalIntegerOperand.bitwise(function))
+            io.teaql.core.sql.internal.StatisticalIntegerOperand.parameter(allProperties,operand,this);
+    }
+
+    /** Read logical values after the original property parser ran once. */
+    String statisticalOperandSql(UserContext context,Expression operand,Class<?> type,String population,Map<String,Object> parameters) {
+        var parsers=new HashMap<Class,SQLExpressionParser>(getExpressionParsers());
+        parsers.put(PropertyReference.class,new io.teaql.core.sql.expression.PropertyParser());
+        SQLColumnResolver logical=new SQLColumnResolver() {
+            @Override public List<SQLColumn> getPropertyColumns(String table,String property) {
+                findProperty(property);
+                return List.of(new SQLColumn(population,property));
+            }
+            @Override public Map<Class,SQLExpressionParser> getExpressionParsers(){return parsers;}
+            @Override public String escapeIdentifier(String name){return PortableSQLRepository.this.escapeIdentifier(name);}
+            @Override public io.teaql.core.SqlParameterLogPolicy parameterLogPolicy(String name){return PortableSQLRepository.this.parameterLogPolicy(name);}
+        };
+        String sql=io.teaql.core.sql.expression.ExpressionHelper.toSql(context,operand,population,parameters,logical);
+        return dialect.statisticalOperandSql(sql,type);
+    }
+
+    private Class<?> scalarType(Expression operand) {
+        try {return io.teaql.core.sql.internal.StatisticalMeasureExpression.bind(allProperties,operand).type();}
+        catch(TeaQLRuntimeException unsupported){return null;}
+    }
+
+    @Override
+    public String aggregateSql(UserContext context, io.teaql.core.AggrFunction function,
+                               io.teaql.core.Expression operand, String columnSql) {
+        if (function == io.teaql.core.AggrFunction.GBK) return gbkOrderSql(context,operand,columnSql);
+        boolean direct = operand instanceof io.teaql.core.PropertyReference;
+        if (io.teaql.core.sql.internal.StatisticalIntegerOperand.bitwise(function)) {
+            boolean parameter=io.teaql.core.sql.internal.StatisticalIntegerOperand.parameter(allProperties,operand,this);
+            return new io.teaql.core.sql.expression.AggrExpressionParser().genAggrSQL(function,
+                    parameter?dialect.bitwiseParameterSql(columnSql):columnSql);
+        }
+        if(scalarType(operand)==BigDecimal.class)
+            return dialect.decimalAggregateSql(function,columnSql,true);
+        for (String name : operand.properties(context)) {
+            PropertyDescriptor property = allProperties.stream()
+                    .filter(candidate -> name.equals(candidate.getName()))
+                    .findFirst().orElse(null);
+            if (property != null && property.getType() != null
+                    && property.getType().javaType() == BigDecimal.class) {
+                return dialect.decimalAggregateSql(function, columnSql, direct);
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public String statisticalOrderSql(UserContext context, io.teaql.core.Expression selected, String sql) {
+        return isDecimalStatisticalResult(context, selected) ? dialect.decimalOrderSql(sql) : sql;
+    }
+
+    @Override public String gbkOrderSql(UserContext context, io.teaql.core.Expression selected, String sql) {
+        io.teaql.core.Expression expression = selected;
+        for (int depth=0;depth<64;depth++) {
+            if (expression instanceof SimpleNamedExpression named) { expression=named.getExpression(); continue; }
+            if (expression instanceof io.teaql.core.AggrExpression aggregate
+                    && java.util.Set.of(io.teaql.core.AggrFunction.SELF,io.teaql.core.AggrFunction.MIN,io.teaql.core.AggrFunction.MAX)
+                        .contains(aggregate.getOperator()) && aggregate.getExpressions().size()==1) {
+                expression=aggregate.first(); continue;
+            }
+            if (expression instanceof io.teaql.core.PropertyReference reference) {
+                var property=findProperty(reference.getPropertyName());
+                if (property!=null && property.getType()!=null && property.getType().javaType()==String.class)
+                    return dialect.gbkOrderSql(sql);
+            }
+            throw new TeaQLRuntimeException("GBK ordering requires a selected text result");
+        }
+        throw new TeaQLRuntimeException("GBK order exceeds expression depth limit");
+    }
+
+    @Override
+    public void validateStatisticalParameter(UserContext context, io.teaql.core.Expression selected, Object value) {
+        if (isDecimalStatisticalResult(context, selected)) dialect.validateDecimalComparisonOperand(value);
+    }
+
+    private boolean isDecimalStatisticalResult(UserContext context, io.teaql.core.Expression selected) {
+        io.teaql.core.Expression expression = selected instanceof SimpleNamedExpression named
+                ? named.getExpression() : selected;
+        if (expression instanceof io.teaql.core.AggrExpression aggregate
+                && (aggregate.getOperator() == io.teaql.core.AggrFunction.COUNT
+                    || aggregate.getOperator() == io.teaql.core.AggrFunction.COUNT_DISTINCT)) return false;
+        if(expression instanceof io.teaql.core.AggrExpression aggregate && aggregate.getExpressions().size()==1
+                && scalarType(aggregate.first())==BigDecimal.class)return true;
+        for (String name : expression.properties(context)) {
+            PropertyDescriptor property = allProperties.stream()
+                    .filter(candidate -> name.equals(candidate.getName())).findFirst().orElse(null);
+            if (property != null && property.getType() != null
+                    && property.getType().javaType() == BigDecimal.class) return true;
+        }
+        return false;
+    }
+
         public String escapeIdentifier(String identifier) {
         return dialect.escapeIdentifier(identifier);
     }
@@ -131,7 +229,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     private static Map<Class, String> arrayTypeMap;
     public static final String TYPE_ALIAS = "_type_";
     public static final String IGNORE_SUBTYPES = "IGNORE_SUBTYPES";
-    public static final String MULTI_TABLE = "MULTI_TABLE";
+    // The extracted compiler and all repository/parser paths share one scoped flag.
+    public static final String MULTI_TABLE = io.teaql.core.sql.SqlAstCompiler.MULTI_TABLE;
 
     private final EntityDescriptor entityDescriptor;
     private final TeaQLDatabase database;
@@ -162,13 +261,46 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     /**
      * A repository resolved by this data service can be embedded as a SQL
-     * subquery when the nested request is explicitly unlimited. Bounded child
-     * requests retain their materialized semantics because moving LIMIT into
-     * an IN subquery can change which relation identities participate.
+     * subquery when the nested request has no explicit business page. Bounded child
+     * entity requests retain their materialized semantics because moving LIMIT
+     * into an IN subquery can change which relation identities participate.
+     * Statistical requests embed their complete bounded result instead.
      */
     @Override
     public boolean canMixinSubQuery(UserContext userContext, SearchRequest subQuery) {
-        return resolver != null && subQuery != null && subQuery.getSlice() == null;
+        if (resolver == null || subQuery == null) return false;
+        if (!subQuery.hasSimpleAgg()) return subQuery.getSlice() == null || !subQuery.getSlice().hasExplicitPage();
+        var target = resolver.resolve(subQuery.getTypeName());
+        if (target == null) return false;
+        String ownRoute = entityDescriptor.getDataService();
+        String targetRoute = target.entityDescriptor.getDataService();
+        if (ownRoute == null || ownRoute.isEmpty()) ownRoute = "default";
+        if (targetRoute == null || targetRoute.isEmpty()) targetRoute = "default";
+        return ownRoute.equals(targetRoute);
+    }
+
+    /** Select one completed statistical result, without dropping HAVING or paging. */
+    public String buildStatisticalMembershipSQL(UserContext context, SearchRequest<?> request,
+            String resultKey, Map<String, Object> parameters) {
+        if (request.requestScope() == null)
+            throw new TeaQLRuntimeException("Statistical membership requires a prepared request scope");
+        if (!request.getPropagateDimensions().isEmpty())
+            return LayeredAggregation.compile(this, context, request, parameters).membershipSql(resultKey);
+        long matches = request.getAggregations().getSelectedExpressions().stream()
+                .filter(selected -> selected.name().equals(resultKey)).count();
+        if (matches != 1)
+            throw new TeaQLRuntimeException("Membership key is not an unambiguous selected statistical result");
+        var compiler = new io.teaql.core.sql.SqlAstCompiler();
+        var tables = compiler.collectAggregationTables(sqlMetadata, this, context, request);
+        Object previous = context.getObj(MULTI_TABLE);
+        context.putAttribute(MULTI_TABLE, tables.size() > 1);
+        try {
+            String sql = compiler.buildAggregationSQL(sqlMetadata, this, context, request, parameters, tables);
+            if (sql == null) return null;
+            String key = escapeIdentifier("__teaql_membership") + "." + escapeIdentifier(resultKey);
+            return "SELECT " + key + " FROM (" + sql + ") AS " + escapeIdentifier("__teaql_membership")
+                    + " WHERE " + key + " IS NOT NULL";
+        } finally { context.putAttribute(MULTI_TABLE, previous); }
     }
 
     public PortableSQLRepository(EntityDescriptor entityDescriptor, TeaQLDatabase database, PortableSQLRepositoryResolver resolver) {
@@ -258,11 +390,16 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         final String sql;
         final Object[] args;
         final SqlLogBindings logBindings;
+        final List<io.teaql.core.QueryRequestTraceNode> requestTree;
 
         PositionalSQL(String sql, Object[] args, SqlLogBindings logBindings) {
+            this(sql, args, logBindings, List.of());
+        }
+        PositionalSQL(String sql, Object[] args, SqlLogBindings logBindings, List<io.teaql.core.QueryRequestTraceNode> requestTree) {
             this.sql = sql;
             this.args = args;
             this.logBindings = logBindings;
+            this.requestTree = requestTree;
         }
     }
 
@@ -286,7 +423,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         intent.capture(sql.logBindings.policies(), sql.args);
         return new PositionalSQL(sql.sql, sql.args, new SqlLogBindings(sql.logBindings.policies(),
                 sql.logBindings.generated(), sql.logBindings.diagnosticSql(), intent.copy(),
-                SqlDiagnosticRequest.statementTrace(request)));
+                SqlDiagnosticRequest.statementTrace(request).withRequestTree(sql.requestTree)), sql.requestTree);
     }
 
     private SqlLogBindings withMutationIntent(SqlLogBindings bindings, io.teaql.core.SqlIntentRedactions intent) {
@@ -319,7 +456,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         }
         m.appendTail(sb);
         return new PositionalSQL(sb.toString(), args.toArray(), new SqlLogBindings(policies,
-                params instanceof io.teaql.core.sql.SqlParameters tracked && tracked.generated()));
+                params instanceof io.teaql.core.sql.SqlParameters tracked && tracked.generated()),
+                params instanceof io.teaql.core.sql.SqlParameters tracked ? tracked.requestTree() : List.of());
     }
 
     private Collection<?> expandedParameterValues(Object value) {
@@ -741,6 +879,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         // Inspect the current typed request, including future child predicates, before
         // any SQL. Cached plans never own these values and binds are never rewritten.
         SqlLikeIntent.capture(userContext, request, this, intent);
+
         IdSetExecution<T> idSetExecution = prepareIdSetPage(userContext, request, intent);
         if (idSetExecution.optimized() && idSetExecution.pageIds().length == 0) {
             return attachExactIdSetCount(userContext, request, idSetExecution, SmartList.empty(request.returnType()));
@@ -848,6 +987,13 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                         SqlDiagnosticRequest.forOwnedScope(request, intent, request,
                             facetScope.deriveHelper(request.getTypeName(), "aggregate " + facetRequest.getRelationName()), null);
                 tr.setAggregations(new io.teaql.core.Aggregations());
+                // Facet membership covers the entire filtered source, not its
+                // visible entity page. Its ID tie-break order is not an order
+                // over the grouped statistical result either. Change only this
+                // owned helper snapshot, never the caller's reusable request.
+                tr.getOrderBy().getOrderBys().clear();
+                tr.setSlice(null);
+                tr.setPartitionProperty(null);
                 tr.groupBy(facetRequest.getRelationName());
                 for (String alias : countAliases) tr.count(alias);
                 
@@ -1008,7 +1154,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 PropertyDescriptor property = binding.property();
                 Object value;
                 if (binding.relationDescriptor() == null) {
-                    value = row.get(binding.index(), property.getType().javaType());
+                    Class<?> javaType = property.getType().javaType();
+                    value = row.get(binding.index(), javaType);
+                    if (javaType == java.time.LocalDateTime.class && value != null) {
+                        value = convertColumnValue(property, value);
+                    }
                 }
                 else {
                     Long id = row.get(binding.index(), Long.class);
@@ -1219,9 +1369,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             }
             Object value = row.get(columnKey);
             if (!(property instanceof Relation)) {
-                Class targetType = property.getType().javaType();
                 entity.setProperty(property.getName(), value == null
-                        ? null : convertColumnValue(targetType, value));
+                        ? null : convertColumnValue(property, value));
             } else if (value == null) {
                 entity.setProperty(property.getName(), null);
             } else {
@@ -1333,12 +1482,11 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             String columnKey = binding.column();
             if (!(property instanceof Relation)) {
                 Object value = row.get(columnKey);
-                Class targetType = property.getType().javaType();
                 entity.setProperty(
                         property.getName(),
                         value == null
                                 ? null
-                                : convertColumnValue(targetType, value));
+                                : convertColumnValue(property, value));
             } else if (property instanceof Relation) {
                 Object value = row.get(columnKey);
                 if (value == null) {
@@ -1395,19 +1543,24 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     }
 
     static Object convertTemporalColumnValue(Class<?> targetType, Object value) {
-        if ((targetType == java.time.LocalDateTime.class || targetType == java.time.LocalDate.class
-                || targetType == java.time.LocalTime.class) && targetType.isInstance(value)) {
-            return value;
-        }
-        if (targetType == java.time.LocalDateTime.class
-                && value instanceof java.sql.Timestamp timestamp) {
-            return timestamp.toLocalDateTime();
-        }
+        return convertTemporalColumnValue(targetType, value, null, null);
+    }
+
+    private static Object convertTemporalColumnValue(Class<?> targetType, Object value,
+            String entityType, String field) {
         if (targetType == java.time.LocalDateTime.class) {
-            // SQLite returns text and some JDBC drivers return vendor temporal
-            // wrappers. Both expose the standard timestamp representation.
+            if (value == null) return null;
+            if (value instanceof java.time.LocalDateTime dateTime)
+                return SqlTemporalPrecision.storedDateTime(dateTime, entityType, field);
+            if (value instanceof java.sql.Timestamp timestamp)
+                return SqlTemporalPrecision.storedDateTime(timestamp.toLocalDateTime(), entityType, field);
             String text = String.valueOf(value);
-            return java.time.LocalDateTime.parse(text.replace(' ', 'T'));
+            return SqlTemporalPrecision.storedDateTime(
+                    java.time.LocalDateTime.parse(text.replace(' ', 'T')), entityType, field);
+        }
+        if ((targetType == java.time.LocalDate.class || targetType == java.time.LocalTime.class)
+                && targetType.isInstance(value)) {
+            return value;
         }
         if (targetType == java.time.LocalDate.class) {
             if (value instanceof java.sql.Date date) return date.toLocalDate();
@@ -1429,8 +1582,9 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         return io.teaql.core.utils.Convert.convert(targetType, value);
     }
 
-    private Object convertColumnValue(Class<?> targetType, Object value) {
-        return convertTemporalColumnValue(targetType, value);
+    private Object convertColumnValue(PropertyDescriptor property, Object value) {
+        return convertTemporalColumnValue(property.getType().javaType(), value,
+                entityDescriptor.getType(), property.getName());
     }
 
     @SuppressWarnings("unchecked")
@@ -1534,7 +1688,13 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     void updateBatchInternal(UserContext context, List<T> entities, io.teaql.core.SqlIntentRedactions intent,
             List<io.teaql.core.SqlExecutionTrace> traces) {
+        updateOrRecoverBatchInternal(context, entities, intent, traces, io.teaql.core.MutationOperationKind.UPDATE);
+    }
+
+    private void updateOrRecoverBatchInternal(UserContext context, List<T> entities, io.teaql.core.SqlIntentRedactions intent,
+            List<io.teaql.core.SqlExecutionTrace> traces, io.teaql.core.MutationOperationKind operation) {
         requireMemberTraces(entities, traces);
+        entities.forEach(entity -> io.teaql.core.MutationVersions.next(operation, entity.getVersion()));
         Map<PreparedWriteShape, List<PreparedWriteRow>> rows = new java.util.LinkedHashMap<>();
         var compiler = new io.teaql.core.sql.SqlAstCompiler();
         for (int index = 0; index < entities.size(); index++) {
@@ -1555,7 +1715,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                         versionUpdated = true;
                         columns.add("version");
                         bindings.add("version"); bindings.add("id"); bindings.add("version");
-                        values.add(entity.getVersion() + 1); values.add(entity.getId()); values.add(entity.getVersion());
+                        values.add(io.teaql.core.MutationVersions.next(operation, entity.getVersion())); values.add(entity.getId()); values.add(entity.getVersion());
                         sql = compiler.buildUpdateVersionSQL(this, table, columns, null);
                     } else if (primary) {
                         bindings.add("id"); values.add(entity.getId());
@@ -1573,7 +1733,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                         compiler.buildUpdateVersionTableVersionSQL(this, versionTableName),
                         List.of("version", "id", "version"), true, true);
                 rows.computeIfAbsent(shape, ignored -> new ArrayList<>()).add(new PreparedWriteRow(
-                        new Object[]{entity.getVersion() + 1, entity.getId(), entity.getVersion()}, traces.get(index)));
+                        new Object[]{io.teaql.core.MutationVersions.next(operation, entity.getVersion()), entity.getId(), entity.getVersion()}, traces.get(index)));
             }
         }
         executePreparedWrites(context, rows, intent);
@@ -1586,7 +1746,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
 
     void recoverBatchInternal(UserContext context, List<T> entities, io.teaql.core.SqlIntentRedactions intent,
             List<io.teaql.core.SqlExecutionTrace> traces) {
-        versionBatchInternal(context, entities, intent, traces, true);
+        updateOrRecoverBatchInternal(context, entities, intent, traces, io.teaql.core.MutationOperationKind.RECOVER);
     }
 
     private void versionBatchInternal(UserContext context, List<T> entities, io.teaql.core.SqlIntentRedactions intent,
@@ -1600,11 +1760,9 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         for (int index = 0; index < entities.size(); index++) {
             T entity = entities.get(index);
             Long version = entity.getVersion();
-            if (version == null || (recover ? version >= 0 : version <= 0)) {
-                throw new IllegalArgumentException("Delete/recover batch requires the matching persisted version sign");
-            }
+            long nextVersion = io.teaql.core.MutationVersions.next(recover ? io.teaql.core.MutationOperationKind.RECOVER : io.teaql.core.MutationOperationKind.DELETE, version);
             if (intent != null) intent.captureTargetId(entity.getId());
-            members.add(new PreparedWriteRow(new Object[]{recover ? -version + 1 : -(version + 1),
+            members.add(new PreparedWriteRow(new Object[]{nextVersion,
                     entity.getId(), version}, traces.get(index)));
         }
         executePreparedWrites(context, Map.of(shape, members), intent);
@@ -1658,6 +1816,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             io.teaql.core.SqlExecutionTrace trace) {
         if (intent != null) updateItems.forEach(item -> intent.captureTargetId(item.getId()));
         if (ObjectUtil.isEmpty(updateItems)) return;
+        updateItems.forEach(entity -> io.teaql.core.MutationVersions.next(io.teaql.core.MutationOperationKind.UPDATE, entity.getVersion()));
         List<SQLEntity> sqlEntities = CollectionUtil.map(updateItems,
                 i -> convertToSQLEntityForUpdate(userContext, i), true);
         if (ObjectUtil.isEmpty(sqlEntities)) return;
@@ -1701,7 +1860,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             io.teaql.core.SqlExecutionTrace trace) {
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
         String updateSql = compiler.buildUpdateVersionTableVersionSQL(this, this.versionTableName);
-        Object[] parameters = {sqlEntity.getVersion() + 1, sqlEntity.getId(), sqlEntity.getVersion()};
+        Object[] parameters = {io.teaql.core.MutationVersions.next(io.teaql.core.MutationOperationKind.UPDATE, sqlEntity.getVersion()), sqlEntity.getId(), sqlEntity.getVersion()};
         var bindings = logBindings(this.versionTableName, List.of("version", "id", "version")).withTrace(trace);
         if (intent != null) intent.capture(bindings.policies(), parameters);
         int update = database.executeUpdate(userContext, updateSql, parameters, withMutationIntent(bindings, intent));
@@ -1725,7 +1884,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                                      io.teaql.core.SqlIntentRedactions intent, io.teaql.core.SqlExecutionTrace trace) {
         versionTableUpdated.set(true);
         columns.add("version");
-        l.add(sqlEntity.getVersion() + 1);
+        l.add(io.teaql.core.MutationVersions.next(io.teaql.core.MutationOperationKind.UPDATE, sqlEntity.getVersion()));
         l.add(sqlEntity.getId());
         l.add(sqlEntity.getVersion());
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
@@ -1752,8 +1911,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
         String updateSql = compiler.buildDeleteSQL(this, this.versionTableName);
         List<Object[]> args = entities.stream()
-                .filter(e -> e.getVersion() > 0)
-                .map(e -> new Object[]{-(e.getVersion() + 1), e.getId(), e.getVersion()})
+                .map(e -> new Object[]{io.teaql.core.MutationVersions.next(io.teaql.core.MutationOperationKind.DELETE, e.getVersion()), e.getId(), e.getVersion()})
                 .collect(Collectors.toList());
         var bindings = logBindings(this.versionTableName, List.of("version", "id", "version")).withTrace(trace);
         if (intent != null) for (Object[] row : args) intent.capture(bindings.policies(), row);
@@ -1775,11 +1933,18 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
             io.teaql.core.SqlExecutionTrace trace) {
         if (intent != null) entities.forEach(item -> intent.captureTargetId(item.getId()));
         if (ObjectUtil.isEmpty(entities)) return;
+        if (trace != null) {
+            recoverBatchInternal(userContext, new ArrayList<>(entities), intent,
+                    java.util.Collections.nCopies(entities.size(), trace));
+            return;
+        }
+        if (entities.stream().anyMatch(entity -> !entity.getUpdatedProperties().isEmpty())) {
+            throw new TeaQLRuntimeException("Recovery with field changes requires the audited runtime save contract");
+        }
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
         String updateSql = compiler.buildDeleteSQL(this, this.versionTableName);
         List<Object[]> args = entities.stream()
-                .filter(e -> e.getVersion() < 0)
-                .map(e -> new Object[]{(-e.getVersion() + 1), e.getId(), e.getVersion()})
+                .map(e -> new Object[]{io.teaql.core.MutationVersions.next(io.teaql.core.MutationOperationKind.RECOVER, e.getVersion()), e.getId(), e.getVersion()})
                 .collect(Collectors.toList());
         var bindings = logBindings(this.versionTableName, List.of("version", "id", "version")).withTrace(trace);
         if (intent != null) for (Object[] row : args) intent.capture(bindings.policies(), row);
@@ -2103,7 +2268,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     private static boolean isDecimalFamily(String family) {
         return "DECIMAL".equals(family)
                 || "NUMERIC".equals(family)
-                || "NUMBER".equals(family);
+                || "NUMBER".equals(family)
+                || "DECIMAL_TEXT".equals(family);
     }
 
     private String metadataColumnName(Map<String, Object> column, String table) {
@@ -2123,7 +2289,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         sb.append("CREATE TABLE ").append(table).append(" (\n");
         sb.append(columns.stream()
                 .map(column -> {
-                    String dbColumn = dialect.escapeIdentifier(column.getColumnName()) + " " + dialect.mapColumnType(column.getType());
+                    String dbColumn = dialect.escapeIdentifier(column.getColumnName()) + " "
+                            + dialect.columnTypeAndConstraintsSql(column);
                     if (column.isIdColumn()) dbColumn += " NOT NULL PRIMARY KEY";
                     else if (column.isRequired()) dbColumn += " NOT NULL";
                     return dbColumn;
@@ -2143,7 +2310,7 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
     protected void addColumn(UserContext context, SQLColumn column) {
         String sql = StrUtil.format("ALTER TABLE {} ADD COLUMN {} {}{}",
                 dialect.escapeIdentifier(column.getTableName()), dialect.escapeIdentifier(column.getColumnName()),
-                dialect.mapColumnType(column.getType()), column.isRequired() ? " NOT NULL" : "");
+                dialect.columnTypeAndConstraintsSql(column), column.isRequired() ? " NOT NULL" : "");
         logInfo(sql + ";");
         if (ensureTableEnabled(context)) {
             try {
@@ -2415,6 +2582,14 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         if (!request.hasSimpleAgg()) return null;
         SqlLikeIntent.capture(userContext, request, this, intent);
 
+        if (!request.getPropagateDimensions().isEmpty()) {
+            var parameters = new io.teaql.core.sql.SqlParameters();
+            parameters.captureQueryContext(request);
+            var plan = LayeredAggregation.compile(this, userContext, request, parameters);
+            PositionalSQL statement = withQueryIntent(toPositional(plan.sql(), parameters), intent, request);
+            return plan.decode(database.query(userContext, statement.sql, statement.args, statement.logBindings));
+        }
+
         io.teaql.core.sql.SqlAstCompiler compiler = new io.teaql.core.sql.SqlAstCompiler();
         List<String> tables = compiler.collectAggregationTables(sqlMetadata, this, userContext, request);
         Map<String, Object> parameters = new io.teaql.core.sql.SqlParameters();
@@ -2434,7 +2609,8 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
                 AggregationItem item = new AggregationItem();
                 for (SimpleNamedExpression function : request.getAggregations().getAggregates()) {
                     String columnKey = findColumnKey(row, function.name());
-                    item.addValue(function, columnKey == null ? null : row.get(columnKey));
+                    Object raw = columnKey == null ? null : row.get(columnKey);
+                    item.addValue(function, decodeAggregateValue(function, raw));
                 }
                 for (SimpleNamedExpression dimension : request.getAggregations().getDimensions()) {
                     String columnKey = findColumnKey(row, dimension.name());
@@ -2447,6 +2623,23 @@ public class PortableSQLRepository<T extends Entity> implements SqlCompilerDeleg
         } finally {
             userContext.putAttribute(MULTI_TABLE, preConfig);
         }
+    }
+
+    Object decodeAggregateValue(SimpleNamedExpression selected, Object raw) {
+        if (raw == null || !(selected.getExpression() instanceof io.teaql.core.AggrExpression aggregate)
+                || aggregate.getOperator() == io.teaql.core.AggrFunction.COUNT
+                || aggregate.getOperator() == io.teaql.core.AggrFunction.COUNT_DISTINCT
+                || aggregate.getExpressions().size() != 1) {
+            return raw;
+        }
+        if(scalarType(aggregate.first())==BigDecimal.class)return dialect.decodeDecimalAggregate(raw);
+        if(!(aggregate.first() instanceof io.teaql.core.PropertyReference reference))return raw;
+        PropertyDescriptor property = allProperties.stream()
+                .filter(candidate -> reference.getPropertyName().equals(candidate.getName()))
+                .findFirst().orElse(null);
+        return property != null && property.getType() != null
+                && property.getType().javaType() == BigDecimal.class
+                ? dialect.decodeDecimalAggregate(raw) : raw;
     }
 
     // ==========================================

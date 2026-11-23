@@ -7,13 +7,52 @@ on:
 jobs:
   examples:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+        env:
+          POSTGRES_DB: teaql_rollup_279
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: teaql-example-ci-fixture-only
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d teaql_rollup_279"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: runtime
     env:
+      TEAQL_CODEGEN_DIR: ${{ github.workspace }}/generator
       TEAQL_S3_ENDPOINT: http://127.0.0.1:19010
       TEAQL_S3_BUCKET: teaql-java-example-ci
       TEAQL_S3_ACCESS_KEY: teaql-java-example-ci
       TEAQL_S3_SECRET_KEY: teaql-java-example-ci-fixture-only
+      TEAQL_TEST_POSTGRES_JDBC_URL: jdbc:postgresql://127.0.0.1:5432/teaql_rollup_279
+      TEAQL_TEST_POSTGRES_USER: postgres
+      TEAQL_TEST_POSTGRES_PASSWORD: teaql-example-ci-fixture-only
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out runtime under test
+        uses: actions/checkout@v4
+        with:
+          path: runtime
+          persist-credentials: false
+      # This key is a read-only deploy key on this one private repository,
+      # not a personal token. Fork PRs receive no repository secrets.
+      - name: Check out qualified generator
+        uses: actions/checkout@v4
+        with:
+          repository: teaql/teaql-code-gen
+          ref: 47a9c444599814aa0b85eea58e88344f7fe3c520
+          path: generator
+          ssh-key: ${{ secrets.TEAQL_CODEGEN_READONLY_DEPLOY_KEY }}
+          persist-credentials: false
+      - name: Verify pinned generator source
+        run: |
+          test "$(git -C "$TEAQL_CODEGEN_DIR" rev-parse HEAD)" = 47a9c444599814aa0b85eea58e88344f7fe3c520
+          test -z "$(git -C "$TEAQL_CODEGEN_DIR" status --porcelain)"
       - name: Install example verification tools
         run: sudo apt-get update && sudo apt-get install -y ripgrep
       - uses: actions/setup-java@v4
@@ -21,6 +60,42 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+      - name: Mark dedicated PostgreSQL diagnostics fixture
+        run: |
+          docker exec -i -u postgres '${{ job.services.postgres.id }}' \
+            psql -X -v ON_ERROR_STOP=1 -d teaql_rollup_279 <<'SQL'
+          COMMENT ON DATABASE teaql_rollup_279 IS 'TeaQL #279 owned layered statistics fixture';
+          CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;
+          SQL
+      - name: Prime third-party dependencies for offline source-paired probes
+        # The gate copies third-party downloads into a disposable Maven home
+        # and explicitly excludes every TeaQL/model artifact from that cache.
+        # Keep its offline checks; prepare a fresh runner before they start.
+        run: |
+          mvn -B -ntp install
+          node <<'NODE'
+          const fs = require('node:fs'), path = require('node:path'), os = require('node:os'), cp = require('node:child_process');
+          const runtime = process.cwd(), owned = fs.mkdtempSync(path.join(os.tmpdir(), 'teaql-ci-example-dependencies-'));
+          try {
+            const poms = cp.execFileSync('git', ['ls-files', '-z', 'examples'], {encoding: 'utf8'})
+              .split('\0').filter(name => name.endsWith('/lib/pom.xml'));
+            if (poms.length === 0) throw new Error('No generated library dependency manifests');
+            for (const relative of poms) {
+              const selected = path.join(owned, relative);
+              fs.mkdirSync(path.dirname(selected), {recursive: true});
+              fs.copyFileSync(path.join(runtime, relative), selected);
+              require('./scripts/pin-local-example-pom.cjs').pin(selected, runtime, owned);
+              cp.execFileSync('mvn', ['-B', '-ntp', '-f', selected,
+                'org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline'], {stdio: 'inherit'});
+            }
+          } finally {
+            fs.rmSync(owned, {recursive: true});
+          }
+          NODE
+          # This job created every reactor target above. Retain dependency
+          # downloads, but return the ephemeral CI checkout to the target-free
+          # input required by source-paired inheritance verification.
+          mvn -B -ntp clean
       - name: Start dedicated S3 example fixture
         run: |
           docker run -d --name teaql-java-example-s3 \

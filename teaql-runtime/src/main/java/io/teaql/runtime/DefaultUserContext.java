@@ -25,11 +25,17 @@ import io.teaql.core.reference.RoundTripReferenceCodec;
 public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObjectGetter<String> {
 
     private final TeaQLRuntime runtime;
+    private final RuntimeLogger runtimeLogger;
     private final Map<String, Object> storage = new ConcurrentHashMap<>();
     private final List<TraceNode> traceChain = new ArrayList<>();
 
     public DefaultUserContext(TeaQLRuntime runtime) {
         this.runtime = runtime;
+        this.runtimeLogger = runtime == null ? RuntimeLogger.defaultLogger() : runtime.getLogger();
+        // Prepare immutable classpath resources during composition, not during error rendering.
+        io.teaql.core.i18n.CheckerMessageCatalog.builtin();
+        io.teaql.core.checker.CheckerPresentation.Model.empty();
+        io.teaql.core.i18n.I18nCatalog.builtin();
     }
 
     public TeaQLRuntime getRuntime() {
@@ -41,6 +47,13 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
         if (provider == null) throw new IllegalArgumentException("provider must not be null");
         putAttribute(io.teaql.core.secret.SecretProvider.class.getName(), provider);
         return this;
+    }
+
+    @Override
+    public io.teaql.core.checker.CheckerPresentation.Model checkerPresentationModel() {
+        Object explicit = getAttribute(TEAQL_CHECKER_PRESENTATION_MODEL);
+        if (explicit instanceof io.teaql.core.checker.CheckerPresentation.Model model) return model;
+        return runtime == null ? io.teaql.core.checker.CheckerPresentation.Model.empty() : runtime.getCheckerPresentationModel();
     }
 
     @Override
@@ -152,6 +165,7 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
             return null;
         }
         Object value = getObj(capabilityType.getName());
+        if (value == null && capabilityType == RuntimeLogger.class) value = runtimeLogger;
         if (value == null && capabilityType == SchemaExecutor.class) {
             value = runtime.getSchemaExecutor();
             if (value == null) {
@@ -159,7 +173,7 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
             }
         }
         if (value == null && capabilityType == io.teaql.core.meta.EntityMetaFactory.class) {
-            value = runtime.getMetadata();
+            value = runtime == null ? null : runtime.getMetadata();
         }
         if (value == null && capabilityType == GeneratedSchemaBootstrap.class) {
             value = runtime.getGeneratedSchemaBootstrap();
@@ -186,7 +200,7 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
             value = runtime.getRoundTripReferenceCodec();
         }
         if (value == null && capabilityType == io.teaql.core.storage.ObjectStorageObserver.class) {
-            value = new RuntimeObjectStorageObserver(runtime == null ? RuntimeTelemetry.NOOP : runtime.getTelemetry());
+            value = new RuntimeObjectStorageObserver(operationTelemetry());
         }
         if (value == null && capabilityType == io.teaql.core.http.HttpPropagation.class) {
             RuntimeTelemetry telemetry = runtime == null ? RuntimeTelemetry.NOOP : runtime.getTelemetry();
@@ -194,8 +208,7 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
                     carrier -> RuntimeTelemetry.injectSafely(telemetry, carrier);
         }
         if (value == null && capabilityType == io.teaql.core.http.HttpObservation.class) {
-            value = new RuntimeHttpObservation(runtime == null
-                    ? RuntimeTelemetry.NOOP : runtime.getTelemetry());
+            value = new RuntimeHttpObservation(operationTelemetry());
         }
         if (value == null) {
             return null;
@@ -252,9 +265,13 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
         }, ignored -> "removed");
     }
 
+    private RuntimeTelemetry operationTelemetry() {
+        return runtime == null ? new RuntimeLoggingTelemetry(RuntimeTelemetry.NOOP, runtimeLogger) : runtime.getOperationTelemetry();
+    }
+
     private <T> T observeCache(String name, String operation, Supplier<T> work,
             java.util.function.Function<T, String> result) {
-        RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(runtime.getTelemetry(),
+        RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(operationTelemetry(),
                 new RuntimeTelemetry.Operation("cache", name,
                         Map.of("teaql.cache.operation", operation)));
         try {

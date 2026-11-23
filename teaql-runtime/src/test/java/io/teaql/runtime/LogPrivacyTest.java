@@ -9,6 +9,72 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class LogPrivacyTest {
+    @Test public void sqlCorrelationSurvivesProjectionAndGuardsCachedDebugDowngrade() throws Exception {
+        var raw = requestTreeEntry();
+        var first = new io.teaql.core.SqlExecutionCorrelation("11111111111111111111111111111111", "2222222222222222");
+        raw.setSqlExecutionCorrelation(first);
+        assertEquals(first, LogPrivacy.sql(raw, false).getSqlExecutionCorrelation());
+        var debug = LogPrivacy.sql(raw, true);
+        assertEquals(first, debug.getSqlExecutionCorrelation());
+        assertEquals(first, LogPrivacy.sql(debug, false).getSqlExecutionCorrelation());
+        var second = new io.teaql.core.SqlExecutionCorrelation("33333333333333333333333333333333", "4444444444444444");
+        debug.setSqlExecutionCorrelation(second);
+        var safe = LogPrivacy.sql(debug, false);
+        assertEquals(second, safe.getSqlExecutionCorrelation());
+        assertEquals("[REDACTED]", safe.getRequestTree().get(2).detail());
+        assertEquals(second, SqlDiagnosticEvent.project(debug).correlation());
+    }
+
+    private static ExecutionMetadata requestTreeEntry() {
+        var metadata = entry("name", "PRIVATE-CANARY");
+        metadata.setParameterLogPolicies(List.of(io.teaql.core.SqlParameterLogPolicy.MASKED));
+        metadata.setGeneratedSql(true);
+        var root = io.teaql.core.QueryRequestScope.root("School", io.teaql.core.QueryIntent.of("Load schools", "Render dashboard"));
+        var child = root.deriveChild("Kind PRIVATE-CANARY", "Read PRIVATE-CANARY");
+        var nodes = new java.util.ArrayList<>(io.teaql.core.QueryRequestTraceNode.fromScopes(List.of(root, child)));
+        var last = nodes.get(nodes.size() - 1);
+        nodes.set(nodes.size() - 1, new io.teaql.core.QueryRequestTraceNode(last.id(), last.parentId(),
+                last.kind(), last.name(), last.detail(), "PRIVATE-CANARY"));
+        metadata.setRequestTree(nodes);
+        return metadata;
+    }
+
+    @Test public void requestTreeMaskingPreservesStructureAndDebugDowngradesSafely() throws Exception {
+        var raw = requestTreeEntry();
+        var safe = LogPrivacy.sql(raw, false);
+        assertFalse(safe.getRequestTree().toString().contains("PRIVATE-CANARY"));
+        assertEquals(Integer.valueOf(1), safe.getRequestTree().get(2).parentId());
+        assertEquals("Read [REDACTED]", safe.getRequestTree().get(2).detail());
+        assertTrue(raw.getRequestTree().toString().contains("PRIVATE-CANARY"));
+        var debug = LogPrivacy.sql(raw, true);
+        assertTrue(debug.getRequestTree().toString().contains("PRIVATE-CANARY"));
+        assertEquals(safe.getRequestTree(), LogPrivacy.sql(debug, false).getRequestTree());
+        var event = SqlDiagnosticEvent.project(debug);
+        var tree = new com.fasterxml.jackson.databind.ObjectMapper().readTree((String)event.attributes().get("teaql.request_tree"));
+        assertEquals("Read [REDACTED]", tree.get(2).get("detail").asText());
+        assertEquals(1, tree.get(2).get("parentId").asInt());
+    }
+
+    @Test public void changedRequestTreeInvalidatesDebugDowngradeFingerprint() {
+        var debug = LogPrivacy.sql(requestTreeEntry(), true);
+        var nodes = new java.util.ArrayList<>(debug.getRequestTree());
+        var last = nodes.get(2);
+        nodes.set(2, new io.teaql.core.QueryRequestTraceNode(last.id(), last.parentId(), last.kind(),
+                last.name(), "NEW-UNBOUND-PRIVATE-CANARY", last.method()));
+        debug.setRequestTree(nodes);
+        var safe = LogPrivacy.sql(debug, false);
+        assertEquals("[REDACTED]", safe.getRequestTree().get(2).detail());
+        assertEquals("[REDACTED]", safe.getRequestTree().get(2).name());
+        assertEquals("[REDACTED]", safe.getRequestTree().get(2).method());
+        assertEquals(Integer.valueOf(1), safe.getRequestTree().get(2).parentId());
+    }
+
+    @Test public void requestTreeCredentialsStayMaskedUnderDebugOptIn() {
+        var raw = requestTreeEntry();
+        raw.setParameterLogPolicies(List.of(io.teaql.core.SqlParameterLogPolicy.CREDENTIAL));
+        assertFalse(LogPrivacy.sql(raw, true).getRequestTree().toString().contains("PRIVATE-CANARY"));
+    }
+
     @Test public void graphSnapshotProtectsSiblingAuditAndKeepsDebugPolicy() {
         var privacy = new io.teaql.core.SqlIntentRedactions();
         privacy.capture(List.of(io.teaql.core.SqlParameterLogPolicy.MASKED,

@@ -3,6 +3,7 @@ package io.teaql.tools.http;
 import io.teaql.core.http.HttpRequestService;
 import java.io.ByteArrayInputStream;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.time.Duration;
@@ -122,7 +123,26 @@ public final class HttpServiceProfile {
                     if (pem == null || pem.length == 0 || pem.length > 64 * 1024) {
                         throw new IllegalArgumentException("invalid trusted TLS root");
                     }
-                    var certificates = factory.generateCertificates(new ByteArrayInputStream(pem.clone()));
+                    // A trust entry is exactly one PEM certificate, not a permissive
+                    // X.509/DER container with unrelated text or private-key material.
+                    int first = 0, last = pem.length;
+                    while (first < last && pemWhitespace(pem[first])) first++;
+                    while (last > first && pemWhitespace(pem[last - 1])) last--;
+                    String text = new String(pem, first, last - first, StandardCharsets.US_ASCII);
+                    String begin = "-----BEGIN CERTIFICATE-----", end = "-----END CERTIFICATE-----";
+                    if (!text.startsWith(begin) || !text.endsWith(end) || text.length() <= begin.length() + end.length()) {
+                        throw new IllegalArgumentException("invalid trusted TLS root");
+                    }
+                    for (int index = begin.length(); index < text.length() - end.length(); index++) {
+                        char value = text.charAt(index);
+                        if (!pemWhitespace((byte) value) && !(value >= 'A' && value <= 'Z')
+                                && !(value >= 'a' && value <= 'z') && !(value >= '0' && value <= '9')
+                                && value != '+' && value != '/' && value != '=') {
+                            throw new IllegalArgumentException("invalid trusted TLS root");
+                        }
+                    }
+                    var certificates = factory.generateCertificates(new ByteArrayInputStream(
+                            text.getBytes(StandardCharsets.US_ASCII)));
                     if (certificates.size() != 1
                             || !(certificates.iterator().next() instanceof X509Certificate root)
                             || parsed.contains(root)) {
@@ -135,6 +155,9 @@ public final class HttpServiceProfile {
                 throw new IllegalArgumentException("invalid trusted TLS root");
             }
             return this;
+        }
+        private static boolean pemWhitespace(byte value) {
+            return value == 9 || value == 10 || value == 12 || value == 13 || value == 32;
         }
         public Builder retry(int attempts, Duration delay, Set<HttpRequestService.Method> methods) {
             this.maxAttempts = attempts;

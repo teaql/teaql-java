@@ -10,6 +10,7 @@ import io.teaql.dataservice.sql.SqlExecutionAdapter;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class DuckDataServiceExecutor extends SqlDataServiceExecutor {
 
@@ -57,6 +58,18 @@ public class DuckDataServiceExecutor extends SqlDataServiceExecutor {
                         + "CASE WHEN is_nullable = 'YES' THEN 1 ELSE 0 END AS nullable "
                         + "FROM information_schema.columns WHERE table_name = ?";
                 return getExecutionAdapter().queryForList(sql, new Object[] {tableName});
+            }
+
+            @Override
+            public Optional<Boolean> indexExists(
+                    UserContext context, String tableName, String indexName) {
+                List<Map<String, Object>> rows = getExecutionAdapter().queryForList(
+                        "SELECT 1 AS present FROM duckdb_indexes() "
+                                + "WHERE database_name = current_database() "
+                                + "AND schema_name = current_schema() "
+                                + "AND table_name = ? AND index_name = ? LIMIT 1",
+                        new Object[] {tableName, indexName});
+                return Optional.of(!rows.isEmpty());
             }
         };
 

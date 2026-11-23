@@ -2,7 +2,7 @@ package io.teaql.core;
 
 /** Structured failure for a missing or mismatched trusted active root. */
 public class ContextRootException extends TeaQLRuntimeException {
-    public enum Reason { MISSING, TYPE_MISMATCH, VALUE_MISMATCH }
+    public enum Reason { MISSING, TYPE_MISMATCH, VALUE_MISMATCH, INVALID_ID }
 
     private final Reason reason;
     private final String expectedType;

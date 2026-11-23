@@ -88,7 +88,9 @@ bash "$repo_dir/examples/trace-chain/verify.sh"
 bash "$repo_dir/examples/secret-provider/verify.sh"
 if [[ -n "${TEAQL_CODEGEN_DIR:-}" ]]; then
   bash "$repo_dir/examples/shared-load-state/verify.sh" --generate
+  bash "$repo_dir/examples/exact-decimal/verify.sh"
+  printf 'PASS Java runtime examples: 6/6 (including generated exact Decimal)\n'
 else
   bash "$repo_dir/examples/shared-load-state/verify.sh"
+  printf 'PASS Java runtime examples: 5/5; generated exact Decimal requires TEAQL_CODEGEN_DIR\n'
 fi
-printf 'PASS Java runtime examples: 5/5\n'

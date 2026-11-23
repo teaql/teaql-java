@@ -70,7 +70,7 @@ public class MemoryDatabaseTest {
 
     public static class TaskRequest extends BaseRequest<Task> {
         public TaskRequest() {
-            super(Task.class);
+            super(Task.class, Task::new);
         }
 
         @Override

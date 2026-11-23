@@ -9,9 +9,10 @@ final class GeneratedPropertyMetadataAcceptance {
     static void verify(UserContext context, String first, String second) {
         var request = Q.schoolsWithMinimalFields().withNameIn(first,second).selectName().orderByIdAscending().limit(2);
         var metadata = new DynamicPropertyMetadata(Map.of("_missing_count",Long.class,"_count",Number.class,"_null",String.class));
-        request.addSimpleDynamicProperty("_count",new io.teaql.core.PropertyReference("studentCapacity"));
-        String nullableMember=io.teaql.core.FieldLayout.forType(com.example.schoolmanagementservice.school.School.class).memberName("probe_0");
-        if(nullableMember!=null) request.addSimpleDynamicProperty("_null",new io.teaql.core.PropertyReference(nullableMember));
+        // AST field references use model names, not language-native member names.
+        request.addSimpleDynamicProperty("_count",new io.teaql.core.PropertyReference("student_capacity"));
+        boolean hasNullableProbe=io.teaql.core.FieldLayout.forType(com.example.schoolmanagementservice.school.School.class).findIndex("probe_0")!=null;
+        if(hasNullableProbe) request.addSimpleDynamicProperty("_null",new io.teaql.core.PropertyReference("probe_0"));
         request.setDynamicPropertyMetadata(metadata);
         var rows = request.comment("what: load generated School with a readonly schema")
             .purpose("why: keep schema sharing distinct from value presence").executeForList(context);
@@ -28,7 +29,7 @@ final class GeneratedPropertyMetadataAcceptance {
             assertEquals(0,((Number)row.getDynamicProperty("_count")).intValue());
             assertTrue(row.hasDynamicProperty("_count"));
             assertNull(row.getDynamicProperty("_null"));
-            assertEquals(nullableMember!=null,row.hasDynamicProperty("_null"));
+            assertEquals(hasNullableProbe,row.hasDynamicProperty("_null"));
         }
         try(var stream=request.comment("what: stream generated School readonly schema")
             .purpose("why: retain schema after cursor cleanup").executeForStream(context)) {

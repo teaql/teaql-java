@@ -57,9 +57,12 @@ final class GeneratedDynamicRollbackAcceptance {
         assertThrows(CheckException.class, () -> streamed.get(0)
                 .auditAs("reject extension mutation on an incomplete streamed object").save(context));
         assertArrayEquals(beforeStreamRejection, sql.counts(), "incomplete stream mutation must reject before provider entry");
-        // The declared timestamp Fix may detach only this modified row's state.
-        assertNotSame(streamedState, streamed.get(0).__internalLoadState());
-        assertTrue(streamed.get(0).isPropertyLoaded("updateTime"));
+        // Failed validation withdraws automatic Context state, but preserves
+        // the caller's dynamic-field intent. Restored state is content-equal;
+        // immutable copy-on-write does not promise the original instance.
+        assertEquals(streamedState, streamed.get(0).__internalLoadState());
+        assertFalse(streamed.get(0).isPropertyLoaded("updateTime"));
+        assertEquals("must-not-persist", streamed.get(0).dynamicFields().field(code).value());
         assertSame(streamedState, streamed.get(1).__internalLoadState());
         assertFalse(streamedState.isLoaded("updateTime"));
         assertFalse(streamed.get(0).isPropertyLoaded("address"));

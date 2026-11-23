@@ -29,7 +29,11 @@ public enum EntityStatus {
     UPDATED_RECOVER,
 
     // refer only, cannot change it, and will not persist it
-    REFER;
+    REFER,
+
+    // A reserved but never-persisted identity whose creation was cancelled.
+    // Keep this distinct from a durable tombstone and preserve existing ordinals.
+    NEW_DELETED;
 
     private static final RowKeyTable<EntityStatus, EntityAction, EntityStatus> statusTransaction =
             new RowKeyTable<>();
@@ -37,6 +41,9 @@ public enum EntityStatus {
     static {
         statusTransaction.put(NEW, UPDATE, NEW);
         statusTransaction.put(NEW, PERSIST, PERSISTED);
+        statusTransaction.put(NEW, DELETE, NEW_DELETED);
+        statusTransaction.put(NEW_DELETED, DELETE, NEW_DELETED);
+        statusTransaction.put(NEW_DELETED, UPDATE, NEW_DELETED);
         statusTransaction.put(PERSISTED, UPDATE, UPDATED);
         statusTransaction.put(PERSISTED, DELETE, UPDATED_DELETED);
         statusTransaction.put(PERSISTED_DELETED, RECOVER, UPDATED_RECOVER);
@@ -49,6 +56,9 @@ public enum EntityStatus {
         statusTransaction.put(UPDATED_DELETED, UPDATE, UPDATED_DELETED);
         statusTransaction.put(UPDATED_RECOVER, PERSIST, PERSISTED);
         statusTransaction.put(UPDATED_RECOVER, RECOVER, UPDATED_RECOVER);
+        // Correcting a tombstone after marking it for recovery must keep the
+        // pending recovery, not become an ordinary positive-version update.
+        statusTransaction.put(UPDATED_RECOVER, UPDATE, UPDATED_RECOVER);
     }
 
     public EntityStatus next(EntityAction action) {

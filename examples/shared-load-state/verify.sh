@@ -17,7 +17,7 @@ if [[ "$generate" == true ]]; then
   : "${TEAQL_CODEGEN_DIR:?Set TEAQL_CODEGEN_DIR to the local generator checkout}"
   mvn -q -f "$TEAQL_CODEGEN_DIR/pom.xml" -pl generator -am \
     '-Dtest=JavaGeneratedMysqlSqliteIntegrationTest#generatedJavaSharedLoadStateRuntimeExample' \
-    -Dsurefire.failIfNoSpecifiedTests=false -Dteaql.loadState.generateOnly=true "-Dteaql.loadState.wide=$wide" "-Dteaql.loadState.inheritance=$inheritance" \
+    -Dexec.skip=true -Dsurefire.failIfNoSpecifiedTests=false -Dteaql.loadState.generateOnly=true "-Dteaql.loadState.wide=$wide" "-Dteaql.loadState.inheritance=$inheritance" \
     "-Dteaql.java.dir=$runtime_dir" test
 fi
 fixture_mode=narrow

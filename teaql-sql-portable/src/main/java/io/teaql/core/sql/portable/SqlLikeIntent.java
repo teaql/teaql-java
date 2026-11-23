@@ -25,6 +25,7 @@ final class SqlLikeIntent {
         if (request == null || repository == null || !visited.add(request)) return;
         request(request.diagnosticSource(), repository);
         expression(request.getSearchCriteria(), repository);
+        having(request.getHaving());
         if (request.getProjections() != null)
             for (var projection : request.getProjections()) expression(projection.getExpression(), repository);
         if (request.getOrderBy() != null)
@@ -35,6 +36,10 @@ final class SqlLikeIntent {
             for (var child : request.enhanceRelations().values()) child(child, repository);
         if (request.enhanceChildren() != null)
             for (var child : request.enhanceChildren().values()) child(child, repository);
+        if (request.getPropagateDimensions() != null)
+            for (var parent : request.getPropagateDimensions().values()) child(parent, repository);
+        if (request.getPropagateAggregations() != null)
+            for (var parent : request.getPropagateAggregations().values()) child(parent, repository);
         if (request.getFacetRequests() != null)
             for (var facet : request.getFacetRequests()) child(facet.getRequest(), repository);
         if (request.getDynamicAggregateAttributes() != null)
@@ -44,6 +49,25 @@ final class SqlLikeIntent {
     private void child(SearchRequest<?> child, PortableSQLRepository<?> owner) {
         if (child == null || owner.getResolver() == null) return;
         request(child, owner.getResolver().resolve(child.getTypeName()));
+    }
+
+    private void having(Expression expression) {
+        if (expression == null) return;
+        var queue = new ArrayDeque<Expression>(); queue.add(expression);
+        Set<Expression> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+        while (!queue.isEmpty() && seen.size() <= 1024) {
+            var node = queue.removeFirst(); if (!seen.add(node)) continue;
+            if (node.getClass() == Parameter.class) {
+                var parameter = (Parameter) node;
+                // Alias metadata is resolved during statistical compilation.
+                // Conservatively protect all thresholds in intent annotations.
+                var policy = io.teaql.core.utils.SensitiveLogNames.credential(parameter.getName())
+                        ? SqlParameterLogPolicy.CREDENTIAL : SqlParameterLogPolicy.UNKNOWN;
+                output.capture(List.of(policy), new Object[]{parameter.getValue()});
+            } else if (node instanceof FunctionApply function) {
+                for (var operand : function.getExpressions()) if (operand != null) queue.add(operand);
+            }
+        }
     }
 
     private void expression(Expression expression, PortableSQLRepository<?> repository) {

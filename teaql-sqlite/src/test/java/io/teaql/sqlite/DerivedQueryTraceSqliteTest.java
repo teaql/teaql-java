@@ -258,6 +258,151 @@ public class DerivedQueryTraceSqliteTest {
         }
     }
 
+    /** #271: a scalar relation aggregate is not necessarily COUNT. */
+    @Test public void emptyAggregateBucketsKeepCountZeroButSumNull() throws Exception {
+        for (boolean logging : List.of(false, true)) {
+            try (var fixture = new Fixture(logging)) {
+            // All-null bucket, genuine zero bucket and absent bucket must differ.
+            for (long id : List.of(101L, 102L, 201L)) {
+                var line = fixture.context.getRuntime().executeForList(fixture.context,
+                        fixture.lines().where("id", Operator.EQUAL, id)
+                                .intent("load aggregate operand", "prepare null and zero controls")).get(0);
+                line.updateProperty("documentNumber", id == 201L ? 0L : null);
+                line.auditAs("prepare nullable aggregate operand").save(fixture.context);
+            }
+            var empty = fixture.create(new TraceDocument(), 300, "Document without lines");
+            empty.auditAs("prepare absent aggregate bucket").save(fixture.context);
+
+            for (boolean facet : List.of(false, true)) {
+                fixture.sql.clear(); fixture.returnedQueries.clear();
+                var sum = fixture.lines(); sum.sum("amount", "documentNumber");
+                sum.setPartitionProperty("document");
+                var count = fixture.lines(); count.count("count"); count.setPartitionProperty("document");
+                var owners = fixture.documents(); owners.setSize(10);
+                owners.addSingleAggregateDynamicProperty("lineSum", sum);
+                owners.addSingleAggregateDynamicProperty("lineCount", count);
+                var request = facet ? fixture.lines() : owners;
+                if (facet) request.addFacet("documents", "document", owners, true);
+                request.intent("inspect empty aggregates", "distinguish no contribution from numeric zero");
+                var result = fixture.context.getRuntime().executeForList(fixture.context, request);
+                var rows = facet ? result.getFacet("documents") : result;
+                assertEquals(3, rows.size());
+                for (Object value : rows) {
+                    var row = (Entity) value;
+                    long id = row.getId();
+                    assertTrue("selected null is a present property", ((BaseEntity) row).hasDynamicProperty("lineSum"));
+                    if (id == 200) assertEquals(0L, ((Number) row.getDynamicProperty("lineSum")).longValue());
+                    else assertNull("all-null and absent buckets must not invent a sum", row.getDynamicProperty("lineSum"));
+                    assertEquals(id == 100 ? 2L : id == 200 ? 1L : 0L,
+                            ((Number) row.getDynamicProperty("lineCount")).longValue());
+                }
+                assertTrue(fixture.context.getTraceChain().isEmpty());
+                // Facet count + root + value enumeration + SUM + related COUNT.
+                int statements = facet ? 5 : 3;
+                assertEquals(logging ? statements : 0, fixture.sql.size());
+                System.out.println("EMPTY_AGGREGATE_BUCKET_PASS facet=" + facet + " logging=" + logging);
+            }
+            }
+        }
+    }
+
+    @Test public void emptyMinimumBucketsKeepNullForRelationsAndFacets() throws Exception {
+        assertNullableStatisticBuckets(AggrFunction.MIN);
+    }
+
+    @Test public void emptyMaximumBucketsKeepNullForRelationsAndFacets() throws Exception {
+        assertNullableStatisticBuckets(AggrFunction.MAX);
+    }
+
+    @Test public void emptyAverageBucketsKeepNullForRelationsAndFacets() throws Exception {
+        assertNullableStatisticBuckets(AggrFunction.AVG);
+    }
+
+    private static void assertNullableStatisticBuckets(AggrFunction function) throws Exception {
+        for (boolean logging : List.of(false, true)) {
+            try (var fixture = new Fixture(logging)) {
+                // Mixed null/value, genuine zero, absent and all-null buckets.
+                for (long id : List.of(101L, 102L, 201L)) {
+                    var line = fixture.context.getRuntime().executeForList(fixture.context,
+                            fixture.lines().where("id", Operator.EQUAL, id)
+                                    .intent("prepare a statistic operand", "distinguish null and numeric zero")).get(0);
+                    line.updateProperty("documentNumber", id == 101L ? null : id == 102L ? 8L : 0L);
+                    line.auditAs("prepare statistic operand").save(fixture.context);
+                }
+                var empty = fixture.create(new TraceDocument(), 300, "Absent statistic bucket");
+                empty.auditAs("prepare absent statistic bucket").save(fixture.context);
+                var allNull = fixture.create(new TraceDocument(), 400, "All-null statistic bucket");
+                allNull.auditAs("prepare all-null statistic bucket").save(fixture.context);
+                var nullLine = fixture.create(new TraceLine(), 401, "Null statistic operand");
+                nullLine.updateProperty("document", allNull);
+                nullLine.updateProperty("state", "OPEN");
+                nullLine.updateProperty("documentNumber", null);
+                nullLine.auditAs("prepare null statistic operand").save(fixture.context);
+
+                for (boolean facet : List.of(false, true)) {
+                    fixture.sql.clear(); fixture.returnedQueries.clear();
+                    var metric = fixture.lines();
+                    switch (function) {
+                        case MIN -> metric.min("metric", "documentNumber");
+                        case MAX -> metric.max("metric", "documentNumber");
+                        case AVG -> metric.avg("metric", "documentNumber");
+                        default -> throw new AssertionError("unexpected statistic");
+                    }
+                    metric.setPartitionProperty("document");
+                    var count = fixture.lines(); count.count("count"); count.setPartitionProperty("document");
+                    var owners = fixture.documents(); owners.setSize(10);
+                    owners.addSingleAggregateDynamicProperty("metric", metric);
+                    owners.addSingleAggregateDynamicProperty("lineCount", count);
+                    var request = facet ? fixture.lines() : owners;
+                    if (facet) request.addFacet("documents", "document", owners, true);
+                    request.intent("inspect nullable statistics", "preserve empty, null and zero independently");
+                    var result = fixture.context.getRuntime().executeForList(fixture.context, request);
+                    var rows = facet ? result.getFacet("documents") : result;
+                    assertEquals(4, rows.size());
+                    for (Object item : rows) {
+                        var row = (BaseEntity) item;
+                        assertTrue("selected null statistic is present", row.hasDynamicProperty("metric"));
+                        Number value = row.getDynamicProperty("metric");
+                        if (row.getId() == 100L) assertEquals(8.0, value.doubleValue(), 0.0);
+                        else if (row.getId() == 200L) assertEquals(0.0, value.doubleValue(), 0.0);
+                        else assertNull("absent and all-null statistics must not become zero", value);
+                        assertEquals(row.getId() == 100L ? 2L : row.getId() == 300L ? 0L : 1L,
+                                ((Number) row.getDynamicProperty("lineCount")).longValue());
+                    }
+                    assertEquals(logging ? facet ? 5 : 3 : 0, fixture.sql.size());
+                    assertTrue(fixture.context.getTraceChain().isEmpty());
+                    assertEquals(1, metric.getAggregations().getAggregates().size());
+                    assertNull(metric.comment());
+                    System.out.printf("EMPTY_STATISTIC_BUCKET_PASS function=%s facet=%s logging=%s buckets=4%n", function, facet, logging);
+                }
+            }
+        }
+    }
+
+    @Test public void emptyAggregateDirectSqlDistinguishesAbsentGroupFromNullSum() throws Exception {
+        try (var fixture = new Fixture(false)) {
+        var query = fixture.lines().where("id", Operator.EQUAL, -1L)
+                .intent("calculate empty aggregate", "verify scalar and grouped SQL semantics");
+        query.count("count"); query.sum("sum", "documentNumber");
+        var result = (DefaultQueryResult) fixture.provider.query(fixture.context, new DefaultQueryRequest(query));
+        var rows = result.getAggregationResult().toList();
+        assertEquals(1, rows.size()); assertTrue(rows.get(0).containsKey("sum"));
+        assertNull(rows.get(0).get("sum")); assertEquals(0L, ((Number) rows.get(0).get("count")).longValue());
+        // Explicit defaulting must not rewrite the underlying nullable result.
+        var onlySum = fixture.lines().where("id", Operator.EQUAL, -1L)
+                .intent("read nullable sum", "verify explicit caller fallback");
+        onlySum.sum("sum", "documentNumber");
+        var nullable = (DefaultQueryResult) fixture.provider.query(fixture.context, new DefaultQueryRequest(onlySum));
+        assertNull(nullable.getAggregationResult().toNumber(null));
+        assertEquals(0L, nullable.getAggregationResult().toNumber(0L).longValue());
+        assertNull(nullable.getAggregationResult().toList().get(0).get("sum"));
+        query.groupBy("state");
+        var grouped = (DefaultQueryResult) fixture.provider.query(fixture.context, new DefaultQueryRequest(query));
+        assertTrue(grouped.getAggregationResult().toList().isEmpty());
+        System.out.println("EMPTY_AGGREGATE_DIRECT_PASS");
+        }
+    }
+
     @Test public void idSetDiscoveryOwnsHelperAndRetainedPagesDoNotInventCountSql() throws Exception {
         for (boolean logging : List.of(true, false)) {
             var fixture = new Fixture(logging);
@@ -379,7 +524,8 @@ public class DerivedQueryTraceSqliteTest {
         }
     }
 
-    private static final class Fixture {
+    private static final class Fixture implements AutoCloseable {
+        final java.nio.file.Path databaseFile;
         final List<ExecutionMetadata> sql = new CopyOnWriteArrayList<>();
         final List<DefaultQueryResult> returnedQueries = new CopyOnWriteArrayList<>();
         final List<List<TraceNode>> receivedChains = new CopyOnWriteArrayList<>();
@@ -396,7 +542,8 @@ public class DerivedQueryTraceSqliteTest {
         }
         Fixture(boolean logging, Function<SQLiteDataSource, JdbcSqlExecutor> driverFactory, boolean nestedPeers) throws Exception {
             var source = new SQLiteDataSource();
-            source.setUrl("jdbc:sqlite:" + Files.createTempFile("teaql-derived-trace-", ".db"));
+            databaseFile = Files.createTempFile("teaql-derived-trace-", ".db");
+            source.setUrl("jdbc:sqlite:" + databaseFile);
             var documents = descriptor(TraceDocument.class,TraceDocument::new);
             var lines = descriptor(TraceLine.class,TraceLine::new);
             var state = (GenericSQLProperty) lines.addSimpleProperty("state",String.class);
@@ -468,6 +615,9 @@ public class DerivedQueryTraceSqliteTest {
             count.setPartitionProperty("document"); count.count("count");
             var root = documents(); root.addSingleAggregateDynamicProperty("openLineCount",count); return root;
         }
+        @Override public void close() throws Exception {
+            Files.deleteIfExists(databaseFile);
+        }
     }
 
     @Test public void loadedCollectionFacetsRetainPerParentMembershipCountsAndRequestedEmpty() throws Exception {
@@ -478,6 +628,7 @@ public class DerivedQueryTraceSqliteTest {
                 empty.auditAs("seed a parent with no child membership").save(fixture.context);
                 fixture.sql.clear(); fixture.returnedQueries.clear();
                 var children = fixture.lines(); children.setSize(1);
+                children.addOrderByDescending("id");
                 var targets = fixture.documents().where("id", Operator.IN, List.of(100L, 200L, 300L)); targets.setSize(3);
                 children.addFacet("documents", "document", targets, includeAll);
                 var root = fixture.documents().where("id", Operator.IN, List.of(100L, 200L, 300L))
@@ -485,6 +636,8 @@ public class DerivedQueryTraceSqliteTest {
                 root.setSize(3); root.enhanceRelation("lines", children);
                 SmartList<TraceDocument> rows = fixture.context.getRuntime().executeForList(fixture.context, root);
                 assertEquals(3, rows.size());
+                assertEquals("Facet helpers must not remove the reusable child page", 1, children.getSlice().getSize());
+                assertEquals("Facet helpers must not remove the reusable child order", 1, children.getOrderBy().getOrderBys().size());
                 for (var parent : rows) {
                     SmartList<TraceLine> lines = parent.getProperty("lines");
                     assertNotNull("requested empty reverse relation must be loaded", lines);
@@ -590,7 +743,7 @@ public class DerivedQueryTraceSqliteTest {
                     var rows = results.get(i); var label = i == 0 ? "alpha" : "beta";
                     assertEquals(1, rows.size());
                     assertEquals(Long.valueOf(i == 0 ? 100 : 200), rows.get(0).getId());
-                    SmartList<?> children = rows.get(0).getProperty("lines");
+                    SmartList<? extends Entity> children = rows.get(0).getProperty("lines");
                     assertEquals(i == 0 ? 2 : 1, children.size());
                     assertEquals(i == 0 ? List.of(101L, 102L) : List.of(201L),
                             children.stream().map(Entity::getId).sorted().toList());
@@ -689,7 +842,7 @@ public class DerivedQueryTraceSqliteTest {
                 TraceDocument owner = nested
                         ? (TraceDocument) result.getResult().get(0).getProperty("document")
                         : (TraceDocument) result.getResult().get(0);
-                SmartList<?> loaded = owner.getProperty("lines");
+                SmartList<? extends Entity> loaded = owner.getProperty("lines");
                 assertNotNull(loaded);
                 assertEquals(2, loaded.size());
                 assertEquals(1, ((Number) owner.getDynamicProperty("openLineCount")).intValue());

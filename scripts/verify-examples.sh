@@ -2,9 +2,18 @@
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-verification_dir="$(mktemp -d)"
-trap 'rm -rf -- "$verification_dir"' EXIT
-expected=(business-id-runtime conformance http-resilience object-storage order-management round-trip-reference-runtime school-management secret-provider security-foundations shared-load-state standard-order trace-chain)
+evidence_dir="${TEAQL_EXAMPLES_EVIDENCE_DIR:-$(mktemp -d -t teaql-java-examples-evidence.XXXXXXXX)}"
+verification_dir="$evidence_dir/runtime"
+mkdir -p "$verification_dir"
+build_dir="$(mktemp -d -t teaql-java-examples-build.XXXXXXXX)"
+cleanup() { result=$?; trap - EXIT; wait; rm -rf -- "$build_dir"; exit "$result"; }
+trap cleanup EXIT
+: "${TEAQL_CODEGEN_DIR:?Set TEAQL_CODEGEN_DIR to the local generator checkout}"
+node "$repo/scripts/prepare-example-isolation.cjs" "$build_dir" "$TEAQL_CODEGEN_DIR" "$evidence_dir"
+runtime_version="$(node -e 'const fs=require("fs");process.stdout.write(fs.readFileSync(process.argv[1],"utf8").match(/<version>([^<]+)<\/version>/)[1])' "$repo/pom.xml")"
+export MAVEN_OPTS="${MAVEN_OPTS:-} -Dmaven.repo.local=$build_dir/maven -Dteaql.version=$runtime_version"
+echo "Native example artifacts use an isolated disposable Maven repository; compact evidence: $evidence_dir"
+expected=(business-id-runtime conformance exact-decimal fix-e-alignment http-resilience inheritance-save object-storage order-management round-trip-reference-runtime scalar-type-probe school-management secret-provider security-foundations shared-load-state standard-order trace-chain)
 mapfile -t actual < <(find "$repo/examples" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
 if [[ "${actual[*]}" != "${expected[*]}" ]]; then
   echo "example inventory changed; update scripts/verify-examples.sh: ${actual[*]}" >&2
@@ -12,6 +21,11 @@ if [[ "${actual[*]}" != "${expected[*]}" ]]; then
 fi
 
 cd "$repo"
+# This verifier needs original Git provenance and already creates its own
+# disposable source-paired reactor. It never builds in the source repository.
+node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/fix-e-alignment/verify-local.cjs"
+node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/inheritance-save/verify.cjs" \
+  --output "$evidence_dir/inheritance-save"
 bash examples/object-storage/verify.sh
 bash examples/http-resilience/verify.sh
 bash examples/secret-provider/verify.sh
@@ -27,6 +41,8 @@ mvn -q -pl examples/round-trip-reference-runtime \
 mvn -q -f examples/conformance/lib/pom.xml install -DskipTests
 mvn -q -f examples/conformance/pom.xml spring-boot:run \
   -Dspring-boot.run.arguments="--spring.main.web-application-type=none --spring.datasource.url=jdbc:sqlite:$verification_dir/conformance.db"
+TEAQL_JAVA_SPRING_EVIDENCE_DIR="$evidence_dir/spring-transactions" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/conformance/spring-transactions/verify-local.cjs"
 mvn -q -f examples/school-management/lib/pom.xml install -DskipTests
 mvn -q -f examples/school-management/pom.xml spring-boot:run \
   -Dspring-boot.run.arguments="--spring.main.web-application-type=none --spring.datasource.url=jdbc:sqlite:$verification_dir/school-management.db"
@@ -37,4 +53,44 @@ mvn -q -f examples/order-management/pom.xml install -DskipTests
 bash examples/trace-chain/verify.sh
 bash examples/trace-chain/verify-standard-telemetry.sh
 bash examples/standard-order/verify.sh
-echo "PASS: standard Java examples; shared-load-state has its own generator-backed verify.sh gate"
+TEAQL_CODEGEN_DIR="$build_dir/generator" bash examples/shared-load-state/verify.sh --generate
+TEAQL_JAVA_EXACT_EVIDENCE_DIR="$evidence_dir/exact-decimal" \
+  bash "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/exact-decimal/verify.sh"
+TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/scalar-type-probe" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs"
+TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/scalar-finite" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --finite
+TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/restoration-views" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --restoration-views
+TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/outer-replay" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --outer-replay
+TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/jdbc-exact" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --jdbc-exact
+TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/sql-millisecond" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --sql-millis
+TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/empty-aggregates" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --empty
+TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/memory-empty-aggregates" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs" --memory-empty
+TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/json-profiles" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs"
+TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/json-lifecycle" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs" --lifecycle
+TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/json-numeric" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs" --numeric
+TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/json-temporal" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs" --temporal
+TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/json-local-datetime" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs" --local-datetime
+TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/rejected-mutation" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs" --rejected
+TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/explicit-null" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs" --explicit-null
+TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/loaded-revert" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs" --loaded-revert
+TEAQL_JAVA_JSON_PROFILE_EVIDENCE_DIR="$evidence_dir/version-lifecycle" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-json-profiles.cjs" --version-lifecycle
+node "$repo/examples/conformance/context-derived/verify-local.cjs"
+TEAQL_NATURAL_MESSAGES_EVIDENCE_DIR="$evidence_dir/natural-messages" \
+  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/conformance/natural-messages/verify-local.cjs"
+echo "PASS: all Java examples"

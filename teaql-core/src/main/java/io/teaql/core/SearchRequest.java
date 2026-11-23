@@ -59,6 +59,10 @@ public interface SearchRequest<T extends Entity> {
     default Map<String, QueryOperation> queryOperations() { return Map.of(); }
 
     @com.fasterxml.jackson.annotation.JsonIgnore
+    @FrameworkInternal("Generator-supplied statistical navigation, not query JSON")
+    default QueryOperation rollUpOperation(String relation) { return null; }
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
     default QueryOperation pageCountOperation() { return null; }
 
     @com.fasterxml.jackson.annotation.JsonIgnore
@@ -99,6 +103,9 @@ public interface SearchRequest<T extends Entity> {
     List<SimpleNamedExpression> getSimpleDynamicProperties();
 
     SearchCriteria getSearchCriteria();
+
+    /** Conditions on named statistical results, evaluated after grouping. */
+    default SearchCriteria getHaving() { return null; }
 
     Aggregations getAggregations();
 
@@ -143,7 +150,7 @@ public interface SearchRequest<T extends Entity> {
         if (aggregations == null) {
             return false;
         }
-        return !aggregations.getAggregates().isEmpty();
+        return !aggregations.getAggregates().isEmpty() || !aggregations.getDimensions().isEmpty();
     }
 
     default List<String> dataProperties(UserContext context) {
@@ -168,7 +175,7 @@ public interface SearchRequest<T extends Entity> {
         }
 
         String partitionProperty = getPartitionProperty();
-        if (partitionProperty != null && getSlice().getSize() != 0) {
+        if (partitionProperty != null && getSlice() != null && getSlice().getSize() != 0) {
             allRelationProperties.add(partitionProperty);
         }
 

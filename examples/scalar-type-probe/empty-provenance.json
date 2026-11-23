@@ -1,0 +1,10 @@
+{
+  "schema": "teaql.java-empty-example-provenance/v1",
+  "applicationSha256": "631599a3734e174ad1abb2e42f07c459b94a6b1c59b02107ab36b6388c9052af",
+  "vectorsSha256": "cfaa8dec196bbfa85e830fd0d67f321b17875b6f7d7c5f7cd28e0f2f6770ced0",
+  "applicationOrigin": "teaql-conformance/evidence/2026-10-25-core-p0-p1/java-selected-empty-installed-v1/application-inputs/JavaEmptyAggregateTest.java",
+  "installedReportSha256": "e451c593cdcf5a6369c4c345dacf9981bb53de5b913fa79f65ed900c1d64bbfa",
+  "runtimeCommit": "0afe545b5aa97cfc8b46808e814b7e45018f620e",
+  "runtimeVersion": "1.555-core236.0afe545b",
+  "generatedImplementationChanged": false
+}

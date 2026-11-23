@@ -25,9 +25,9 @@ public class PropertyParser implements SQLExpressionParser<PropertyReference> {
             SQLColumnResolver sqlColumnResolver) {
         String propertyName = property.getPropertyName();
         SQLColumn propertyColumn = sqlColumnResolver.getPropertyColumn(idTable, propertyName);
-        if (userContext.getBool(io.teaql.core.sql.SqlAstCompiler.MULTI_TABLE, false)) {
-            return StrUtil.format("{}.{}", sqlColumnResolver.escapeIdentifier(propertyColumn.getTableName()), sqlColumnResolver.escapeIdentifier(propertyColumn.getColumnName()));
-        }
-        return StrUtil.format("{}", sqlColumnResolver.escapeIdentifier(propertyColumn.getColumnName()));
+        String sql = userContext.getBool(io.teaql.core.sql.SqlAstCompiler.MULTI_TABLE, false)
+                ? StrUtil.format("{}.{}", sqlColumnResolver.escapeIdentifier(propertyColumn.getTableName()), sqlColumnResolver.escapeIdentifier(propertyColumn.getColumnName()))
+                : StrUtil.format("{}", sqlColumnResolver.escapeIdentifier(propertyColumn.getColumnName()));
+        return sqlColumnResolver.propertyReferenceSql(userContext, propertyName, sql);
     }
 }

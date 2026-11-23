@@ -41,7 +41,9 @@ public class RequestedListCountTest {
         assertEquals(List.of(3L, 4L), rows.toList(Entity::getId));
         assertEquals(5, rows.getTotalCount()); assertEquals(2, executor.requests.size());
         assertFalse(executor.requests.get(0).hasSimpleAgg()); assertTrue(executor.requests.get(1).hasSimpleAgg());
-        assertSame(executor.requests.get(0).getSearchCriteria(), executor.requests.get(1).getSearchCriteria());
+        assertEquals(executor.requests.get(0).getSearchCriteria(), executor.requests.get(1).getSearchCriteria());
+        assertNotSame("Rows and count retain equivalent independently frozen filters",
+                executor.requests.get(0).getSearchCriteria(), executor.requests.get(1).getSearchCriteria());
         var chain = new DefaultQueryRequest(executor.requests.get(1)).businessTraceChain();
         assertEquals("count()", chain.get(chain.size() - 1).getComment());
         assertEquals(List.of("start:query", "start:provider", "success:provider", "success:query"), events);
@@ -54,9 +56,45 @@ public class RequestedListCountTest {
         var runtime = TeaQLRuntime.builder().metadata(new TeaQLRuntimeTest.DummyMetaFactory()).dataService("dummy", executor).build();
         var source = request();
         source.getAggregations().getSimpleDimensions().add(new SimpleNamedExpression("name", new PropertyReference("name")));
-        runtime.executeForList(new DefaultUserContext(runtime), source);
+        runtime.aggregation(new DefaultUserContext(runtime), source);
         assertEquals(1, executor.requests.size()); assertTrue(executor.requests.get(0).hasSimpleAgg());
         assertEquals(1, executor.requests.get(0).getAggregations().getSimpleDimensions().size());
+    }
+
+    @Test public void scalarAliasesAndNullRemainMetadataAlongsideOptionalExactCount() {
+        for (boolean counted : new boolean[]{false, true}) for (Object value : new Object[]{600L, null}) {
+            var executor = new TeaQLRuntimeTest.PageQueryExecutor() {
+                @Override public QueryResult query(UserContext context, QueryRequest query) {
+                    SearchRequest<?> source = ((DefaultQueryRequest) query).getSearchRequest();
+                    requests.add(source);
+                    var values = new java.util.HashMap<SimpleNamedExpression, Object>();
+                    for (var aggregate : source.getAggregations().getAggregates())
+                        values.put(new SimpleNamedExpression(aggregate.name()),
+                            ((AggrExpression) aggregate.getExpression()).getOperator() == AggrFunction.COUNT ? 3L : value);
+                    var item = new AggregationItem(); item.setValues(values);
+                    var result = new AggregationResult(); result.setData(List.of(item));
+                    return new DefaultQueryResult(new SmartList<>(), result);
+                }
+            };
+            var runtime = TeaQLRuntime.builder().metadata(new TeaQLRuntimeTest.DummyMetaFactory()).dataService("dummy", executor).build();
+            var source = request();
+            if (!counted) source.getAggregations().getAggregates().clear();
+            source.sum("sum", "amount");
+            var rows = runtime.executeForList(new DefaultUserContext(runtime), source);
+            assertTrue(rows.isEmpty()); assertTrue(rows.aggregationProperties().containsKey("sum"));
+            assertEquals(value, rows.aggregationProperties().get("sum"));
+            assertEquals(counted ? Long.valueOf(3) : null, rows.getExactTotalCount());
+            assertEquals(counted ? 2 : 1, executor.requests.size());
+        }
+    }
+
+    @Test public void groupedProjectionIsRejectedAtTheEntityListBoundary() {
+        var executor = new TeaQLRuntimeTest.PageQueryExecutor();
+        var runtime = TeaQLRuntime.builder().metadata(new TeaQLRuntimeTest.DummyMetaFactory()).dataService("dummy", executor).build();
+        var source = request();
+        source.getAggregations().getSimpleDimensions().add(new SimpleNamedExpression("name", new PropertyReference("name")));
+        assertThrows(TeaQLRuntimeException.class, () -> runtime.executeForList(new DefaultUserContext(runtime), source));
+        assertTrue(executor.requests.isEmpty());
     }
 
     @Test public void noSeparatePageExecutionEntryRemainsInCoreOrRuntime() {

@@ -1,5 +1,7 @@
 package io.teaql.core.value;
 
+import io.teaql.core.checker.ObjectLocation;
+import io.teaql.core.checker.JsonFieldNamingProfile;
 import java.util.NoSuchElementException;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -17,24 +19,37 @@ public interface Expression<E, T> {
     }
 
     default T eval() {
-        return eval($getRoot());
+        return $evaluate("eval()");
     }
 
     default T resolve() {
-        return eval();
+        return $evaluate("resolve()");
     }
+
+    /** Resolves only already-loaded values; diagnostic rendering performs no I/O. */
+    default T $evaluate(String terminal) {
+        try { return eval($getRoot()); }
+        catch (TeaQLNotLoadedException error) { throw error.withAttempt($trace().operation(terminal)); }
+    }
+
+    default ExpressionTrace $trace() { return ExpressionTrace.root("E.entity(<root>)"); }
 
     default String $path() { return ""; }
 
+    /** Canonical model location; null denotes the entity root. */
+    default ObjectLocation $location() { return null; }
+
+    default JsonFieldNamingProfile $jsonFieldNaming() { return JsonFieldNamingProfile.CAMEL_CASE; }
+
     default T orIfNull(T defaultValue) {
-        T value = resolve();
+        T value = $evaluate("orIfNull(<fallback>)");
         if(value == null){
             return defaultValue;
         }
         return value;
     }
     default T orElseThrow() {
-        T value = resolve();
+        T value = $evaluate("orElseThrow()");
         if (value == null) {
             throw new NoSuchElementException("No value present");
         }
@@ -44,7 +59,7 @@ public interface Expression<E, T> {
     default <X> T orElseThrow(Supplier<? extends Throwable> exceptionSupplier)
             throws Throwable{
 
-        T value = resolve();
+        T value = $evaluate("orElseThrow(<supplier>)");
         if(value == null){
             throw exceptionSupplier.get();
         }
@@ -53,53 +68,59 @@ public interface Expression<E, T> {
     }
 
     default boolean isNull() {
-        return null == resolve();
+        return null == $evaluate("isNull()");
     }
 
     default boolean isNotNull() {
-        return null != resolve();
+        return null != $evaluate("isNotNull()");
     }
 
     default boolean isEmpty() {
-        return io.teaql.core.utils.ObjectUtil.isEmpty(resolve());
+        return io.teaql.core.utils.ObjectUtil.isEmpty($evaluate("isEmpty()"));
     }
 
     default boolean isNotEmpty() {
-        return io.teaql.core.utils.ObjectUtil.isNotEmpty(resolve());
+        return io.teaql.core.utils.ObjectUtil.isNotEmpty($evaluate("isNotEmpty()"));
     }
 
     default void whenIsNull(Runnable function) {
-        if (isNull() && function != null) {
+        T value = $evaluate("whenIsNull(<callback>)");
+        if (value == null && function != null) {
             function.run();
         }
     }
 
     default void whenIsNotNull(Runnable function) {
-        if (isNotNull() && function != null) {
+        T value = $evaluate("whenIsNotNull(<callback>)");
+        if (value != null && function != null) {
             function.run();
         }
     }
 
     default void whenIsNotNull(Consumer<T> consumer) {
-        if (isNotNull() && consumer != null) {
-            consumer.accept(resolve());
+        T value = $evaluate("whenIsNotNull(<callback>)");
+        if (value != null && consumer != null) {
+            consumer.accept(value);
         }
     }
 
     default void whenIsEmpty(Runnable function) {
-        if (isEmpty() && function != null) {
+        T value = $evaluate("whenIsEmpty(<callback>)");
+        if (io.teaql.core.utils.ObjectUtil.isEmpty(value) && function != null) {
             function.run();
         }
     }
 
     default void whenNotEmpty(Consumer<T> consumer) {
-        if (isNotEmpty() && consumer != null) {
-            consumer.accept(resolve());
+        T value = $evaluate("whenNotEmpty(<callback>)");
+        if (io.teaql.core.utils.ObjectUtil.isNotEmpty(value) && consumer != null) {
+            consumer.accept(value);
         }
     }
 
     default void whenNotEmpty(Runnable function) {
-        if (isNotEmpty() && function != null) {
+        T value = $evaluate("whenNotEmpty(<callback>)");
+        if (io.teaql.core.utils.ObjectUtil.isNotEmpty(value) && function != null) {
             function.run();
         }
     }

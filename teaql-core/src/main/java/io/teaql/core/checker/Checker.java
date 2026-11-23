@@ -24,6 +24,28 @@ public interface Checker<T extends BaseEntity> {
 
     void checkAndFix(UserContext context, T entity, ObjectLocation location);
 
+    /** Compute before applying any automatic Context assignments; Check remains independent. */
+    default boolean needContextFix(UserContext context, T entity) {
+        return entity != null && io.teaql.core.checker.internal.ContextFixFields.eligible(context, entity);
+    }
+
+    /** Keep Context-provider/type failures attached to the declaring model field. */
+    default void applyContextFix(UserContext context, ObjectLocation location, Runnable assignment) {
+        try {
+            assignment.run();
+        } catch (CheckException located) {
+            throw located;
+        } catch (RuntimeException failure) {
+            // Provider messages/causes may contain request secrets. The public
+            // violation identifies the model field, not the provider's raw data.
+            var violation = CheckResult.invalidType(location,
+                    "Context Fix failed at " + type() + "." + (location == null ? "<root>" : location.modelPath()));
+            violation.setRootType(type());
+            context.translateCheckResult(violation);
+            throw new CheckException(java.util.List.of(violation));
+        }
+    }
+
     default void markAsChecked(UserContext context, T entity) {
         java.util.List list = (java.util.List) CheckerInvocation.attribute(context, TEAQL_DATA_CHECKED_ITEMS);
         if (list == null) {
@@ -49,6 +71,10 @@ public interface Checker<T extends BaseEntity> {
             return false;
         }
         CheckerInvocation invocation = CheckerInvocation.current(context);
+        if (invocation != null && invocation.mutationOnly()
+                && entity.isNew() && entity.isMarkedAsDelete()) {
+            return false;
+        }
         if (invocation != null && invocation.mutationOnly()
                 && (entity.get$status() == EntityStatus.PERSISTED
                     || entity.get$status() == EntityStatus.PERSISTED_DELETED)) {
@@ -77,11 +103,90 @@ public interface Checker<T extends BaseEntity> {
     default void invalidTypeCheck(UserContext context, ObjectLocation location, String message) {
         CheckResult result = CheckResult.invalidType(location, message);
         appendResult(context, result);
-        result.setNaturalLanguageStatement(message);
+    }
+
+    /** Model-derived ownership admission, before any Fix or provider activity. */
+    default void verifyContextRoot(UserContext context, T entity, String property,
+            String expectedType, ObjectLocation location) {
+        var root = context.requireActiveRoot(expectedType);
+        Object current = entity.getProperty(property);
+        if (!entity.newItem()) {
+            var change = entity.__internalPropertyChange(property);
+            boolean loaded = change == null ? entity.isPropertyLoaded(property) : change.wasOldValueLoaded();
+            Object original = change == null ? current : change.getOldValue();
+            Long originalId = contextRootId(context, original, expectedType);
+            if (!loaded || originalId == null) {
+                invalidTypeCheck(context, location, "Mutation requires a loaded context-bound root");
+                return;
+            }
+            if (!root.id().equals(originalId)) {
+                throw new io.teaql.core.ContextRootException(
+                        io.teaql.core.ContextRootException.Reason.VALUE_MISMATCH, expectedType, root);
+            }
+        }
+        if (current != null || !entity.newItem()) {
+            verifySuppliedContextRoot(context, current, root, expectedType, location);
+        }
+        // The raw ledger can carry a canonical relation ID independently of
+        // the generated getter. Validate it too; never overwrite a conflict.
+        if (entity.__internalHasMutationLedger() && entity.getId() != null) {
+            var ledger = entity.getEntityMutationLedger();
+            var key = new io.teaql.core.EntityKey(entity.typeName(), entity.getId());
+            if (ledger.containsField(key, property)) {
+                Object supplied = ledger.get(key, property);
+                if (supplied != null || !entity.newItem()) {
+                    verifySuppliedContextRoot(context, supplied, root, expectedType, location);
+                }
+            }
+        }
+    }
+
+    private void verifySuppliedContextRoot(UserContext context, Object value,
+            io.teaql.core.ContextEntityRef root, String expectedType, ObjectLocation location) {
+        Long id = contextRootId(context, value, expectedType);
+        if (id == null) {
+            invalidTypeCheck(context, location, "Mutation requires a loaded context-bound root");
+        } else if (!root.id().equals(id)) {
+            throw new io.teaql.core.ContextRootException(
+                    io.teaql.core.ContextRootException.Reason.VALUE_MISMATCH, expectedType, root);
+        }
+    }
+
+    private static Long contextRootId(UserContext context, Object value, String expectedType) {
+        if (value instanceof io.teaql.core.Entity reference) {
+            Long id = reference.getId();
+            if (id == null || id <= 0) return null;
+            if (expectedType.equals(reference.typeName())) return id;
+            // References may carry a model-declared subtype. Resolve only from
+            // this context; neither a process-global registry nor SQL is valid
+            // evidence that a different model type belongs to this root family.
+            var metadata = context.capability(io.teaql.core.meta.EntityMetaFactory.class);
+            if (metadata == null) return null;
+            io.teaql.core.meta.EntityDescriptor declared, actual;
+            try {
+                declared = metadata.resolveEntityDescriptor(expectedType);
+                actual = metadata.resolveEntityDescriptor(reference.typeName());
+            } catch (io.teaql.core.TeaQLRuntimeException unknownType) {
+                return null;
+            }
+            if (declared == null || actual == null
+                    || declared.getTargetType() == null || actual.getTargetType() == null
+                    || !declared.getTargetType().isInstance(reference)
+                    || !actual.getTargetType().isInstance(reference)) return null;
+            var visited = java.util.Collections.newSetFromMap(
+                    new java.util.IdentityHashMap<io.teaql.core.meta.EntityDescriptor, Boolean>());
+            for (var descriptor = actual; descriptor != null && visited.add(descriptor);
+                    descriptor = descriptor.getParent()) {
+                if (descriptor == declared) return id;
+            }
+            return null;
+        }
+        return value instanceof Long id && id > 0 ? id : null;
     }
 
     default void minNumberCheck(
             UserContext context, ObjectLocation location, Number minNumber, Number current) {
+        if (deferNonFiniteNumber(context, location, current)) return;
         if (NumberUtil.isLess(NumberUtil.toBigDecimal(current), NumberUtil.toBigDecimal(minNumber))) {
             appendResult(context, CheckResult.min(location, minNumber, current));
         }
@@ -89,10 +194,20 @@ public interface Checker<T extends BaseEntity> {
 
     default void maxNumberCheck(
             UserContext context, ObjectLocation location, Number maxNumber, Number current) {
+        if (deferNonFiniteNumber(context, location, current)) return;
         if (NumberUtil.isGreater(
                 NumberUtil.toBigDecimal(current), NumberUtil.toBigDecimal(maxNumber))) {
             appendResult(context, CheckResult.max(location, maxNumber, current));
         }
+    }
+
+    private boolean deferNonFiniteNumber(UserContext context, ObjectLocation location, Number current) {
+        if (!io.teaql.core.checker.internal.FiniteScalarAdmission.nonFinite(current)) return false;
+        // A later customer Fix may repair this value. The invocation owner
+        // validates the final graph rather than throwing BigDecimal's parse error.
+        if (CheckerInvocation.current(context) == null)
+            invalidTypeCheck(context, location, "Expected a finite floating-point number");
+        return true;
     }
 
     default void minStringCheck(
@@ -124,6 +239,13 @@ public interface Checker<T extends BaseEntity> {
     }
 
     default void appendResult(UserContext context, CheckResult result) {
+        // Rule factories do not know the declaring entity. Bind that identity
+        // before localization/wire rendering, without replacing a more precise
+        // identity already supplied by a custom or specialized checker.
+        if (result.getRootType() == null || result.getRootType().isBlank()) {
+            result.setRootType(type());
+        }
+        io.teaql.core.checker.internal.CheckerMessageRendering.bind(context, result);
         context.translateCheckResult(result);
         java.util.List list = (java.util.List) CheckerInvocation.attribute(context, TEAQL_DATA_CHECK_RESULT);
         if (list == null) {
@@ -133,7 +255,33 @@ public interface Checker<T extends BaseEntity> {
         list.add(result);
     }
 
+    /**
+     * Standalone entry point. Recursive checks inside an existing graph/check
+     * share that invocation; a top-level check owns and releases its clock,
+     * traversal guard and detached evidence receipt just like graph save.
+     * A standalone owner throws collected violations before releasing them;
+     * joined callbacks leave that decision to the existing graph/check owner.
+     * The three-argument method is the implementation/traversal callback.
+     */
+    @SuppressWarnings("unchecked")
     default void checkAndFix(UserContext context, T entity) {
-        checkAndFix(context, entity, null);
+        if (CheckerInvocation.current(context) != null) {
+            checkAndFix(context, entity, null);
+            return;
+        }
+        try (var invocation = CheckerInvocation.open(context, entity == null ? type() : entity.typeName())) {
+            checkAndFix(context, entity, null);
+            java.util.List<CheckResult> violations = (java.util.List<CheckResult>)
+                    invocation.attribute(TEAQL_DATA_CHECK_RESULT);
+            var numeric = io.teaql.core.checker.internal.FiniteScalarAdmission.collect(entity);
+            if (!numeric.isEmpty()) {
+                if (violations == null) violations = new java.util.ArrayList<>();
+                violations.addAll(numeric);
+            }
+            if (violations != null && !violations.isEmpty()) {
+                context.translateCheckResults(violations);
+                throw new CheckException(new java.util.ArrayList<>(violations));
+            }
+        }
     }
 }

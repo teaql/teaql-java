@@ -71,8 +71,8 @@ for repetition in 1 2; do
       if [[ $logging == true ]]; then reverse_sink_count=10; fi
       grep -Fq "JAVA_GENERATED_REVERSE_FACET logging=$logging includeAll=$all parents=3 fullCounts=true requestedEmpty=true physicalStatements=10 safeSinkStatements=$reverse_sink_count mutationCommands=0" "$log"
       sink_count=0
-      if [[ $logging == true ]]; then sink_count=7; fi
-      grep -Fq "JAVA_NESTED_FACET {\"logging\":$logging,\"includeAll\":$all,\"visible\":1,\"paymentCount\":2,\"orderCount\":2,\"physicalStatements\":7,\"safeSinkStatements\":$sink_count}" "$log"
+      if [[ $logging == true ]]; then sink_count=5; fi
+      grep -Fq "JAVA_NESTED_FACET {\"logging\":$logging,\"includeAll\":$all,\"visible\":1,\"paymentCount\":2,\"orderCount\":2,\"physicalStatements\":5,\"safeSinkStatements\":$sink_count}" "$log"
       for exists in false true; do
         facet_rows=0
         if [[ $exists == true ]]; then facet_rows=1; fi

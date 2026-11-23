@@ -143,6 +143,35 @@ public class BaseRequestTest {
     }
 
     @Test
+    public void havingIsSeparateFromSourceCriteriaAndSurvivesSnapshots() {
+        request.having("total", Operator.GREATER_THAN, 10L);
+        var snapshot = new QueryRequestSnapshot<>(request, null);
+        var condition = snapshot.getHaving();
+        request.having("count", Operator.GREATER_THAN, 1L);
+        request.having("total", Operator.LESS_THAN, 100L);
+        assertNull(request.getSearchCriteria());
+        assertEquals(condition, snapshot.getHaving());
+        assertNotEquals(condition, request.getHaving());
+        assertEquals(request.getHaving(), new QueryRequestSnapshot<>(request, null).getHaving());
+    }
+
+    @Test
+    public void havingParticipatesInRequestEqualityAndHashing() {
+        var other = new BaseRequest.TempRequest(BaseEntity.class, "BaseEntity");
+        // Hold existing identity-based fields equal while varying HAVING only.
+        other.setSlice(request.getSlice());
+        other.setAggregations(request.getAggregations());
+        assertEquals(request, other);
+        int previousHash = request.hashCode();
+        request.having("total", Operator.GREATER_THAN, 10L);
+        assertNotEquals(request, other);
+        assertNotEquals(previousHash, request.hashCode());
+        other.having("total", Operator.GREATER_THAN, 10L);
+        assertEquals(request, other);
+        assertEquals(request.hashCode(), other.hashCode());
+    }
+
+    @Test
     public void testSliceAndOrderBy() {
         request.top(10);
         assertEquals(10, request.getSlice().getSize());
@@ -314,6 +343,8 @@ public class BaseRequestTest {
                 new Class<?>[] { UserContext.class },
                 (proxy, method, args) -> {
                     if (method.getName().equals("initializeEntity")) return args[1];
+                    if (method.getName().equals("capability") && args[0] == InternalIdGenerationService.class)
+                        return (InternalIdGenerationService) (caller, entity) -> 501L;
                     throw new UnsupportedOperationException(method.getName());
                 });
         BaseEntity entity = (BaseEntity) new BaseRequest.TempRequest(
@@ -323,6 +354,8 @@ public class BaseRequestTest {
                 .newEntity(context);
         assertNotNull(entity);
         assertEquals(EntityStatus.NEW, entity.get$status());
+        assertEquals(Long.valueOf(501), entity.getId());
+        assertTrue(entity.isPropertyLoaded("id"));
     }
 
     @Test
