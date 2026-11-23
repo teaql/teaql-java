@@ -4,6 +4,7 @@
 const fs = require("node:fs"), path = require("node:path"), os = require("node:os"), cp = require("node:child_process"), crypto = require("node:crypto"), assert = require("node:assert/strict");
 const example = __dirname, repo = path.resolve(example, "../.."), sha = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
 assert(process.argv.length===2 || process.argv.length===3 && process.argv[2]==='--original-ledger');
+const workspace=path.join(example,'java-app-console'),application=path.join(workspace,'showcase-tests/io/teaql/examples/fixe');
 const originalLedgerOnly=process.argv[2]==='--original-ledger';
 function fingerprint() {
   const m = JSON.parse(fs.readFileSync(path.join(example, "fixture-manifest.json")));
@@ -14,8 +15,8 @@ function fingerprint() {
     const name = path.join(prefix, e.name), file = path.join(dir, e.name); assert(!e.isSymbolicLink());
     if (e.isDirectory()) walk(file, name); else { assert(e.isFile()); actual.push(name); }
   } }
-  walk(path.join(example, "generated")); assert.deepEqual(actual.sort(), Object.keys(m.files).sort());
-  for (const [name, expected] of Object.entries(m.files)) assert.equal(sha(fs.readFileSync(path.join(example, "generated", name))), expected, name);
+  walk(path.join(example, "java-lib-core")); assert.deepEqual(actual.sort(), Object.keys(m.files).sort());
+  for (const [name, expected] of Object.entries(m.files)) assert.equal(sha(fs.readFileSync(path.join(example, "java-lib-core", name))), expected, name);
   return m;
 }
 const requested = process.env.TEAQL_FIX_E_EVIDENCE_DIR;
@@ -24,55 +25,40 @@ if (requested) { assert(path.isAbsolute(requested) && !fs.existsSync(evidence));
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "teaql-java-fix-e-build-"));
 const report = {schema: "teaql.java-fix-e-example/v1", passed: false, rounds: [], sameDatabase: true,
   localRuntime: repo, databaseRetained: true, sharedMavenInstall: false};
-report.contextRootApplicationSha256 = sha(fs.readFileSync(path.join(example, 'ContextRootProbe.java')));
-report.contextRootSubtypeApplicationSha256 = sha(fs.readFileSync(path.join(example, 'ContextRootSubtypeProbe.java')));
-report.partialAncestorApplicationSha256 = sha(fs.readFileSync(path.join(example, 'partial-ancestors/PartialAncestorExampleTest.java')));
-report.postFixApplicationSha256 = sha(fs.readFileSync(path.join(example, 'PostFixExampleTest.java')));
-report.partialAncestorRootApplicationSha256 = sha(fs.readFileSync(path.join(example, 'PartialAncestorRootExampleTest.java')));
-report.newEntityIdApplicationSha256 = sha(fs.readFileSync(path.join(example, 'NewEntityIdExampleTest.java')));
-report.checkerBoundaryApplicationSha256 = sha(fs.readFileSync(path.join(example, 'CheckerBoundaryExampleTest.java')));
-report.reviewedPlanApplicationSha256 = sha(fs.readFileSync(path.join(example, 'ReviewedPlanExampleTest.java')));
-report.mixedGraphApplicationSha256 = sha(fs.readFileSync(path.join(example, 'MixedGraphExampleTest.java')));
-report.concurrentQueryApplicationSha256 = sha(fs.readFileSync(path.join(example, 'ConcurrentQueryExampleTest.java')));
-report.requestIntentApplicationSha256 = sha(fs.readFileSync(path.join(example, 'RequestIntentExampleTest.java')));
-report.cancelledNewGraphApplicationSha256 = sha(fs.readFileSync(path.join(example, 'CancelledNewGraphExampleTest.java')));
-report.originalLedgerApplicationSha256 = sha(fs.readFileSync(path.join(example, 'OriginalLedgerExampleTest.java')));
+report.contextRootApplicationSha256 = sha(fs.readFileSync(path.join(application, 'ContextRootProbe.java')));
+report.contextRootSubtypeApplicationSha256 = sha(fs.readFileSync(path.join(application, 'ContextRootSubtypeProbe.java')));
+report.partialAncestorApplicationSha256 = sha(fs.readFileSync(path.join(application, 'PartialAncestorExampleTest.java')));
+report.postFixApplicationSha256 = sha(fs.readFileSync(path.join(application, 'PostFixExampleTest.java')));
+report.partialAncestorRootApplicationSha256 = sha(fs.readFileSync(path.join(application, 'PartialAncestorRootExampleTest.java')));
+report.newEntityIdApplicationSha256 = sha(fs.readFileSync(path.join(application, 'NewEntityIdExampleTest.java')));
+report.checkerBoundaryApplicationSha256 = sha(fs.readFileSync(path.join(application, 'CheckerBoundaryExampleTest.java')));
+report.reviewedPlanApplicationSha256 = sha(fs.readFileSync(path.join(application, 'ReviewedPlanExampleTest.java')));
+report.mixedGraphApplicationSha256 = sha(fs.readFileSync(path.join(application, 'MixedGraphExampleTest.java')));
+report.concurrentQueryApplicationSha256 = sha(fs.readFileSync(path.join(application, 'ConcurrentQueryExampleTest.java')));
+report.requestIntentApplicationSha256 = sha(fs.readFileSync(path.join(application, 'RequestIntentExampleTest.java')));
+report.cancelledNewGraphApplicationSha256 = sha(fs.readFileSync(path.join(application, 'CancelledNewGraphExampleTest.java')));
+report.originalLedgerApplicationSha256 = sha(fs.readFileSync(path.join(application, 'OriginalLedgerExampleTest.java')));
 report.originalLedgerRounds=[];
 const {createOwnedRunner, ownedBytes} = require('./owned-command.cjs'), runner = createOwnedRunner();
 async function main() {
 try {
   const disk = fs.statfsSync(scratch); assert(disk.bavail * disk.bsize > 8 * 1024 ** 3);
   const m = fingerprint(); report.modelSha256 = m.modelSha256;
-  const runtime = path.join(scratch, "source"), generated = path.join(scratch, "generated"), consumer = path.join(scratch, "consumer"), reactor = path.join(scratch, "reactor");
+  const runtime = path.join(scratch, "source"), generated = path.join(scratch, "java-lib-core/lib"), consumer = path.join(scratch, "java-app-console"), reactor = path.join(scratch, "reactor");
   const sourceFiles = cp.execFileSync("git", ["-C", repo, "ls-files", "-z", "--cached", "--others", "--exclude-standard"]).toString().split("\0").filter(Boolean);
   for (const file of new Set(sourceFiles)) {
     const from = path.join(repo, file); if (!fs.existsSync(from)) continue;
     assert(fs.lstatSync(from).isFile(), "source copy requires regular files");
     fs.mkdirSync(path.dirname(path.join(runtime, file)), {recursive: true}); fs.copyFileSync(from, path.join(runtime, file));
   }
-  fs.cpSync(path.join(example, "generated/lib"), generated, {recursive: true});
+  fs.cpSync(path.join(example, "java-lib-core/lib"), generated, {recursive: true});
   report.libraryMetadata = require('../../scripts/pin-local-example-pom.cjs').pin(path.join(generated, 'pom.xml'), repo, scratch);
-  fs.mkdirSync(path.join(consumer, "src/test/java/io/teaql/examples/fixe"), {recursive: true});
-  for (const file of fs.readdirSync(example).filter(file => file.endsWith(".java")))
-    fs.copyFileSync(path.join(example, file), path.join(consumer, "src/test/java/io/teaql/examples/fixe", file));
-  fs.copyFileSync(path.join(example, 'partial-ancestors/PartialAncestorExampleTest.java'),
-    path.join(consumer, 'src/test/java/io/teaql/examples/fixe/PartialAncestorExampleTest.java'));
-  const version = fs.readFileSync(path.join(repo, "pom.xml"), "utf8").match(/<version>([^<]+)<\/version>/)[1];
-  const pom = `<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion>
-    <parent><groupId>io.teaql</groupId><artifactId>teaql-java-parent</artifactId><version>${version}</version><relativePath>../source/pom.xml</relativePath></parent>
-    <groupId>io.teaql.examples</groupId><artifactId>teaql-fix-e-example</artifactId><version>${version}</version>
-    <dependencies>
-      <dependency><groupId>com.teaql</groupId><artifactId>checker-fix-advanced-core</artifactId><version>0.0.1-SNAPSHOT</version></dependency>
-      <dependency><groupId>io.teaql</groupId><artifactId>teaql-runtime</artifactId><version>${version}</version></dependency>
-      <dependency><groupId>io.teaql</groupId><artifactId>teaql-sqlite</artifactId><version>${version}</version></dependency>
-      <dependency><groupId>io.teaql</groupId><artifactId>teaql-jackson</artifactId><version>${version}</version></dependency>
-      <dependency><groupId>io.teaql</groupId><artifactId>teaql-tfp-endpoint</artifactId><version>${version}</version></dependency>
-      <dependency><groupId>com.fasterxml.jackson.datatype</groupId><artifactId>jackson-datatype-jsr310</artifactId><scope>test</scope></dependency>
-      <dependency><groupId>junit</groupId><artifactId>junit</artifactId><version>4.13.2</version><scope>test</scope></dependency>
-    </dependencies><build><plugins><plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><configuration><useModulePath>false</useModulePath></configuration></plugin></plugins></build></project>`;
+  fs.cpSync(workspace,consumer,{recursive:true});
+  const version=fs.readFileSync(path.join(repo,'pom.xml'),'utf8').match(/<version>([^<]+)<\/version>/)[1];
+  const pom=fs.readFileSync(path.join(consumer,'pom.xml'),'utf8').replace('../../../pom.xml','../source/pom.xml');
   fs.writeFileSync(path.join(consumer, "pom.xml"), pom); fs.writeFileSync(path.join(evidence, "consumer-pom.xml"), pom);
   fs.mkdirSync(reactor);
-  fs.writeFileSync(path.join(reactor, "pom.xml"), '<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>io.teaql.test</groupId><artifactId>fix-e-reactor</artifactId><version>0.0.0</version><packaging>pom</packaging><modules><module>../source</module><module>../generated</module><module>../consumer</module></modules></project>');
+  fs.writeFileSync(path.join(reactor, "pom.xml"), '<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>io.teaql.test</groupId><artifactId>fix-e-reactor</artifactId><version>0.0.0</version><packaging>pom</packaging><modules><module>../source</module><module>../java-lib-core/lib</module><module>../java-app-console</module></modules></project>');
   for (const round of [1, 2]) {
     const command = ['mvn', '-o', '-B', '-ntp', '-f', path.join(reactor, 'pom.xml'), '-pl', ':teaql-fix-e-example', '-am', 'test',
       originalLedgerOnly ? '-Dtest=OriginalLedgerExampleTest' : '-Dtest=GeneratedFixEExampleTest,PartialAncestorExampleTest,PartialAncestorRootExampleTest,PostFixExampleTest,NewEntityIdExampleTest,CheckerBoundaryExampleTest,ReviewedPlanExampleTest,MixedGraphExampleTest,ConcurrentQueryExampleTest,RequestIntentExampleTest,CancelledNewGraphExampleTest,OriginalLedgerExampleTest', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dteaql.version=' + version,
@@ -104,7 +90,7 @@ try {
     }
     const expected = {GeneratedFixEExampleTest: 1, PartialAncestorExampleTest: 1,
       PartialAncestorRootExampleTest: 1, PostFixExampleTest: 3, NewEntityIdExampleTest: 1, CheckerBoundaryExampleTest: 1, ReviewedPlanExampleTest: 6, MixedGraphExampleTest: 3, ConcurrentQueryExampleTest: 1, RequestIntentExampleTest: 1, CancelledNewGraphExampleTest: 1, OriginalLedgerExampleTest: 1};
-    assert.deepEqual(fs.readdirSync(path.join(consumer, 'src/test/java/io/teaql/examples/fixe'))
+    assert.deepEqual(fs.readdirSync(path.join(consumer, 'showcase-tests/io/teaql/examples/fixe'))
       .filter(name => name.endsWith('Test.java')).map(name => name.slice(0, -5)).sort(), Object.keys(expected).sort(),
       'every authored example Test must be selected and verified');
     const summaries = [...bytes.toString().matchAll(/^\[INFO\] Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+), .* -- in io\.teaql\.examples\.fixe\.([A-Za-z]+)$/gm)];
@@ -154,10 +140,10 @@ try {
   report.originalLedgerDatabase={file:originalFile,sha256:sha(fs.readFileSync(path.join(evidence,originalFile)))};
   if(originalLedgerOnly){report.passed=true;console.log('PASS Java original ML-01..07 generated Q/E/save boundaries twice');return;}
   report.databaseSha256 = sha(fs.readFileSync(path.join(evidence, 'fixture.sqlite')));
-  report.expressionBoundaryApplicationSha256 = sha(fs.readFileSync(path.join(example, 'ExpressionBoundaryProbe.java')));
+  report.expressionBoundaryApplicationSha256 = sha(fs.readFileSync(path.join(application, 'ExpressionBoundaryProbe.java')));
   report.expressionBoundaryDatabase = {file: 'fixture.sqlite.expression-boundaries.sqlite',
     sha256: sha(fs.readFileSync(path.join(evidence, 'fixture.sqlite.expression-boundaries.sqlite')))};
-  report.contextRootApplicationSha256 = sha(fs.readFileSync(path.join(example, 'ContextRootProbe.java')));
+  report.contextRootApplicationSha256 = sha(fs.readFileSync(path.join(application, 'ContextRootProbe.java')));
   report.contextRootDatabase = {file: 'fixture.sqlite.context-root.sqlite',
     sha256: sha(fs.readFileSync(path.join(evidence, 'fixture.sqlite.context-root.sqlite')))};
   report.contextRootSubtypeDatabase = {file: 'fixture.sqlite.root-subtype.sqlite',

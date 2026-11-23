@@ -16,68 +16,104 @@ public class CustomerChecker implements Checker<Customer>{
         return Customer.INTERNAL_TYPE;
     }
 
-    public void checkAndFix(UserContext _ctx, Customer customer, ObjectLocation _parentLocation){
-        if(needCheck(_ctx, customer)){
-            markAsChecked(_ctx, customer);
-            doCheck(_ctx, customer, _parentLocation);
+    public void checkAndFix(UserContext _context, Customer customer, ObjectLocation _parentLocation){
+        if(needCheck(_context, customer)){
+            markAsChecked(_context, customer);
+            doCheck(_context, customer, _parentLocation);
         }
     }
 
-    public void doCheck(UserContext _ctx, Customer customer, ObjectLocation _parentLocation){
+    public void doCheck(UserContext _context, Customer customer, ObjectLocation _parentLocation){
       if((customer == null)){
          return;
       }
+      boolean _contextFixEligible = needContextFix(_context, customer);
+      if(customer.needPersist()){
+      }
       if(customer.newItem()){
-        if(customer.getCreateTime() == null){
-           customer.updateCreateTime(java.time.LocalDateTime.now());
-        }if(customer.getUpdateTime() == null){
-           customer.updateUpdateTime(java.time.LocalDateTime.now());
+        if(_contextFixEligible){
+           applyContextFix(_context, newLocation(_parentLocation, "create_time"), () -> {
+           customer.updateCreateTime(_context.evaluate("now"));
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "create_time",
+              "now".equalsIgnoreCase("now") ? io.teaql.core.checker.FixEvidence.Source.CLOCK : io.teaql.core.checker.FixEvidence.Source.CONTEXT,
+              "now".equalsIgnoreCase("now") ? "graphClock" : "contextFunction:now"));
+           });
+        }if(_contextFixEligible){
+           applyContextFix(_context, newLocation(_parentLocation, "update_time"), () -> {
+           customer.updateUpdateTime(_context.evaluate("now"));
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time",
+              "now".equalsIgnoreCase("now") ? io.teaql.core.checker.FixEvidence.Source.CLOCK : io.teaql.core.checker.FixEvidence.Source.CONTEXT,
+              "now".equalsIgnoreCase("now") ? "graphClock" : "contextFunction:now"));
+           });
         }
       }else if(customer.updateItem()){
-        customer.updateUpdateTime(java.time.LocalDateTime.now());
+        if(_contextFixEligible){
+           applyContextFix(_context, newLocation(_parentLocation, "update_time"), () -> {
+           customer.updateUpdateTime(_context.evaluate("now"));
+           _context.recordFixEvidence(new io.teaql.core.checker.FixEvidence(type(), "update_time",
+              "now".equalsIgnoreCase("now") ? io.teaql.core.checker.FixEvidence.Source.CLOCK : io.teaql.core.checker.FixEvidence.Source.CONTEXT,
+              "now".equalsIgnoreCase("now") ? "graphClock" : "contextFunction:now"));
+           });
+        }
+        if(!customer.isPropertyLoaded("name")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "name"), "Mutation requires a fully loaded entity");
+        }
+        if(!customer.isPropertyLoaded("email")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "email"), "Mutation requires a fully loaded entity");
+        }
+        if(!customer.isPropertyLoaded("commerce_platform")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "commerce_platform"), "Mutation requires a fully loaded entity");
+        }
+        if(!customer.isPropertyLoaded("create_time")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "create_time"), "Mutation requires a fully loaded entity");
+        }
+        if(!customer.isPropertyLoaded("update_time")){
+           invalidTypeCheck(_context, newLocation(_parentLocation, "update_time"), "Mutation requires a fully loaded entity");
+        }
+
       }
-      checkName(_ctx, customer.getProperty(Customer.NAME_PROPERTY), newLocation(_parentLocation, Customer.NAME_PROPERTY));
-      checkEmail(_ctx, customer.getProperty(Customer.EMAIL_PROPERTY), newLocation(_parentLocation, Customer.EMAIL_PROPERTY));
-      checkCommercePlatform(_ctx, customer.getProperty(Customer.COMMERCE_PLATFORM_PROPERTY), newLocation(_parentLocation, Customer.COMMERCE_PLATFORM_PROPERTY));
-      checkCreateTime(_ctx, customer.getProperty(Customer.CREATE_TIME_PROPERTY), newLocation(_parentLocation, Customer.CREATE_TIME_PROPERTY));
-      checkUpdateTime(_ctx, customer.getProperty(Customer.UPDATE_TIME_PROPERTY), newLocation(_parentLocation, Customer.UPDATE_TIME_PROPERTY));
+      checkName(_context, customer.getProperty(Customer.NAME_PROPERTY), newLocation(_parentLocation, "name"));
+      checkEmail(_context, customer.getProperty(Customer.EMAIL_PROPERTY), newLocation(_parentLocation, "email"));
+      checkCommercePlatform(_context, customer.getProperty(Customer.COMMERCE_PLATFORM_PROPERTY), newLocation(_parentLocation, "commerce_platform"));
+      checkCreateTime(_context, customer.getProperty(Customer.CREATE_TIME_PROPERTY), newLocation(_parentLocation, "create_time"));
+      checkUpdateTime(_context, customer.getProperty(Customer.UPDATE_TIME_PROPERTY), newLocation(_parentLocation, "update_time"));
       for(int i = 0; customer.getCustomerOrderList() != null && i < customer.getCustomerOrderList().size(); i++){
          CustomerOrder customerOrder = customer.getCustomerOrderList().get(i);
-         new CustomerOrderChecker().checkAndFix(_ctx, customerOrder, newLocation(_parentLocation, Customer.CUSTOMER_ORDER_LIST_PROPERTY, i));
+         new CustomerOrderChecker().checkAndFix(_context, customerOrder, newLocation(_parentLocation, "customer_order_list", i));
       }
     }
 
-    public void checkName(UserContext _ctx, String name, ObjectLocation _parentLocation){
-    requiredCheck(_ctx, _parentLocation, name);
+    public void checkName(UserContext _context, String name, ObjectLocation _parentLocation){
+    requiredCheck(_context, _parentLocation, name);
     if((name == null)){
         return;
     }
-    maxStringCheck(_ctx, _parentLocation, 100, name);
+    maxStringCheck(_context, _parentLocation, 100, name);
 
     }
-    public void checkEmail(UserContext _ctx, String email, ObjectLocation _parentLocation){
-    requiredCheck(_ctx, _parentLocation, email);
+    public void checkEmail(UserContext _context, String email, ObjectLocation _parentLocation){
+    requiredCheck(_context, _parentLocation, email);
     if((email == null)){
         return;
     }
-    maxStringCheck(_ctx, _parentLocation, 100, email);
+    maxStringCheck(_context, _parentLocation, 100, email);
 
     }
-    public void checkCommercePlatform(UserContext _ctx, CommercePlatform commercePlatform, ObjectLocation _parentLocation){
-    requiredCheck(_ctx, _parentLocation, commercePlatform);
+    public void checkCommercePlatform(UserContext _context, CommercePlatform commercePlatform, ObjectLocation _parentLocation){
+    requiredCheck(_context, _parentLocation, commercePlatform);
     if((commercePlatform == null)){
         return;
     }
-    new CommercePlatformChecker().checkAndFix(_ctx, commercePlatform, _parentLocation);
+    new CommercePlatformChecker().checkAndFix(_context, commercePlatform, _parentLocation);
     }
-    public void checkCreateTime(UserContext _ctx, LocalDateTime createTime, ObjectLocation _parentLocation){
-    requiredCheck(_ctx, _parentLocation, createTime);
+    public void checkCreateTime(UserContext _context, LocalDateTime createTime, ObjectLocation _parentLocation){
+    requiredCheck(_context, _parentLocation, createTime);
     if((createTime == null)){
         return;
     }
     }
-    public void checkUpdateTime(UserContext _ctx, LocalDateTime updateTime, ObjectLocation _parentLocation){
-    requiredCheck(_ctx, _parentLocation, updateTime);
+    public void checkUpdateTime(UserContext _context, LocalDateTime updateTime, ObjectLocation _parentLocation){
+    requiredCheck(_context, _parentLocation, updateTime);
     if((updateTime == null)){
         return;
     }

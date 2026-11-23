@@ -1,0 +1,5 @@
+<root name="context-fix-service" org="example" data_service="sqlite" teaql_java_version="1.556-RELEASE">
+  <catalog name="Catalog"/>
+  <entry _audit_mask_fields="guarded_token" catalog="catalog()" name="Entry" born_at="createTime()" touched_at="updateTime()"
+         source_ip="string()" last_ip="string()" opened_by="string()" changed_by="string()" guarded_token="uniStr()"/>
+</root>

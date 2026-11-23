@@ -1,4 +1,16 @@
-# Context-owned HTTP example
+# Synchronize supplier order status
+
+The [supplier model](model.xml) defines the supplier and orders awaiting
+confirmation. The generated workspace installs a named HTTP profile on
+the Context and reconciles orders against a loopback supplier. A direct response
+and one retry update their own orders. Retry exhaustion, cancellation and a
+response for another order leave the local versions unchanged.
+
+```bash
+bash examples/http-resilience/verify-sync.sh
+```
+
+## Original HTTP calibration
 
 Run `bash examples/http-resilience/verify.sh`. The verifier starts a loopback-only
 HTTP fixture, installs one named service profile on `DefaultUserContext`, and

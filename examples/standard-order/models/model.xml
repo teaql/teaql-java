@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<root name="request-tree-order-service" org="example" data_service="sqlite" _module_key="root"
-      teaql_java_version="1.554-RELEASE">
+<root name="request-tree-order-service" org="example" data_service="sqlite" _module_key="root">
   <platform _name="Commerce Platform" _module="Commerce" _module_key="commerce"
             name="Commerce Test Platform"/>
   <order_status _name="Order Status" _module="Commerce" _module_key="commerce"

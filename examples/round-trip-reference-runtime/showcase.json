@@ -1,0 +1,50 @@
+{
+  "generatedDomainLibraryHandEdited": false,
+  "goalId": "java:examples/round-trip-reference-runtime",
+  "library": {
+    "generatedFilesManifestSHA256": "efcc44417d42124fe7a0776596443ba9debbc6e4d443d4d764e7e0fd65dcb94a",
+    "root": "java-lib-core",
+    "scope": "java-lib-core"
+  },
+  "model": {
+    "path": "model.xml",
+    "sha256": "065bad2b9154a08abbec48549e60cc907e6f2889e9a005b428d902a1cbd0999f"
+  },
+  "producer": {
+    "generator": {
+      "artifactKind": "qualified source build",
+      "jarSHA256": "029f602cf0e2de4ec0910495c340fbeb41f11772b6aca875569f498811158e7d",
+      "qualificationReceiptSHA256": "1012520de60d49cfc1e45c7e08fcf204dd2db36a163909e1e36752065a31047a",
+      "sourceCommit": "99d6bde2351d79b7d8b1b1c5cbc78c5dc777b6f2",
+      "tag": "unreleased-source-99d6bde2"
+    },
+    "receipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/order-reference-and-line-restoration-evaluated-generation/receipt.json",
+    "receiptSHA256": "21eae4c57d59881287106fe7871d0958e6596ab455f9e7e095580b0b03a05dc8"
+  },
+  "qualification": {
+    "businessReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-order-edit-reference-reactor-native/business-receipt.json",
+    "businessReceiptSHA256": "83c7fa119f17ad1ccff0e291dea346b6368f3c03136ec40e41a925146f1e2d71",
+    "nativeReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-order-edit-reference-reactor-native/receipt.json",
+    "nativeReceiptSHA256": "dc656a80288f885f382d8201b0ca0cdb252e9b8663807e316b7c670479521eb1",
+    "remainingFullRuntimeInventory": true,
+    "sourceCommit": "163cd902f160508772cf03e3f949aa1af8d5dfbf"
+  },
+  "scene": "Resolve a scoped order-line reference before accepting an edit",
+  "schema": "teaql.model-workspace-showcase/v1",
+  "status": "focused-verified",
+  "verification": [
+    "bash",
+    "examples/round-trip-reference-runtime/verify.sh"
+  ],
+  "workspace": {
+    "applicationOwnedFiles": [
+      "pom.xml",
+      "src/test/java/com/teaql/ordereditreference/OrderReferenceEditorTest.java",
+      "Makefile"
+    ],
+    "generatedFilesManifestSHA256": "1a34d54140420df516ae53cca73e99dd5107187dddef4679221b36aabc883f73",
+    "root": "java-app-console",
+    "scope": "java-app-console",
+    "useSiblingMavenLibrary": true
+  }
+}

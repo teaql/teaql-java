@@ -36,8 +36,9 @@ function fixture() {
   }
   walk(path.join(__dirname, 'generated'));
   assert.deepEqual(actual.sort(), Object.keys(manifest.files).sort(), 'unexpected generated source');
+  const modelMetadata = new Set(['teaql/checker-model.json', 'teaql/model-provenance.json']);
   for (const [file, expected] of Object.entries(manifest.files)) {
-    assert(file.startsWith('lib/') && !file.split('/').includes('..'));
+    assert((file.startsWith('lib/') || modelMetadata.has(file)) && !file.split('/').includes('..'));
     assert.equal(sha(fs.readFileSync(path.join(__dirname, 'generated', file))), expected, file);
   }
   return {manifest, manifestSha256: sha(bytes)};

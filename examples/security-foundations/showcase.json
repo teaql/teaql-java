@@ -1,0 +1,50 @@
+{
+  "generatedDomainLibraryHandEdited": false,
+  "goalId": "java:examples/security-foundations",
+  "library": {
+    "generatedFilesManifestSHA256": "0e16c0bf8416bf8f81f175575918a809ce6694d44ce446f0d17eeda61b97f45e",
+    "root": "java-lib-core",
+    "scope": "java-lib-core"
+  },
+  "model": {
+    "path": "model.xml",
+    "sha256": "4bd3524659417a530665b6bcbfec928ee3e5845f2e96570346193fd64981551a"
+  },
+  "producer": {
+    "generator": {
+      "artifactKind": "qualified source build",
+      "jarSHA256": "029f602cf0e2de4ec0910495c340fbeb41f11772b6aca875569f498811158e7d",
+      "qualificationReceiptSHA256": "1012520de60d49cfc1e45c7e08fcf204dd2db36a163909e1e36752065a31047a",
+      "sourceCommit": "99d6bde2351d79b7d8b1b1c5cbc78c5dc777b6f2",
+      "tag": "unreleased-source-99d6bde2"
+    },
+    "receipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/order-privacy-and-federation-generation/receipt.json",
+    "receiptSHA256": "0ae62ffb613692c2d0922b4da1b1dbb9ca6081e8a36a5786a27029a614b711d1"
+  },
+  "qualification": {
+    "businessReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-merchant-order-privacy-native/business-receipt.json",
+    "businessReceiptSHA256": "41c017b1dbfa59bd67c8d27cf8a8e08a6407409d478f11015b7903fb31a5311c",
+    "nativeReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-merchant-order-privacy-native/receipt.json",
+    "nativeReceiptSHA256": "694db07060857f72f1bda9e3363068d54f95af37e37fd2e838d9244dc2c43202",
+    "remainingFullRuntimeInventory": true,
+    "sourceCommit": "cc8d0e983facb0da22e0f5c6a73d7742bd8440bb"
+  },
+  "scene": "View one authorized merchant order while protecting customer data in SQL diagnostics",
+  "schema": "teaql.model-workspace-showcase/v1",
+  "status": "focused-verified",
+  "verification": [
+    "bash",
+    "examples/security-foundations/verify-privacy.sh"
+  ],
+  "workspace": {
+    "applicationOwnedFiles": [
+      "pom.xml",
+      "src/test/java/com/teaql/merchantorderprivacyservice/MerchantOrderPrivacyTest.java",
+      "Makefile"
+    ],
+    "generatedFilesManifestSHA256": "80da3356c9c341da63759603e86f6d6694bc1f974e0110bd3a298fa38553da82",
+    "root": "java-app-console",
+    "scope": "java-app-console",
+    "useSiblingMavenLibrary": true
+  }
+}

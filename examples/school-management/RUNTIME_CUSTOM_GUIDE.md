@@ -1,6 +1,17 @@
 
 # TeaQL Runtime Customization Guide
 
+This is a plain Java console application. `App.main()` creates and closes the Hikari
+DataSource, wraps it with `JdbcSqlExecutor`, and manually assembles `TeaQLRuntime.builder()`.
+The generated runtime module installs metadata and runtime services; `CustomUserContext`
+is then created explicitly and `context.ensureSchema()` initializes the database.
+
+Run `make run` to install the generated library, package the application, and launch it.
+Configuration is loaded from `src/main/resources/application.properties`. Override values
+with JVM properties or `--teaql.datasource.url=jdbc:...` command-line arguments.
+Server database credentials use `TEAQL_DATABASE_USERNAME` and `TEAQL_DATABASE_PASSWORD`.
+Keep business operations in the generated Q/E APIs and audited entity saves.
+
 > [!WARNING]
 > **DO NOT GUESS RUNTIME CONFIGURATION**
 > Do not guess how to configure the runtime, connection pools, or schema generation.

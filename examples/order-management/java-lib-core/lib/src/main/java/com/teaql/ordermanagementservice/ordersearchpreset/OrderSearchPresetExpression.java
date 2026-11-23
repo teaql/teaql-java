@@ -37,35 +37,35 @@ public class OrderSearchPresetExpression<T, E, U extends OrderSearchPreset> exte
 
 
     public Expression<T, String> getName(){
-       return apply(OrderSearchPreset::getName);
+       return loaded("name", "getName", OrderSearchPreset::getName);
     }
     public OrderSearchPresetExpression<T, U, U> updateName(String name){
        return new OrderSearchPresetExpression(this, $it ->  ((OrderSearchPreset)$it).updateName(name));
     }
 
     public Expression<T, String> getFilterJson(){
-       return apply(OrderSearchPreset::getFilterJson);
+       return loaded("filter_json", "getFilterJson", OrderSearchPreset::getFilterJson);
     }
     public OrderSearchPresetExpression<T, U, U> updateFilterJson(String filterJson){
        return new OrderSearchPresetExpression(this, $it ->  ((OrderSearchPreset)$it).updateFilterJson(filterJson));
     }
 
     public Expression<T, String> getRequestId(){
-       return apply(OrderSearchPreset::getRequestId);
+       return loaded("request_id", "getRequestId", OrderSearchPreset::getRequestId);
     }
     public OrderSearchPresetExpression<T, U, U> updateRequestId(String requestId){
        return new OrderSearchPresetExpression(this, $it ->  ((OrderSearchPreset)$it).updateRequestId(requestId));
     }
 
     public Expression<T, String> getOwnerUserId(){
-       return apply(OrderSearchPreset::getOwnerUserId);
+       return loaded("owner_user_id", "getOwnerUserId", OrderSearchPreset::getOwnerUserId);
     }
     public OrderSearchPresetExpression<T, U, U> updateOwnerUserId(String ownerUserId){
        return new OrderSearchPresetExpression(this, $it ->  ((OrderSearchPreset)$it).updateOwnerUserId(ownerUserId));
     }
 
     public CommercePlatformExpression<T, U, CommercePlatform> getCommercePlatform(){
-       return new CommercePlatformExpression(this, $it ->  ((OrderSearchPreset)$it).getCommercePlatform());
+       return new CommercePlatformExpression(loaded("commerce_platform", "getCommercePlatform", OrderSearchPreset::getCommercePlatform));
     }
 
     public OrderSearchPresetExpression<T, U, U> updateCommercePlatform(CommercePlatform commercePlatform){
@@ -73,14 +73,14 @@ public class OrderSearchPresetExpression<T, E, U extends OrderSearchPreset> exte
     }
 
     public Expression<T, LocalDateTime> getCreateTime(){
-       return apply(OrderSearchPreset::getCreateTime);
+       return loaded("create_time", "getCreateTime", OrderSearchPreset::getCreateTime);
     }
     public OrderSearchPresetExpression<T, U, U> updateCreateTime(LocalDateTime createTime){
        return new OrderSearchPresetExpression(this, $it ->  ((OrderSearchPreset)$it).updateCreateTime(createTime));
     }
 
     public Expression<T, LocalDateTime> getUpdateTime(){
-       return apply(OrderSearchPreset::getUpdateTime);
+       return loaded("update_time", "getUpdateTime", OrderSearchPreset::getUpdateTime);
     }
     public OrderSearchPresetExpression<T, U, U> updateUpdateTime(LocalDateTime updateTime){
        return new OrderSearchPresetExpression(this, $it ->  ((OrderSearchPreset)$it).updateUpdateTime(updateTime));

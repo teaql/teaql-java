@@ -9,6 +9,7 @@ import io.teaql.core.FieldLayout;
 import io.teaql.core.FrameworkInternal;
 import io.teaql.core.RemoteInput;
 import io.teaql.core.SmartList;
+import io.teaql.core.checker.JsonFieldNamingProfile;
 import java.util.Objects;
 
 /**
@@ -33,7 +34,8 @@ public class TypePlatform extends BaseEntity implements RemoteInput {
     public static final FieldLayout __TEAQL_FIELD_LAYOUT =
         FieldLayout.installGenerated(FieldLayout.generated(
             TypePlatform.class, __TEAQL_FIELD_LAYOUT_REVISION,
-            __TEAQL_FIXED_FIELD_INDEXES, __TEAQL_FIXED_FIELD_MAPPINGS, __TEAQL_FIXED_RELATION_NAMES));
+            __TEAQL_FIXED_FIELD_INDEXES, __TEAQL_FIXED_FIELD_MAPPINGS, __TEAQL_FIXED_RELATION_NAMES,
+            JsonFieldNamingProfile.fromModelValue("camelCase")));
 
 
     public static final String NAME_PROPERTY = "name";
@@ -47,11 +49,11 @@ public class TypePlatform extends BaseEntity implements RemoteInput {
     }
 
     public SmartList<ScalarTypeProbe> getScalarTypeProbeList(){
-        return this.scalarTypeProbeList;
+        return this.scalarTypeProbeList == null ? SmartList.unloaded() : this.scalarTypeProbeList;
     }
     public TypePlatform updateName(String name){
         name = (name == null ? null : name.trim());
-        if(Objects.equals(this.name, name)){
+        if(isPropertyLoaded(NAME_PROPERTY) && Objects.equals(this.name, name)){
             return this;
         }
         handleUpdate(NAME_PROPERTY, getName(), name);
@@ -65,7 +67,8 @@ public class TypePlatform extends BaseEntity implements RemoteInput {
         }
 
         if(null == this.scalarTypeProbeList){
-            this.scalarTypeProbeList = new SmartList<>();
+            SmartList<ScalarTypeProbe> teaqlUnloadedItems = SmartList.unloaded();
+            this.scalarTypeProbeList = teaqlUnloadedItems.map(value -> value);
         }
 
         this.scalarTypeProbeList.add(scalarTypeProbe);
@@ -114,7 +117,13 @@ public class TypePlatform extends BaseEntity implements RemoteInput {
         switch (property) {
             case "name": return this.name;
             case "scalar_type_probe_list": return this.scalarTypeProbeList;
-            default: return super.__internalGet(property);
+            default:
+                // Presentation uses the installed Java member mapping; SQL and
+                // hydration retain canonical names. These aliases only read.
+                switch (property) {
+                    case "name": return this.name;
+                    default: return super.__internalGet(property);
+                }
         }
     }
 

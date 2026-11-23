@@ -1,0 +1,67 @@
+{
+  "generatedDomainLibraryHandEdited": false,
+  "goalId": "java:examples/fix-e-alignment",
+  "library": {
+    "generatedFilesManifestSHA256": "ea5da31929c18998e8eeec4b2abb3268a628f67935c38ac3dd141e05bf5f2f05",
+    "root": "java-lib-core",
+    "scope": "java-lib-core"
+  },
+  "model": {
+    "path": "model.xml",
+    "sha256": "a2cf4c907cb084cb0946e993eeba586c8c0701a89fdc4a849808aa743be033b7"
+  },
+  "producer": {
+    "generator": {
+      "artifactKind": "qualified source build; not a public release",
+      "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+      "qualificationReceiptSHA256": "5119b9f3a5c95fb84f527885fdd5bac0fe79a56352a55b8acf116f67fd12787d",
+      "sourceCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+      "tag": "unreleased-source-021b1ed8"
+    },
+    "receipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/purchase-order-fix-generation/receipt.json",
+    "receiptSHA256": "920c683d71de38e609d2be2c3d8b7f2fb6c014e3b123edd5c4ea694fc6e91a48"
+  },
+  "qualification": {
+    "businessReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-purchase-order-source-reactor/runtime/fix-e/receipt.json",
+    "businessReceiptSHA256": "03a0be9d51e7940e87299b047968f511e4e2d3e3a8d8808e7017bb345e6775ed",
+    "nativeReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-purchase-order-source-reactor/receipt.json",
+    "nativeReceiptSHA256": "a06d59c4edb98b649811c783b3517968e72de9077a292fa7df825729f1c0350d",
+    "remainingFullRuntimeInventory": true,
+    "sourceCommit": "33932f31196ff8a3d00b087598975132124c6749"
+  },
+  "scene": "Purchase-order Fix, graph edits and precise loaded-state business outcomes",
+  "schema": "teaql.model-workspace-showcase/v1",
+  "status": "focused-verified",
+  "verification": [
+    "node",
+    "verify-local.cjs"
+  ],
+  "workspace": {
+    "applicationOwnedFiles": [
+      "pom.xml",
+      "showcase-tests/io/teaql/examples/fixe/CancelledNewGraphExampleTest.java",
+      "showcase-tests/io/teaql/examples/fixe/CheckerBoundaryExampleTest.java",
+      "showcase-tests/io/teaql/examples/fixe/ConcurrentQueryExampleTest.java",
+      "showcase-tests/io/teaql/examples/fixe/ContextRootProbe.java",
+      "showcase-tests/io/teaql/examples/fixe/ContextRootSubtypeProbe.java",
+      "showcase-tests/io/teaql/examples/fixe/ExpressionBoundaryProbe.java",
+      "showcase-tests/io/teaql/examples/fixe/GeneratedFixEExampleTest.java",
+      "showcase-tests/io/teaql/examples/fixe/LoadingProbe.java",
+      "showcase-tests/io/teaql/examples/fixe/MixedGraphExampleTest.java",
+      "showcase-tests/io/teaql/examples/fixe/NewEntityIdExampleTest.java",
+      "showcase-tests/io/teaql/examples/fixe/OriginalLedgerExampleTest.java",
+      "showcase-tests/io/teaql/examples/fixe/OwnershipProbe.java",
+      "showcase-tests/io/teaql/examples/fixe/PageStreamOwnershipProbe.java",
+      "showcase-tests/io/teaql/examples/fixe/PartialAncestorRootExampleTest.java",
+      "showcase-tests/io/teaql/examples/fixe/PostFixExampleTest.java",
+      "showcase-tests/io/teaql/examples/fixe/RequestIntentExampleTest.java",
+      "showcase-tests/io/teaql/examples/fixe/ReviewedPlanExampleTest.java",
+      "showcase-tests/io/teaql/examples/fixe/PartialAncestorExampleTest.java",
+      "Makefile"
+    ],
+    "generatedFilesManifestSHA256": "392d8007c9b153e118e0615ea854f9feebf073cd17ebbdd755ac925850e4d116",
+    "root": "java-app-console",
+    "scope": "java-app-console",
+    "useSiblingMavenLibrary": true
+  }
+}

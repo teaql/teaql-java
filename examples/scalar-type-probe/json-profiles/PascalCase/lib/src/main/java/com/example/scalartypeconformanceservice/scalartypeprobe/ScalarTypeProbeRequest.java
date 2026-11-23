@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Date;
+import java.util.Objects;
 
 public class ScalarTypeProbeRequest<T extends ScalarTypeProbe> extends BaseRequest<T> {
 
@@ -38,6 +39,19 @@ public class ScalarTypeProbeRequest<T extends ScalarTypeProbe> extends BaseReque
     public ScalarTypeProbeRequest<T> comment(String comment){
          super.internalComment(comment);
          return this;
+    }
+
+    /** Independent query graph; ordinary roll-up handles remain live. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public ScalarTypeProbeRequest<T> copy(){
+        return (ScalarTypeProbeRequest<T>) super.copy();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected io.teaql.core.BaseRequest<T> internalCopyTarget(){
+        return new ScalarTypeProbeRequest<>((Class<T>) returnType(), this::internalNewEntity);
     }
 
     // purpose() 继承自 BaseRequest，返回 ExecutableRequest（终结方法）
@@ -105,6 +119,12 @@ public class ScalarTypeProbeRequest<T extends ScalarTypeProbe> extends BaseReque
     public ScalarTypeProbeRequest<T> matchingAnyOf(ScalarTypeProbeRequest scalarTypeProbe){
         super.internalMatchAny(scalarTypeProbe);
         return this;
+    }
+
+    public ScalarTypeProbeRequest<T> matchingIdsOf(ScalarTypeProbeRequest<?> request){
+        Objects.requireNonNull(request, "matching request");
+        return appendSearchCriteria(new SubQuerySearchCriteria(
+                ScalarTypeProbe.ID_PROPERTY, request, ScalarTypeProbe.ID_PROPERTY));
     }
 
     public ScalarTypeProbeRequest<T> enhanceChildrenIfNeeded(){
@@ -2998,6 +3018,214 @@ public class ScalarTypeProbeRequest<T extends ScalarTypeProbe> extends BaseReque
 
 
 
+    public ScalarTypeProbeRequest<T> countDistinctId(){
+        return countDistinctIdAs("id_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctIdAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.ID_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctTypePlatform(){
+        return countDistinctTypePlatformAs("type_platform_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctTypePlatformAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.TYPE_PLATFORM_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctRequiredString(){
+        return countDistinctRequiredStringAs("required_string_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctRequiredStringAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.REQUIRED_STRING_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctOptionalString(){
+        return countDistinctOptionalStringAs("optional_string_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctOptionalStringAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.OPTIONAL_STRING_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctLargeText(){
+        return countDistinctLargeTextAs("large_text_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctLargeTextAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.LARGE_TEXT_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctRequiredBoolean(){
+        return countDistinctRequiredBooleanAs("required_boolean_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctRequiredBooleanAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.REQUIRED_BOOLEAN_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctOptionalBoolean(){
+        return countDistinctOptionalBooleanAs("optional_boolean_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctOptionalBooleanAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.OPTIONAL_BOOLEAN_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctRequiredInteger(){
+        return countDistinctRequiredIntegerAs("required_integer_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctRequiredIntegerAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.REQUIRED_INTEGER_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctOptionalInteger(){
+        return countDistinctOptionalIntegerAs("optional_integer_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctOptionalIntegerAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.OPTIONAL_INTEGER_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctRequiredLong(){
+        return countDistinctRequiredLongAs("required_long_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctRequiredLongAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.REQUIRED_LONG_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctOptionalLong(){
+        return countDistinctOptionalLongAs("optional_long_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctOptionalLongAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.OPTIONAL_LONG_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctRequiredDecimal(){
+        return countDistinctRequiredDecimalAs("required_decimal_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctRequiredDecimalAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.REQUIRED_DECIMAL_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctOptionalDecimal(){
+        return countDistinctOptionalDecimalAs("optional_decimal_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctOptionalDecimalAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.OPTIONAL_DECIMAL_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctRequiredFloat(){
+        return countDistinctRequiredFloatAs("required_float_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctRequiredFloatAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.REQUIRED_FLOAT_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctOptionalFloat(){
+        return countDistinctOptionalFloatAs("optional_float_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctOptionalFloatAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.OPTIONAL_FLOAT_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctRequiredDouble(){
+        return countDistinctRequiredDoubleAs("required_double_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctRequiredDoubleAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.REQUIRED_DOUBLE_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctOptionalDouble(){
+        return countDistinctOptionalDoubleAs("optional_double_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctOptionalDoubleAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.OPTIONAL_DOUBLE_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctRequiredDate(){
+        return countDistinctRequiredDateAs("required_date_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctRequiredDateAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.REQUIRED_DATE_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctOptionalDate(){
+        return countDistinctOptionalDateAs("optional_date_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctOptionalDateAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.OPTIONAL_DATE_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctRequiredTime(){
+        return countDistinctRequiredTimeAs("required_time_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctRequiredTimeAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.REQUIRED_TIME_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctOptionalTime(){
+        return countDistinctOptionalTimeAs("optional_time_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctOptionalTimeAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.OPTIONAL_TIME_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctRequiredDatetime(){
+        return countDistinctRequiredDatetimeAs("required_datetime_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctRequiredDatetimeAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.REQUIRED_DATETIME_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctOptionalDatetime(){
+        return countDistinctOptionalDatetimeAs("optional_datetime_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctOptionalDatetimeAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.OPTIONAL_DATETIME_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctCreateTime(){
+        return countDistinctCreateTimeAs("create_time_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctCreateTimeAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.CREATE_TIME_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctUpdateTime(){
+        return countDistinctUpdateTimeAs("update_time_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctUpdateTimeAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.UPDATE_TIME_PROPERTY);
+        return this;
+    }
+    public ScalarTypeProbeRequest<T> countDistinctVersion(){
+        return countDistinctVersionAs("version_distinct_count");
+    }
+
+    public ScalarTypeProbeRequest<T> countDistinctVersionAs(String alias){
+        super.countDistinctProperty(alias, ScalarTypeProbe.VERSION_PROPERTY);
+        return this;
+    }
 
     public ScalarTypeProbeRequest<T> groupById(){
        groupBy(ScalarTypeProbe.ID_PROPERTY);
@@ -3014,7 +3242,8 @@ public class ScalarTypeProbeRequest<T extends ScalarTypeProbe> extends BaseReque
        return this;
     }
     public ScalarTypeProbeRequest<T> groupByTypePlatformWith(TypePlatformRequest subRequest){
-       groupBy(ScalarTypeProbe.TYPE_PLATFORM_PROPERTY, subRequest);
+       groupBy(ScalarTypeProbe.TYPE_PLATFORM_PROPERTY, subRequest,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "groupByTypePlatformWith", null, "type_platform"));
        return this;
     }
     public ScalarTypeProbeRequest<T> groupByTypePlatform(){
@@ -3673,8 +3902,8 @@ public class ScalarTypeProbeRequest<T extends ScalarTypeProbe> extends BaseReque
 
     public TypePlatformRequest rollUpToTypePlatform(){
        TypePlatformRequest typePlatform = Q.typePlatforms().unlimited();
-       this.withTypePlatformMatching(typePlatform)
-           .groupByTypePlatformWith(typePlatform);
+       this.internalRollUpTo("type_platform", typePlatform,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "rollUpToTypePlatform", null, "type_platform"));
        return typePlatform;
     }
 

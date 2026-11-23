@@ -1,0 +1,51 @@
+{
+  "generatedDomainLibraryHandEdited": false,
+  "goalId": "java:examples/exact-decimal",
+  "library": {
+    "generatedFilesManifestSHA256": "b09793c2d99efc261dfeab646a2c773790d7e225335483929fc75c1739977dd0",
+    "root": "java-lib-core",
+    "scope": "java-lib-core"
+  },
+  "model": {
+    "path": "model.xml",
+    "sha256": "c7741b1a81cd07e3833caec196e92a7b845e8ce9543bb2f8a80c4e63e0930bd4"
+  },
+  "producer": {
+    "generator": {
+      "artifactKind": "qualified source build",
+      "jarSHA256": "029f602cf0e2de4ec0910495c340fbeb41f11772b6aca875569f498811158e7d",
+      "qualificationReceiptSHA256": "1012520de60d49cfc1e45c7e08fcf204dd2db36a163909e1e36752065a31047a",
+      "sourceCommit": "99d6bde2351d79b7d8b1b1c5cbc78c5dc777b6f2",
+      "tag": "unreleased-source-99d6bde2"
+    },
+    "receipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/freight-and-settlement-scalar-generation/receipt.json",
+    "receiptSHA256": "79779696ae34d3952b5735caa00fa0e1da93311ca8cb7389eec5ccd087368a1a"
+  },
+  "qualification": {
+    "businessReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-settlement-quotes-native/runtime/exact-decimal/business-receipt.json",
+    "businessReceiptSHA256": "db95e6b74ca5dd2eeffb97a439aa63adc714c87fde1d4f0ed31cb82d99432ee3",
+    "nativeReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-settlement-quotes-native/receipt.json",
+    "nativeReceiptSHA256": "37f55df85b2ba3ea372e6d6ac13276c4723a50091e9a9f95352d9d7c007f3d1c",
+    "remainingFullRuntimeInventory": true,
+    "sourceCommit": "26f81f6f66c19ad0772dd3c65d5cc1f861239fc5"
+  },
+  "scene": "Exact settlement quotes and accounting aggregation",
+  "schema": "teaql.model-workspace-showcase/v1",
+  "status": "focused-verified",
+  "verification": [
+    "bash",
+    "examples/exact-decimal/verify.sh"
+  ],
+  "workspace": {
+    "applicationOwnedFiles": [
+      "src/main/java/com/example/exactdecimalservice/GeneratedExactDecimalProbe.java",
+      "src/main/java/com/example/exactdecimalservice/GeneratedWorkspaceStartupProbe.java",
+      "src/main/java/com/example/exactdecimalservice/GeneratedMemoryAggregateProbe.java",
+      "Makefile"
+    ],
+    "generatedFilesManifestSHA256": "32b7b30df0b016e6ca704ec9fc7058a5554c3b4de03cf55e9d001c5319351eac",
+    "root": "java-app-console",
+    "scope": "java-app-console",
+    "useSiblingMavenLibrary": true
+  }
+}

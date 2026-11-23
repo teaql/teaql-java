@@ -1,0 +1,50 @@
+{
+  "generatedDomainLibraryHandEdited": false,
+  "goalId": "java:examples/conformance",
+  "library": {
+    "generatedFilesManifestSHA256": "c4c234c7fe34ac2eff76027240f192dab3362af6b6657a29ed1a233e7d74fe70",
+    "root": "java-lib-core",
+    "scope": "java-lib-core"
+  },
+  "model": {
+    "path": "model.xml",
+    "sha256": "4c69fcaa275d1f7d255f325305cc0c6c5071154d278f9f4af7775ae0758144a6"
+  },
+  "producer": {
+    "generator": {
+      "artifactKind": "qualified source build; not a public release",
+      "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+      "qualificationReceiptSHA256": "5119b9f3a5c95fb84f527885fdd5bac0fe79a56352a55b8acf116f67fd12787d",
+      "sourceCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+      "tag": "unreleased-source-021b1ed8"
+    },
+    "receipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/catalog-natural-generation/receipt.json",
+    "receiptSHA256": "c321d972c75d8f73f7f62525162f64337461996c487f3ab3abdaef25cba5e23a"
+  },
+  "qualification": {
+    "businessReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-natural-catalog-native-scopes/runtime/natural-messages/receipt.json",
+    "businessReceiptSHA256": "e1f517766eb8fc9541294313caa20e840f5bfcd7c1c28daa972f9eeb72e5c609",
+    "nativeReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-natural-catalog-native-scopes/receipt.json",
+    "nativeReceiptSHA256": "d9fdf291ed960529dafb63ed3da8970474353ee6a8cbfbd0ce98e8f33b539a4b",
+    "remainingFullRuntimeInventory": true,
+    "sourceCommit": "b6d9f0944d637462713ee029295adb0c12684e26"
+  },
+  "scene": "Catalog entry validation with natural messages, exact locations and private values",
+  "schema": "teaql.model-workspace-showcase/v1",
+  "status": "focused-verified",
+  "verification": [
+    "node",
+    "verify-local.cjs"
+  ],
+  "workspace": {
+    "applicationOwnedFiles": [
+      "pom.xml",
+      "showcase-tests/io/teaql/examples/naturalmessages/GeneratedNaturalMessagesTest.java",
+      "Makefile"
+    ],
+    "generatedFilesManifestSHA256": "4c158e97fa019cace80ded4119dcc0fa26c4dc397ac1e6f2d78ff32389bafa6a",
+    "root": "java-app-console",
+    "scope": "java-app-console",
+    "useSiblingMavenLibrary": true
+  }
+}

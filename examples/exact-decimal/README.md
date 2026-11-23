@@ -1,17 +1,17 @@
-# Generated Java/SQLite exact Decimal example
+# Exact settlement quotes
 
-This is a small, generation-dependent runtime example. It uses two entities,
-one modeled `number()` field, a local generator checkout and this local Java
-runtime checkout. No generated domain source is edited.
+The settlement desk quotes wharf and customs fees, recalculates an offshore
+settlement and records two rate adjustments using precise decimals. The
+`java-lib-core` domain and `java-app-console` workspace are generated from
+`model.xml`. Application probes live in the console workspace.
 
 ```bash
-TEAQL_CODEGEN_DIR=/path/to/teaql-code-gen bash examples/exact-decimal/verify.sh
+bash examples/exact-decimal/verify.sh
 ```
 
-The verifier copies both source checkouts into one owned temporary build area,
-uses the validated local generator entry point, and builds the runtime, generated
-library and plain console together in a Maven reactor. It never installs or
-deploys TeaQL artifacts into a shared Maven cache. Both rounds use the same two
+The verifier copies this source checkout into an owned temporary build area
+and checks the recorded generated scopes. It builds the local runtime, generated
+library and plain console together in one Maven reactor. Both rounds use the same two
 SQLite databases (one Q/E probe database and one console startup database):
 
 - Generated Q equality, strong `BigDecimal` hydration and E evaluation.
@@ -23,10 +23,9 @@ SQLite databases (one Q/E probe database and one console startup database):
 - The actual generated plain Java/JDBC console startup, including repeated
   `ensureSchema` against one workspace database.
 
-It also verifies that the generated library hash does not change while the
-application code is compiled and executed. Three packaged runtime class hashes
-must match the classes built from the paired checkout, excluding accidental
-reuse of a cached published version. The Q/E probe retains exactly five rows
+It also verifies the generated library hashes before and after execution. Five
+packaged runtime class hashes must match classes built from the paired checkout.
+The Q/E probe retains exactly five quotes
 across both rounds. Every run retains its logs, source identities, generated
 file hashes and small databases under the printed evidence directory; disposable
 compilers, source copies and JARs are removed even on failure. Set

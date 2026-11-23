@@ -1,5 +1,11 @@
 # Java generated API Trace Chain example
 
+The mixed order graph, failed saves and standard telemetry run in the
+generated `java-app-console` workspace, using the sibling `java-lib-core`
+library from `model.xml`. Run `bash examples/trace-chain/verify.sh` for the
+order graph and `bash examples/trace-chain/verify-standard-telemetry.sh` for
+the standard telemetry demonstrations.
+
 This focused example uses the six-entity KSML model in [model.xml](model.xml),
 an unchanged generated domain library, and the runtime from this checkout.
 Business creation, graph attachment, deletion, recovery, query and expression access use

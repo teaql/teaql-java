@@ -537,7 +537,36 @@ public class ScalarTypeProbe extends BaseEntity implements RemoteInput {
             case "optional_datetime": return this.optionalDatetime;
             case "create_time": return this.createTime;
             case "update_time": return this.updateTime;
-            default: return super.__internalGet(property);
+            default:
+                // Presentation uses the installed Java member mapping; SQL and
+                // hydration retain canonical names. These aliases only read.
+                switch (property) {
+                    case "typePlatform": return this.typePlatform;
+                    case "requiredString": return this.requiredString;
+                    case "optionalString": return this.optionalString;
+                    case "largeText": return this.largeText;
+                    case "requiredBoolean": return this.requiredBoolean;
+                    case "optionalBoolean": return this.optionalBoolean;
+                    case "requiredInteger": return this.requiredInteger;
+                    case "optionalInteger": return this.optionalInteger;
+                    case "requiredLong": return this.requiredLong;
+                    case "optionalLong": return this.optionalLong;
+                    case "requiredDecimal": return this.requiredDecimal;
+                    case "optionalDecimal": return this.optionalDecimal;
+                    case "requiredFloat": return this.requiredFloat;
+                    case "optionalFloat": return this.optionalFloat;
+                    case "requiredDouble": return this.requiredDouble;
+                    case "optionalDouble": return this.optionalDouble;
+                    case "requiredDate": return this.requiredDate;
+                    case "optionalDate": return this.optionalDate;
+                    case "requiredTime": return this.requiredTime;
+                    case "optionalTime": return this.optionalTime;
+                    case "requiredDatetime": return this.requiredDatetime;
+                    case "optionalDatetime": return this.optionalDatetime;
+                    case "createTime": return this.createTime;
+                    case "updateTime": return this.updateTime;
+                    default: return super.__internalGet(property);
+                }
         }
     }
 

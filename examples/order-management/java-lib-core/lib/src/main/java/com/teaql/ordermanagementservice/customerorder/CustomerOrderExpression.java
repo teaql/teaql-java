@@ -45,45 +45,39 @@ public class CustomerOrderExpression<T, E, U extends CustomerOrder> extends Expr
 
 
     public Expression<T, String> getOrderNumber(){
-       return apply(CustomerOrder::getOrderNumber);
+       return loaded("order_number", "getOrderNumber", CustomerOrder::getOrderNumber);
     }
     public CustomerOrderExpression<T, U, U> updateOrderNumber(String orderNumber){
        return new CustomerOrderExpression(this, $it ->  ((CustomerOrder)$it).updateOrderNumber(orderNumber));
     }
 
     public Expression<T, LocalDate> getOrderDate(){
-       return apply(CustomerOrder::getOrderDate);
+       return loaded("order_date", "getOrderDate", CustomerOrder::getOrderDate);
     }
     public CustomerOrderExpression<T, U, U> updateOrderDate(LocalDate orderDate){
        return new CustomerOrderExpression(this, $it ->  ((CustomerOrder)$it).updateOrderDate(orderDate));
     }
 
     public Expression<T, BigDecimal> getTotalAmount(){
-       return apply(CustomerOrder::getTotalAmount);
+       return loaded("total_amount", "getTotalAmount", CustomerOrder::getTotalAmount);
     }
     public CustomerOrderExpression<T, U, U> updateTotalAmount(BigDecimal totalAmount){
        return new CustomerOrderExpression(this, $it ->  ((CustomerOrder)$it).updateTotalAmount(totalAmount));
     }
 
     public OrderStatusExpression<T, U, OrderStatus> getStatus(){
-       return new OrderStatusExpression(this, $it ->  ((CustomerOrder)$it).getStatus());
+       return new OrderStatusExpression(loaded("status", "getStatus", CustomerOrder::getStatus));
     }
 
     public CustomerOrderExpression<T, U, U> updateStatusToPending(){
        return new CustomerOrderExpression(this, $it ->  ((CustomerOrder)$it).updateStatusToPending());
     }
-    public CustomerOrderExpression<T, U, U> updateStatusToProcessing(){
-       return new CustomerOrderExpression(this, $it ->  ((CustomerOrder)$it).updateStatusToProcessing());
-    }
-    public CustomerOrderExpression<T, U, U> updateStatusToShipped(){
-       return new CustomerOrderExpression(this, $it ->  ((CustomerOrder)$it).updateStatusToShipped());
-    }
-    public CustomerOrderExpression<T, U, U> updateStatusToCompleted(){
-       return new CustomerOrderExpression(this, $it ->  ((CustomerOrder)$it).updateStatusToCompleted());
+    public CustomerOrderExpression<T, U, U> updateStatusToConfirmed(){
+       return new CustomerOrderExpression(this, $it ->  ((CustomerOrder)$it).updateStatusToConfirmed());
     }
 
     public CustomerExpression<T, U, Customer> getCustomer(){
-       return new CustomerExpression(this, $it ->  ((CustomerOrder)$it).getCustomer());
+       return new CustomerExpression(loaded("customer", "getCustomer", CustomerOrder::getCustomer));
     }
 
     public CustomerOrderExpression<T, U, U> updateCustomer(Customer customer){
@@ -91,7 +85,7 @@ public class CustomerOrderExpression<T, E, U extends CustomerOrder> extends Expr
     }
 
     public CommercePlatformExpression<T, U, CommercePlatform> getCommercePlatform(){
-       return new CommercePlatformExpression(this, $it ->  ((CustomerOrder)$it).getCommercePlatform());
+       return new CommercePlatformExpression(loaded("commerce_platform", "getCommercePlatform", CustomerOrder::getCommercePlatform));
     }
 
     public CustomerOrderExpression<T, U, U> updateCommercePlatform(CommercePlatform commercePlatform){
@@ -99,21 +93,21 @@ public class CustomerOrderExpression<T, E, U extends CustomerOrder> extends Expr
     }
 
     public Expression<T, LocalDateTime> getCreateTime(){
-       return apply(CustomerOrder::getCreateTime);
+       return loaded("create_time", "getCreateTime", CustomerOrder::getCreateTime);
     }
     public CustomerOrderExpression<T, U, U> updateCreateTime(LocalDateTime createTime){
        return new CustomerOrderExpression(this, $it ->  ((CustomerOrder)$it).updateCreateTime(createTime));
     }
 
     public Expression<T, LocalDateTime> getUpdateTime(){
-       return apply(CustomerOrder::getUpdateTime);
+       return loaded("update_time", "getUpdateTime", CustomerOrder::getUpdateTime);
     }
     public CustomerOrderExpression<T, U, U> updateUpdateTime(LocalDateTime updateTime){
        return new CustomerOrderExpression(this, $it ->  ((CustomerOrder)$it).updateUpdateTime(updateTime));
     }
 
     public OrderLineListExpression<T, U, OrderLine> getOrderLineList(){
-        return new OrderLineListExpression(this, $it ->  ((CustomerOrder)$it).getOrderLineList());
+        return new OrderLineListExpression(loaded("order_line_list", "getOrderLineList", CustomerOrder::getOrderLineList));
     }
     public CustomerOrderExpression<T, U, U> addOrderLine(OrderLine orderLine){
        return new CustomerOrderExpression(this, $it ->  ((CustomerOrder)$it).addOrderLine(orderLine));

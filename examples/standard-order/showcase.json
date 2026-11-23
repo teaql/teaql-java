@@ -1,0 +1,51 @@
+{
+  "generatedDomainLibraryHandEdited": false,
+  "goalId": "java:examples/standard-order",
+  "library": {
+    "generatedFilesManifestSHA256": "1a5ac81b038fda6a19d5fa2d325a316728a6a82cc8bc4de779401baf01b8b64d",
+    "root": "java-lib-core",
+    "scope": "java-lib-core"
+  },
+  "model": {
+    "path": "models/model.xml",
+    "sha256": "455a5b60e571859a68586678da4bd8c9f13120132dc7ecf95f0554d98af6d674"
+  },
+  "producer": {
+    "generator": {
+      "artifactKind": "qualified source build",
+      "jarSHA256": "029f602cf0e2de4ec0910495c340fbeb41f11772b6aca875569f498811158e7d",
+      "qualificationReceiptSHA256": "1012520de60d49cfc1e45c7e08fcf204dd2db36a163909e1e36752065a31047a",
+      "sourceCommit": "99d6bde2351d79b7d8b1b1c5cbc78c5dc777b6f2",
+      "tag": "unreleased-source-99d6bde2"
+    },
+    "receipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/standard-order-query-grouping-generation/receipt.json",
+    "receiptSHA256": "665a03b7607ee266dfec9115b89316cb808a336d997171590b061362497fcce3"
+  },
+  "qualification": {
+    "businessReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-standard-order-reactor-version/runtime/standard-order/receipt.json",
+    "businessReceiptSHA256": "8af45716110d4f2c933283e2beb385102639bd6975fec8c9b9f0ba8ec9903ed8",
+    "nativeReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-standard-order-reactor-version/receipt.json",
+    "nativeReceiptSHA256": "34a5cb4e5f91fc6678637dcb0cfb25ec9037224fc6d2f8b26e692e25c2b2e424",
+    "remainingFullRuntimeInventory": true,
+    "sourceCommit": "8499d407ef88c0f3040fc61aa49dc83a2e26de5d"
+  },
+  "scene": "Operations queue: order list, item preview, status facet, audited save and streaming",
+  "schema": "teaql.model-workspace-showcase/v1",
+  "status": "focused-verified",
+  "verification": [
+    "bash",
+    "examples/standard-order/verify.sh"
+  ],
+  "workspace": {
+    "applicationOwnedFiles": [
+      "pom.xml",
+      "src/test/java/com/example/requesttreeorderservice/StandardOrderGraphStreamTelemetryTest.java",
+      "src/test/java/com/example/requesttreeorderservice/StandardOrderTelemetryTest.java",
+      "Makefile"
+    ],
+    "generatedFilesManifestSHA256": "0f6b10bd4045061b0caf8f1434c305b3bac40e34cfb7a93463242c99a85b87cd",
+    "root": "java-app-console",
+    "scope": "java-app-console",
+    "useSiblingMavenLibrary": true
+  }
+}

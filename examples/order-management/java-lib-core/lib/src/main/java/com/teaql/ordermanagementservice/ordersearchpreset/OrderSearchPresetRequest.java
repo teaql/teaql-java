@@ -13,6 +13,7 @@ import io.teaql.core.criteria.Operator;
 import io.teaql.core.criteria.TwoOperatorCriteria;
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.Objects;
 
 public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseRequest<T> {
 
@@ -21,8 +22,13 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
      *             instead of constructing request builders directly.
      */
     @Deprecated
+    @SuppressWarnings("unchecked")
     public OrderSearchPresetRequest(Class<T> returnType){
-        super(returnType);
+        this(returnType, () -> (T) new OrderSearchPreset());
+    }
+
+    protected OrderSearchPresetRequest(Class<T> returnType, java.util.function.Supplier<? extends T> factory){
+        super(returnType, factory);
         selectId();
         selectVersion();
     }
@@ -30,6 +36,19 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
     public OrderSearchPresetRequest<T> comment(String comment){
          super.internalComment(comment);
          return this;
+    }
+
+    /** Independent query graph; ordinary roll-up handles remain live. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public OrderSearchPresetRequest<T> copy(){
+        return (OrderSearchPresetRequest<T>) super.copy();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected io.teaql.core.BaseRequest<T> internalCopyTarget(){
+        return new OrderSearchPresetRequest<>((Class<T>) returnType(), this::internalNewEntity);
     }
 
     // purpose() 继承自 BaseRequest，返回 ExecutableRequest（终结方法）
@@ -55,6 +74,36 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
         return this;
     }
 
+    /**
+     * Accept best-effort stateful seek optimization for browsing consecutive pages.
+     * Do not use this for business processing that must visit every row exactly once.
+     */
+    public OrderSearchPresetRequest<T> optimizeForContinuousPageFetch(){
+        super.optimizeForContinuousPageFetch();
+        return this;
+    }
+
+    public OrderSearchPresetRequest<T> optimizeForContinuousPageFetch(String namespace, int ttlSeconds){
+        super.optimizeForContinuousPageFetch(namespace, ttlSeconds);
+        return this;
+    }
+
+    public OrderSearchPresetRequest<T> optimizePaginationWithIdSet(){
+        super.optimizePaginationWithIdSet();
+        return this;
+    }
+
+    public OrderSearchPresetRequest<T> optimizePaginationWithIdSet(
+            String namespace, int ttlSeconds, int maxIds){
+        super.optimizePaginationWithIdSet(namespace, ttlSeconds, maxIds);
+        return this;
+    }
+
+    public OrderSearchPresetRequest<T> topNProbeParentThreshold(int threshold){
+        super.topNProbeParentThreshold(threshold);
+        return this;
+    }
+
     public OrderSearchPresetRequest<T> appendSearchCriteria(SearchCriteria searchCriteria){
         return (OrderSearchPresetRequest<T>)super.appendSearchCriteria(searchCriteria);
     }
@@ -67,6 +116,12 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
     public OrderSearchPresetRequest<T> matchingAnyOf(OrderSearchPresetRequest orderSearchPreset){
         super.internalMatchAny(orderSearchPreset);
         return this;
+    }
+
+    public OrderSearchPresetRequest<T> matchingIdsOf(OrderSearchPresetRequest<?> request){
+        Objects.requireNonNull(request, "matching request");
+        return appendSearchCriteria(new SubQuerySearchCriteria(
+                OrderSearchPreset.ID_PROPERTY, request, OrderSearchPreset.ID_PROPERTY));
     }
 
     public OrderSearchPresetRequest<T> enhanceChildrenIfNeeded(){
@@ -90,6 +145,21 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
 
     public OrderSearchPresetRequest<T> selectSelfFields(){
         return selectSelf();
+    }
+
+    public OrderSearchPresetRequest<T> selectSelfWithoutParent(){
+        selectId();
+        selectVersion();
+        selectProperty(OrderSearchPreset.ID_PROPERTY);
+        selectProperty(OrderSearchPreset.NAME_PROPERTY);
+        selectProperty(OrderSearchPreset.FILTER_JSON_PROPERTY);
+        selectProperty(OrderSearchPreset.REQUEST_ID_PROPERTY);
+        selectProperty(OrderSearchPreset.OWNER_USER_ID_PROPERTY);
+        selectProperty(OrderSearchPreset.COMMERCE_PLATFORM_PROPERTY);
+        selectProperty(OrderSearchPreset.CREATE_TIME_PROPERTY);
+        selectProperty(OrderSearchPreset.UPDATE_TIME_PROPERTY);
+        selectProperty(OrderSearchPreset.VERSION_PROPERTY);
+        return this;
     }
 
     public OrderSearchPresetRequest<T> selectAll(){
@@ -199,7 +269,8 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
 
     public OrderSearchPresetRequest<T> selectCommercePlatformWith(CommercePlatformRequest commercePlatform){
        selectProperty(OrderSearchPreset.COMMERCE_PLATFORM_PROPERTY);
-       enhanceRelation(OrderSearchPreset.COMMERCE_PLATFORM_PROPERTY, commercePlatform);
+       enhanceRelation(OrderSearchPreset.COMMERCE_PLATFORM_PROPERTY, commercePlatform,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.RELATION_SELECT, "selectCommercePlatformWith", null, OrderSearchPreset.COMMERCE_PLATFORM_PROPERTY));
        return this;
     }
 
@@ -267,11 +338,19 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
         return createBasicSearchCriteria(OrderSearchPreset.ID_PROPERTY, operator, values);
     }
 
+    public OrderSearchPresetRequest<T> withIdIsNot(Long id){
+       return withId(Operator.NOT_EQUAL, id);
+    }
+
+    public OrderSearchPresetRequest<T> withIdIn(Long... id){
+       return withId(Operator.IN, (Object[])id);
+    }
+
+    public OrderSearchPresetRequest<T> withIdNotIn(Long... id){
+       return withId(Operator.NOT_IN, (Object[])id);
+    }
     public OrderSearchPresetRequest<T> withIdIs(Long id){
        return withId(Operator.EQUAL, id);
-    }
-    public OrderSearchPresetRequest<T> withIdIn(Long... id){
-       return withId(Operator.EQUAL, (Object[])id);
     }
 
 
@@ -299,6 +378,17 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
         return createBasicSearchCriteria(OrderSearchPreset.NAME_PROPERTY, operator, values);
     }
 
+    public OrderSearchPresetRequest<T> withNameIsNot(String name){
+       return withName(Operator.NOT_EQUAL, name);
+    }
+
+    public OrderSearchPresetRequest<T> withNameIn(String... name){
+       return withName(Operator.IN, (Object[])name);
+    }
+
+    public OrderSearchPresetRequest<T> withNameNotIn(String... name){
+       return withName(Operator.NOT_IN, (Object[])name);
+    }
     public OrderSearchPresetRequest<T> withNameGreaterThan(String name){
        return withName(Operator.GREATER_THAN, name);
     }
@@ -325,8 +415,20 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
        return withName(Operator.CONTAIN, name);
     }
 
+    public OrderSearchPresetRequest<T> withNameNotContaining(String name){
+       return withName(Operator.NOT_CONTAIN, name);
+    }
+
+    public OrderSearchPresetRequest<T> withNameNotStartingWith(String name){
+       return withName(Operator.NOT_BEGIN_WITH, name);
+    }
+
     public OrderSearchPresetRequest<T> withNameEndingWith(String name){
        return withName(Operator.END_WITH, name);
+    }
+
+    public OrderSearchPresetRequest<T> withNameNotEndingWith(String name){
+       return withName(Operator.NOT_END_WITH, name);
     }
 
     public OrderSearchPresetRequest<T> withNameIs(String name){
@@ -362,6 +464,17 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
         return createBasicSearchCriteria(OrderSearchPreset.FILTER_JSON_PROPERTY, operator, values);
     }
 
+    public OrderSearchPresetRequest<T> withFilterJsonIsNot(String filterJson){
+       return withFilterJson(Operator.NOT_EQUAL, filterJson);
+    }
+
+    public OrderSearchPresetRequest<T> withFilterJsonIn(String... filterJson){
+       return withFilterJson(Operator.IN, (Object[])filterJson);
+    }
+
+    public OrderSearchPresetRequest<T> withFilterJsonNotIn(String... filterJson){
+       return withFilterJson(Operator.NOT_IN, (Object[])filterJson);
+    }
     public OrderSearchPresetRequest<T> withFilterJsonGreaterThan(String filterJson){
        return withFilterJson(Operator.GREATER_THAN, filterJson);
     }
@@ -388,8 +501,20 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
        return withFilterJson(Operator.CONTAIN, filterJson);
     }
 
+    public OrderSearchPresetRequest<T> withFilterJsonNotContaining(String filterJson){
+       return withFilterJson(Operator.NOT_CONTAIN, filterJson);
+    }
+
+    public OrderSearchPresetRequest<T> withFilterJsonNotStartingWith(String filterJson){
+       return withFilterJson(Operator.NOT_BEGIN_WITH, filterJson);
+    }
+
     public OrderSearchPresetRequest<T> withFilterJsonEndingWith(String filterJson){
        return withFilterJson(Operator.END_WITH, filterJson);
+    }
+
+    public OrderSearchPresetRequest<T> withFilterJsonNotEndingWith(String filterJson){
+       return withFilterJson(Operator.NOT_END_WITH, filterJson);
     }
 
     public OrderSearchPresetRequest<T> withFilterJsonIs(String filterJson){
@@ -425,6 +550,17 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
         return createBasicSearchCriteria(OrderSearchPreset.REQUEST_ID_PROPERTY, operator, values);
     }
 
+    public OrderSearchPresetRequest<T> withRequestIdIsNot(String requestId){
+       return withRequestId(Operator.NOT_EQUAL, requestId);
+    }
+
+    public OrderSearchPresetRequest<T> withRequestIdIn(String... requestId){
+       return withRequestId(Operator.IN, (Object[])requestId);
+    }
+
+    public OrderSearchPresetRequest<T> withRequestIdNotIn(String... requestId){
+       return withRequestId(Operator.NOT_IN, (Object[])requestId);
+    }
     public OrderSearchPresetRequest<T> withRequestIdGreaterThan(String requestId){
        return withRequestId(Operator.GREATER_THAN, requestId);
     }
@@ -451,8 +587,20 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
        return withRequestId(Operator.CONTAIN, requestId);
     }
 
+    public OrderSearchPresetRequest<T> withRequestIdNotContaining(String requestId){
+       return withRequestId(Operator.NOT_CONTAIN, requestId);
+    }
+
+    public OrderSearchPresetRequest<T> withRequestIdNotStartingWith(String requestId){
+       return withRequestId(Operator.NOT_BEGIN_WITH, requestId);
+    }
+
     public OrderSearchPresetRequest<T> withRequestIdEndingWith(String requestId){
        return withRequestId(Operator.END_WITH, requestId);
+    }
+
+    public OrderSearchPresetRequest<T> withRequestIdNotEndingWith(String requestId){
+       return withRequestId(Operator.NOT_END_WITH, requestId);
     }
 
     public OrderSearchPresetRequest<T> withRequestIdIs(String requestId){
@@ -488,6 +636,17 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
         return createBasicSearchCriteria(OrderSearchPreset.OWNER_USER_ID_PROPERTY, operator, values);
     }
 
+    public OrderSearchPresetRequest<T> withOwnerUserIdIsNot(String ownerUserId){
+       return withOwnerUserId(Operator.NOT_EQUAL, ownerUserId);
+    }
+
+    public OrderSearchPresetRequest<T> withOwnerUserIdIn(String... ownerUserId){
+       return withOwnerUserId(Operator.IN, (Object[])ownerUserId);
+    }
+
+    public OrderSearchPresetRequest<T> withOwnerUserIdNotIn(String... ownerUserId){
+       return withOwnerUserId(Operator.NOT_IN, (Object[])ownerUserId);
+    }
     public OrderSearchPresetRequest<T> withOwnerUserIdGreaterThan(String ownerUserId){
        return withOwnerUserId(Operator.GREATER_THAN, ownerUserId);
     }
@@ -514,8 +673,20 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
        return withOwnerUserId(Operator.CONTAIN, ownerUserId);
     }
 
+    public OrderSearchPresetRequest<T> withOwnerUserIdNotContaining(String ownerUserId){
+       return withOwnerUserId(Operator.NOT_CONTAIN, ownerUserId);
+    }
+
+    public OrderSearchPresetRequest<T> withOwnerUserIdNotStartingWith(String ownerUserId){
+       return withOwnerUserId(Operator.NOT_BEGIN_WITH, ownerUserId);
+    }
+
     public OrderSearchPresetRequest<T> withOwnerUserIdEndingWith(String ownerUserId){
        return withOwnerUserId(Operator.END_WITH, ownerUserId);
+    }
+
+    public OrderSearchPresetRequest<T> withOwnerUserIdNotEndingWith(String ownerUserId){
+       return withOwnerUserId(Operator.NOT_END_WITH, ownerUserId);
     }
 
     public OrderSearchPresetRequest<T> withOwnerUserIdIs(String ownerUserId){
@@ -561,6 +732,11 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
        return appendSearchCriteria(new SubQuerySearchCriteria(OrderSearchPreset.COMMERCE_PLATFORM_PROPERTY, commercePlatform, CommercePlatform.ID_PROPERTY));
     }
 
+    public OrderSearchPresetRequest<T> withoutCommercePlatformMatching(CommercePlatformRequest commercePlatform){
+       return appendSearchCriteria(SearchCriteria.not(
+           new SubQuerySearchCriteria(OrderSearchPreset.COMMERCE_PLATFORM_PROPERTY, commercePlatform, CommercePlatform.ID_PROPERTY)));
+    }
+
     public OrderSearchPresetRequest<T> filterByCreateTime(LocalDateTime... createTime){
       if (createTime == null || createTime.length == 0) {
         throw new IllegalArgumentException("filterByCreateTime parameter createTime cannot be empty");
@@ -584,6 +760,21 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
         return createBasicSearchCriteria(OrderSearchPreset.CREATE_TIME_PROPERTY, operator, values);
     }
 
+    public OrderSearchPresetRequest<T> withCreateTimeIs(LocalDateTime createTime){
+       return withCreateTime(Operator.EQUAL, createTime);
+    }
+
+    public OrderSearchPresetRequest<T> withCreateTimeIsNot(LocalDateTime createTime){
+       return withCreateTime(Operator.NOT_EQUAL, createTime);
+    }
+
+    public OrderSearchPresetRequest<T> withCreateTimeIn(LocalDateTime... createTime){
+       return withCreateTime(Operator.IN, (Object[])createTime);
+    }
+
+    public OrderSearchPresetRequest<T> withCreateTimeNotIn(LocalDateTime... createTime){
+       return withCreateTime(Operator.NOT_IN, (Object[])createTime);
+    }
     public OrderSearchPresetRequest<T> withCreateTimeGreaterThan(LocalDateTime createTime){
        return withCreateTime(Operator.GREATER_THAN, createTime);
     }
@@ -649,6 +840,21 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
         return createBasicSearchCriteria(OrderSearchPreset.UPDATE_TIME_PROPERTY, operator, values);
     }
 
+    public OrderSearchPresetRequest<T> withUpdateTimeIs(LocalDateTime updateTime){
+       return withUpdateTime(Operator.EQUAL, updateTime);
+    }
+
+    public OrderSearchPresetRequest<T> withUpdateTimeIsNot(LocalDateTime updateTime){
+       return withUpdateTime(Operator.NOT_EQUAL, updateTime);
+    }
+
+    public OrderSearchPresetRequest<T> withUpdateTimeIn(LocalDateTime... updateTime){
+       return withUpdateTime(Operator.IN, (Object[])updateTime);
+    }
+
+    public OrderSearchPresetRequest<T> withUpdateTimeNotIn(LocalDateTime... updateTime){
+       return withUpdateTime(Operator.NOT_IN, (Object[])updateTime);
+    }
     public OrderSearchPresetRequest<T> withUpdateTimeGreaterThan(LocalDateTime updateTime){
        return withUpdateTime(Operator.GREATER_THAN, updateTime);
     }
@@ -714,6 +920,21 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
         return createBasicSearchCriteria(OrderSearchPreset.VERSION_PROPERTY, operator, values);
     }
 
+    public OrderSearchPresetRequest<T> withVersionIs(Long version){
+       return withVersion(Operator.EQUAL, version);
+    }
+
+    public OrderSearchPresetRequest<T> withVersionIsNot(Long version){
+       return withVersion(Operator.NOT_EQUAL, version);
+    }
+
+    public OrderSearchPresetRequest<T> withVersionIn(Long... version){
+       return withVersion(Operator.IN, (Object[])version);
+    }
+
+    public OrderSearchPresetRequest<T> withVersionNotIn(Long... version){
+       return withVersion(Operator.NOT_IN, (Object[])version);
+    }
     public OrderSearchPresetRequest<T> withVersionGreaterThan(Long version){
        return withVersion(Operator.GREATER_THAN, version);
     }
@@ -735,12 +956,15 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
     }
 
 
+
     public OrderSearchPresetRequest<T> count(){
         super.count();
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "count", null, null));
         return this;
     }
     public OrderSearchPresetRequest<T> countAs(String retName){
         super.count(retName);
+        setPageCountOperation(io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.NAMED_COUNT, "countAs", retName, null));
         return this;
     }
     public OrderSearchPresetRequest<T> groupByCommercePlatformWithDetails(){
@@ -755,6 +979,78 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
 
 
 
+    public OrderSearchPresetRequest<T> countDistinctId(){
+        return countDistinctIdAs("id_distinct_count");
+    }
+
+    public OrderSearchPresetRequest<T> countDistinctIdAs(String alias){
+        super.countDistinctProperty(alias, OrderSearchPreset.ID_PROPERTY);
+        return this;
+    }
+    public OrderSearchPresetRequest<T> countDistinctName(){
+        return countDistinctNameAs("name_distinct_count");
+    }
+
+    public OrderSearchPresetRequest<T> countDistinctNameAs(String alias){
+        super.countDistinctProperty(alias, OrderSearchPreset.NAME_PROPERTY);
+        return this;
+    }
+    public OrderSearchPresetRequest<T> countDistinctFilterJson(){
+        return countDistinctFilterJsonAs("filter_json_distinct_count");
+    }
+
+    public OrderSearchPresetRequest<T> countDistinctFilterJsonAs(String alias){
+        super.countDistinctProperty(alias, OrderSearchPreset.FILTER_JSON_PROPERTY);
+        return this;
+    }
+    public OrderSearchPresetRequest<T> countDistinctRequestId(){
+        return countDistinctRequestIdAs("request_id_distinct_count");
+    }
+
+    public OrderSearchPresetRequest<T> countDistinctRequestIdAs(String alias){
+        super.countDistinctProperty(alias, OrderSearchPreset.REQUEST_ID_PROPERTY);
+        return this;
+    }
+    public OrderSearchPresetRequest<T> countDistinctOwnerUserId(){
+        return countDistinctOwnerUserIdAs("owner_user_id_distinct_count");
+    }
+
+    public OrderSearchPresetRequest<T> countDistinctOwnerUserIdAs(String alias){
+        super.countDistinctProperty(alias, OrderSearchPreset.OWNER_USER_ID_PROPERTY);
+        return this;
+    }
+    public OrderSearchPresetRequest<T> countDistinctCommercePlatform(){
+        return countDistinctCommercePlatformAs("commerce_platform_distinct_count");
+    }
+
+    public OrderSearchPresetRequest<T> countDistinctCommercePlatformAs(String alias){
+        super.countDistinctProperty(alias, OrderSearchPreset.COMMERCE_PLATFORM_PROPERTY);
+        return this;
+    }
+    public OrderSearchPresetRequest<T> countDistinctCreateTime(){
+        return countDistinctCreateTimeAs("create_time_distinct_count");
+    }
+
+    public OrderSearchPresetRequest<T> countDistinctCreateTimeAs(String alias){
+        super.countDistinctProperty(alias, OrderSearchPreset.CREATE_TIME_PROPERTY);
+        return this;
+    }
+    public OrderSearchPresetRequest<T> countDistinctUpdateTime(){
+        return countDistinctUpdateTimeAs("update_time_distinct_count");
+    }
+
+    public OrderSearchPresetRequest<T> countDistinctUpdateTimeAs(String alias){
+        super.countDistinctProperty(alias, OrderSearchPreset.UPDATE_TIME_PROPERTY);
+        return this;
+    }
+    public OrderSearchPresetRequest<T> countDistinctVersion(){
+        return countDistinctVersionAs("version_distinct_count");
+    }
+
+    public OrderSearchPresetRequest<T> countDistinctVersionAs(String alias){
+        super.countDistinctProperty(alias, OrderSearchPreset.VERSION_PROPERTY);
+        return this;
+    }
 
     public OrderSearchPresetRequest<T> groupById(){
        groupBy(OrderSearchPreset.ID_PROPERTY);
@@ -831,7 +1127,8 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
        return this;
     }
     public OrderSearchPresetRequest<T> groupByCommercePlatformWith(CommercePlatformRequest subRequest){
-       groupBy(OrderSearchPreset.COMMERCE_PLATFORM_PROPERTY, subRequest);
+       groupBy(OrderSearchPreset.COMMERCE_PLATFORM_PROPERTY, subRequest,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "groupByCommercePlatformWith", null, "commerce_platform"));
        return this;
     }
     public OrderSearchPresetRequest<T> groupByCommercePlatform(){
@@ -1021,8 +1318,8 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
 
     public CommercePlatformRequest rollUpToCommercePlatform(){
        CommercePlatformRequest commercePlatform = Q.commercePlatforms().unlimited();
-       this.withCommercePlatformMatching(commercePlatform)
-           .groupByCommercePlatformWith(commercePlatform);
+       this.internalRollUpTo("commerce_platform", commercePlatform,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.AGGREGATE, "rollUpToCommercePlatform", null, "commerce_platform"));
        return commercePlatform;
     }
 
@@ -1035,7 +1332,8 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
    }
 
    public OrderSearchPresetRequest<T> facetByCommercePlatformAs(String facetName, CommercePlatformRequest commercePlatform, boolean includeAllFacets){
-       addFacet(facetName, OrderSearchPreset.COMMERCE_PLATFORM_PROPERTY, commercePlatform, includeAllFacets);
+       addFacet(facetName, OrderSearchPreset.COMMERCE_PLATFORM_PROPERTY, commercePlatform, includeAllFacets,
+           io.teaql.core.QueryOperation.nativeMethod(io.teaql.core.QueryOperation.Kind.FACET, "facetByCommercePlatformAs", facetName, OrderSearchPreset.COMMERCE_PLATFORM_PROPERTY));
        return this;
    }
 
@@ -1047,6 +1345,11 @@ public class OrderSearchPresetRequest<T extends OrderSearchPreset> extends BaseR
     public OrderSearchPresetRequest<T> top(int topN) {
         super.top(topN);
         return this;
+    }
+
+    /** Cross-runtime bounded-query alias. */
+    public OrderSearchPresetRequest<T> limit(int limit) {
+        return top(limit);
     }
 
     /**

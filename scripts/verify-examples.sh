@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+mode="${1:-}"
+if [[ "$#" -gt 1 || ( "$mode" != "" && "$mode" != "--after-shared-load-state" ) ]]; then
+  echo "Usage: bash scripts/verify-examples.sh [--after-shared-load-state]" >&2
+  exit 2
+fi
+
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 evidence_dir="${TEAQL_EXAMPLES_EVIDENCE_DIR:-$(mktemp -d -t teaql-java-examples-evidence.XXXXXXXX)}"
 verification_dir="$evidence_dir/runtime"
@@ -12,6 +18,7 @@ trap cleanup EXIT
 node "$repo/scripts/prepare-example-isolation.cjs" "$build_dir" "$TEAQL_CODEGEN_DIR" "$evidence_dir"
 runtime_version="$(node -e 'const fs=require("fs");process.stdout.write(fs.readFileSync(process.argv[1],"utf8").match(/<version>([^<]+)<\/version>/)[1])' "$repo/pom.xml")"
 export MAVEN_OPTS="${MAVEN_OPTS:-} -Dmaven.repo.local=$build_dir/maven -Dteaql.version=$runtime_version"
+export TEAQL_MAVEN_DEPENDENCY_CACHE="$build_dir/maven"
 echo "Native example artifacts use an isolated disposable Maven repository; compact evidence: $evidence_dir"
 expected=(business-id-runtime conformance exact-decimal fix-e-alignment http-resilience inheritance-save object-storage order-management round-trip-reference-runtime scalar-type-probe school-management secret-provider security-foundations shared-load-state standard-order supplier-onboarding-i18n trace-chain)
 mapfile -t actual < <(find "$repo/examples" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
@@ -21,6 +28,7 @@ if [[ "${actual[*]}" != "${expected[*]}" ]]; then
 fi
 
 cd "$repo"
+if [[ -z "$mode" ]]; then
 # This verifier needs original Git provenance and already creates its own
 # disposable source-paired reactor. It never builds in the source repository.
 node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/fix-e-alignment/verify-local.cjs"
@@ -28,34 +36,40 @@ node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/inheritance-save/verify.
   --output "$evidence_dir/inheritance-save"
 bash examples/object-storage/verify.sh
 bash examples/http-resilience/verify.sh
+TEAQL_SUPPLIER_SYNC_EVIDENCE_DIR="$evidence_dir/supplier-order-sync" bash examples/http-resilience/verify-sync.sh
 bash examples/secret-provider/verify.sh
 mvn -q -DskipTests install
 mvn -q -pl teaql-sqlite \
   -Dtest=DerivedQueryTraceSqliteTest,LikeIntentPrivacySqliteTest,TypedIntentPrivacySqliteTest test
 mvn -q -pl examples/business-id-runtime \
   -Dtest=BusinessIdRuntimeExampleTest test
+mvn -q -o -f examples/business-id-runtime/java-lib-core/lib/pom.xml -DskipTests install
+TEAQL_BUSINESS_ID_KEY_V1_HEX=000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f \
+TEAQL_PURCHASE_NUMBERING_ROUND=inventory \
+mvn -q -o -f examples/business-id-runtime/java-app-console/pom.xml compile \
+  org.codehaus.mojo:exec-maven-plugin:3.5.0:java -Dexec.mainClass=com.teaql.purchaseordernumbering.App \
+  "-Dexec.args=--teaql.datasource.url=jdbc:sqlite:$evidence_dir/business-id.sqlite"
 mvn -q -pl examples/security-foundations \
   -Dtest=SecurityFoundationsExampleTest,SqlRelationMaskingTest test
-mvn -q -pl examples/round-trip-reference-runtime \
-  -Dtest=RoundTripReferenceRuntimeExampleTest test
-mvn -q -f examples/conformance/lib/pom.xml install -DskipTests
-mvn -q -f examples/conformance/pom.xml spring-boot:run \
-  -Dspring-boot.run.arguments="--spring.main.web-application-type=none --spring.datasource.url=jdbc:sqlite:$verification_dir/conformance.db"
-TEAQL_JAVA_SPRING_EVIDENCE_DIR="$evidence_dir/spring-transactions" \
-  node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/conformance/spring-transactions/verify-local.cjs"
-mvn -q -f examples/school-management/lib/pom.xml install -DskipTests
-mvn -q -f examples/school-management/pom.xml spring-boot:run \
+TEAQL_ORDER_PRIVACY_EVIDENCE_DIR="$evidence_dir/order-privacy" bash examples/security-foundations/verify-privacy.sh
+TEAQL_REFERENCE_EVIDENCE_DIR="$evidence_dir/round-trip-reference" bash examples/round-trip-reference-runtime/verify.sh
+TEAQL_CONFORMANCE_EVIDENCE_DIR="$evidence_dir/conformance" bash examples/conformance/verify.sh
+mvn -q -f examples/school-management/java-lib-core/lib/pom.xml install -DskipTests
+mvn -q -f examples/school-management/java-app-console/pom.xml spring-boot:run \
   -Dspring-boot.run.arguments="--spring.main.web-application-type=none --spring.datasource.url=jdbc:sqlite:$verification_dir/school-management.db"
-mvn -q -f examples/order-management/pom.xml install -DskipTests
-# The console resolves .local/order.db from its process directory. Never mutate
-# the developer's retained database while verifying the runtime checkout.
-(cd "$verification_dir" && mvn -q -f "$repo/examples/order-management/pom.xml" exec:java -pl java-app-console)
+TEAQL_ORDER_EVIDENCE_DIR="$evidence_dir/order-management" bash examples/order-management/verify.sh
 bash examples/trace-chain/verify.sh
 bash examples/trace-chain/verify-standard-telemetry.sh
-bash examples/standard-order/verify.sh
+TEAQL_JAVA_STANDARD_ORDER_EVIDENCE_DIR="$verification_dir/standard-order" bash examples/standard-order/verify.sh
 TEAQL_CODEGEN_DIR="$build_dir/generator" bash examples/shared-load-state/verify.sh --generate
+TEAQL_LOAD_STATE_EVIDENCE_DIR="$evidence_dir/shared-load-state" bash examples/shared-load-state/verify.sh --workspace
+TEAQL_MAINSTREAM_EVIDENCE_DIR="$evidence_dir/mainstream-reference" bash examples/shared-load-state/benchmark-mainstream.sh --workspace
+else
+  mvn -q -DskipTests install
+fi
 TEAQL_JAVA_EXACT_EVIDENCE_DIR="$evidence_dir/exact-decimal" \
   bash "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/exact-decimal/verify.sh"
+TEAQL_FREIGHT_QUOTE_EVIDENCE_DIR="$evidence_dir/freight-quotes" bash "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-freight-quotes.sh"
 TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/scalar-type-probe" \
   node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/scalar-type-probe/verify-local.cjs"
 TEAQL_JAVA_SCALAR_EVIDENCE_DIR="$evidence_dir/scalar-finite" \
@@ -94,4 +108,8 @@ node "$repo/examples/conformance/context-derived/verify-local.cjs"
 TEAQL_NATURAL_MESSAGES_EVIDENCE_DIR="$evidence_dir/natural-messages" \
   node "${TEAQL_JAVA_EXAMPLE_SOURCE_ROOT:-$repo}/examples/conformance/natural-messages/verify-local.cjs"
 bash "$repo/examples/supplier-onboarding-i18n/run.sh" --verify > "$evidence_dir/supplier-i18n.jsonl"
-echo "PASS: all Java examples"
+if [[ -z "$mode" ]]; then
+  echo "PASS: all Java examples"
+else
+  echo "PASS: Java examples after shared load state"
+fi

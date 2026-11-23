@@ -3,14 +3,15 @@ set -euo pipefail
 
 example_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_dir="$(cd "$example_dir/../.." && pwd)"
-run_dir="$(mktemp -d -t teaql-java-standard-telemetry.XXXXXXXX)"
+run_dir="${TEAQL_TRACE_CHAIN_STANDARD_EVIDENCE_DIR:-$(mktemp -d -t teaql-java-standard-telemetry.XXXXXXXX)}"
+mkdir -p "$run_dir"
 names=(TEAQL_TELEMETRY_ENABLED TEAQL_TELEMETRY_SERVICE_NAME TEAQL_TELEMETRY_OTLP_ENDPOINT)
 disabled=(env -u "${names[0]}" -u "${names[1]}" -u "${names[2]}")
-args=(-B -f "$repo_dir/pom.xml" -Pruntime-examples -pl examples/trace-chain -am
+args=(-B -f "$repo_dir/pom.xml" -Pruntime-examples -pl examples/trace-chain/java-app-console -am
   -Dtest=GeneratedStandardTelemetryExampleTest -Dsurefire.failIfNoSpecifiedTests=false test)
 
 library_manifest() {
-  (cd "$example_dir" && find lib -type f ! -path '*/target/*' -print0 |
+  (cd "$example_dir" && find java-lib-core -type f ! -path '*/target/*' -print0 |
     sort -z | xargs -0 sha256sum)
 }
 library_manifest > "$run_dir/library-before.sha256"

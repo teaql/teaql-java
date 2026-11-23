@@ -1,0 +1,62 @@
+{
+  "expected": {
+    "exactAmount": "129.95",
+    "orderDate": "2026-08-12",
+    "orderNumber": "WEB-2026-001",
+    "orders": 1,
+    "originalBusinessSourcesUnchanged": true,
+    "presets": 1,
+    "sameDatabaseRuns": 2
+  },
+  "generatedDomainLibraryHandEdited": false,
+  "goalId": "java:examples/order-management",
+  "library": {
+    "generatedFilesManifestSHA256": "3aaef0ccd2aad4a0cd6165aea29f6d113876e2fdbb0fbd4f1bb091588df12d60",
+    "root": "java-lib-core",
+    "scope": "java-lib-core"
+  },
+  "model": {
+    "path": "model.xml",
+    "sha256": "8b11ee844c2be184e194d8116994fb5fe95299dd593bfed83ec06d71ada0411d"
+  },
+  "producer": {
+    "generator": {
+      "artifactKind": "qualified source build; not a public release",
+      "jarSHA256": "34dd804dccf05470dad46d086d58412e4a9dfcd0a1c6ed34f8f90c55ff478220",
+      "qualificationReceiptSHA256": "5119b9f3a5c95fb84f527885fdd5bac0fe79a56352a55b8acf116f67fd12787d",
+      "sourceCommit": "021b1ed8bee5db7eef38a6b1e3a3ef2e7ac69daa",
+      "tag": "unreleased-source-021b1ed8"
+    },
+    "receipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/order-generation/receipt.json",
+    "receiptSHA256": "5041246b7c9f452219d943efa393ea380ce7f7e172da739a945bb49da2ba5db2"
+  },
+  "qualification": {
+    "businessReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-order-scopes/runtime/order-management/business-receipt.json",
+    "businessReceiptSHA256": "27883d8ec19e24a82b03406e8531977ecdb213af492c2bf5bc69ef9dafecf238",
+    "nativeReceipt": "teaql-conformance/evidence/2026-11-20-example-showcase-remediation/java-order-scopes/receipt.json",
+    "nativeReceiptSHA256": "ac0eafbbe96387174b9f224cfb5aabe87a005615bd270acc9dbce355685fd25d",
+    "remainingFullRuntimeInventory": true,
+    "sourceCommit": "ce0eec9f271035f15eb6f147ac88de14b88de5f9"
+  },
+  "scene": "Order terminal and whole-graph customer mutation policy",
+  "schema": "teaql.model-workspace-showcase/v1",
+  "status": "focused-verified",
+  "verification": [
+    "bash",
+    "verify.sh"
+  ],
+  "workspace": {
+    "applicationOwnedFiles": [
+      "pom.xml",
+      "src/main/java/com/teaql/example/MutationAuthority.java",
+      "src/main/java/com/teaql/example/OrderManagementApp.java",
+      "src/main/java/com/teaql/example/OrderMutationPolicy.java",
+      "src/main/java/com/teaql/ordermanagementservice/App.java",
+      "Makefile"
+    ],
+    "generatedFilesManifestSHA256": "af0df75974d561910dc1ff9119e04668b5529fbfd425a1226e39560797360985",
+    "root": "java-app-console",
+    "scope": "java-app-console",
+    "useSiblingMavenLibrary": true
+  }
+}
