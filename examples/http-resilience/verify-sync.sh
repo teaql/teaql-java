@@ -2,6 +2,12 @@
 set -euo pipefail
 example="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(cd "$example/../.." && pwd)"
+runtime_version="$(python3 -B - "$repo/pom.xml" <<'PYTHON'
+import sys
+from xml.etree.ElementTree import parse
+print(parse(sys.argv[1]).getroot().findtext('{*}version'))
+PYTHON
+)"
 scratch="$(mktemp -d -t teaql-java-supplier-sync.XXXXXXXX)"
 trap 'status=$?; trap - EXIT; rm -rf -- "$scratch"; exit "$status"' EXIT
 evidence="${TEAQL_SUPPLIER_SYNC_EVIDENCE_DIR:-$scratch/evidence}"
@@ -27,7 +33,7 @@ ElementTree(project).write(file, encoding='utf-8', xml_declaration=True)
 PY
 for round in 1 2; do
   TEAQL_SHOWCASE_ROUND="$round" mvn -q -f "$scratch/pom.xml" -pl :supplier-order-sync-service -am \
-    -Dtest=SupplierOrderSyncTest -Dsurefire.failIfNoSpecifiedTests=false test >"$evidence/round-$round.log" 2>&1 || {
+    "-Dteaql.version=$runtime_version" -Dtest=SupplierOrderSyncTest -Dsurefire.failIfNoSpecifiedTests=false test >"$evidence/round-$round.log" 2>&1 || {
     tail -80 "$evidence/round-$round.log" >&2
     exit 1
   }
