@@ -10,8 +10,9 @@ bash examples/exact-decimal/verify.sh
 ```
 
 The verifier copies this source checkout into an owned temporary build area
-and checks the recorded generated scopes. It builds the local runtime, generated
-library and plain console together in one Maven reactor. Both rounds use the same two
+and checks the recorded generated scopes. It binds the two copied Maven
+manifests to the local runtime version and retains both manifest hashes. It
+builds the local runtime, generated library and plain console in one Maven reactor. Both rounds use the same two
 SQLite databases (one Q/E probe database and one console startup database):
 
 - Generated Q equality, strong `BigDecimal` hydration and E evaluation.
