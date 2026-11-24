@@ -644,6 +644,19 @@ public class JdbcSqlExecutor implements SqlExecutionAdapter {
 
     @Override public boolean hasActiveTransaction() { return transactionConnection.get() != null; }
 
+    @Override public <T> T withoutActiveTransaction(java.util.function.Supplier<T> work) {
+        Connection connection = transactionConnection.get();
+        if (connection == null) return work.get();
+        var completion = transactionCompletion.get();
+        transactionConnection.remove();
+        transactionCompletion.remove();
+        try { return work.get(); }
+        finally {
+            transactionConnection.set(connection);
+            transactionCompletion.set(completion);
+        }
+    }
+
     @Override public boolean registerTransactionSynchronization(Runnable committed, Runnable rolledBack) {
         return registerTransactionSynchronization(committed, rolledBack, () -> {});
     }

@@ -1,12 +1,19 @@
 package io.teaql.provider.springjdbc;
 
+import io.teaql.core.TransactionOutcomeUnknownException;
+import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import javax.sql.DataSource;
+import org.springframework.jdbc.datasource.ConnectionHolder;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionSystemException;
+import org.springframework.transaction.support.DefaultTransactionStatus;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -25,6 +32,10 @@ final class SpringTransactionCompletion {
     }
 
     boolean active() { return manager.active(); }
+
+    <T> T withoutActiveTransaction(java.util.function.Supplier<T> work) {
+        return outsideTransaction.execute(status -> work.get());
+    }
 
     boolean register(Runnable committed, Runnable rolledBack, Runnable unknown) {
         if (!active()) return false;
@@ -61,6 +72,8 @@ final class SpringTransactionCompletion {
                 }
             });
         } catch (RuntimeException | Error failure) {
+            if (failure instanceof UnconfirmedCompletion unconfirmed)
+                throw new TransactionOutcomeUnknownException(unconfirmed.originalError);
             // Spring deliberately logs afterCompletion failures instead of replacing an action's error.
             // For an adapter-owned invocation, retain that failure as a suppressed diagnostic as well.
             for (Completion completion : observed) {
@@ -92,8 +105,72 @@ final class SpringTransactionCompletion {
     /** Use Spring's resource-specific transaction check, not merely a thread-wide active flag. */
     @SuppressWarnings("serial")
     private static final class PhysicalTransactionManager extends DataSourceTransactionManager {
+        private final ThreadLocal<Set<Object>> unconfirmedRollbacks = new ThreadLocal<>();
+
         PhysicalTransactionManager(DataSource source) { super(source); }
         boolean active() { return isExistingTransaction(doGetTransaction()); }
+
+        @Override protected void doCommit(DefaultTransactionStatus status) {
+            try { super.doCommit(status); }
+            catch (RuntimeException | Error failure) {
+                // A physical rollback makes disposal safe. It cannot establish
+                // whether the earlier commit took effect.
+                try { super.doRollback(status); }
+                catch (RuntimeException | Error rollbackFailure) { rememberUnconfirmedRollback(status); }
+                throw new UnconfirmedCompletion(failure instanceof Error error ? error : null);
+            }
+        }
+
+        @Override protected void doRollback(DefaultTransactionStatus status) {
+            try { super.doRollback(status); }
+            catch (RuntimeException | Error failure) {
+                rememberUnconfirmedRollback(status);
+                throw new UnconfirmedCompletion(failure instanceof Error error ? error : null);
+            }
+        }
+
+        private void rememberUnconfirmedRollback(DefaultTransactionStatus status) {
+            var pending = unconfirmedRollbacks.get();
+            if (pending == null) {
+                pending = Collections.newSetFromMap(new IdentityHashMap<>());
+                unconfirmedRollbacks.set(pending);
+            }
+            pending.add(status.getTransaction());
+        }
+
+        @Override protected void doCleanupAfterCompletion(Object transaction) {
+            var pending = unconfirmedRollbacks.get();
+            if (pending == null || !pending.remove(transaction)) {
+                super.doCleanupAfterCompletion(transaction);
+                return;
+            }
+            if (pending.isEmpty()) unconfirmedRollbacks.remove();
+            var source = obtainDataSource();
+            if (!(TransactionSynchronizationManager.getResource(source) instanceof ConnectionHolder holder))
+                return;
+            var connection = holder.getConnection();
+            try { connection.rollback(); }
+            catch (SQLException | RuntimeException | Error failure) {
+                // Spring's normal cleanup restores autoCommit and releases the
+                // connection. Both can implicitly commit an active transaction.
+                TransactionSynchronizationManager.unbindResourceIfPossible(source);
+                holder.clear();
+                try { connection.abort(Runnable::run); }
+                catch (SQLException | RuntimeException | Error ignored) { }
+                return;
+            }
+            super.doCleanupAfterCompletion(transaction);
+        }
+    }
+
+    @SuppressWarnings("serial")
+    private static final class UnconfirmedCompletion extends TransactionSystemException {
+        private final Error originalError;
+
+        UnconfirmedCompletion(Error originalError) {
+            super("JDBC transaction outcome did not confirm");
+            this.originalError = originalError;
+        }
     }
 
     private record Callbacks(Runnable committed, Runnable rolledBack, Runnable unknown) {}

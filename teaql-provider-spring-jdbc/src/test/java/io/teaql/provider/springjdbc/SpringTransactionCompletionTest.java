@@ -1,12 +1,19 @@
 package io.teaql.provider.springjdbc;
 
+import io.teaql.core.TransactionOutcomeUnknownException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.jdbc.datasource.DelegatingDataSource;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
@@ -52,6 +59,88 @@ public class SpringTransactionCompletionTest {
     @Test public void noActiveTransactionCannotAcceptCallbacks() {
         assertFalse(sql.hasActiveTransaction());
         assertFalse(sql.registerTransactionSynchronization(() -> fail(), () -> fail()));
+    }
+
+    @Test public void lostCommitAcknowledgementFencesWithoutUndoingDurableData() {
+        var observations = new ArrayList<String>();
+        var fault = new DelegatingDataSource(source) {
+            @Override public Connection getConnection() throws SQLException {
+                var delegate = super.getConnection();
+                return (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(),
+                        new Class<?>[]{Connection.class}, (ignored, method, args) -> {
+                            try {
+                                Object value = method.invoke(delegate, args);
+                                if (method.getName().equals("commit"))
+                                    throw new SQLException("PRIVATE_COMMIT_DIAGNOSTIC");
+                                return value;
+                            } catch (InvocationTargetException wrapper) {
+                                throw wrapper.getCause();
+                            }
+                        });
+            }
+        };
+        sql = new SpringJdbcSqlExecutor(new NamedParameterJdbcTemplate(fault));
+        var failure = assertThrows(TransactionOutcomeUnknownException.class, () -> sql.executeInTransaction(() -> {
+            insert(10);
+            assertEquals(0, sql.withoutActiveTransaction(this::physicalCount).intValue());
+            assertTrue(sql.registerTransactionSynchronization(() -> fail("commit unconfirmed"),
+                    () -> fail("rollback unconfirmed"), () -> observations.add("unknown")));
+        }));
+        assertNull(failure.getCause());
+        assertFalse(failure.getMessage().contains("PRIVATE_COMMIT_DIAGNOSTIC"));
+        assertEquals(List.of("unknown"), observations);
+        assertEquals(1, physicalCount());
+        outside();
+    }
+
+    @Test public void unconfirmedRollbackCannotReturnAnActiveConnectionToItsPool() throws Exception {
+        var observations = new ArrayList<String>();
+        var retained = new AtomicReference<Connection>();
+        var fault = new DelegatingDataSource(source) {
+            @Override public Connection getConnection() throws SQLException {
+                var delegate = super.getConnection();
+                retained.set(delegate);
+                return (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(),
+                        new Class<?>[]{Connection.class}, (ignored, method, args) -> {
+                            switch (method.getName()) {
+                                case "rollback":
+                                    observations.add("rollback");
+                                    throw new SQLException("PRIVATE_ROLLBACK_DIAGNOSTIC");
+                                case "abort":
+                                    observations.add("abort");
+                                    return null;
+                                case "setAutoCommit":
+                                    if (Boolean.TRUE.equals(args[0])) observations.add("unsafe autoCommit");
+                                    break;
+                                case "close":
+                                    observations.add("unsafe close");
+                                    break;
+                                default:
+                                    break;
+                            }
+                            try { return method.invoke(delegate, args); }
+                            catch (InvocationTargetException wrapper) { throw wrapper.getCause(); }
+                        });
+            }
+        };
+        sql = new SpringJdbcSqlExecutor(new NamedParameterJdbcTemplate(fault));
+        try {
+            var failure = assertThrows(TransactionOutcomeUnknownException.class, () -> sql.executeInTransaction(() -> {
+                insert(20);
+                assertTrue(sql.registerTransactionSynchronization(() -> fail("commit unconfirmed"),
+                        () -> fail("rollback unconfirmed"), () -> observations.add("unknown")));
+                throw new IllegalStateException("business cancelled");
+            }));
+            assertFalse(failure.getMessage().contains("PRIVATE_ROLLBACK_DIAGNOSTIC"));
+            assertEquals(List.of("rollback", "unknown", "rollback", "abort"), observations);
+            assertEquals(0, physicalCount());
+            outside();
+        } finally {
+            try (var physical = retained.get()) {
+                if (physical != null && !physical.isClosed()) physical.rollback();
+            }
+        }
+        assertEquals(0, physicalCount());
     }
 
     @Test public void nestedCallbacksWaitForPhysicalCommitAndRunOutsideIt() {

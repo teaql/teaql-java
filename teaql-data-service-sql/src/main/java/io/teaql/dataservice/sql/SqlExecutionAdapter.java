@@ -56,6 +56,9 @@ public interface SqlExecutionAdapter {
 
     /** Provider-owned completion callbacks. Unsupported adapters must not claim registration. */
     default boolean registerTransactionSynchronization(Runnable committed, Runnable rolledBack) { return false; }
+    default <T> T withoutActiveTransaction(java.util.function.Supplier<T> work) {
+        throw new UnsupportedOperationException("The SQL adapter cannot suspend its active transaction");
+    }
 
     default boolean registerTransactionSynchronization(Runnable committed, Runnable rolledBack, Runnable unknown) {
         return registerTransactionSynchronization(committed, rolledBack);
