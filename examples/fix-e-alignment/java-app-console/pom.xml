@@ -1,11 +1,11 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion>
     <parent><groupId>io.teaql</groupId><artifactId>teaql-java-parent</artifactId><version>6.4.0</version><relativePath>../../../pom.xml</relativePath></parent>
-    <groupId>io.teaql.examples</groupId><artifactId>teaql-fix-e-example</artifactId><version>6.3.0</version>
+    <groupId>io.teaql.examples</groupId><artifactId>teaql-fix-e-example</artifactId>
     <dependencies>
       <dependency><groupId>com.teaql</groupId><artifactId>checker-fix-advanced-core</artifactId><version>0.0.1-SNAPSHOT</version></dependency>
-      <dependency><groupId>io.teaql</groupId><artifactId>teaql-runtime</artifactId><version>${project.parent.version}</version></dependency>
-      <dependency><groupId>io.teaql</groupId><artifactId>teaql-sqlite</artifactId><version>${project.parent.version}</version></dependency>
-      <dependency><groupId>io.teaql</groupId><artifactId>teaql-jackson</artifactId><version>${project.parent.version}</version></dependency>
+      <dependency><groupId>io.teaql</groupId><artifactId>teaql-runtime</artifactId></dependency>
+      <dependency><groupId>io.teaql</groupId><artifactId>teaql-sqlite</artifactId></dependency>
+      <dependency><groupId>io.teaql</groupId><artifactId>teaql-jackson</artifactId></dependency>
       <dependency><groupId>io.teaql</groupId><artifactId>teaql-tfp-endpoint</artifactId><version>${project.parent.version}</version></dependency>
       <dependency><groupId>com.fasterxml.jackson.datatype</groupId><artifactId>jackson-datatype-jsr310</artifactId><scope>test</scope></dependency>
       <dependency><groupId>junit</groupId><artifactId>junit</artifactId><version>4.13.2</version><scope>test</scope></dependency>
