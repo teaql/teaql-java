@@ -7,9 +7,9 @@ import io.teaql.core.http.HttpObservation;
 import io.teaql.core.http.HttpRequestFailure;
 import io.teaql.core.http.HttpRequestService;
 import io.teaql.tools.http.impl.JdkHttpTool;
-import java.io.BufferedReader;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.net.InetAddress;
@@ -218,11 +218,13 @@ public class HttpResilienceTest {
         assertEquals(200, get.status());
         assertEquals("okay", get.text());
         assertEquals(1, get.attempts());
+        String requestBody = "PRIVATE-BODY-CANARY-é茶";
         HttpRequestService.Response post = service.execute(context,
-                HttpRequestService.Call.postText("orders", "ok", "PRIVATE-BODY-CANARY",
+                HttpRequestService.Call.postText("orders", "ok", requestBody,
                         "submit order", "send order"));
         assertEquals(200, post.status());
         assertEquals(1, post.attempts());
+        assertEquals("Fixture must consume the complete UTF-8 request body", requestBody, server.okPostBody.get());
         HttpRequestService.Response redirect = service.execute(context, get("redirect"));
         assertEquals(302, redirect.status());
         assertEquals(3, server.requests.get());
@@ -806,6 +808,7 @@ public class HttpResilienceTest {
         private final AtomicInteger retryPost = new AtomicInteger();
         private final ConcurrentLinkedQueue<String> traceparents = new ConcurrentLinkedQueue<>();
         private final ConcurrentLinkedQueue<String> retryBodies = new ConcurrentLinkedQueue<>();
+        private final AtomicReference<String> okPostBody = new AtomicReference<>();
         private final CountDownLatch overflowReleased = new CountDownLatch(1);
         private final CountDownLatch gatedEntered = new CountDownLatch(2);
         private final CountDownLatch releaseGated = new CountDownLatch(1);
@@ -833,35 +836,39 @@ public class HttpResilienceTest {
                 }
             }
         }
+        private static String readLine(BufferedInputStream input) throws IOException {
+            var line = new ByteArrayOutputStream();
+            int next;
+            while ((next = input.read()) != -1 && next != '\n') {
+                if (next != '\r') line.write(next);
+            }
+            return next == -1 && line.size() == 0 ? null : line.toString(StandardCharsets.US_ASCII);
+        }
+
         private void handle(Socket socket) {
                 try (Socket client = socket) {
                     client.setSoTimeout(1000);
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(client.getInputStream(), StandardCharsets.UTF_8));
-                    String line = reader.readLine();
+                    var reader = new BufferedInputStream(client.getInputStream());
+                    String line = readLine(reader);
                     if (line == null) return;
                     requests.incrementAndGet();
                     String target = line.split(" ")[1];
                     int contentLength = 0;
-                    while ((line = reader.readLine()) != null && !line.isEmpty()) {
+                    while ((line = readLine(reader)) != null && !line.isEmpty()) {
                         if (line.toLowerCase(java.util.Locale.ROOT).startsWith("traceparent:"))
                             traceparents.add(line.substring(line.indexOf(':') + 1).trim());
                         if (line.toLowerCase(java.util.Locale.ROOT).startsWith("content-length:"))
                             contentLength = Integer.parseInt(line.substring(line.indexOf(':') + 1).trim());
                     }
-                    // Drain the request before replying. Closing a socket with unread POST bytes
-                    // can reset an otherwise valid response on Windows TCP stacks.
-                    if (target.contains("/retry-post") || target.contains("/private-response")
-                            || target.endsWith("/stalled-post")) {
-                        char[] body = new char[contentLength];
-                        int offset = 0;
-                        while (offset < body.length) {
-                            int count = reader.read(body, offset, body.length - offset);
-                            if (count < 0) return;
-                            offset += count;
-                        }
-                        if (target.contains("/retry-post")) retryBodies.add(new String(body));
-                    }
                     if (target.contains("/close")) return;
+                    // Consume Content-Length bytes before closing the response connection.
+                    // An unread request body can turn the close into a TCP reset on Windows.
+                    byte[] requestBody = reader.readNBytes(contentLength);
+                    if (requestBody.length != contentLength) return;
+                    if (target.contains("/retry-post"))
+                        retryBodies.add(new String(requestBody, StandardCharsets.UTF_8));
+                    if (target.endsWith("/ok") && contentLength != 0)
+                        okPostBody.set(new String(requestBody, StandardCharsets.UTF_8));
                     if (target.endsWith("/overflow-open")) {
                         client.setSoTimeout(3000);
                         client.getOutputStream().write(("HTTP/1.1 200 OK\r\nContent-Length: 4096\r\n"

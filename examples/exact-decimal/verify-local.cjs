@@ -77,10 +77,16 @@ try {
   const version = fs.readFileSync(path.join(runtime, "pom.xml"), "utf8").match(/<version>([^<]+)<\/version>/)[1];
   const evaluatedVersion = fs.readFileSync(path.join(app, 'pom.xml'), 'utf8')
     .match(/<teaql.version>([^<]+)<\/teaql.version>/)[1];
-  assert.equal(version, evaluatedVersion, 'Maven reactor must match the evaluated example runtime');
   const scopes = JSON.parse(fs.readFileSync(path.join(example, 'generated-scope-hashes.json')));
+  const libraryPom = 'lib/pom.xml', applicationPom = 'pom.xml';
+  const readVersion = file => fs.readFileSync(file, 'utf8').match(/<teaql.version>([^<]+)<\/teaql.version>/)[1];
+  const libraryPomPath = path.join(library, libraryPom), applicationPomPath = path.join(app, applicationPom);
+  assert.equal(readVersion(libraryPomPath), evaluatedVersion, 'Generated scopes must record the same evaluated runtime');
+  let bindings;
   function verifyScopes() {
-    assert.deepEqual(generatedHashes(library), scopes['java-lib-core']);
+    const expectedLibrary = {...scopes['java-lib-core']};
+    if (bindings) expectedLibrary[libraryPom] = bindings.library.consumerPomSha256;
+    assert.deepEqual(generatedHashes(library), expectedLibrary);
     const observed = generatedHashes(app);
     assert.equal(spec.workspace.useSiblingMavenLibrary, true);
     assert(!fs.existsSync(path.join(app, 'lib')), 'Workspace must consume the sibling library');
@@ -96,11 +102,23 @@ try {
         assert.equal(sha(installed.replaceAll(sibling, 'mvn -f lib/pom.xml')), digest, name);
         continue;
       }
-      assert.equal(observed[name], digest, 'generated workspace file changed: ' + name);
+      const expected = bindings && name === applicationPom ? bindings.application.consumerPomSha256 : digest;
+      assert.equal(observed[name], expected, 'generated workspace file changed: ' + name);
     }
   }
   verifyScopes();
-  generated = {modelSha256, producer: spec.producer, files: scopes, workspaceUsesSiblingMavenLibrary: true};
+  const {pin} = require('../../scripts/pin-local-example-pom.cjs');
+  bindings = {
+    library: pin(libraryPomPath, runtimeRoot, scratch),
+    application: pin(applicationPomPath, runtimeRoot, scratch),
+  };
+  assert.equal(bindings.library.originalPomSha256, scopes['java-lib-core'][libraryPom]);
+  assert.equal(bindings.application.originalPomSha256, scopes['java-app-console'][applicationPom]);
+  for (const file of [libraryPomPath, applicationPomPath])
+    assert.equal(readVersion(file), version, 'Owned Maven scope must match the paired reactor');
+  verifyScopes();
+  generated = {modelSha256, producer: spec.producer, files: scopes, workspaceUsesSiblingMavenLibrary: true,
+    evaluatedRuntimeVersion: evaluatedVersion, pairedRuntimeVersion: version, disposableMavenBindings: bindings};
   fs.writeFileSync(path.join(evidence, "generated-manifest.json"), JSON.stringify(generated, null, 2) + "\n");
   const reactor = path.join(scratch, "pom.xml");
   fs.writeFileSync(reactor, '<project><modelVersion>4.0.0</modelVersion><groupId>io.teaql.test</groupId><artifactId>exact-decimal-source-reactor</artifactId><version>0.0.0</version><packaging>pom</packaging><modules><module>runtime</module><module>runtime/examples/exact-decimal/java-lib-core/lib</module><module>runtime/examples/exact-decimal/java-app-console</module></modules></project>\n');
@@ -145,6 +163,8 @@ finally {
   }
   fs.writeFileSync(path.join(evidence, "receipt.json"), JSON.stringify({schema: "teaql.java-exact-source-example/v1", passed,
     before, commands, failure, modelSha256: generated?.modelSha256, artifactSha256, localClasses, databases,
+    evaluatedRuntimeVersion: generated?.evaluatedRuntimeVersion, pairedRuntimeVersion: generated?.pairedRuntimeVersion,
+    disposableMavenBindings: generated?.disposableMavenBindings,
     rounds: passed ? 2 : undefined, sameDatabase: true, generatedLibraryUnchanged: passed,
     disposedOwnedBytes: ownedBytes, scratchRemoved: !fs.existsSync(scratch), sharedCacheInstall: false,
     publicPublication: false, internalRegistryAcceptance: false}, null, 2) + "\n");
