@@ -80,6 +80,8 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
 
     @Override public Object transactionResource() { return executionAdapter; }
 
+    @Override public boolean hasActiveTransaction() { return executionAdapter.hasActiveTransaction(); }
+
     @Override public boolean registerTransactionSynchronization(
             UserContext context, Runnable committed, Runnable rolledBack) {
         return executionAdapter.registerTransactionSynchronization(committed, rolledBack);
@@ -92,6 +94,10 @@ public class SqlDataServiceExecutor implements QueryExecutor, io.teaql.core.Stre
 
     @Override public boolean ownsNextPhysicalTransaction(UserContext context) {
         return !executionAdapter.hasActiveTransaction();
+    }
+
+    @Override public <T> T withoutActiveTransaction(java.util.function.Supplier<T> work) {
+        return executionAdapter.withoutActiveTransaction(work);
     }
 
     @Override

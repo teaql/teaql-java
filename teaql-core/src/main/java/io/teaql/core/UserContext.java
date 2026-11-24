@@ -1,6 +1,7 @@
 package io.teaql.core;
 
 import java.util.stream.Stream;
+import java.util.function.Function;
 import io.teaql.core.utils.OptNullBasicTypeFromObjectGetter;
 import java.util.List;
 import io.teaql.data.dynamic.DynamicFieldsFacade;
@@ -21,6 +22,11 @@ import io.teaql.core.reference.TrustedReferencePrincipal;
 import java.time.Duration;
 
 public interface UserContext extends OptNullBasicTypeFromObjectGetter<String> {
+
+    /** Execute the callback with a UserContext bound to one database transaction. */
+    default <T> T transaction(Function<UserContext, T> work) {
+        throw new UnsupportedOperationException("This UserContext does not support transactions");
+    }
 
     String TEAQL_LOCALE = "teaql.locale";
     String TEAQL_I18N_CATALOG = "teaql.i18n.catalog";

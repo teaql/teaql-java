@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
+import java.util.function.Function;
 import io.teaql.core.businessid.BusinessClock;
 import io.teaql.core.businessid.BusinessIdProfileFactory;
 import io.teaql.core.businessid.BusinessIdKeyProvider;
@@ -22,12 +23,13 @@ import io.teaql.runtime.businessid.DefaultBusinessIdProfileFactory;
 import io.teaql.runtime.businessid.SystemBusinessClock;
 import io.teaql.core.reference.RoundTripReferenceCodec;
 
-public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObjectGetter<String> {
+public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObjectGetter<String>, Cloneable {
 
     private final TeaQLRuntime runtime;
     private final RuntimeLogger runtimeLogger;
-    private final Map<String, Object> storage = new ConcurrentHashMap<>();
-    private final List<TraceNode> traceChain = new ArrayList<>();
+    private Map<String, Object> storage = new ConcurrentHashMap<>();
+    private List<TraceNode> traceChain = new ArrayList<>();
+    private ContextTransaction transaction;
 
     public DefaultUserContext(TeaQLRuntime runtime) {
         this.runtime = runtime;
@@ -47,6 +49,27 @@ public class DefaultUserContext implements UserContext, OptNullBasicTypeFromObje
         if (provider == null) throw new IllegalArgumentException("provider must not be null");
         putAttribute(io.teaql.core.secret.SecretProvider.class.getName(), provider);
         return this;
+    }
+
+    @Override
+    public <T> T transaction(Function<UserContext, T> work) {
+        return runtime.transaction(this, java.util.Objects.requireNonNull(work));
+    }
+
+    ContextTransaction contextTransaction() {
+        return transaction;
+    }
+
+    DefaultUserContext transactionView(ContextTransaction scope) {
+        try {
+            var view = (DefaultUserContext) super.clone();
+            view.storage = new ConcurrentHashMap<>(storage);
+            view.traceChain = new ArrayList<>(traceChain);
+            view.transaction = scope;
+            return view;
+        } catch (CloneNotSupportedException failure) {
+            throw new AssertionError(failure);
+        }
     }
 
     @Override

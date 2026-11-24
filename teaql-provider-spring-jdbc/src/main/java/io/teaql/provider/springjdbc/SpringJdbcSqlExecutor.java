@@ -98,6 +98,10 @@ public class SpringJdbcSqlExecutor implements SqlExecutionAdapter {
 
     @Override public boolean hasActiveTransaction() { return transactionCompletion.active(); }
 
+    @Override public <T> T withoutActiveTransaction(java.util.function.Supplier<T> work) {
+        return transactionCompletion.withoutActiveTransaction(work);
+    }
+
     @Override public boolean registerTransactionSynchronization(Runnable committed, Runnable rolledBack) {
         return registerTransactionSynchronization(committed, rolledBack, () -> {});
     }

@@ -60,6 +60,7 @@ public class BaseEntity implements Entity {
      * Shared change tracking root for the entire entity graph.
      */
     private EntityMutationLedger entityMutationLedger;
+    private boolean transactionOutcomeUnknown;
     // Database baseline is a row-owned scalar, not a reason to allocate a ledger.
     private Long hydratedOriginalVersion;
 
@@ -498,6 +499,20 @@ public class BaseEntity implements Entity {
     @FrameworkInternal("Allocation and hydration qualification only")
     @com.fasterxml.jackson.annotation.JsonIgnore
     public boolean __internalHasMutationLedger() { return entityMutationLedger != null; }
+
+    @FrameworkInternal("Retain transaction replay denial across ledger replacement")
+    public void __internalFenceTransactionReplay() {
+        transactionOutcomeUnknown = true;
+        if (entityMutationLedger != null) entityMutationLedger.__internalFenceTransactionReplay();
+    }
+
+    @FrameworkInternal("Called before a graph reuses its previously materialized write baseline")
+    public void __internalRequireTransactionReplayAllowed() {
+        if (transactionOutcomeUnknown
+                || entityMutationLedger != null && entityMutationLedger.__internalTransactionReplayFenced()) {
+            throw new TransactionOutcomeUnknownException();
+        }
+    }
 
     public void setEntityMutationLedger(EntityMutationLedger entityMutationLedger) {
         if (this.entityMutationLedger != null) this.entityMutationLedger.requireSaveable();

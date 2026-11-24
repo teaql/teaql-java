@@ -19,6 +19,16 @@ public class EntityMutationLedger {
     private boolean committedStateRequiresReload;
     private boolean transactionOutcomeUnknownRequiresReload;
 
+    @FrameworkInternal("Fence a graph whose database transaction did not confirm completion")
+    public void __internalFenceTransactionReplay() {
+        markTransactionOutcomeUnknownRequiresReload();
+    }
+
+    @FrameworkInternal("Test whether an existing graph must be reloaded before replay")
+    public boolean __internalTransactionReplayFenced() {
+        return transactionOutcomeUnknownRequiresReload;
+    }
+
     // --- Change Set Stack ---
 
     public void pushChangeSet() {

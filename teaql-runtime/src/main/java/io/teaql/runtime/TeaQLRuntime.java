@@ -18,9 +18,12 @@ import io.teaql.core.reference.RoundTripReferenceCodec;
 import io.teaql.core.reference.RoundTripReferenceProvider;
 import io.teaql.runtime.businessid.SystemBusinessClock;
 import java.util.*;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 public class TeaQLRuntime implements AutoCloseable {
+    private final ThreadLocal<ContextTransaction> activeContextTransaction = new ThreadLocal<>();
     private final EntityMetaFactory metadata;
     private final DataServiceRegistry registry;
     private final QueryPolicy queryPolicy;
@@ -220,8 +223,12 @@ public class TeaQLRuntime implements AutoCloseable {
         };
     }
 
-    @SuppressWarnings("unchecked")
     public <T extends Entity> SmartList<T> executeForList(UserContext context, SearchRequest<T> request) {
+        return onContext(context, () -> executeForListOnContext(context, request));
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T extends Entity> SmartList<T> executeForListOnContext(UserContext context, SearchRequest<T> request) {
         RuntimeTelemetry.Scope telemetryScope = RuntimeTelemetry.startSafely(operationTelemetry,
                 new RuntimeTelemetry.Operation("query", request.getTypeName() + ".list",
                         Map.of("teaql.entity.type", request.getTypeName())));
@@ -254,6 +261,7 @@ public class TeaQLRuntime implements AutoCloseable {
             EntityDescriptor descriptor = metadata.resolveEntityDescriptor(request.getTypeName());
             String route = descriptor.getDataService();
             if (route == null || route.isEmpty()) route = "default";
+            requireTransactionExecutor(context, route);
             QueryResult count = registry.resolveQueryExecutor(route).query(context, new DefaultQueryRequest(countRequest, intent));
             if (!(count instanceof DefaultQueryResult counted) || counted.getAggregationResult() == null) {
                 throw new TeaQLRuntimeException("Requested list count is not supported for route: " + route);
@@ -285,6 +293,10 @@ public class TeaQLRuntime implements AutoCloseable {
     /** Executes a business-facing streaming query after the same policy gate as list queries. */
     public <T extends Entity> Stream<T> executeForStream(
             UserContext context, SearchRequest<T> request) {
+        return onContext(context, () -> executeForStreamOnContext(context, request));
+    }
+
+    private <T extends Entity> Stream<T> executeForStreamOnContext(UserContext context, SearchRequest<T> request) {
         RuntimeTelemetry.Scope scope = RuntimeTelemetry.startSafely(operationTelemetry,
                 new RuntimeTelemetry.Operation("query", request.getTypeName() + ".stream",
                         Map.of("teaql.entity.type", request.getTypeName())));
@@ -304,6 +316,10 @@ public class TeaQLRuntime implements AutoCloseable {
      */
     public <T extends Entity> Stream<T> internalExecuteForStream(
             UserContext context, SearchRequest<T> request) {
+        return onContext(context, () -> internalExecuteForStreamOnContext(context, request));
+    }
+
+    private <T extends Entity> Stream<T> internalExecuteForStreamOnContext(UserContext context, SearchRequest<T> request) {
         QueryIntent intent = requireInheritedQueryIntent(request);
         var requestScope = QueryRequestScope.capture(request);
         request = new StatisticsRequestPreparation(queryPolicy).prepare(context, request, requestScope);
@@ -325,6 +341,7 @@ public class TeaQLRuntime implements AutoCloseable {
             route = "default";
         }
         DataServiceExecutor executor = registry.resolve(route);
+        requireTransactionExecutor(context, route);
         if (executor instanceof StreamingQueryExecutor streamingQueryExecutor) {
             return streamingQueryExecutor.queryForStream(context, new DefaultQueryRequest(request, intent));
         }
@@ -338,6 +355,10 @@ public class TeaQLRuntime implements AutoCloseable {
      */
     public <T extends Entity> SmartList<T> internalExecuteForList(
             UserContext context, SearchRequest<T> request) {
+        return onContext(context, () -> internalExecuteForListOnContext(context, request));
+    }
+
+    private <T extends Entity> SmartList<T> internalExecuteForListOnContext(UserContext context, SearchRequest<T> request) {
         Map<String, Object> relationAttributes = new java.util.LinkedHashMap<>();
         relationAttributes.put("teaql.entity.type", request.getTypeName());
         copyRelationPlanAttribute(request, relationAttributes,
@@ -414,6 +435,7 @@ public class TeaQLRuntime implements AutoCloseable {
         if (route == null || route.isEmpty()) {
             route = "default";
         }
+        requireTransactionExecutor(context, route);
         QueryExecutor queryExecutor = registry.resolveQueryExecutor(route);
         if (queryExecutor == null) {
             throw new TeaQLRuntimeException("No QueryExecutor registered for route: " + route);
@@ -468,6 +490,10 @@ public class TeaQLRuntime implements AutoCloseable {
     }
 
     public <T extends Entity> AggregationResult aggregation(UserContext context, SearchRequest<T> request) {
+        return onContext(context, () -> aggregationOnContext(context, request));
+    }
+
+    private <T extends Entity> AggregationResult aggregationOnContext(UserContext context, SearchRequest<T> request) {
         QueryIntent intent = QueryIntent.of(request.comment(), request.purpose());
         request = new StatisticsRequestPreparation(queryPolicy)
                 .prepare(context, request, QueryRequestScope.capture(request));
@@ -476,6 +502,7 @@ public class TeaQLRuntime implements AutoCloseable {
         if (route == null || route.isEmpty()) {
             route = "default";
         }
+        requireTransactionExecutor(context, route);
         QueryExecutor queryExecutor = registry.resolveQueryExecutor(route);
         if (queryExecutor == null) {
             throw new TeaQLRuntimeException("No QueryExecutor registered for route: " + route);
@@ -486,6 +513,90 @@ public class TeaQLRuntime implements AutoCloseable {
             return ((DefaultQueryResult) queryResult).getAggregationResult();
         }
         throw new TeaQLRuntimeException("Unsupported QueryResult type: " + queryResult.getClass().getName());
+    }
+
+    <T> T transaction(DefaultUserContext context, Function<UserContext, T> work) {
+        return onContext(context, () -> transactionOnContext(context, work));
+    }
+
+    private <T> T transactionOnContext(DefaultUserContext context, Function<UserContext, T> work) {
+        ContextTransaction existing = context.contextTransaction();
+        if (existing != null) {
+            existing.requireWritable();
+            try {
+                return work.apply(context);
+            } catch (RuntimeException | Error failure) {
+                existing.fail(failure);
+                throw failure;
+            }
+        }
+
+        TransactionExecutor executor = contextTransactionExecutor();
+        if (executor.hasActiveTransaction())
+            throw new IllegalStateException("The data service already has an externally owned transaction");
+
+        var scope = new ContextTransaction(executor);
+        var view = context.transactionView(scope);
+        try {
+            return executor.executeInTransaction(view, () -> {
+                if (!executor.registerTransactionSynchronization(view, scope::confirmCommit, () -> {}, scope::fenceReplay))
+                    throw new IllegalStateException("The data service cannot confirm transaction completion");
+                activeContextTransaction.set(scope);
+                try {
+                    T result = work.apply(view);
+                    scope.throwIfFailed();
+                    return result;
+                } catch (RuntimeException | Error failure) {
+                    scope.fail(failure);
+                    scope.throwIfFailed();
+                    throw failure;
+                } finally {
+                    activeContextTransaction.remove();
+                    scope.close();
+                }
+            });
+        } catch (RuntimeException | Error failure) {
+            if (scope.committed()) throw new TransactionCommittedException(failure);
+            throw failure;
+        } finally {
+            scope.release();
+        }
+    }
+
+    private <T> T onContext(UserContext context, Supplier<T> work) {
+        ContextTransaction bound = context instanceof DefaultUserContext user ? user.contextTransaction() : null;
+        if (bound != null) {
+            bound.requireAccess();
+            if (bound != activeContextTransaction.get())
+                throw new IllegalStateException("Transaction UserContext is outside its callback");
+            return work.get();
+        }
+        ContextTransaction active = activeContextTransaction.get();
+        if (active == null) return work.get();
+        return active.executor().withoutActiveTransaction(() -> {
+            activeContextTransaction.remove();
+            try { return work.get(); }
+            finally { activeContextTransaction.set(active); }
+        });
+    }
+
+    private TransactionExecutor contextTransactionExecutor() {
+        var defaultExecutor = registry.resolveTransactionExecutor(DataServiceRoute.DEFAULT.name());
+        if (defaultExecutor.isPresent()) return defaultExecutor.get();
+        Set<DataServiceExecutor> providers = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (EntityDescriptor descriptor : metadata.allEntityDescriptors()) {
+            String route = descriptor.getDataService();
+            if (route == null || route.isEmpty()) route = DataServiceRoute.DEFAULT.name();
+            providers.add(registry.resolve(route));
+        }
+        if (providers.size() == 1 && providers.iterator().next() instanceof TransactionExecutor transaction)
+            return transaction;
+        throw new IllegalStateException("UserContext requires a single configured transactional data service");
+    }
+
+    private void requireTransactionExecutor(UserContext context, String route) {
+        if (context instanceof DefaultUserContext user && user.contextTransaction() != null)
+            user.contextTransaction().requireExecutor(registry.resolve(route));
     }
 
     public void saveGraph(UserContext context, Object items) {
@@ -499,11 +610,28 @@ public class TeaQLRuntime implements AutoCloseable {
     }
 
     public void saveGraph(UserContext context, Entity entity) {
+        onContext(context, () -> {
+            saveGraphOnContext(context, entity);
+            return null;
+        });
+    }
+
+    private void saveGraphOnContext(UserContext context, Entity entity) {
+        ContextTransaction scope = context instanceof DefaultUserContext user ? user.contextTransaction() : null;
         RuntimeTelemetry.Scope telemetryScope = RuntimeTelemetry.startSafely(operationTelemetry,
                 new RuntimeTelemetry.Operation("mutation", entity.typeName() + ".save", Map.of(
                         "teaql.entity.type", entity.typeName(),
                         "teaql.mutation.kind", "save")));
         try {
+            if (scope != null) {
+                scope.requireAccess();
+                if (entity instanceof BaseEntity root) scope.track(root);
+                scope.requireWritable();
+                EntityDescriptor routed = metadata.resolveEntityDescriptor(entity.typeName());
+                String name = routed.getDataService();
+                requireTransactionExecutor(context, name == null || name.isEmpty() ? "default" : name);
+            }
+            requireGraphReplayAllowed(entity, scope, Collections.newSetFromMap(new IdentityHashMap<>()));
             MutationIntent intent = MutationIntent.of(entity.getComment());
             if (entity instanceof BaseEntity root && root.isNew() && root.isMarkedAsDelete()) {
                 throw new TeaQLRuntimeException("CANCELLED_NEW_ROOT: A cancelled new root has no persisted entity to return");
@@ -512,7 +640,6 @@ public class TeaQLRuntime implements AutoCloseable {
             io.teaql.runtime.mutation.MutationVersionAdmission.validateGraph(metadata, entity);
             // Get entity's own EntityMutationLedger
             EntityMutationLedger entityMutationLedger = ((BaseEntity) entity).getEntityMutationLedger();
-            requireSaveableGraph(entity, Collections.newSetFromMap(new IdentityHashMap<>()));
             checkAndFix(context, entity);
 
             // Allocate identifiers before roots are merged. New children commonly
@@ -597,8 +724,7 @@ public class TeaQLRuntime implements AutoCloseable {
             Runnable rollback = captureGraphRollback(realEntities.values());
             Runnable fenceUnknown = () -> {
                 entityMutationLedger.markTransactionOutcomeUnknownRequiresReload();
-                realEntities.values().forEach(target ->
-                        target.getEntityMutationLedger().markTransactionOutcomeUnknownRequiresReload());
+                realEntities.values().forEach(BaseEntity::__internalFenceTransactionReplay);
             };
             List<PendingMutation> completed;
             try {
@@ -607,6 +733,8 @@ public class TeaQLRuntime implements AutoCloseable {
                     completed = transactionExecutor.executeInTransaction(context, () -> {
                         completion.synchronizedTransaction = transactionExecutor.registerTransactionSynchronization(
                                 context, completion::deliver, rollback, fenceUnknown);
+                        if (scope != null && !completion.synchronizedTransaction)
+                            throw new IllegalStateException("The data service cannot register transaction completion");
                         Map<EntityKey, Map<String, Object>> committedPreimages =
                                 committedMutationRecorder == null ? Map.of()
                                         : captureCommittedPreimages(context, mutationExecutor, mutationPlan);
@@ -689,15 +817,20 @@ public class TeaQLRuntime implements AutoCloseable {
             }
             telemetryScope.success();
         } catch (RuntimeException | Error error) {
+            if (scope != null) scope.fail(error);
             telemetryScope.failure(error);
             throw error;
         }
     }
 
-    private void requireSaveableGraph(Entity entity, Set<Entity> visited) {
-        if (!(entity instanceof BaseEntity target) || !visited.add(entity)) return;
-        if (target.__internalHasMutationLedger()) target.getEntityMutationLedger().requireSaveable();
-        visitRelatedEntities(target, related -> requireSaveableGraph(related, visited));
+    private void requireGraphReplayAllowed(Entity entity, ContextTransaction scope, Set<Entity> visited) {
+        if (!visited.add(entity)) return;
+        if (entity instanceof BaseEntity root) {
+            if (scope != null) scope.track(root);
+            if (root.__internalHasMutationLedger()) root.getEntityMutationLedger().requireSaveable();
+            root.__internalRequireTransactionReplayAllowed();
+        }
+        visitRelatedEntities(entity, related -> requireGraphReplayAllowed(related, scope, visited));
     }
 
     /** One atomic plan cannot borrow a root provider for a different entity route. */

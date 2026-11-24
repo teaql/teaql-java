@@ -245,6 +245,54 @@ public class GraphTraceSqliteTest {
 
     record CheckedSave(Throwable failure, List<FixEvidence> evidence) {}
 
+    @Test public void contextTransactionCommitsTwoIndependentGraphsTogether() throws Exception {
+        var fixture = new Fixture();
+        var order = fixture.create("CustomerOrder", 4100, "approved order");
+        var payment = fixture.create("Payment", 4101, "reserved payment");
+        fixture.context.putAttribute("approval-policy", "purchasing");
+        var escaped = new java.util.concurrent.atomic.AtomicReference<UserContext>();
+
+        Long id = fixture.context.transaction(ctx -> {
+            escaped.set(ctx);
+            assertEquals("purchasing", ctx.getAttribute("approval-policy"));
+            order.auditAs("approve order").save(ctx);
+            assertEquals(1, fixture.driver.queryForList(
+                    "SELECT id FROM customer_order_data WHERE id = ?", new Object[]{4100L}).size());
+            payment.auditAs("reserve payment").save(ctx);
+            assertTrue(fixture.audit.isEmpty());
+            return order.getId();
+        });
+
+        assertEquals(Long.valueOf(4100), id);
+        assertEquals(2, fixture.audit.size());
+        assertEquals(1, fixture.driver.queryForList(
+                "SELECT id FROM payment_data WHERE id = ?", new Object[]{4101L}).size());
+        assertThrows(IllegalStateException.class, () -> payment.auditAs("expired scope").save(escaped.get()));
+    }
+
+    @Test public void contextTransactionRollsBackEvenIfTheSecondSaveFailureIsCaught() throws Exception {
+        var fixture = new Fixture();
+        var order = fixture.create("CustomerOrder", 4200, "approved order");
+        var missingReason = fixture.create("Payment", 4201, "reserve payment");
+        var savedFailure = new java.util.concurrent.atomic.AtomicReference<RequestIntentException>();
+
+        RequestIntentException error = assertThrows(RequestIntentException.class,
+                () -> fixture.context.transaction(ctx -> {
+                    order.auditAs("approve order").save(ctx);
+                    try {
+                        ctx.saveGraph(missingReason);
+                    } catch (RequestIntentException failure) {
+                        savedFailure.set(failure);
+                    }
+                    return order.getId();
+                }));
+
+        assertSame(savedFailure.get(), error);
+        assertTrue(fixture.driver.queryForList(
+                "SELECT id FROM customer_order_data WHERE id = ?", new Object[]{4200L}).isEmpty());
+        assertTrue(fixture.audit.isEmpty());
+    }
+
     @Test public void savingAnotherGraphDoesNotRebindAReadOnlyRelatedEntityLedger() throws Exception {
         var fixture = new Fixture();
         var shared = fixture.create("CustomerOrder", 6500, "Shared read-only parent");
